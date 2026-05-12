@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.StatementResult;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
 
 /**
  * <p>
@@ -31,7 +31,7 @@ public class StatementCallable<R> implements Callable<R> {
   private String                       _statement;
 
   /** - */
-  private Function<StatementResult, R> _function;
+  private Function<Result, R> _function;
 
   /** - */
   private Map<String, Object>          _params;
@@ -46,7 +46,7 @@ public class StatementCallable<R> implements Callable<R> {
    * @param params
    */
   public StatementCallable(Driver driver, String statement, Map<String, Object> params,
-      Function<StatementResult, R> function) {
+      Function<Result, R> function) {
     this._driver = checkNotNull(driver);
     this._statement = checkNotNull(statement);
     this._function = checkNotNull(function);
@@ -62,12 +62,12 @@ public class StatementCallable<R> implements Callable<R> {
     try (Session session = this._driver.session()) {
 
       if (this._params == null) {
-        StatementResult statementResult = session.run(this._statement);
+        Result statementResult = session.run(this._statement);
         return this._function.apply(statementResult);
       }
       //
       else {
-        StatementResult statementResult = session.run(this._statement, this._params);
+        Result statementResult = session.run(this._statement, this._params);
         return this._function.apply(statementResult);
       }
     }

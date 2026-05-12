@@ -1,7 +1,7 @@
 package org.slizaa.core.boltclient;
 
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.exceptions.Neo4jException;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.exceptions.Neo4jException;
 
 /**
  * <p>
@@ -35,7 +35,7 @@ public interface IQueryResultConsumer {
    * @param cypherQuery
    * @param result
    */
-  void handleQueryResultReceived(String cypherQuery, StatementResult result);
+  void handleQueryResultReceived(String cypherQuery, Result result);
 
   /**
    * <p>
@@ -45,5 +45,5 @@ public interface IQueryResultConsumer {
    * @param result
    * @param exception
    */
-  void handleError(String cypherQuery, StatementResult result, Neo4jException exception);
+  void handleError(String cypherQuery, Result result, Neo4jException exception);
 }

@@ -5,7 +5,7 @@ package org.slizaa.core.boltclient.internal.gson;
 
 import java.lang.reflect.Type;
 
-import org.neo4j.driver.v1.types.Path;
+import org.neo4j.driver.types.Path;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

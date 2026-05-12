@@ -3,7 +3,9 @@
  */
 package org.slizaa.core.boltclient;
 
-import org.neo4j.driver.v1.StatementResult;
+import org.neo4j.driver.EagerResult;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Result;
 import org.slizaa.core.boltclient.internal.gson.BoltAwareGsonFactory;
 
 import com.google.gson.Gson;
@@ -28,14 +30,14 @@ public class StatementResultToJsonConverter {
    * @param statementResult
    * @return
    */
-  public static JsonArray convertToJsonArray(StatementResult statementResult) {
+  public static JsonArray convertToJsonArray(EagerResult statementResult) {
 
     //
     JsonArray result = new JsonArray();
 
     //
-    while (statementResult.hasNext()) {
-      JsonElement element = _gson.toJsonTree(statementResult.next().asMap());
+    for (Record record : statementResult.records()) {
+      JsonElement element = _gson.toJsonTree(record.asMap());
       result.add(element);
     }
 
@@ -50,14 +52,14 @@ public class StatementResultToJsonConverter {
    * @param statementResult
    * @return
    */
-  public static String convertToJson(StatementResult statementResult) {
+  public static String convertToJson(EagerResult statementResult) {
 
     //
     JsonArray result = new JsonArray();
 
     //
-    while (statementResult.hasNext()) {
-      JsonElement element = _gson.toJsonTree(statementResult.next().asMap());
+    for (Record record : statementResult.records()) {
+      JsonElement element = _gson.toJsonTree(record.asMap());
       result.add(element);
     }
 

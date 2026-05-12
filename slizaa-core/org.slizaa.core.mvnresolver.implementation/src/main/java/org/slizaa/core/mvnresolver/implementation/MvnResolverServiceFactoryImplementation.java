@@ -73,7 +73,7 @@ public class MvnResolverServiceFactoryImplementation implements IMvnResolverServ
          */
         @Override
         public MvnResolverServiceFactoryBuilder withDefaultRemoteRepository() {
-            return withRemoteRepository("central", "http://repo1.maven.org/maven2");
+            return withRemoteRepository("central", "https://repo1.maven.org/maven2");
         }
 
         /**

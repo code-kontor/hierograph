@@ -6,9 +6,10 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.types.Node;
-import org.neo4j.driver.v1.types.Relationship;
+import org.neo4j.driver.EagerResult;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.types.Node;
+import org.neo4j.driver.types.Relationship;
 
 /**
  * <p>
@@ -113,7 +114,7 @@ public interface IBoltClient {
    * @param cypherQuery
    * @return
    */
-  StatementResult syncExecCypherQuery(String cypherQuery);
+  EagerResult syncExecCypherQuery(String cypherQuery);
 
   /**
    * <p>
@@ -123,7 +124,7 @@ public interface IBoltClient {
    * @param params
    * @return
    */
-  StatementResult syncExecCypherQuery(String cypherQuery, Map<String, Object> params);
+  EagerResult syncExecCypherQuery(String cypherQuery, Map<String, Object> params);
 
   /**
    * <p>
@@ -132,7 +133,7 @@ public interface IBoltClient {
    * @param cypherQuery
    * @return
    */
-  Future<StatementResult> asyncExecCypherQuery(String cypherQuery);
+  Future<Result> asyncExecCypherQuery(String cypherQuery);
 
   /**
    * <p>
@@ -142,7 +143,7 @@ public interface IBoltClient {
    * @param params
    * @return
    */
-  Future<StatementResult> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params);
+  Future<Result> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params);
 
   /**
    * <p>
@@ -152,7 +153,7 @@ public interface IBoltClient {
    * @param consumer
    * @return
    */
-  Future<Void> asyncExecCypherQuery(String cypherQuery, Consumer<StatementResult> consumer);
+  Future<Void> asyncExecCypherQuery(String cypherQuery, Consumer<Result> consumer);
 
   /**
    * <p>
@@ -163,7 +164,7 @@ public interface IBoltClient {
    * @param consumer
    * @return
    */
-  Future<Void> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params, Consumer<StatementResult> consumer);
+  Future<Void> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params, Consumer<Result> consumer);
 
   /**
    * <p>
@@ -194,7 +195,7 @@ public interface IBoltClient {
    * @param consumer
    * @return
    */
-  <T> Future<T> asyncExecCypherQueryAndTransformResult(String cypherQuery, Function<StatementResult, T> consumer);
+  <T> Future<T> asyncExecCypherQueryAndTransformResult(String cypherQuery, Function<Result, T> consumer);
 
   /**
    * <p>
@@ -206,5 +207,5 @@ public interface IBoltClient {
    * @return
    */
   <T> Future<T> asyncExecCypherQueryAndTransformResult(String cypherQuery, Map<String, Object> params,
-      Function<StatementResult, T> consumer);
+      Function<Result, T> consumer);
 }

@@ -8,12 +8,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.Executors;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.ClassRule;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.types.Node;
-import org.neo4j.harness.junit.Neo4jRule;
+import org.neo4j.driver.EagerResult;
+import org.neo4j.driver.types.Node;
+import org.neo4j.harness.Neo4j;
+import org.neo4j.harness.Neo4jBuilders;
 
 /**
  * <p>
@@ -25,11 +27,22 @@ import org.neo4j.harness.junit.Neo4jRule;
 public class BoltClientTest {
 
   /** - */
-  @ClassRule
-  public static Neo4jRule NEO4J_RULE = new Neo4jRule();
+  private static Neo4j neo4j;
 
   /** - */
   private IBoltClient     _boltClient;
+
+  @BeforeClass
+  public static void startNeo4j() {
+    neo4j = Neo4jBuilders.newInProcessBuilder().build();
+  }
+
+  @AfterClass
+  public static void stopNeo4j() {
+    if (neo4j != null) {
+      neo4j.close();
+    }
+  }
 
   /**
    * <p>
@@ -40,7 +53,7 @@ public class BoltClientTest {
 
     //
     IBoltClientFactory boltClientFactory = IBoltClientFactory.newInstance(Executors.newFixedThreadPool(20));
-    this._boltClient = boltClientFactory.createBoltClient(NEO4J_RULE.boltURI().toString(), "", "");
+    this._boltClient = boltClientFactory.createBoltClient(neo4j.boltURI().toString(), "", "");
     this._boltClient.connect();
 
     //
@@ -75,7 +88,7 @@ public class BoltClientTest {
   @Test
   public void testGson() throws Exception {
 
-    StatementResult result = this._boltClient.syncExecCypherQuery("MATCH (n) return n");
+    EagerResult result = this._boltClient.syncExecCypherQuery("MATCH (n) return n");
 
     //
     assertThat(StatementResultToJsonConverter.convertToJson(result)).isEqualTo(

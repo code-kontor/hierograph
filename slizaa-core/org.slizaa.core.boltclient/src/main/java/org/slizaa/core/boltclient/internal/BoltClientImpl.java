@@ -19,19 +19,21 @@ import java.util.concurrent.FutureTask;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.neo4j.driver.v1.Config;
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.GraphDatabase;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.exceptions.Neo4jException;
-import org.neo4j.driver.v1.types.Node;
-import org.neo4j.driver.v1.types.Relationship;
+import org.neo4j.driver.Config;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.EagerResult;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.QueryConfig;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
+import org.neo4j.driver.exceptions.Neo4jException;
+import org.neo4j.driver.types.Node;
+import org.neo4j.driver.types.Relationship;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.core.boltclient.IQueryResultConsumer;
 import org.slizaa.core.boltclient.internal.asynch.StatementCallable;
 import org.slizaa.core.boltclient.internal.asynch.StatementResultConsumerCallable;
-import org.slizaa.core.boltclient.internal.osgi.ServiceRegistrator;
 
 /**
  * <p>
@@ -113,15 +115,8 @@ public class BoltClientImpl implements IBoltClient {
   public void connect() {
 
     //
-    Config config = Config.build().withoutEncryption().toConfig();
+    Config config = Config.builder().withoutEncryption().build();
     this._driver = GraphDatabase.driver(getUri(), config);
-
-    // register adapter
-    try {
-      ServiceRegistrator.registerAsOsgiService(this);
-    } catch (Exception e) {
-      // ignore
-    }
 
     //
     setConnected(true);
@@ -132,13 +127,6 @@ public class BoltClientImpl implements IBoltClient {
    */
   @Override
   public void disconnect() {
-
-    // unregister adapter
-    try {
-      ServiceRegistrator.unregisterAsOsgiService(this);
-    } catch (Exception e) {
-      // ignore
-    }
 
     //
     this._driver.close();
@@ -156,7 +144,7 @@ public class BoltClientImpl implements IBoltClient {
     assertConnected();
 
     try (Session session = this._driver.session()) {
-      StatementResult result = session.run(String.format("MATCH ()-[r]->() WHERE id(r) = %s RETURN r ", nodeId));
+      Result result = session.run(String.format("MATCH ()-[r]->() WHERE id(r) = %s RETURN r ", nodeId));
       return result.single().get("r").asRelationship();
     }
   }
@@ -167,9 +155,12 @@ public class BoltClientImpl implements IBoltClient {
   @Override
   public Node getNode(long nodeId) {
 
-    //
-    return syncExecCypherQuery(String.format("MATCH (n) WHERE id(n) = %s RETURN n ", nodeId)).single().get("n")
-        .asNode();
+    assertConnected();
+
+    try (Session session = this._driver.session()) {
+      Result result = session.run(String.format("MATCH (n) WHERE id(n) = %s RETURN n ", nodeId));
+      return result.single().get("n").asNode();
+    }
   }
 
   /**
@@ -179,7 +170,8 @@ public class BoltClientImpl implements IBoltClient {
   public List<String> getRelationshipTypes() {
 
     //
-    return syncExecCypherQuery("CALL db.relationshipTypes").list(r -> r.get("relationshipType").asString());
+    return syncExecCypherQuery("CALL db.relationshipTypes").records().stream()
+        .map(r -> r.get("relationshipType").asString()).collect(java.util.stream.Collectors.toList());
   }
 
   /**
@@ -189,7 +181,8 @@ public class BoltClientImpl implements IBoltClient {
   public List<String> getNodeLabels() {
 
     //
-    return syncExecCypherQuery("CALL db.labels").list(r -> r.get("label").asString());
+    return syncExecCypherQuery("CALL db.labels").records().stream()
+        .map(r -> r.get("label").asString()).collect(java.util.stream.Collectors.toList());
   }
 
   /**
@@ -199,42 +192,39 @@ public class BoltClientImpl implements IBoltClient {
   public List<String> getPropertyKeys() {
 
     //
-    return syncExecCypherQuery("CALL db.propertyKeys").list(r -> r.get("propertyKey").asString());
+    return syncExecCypherQuery("CALL db.propertyKeys").records().stream()
+        .map(r -> r.get("propertyKey").asString()).collect(java.util.stream.Collectors.toList());
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public StatementResult syncExecCypherQuery(String cypherQuery) {
+  public EagerResult syncExecCypherQuery(String cypherQuery) {
 
     checkNotNull(cypherQuery);
     assertConnected();
 
-    try (Session session = this._driver.session()) {
-      return session.run(cypherQuery);
-    }
+    return this._driver.executableQuery(cypherQuery).execute();
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public StatementResult syncExecCypherQuery(String cypherQuery, Map<String, Object> params) {
+  public EagerResult syncExecCypherQuery(String cypherQuery, Map<String, Object> params) {
     checkNotNull(cypherQuery);
     checkNotNull(params);
     assertConnected();
 
-    try (Session session = this._driver.session()) {
-      return session.run(cypherQuery, params);
-    }
+    return this._driver.executableQuery(cypherQuery).withParameters(params).execute();
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public Future<StatementResult> asyncExecCypherQuery(String cypherQuery) {
+  public Future<Result> asyncExecCypherQuery(String cypherQuery) {
     return asyncExecCypherQuery(cypherQuery, (Map<String, Object>) null);
   }
 
@@ -242,7 +232,7 @@ public class BoltClientImpl implements IBoltClient {
    * {@inheritDoc}
    */
   @Override
-  public Future<StatementResult> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params) {
+  public Future<Result> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params) {
 
     //
     assertConnected();
@@ -251,8 +241,8 @@ public class BoltClientImpl implements IBoltClient {
     try (Session session = this._driver.session()) {
 
       // create future task
-      FutureTask<StatementResult> futureTask = new FutureTask<StatementResult>(
-          new StatementCallable<StatementResult>(this._driver, checkNotNull(cypherQuery), params, result -> result));
+      FutureTask<Result> futureTask = new FutureTask<Result>(
+          new StatementCallable<Result>(this._driver, checkNotNull(cypherQuery), params, result -> result));
 
       // execute
       this._executorService.execute(futureTask);
@@ -267,7 +257,7 @@ public class BoltClientImpl implements IBoltClient {
    */
   @Override
   public <T> Future<T> asyncExecCypherQueryAndTransformResult(String cypherQuery,
-      Function<StatementResult, T> function) {
+      Function<Result, T> function) {
     return this.asyncExecCypherQueryAndTransformResult(cypherQuery, (Map<String, Object>) null, function);
   }
 
@@ -276,7 +266,7 @@ public class BoltClientImpl implements IBoltClient {
    */
   @Override
   public <T> Future<T> asyncExecCypherQueryAndTransformResult(String cypherQuery, Map<String, Object> params,
-      Function<StatementResult, T> function) {
+      Function<Result, T> function) {
 
     //
     assertConnected();
@@ -335,7 +325,7 @@ public class BoltClientImpl implements IBoltClient {
    * {@inheritDoc}
    */
   @Override
-  public Future<Void> asyncExecCypherQuery(String cypherQuery, Consumer<StatementResult> consumer) {
+  public Future<Void> asyncExecCypherQuery(String cypherQuery, Consumer<Result> consumer) {
     return asyncExecCypherQuery(cypherQuery, null, consumer);
   }
 
@@ -344,7 +334,7 @@ public class BoltClientImpl implements IBoltClient {
    */
   @Override
   public Future<Void> asyncExecCypherQuery(String cypherQuery, Map<String, Object> params,
-      Consumer<StatementResult> consumer) {
+      Consumer<Result> consumer) {
 
     //
     assertConnected();

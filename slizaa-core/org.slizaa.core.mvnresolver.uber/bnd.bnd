@@ -1,4 +1,0 @@
-Export-Package: org.slizaa.core.mvnresolver, org.slizaa.core.mvnresolver.api
-Import-Package: com.google.common.base,com.google.common.collect,*
-Slizaa-SpiApi: true
--snapshot: BUILD-${tstamp}

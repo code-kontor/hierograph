@@ -16,9 +16,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.StatementResult;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
 import org.slizaa.core.boltclient.IBoltClient;
 
 /**
@@ -39,7 +39,7 @@ public class StatementResultConsumerCallable implements Callable<Void> {
   private Map<String, Object>       _params;
 
   /** the consumer */
-  private Consumer<StatementResult> _consumer;
+  private Consumer<Result> _consumer;
 
   /** - */
   private IBoltClient               _boltClient;
@@ -56,7 +56,7 @@ public class StatementResultConsumerCallable implements Callable<Void> {
    * @param boltClient
    */
   public StatementResultConsumerCallable(Driver driver, String statement, Map<String, Object> params,
-      Consumer<StatementResult> consumer, IBoltClient boltClient) {
+      Consumer<Result> consumer, IBoltClient boltClient) {
     _driver = checkNotNull(driver);
     _statement = checkNotNull(statement);
     _params = params;
@@ -72,7 +72,7 @@ public class StatementResultConsumerCallable implements Callable<Void> {
     try (Session session = _driver.session()) {
 
       //
-      StatementResult statementResult = _params == null ? session.run(_statement) : session.run(_statement, _params);
+      Result statementResult = _params == null ? session.run(_statement) : session.run(_statement, _params);
 
       if (_consumer != null) {
 

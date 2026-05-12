@@ -16,7 +16,7 @@
 		<dependency>
 			<groupId>org.neo4j.driver</groupId>
 			<artifactId>neo4j-java-driver</artifactId>
-			<version>1.6.1</version>
+			<version>5.28.13</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
@@ -26,28 +26,17 @@
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.osgi</groupId>
-			<artifactId>org.osgi.service.component.annotations</artifactId>
-			<version>1.3.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.osgi</groupId>
-			<artifactId>osgi.core</artifactId>
-			<version>5.0.0</version>
-		</dependency>
-
 		<!-- test -->
 		<dependency>
 			<groupId>org.neo4j.test</groupId>
 			<artifactId>neo4j-harness</artifactId>
-			<version>3.4.0</version>
+			<version>5.26.26</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.neo4j</groupId>
 			<artifactId>neo4j</artifactId>
-			<version>3.4.0</version>
+			<version>5.26.26</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -65,27 +54,22 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>biz.aQute.bnd</groupId>
-				<artifactId>bnd-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>bnd-process</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
+				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<archive>
-						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
-					</archive>
+					<argLine>
+						--add-opens java.base/java.lang=ALL-UNNAMED
+						--add-opens java.base/java.lang.invoke=ALL-UNNAMED
+						--add-opens java.base/java.lang.reflect=ALL-UNNAMED
+						--add-opens java.base/java.io=ALL-UNNAMED
+						--add-opens java.base/java.nio=ALL-UNNAMED
+						--add-opens java.base/java.util=ALL-UNNAMED
+						--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+						--add-opens java.base/sun.security.ssl=ALL-UNNAMED
+						--add-opens java.base/java.net=ALL-UNNAMED
+					</argLine>
 				</configuration>
 			</plugin>
-
 		</plugins>
 	</build>
 
