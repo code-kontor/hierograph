@@ -1,6 +1,6 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal;
 
-import org.neo4j.driver.v1.types.Node;
+import org.neo4j.driver.types.Node;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.core.progressmonitor.IProgressMonitor;
 import org.slizaa.hierarchicalgraph.core.model.*;

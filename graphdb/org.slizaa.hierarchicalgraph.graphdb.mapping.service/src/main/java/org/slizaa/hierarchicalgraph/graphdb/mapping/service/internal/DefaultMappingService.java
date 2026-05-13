@@ -1,7 +1,5 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal;
 
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.core.progressmonitor.IProgressMonitor;
 import org.slizaa.core.progressmonitor.NullProgressMonitor;
@@ -39,7 +37,6 @@ import static org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal.Grap
  *
  * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
  */
-@Component
 public class DefaultMappingService implements IMappingService {
 
     /**
@@ -61,7 +58,6 @@ public class DefaultMappingService implements IMappingService {
         return nodeSource;
     };
 
-    @Reference()
     public void addMappingParticipator(IMappingParticipator mappingParticipator) {
         this._mappingParticipators.add(mappingParticipator);
     }

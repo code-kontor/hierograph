@@ -4,7 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.concurrent.ExecutionException;
 
-import org.neo4j.driver.v1.exceptions.NoSuchRecordException;
+import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.slizaa.core.boltclient.IBoltClient;
 
 /**
@@ -71,7 +71,7 @@ public class NodeIdFinder {
   private static long requestId(IBoltClient boltClient, String cypherQuery) {
 
     try {
-      return checkNotNull(boltClient).syncExecCypherQuery(checkNotNull(cypherQuery)).single().get(0).asLong();
+      return checkNotNull(boltClient).syncExecCypherQuery(checkNotNull(cypherQuery)).records().get(0).get(0).asLong();
     } catch (NoSuchRecordException e) {
       throw new RuntimeException(e);
     }

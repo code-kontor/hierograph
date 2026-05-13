@@ -6,7 +6,7 @@ import java.util.Optional;
 
 import org.eclipse.emf.common.util.EMap;
 import org.eclipse.emf.ecore.util.EcoreEMap;
-import org.neo4j.driver.v1.types.Relationship;
+import org.neo4j.driver.types.Relationship;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.core.model.impl.StringToStringMapImpl;

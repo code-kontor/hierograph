@@ -1,4 +1,0 @@
-Bundle-SymbolicName: org.slizaa.hierarchicalgraph.core.selections;singleton:=true
--exportcontents: org.slizaa.hierarchicalgraph.core.selections*,!*internal*
--sources: true
--sourcepath: src, target/workspace/org.slizaa.hierarchicalgraph.core.selections/src-gen

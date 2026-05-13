@@ -12,8 +12,8 @@ import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.common.util.EMap;
 import org.eclipse.emf.ecore.util.EDataTypeUniqueEList;
 import org.eclipse.emf.ecore.util.EcoreEMap;
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.types.Node;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.types.Node;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
@@ -184,7 +184,7 @@ public class ExtendedGraphDbNodeSourceTrait {
     // query
     Map<String, Object> params = new HashMap<>();
     params.put("ids", nodes.keySet());
-    Future<StatementResult> result = getBoltClient().asyncExecCypherQuery(BATCH_UPDATE_QUERY, params);
+    Future<Result> result = getBoltClient().asyncExecCypherQuery(BATCH_UPDATE_QUERY, params);
 
     try {
 

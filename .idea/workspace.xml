@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="efe7c32c-93f3-475e-a89f-679794979536" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask2agent.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.travis.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.travis/travis-maven-settings.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.algorithms/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/src/test/java/org/slizaa/hierarchicalgraph/core/model/simple/resolvedeps/CallResolver_Test.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.model/src/test/java/org/slizaa/hierarchicalgraph/core/model/simple/resolvedeps/CallResolver_Test.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/src/test/java/org/slizaa/hierarchicalgraph/core/selections/DependencySelector_5_Test.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.selections/src/test/java/org/slizaa/hierarchicalgraph/core/selections/DependencySelector_5_Test.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.testfwk/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/org.slizaa.hierarchicalgraph.core.workbench.model/src/main/java/org/slizaa/hierarchicalgraph/core/workbench/model/internal/Activator.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/java/org/slizaa/hierarchicalgraph/graphdb/mapping/service/internal/DefaultMappingService.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/java/org/slizaa/hierarchicalgraph/graphdb/mapping/service/internal/DefaultMappingService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/java/org/slizaa/hierarchicalgraph/graphdb/mapping/service/internal/GraphFactoryFunctions.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/java/org/slizaa/hierarchicalgraph/graphdb/mapping/service/internal/GraphFactoryFunctions.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/test/java/org/slizaa/hierarchicalgraph/graphdb/mapping/service/MappingServiceTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/test/java/org/slizaa/hierarchicalgraph/graphdb/mapping/service/MappingServiceTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.testfwk/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.testfwk/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.testfwk/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.testfwk/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/.settings/org.eclipse.m2e.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/bnd.bnd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/main/java/org/slizaa/hierarchicalgraph/graphdb/model/impl/ExtendedGraphDbDependencySourceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/main/java/org/slizaa/hierarchicalgraph/graphdb/model/impl/ExtendedGraphDbDependencySourceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/main/java/org/slizaa/hierarchicalgraph/graphdb/model/impl/ExtendedGraphDbNodeSourceTrait.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/main/java/org/slizaa/hierarchicalgraph/graphdb/model/impl/ExtendedGraphDbNodeSourceTrait.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/test/java/org/slizaa/hierarchicalgraph/graphdb/model/ExtendedNeo4JBackedNodeSource_Test.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/test/java/org/slizaa/hierarchicalgraph/graphdb/model/ExtendedNeo4JBackedNodeSource_Test.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/test/java/org/slizaa/hierarchicalgraph/graphdb/model/ExtendedNeo4JRemoteRepository_GetNodeLabels_Test.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/test/java/org/slizaa/hierarchicalgraph/graphdb/model/ExtendedNeo4JRemoteRepository_GetNodeLabels_Test.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/test/java/org/slizaa/hierarchicalgraph/graphdb/model/NodeIdFinder.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/test/java/org/slizaa/hierarchicalgraph/graphdb/model/NodeIdFinder.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/.classpath" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/src/main/java/org/slizaa/hierarchicalgraph/graphdb/testfwk/GraphDatabaseSetupRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/src/main/java/org/slizaa/hierarchicalgraph/graphdb/testfwk/GraphDatabaseSetupRule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/src/test/java/org/slizaa/hierarchicalgraph/graphdb/testfwk/TestTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/src/test/java/org/slizaa/hierarchicalgraph/graphdb/testfwk/TestTest.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_/Users/wuetherich/Development/slizaa-2026+/slizaa-hierarchicalgraph" value="3DdsMDRjxyjHhUPr4kyXwsolxtb" />
+    </persistenceIdMap>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3DdsMDRjxyjHhUPr4kyXwsolxtb" />
+  <component name="ProjectViewState">
+    <option name="autoscrollFromSource" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "master",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/wuetherich/Development/slizaa-2026+/slizaa-hierarchicalgraph",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "preferences.lookFeel"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="efe7c32c-93f3-475e-a89f-679794979536" name="Changes" comment="" />
+      <created>1778623230325</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1778623230325</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
+  </component>
+</project>

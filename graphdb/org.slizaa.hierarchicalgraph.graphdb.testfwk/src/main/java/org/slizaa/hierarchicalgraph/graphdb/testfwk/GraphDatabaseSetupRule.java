@@ -5,7 +5,9 @@ import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import org.neo4j.harness.junit.Neo4jRule;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.harness.junit.rule.Neo4jRule;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.core.boltclient.testfwk.BoltClientConnectionRule;
 
@@ -52,8 +54,8 @@ public class GraphDatabaseSetupRule implements TestRule {
       _predefinedDatabaseDirectoryRule.getParentDirectory().mkdirs();
 
       _neo4jRule = new Neo4jRule()
-          .withConfig("dbms.directories.data", _predefinedDatabaseDirectoryRule.getParentDirectory().getAbsolutePath())
-          .withConfig("dbms.connector.bolt.listen_address", ":" + freePort);
+          .withConfig(BoltConnector.enabled, true)
+          .withConfig(BoltConnector.listen_address, new SocketAddress("localhost", freePort));
 
       _boltClientConnection = new BoltClientConnectionRule("localhost", freePort);
 

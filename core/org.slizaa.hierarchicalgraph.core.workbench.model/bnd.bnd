@@ -1,6 +1,0 @@
-Bundle-SymbolicName: org.slizaa.hierarchicalgraph.core.workbench.model;singleton:=true
-Bundle-ActivationPolicy: lazy
-Bundle-Activator: org.slizaa.hierarchicalgraph.core.workbench.model.internal.Activator
--exportcontents: org.slizaa.hierarchicalgraph.core.workbench.model*,!*internal*
--sources: true
--sourcepath: src, target/workspace/org.slizaa.hierarchicalgraph.core.workbench.model/src-gen
