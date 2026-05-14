@@ -43,20 +43,20 @@ public class BoltClientQueries {
       throws InterruptedException, ExecutionException {
 
     //
-    return checkNotNull(boltClient).asyncExecCypherQuery(checkNotNull(query)).get().list(r -> {
+    return checkNotNull(boltClient).asyncExecCypherQueryAndTransformResult(checkNotNull(query), result -> result.list(r -> {
 
       //
       if (resolverFunction != null) {
-        return new ProxyDependencyDefinitionImpl(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
+        return (IDependencyDefinition) new ProxyDependencyDefinitionImpl(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
             r.get(3).asString(), resolverFunction);
       }
       //
       else {
-        return new DefaultDependencyDefinition(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
+        return (IDependencyDefinition) new DefaultDependencyDefinition(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
             r.get(3).asString());
       }
 
-    });
+    })).get();
   }
 
   /**

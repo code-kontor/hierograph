@@ -189,14 +189,14 @@ public class GraphFactoryFunctions {
           // TODO!
 
           //
-          IBoltClient boltClient = rootElement.getExtension(IBoltClient.class);
-          Node startNode = boltClient.getNode(proxyDependency.getIdStart());
-          Node targetNode = boltClient.getNode(proxyDependency.getIdTarget());
+//          IBoltClient boltClient = rootElement.getExtension(IBoltClient.class);
+//          Node startNode = boltClient.getNode(proxyDependency.getIdStart());
+//          Node targetNode = boltClient.getNode(proxyDependency.getIdTarget());
 
-          System.out.println(
-              "Dependency is null for " + proxyDependency.getIdStart() + " : " + proxyDependency.getIdTarget());
-          System.out.println(startNode.labels() + " : " + startNode.asMap());
-          System.out.println(targetNode.labels() + " : " + targetNode.asMap());
+//          System.out.println(
+//              "Dependency is null for " + proxyDependency.getIdStart() + " : " + proxyDependency.getIdTarget());
+//          System.out.println(startNode.labels() + " : " + startNode.asMap());
+//          System.out.println(targetNode.labels() + " : " + targetNode.asMap());
         }
 
       }
