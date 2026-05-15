@@ -1,0 +1,79 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>org.slizaa.hierarchicalgraph</groupId>
+	<artifactId>org.slizaa.hierarchicalgraph.parent</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>${project.groupId}:${project.artifactId}</name>
+	<description>Parent POM for ${project.groupId}:${project.artifactId} artifacts.</description>
+	<url>http://www.slizaa.org</url>
+	<inceptionYear>2017</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>Eclipse Public License - Version 1.0</name>
+			<url>http://www.eclipse.org/org/documents/epl-v10.php</url>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>wuetherich</id>
+			<name>Gerd Wuetherich</name>
+			<email>gerd@slizaa.org</email>
+			<url>http://www.gerd-wuetherich.de</url>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:git://github.com/slizaa/slizaa-hierarchicalgraph.git</connection>
+		<developerConnection>scm:git:ssh://github.com:slizaa/slizaa-hierarchicalgraph.git</developerConnection>
+		<url>http://github.com/slizaa/slizaa-hierarchicalgraph</url>
+	</scm>
+
+	<distributionManagement>
+		<snapshotRepository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<repository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
+	</distributionManagement>
+
+	<properties>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<modules>
+		<module>core/org.slizaa.hierarchicalgraph.core.model</module>
+		<module>core/org.slizaa.hierarchicalgraph.core.algorithms</module>
+		<module>core/org.slizaa.hierarchicalgraph.core.selections</module>
+		<module>core/org.slizaa.hierarchicalgraph.core.workbench.model</module>
+		<module>core/org.slizaa.hierarchicalgraph.core.testfwk</module>
+		<module>graphdb/org.slizaa.hierarchicalgraph.graphdb.model</module>
+		<module>graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi</module>
+		<module>graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher</module>
+		<module>graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service</module>
+		<module>graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk</module>
+		<module>graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.testfwk</module>
+	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.slizaa</groupId>
+				<artifactId>org.slizaa.bom</artifactId>
+				<version>1.0.0-SNAPSHOT</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+</project>

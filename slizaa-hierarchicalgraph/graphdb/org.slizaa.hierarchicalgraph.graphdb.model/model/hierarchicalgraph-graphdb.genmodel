@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<genmodel:GenModel xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
+    xmlns:genmodel="http://www.eclipse.org/emf/2002/GenModel" modelDirectory="/org.slizaa.hierarchicalgraph.graphdb.model/src-gen"
+    editDirectory="/org.slizaa.hierarchicalgraph.graphdb.model.edit/src" modelPluginID="org.slizaa.hierarchicalgraph.graphdb.model"
+    modelName="hierarchicalgraph-graphdb" rootExtendsClass="org.eclipse.emf.ecore.impl.MinimalEObjectImpl$Container"
+    importerID="org.eclipse.emf.importer.ecore" complianceLevel="8.0" copyrightFields="false"
+    usedGenPackages="../../../core/org.slizaa.hierarchicalgraph.core.model/model/hierarchicalgraph.genmodel#//model"
+    operationReflection="true" importOrganizing="true">
+  <foreignModel>hierarchicalgraph-graphdb.ecore</foreignModel>
+  <genPackages prefix="GraphDbHierarchicalgraph" basePackage="org.slizaa.hierarchicalgraph.graphdb"
+      disposableProviderFactory="true" ecorePackage="hierarchicalgraph-graphdb.ecore#/">
+    <genDataTypes ecoreDataType="hierarchicalgraph-graphdb.ecore#//Optional">
+      <genTypeParameters ecoreTypeParameter="hierarchicalgraph-graphdb.ecore#//Optional/T"/>
+    </genDataTypes>
+    <genDataTypes ecoreDataType="hierarchicalgraph-graphdb.ecore#//IBoltClient"/>
+    <genClasses ecoreClass="hierarchicalgraph-graphdb.ecore#//GraphDbNodeSource">
+      <genFeatures property="None" children="true" createChild="false" ecoreFeature="ecore:EReference hierarchicalgraph-graphdb.ecore#//GraphDbNodeSource/properties"/>
+      <genFeatures property="Readonly" createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph-graphdb.ecore#//GraphDbNodeSource/labels"/>
+    </genClasses>
+    <genClasses ecoreClass="hierarchicalgraph-graphdb.ecore#//GraphDbRootNodeSource">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph-graphdb.ecore#//GraphDbRootNodeSource/boldClient"/>
+    </genClasses>
+    <genClasses ecoreClass="hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource">
+      <genFeatures property="None" children="true" createChild="false" ecoreFeature="ecore:EReference hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource/properties"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource/type"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource/userObject"/>
+      <genOperations ecoreOperation="hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource/getUserObject">
+        <genParameters ecoreParameter="hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource/getUserObject/type"/>
+        <genTypeParameters ecoreTypeParameter="hierarchicalgraph-graphdb.ecore#//GraphDbDependencySource/getUserObject/T"/>
+      </genOperations>
+    </genClasses>
+  </genPackages>
+</genmodel:GenModel>
