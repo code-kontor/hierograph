@@ -4,7 +4,7 @@
 
 	<parent>
 		<groupId>org.slizaa.core.mojos</groupId>
-		<artifactId>org.slizaa.core.mojos.parent</artifactId>
+		<artifactId>mojos</artifactId>
 		<version>1.0.0-SNAPSHOT</version>
 	</parent>
 

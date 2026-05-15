@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>org.slizaa.mcp</groupId>
-        <artifactId>mcp-spike-parent</artifactId>
+        <artifactId>mcp-spike</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
@@ -17,7 +17,7 @@
         <dependencies>
             <dependency>
                 <groupId>org.slizaa</groupId>
-                <artifactId>org.slizaa.bom</artifactId>
+                <artifactId>slizaa-bom</artifactId>
                 <version>1.0.0-SNAPSHOT</version>
                 <type>pom</type>
                 <scope>import</scope>
