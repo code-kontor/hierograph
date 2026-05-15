@@ -1,6 +1,7 @@
 package org.slizaa.hierarchicalgraph.graphdb.testfwk.mapping;
 
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.DefaultMappingProvider;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.DefaultNodeMetadataProvider;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
 
 /**
@@ -20,6 +21,7 @@ public class SimpleJTypeMappingProvider extends DefaultMappingProvider implement
   public SimpleJTypeMappingProvider() {
 
     super(IMappingProviderMetadata.createMetadata("test", "test", null, null), new SimpleJTypeHierarchyProvider(),
-        new SimpleJTypeDependencyProvider(), new SimpleJTypeLabelProvider(), new SimpleJTypeNodeComparator());
+        new SimpleJTypeDependencyProvider(), new SimpleJTypeLabelProvider(), new SimpleJTypeNodeComparator(),
+        new DefaultNodeMetadataProvider());
   }
 }

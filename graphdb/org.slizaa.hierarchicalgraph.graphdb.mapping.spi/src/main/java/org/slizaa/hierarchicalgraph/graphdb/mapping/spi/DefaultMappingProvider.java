@@ -27,6 +27,9 @@ public class DefaultMappingProvider implements IMappingProvider {
   /** - */
   private INodeComparator          _nodeComparator;
 
+  /** - */
+  private INodeMetadataProvider    _nodeMetadataProvider;
+
   /**
    * <p>
    * Creates a new instance of type {@link DelegatingMappingProvider}.
@@ -37,15 +40,18 @@ public class DefaultMappingProvider implements IMappingProvider {
    * @param dependencyProvider
    * @param labelProvider
    * @param nodeComparator
+   * @param nodeMetadataProvider
    */
   public DefaultMappingProvider(IMappingProviderMetadata metaInformation, IHierarchyDefinitionProvider hierarchyProvider,
-      IDependencyDefinitionProvider dependencyProvider, ILabelDefinitionProvider labelProvider, INodeComparator nodeComparator) {
+      IDependencyDefinitionProvider dependencyProvider, ILabelDefinitionProvider labelProvider,
+      INodeComparator nodeComparator, INodeMetadataProvider nodeMetadataProvider) {
 
     this._metaData = checkNotNull(metaInformation);
     this._hierarchyProvider = checkNotNull(hierarchyProvider);
     this._dependencyProvider = checkNotNull(dependencyProvider);
     this._labelProvider = checkNotNull(labelProvider);
     this._nodeComparator = checkNotNull(nodeComparator);
+    this._nodeMetadataProvider = checkNotNull(nodeMetadataProvider);
   }
 
   /**
@@ -86,5 +92,10 @@ public class DefaultMappingProvider implements IMappingProvider {
   @Override
   public INodeComparator getNodeComparator() {
     return this._nodeComparator;
+  }
+
+  @Override
+  public INodeMetadataProvider getNodeMetadataProvider() {
+    return this._nodeMetadataProvider;
   }
 }

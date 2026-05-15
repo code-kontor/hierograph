@@ -18,6 +18,7 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinitionPro
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ILabelDefinitionProvider;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
@@ -137,6 +138,7 @@ public class DefaultMappingService implements IMappingService {
             rootNode.registerExtension(IMappingProvider.class, mappingDescriptor);
             rootNode.registerExtension(INodeComparator.class, mappingDescriptor.getNodeComparator());
             rootNode.registerExtension(ILabelDefinitionProvider.class, mappingDescriptor.getLabelDefinitionProvider());
+            rootNode.registerExtension(INodeMetadataProvider.class, mappingDescriptor.getNodeMetadataProvider());
 
             //
             rootNode.registerExtension(IAutoExpandInterceptor.class, node -> {
