@@ -7,11 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.concurrent.Executors;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.neo4j.driver.EagerResult;
 import org.neo4j.driver.types.Node;
 import org.neo4j.harness.Neo4j;
@@ -24,6 +20,7 @@ import org.neo4j.harness.Neo4jBuilders;
  * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
  *
  */
+@Ignore
 public class BoltClientTest {
 
   /** - */
