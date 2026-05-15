@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Console appender for normal application logs -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5level --- [%15.15thread] %-40.40logger{39} : %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender for MCP tool call logs (JSONL format, one JSON record per line) -->
+    <appender name="MCP_TOOL_CALLS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/mcp-tool-calls.jsonl</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/mcp-tool-calls.%d{yyyy-MM-dd}.%i.jsonl.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <!-- Raw message only — the aspect already produces JSON -->
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- MCP tool call logger: only to file, not to console -->
+    <logger name="mcp.tool.calls" level="INFO" additivity="false">
+        <appender-ref ref="MCP_TOOL_CALLS"/>
+    </logger>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
