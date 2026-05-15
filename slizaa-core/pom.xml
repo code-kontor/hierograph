@@ -3,9 +3,14 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.slizaa.core</groupId>
-	<artifactId>org.slizaa.core.parent</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<parent>
+		<groupId>org.slizaa</groupId>
+		<artifactId>slizaa-parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+		<relativePath>../slizaa-parent/pom.xml</relativePath>
+	</parent>
+
+	<artifactId>core</artifactId>
 
 	<packaging>pom</packaging>
 
@@ -48,95 +53,32 @@
 	</distributionManagement>
 
 	<properties>
-		<maven.compiler.source>21</maven.compiler.source>
-		<maven.compiler.target>21</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<jqassistant.version>2.9.1</jqassistant.version>
 	</properties>
 
 	<modules>
+		<module>org.slizaa.core.progressmonitor</module>
 		<module>org.slizaa.core.boltclient</module>
 		<module>org.slizaa.core.boltclient.testfwk</module>
-		<module>org.slizaa.core.mvnresolver.api</module>
-		<module>org.slizaa.core.mvnresolver.implementation</module>
-		<module>org.slizaa.core.mvnresolver.uber</module>
-		<module>org.slizaa.core.mvnresolver.itest</module>
-		<module>org.slizaa.core.progressmonitor</module>
 	</modules>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.slizaa</groupId>
-				<artifactId>org.slizaa.bom</artifactId>
-				<version>1.0.0-SNAPSHOT</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-surefire-plugin</artifactId>
-					<version>3.2.5</version>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.6.0</version>
-				</plugin>
-				<plugin>
-					<groupId>eu.somatik.serviceloader-maven-plugin</groupId>
-					<artifactId>serviceloader-maven-plugin</artifactId>
-					<version>1.1.0</version>
-				</plugin>
-			</plugins>
-		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>com.buschmais.jqassistant</groupId>
+				<artifactId>jqassistant-maven-plugin</artifactId>
+				<version>${jqassistant.version}</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>scan</goal>
+							<goal>analyze</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<id>build-extras</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-source-plugin</artifactId>
-						<version>2.4</version>
-						<executions>
-							<execution>
-								<id>attach-sources</id>
-								<goals>
-									<goal>jar-no-fork</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.10.3</version>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-								<configuration>
-									<excludePackageNames>*.internal.*</excludePackageNames>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 
 </project>
