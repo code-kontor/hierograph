@@ -3,7 +3,7 @@
  
   <parent>
     <groupId>org.slizaa.hierarchicalgraph</groupId>
-    <artifactId>org.slizaa.hierarchicalgraph.parent</artifactId>
+    <artifactId>hierarchicalgraph</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 	<relativePath>../../pom.xml</relativePath>
   </parent>

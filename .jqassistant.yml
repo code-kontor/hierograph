@@ -1,0 +1,17 @@
+jqassistant:
+  store:
+    uri: file:/Users/wuetherich/Development/spring-framework/jqassistant/store/
+  plugins:
+    - group-id: com.buschmais.jqassistant.plugin 
+      artifact-id: java
+      version: 2.9.1
+    - group-id: com.buschmais.jqassistant.plugin
+      artifact-id: common
+      version: 2.9.1
+  analyze:
+    concepts:
+      - java-classpath:Resolve
+  scan:
+    include:
+      files:
+        - ./release/
