@@ -1,0 +1,142 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>org.slizaa.core</groupId>
+	<artifactId>org.slizaa.core.parent</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+
+	<packaging>pom</packaging>
+
+	<name>${project.groupId}:${project.artifactId}</name>
+	<description>Parent POM for the org.slizaa.core artifacts.</description>
+	<url>http://www.slizaa.org</url>
+	<inceptionYear>2018</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>Eclipse Public License - Version 1.0</name>
+			<url>http://www.eclipse.org/org/documents/epl-v10.php</url>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>wuetherich</id>
+			<name>Gerd Wuetherich</name>
+			<email>gerd.wuetherich@code-kontor.io</email>
+			<url>http://www.code-kontor.io</url>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:git://github.com/slizaa/slizaa-core.git</connection>
+		<developerConnection>scm:git:ssh://github.com:slizaa/slizaa-core.git</developerConnection>
+		<url>http://github.com/slizaa/slizaa-core</url>
+	</scm>
+
+	<distributionManagement>
+		<snapshotRepository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<repository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
+	</distributionManagement>
+
+	<properties>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<modules>
+		<module>org.slizaa.core.boltclient</module>
+		<module>org.slizaa.core.boltclient.testfwk</module>
+		<module>org.slizaa.core.mvnresolver.api</module>
+		<module>org.slizaa.core.mvnresolver.implementation</module>
+		<module>org.slizaa.core.mvnresolver.uber</module>
+		<module>org.slizaa.core.mvnresolver.itest</module>
+		<module>org.slizaa.core.progressmonitor</module>
+	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.slizaa</groupId>
+				<artifactId>org.slizaa.bom</artifactId>
+				<version>1.0.0-SNAPSHOT</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>3.2.5</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<version>3.6.0</version>
+				</plugin>
+				<plugin>
+					<groupId>eu.somatik.serviceloader-maven-plugin</groupId>
+					<artifactId>serviceloader-maven-plugin</artifactId>
+					<version>1.1.0</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>build-extras</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>2.4</version>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar-no-fork</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.10.3</version>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+								<configuration>
+									<excludePackageNames>*.internal.*</excludePackageNames>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+</project>
