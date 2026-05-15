@@ -12,39 +12,8 @@
     <name>slizaa</name>
     <description>Aggregator POM for the slizaa project.</description>
 
-    <properties>
-        <jqassistant.version>2.9.1</jqassistant.version>
-    </properties>
-
-    <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>com.buschmais.jqassistant</groupId>
-                    <artifactId>jqassistant-maven-plugin</artifactId>
-                    <version>${jqassistant.version}</version>
-                    <executions>
-                        <execution>
-                            <id>default-cli</id>
-                            <goals>
-                                <goal>scan</goal>
-                                <goal>analyze</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-        <plugins>
-            <plugin>
-                <groupId>com.buschmais.jqassistant</groupId>
-                <artifactId>jqassistant-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-
     <modules>
-        <module>slizaa-bom</module>
+        <module>slizaa-parent</module>
         <!-- mojos must be built first as they are used as build plugins -->
         <module>slizaa-mojos</module>
         <module>slizaa-core</module>
