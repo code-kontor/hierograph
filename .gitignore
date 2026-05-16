@@ -1,12 +1,24 @@
+# macOS
 .DS_Store
-.idea/
-.idea/workspace.xml
-.idea/uiDesigner.xml
-.mvn/
-.claude/
-logs/
-mcp-example-db/
-reports/
+
+# Build output
 target/
+reports/
+logs/
 
+# Maven wrapper local cache
+.mvn/
 
+# Claude Code workspace
+.claude/
+
+# Embedded test database
+mcp-example-db/
+
+# IntelliJ IDEA
+# Shared project configuration under .idea/ is tracked.
+# Per-user files (workspace.xml, shelf/, dataSources/, ...) are excluded
+# by .idea/.gitignore, which IntelliJ maintains automatically.
+*.iml
+*.iws
+out/

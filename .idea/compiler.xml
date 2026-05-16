@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="org.slizaa.core.progressmonitor" />
+        <module name="org.slizaa.hierarchicalgraph.graphdb.testfwk" />
+        <module name="core-app" />
+        <module name="org.slizaa.hierarchicalgraph.core.algorithms" />
+        <module name="jqassistant-mapping" />
+        <module name="org.slizaa.hierarchicalgraph.core.workbench.model" />
+        <module name="org.slizaa.hierarchicalgraph.core.selections" />
+        <module name="org.slizaa.core.boltclient.testfwk" />
+        <module name="ecoregenerator-maven-plugin" />
+        <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.spi" />
+        <module name="org.slizaa.hierarchicalgraph.graphdb.model" />
+        <module name="org.slizaa.hierarchicalgraph.core.model" />
+        <module name="org.slizaa.hierarchicalgraph.core.testfwk" />
+        <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.service" />
+        <module name="org.slizaa.core.boltclient" />
+        <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.cypher" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="core" options="-parameters" />
+      <module name="core-app" options="-parameters" />
+      <module name="ecoregenerator-maven-plugin" options="-parameters" />
+      <module name="hierarchicalgraph" options="-parameters" />
+      <module name="jqassistant-mapping" options="-parameters" />
+      <module name="mcp-spike" options="-parameters" />
+      <module name="mojos" options="-parameters" />
+      <module name="org.slizaa.core.boltclient" options="-parameters" />
+      <module name="org.slizaa.core.boltclient.testfwk" options="-parameters" />
+      <module name="org.slizaa.core.progressmonitor" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.core.algorithms" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.core.model" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.core.selections" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.core.testfwk" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.core.workbench.model" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.cypher" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.service" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.spi" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.graphdb.model" options="-parameters" />
+      <module name="org.slizaa.hierarchicalgraph.graphdb.testfwk" options="-parameters" />
+      <module name="slizaa-parent" options="-parameters" />
+    </option>
+  </component>
+</project>

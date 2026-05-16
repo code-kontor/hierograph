@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/mcp-spike/core-app/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mcp-spike/core-app/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mcp-spike/jqassistant-mapping/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mcp-spike/jqassistant-mapping/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mcp-spike/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mcp-spike/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient.testfwk/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient.testfwk/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.progressmonitor/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.progressmonitor/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.algorithms/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.algorithms/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.model" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.selections" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.selections/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.testfwk/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.testfwk/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.workbench.model" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.workbench.model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.spi/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.model" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.testfwk/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-mojos/ecoregenerator-maven-plugin/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-mojos/ecoregenerator-maven-plugin/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-mojos/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-mojos/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-parent/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-parent/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

@@ -10,6 +10,7 @@
 		<relativePath>../slizaa-parent/pom.xml</relativePath>
 	</parent>
 
+	<groupId>org.slizaa.core</groupId>
 	<artifactId>core</artifactId>
 
 	<packaging>pom</packaging>
