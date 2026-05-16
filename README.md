@@ -54,8 +54,6 @@ Then ask Claude things like *"Give me an overview of the project structure"* or
 - [Getting Started](docs/getting-started.md) -- step-by-step setup guide
 - [Architecture Overview](docs/cartograph-architecture-overview.md) -- how the pieces fit together
 - [REST API](docs/rest-api.md) -- HTTP endpoints reference
-- [EMF Features Used](docs/emf-features-used.md) -- which EMF features the hierarchical graph model uses
-- [EMF Migration Assessment](docs/emf-migration-difficulty.md) -- difficulty assessment for migrating from EMF to Kotlin
 
 ## Requirements
 
