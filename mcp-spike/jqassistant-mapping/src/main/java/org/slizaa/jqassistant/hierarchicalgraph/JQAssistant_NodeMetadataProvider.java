@@ -11,7 +11,7 @@ public class JQAssistant_NodeMetadataProvider implements INodeMetadataProvider {
 
 
     private static final List<String> DEFAULT_KNOWN_KINDS =
-            List.of("Class", "Interface", "Enum", "Annotation", "Package", "Artifact");
+            List.of("Class", "Interface", "Enum", "Annotation", "Record", "Package", "Artifact");
 
     @Override
     public String getName(HGNode node) {
@@ -91,13 +91,13 @@ public class JQAssistant_NodeMetadataProvider implements INodeMetadataProvider {
         if (scopeId == null) {
             return "MATCH (n) WHERE (n:Type OR n:Package OR n:Artifact) "
                     + "UNWIND labels(n) AS label "
-                    + "WITH label WHERE label IN ['Class','Interface','Enum','Annotation','Package','Artifact'] "
-                    + "RETURN label, count(*) AS cnt ORDER BY cnt DESC";
+                    + "WITH n, label WHERE label IN ['Class','Interface','Enum','Annotation','Record','Package','Artifact'] "
+                    + "RETURN label, count(DISTINCT n) AS cnt ORDER BY cnt DESC";
         }
         return "MATCH (scope)-[:CONTAINS*]->(n) WHERE id(scope) = $scopeId AND (n:Type OR n:Package) "
                 + "UNWIND labels(n) AS label "
-                + "WITH label WHERE label IN ['Class','Interface','Enum','Annotation','Package'] "
-                + "RETURN label, count(*) AS cnt ORDER BY cnt DESC";
+                + "WITH n, label WHERE label IN ['Class','Interface','Enum','Annotation','Record','Package'] "
+                + "RETURN label, count(DISTINCT n) AS cnt ORDER BY cnt DESC";
     }
 
     @Override

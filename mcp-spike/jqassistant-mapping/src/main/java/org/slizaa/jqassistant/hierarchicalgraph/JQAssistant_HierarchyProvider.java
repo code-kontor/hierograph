@@ -24,11 +24,8 @@ public class JQAssistant_HierarchyProvider extends AbstractQueryBasedHierarchyPr
 				"MATCH (a:Artifact:Maven:File:Test)-[:CONTAINS]->(b:Package) where a.type = 'test-jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b)",
 				// Package -> sub-Packages
 				"MATCH (a:Package)-[:CONTAINS]->(b:Package) RETURN id(a), id(b)",
-				// Package -> Types (Class, Interface, Enum, Annotation)
-				"MATCH (a:Package)-[:CONTAINS]->(b:Type:Class) RETURN id(a), id(b)",
-				"MATCH (a:Package)-[:CONTAINS]->(b:Type:Interface) RETURN id(a), id(b)",
-				"MATCH (a:Package)-[:CONTAINS]->(b:Type:Enum) RETURN id(a), id(b)",
-				"MATCH (a:Package)-[:CONTAINS]->(b:Type:Annotation) RETURN id(a), id(b)"
+				// Package -> Types (Class, Interface, Enum, Annotation, Record)
+				"MATCH (a:Package)-[:CONTAINS]->(b:Type) WHERE b:Type OR b:Interface OR b:Enum OR b:Annotation OR b:Record RETURN id(a), id(b)",
 		};
 	}
 }
