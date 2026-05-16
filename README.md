@@ -8,7 +8,19 @@ answer architectural questions about your code.
 ## How it works
 
 ```
-Your Java project  ──>  jQAssistant (scan)  ──>  Neo4j  ──>  Cartograph (MCP server)  ──>  Claude
+Your Java project
+       │
+       ▼
+jQAssistant (scan)
+       │
+       ▼
+Neo4j (graph database)
+       │
+       ▼
+Cartograph (MCP server)
+       │
+       ▼
+Claude (AI assistant)
 ```
 
 1. **jQAssistant** scans compiled bytecode and writes structural data into a Neo4j graph database
