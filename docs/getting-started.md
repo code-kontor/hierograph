@@ -1,10 +1,11 @@
 # Getting Started with Cartograph
 
 Cartograph is an MCP-based tool that lets you explore and analyze the dependency structure of your
-Java project using an agentic AI. It uses jqassistant to scan your codebase into a Neo4j graph
+Java project using an agentic AI. It uses jQAssistant to scan your codebase into a Neo4j graph
 database, then exposes that graph via an MCP server that Claude can query.
 
-This guide covers Maven-based projects.
+This guide covers Maven-based projects. For a deeper look at how the pieces fit together, see the
+[Architecture Overview](cartograph-architecture-overview.md).
 
 ## Prerequisites
 
@@ -21,9 +22,12 @@ cd <your-project>
 
 If you already have the project checked out, make sure you're on the branch you want to analyze.
 
-## Step 2: Add jqassistant to the build
+> **Note:** Cartograph analyzes compiled bytecode, not source code. The project must build
+> successfully (`mvn clean install`) before it can be scanned.
 
-### 2.1 Add the jqassistant Maven plugin
+## Step 2: Add jQAssistant to the build
+
+### 2.1 Add the jQAssistant Maven plugin
 
 Add the following plugin to your parent POM (or the POM of the module you want to scan):
 
@@ -78,6 +82,10 @@ Key settings:
 - **`scan.reset: true`**: Ensures a clean scan on each build
 - **`java-classpath:Resolve`**: Resolves classpath dependencies for accurate analysis
 
+> **Further reading:** For more details on configuring jQAssistant (additional plugins, custom
+> rules, multi-module setups, Gradle support, etc.), see the
+> [jQAssistant documentation](https://jqassistant.github.io/jqassistant/current/).
+
 ## Step 3: Run the build
 
 ```bash
@@ -87,7 +95,7 @@ mvn clean install
 This will compile your project, scan all artifacts, and populate the Neo4j graph database at
 `mcp-example-db/`.
 
-## Step 4: Start the jqassistant server
+## Step 4: Start the jQAssistant server
 
 Start the embedded Neo4j server so the MCP server can connect to it:
 
@@ -96,6 +104,8 @@ mvn com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server
 ```
 
 This starts a Neo4j Bolt endpoint at `bolt://localhost:7687`. Keep this terminal open.
+
+You can also browse the raw graph data at `http://localhost:7474` using Neo4j's built-in browser UI.
 
 ## Step 5: Start the Cartograph MCP server
 

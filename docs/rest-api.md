@@ -3,6 +3,10 @@
 The Cartograph server exposes a REST API alongside the MCP interface. All endpoints are served
 under `/api` and use HTTP GET with query parameters. The server runs on port `8080` by default.
 
+For setup instructions, see the [Getting Started](getting-started.md) guide. For an overview of
+how Cartograph fits into the larger architecture, see the
+[Architecture Overview](cartograph-architecture-overview.md).
+
 **Base URL:** `http://localhost:8080/api`
 
 ## Endpoints
