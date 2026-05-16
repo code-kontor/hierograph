@@ -38,7 +38,7 @@ Look up nodes by name using case-insensitive substring matching.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `query` | String | yes | Name or fragment to search for |
-| `kind` | String | no | Filter by kind: `Class`, `Interface`, `Enum`, `Annotation`, `Package`, `Artifact` |
+| `kind` | String | no | Filter by kind: `Class`, `Interface`, `Enum`, `Annotation`,`Record`,`Package`, `Artifact` |
 | `limit` | Integer | no | Max results (1-50, default 10) |
 
 ```bash
