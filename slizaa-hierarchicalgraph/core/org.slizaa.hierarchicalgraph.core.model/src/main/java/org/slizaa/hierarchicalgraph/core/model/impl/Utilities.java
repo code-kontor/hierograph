@@ -4,7 +4,6 @@ import org.eclipse.emf.common.notify.Adapter;
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.EObject;
-import org.slizaa.core.progressmonitor.IProgressMonitor;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
@@ -52,8 +51,8 @@ public class Utilities {
    *
    * @param dependencies
    */
-  public static void resolveProxyDependencies(IProgressMonitor progressMonitor, HGCoreDependency... dependencies) {
-    resolveProxyDependencies(Arrays.asList(dependencies), progressMonitor);
+  public static void resolveProxyDependencies(HGCoreDependency... dependencies) {
+    resolveProxyDependencies(Arrays.asList(dependencies));
   }
 
   /**
@@ -62,8 +61,7 @@ public class Utilities {
    *
    * @param dependencies
    */
-  public static void resolveProxyDependencies(List<? extends HGCoreDependency> dependencies,
-      IProgressMonitor progressMonitor) {
+  public static void resolveProxyDependencies(List<? extends HGCoreDependency> dependencies) {
 
     //
     if (dependencies == null || dependencies.isEmpty()) {

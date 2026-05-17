@@ -49,7 +49,7 @@ public class ExtendedHGProxyDependencyImpl extends HGProxyDependencyImpl {
 
     //
     if (!resolved) {
-      Utilities.resolveProxyDependencies(null, this);
+      Utilities.resolveProxyDependencies(this);
     }
   }
 

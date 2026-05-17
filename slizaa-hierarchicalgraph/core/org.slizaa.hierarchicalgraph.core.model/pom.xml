@@ -31,11 +31,6 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.slizaa.core</groupId>
-            <artifactId>org.slizaa.core.progressmonitor</artifactId>
-        </dependency>
-
         <!-- -->
         <dependency>
             <groupId>junit</groupId>

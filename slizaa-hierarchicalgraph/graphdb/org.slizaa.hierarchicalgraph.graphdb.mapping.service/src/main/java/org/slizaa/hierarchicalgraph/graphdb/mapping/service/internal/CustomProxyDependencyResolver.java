@@ -85,7 +85,7 @@ public class CustomProxyDependencyResolver implements IProxyDependencyResolver {
       //
       List<HGCoreDependency> coreDependencies = createDependencies(resolvedDependencyDefinitions,
           this._proxyDependency.getRootNode(),
-          (id, type) -> GraphFactoryFunctions.createDependencySource(id, type, null), false, null);
+          (id, type) -> GraphFactoryFunctions.createDependencySource(id, type, null), false);
 
       //
       this._proxyDependency.getResolvedCoreDependencies().addAll(coreDependencies);

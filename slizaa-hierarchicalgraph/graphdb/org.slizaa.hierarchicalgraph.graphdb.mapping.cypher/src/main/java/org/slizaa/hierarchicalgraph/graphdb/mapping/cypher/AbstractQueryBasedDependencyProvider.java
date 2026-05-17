@@ -1,7 +1,6 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher;
 
 import org.slizaa.core.boltclient.IBoltClient;
-import org.slizaa.core.progressmonitor.IProgressMonitor;
 import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.internal.BoltClientQueries;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.internal.ProxyDependencyQueriesHolder;
@@ -47,7 +46,7 @@ public abstract class AbstractQueryBasedDependencyProvider implements IDependenc
    * {@inheritDoc}
    */
   @Override
-  public void initialize(final IBoltClient boltClient, IProgressMonitor progressMonitor) throws Exception {
+  public void initialize(final IBoltClient boltClient) throws Exception {
 
     checkNotNull(boltClient);
 

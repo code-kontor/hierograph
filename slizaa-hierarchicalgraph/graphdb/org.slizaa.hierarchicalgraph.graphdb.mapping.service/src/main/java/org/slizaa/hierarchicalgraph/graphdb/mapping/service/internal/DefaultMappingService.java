@@ -1,8 +1,6 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal;
 
 import org.slizaa.core.boltclient.IBoltClient;
-import org.slizaa.core.progressmonitor.IProgressMonitor;
-import org.slizaa.core.progressmonitor.NullProgressMonitor;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.core.model.INodeSource;
@@ -71,16 +69,10 @@ public class DefaultMappingService implements IMappingService {
      * {@inheritDoc}
      */
     @Override
-    public HGRootNode convert(IMappingProvider mappingDescriptor, final IBoltClient boltClient,
-                              IProgressMonitor progressMonitor) throws MappingException {
+    public HGRootNode convert(IMappingProvider mappingDescriptor, final IBoltClient boltClient) throws MappingException {
 
         checkNotNull(mappingDescriptor);
         checkNotNull(boltClient);
-
-        //
-        if (progressMonitor == null) {
-            progressMonitor = new NullProgressMonitor();
-        }
 
         try {
             // create the root element
@@ -93,43 +85,28 @@ public class DefaultMappingService implements IMappingService {
 
             // process root, hierarchy and dependency queries
             IHierarchyDefinitionProvider hierarchyProvider = initializeBoltClientAwareMappingProviderComponent(
-                    mappingDescriptor.getHierarchyDefinitionProvider(), boltClient, progressMonitor);
+                    mappingDescriptor.getHierarchyDefinitionProvider(), boltClient);
 
             if (hierarchyProvider != null) {
 
                 //
-                progressMonitor.step("Requesting root nodes...");
                 List<Long> rootNodes = hierarchyProvider.getToplevelNodeIds();
-
-                createFirstLevelElements(rootNodes.toArray(new Long[0]), rootNode, createNodeSourceFunction, progressMonitor.subTask("Creating root nodes...")
-                    .withParentConsumptionInPercentage(15)
-                    .withTotalWorkTicks(100)
-                    .create());
+                createFirstLevelElements(rootNodes.toArray(new Long[0]), rootNode, createNodeSourceFunction);
 
                 //
-                progressMonitor.step("Requesting nodes...");
                 List<Long[]> parentChildNodeIds = hierarchyProvider.getParentChildNodeIds();
-
-                createHierarchy(parentChildNodeIds, rootNode, createNodeSourceFunction, progressMonitor.subTask("Creating nodes...")
-                    .withParentConsumptionInPercentage(40)
-                    .withTotalWorkTicks(100)
-                    .create());
+                createHierarchy(parentChildNodeIds, rootNode, createNodeSourceFunction);
 
                 // filter 'dangling' nodes
                 removeDanglingNodes(rootNode);
 
                 //
                 IDependencyDefinitionProvider dependencyProvider = initializeBoltClientAwareMappingProviderComponent(
-                        mappingDescriptor.getDependencyDefinitionProvider(), boltClient, progressMonitor);
+                        mappingDescriptor.getDependencyDefinitionProvider(), boltClient);
 
                 if (dependencyProvider != null) {
-
-                    //
                     createDependencies(dependencyProvider.getDependencies(), rootNode,
-                            (id, type) -> GraphFactoryFunctions.createDependencySource(id, type, null), false, progressMonitor.subTask("Creating dependencies...")
-                            .withParentConsumptionInPercentage(45)
-                            .withTotalWorkTicks(100)
-                            .create());
+                            (id, type) -> GraphFactoryFunctions.createDependencySource(id, type, null), false);
                 }
             }
 
@@ -173,11 +150,10 @@ public class DefaultMappingService implements IMappingService {
      * @param progressMonitor
      * @throws Exception
      */
-    private <T> T initializeBoltClientAwareMappingProviderComponent(T component, final IBoltClient boltClient,
-                                                                    IProgressMonitor progressMonitor) throws Exception {
+    private <T> T initializeBoltClientAwareMappingProviderComponent(T component, final IBoltClient boltClient) throws Exception {
 
         if (component instanceof IBoltClientAware) {
-            ((IBoltClientAware) component).initialize(boltClient, progressMonitor);
+            ((IBoltClientAware) component).initialize(boltClient);
         }
 
         return component;
@@ -205,16 +181,4 @@ public class DefaultMappingService implements IMappingService {
         nodeKeys2Remove.forEach(k -> ((ExtendedHGRootNodeImpl) rootNode).getIdToNodeMap().remove(k));
     }
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @param iterationMonitor
-     * @param taskName
-     */
-    private void report(IProgressMonitor iterationMonitor, String taskName) {
-        if (iterationMonitor != null) {
-            iterationMonitor.step(taskName);
-        }
-    }
 }

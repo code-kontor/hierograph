@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slizaa.core.progressmonitor.IProgressMonitor;
 import org.slizaa.hierarchicalgraph.core.model.impl.Utilities;
 
 /**
@@ -61,8 +60,7 @@ public class ProxyDependencyFunctions {
    *
    * @param dependencies
    */
-  public static void resolveProxyDependencies(List<AbstractHGDependency> dependencies,
-      IProgressMonitor progressMonitor) {
+  public static void resolveProxyDependencies(List<AbstractHGDependency> dependencies) {
 
     checkNotNull(dependencies);
 
@@ -85,7 +83,7 @@ public class ProxyDependencyFunctions {
     }
 
     //
-    Utilities.resolveProxyDependencies(proxyDependencies, progressMonitor);
+    Utilities.resolveProxyDependencies(proxyDependencies);
   }
 
   /**
@@ -95,10 +93,8 @@ public class ProxyDependencyFunctions {
    * @param nodes
    * @param incoming
    * @param outgoing
-   * @param progressMonitor
    */
-  public static void resolveProxyDependencies(Collection<HGNode> nodes, boolean incoming, boolean outgoing,
-      IProgressMonitor progressMonitor) {
+  public static void resolveProxyDependencies(Collection<HGNode> nodes, boolean incoming, boolean outgoing) {
 
     //
     checkNotNull(nodes);
@@ -112,7 +108,7 @@ public class ProxyDependencyFunctions {
     }
 
     //
-    Utilities.resolveProxyDependencies(proxyDependencies, progressMonitor);
+    Utilities.resolveProxyDependencies(proxyDependencies);
   }
 
   /**

@@ -37,7 +37,7 @@ public class HierarchicalGraphService {
 
         log.info("Creating jQAssistant hierarchical graph...");
         rootNode = MappingFactory.createMappingServiceForStandaloneSetup()
-                .convert(new JQAssistant_MappingProvider(), boltClient, null);
+                .convert(new JQAssistant_MappingProvider(), boltClient);
 
         var children = rootNode.getChildren();
 

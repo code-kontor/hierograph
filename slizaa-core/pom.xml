@@ -59,7 +59,6 @@
 	</properties>
 
 	<modules>
-		<module>org.slizaa.core.progressmonitor</module>
 		<module>org.slizaa.core.boltclient</module>
 		<module>org.slizaa.core.boltclient.testfwk</module>
 	</modules>

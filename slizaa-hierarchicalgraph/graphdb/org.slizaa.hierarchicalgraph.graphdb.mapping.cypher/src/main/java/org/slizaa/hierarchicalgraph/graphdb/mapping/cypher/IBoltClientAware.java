@@ -4,7 +4,6 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher;
 
 import org.slizaa.core.boltclient.IBoltClient;
-import org.slizaa.core.progressmonitor.IProgressMonitor;
 
 /**
  * <p>
@@ -15,5 +14,5 @@ import org.slizaa.core.progressmonitor.IProgressMonitor;
  */
 public interface IBoltClientAware {
 
-  void initialize(IBoltClient boltClient, IProgressMonitor progressMonitor) throws Exception;
+  void initialize(IBoltClient boltClient) throws Exception;
 }

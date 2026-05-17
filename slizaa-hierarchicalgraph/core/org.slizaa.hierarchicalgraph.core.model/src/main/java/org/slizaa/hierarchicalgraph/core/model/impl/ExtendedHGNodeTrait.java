@@ -237,7 +237,7 @@ public class ExtendedHGNodeTrait {
       }
 
       //
-      Utilities.resolveProxyDependencies(dependencies, null);
+      Utilities.resolveProxyDependencies(dependencies);
     }
   }
 
@@ -246,7 +246,7 @@ public class ExtendedHGNodeTrait {
    * </p>
    */
   public void resolveIncomingProxyDependencies() {
-    Utilities.resolveProxyDependencies(getAccumulatedIncomingCoreDependencies(), null);
+    Utilities.resolveProxyDependencies(getAccumulatedIncomingCoreDependencies());
   }
 
   /**
@@ -254,7 +254,7 @@ public class ExtendedHGNodeTrait {
    * </p>
    */
   public void resolveOutgoingProxyDependencies() {
-    Utilities.resolveProxyDependencies(getAccumulatedOutgoingCoreDependencies(), null);
+    Utilities.resolveProxyDependencies(getAccumulatedOutgoingCoreDependencies());
   }
 
   /**

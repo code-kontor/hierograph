@@ -252,11 +252,6 @@
             </dependency>
             <dependency>
                 <groupId>org.slizaa.core</groupId>
-                <artifactId>org.slizaa.core.progressmonitor</artifactId>
-                <version>${slizaa.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slizaa.core</groupId>
                 <artifactId>org.slizaa.core.mvnresolver.api</artifactId>
                 <version>${slizaa.version}</version>
             </dependency>

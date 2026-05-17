@@ -1,7 +1,6 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher;
 
 import org.slizaa.core.boltclient.IBoltClient;
-import org.slizaa.core.progressmonitor.IProgressMonitor;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider;
 
 import java.util.ArrayList;
@@ -21,7 +20,7 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
    * {@inheritDoc}
    */
   @Override
-  public void initialize(IBoltClient boltClient, IProgressMonitor progressMonitor) throws Exception {
+  public void initialize(IBoltClient boltClient) throws Exception {
 
     checkNotNull(boltClient);
 
