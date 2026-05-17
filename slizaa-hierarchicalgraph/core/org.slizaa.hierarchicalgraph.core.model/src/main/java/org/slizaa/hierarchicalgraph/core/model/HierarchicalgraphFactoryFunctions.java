@@ -1,12 +1,12 @@
 package org.slizaa.hierarchicalgraph.core.model;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.eclipse.emf.common.util.BasicEList;
+import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
 
 import java.util.Arrays;
 import java.util.function.Supplier;
 
-import org.eclipse.emf.common.util.BasicEList;
-import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class HierarchicalgraphFactoryFunctions {
 

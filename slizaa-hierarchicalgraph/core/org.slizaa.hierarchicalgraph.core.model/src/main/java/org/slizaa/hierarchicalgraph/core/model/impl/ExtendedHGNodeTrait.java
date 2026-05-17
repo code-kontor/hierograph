@@ -1,23 +1,14 @@
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.eclipse.emf.common.util.*;
+import org.slizaa.hierarchicalgraph.core.model.*;
+import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.eclipse.emf.common.util.BasicEList;
-import org.eclipse.emf.common.util.BasicEMap;
-import org.eclipse.emf.common.util.ECollections;
-import org.eclipse.emf.common.util.EList;
-import org.eclipse.emf.common.util.EMap;
-import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
-import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
-import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
-import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ExtendedHGNodeTrait {
 

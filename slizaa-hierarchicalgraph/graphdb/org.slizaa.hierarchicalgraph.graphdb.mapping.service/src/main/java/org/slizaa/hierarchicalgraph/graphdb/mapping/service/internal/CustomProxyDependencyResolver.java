@@ -1,7 +1,10 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal.GraphFactoryFunctions.createDependencies;
+import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
+import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
+import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
+import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbDependencySource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,11 +12,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
-import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
-import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbDependencySource;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal.GraphFactoryFunctions.createDependencies;
 
 public class CustomProxyDependencyResolver implements IProxyDependencyResolver {
 

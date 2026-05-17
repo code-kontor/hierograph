@@ -1,15 +1,12 @@
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import java.util.Optional;
-
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.common.util.EMap;
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGNodeImpl;
-import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGNodeTrait;
-import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
+
+import java.util.Optional;
 
 public class NodeCacheHelper {
 

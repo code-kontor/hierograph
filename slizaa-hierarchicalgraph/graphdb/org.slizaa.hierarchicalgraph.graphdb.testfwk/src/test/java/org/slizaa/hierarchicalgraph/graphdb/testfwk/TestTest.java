@@ -2,7 +2,6 @@ package org.slizaa.hierarchicalgraph.graphdb.testfwk;
 
 import org.junit.ClassRule;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.neo4j.driver.EagerResult;
 

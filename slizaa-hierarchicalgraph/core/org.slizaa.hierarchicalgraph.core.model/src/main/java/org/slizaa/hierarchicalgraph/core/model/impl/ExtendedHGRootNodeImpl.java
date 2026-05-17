@@ -1,22 +1,14 @@
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import org.eclipse.emf.common.util.ECollections;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.ecore.util.EcoreUtil;
-import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
-import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
+import org.slizaa.hierarchicalgraph.core.model.*;
+
+import java.util.*;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
 

@@ -1,11 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.model.simple.notifications;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewCoreDependency;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import org.eclipse.emf.common.notify.Adapter;
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.common.notify.impl.AdapterImpl;
@@ -17,6 +11,12 @@ import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewCoreDependency;
 
 public class HGAggregatedDependency_NotificationTest {
 

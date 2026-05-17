@@ -10,25 +10,19 @@
  ******************************************************************************/
 package org.slizaa.hierarchicalgraph.core.selections.selector;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.eclipse.emf.common.notify.Adapter;
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.common.notify.impl.AdapterImpl;
 import org.eclipse.emf.ecore.util.EcoreUtil;
-import org.slizaa.hierarchicalgraph.core.model.AbstractHGDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
-import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
-import org.slizaa.hierarchicalgraph.core.model.SourceOrTarget;
+import org.slizaa.hierarchicalgraph.core.model.*;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class DefaultDependencySelector implements IDependencySelector {
 

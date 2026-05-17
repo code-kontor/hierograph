@@ -1,13 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.slizaa.hierarchicalgraph.core.selections.fwk.DependencySelectorProbeRule;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DependencySelector_6_Test  {
 

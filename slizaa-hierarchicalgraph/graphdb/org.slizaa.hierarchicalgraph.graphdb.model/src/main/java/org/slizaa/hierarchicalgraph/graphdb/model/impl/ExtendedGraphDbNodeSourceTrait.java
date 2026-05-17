@@ -1,13 +1,5 @@
 package org.slizaa.hierarchicalgraph.graphdb.model.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.common.util.EMap;
 import org.eclipse.emf.ecore.util.EDataTypeUniqueEList;
@@ -20,6 +12,14 @@ import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.core.model.impl.StringToStringMapImpl;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ExtendedGraphDbNodeSourceTrait {
 

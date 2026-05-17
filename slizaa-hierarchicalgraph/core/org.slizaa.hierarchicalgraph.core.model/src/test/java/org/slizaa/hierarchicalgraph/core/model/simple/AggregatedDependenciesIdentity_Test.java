@@ -1,10 +1,10 @@
 package org.slizaa.hierarchicalgraph.core.model.simple;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class AggregatedDependenciesIdentity_Test {
 

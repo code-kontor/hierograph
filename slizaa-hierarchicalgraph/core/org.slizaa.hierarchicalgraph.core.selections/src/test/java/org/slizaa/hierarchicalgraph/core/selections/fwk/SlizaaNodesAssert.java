@@ -1,12 +1,12 @@
 package org.slizaa.hierarchicalgraph.core.selections.fwk;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class SlizaaNodesAssert extends AbstractAssert<SlizaaNodesAssert, Collection<HGNode>> {
 

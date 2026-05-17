@@ -1,13 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.model;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slizaa.hierarchicalgraph.core.model.impl.Utilities;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slizaa.hierarchicalgraph.core.model.impl.Utilities;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ProxyDependencyFunctions {
 

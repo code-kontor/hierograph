@@ -1,10 +1,10 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slizaa.hierarchicalgraph.core.model.AbstractHGDependency;
 
 import java.util.Collection;
 
-import org.slizaa.hierarchicalgraph.core.model.AbstractHGDependency;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class SelectionFactoryMethods {
 

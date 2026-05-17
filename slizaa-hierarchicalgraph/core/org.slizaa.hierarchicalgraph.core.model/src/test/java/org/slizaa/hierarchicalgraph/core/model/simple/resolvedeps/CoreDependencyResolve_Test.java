@@ -1,10 +1,10 @@
 package org.slizaa.hierarchicalgraph.core.model.simple.resolvedeps;
 
-import java.util.ArrayList;
-
 import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
+
+import java.util.ArrayList;
 
 public class CoreDependencyResolve_Test extends AbstractResolverTest {
 

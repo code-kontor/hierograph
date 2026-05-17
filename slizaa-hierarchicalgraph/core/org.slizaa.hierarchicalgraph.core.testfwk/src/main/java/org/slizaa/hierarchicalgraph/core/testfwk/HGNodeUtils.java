@@ -1,15 +1,15 @@
 package org.slizaa.hierarchicalgraph.core.testfwk;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slizaa.hierarchicalgraph.core.model.DefaultNodeSource;
+import org.slizaa.hierarchicalgraph.core.model.HGNode;
+import org.slizaa.hierarchicalgraph.core.model.INodeSource;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.slizaa.hierarchicalgraph.core.model.DefaultNodeSource;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.INodeSource;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class HGNodeUtils {
 

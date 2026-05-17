@@ -3,12 +3,12 @@
  */
 package org.slizaa.hierarchicalgraph.graphdb.mapping.spi;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider.IMappingProviderMetadata;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider.IMappingProviderMetadata;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class DefaultMappingProviderMetadata implements IMappingProviderMetadata {
 

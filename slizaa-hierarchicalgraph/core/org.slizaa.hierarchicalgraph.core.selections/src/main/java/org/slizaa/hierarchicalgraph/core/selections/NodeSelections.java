@@ -1,15 +1,15 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.eclipse.emf.ecore.util.EcoreUtil;
+import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
+import org.slizaa.hierarchicalgraph.core.model.HGNode;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.eclipse.emf.ecore.util.EcoreUtil;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class NodeSelections {
 

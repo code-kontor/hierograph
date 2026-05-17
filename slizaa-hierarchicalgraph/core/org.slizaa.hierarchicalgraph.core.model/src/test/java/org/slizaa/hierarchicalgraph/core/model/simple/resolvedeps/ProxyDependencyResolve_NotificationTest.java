@@ -1,13 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.model.simple.resolvedeps;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.eclipse.emf.common.notify.Adapter;
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.common.notify.impl.AdapterImpl;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ProxyDependencyResolve_NotificationTest extends AbstractResolverTest {
 

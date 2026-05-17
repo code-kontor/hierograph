@@ -1,7 +1,5 @@
 package org.slizaa.hierarchicalgraph.graphdb.testfwk;
 
-import com.google.common.base.Preconditions;
-import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -11,21 +9,12 @@ import org.neo4j.harness.junit.rule.Neo4jRule;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.core.boltclient.testfwk.BoltClientConnectionRule;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
-import java.nio.file.FileVisitOption;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Comparator;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- *
- */
 public class GraphDatabaseSetupRule implements TestRule {
 
   private PredefinedDatabaseDirectoryRule _predefinedDatabaseDirectoryRule;
@@ -34,9 +23,6 @@ public class GraphDatabaseSetupRule implements TestRule {
 
   private BoltClientConnectionRule _boltClientConnection;
 
-  /**
-   * @param databaseArchivePath
-   */
   public GraphDatabaseSetupRule(String databaseArchivePath) {
 
     checkNotNull(databaseArchivePath);
@@ -61,11 +47,6 @@ public class GraphDatabaseSetupRule implements TestRule {
 
   }
 
-  /**
-   * @param base
-   * @param description
-   * @return
-   */
   @Override
   public Statement apply(final Statement base, final Description description) {
 

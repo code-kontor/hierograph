@@ -1,7 +1,5 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal;
 
-import org.neo4j.driver.types.Node;
-import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.core.model.*;
 import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
@@ -19,27 +17,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class GraphFactoryFunctions {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param id
-   * @param type
-   * @return
-   */
   public static GraphDbDependencySource createDependencySource(Long id, String type) {
     return createDependencySource(checkNotNull(id), checkNotNull(type), null);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param id
-   * @param type
-   * @param userObject
-   * @return
-   */
   public static GraphDbDependencySource createDependencySource(Long id, String type, Object userObject) {
 
     checkNotNull(id);

@@ -1,11 +1,11 @@
 package org.slizaa.hierarchicalgraph.core.algorithms;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.Test;
+import org.slizaa.hierarchicalgraph.core.model.HGNode;
 
 import java.util.List;
 
-import org.junit.Test;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 

@@ -1,11 +1,9 @@
 package org.slizaa.hierarchicalgraph.graphdb.model;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.concurrent.ExecutionException;
-
 import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.slizaa.core.boltclient.IBoltClient;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class NodeIdFinder {
 

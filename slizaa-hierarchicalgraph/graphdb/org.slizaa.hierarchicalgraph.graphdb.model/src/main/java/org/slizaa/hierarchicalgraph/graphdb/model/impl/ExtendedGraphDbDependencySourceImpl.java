@@ -1,9 +1,5 @@
 package org.slizaa.hierarchicalgraph.graphdb.model.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.Optional;
-
 import org.eclipse.emf.common.util.EMap;
 import org.eclipse.emf.ecore.util.EcoreEMap;
 import org.neo4j.driver.types.Relationship;
@@ -12,6 +8,10 @@ import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.core.model.impl.StringToStringMapImpl;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
+
+import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ExtendedGraphDbDependencySourceImpl extends GraphDbDependencySourceImpl {
 

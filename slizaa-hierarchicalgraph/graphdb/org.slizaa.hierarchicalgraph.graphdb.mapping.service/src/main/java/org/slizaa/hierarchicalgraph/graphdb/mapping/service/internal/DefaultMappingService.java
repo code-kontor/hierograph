@@ -13,11 +13,7 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.IBoltClientAware;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.IMappingParticipator;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.IMappingService;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingException;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinitionProvider;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ILabelDefinitionProvider;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.*;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
 

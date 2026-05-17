@@ -1,23 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.model.simple;
 
-import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewCoreDependency;
-import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewNode;
-import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewProxyDependency;
-import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewRootNode;
-
-import java.util.function.Supplier;
-
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import org.slizaa.hierarchicalgraph.core.model.CustomFactoryStandaloneSupport;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
-import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
-import org.slizaa.hierarchicalgraph.core.model.IDependencySource;
-import org.slizaa.hierarchicalgraph.core.model.INodeSource;
+import org.slizaa.hierarchicalgraph.core.model.*;
+
+import java.util.function.Supplier;
+
+import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.*;
 
 public class SimpleTestModelRule implements TestRule {
 

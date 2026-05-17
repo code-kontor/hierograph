@@ -1,14 +1,14 @@
 package org.slizaa.hierarchicalgraph.core.selections.xref.internal;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.Collection;
-import java.util.Set;
-
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.selections.selector.IDependencySelector;
 import org.slizaa.hierarchicalgraph.core.selections.selector.IDependencySelectorListener;
+
+import java.util.Collection;
+import java.util.Set;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class UnmodifiableIDependencySelector implements IDependencySelector {
 

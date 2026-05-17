@@ -1,10 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.model.simple.notifications;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import org.eclipse.emf.common.notify.Adapter;
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.common.notify.impl.AdapterImpl;
@@ -14,6 +9,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
 import org.slizaa.hierarchicalgraph.core.model.spi.INodeComparator;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class RegisterExtensionNotification_HGNodeTest {
 

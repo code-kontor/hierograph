@@ -1,11 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
-import java.util.Collections;
-
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -16,6 +10,12 @@ import org.slizaa.hierarchicalgraph.core.selections.fwk.XRefStackProbeRule;
 import org.slizaa.hierarchicalgraph.core.selections.xref.IXRefListener;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class XRefStack_SetSelectedLeftsidedNodes_Test {
 

@@ -1,10 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.model.simple.resolvedeps;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewCoreDependency;
-
-import java.util.List;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
@@ -13,6 +8,11 @@ import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewCoreDependency;
 
 public abstract class AbstractResolverTest implements IProxyDependencyResolver {
 

@@ -10,17 +10,17 @@
  ******************************************************************************/
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.eclipse.emf.common.notify.Adapter;
+import org.slizaa.hierarchicalgraph.core.model.AbstractHGDependency;
+import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
+import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.eclipse.emf.common.notify.Adapter;
-import org.slizaa.hierarchicalgraph.core.model.AbstractHGDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * <p>

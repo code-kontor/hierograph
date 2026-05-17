@@ -1,13 +1,6 @@
 package org.slizaa.hierarchicalgraph.graphdb.model;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.function.Function;
-
+import com.google.common.collect.Lists;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -15,11 +8,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.slizaa.core.boltclient.IBoltClient;
-import org.slizaa.core.boltclient.testfwk.BoltClientConnectionRule;
-
-import com.google.common.collect.Lists;
 import org.slizaa.hierarchicalgraph.graphdb.testfwk.GraphDatabaseSetupRule;
-import org.slizaa.hierarchicalgraph.graphdb.testfwk.PredefinedDatabaseDirectoryRule;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * <p>

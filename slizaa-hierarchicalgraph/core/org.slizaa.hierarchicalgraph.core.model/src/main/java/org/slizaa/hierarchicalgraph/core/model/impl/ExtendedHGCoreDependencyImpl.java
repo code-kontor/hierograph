@@ -1,10 +1,10 @@
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 
 import java.util.Optional;
 
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ExtendedHGCoreDependencyImpl extends HGCoreDependencyImpl {
 

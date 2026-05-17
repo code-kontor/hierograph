@@ -1,19 +1,15 @@
 package org.slizaa.hierarchicalgraph.core.model.simple.resolvedeps;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 public class CallResolver_Test {
 

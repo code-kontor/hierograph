@@ -4,7 +4,6 @@ import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ILabelDefinitionProvider.OverlayPosition;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource;
 
-import java.net.URL;
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;

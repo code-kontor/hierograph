@@ -1,10 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.testfwk.mapstruct;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.Arrays;
-import java.util.Collection;
-
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -13,6 +8,11 @@ import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ParentChildTest {
 

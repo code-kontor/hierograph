@@ -1,12 +1,12 @@
 package org.slizaa.hierarchicalgraph.core.algorithms.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.slizaa.hierarchicalgraph.core.algorithms.GraphUtils;
 import org.slizaa.hierarchicalgraph.core.algorithms.INodeSorter;
 import org.slizaa.hierarchicalgraph.core.model.AbstractHGDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class FastFasSorter implements INodeSorter {
 

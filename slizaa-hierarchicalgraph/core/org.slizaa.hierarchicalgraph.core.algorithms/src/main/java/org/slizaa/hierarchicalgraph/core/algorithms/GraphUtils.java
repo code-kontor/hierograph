@@ -1,21 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.algorithms;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import org.slizaa.hierarchicalgraph.core.algorithms.impl.DependencyStructureMatrix;
 import org.slizaa.hierarchicalgraph.core.algorithms.impl.FastFasSorter;
 import org.slizaa.hierarchicalgraph.core.algorithms.impl.Tarjan;
-
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  *

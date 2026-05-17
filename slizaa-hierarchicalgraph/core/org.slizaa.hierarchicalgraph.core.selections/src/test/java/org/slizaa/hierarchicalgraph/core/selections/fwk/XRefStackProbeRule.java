@@ -1,11 +1,11 @@
 package org.slizaa.hierarchicalgraph.core.selections.fwk;
 
-import static org.slizaa.hierarchicalgraph.core.selections.fwk.SlizaaNodesAssert.assertThat;
-
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.slizaa.hierarchicalgraph.core.selections.xref.XRefStack;
+
+import static org.slizaa.hierarchicalgraph.core.selections.fwk.SlizaaNodesAssert.assertThat;
 
 public class XRefStackProbeRule implements TestRule {
 

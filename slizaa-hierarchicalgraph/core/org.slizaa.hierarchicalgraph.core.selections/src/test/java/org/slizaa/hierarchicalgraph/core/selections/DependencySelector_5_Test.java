@@ -1,10 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -17,6 +12,11 @@ import org.slizaa.hierarchicalgraph.core.selections.selector.IDependencySelector
 import org.slizaa.hierarchicalgraph.core.selections.selector.SelectedNodesChangedEvent;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class DependencySelector_5_Test {
 

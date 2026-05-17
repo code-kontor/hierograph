@@ -1,15 +1,15 @@
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.Optional;
-
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.ecore.impl.ENotificationImpl;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver.IProxyDependencyResolverJob;
+
+import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ExtendedHGProxyDependencyImpl extends HGProxyDependencyImpl {
 

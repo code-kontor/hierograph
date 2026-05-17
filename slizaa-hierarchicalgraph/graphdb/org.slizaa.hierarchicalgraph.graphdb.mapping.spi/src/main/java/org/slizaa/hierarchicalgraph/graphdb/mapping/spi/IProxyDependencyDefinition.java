@@ -3,11 +3,11 @@
  */
 package org.slizaa.hierarchicalgraph.graphdb.mapping.spi;
 
+import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
+
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.function.Function;
-
-import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
 
 public interface IProxyDependencyDefinition extends IDependencyDefinition {
 

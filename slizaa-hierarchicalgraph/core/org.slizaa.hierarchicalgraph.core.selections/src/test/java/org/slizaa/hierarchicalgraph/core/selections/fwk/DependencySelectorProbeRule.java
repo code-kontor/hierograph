@@ -1,8 +1,5 @@
 package org.slizaa.hierarchicalgraph.core.selections.fwk;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -10,6 +7,9 @@ import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.selections.selector.DefaultDependencySelector;
 import org.slizaa.hierarchicalgraph.core.selections.selector.IDependencySelector;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DependencySelectorProbeRule implements TestRule {
 

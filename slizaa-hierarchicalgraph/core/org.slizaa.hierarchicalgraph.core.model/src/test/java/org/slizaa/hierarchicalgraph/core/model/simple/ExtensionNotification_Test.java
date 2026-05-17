@@ -1,14 +1,14 @@
 package org.slizaa.hierarchicalgraph.core.model.simple;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.LinkedList;
-import java.util.List;
-
 import org.eclipse.emf.common.notify.Notification;
 import org.eclipse.emf.common.notify.impl.AdapterImpl;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ExtensionNotification_Test {
 

@@ -1,13 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import java.util.List;
-import java.util.Optional;
-
 import org.eclipse.emf.common.util.EList;
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
+
+import java.util.List;
+import java.util.Optional;
 
 public class ExtendedHGNodeImpl extends HGNodeImpl {
 

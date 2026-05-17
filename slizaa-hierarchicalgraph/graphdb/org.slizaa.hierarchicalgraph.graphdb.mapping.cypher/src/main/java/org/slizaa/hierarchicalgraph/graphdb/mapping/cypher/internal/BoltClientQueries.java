@@ -1,25 +1,18 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.internal;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.function.Function;
-
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.DefaultDependencyDefinition;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
+
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class BoltClientQueries {
 

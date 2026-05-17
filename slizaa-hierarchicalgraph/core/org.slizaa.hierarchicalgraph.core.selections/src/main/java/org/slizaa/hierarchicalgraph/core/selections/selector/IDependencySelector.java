@@ -1,10 +1,10 @@
 package org.slizaa.hierarchicalgraph.core.selections.selector;
 
-import java.util.Collection;
-import java.util.Set;
-
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
+
+import java.util.Collection;
+import java.util.Set;
 
 public interface IDependencySelector {
 

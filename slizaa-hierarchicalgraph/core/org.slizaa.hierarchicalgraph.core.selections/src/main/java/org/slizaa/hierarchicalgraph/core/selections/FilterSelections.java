@@ -1,12 +1,12 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slizaa.hierarchicalgraph.core.model.HGNode;
+import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class FilterSelections {
 

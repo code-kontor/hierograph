@@ -1,9 +1,9 @@
 package org.slizaa.hierarchicalgraph.core.model.simple;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class GetIncomingDependencies_Test {
 

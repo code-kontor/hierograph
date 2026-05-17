@@ -1,12 +1,12 @@
 package org.slizaa.hierarchicalgraph.core.algorithms.impl;
 
+import org.slizaa.hierarchicalgraph.core.algorithms.GraphUtils;
+import org.slizaa.hierarchicalgraph.core.model.HGNode;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-
-import org.slizaa.hierarchicalgraph.core.algorithms.GraphUtils;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
 
 public class Tarjan<T extends HGNode> {
 

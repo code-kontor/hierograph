@@ -1,13 +1,13 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import java.util.Collections;
-
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.selections.fwk.XRefStackProbeRule;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import java.util.Collections;
 
 public class XRefStack_CropAndCutCropList_Test {
 

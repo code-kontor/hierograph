@@ -1,8 +1,8 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.spi;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import org.slizaa.hierarchicalgraph.core.model.spi.INodeComparator;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class DefaultMappingProvider implements IMappingProvider {
 

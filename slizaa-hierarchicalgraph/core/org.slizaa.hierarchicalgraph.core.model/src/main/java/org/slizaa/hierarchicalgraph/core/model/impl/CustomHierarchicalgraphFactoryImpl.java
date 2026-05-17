@@ -2,14 +2,7 @@
  */
 package org.slizaa.hierarchicalgraph.core.model.impl;
 
-import org.slizaa.hierarchicalgraph.core.model.DefaultDependencySource;
-import org.slizaa.hierarchicalgraph.core.model.DefaultNodeSource;
-import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGNode;
-import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
-import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
+import org.slizaa.hierarchicalgraph.core.model.*;
 
 public class CustomHierarchicalgraphFactoryImpl extends HierarchicalgraphFactoryImpl
     implements HierarchicalgraphFactory {

@@ -3,12 +3,9 @@ package org.slizaa.hierarchicalgraph.graphdb.model;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.common.util.EMap;
 import org.junit.*;
-import org.junit.Ignore;
-import org.slizaa.core.boltclient.testfwk.BoltClientConnectionRule;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.graphdb.testfwk.GraphDatabaseSetupRule;
-import org.slizaa.hierarchicalgraph.graphdb.testfwk.PredefinedDatabaseDirectoryRule;
 
 import java.io.IOException;
 import java.net.ServerSocket;

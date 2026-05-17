@@ -1,14 +1,14 @@
 package org.slizaa.hierarchicalgraph.core.selections;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.util.Collections;
-
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.selections.fwk.XRefStackProbeRule;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
+
+import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class XRefStack_CropSelection_Test {
 
