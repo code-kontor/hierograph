@@ -17,9 +17,15 @@ public class McpApplication {
     }
 
     @Bean
-    public ToolCallbackProvider graphToolCallbackProvider(GraphMcpTools graphMcpTools) {
+    public ToolCallbackProvider graphToolCallbackProvider(
+            DiscoveryMcpTools discoveryMcpTools,
+            PairwiseDependencyMcpTools pairwiseDependencyMcpTools,
+            ScopeDependencyMcpTools scopeDependencyMcpTools,
+            ReachabilityMcpTools reachabilityMcpTools,
+            DetailMcpTools detailMcpTools) {
         ToolCallbackProvider delegate = MethodToolCallbackProvider.builder()
-                .toolObjects(graphMcpTools)
+                .toolObjects(discoveryMcpTools, pairwiseDependencyMcpTools,
+                        scopeDependencyMcpTools, reachabilityMcpTools, detailMcpTools)
                 .build();
         return new LoggingToolCallbackProvider(delegate);
     }
