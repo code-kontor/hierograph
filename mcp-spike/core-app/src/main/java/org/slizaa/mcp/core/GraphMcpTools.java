@@ -1029,6 +1029,10 @@ public class GraphMcpTools {
                     "type_id + modifier_filter: ['public']: list the public API. " +
                     "type_id + name_pattern: 'init': find initialization-style methods. " +
                     "type_id + include_inherited: true: see the full callable surface, including methods from ancestors. " +
+                    "Important: include_inherited only shows methods from ancestor types that were part of the scan. " +
+                    "Methods from external libraries (e.g. java.lang.Object, framework base classes) are only visible " +
+                    "if those libraries were included in the jQAssistant scan. If inherited_count is 0, it may mean " +
+                    "the superclass is outside the scanned codebase, not that there are no inherited methods. " +
                     "For deep information about one specific method (parameters, return type as a NodeRef, throws, " +
                     "annotations, location), use method_details. " +
                     "For 'which methods call this one?' or dependency-driven views, use detail_dependencies.")
@@ -1240,6 +1244,10 @@ public class GraphMcpTools {
                     "type_id + modifier_filter: ['static', 'final']: list the constants this type defines. " +
                     "type_id + name_pattern: 'id': find ID-like fields. " +
                     "type_id + include_inherited: true: see all fields, including inherited ones. " +
+                    "Important: include_inherited only shows fields from ancestor types that were part of the scan. " +
+                    "Fields from external libraries (e.g. framework base classes) are only visible if those libraries " +
+                    "were included in the jQAssistant scan. If inherited_count is 0, it may mean the superclass is " +
+                    "outside the scanned codebase, not that there are no inherited fields. " +
                     "For deep information about one specific field (full type as a NodeRef, list of annotations, " +
                     "methods that read or write it), use field_details. " +
                     "For 'which methods read this field?' or dependency-driven views, use detail_dependencies. " +
