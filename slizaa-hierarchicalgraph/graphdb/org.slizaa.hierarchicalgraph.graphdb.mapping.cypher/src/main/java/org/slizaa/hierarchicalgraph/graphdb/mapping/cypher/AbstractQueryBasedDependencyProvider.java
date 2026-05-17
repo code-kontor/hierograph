@@ -52,9 +52,7 @@ public abstract class AbstractQueryBasedDependencyProvider implements IDependenc
     for (ProxyDependencyQueriesHolder proxyDependenciesDefinition : this._proxyDependenciesQueries) {
 
       // create the resolver function
-      Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> resolverFunction = (proxyDependency) -> {
-        return BoltClientQueries.resolveProxyDependency(proxyDependency, proxyDependenciesDefinition, boltClient);
-      };
+      Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> resolverFunction = (proxyDependency) -> BoltClientQueries.resolveProxyDependency(proxyDependency, proxyDependenciesDefinition, boltClient);
 
       // resolve the 'top-level' queries
       for (String query : proxyDependenciesDefinition.proxyDependencyQueries()) {
