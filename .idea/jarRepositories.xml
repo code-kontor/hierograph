@@ -2,24 +2,9 @@
 <project version="4">
   <component name="RemoteRepositoriesConfiguration">
     <remote-repository>
-      <option name="id" value="dare-snapshot" />
-      <option name="name" value="dare-snapshot" />
-      <option name="url" value="https://dare-494532106722.d.codeartifact.eu-central-1.amazonaws.com/maven/dare-snapshot/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="dare" />
-      <option name="name" value="dare" />
-      <option name="url" value="https://dare-494532106722.d.codeartifact.eu-central-1.amazonaws.com/maven/dare/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="dare-jooq-pro" />
-      <option name="name" value="dare-jooq-pro" />
-      <option name="url" value="https://dare-494532106722.d.codeartifact.eu-central-1.amazonaws.com/maven/dare-jooq-pro/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="dare-maven" />
-      <option name="name" value="dare-maven" />
-      <option name="url" value="https://dare-494532106722.d.codeartifact.eu-central-1.amazonaws.com/maven/maven-central-store/" />
+      <option name="id" value="central" />
+      <option name="name" value="Central Repository" />
+      <option name="url" value="https://repo.maven.apache.org/maven2" />
     </remote-repository>
     <remote-repository>
       <option name="id" value="central" />
@@ -30,16 +15,6 @@
       <option name="id" value="jboss.community" />
       <option name="name" value="JBoss Community repository" />
       <option name="url" value="https://repository.jboss.org/nexus/content/repositories/public/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="dare-3rd-party" />
-      <option name="name" value="dare-3rd-party" />
-      <option name="url" value="https://dare-494532106722.d.codeartifact.eu-central-1.amazonaws.com/maven/3rd-party/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="central" />
-      <option name="name" value="Central Repository" />
-      <option name="url" value="https://dare-494532106722.d.codeartifact.eu-central-1.amazonaws.com/maven/maven-central-store/" />
     </remote-repository>
   </component>
 </project>

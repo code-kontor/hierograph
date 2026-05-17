@@ -47,6 +47,9 @@
       <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.spi" options="-parameters" />
       <module name="org.slizaa.hierarchicalgraph.graphdb.model" options="-parameters" />
       <module name="org.slizaa.hierarchicalgraph.graphdb.testfwk" options="-parameters" />
+      <module name="slizaa-core" options="-parameters" />
+      <module name="slizaa-hierarchicalgraph" options="-parameters" />
+      <module name="slizaa-mojos" options="-parameters" />
       <module name="slizaa-parent" options="-parameters" />
     </option>
   </component>
