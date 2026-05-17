@@ -22,18 +22,6 @@ public interface IMappingProvider {
 
     private INodeMetadataProvider    _nodeMetadataProvider;
 
-    /**
-     * <p>
-     * Creates a new instance of type {@link DelegatingMappingProvider}.
-     * </p>
-     *
-     * @param metaInformation
-     * @param hierarchyProvider
-     * @param dependencyProvider
-     * @param labelProvider
-     * @param nodeComparator
-     * @param nodeMetadataProvider
-     */
     public DefaultMappingProvider(IMappingProviderMetadata metaInformation, IHierarchyDefinitionProvider hierarchyProvider,
         IDependencyDefinitionProvider dependencyProvider, ILabelDefinitionProvider labelProvider,
         INodeComparator nodeComparator, INodeMetadataProvider nodeMetadataProvider) {
@@ -46,49 +34,31 @@ public interface IMappingProvider {
       this._nodeMetadataProvider = checkNotNull(nodeMetadataProvider);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public IMappingProviderMetadata getMappingProviderMetadata() {
       return this._metaData;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public IHierarchyDefinitionProvider getHierarchyDefinitionProvider() {
       return this._hierarchyProvider;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public IDependencyDefinitionProvider getDependencyDefinitionProvider() {
       return this._dependencyProvider;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public ILabelDefinitionProvider getLabelDefinitionProvider() {
       return this._labelProvider;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public INodeComparator getNodeComparator() {
       return this._nodeComparator;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public INodeMetadataProvider getNodeMetadataProvider() {
       return this._nodeMetadataProvider;

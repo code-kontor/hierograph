@@ -12,10 +12,6 @@ public class DefaultDependencyDefinition implements IDependencyDefinition {
 
   public int _weight;
 
-  public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type) {
-    this(idStart, idTarget, idRel, type, 1);
-  }
-
   public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type, int weight) {
     this._idStart = idStart;
     this._idTarget = idTarget;

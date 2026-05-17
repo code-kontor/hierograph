@@ -117,7 +117,7 @@ public class BoltClientQueries {
         Future<List<IDependencyDefinition>> dependencyDefinitions = boltClient
             .asyncExecCypherQueryAndTransformResult(cypherQuery, params, statementResult -> {
               return statementResult.list(r -> new DefaultDependencyDefinition(r.get(0).asLong(), r.get(1).asLong(),
-                  r.get(2).asLong(), r.get(3).asString()));
+                  r.get(2).asLong(), r.get(3).asString(), r.get(4).asInt()));
             });
 
         result.add(dependencyDefinitions);

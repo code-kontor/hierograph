@@ -18,21 +18,6 @@ public class ProxyDependencyDefinitionImpl extends DefaultDependencyDefinition i
 
   private Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> _function;
 
-  /**
-   * <p>
-   * Creates a new instance of type {@link ProxyDependencyDefinitionImpl}.
-   * </p>
-   *
-   * @param idStart
-   * @param idTarget
-   * @param idRel
-   * @param type
-   */
-  public ProxyDependencyDefinitionImpl(long idStart, long idTarget, long idRel, String type,
-      Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> function) {
-    this(idStart, idTarget, idRel, type, 1, function);
-  }
-
   public ProxyDependencyDefinitionImpl(long idStart, long idTarget, long idRel, String type, int weight,
       Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> function) {
     super(idStart, idTarget, idRel, type, weight);
