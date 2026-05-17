@@ -32,9 +32,8 @@ public class BoltClientQueries {
     return checkNotNull(boltClient).asyncExecCypherQueryAndTransformResult(checkNotNull(query), result -> result.list(r -> {
 
       if (resolverFunction != null) {
-        // TODO: add support for weight to proxy dependencies as well...
         return (IDependencyDefinition) new ProxyDependencyDefinitionImpl(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
-            r.get(3).asString(), resolverFunction);
+            r.get(3).asString(), r.get(4).asInt(), resolverFunction);
       }
       else {
         return (IDependencyDefinition) new DefaultDependencyDefinition(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),

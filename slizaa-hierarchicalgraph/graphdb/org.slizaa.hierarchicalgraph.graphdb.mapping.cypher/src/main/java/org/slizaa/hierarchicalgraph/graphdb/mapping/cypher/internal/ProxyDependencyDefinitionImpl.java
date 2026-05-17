@@ -30,7 +30,12 @@ public class ProxyDependencyDefinitionImpl extends DefaultDependencyDefinition i
    */
   public ProxyDependencyDefinitionImpl(long idStart, long idTarget, long idRel, String type,
       Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> function) {
-    super(idStart, idTarget, idRel, type);
+    this(idStart, idTarget, idRel, type, 1, function);
+  }
+
+  public ProxyDependencyDefinitionImpl(long idStart, long idTarget, long idRel, String type, int weight,
+      Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> function) {
+    super(idStart, idTarget, idRel, type, weight);
 
     this._function = checkNotNull(function);
   }
