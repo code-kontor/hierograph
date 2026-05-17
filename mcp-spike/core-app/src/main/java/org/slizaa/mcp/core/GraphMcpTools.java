@@ -24,7 +24,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "find_node",
-            description = "Look up nodes by name. This is the primary way to obtain node IDs and should be the " +
+            description = "[Discovery and orientation] Look up nodes by name. This is the primary way to obtain node IDs and should be the " +
                     "first tool called when the user mentions a specific class, package, or artifact by name. " +
                     "Searches by name or fully qualified name using case-insensitive substring matching. " +
                     "Use the kind filter when names are ambiguous across node types (e.g. a package and a class " +
@@ -65,7 +65,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "list_children",
-            description = "Returns the immediate direct children of a node — only one level. " +
+            description = "[Discovery and orientation] Returns the immediate direct children of a node — only one level. " +
                     "Use this for shallow exploration when you want to see what's directly contained " +
                     "in a specific node. " +
                     "Returns ONLY the immediate direct children (depth = 1). For anything beyond one level, use list_descendants." +
@@ -102,7 +102,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "dependency_between",
-            description = "Check whether a dependency exists from one subtree to another and how strong it is. " +
+            description = "[Hierarchical pairwise] Check whether a dependency exists from one subtree to another and how strong it is. " +
                     "This is the right tool when you have two specific nodes and want to know 'does A depend on B?' " +
                     "An 'exists: false' result is definitive — you can confidently say there is no dependency. " +
                     "For detailed evidence of an existing dependency, follow up with outgoing_core_dependencies.")
@@ -143,7 +143,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "aggregated_outgoing",
-            description = "Get aggregated outgoing dependencies from a source node to targets within a scope. " +
+            description = "[Hierarchical scope-based] Get aggregated outgoing dependencies from a source node to targets within a scope. " +
                     "Targets default to top-level nodes (children of root), giving a coarse overview. " +
                     "Pass a more specific target_scope_id to aggregate at finer granularity within that scope. " +
                     "The response is aggregated — for code-level evidence, follow up with outgoing_core_dependencies. " +
@@ -226,7 +226,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "aggregated_incoming",
-            description = "The primary blast-radius tool. Given a target node, return aggregated incoming " +
+            description = "[Hierarchical scope-based] The primary blast-radius tool. Given a target node, return aggregated incoming " +
                     "dependencies from candidate sources within a scope. Use this to answer 'if I change this, " +
                     "what's affected?' in a single call with a structural ranking. " +
                     "Sources default to top-level nodes (children of root). Pass a more specific source_scope_id " +
@@ -305,7 +305,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "outgoing_core_dependencies",
-            description = "Return concrete leaf-level dependencies (core edges) from one subtree to another. " +
+            description = "[Hierarchical type-level evidence] Return concrete leaf-level dependencies (core edges) from one subtree to another. " +
                     "This is the evidence tool — use it after an aggregated query reveals a dependency of interest " +
                     "to see specific call sites and relationships. Both from_id and to_id are required because " +
                     "unfiltered enumeration is rarely useful — use aggregated_outgoing for an overview first, " +
@@ -358,7 +358,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "incoming_core_dependencies",
-            description = "Return concrete leaf-level dependencies (core edges) from one subtree into another. " +
+            description = "[Hierarchical type-level evidence] Return concrete leaf-level dependencies (core edges) from one subtree into another. " +
                     "Mirror of outgoing_core_dependencies — use after aggregated_incoming reveals a dependency " +
                     "of interest, to see the specific relationships that constitute it.")
     public Map<String, Object> incomingCoreDependencies(
@@ -371,7 +371,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "describe_graph",
-            description = "Return a structured overview of the loaded graph or a specified scope. " +
+            description = "[Discovery and orientation] Return a structured overview of the loaded graph or a specified scope. " +
                     "This is the right first call when you don't know what kind of graph you're looking at. " +
                     "It provides node counts by kind, depth statistics, top-level children with dependency counts, " +
                     "and dependency kind distribution. For known graphs, it can be skipped.")
@@ -464,7 +464,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "find_dependency_path",
-            description = "Determine whether a transitive dependency path exists from one node to another, " +
+            description = "[Hierarchical reachability] Determine whether a transitive dependency path exists from one node to another, " +
                     "and if so, return the shortest path. This is the right tool for transitive reachability " +
                     "questions — it answers 'can A indirectly affect B?' over the in-memory dependency graph. " +
                     "An 'exists: false' result is definitive — there is no dependency chain of any length " +
@@ -579,7 +579,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "pairwise_dependencies",
-            description = "Bundled pairwise dependency analysis over a node set. Given a set of nodes " +
+            description = "[Hierarchical scope-based] Bundled pairwise dependency analysis over a node set. Given a set of nodes " +
                     "(typically siblings, layers, or a user-specified group), return all pairwise aggregated " +
                     "dependencies among them as an edge list, plus server-computed structural insights: " +
                     "density, cycle presence, strongly connected components, and topological order (if acyclic). " +
@@ -688,7 +688,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "affected_by",
-            description = "Return the transitive blast radius of a proposed change to a node — everything that " +
+            description = "[Hierarchical reachability] Return the transitive blast radius of a proposed change to a node — everything that " +
                     "depends on it, directly or indirectly, up to a specified depth — as a structured summary. " +
                     "This is the tool for the full ripple-effect question, distinct from aggregated_incoming " +
                     "(which shows only direct dependents). Traversal walks backwards through core (leaf-level) " +
@@ -848,7 +848,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "outgoing_to",
-            description = "Check whether a specific source node has aggregated dependencies to each of a " +
+            description = "[Hierarchical pairwise] Check whether a specific source node has aggregated dependencies to each of a " +
                     "specified list of target nodes. Returns directional yes/no/how-much answers for each target. " +
                     "This is the right tool when you have both a source and specific target candidates in mind " +
                     "and want to know which targets the source actually depends on. " +
@@ -932,7 +932,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "incoming_from",
-            description = "Check whether each of a specified list of source nodes has aggregated dependencies " +
+            description = "[Hierarchical pairwise] Check whether each of a specified list of source nodes has aggregated dependencies " +
                     "to a specific target node. The target is the focal point; the source list is the set of " +
                     "candidates being checked. Returns directional yes/no/how-much answers for each source. " +
                     "An 'exists: false' entry is definitive. Results appear in input order. " +
@@ -1063,7 +1063,7 @@ public class GraphMcpTools {
     }
 
     @Tool(name = "list_descendants",
-            description = "Return descendants of a node matching specified filters, in a single call. " +
+            description = "[Discovery and orientation] Return descendants of a node matching specified filters, in a single call. " +
                     "This is the right tool for any 'show me all X in subtree Y' question. " +
                     "Common use cases — use this tool when you want to: " +
                     "list all types (classes, interfaces, enums) in a package or module, " +
