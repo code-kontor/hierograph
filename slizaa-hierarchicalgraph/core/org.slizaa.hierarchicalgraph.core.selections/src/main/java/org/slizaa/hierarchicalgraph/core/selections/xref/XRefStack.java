@@ -16,42 +16,26 @@ import java.util.function.Consumer;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class XRefStack {
 
-  /** - */
   private Collection<HGNode>          _additionalVisibleCenterNodes;
 
-  /** - */
   private Collection<HGNode>          _selectedCenterNodes;
 
-  /** - */
   private IDependencySelector         _outgoingDependencySelector;
 
-  /** - */
   private IDependencySelector         _incomingDependencySelector;
 
-  /** - */
   private IDependencySelector         _backReferencesFromOutgoingDependenciesSelector;
 
-  /** - */
   private IDependencySelector         _backReferencesFromIncomingDependenciesSelector;
 
-  /** - */
   private SourceOrTarget              _activeBackReferenceSelector;
 
-  /** - */
   private List<XReferenceSelection>   _selectionStack;
 
-  /** - */
   private int                         _currentCropPosition;
 
-  /** - */
   private List<IXRefListener> _listenerList;
 
   /**
@@ -69,52 +53,29 @@ public class XRefStack {
     _additionalVisibleCenterNodes = Collections.emptyList();
     _selectedCenterNodes = Collections.emptyList();
 
-    //
     _listenerList = new CopyOnWriteArrayList<>();
     _selectionStack = new Stack<>();
 
-    //
     _currentCropPosition = -1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectionListener
-   */
-  public void addXRefListener(IXRefListener selectionListener) {
+    public void addXRefListener(IXRefListener selectionListener) {
     _listenerList.add(checkNotNull(selectionListener));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectionListener
-   */
-  public void removeXRefListener(IXRefListener selectionListener) {
+    public void removeXRefListener(IXRefListener selectionListener) {
     _listenerList.remove(checkNotNull(selectionListener));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param incomingDependencies
-   * @param outgoingDependencies
-   */
-  public void pruneDependenciesForUncroppedCenterNodes(Collection<HGNode> selectedCenterNodes,
+    public void pruneDependenciesForUncroppedCenterNodes(Collection<HGNode> selectedCenterNodes,
       Collection<HGCoreDependency> incomingDependencies, Collection<HGCoreDependency> outgoingDependencies) {
 
-    //
     checkNotNull(selectedCenterNodes);
     checkNotNull(incomingDependencies);
     checkNotNull(outgoingDependencies);
 
     checkState(!isCurrentSelectionCropped());
 
-    //
     _selectedCenterNodes = selectedCenterNodes;
     _incomingDependencySelector.setUnfilteredCoreDependencies(incomingDependencies);
     _outgoingDependencySelector.setUnfilteredCoreDependencies(outgoingDependencies);
@@ -122,27 +83,14 @@ public class XRefStack {
     _backReferencesFromIncomingDependenciesSelector.setUnfilteredCoreDependencies(incomingDependencies);
     _backReferencesFromOutgoingDependenciesSelector.setUnfilteredCoreDependencies(outgoingDependencies);
 
-    //
     fireEvent(l -> l.coreDependenciesChanged());
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedCenterNodes
-   */
-  public void setSelectedCenterNodes(HGNode... selectedCenterNodes) {
+    public void setSelectedCenterNodes(HGNode... selectedCenterNodes) {
     setSelectedCenterNodes(Arrays.asList(selectedCenterNodes));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedCenterNodes
-   */
-  public void setSelectedCenterNodes(Collection<HGNode> selectedCenterNodes) {
+    public void setSelectedCenterNodes(Collection<HGNode> selectedCenterNodes) {
 
     // set the new selection
     _selectedCenterNodes = checkNotNull(selectedCenterNodes);
@@ -154,29 +102,15 @@ public class XRefStack {
     _backReferencesFromOutgoingDependenciesSelector
         .setUnfilteredCoreDependencies(checkNotNull(_outgoingDependencySelector.getFilteredCoreDependencies()));
 
-    //
     fireEvent(l -> l.centerNodeSelectionChanged());
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedLeftsidedNodes
-   */
-  public void setSelectedLeftsidedNodes(HGNode... selectedLeftsidedNodes) {
+    public void setSelectedLeftsidedNodes(HGNode... selectedLeftsidedNodes) {
     setSelectedLeftsidedNodes(Arrays.asList(selectedLeftsidedNodes));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedLeftsidedNodes
-   */
-  public void setSelectedLeftsidedNodes(Collection<HGNode> selectedLeftsidedNodes) {
+    public void setSelectedLeftsidedNodes(Collection<HGNode> selectedLeftsidedNodes) {
 
-    //
     _activeBackReferenceSelector = SourceOrTarget.SOURCE;
     _backReferencesFromIncomingDependenciesSelector.setSelectedSourceNodes(selectedLeftsidedNodes);
     _backReferencesFromOutgoingDependenciesSelector.setSelectedTargetNodes(Collections.emptySet());
@@ -185,25 +119,12 @@ public class XRefStack {
     fireEvent(l -> l.leftsidedNodeSelectionChanged());
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedRightsidedNodes
-   */
-  public void setSelectedRightsidedNodes(HGNode... selectedRightsidedNodes) {
+    public void setSelectedRightsidedNodes(HGNode... selectedRightsidedNodes) {
     setSelectedRightsidedNodes(Arrays.asList(selectedRightsidedNodes));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedRightsidedNodes
-   */
-  public void setSelectedRightsidedNodes(Collection<HGNode> selectedRightsidedNodes) {
+    public void setSelectedRightsidedNodes(Collection<HGNode> selectedRightsidedNodes) {
 
-    //
     _activeBackReferenceSelector = SourceOrTarget.TARGET;
     _backReferencesFromIncomingDependenciesSelector.setSelectedSourceNodes(Collections.emptySet());
     _backReferencesFromOutgoingDependenciesSelector.setSelectedTargetNodes(selectedRightsidedNodes);
@@ -212,13 +133,8 @@ public class XRefStack {
     fireEvent(l -> l.rightsidedNodeSelectionChanged());
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public void cropSelection() {
+    public void cropSelection() {
 
-    //
     XReferenceSelection selection = SelectionsFactory.eINSTANCE.createXReferenceSelection();
 
     // we have to filter the 'opposite' selector as well
@@ -228,14 +144,12 @@ public class XRefStack {
       _backReferencesFromIncomingDependenciesSelector.setSelectedTargetNodes(getBackreferencedCenterNodes());
     }
 
-    //
     if (_activeBackReferenceSelector != null) {
       selection.getIncomingDependencies()
           .addAll(_backReferencesFromIncomingDependenciesSelector.getFilteredCoreDependencies());
       selection.getOutgoingDependencies()
           .addAll(_backReferencesFromOutgoingDependenciesSelector.getFilteredCoreDependencies());
     }
-    //
     else {
       selection.getNodes().addAll(_selectedCenterNodes);
       selection.getIncomingDependencies().addAll(_incomingDependencySelector.getFilteredCoreDependencies());
@@ -253,15 +167,12 @@ public class XRefStack {
     _selectionStack.add(selection);
     _currentCropPosition++;
 
-    //
     _additionalVisibleCenterNodes = selection.getNodes();
     _incomingDependencySelector.setUnfilteredCoreDependencies(selection.getIncomingDependencies());
     _outgoingDependencySelector.setUnfilteredCoreDependencies(selection.getOutgoingDependencies());
 
-    //
     _activeBackReferenceSelector = null;
 
-    //
     fireEvent(l -> l.croppedSelectionChanged());
   }
 
@@ -272,76 +183,51 @@ public class XRefStack {
 //   * @param selectedNodes
 //   */
 //  public void cropSelection(Collection<HGNode> selectedNodes) {
-//
 //    //
 //    _uncropAll();
-//
 //    //
 //    _incomingDependencySelector.setSelectedTargetNodes(checkNotNull(selectedNodes));
 //    _outgoingDependencySelector.setSelectedSourceNodes(checkNotNull(selectedNodes));
-//
 //    //
 //    XReferenceSelection selection = SelectionFactory.eINSTANCE.createXReferenceSelection();
 //    selection.getNodes().addAll(selectedNodes);
 //    selection.getIncomingDependencies().addAll(_incomingDependencySelector.getFilteredCoreDependencies());
 //    selection.getOutgoingDependencies().addAll(_outgoingDependencySelector.getFilteredCoreDependencies());
-//
 //    //
 //    _additionalVisibleCenterNodes = selectedNodes;
 //    _incomingDependencySelector.setUnfilteredCoreDependencies(selection.getIncomingDependencies());
 //    _outgoingDependencySelector.setUnfilteredCoreDependencies(selection.getOutgoingDependencies());
 //    _selectionStack.add(selection);
 //    _currentCropPosition++;
-//
 //    //
 //    _activeBackReferenceSelector = null;
-//
 //    //
 //    fireEvent(l -> l.croppedSelectionChanged());
 //  }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public void uncropAll() {
+    public void uncropAll() {
 
-    //
     _uncropAll();
 
-    //
     fireEvent(l -> l.croppedSelectionChanged());
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public boolean canGoBack() {
+    public boolean canGoBack() {
     return _currentCropPosition != -1;
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public void goBack() {
+    public void goBack() {
 
-    //
     if (canGoBack()) {
 
       _currentCropPosition--;
 
-      //
       if (_currentCropPosition == -1) {
         _additionalVisibleCenterNodes = Collections.emptyList();
         _incomingDependencySelector.setUnfilteredCoreDependencies(Collections.emptyList());
         _outgoingDependencySelector.setUnfilteredCoreDependencies(Collections.emptyList());
       }
 
-      //
       else {
         _additionalVisibleCenterNodes = _selectionStack.get(_currentCropPosition).getNodes();
         _incomingDependencySelector
@@ -350,61 +236,35 @@ public class XRefStack {
             .setUnfilteredCoreDependencies(_selectionStack.get(_currentCropPosition).getOutgoingDependencies());
       }
 
-      //
       fireEvent(l -> l.croppedSelectionChanged());
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public boolean canGoForward() {
+    public boolean canGoForward() {
     return _currentCropPosition + 1 < _selectionStack.size();
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public void goForward() {
+    public void goForward() {
 
-    //
     if (canGoForward()) {
 
       _currentCropPosition++;
 
-      //
       _additionalVisibleCenterNodes = _selectionStack.get(_currentCropPosition).getNodes();
       _incomingDependencySelector
           .setUnfilteredCoreDependencies(_selectionStack.get(_currentCropPosition).getIncomingDependencies());
       _outgoingDependencySelector
           .setUnfilteredCoreDependencies(_selectionStack.get(_currentCropPosition).getOutgoingDependencies());
 
-      //
       fireEvent(l -> l.croppedSelectionChanged());
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public boolean hasCroppedSelections() {
+    public boolean hasCroppedSelections() {
     return _selectionStack.size() > 0;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public boolean isCurrentSelectionCropped() {
+    public boolean isCurrentSelectionCropped() {
     return hasCroppedSelections() && _currentCropPosition != -1;
   }
 
@@ -421,21 +281,14 @@ public class XRefStack {
   // return union;
   // }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public Set<HGCoreDependency> getSelectedDependencies() {
+    public Set<HGCoreDependency> getSelectedDependencies() {
 
-    //
     if (_activeBackReferenceSelector == null) {
       return Collections.emptySet();
     }
-    //
     else if (SourceOrTarget.SOURCE.equals(_activeBackReferenceSelector)) {
       return _backReferencesFromIncomingDependenciesSelector.getFilteredCoreDependencies();
     }
-    //
     else if (SourceOrTarget.TARGET.equals(_activeBackReferenceSelector)) {
       return _backReferencesFromOutgoingDependenciesSelector.getFilteredCoreDependencies();
     }
@@ -444,36 +297,21 @@ public class XRefStack {
     return Collections.emptySet();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public Set<HGNode> getCenterNodes() {
+    public Set<HGNode> getCenterNodes() {
     Set<HGNode> union = new HashSet<HGNode>(_incomingDependencySelector.getUnfilteredTargetNodes());
     union.addAll(_outgoingDependencySelector.getUnfilteredSourceNodes());
     union.addAll(_additionalVisibleCenterNodes);
     return union;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public Set<HGNode> getBackreferencedCenterNodes() {
+    public Set<HGNode> getBackreferencedCenterNodes() {
 
-    //
     if (_activeBackReferenceSelector == null) {
       return Collections.emptySet();
     }
-    //
     else if (SourceOrTarget.SOURCE.equals(_activeBackReferenceSelector)) {
       return _backReferencesFromIncomingDependenciesSelector.getFilteredTargetNodes();
     }
-    //
     else if (SourceOrTarget.TARGET.equals(_activeBackReferenceSelector)) {
       return _backReferencesFromOutgoingDependenciesSelector.getFilteredSourceNodes();
     }
@@ -482,71 +320,37 @@ public class XRefStack {
     return Collections.emptySet();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public Set<HGNode> getRightsidedNodes() {
+    public Set<HGNode> getRightsidedNodes() {
     return _outgoingDependencySelector.getFilteredTargetNodes();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public Set<HGNode> getLeftsidedNodes() {
+    public Set<HGNode> getLeftsidedNodes() {
     return _incomingDependencySelector.getFilteredSourceNodes();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public IDependencySelector incomingDependencySelector() {
+    public IDependencySelector incomingDependencySelector() {
     return new UnmodifiableIDependencySelector(_incomingDependencySelector);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public IDependencySelector outgoingDependencySelector() {
+    public IDependencySelector outgoingDependencySelector() {
     return new UnmodifiableIDependencySelector(_outgoingDependencySelector);
   }
 
   private void _uncropAll() {
-    //
     _selectionStack.clear();
 
-    //
     _incomingDependencySelector.setUnfilteredCoreDependencies(Collections.emptyList());
     _outgoingDependencySelector.setUnfilteredCoreDependencies(Collections.emptyList());
 
-    //
     _activeBackReferenceSelector = null;
     _backReferencesFromIncomingDependenciesSelector.setUnfilteredCoreDependencies(Collections.emptySet());
     _backReferencesFromOutgoingDependenciesSelector.setUnfilteredCoreDependencies(Collections.emptySet());
 
-    //
     _selectionStack.clear();
     _currentCropPosition = -1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param c
-   */
-  private void fireEvent(Consumer<IXRefListener> c) {
+    private void fireEvent(Consumer<IXRefListener> c) {
     for (IXRefListener listener : _listenerList) {
       try {
         c.accept(listener);

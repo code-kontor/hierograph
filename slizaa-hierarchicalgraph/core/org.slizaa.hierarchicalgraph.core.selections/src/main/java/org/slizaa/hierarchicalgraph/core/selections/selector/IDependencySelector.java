@@ -6,139 +6,39 @@ import java.util.Set;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public interface IDependencySelector {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param listener
-   */
-  void addDependencySelectorListener(IDependencySelectorListener listener);
+    void addDependencySelectorListener(IDependencySelectorListener listener);
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param listener
-   */
-  void removeDependencySelectorListener(IDependencySelectorListener listener);
+    void removeDependencySelectorListener(IDependencySelectorListener listener);
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param dependencies
-   */
-  void setUnfilteredCoreDependencies(Collection<HGCoreDependency> dependencies);
+    void setUnfilteredCoreDependencies(Collection<HGCoreDependency> dependencies);
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedNodes
-   */
-  void setSelectedSourceNodes(HGNode... selectedNodes);
+    void setSelectedSourceNodes(HGNode... selectedNodes);
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedNodes
-   */
-  void setSelectedSourceNodes(Collection<HGNode> selectedNodes);
+    void setSelectedSourceNodes(Collection<HGNode> selectedNodes);
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedNodes
-   */
-  void setSelectedTargetNodes(HGNode... selectedNodes);
+    void setSelectedTargetNodes(HGNode... selectedNodes);
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param selectedNodes
-   */
-  void setSelectedTargetNodes(Collection<HGNode> selectedNodes);
+    void setSelectedTargetNodes(Collection<HGNode> selectedNodes);
 
-  /**
-   * <p>
-   * </p>
-   */
-  void unselectNodes();
+    void unselectNodes();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGNode> getSelectedSourceNodes();
+    Set<HGNode> getSelectedSourceNodes();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGNode> getSelectedTargetNodes();
+    Set<HGNode> getSelectedTargetNodes();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGCoreDependency> getUnfilteredCoreDependencies();
+    Set<HGCoreDependency> getUnfilteredCoreDependencies();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGNode> getUnfilteredSourceNodes();
+    Set<HGNode> getUnfilteredSourceNodes();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGNode> getUnfilteredTargetNodes();
+    Set<HGNode> getUnfilteredTargetNodes();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGCoreDependency> getFilteredCoreDependencies();
+    Set<HGCoreDependency> getFilteredCoreDependencies();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGNode> getFilteredSourceNodes();
+    Set<HGNode> getFilteredSourceNodes();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  Set<HGNode> getFilteredTargetNodes();
+    Set<HGNode> getFilteredTargetNodes();
 
   /**
    * <p>

@@ -5,33 +5,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ILabelDefinitionProvider.ILabelDefinition;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ILabelDefinitionProvider.OverlayPosition;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DefaultLabelDefinition implements ILabelDefinition {
 
-  /** - */
   private String    _baseImage          = null;
 
-  /** - */
   private String    _overlayTopRight    = null;
 
-  /** - */
   private String    _overlayBottomRight = null;
 
-  /** - */
   private String    _overlayTopLeft     = null;
 
-  /** - */
   private String    _overlayBottomLeft  = null;
 
-  /** - */
   private String _text;
   
-  /** - */
   private boolean _isOverlayImage;
   
   @Override
@@ -39,17 +26,13 @@ public class DefaultLabelDefinition implements ILabelDefinition {
     return _isOverlayImage || _overlayTopRight != null || _overlayBottomRight != null || _overlayTopLeft != null || _overlayBottomLeft != null ;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public boolean hasBaseImage() {
     return this._baseImage != null;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public String getBaseImagePath() {
     return this._baseImage;
@@ -87,9 +70,7 @@ public class DefaultLabelDefinition implements ILabelDefinition {
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public String getText() {
     return this._text;

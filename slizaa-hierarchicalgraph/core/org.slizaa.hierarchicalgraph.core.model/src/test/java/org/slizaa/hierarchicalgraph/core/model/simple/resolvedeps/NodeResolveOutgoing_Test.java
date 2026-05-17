@@ -2,12 +2,6 @@ package org.slizaa.hierarchicalgraph.core.model.simple.resolvedeps;
 
 import org.junit.Test;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class NodeResolveOutgoing_Test extends AbstractResolverTest {
 
   @Test

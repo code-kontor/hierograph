@@ -28,13 +28,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class GraphDatabaseSetupRule implements TestRule {
 
-  //
   private PredefinedDatabaseDirectoryRule _predefinedDatabaseDirectoryRule;
 
-  //
   private Neo4jRule _neo4jRule;
 
-  //
   private BoltClientConnectionRule _boltClientConnection;
 
   /**
@@ -46,7 +43,6 @@ public class GraphDatabaseSetupRule implements TestRule {
 
     try (InputStream inputStream = GraphDatabaseSetupRule.class.getResourceAsStream(databaseArchivePath)) {
 
-      //
       int freePort = findFreePort();
 
       _predefinedDatabaseDirectoryRule = new PredefinedDatabaseDirectoryRule(

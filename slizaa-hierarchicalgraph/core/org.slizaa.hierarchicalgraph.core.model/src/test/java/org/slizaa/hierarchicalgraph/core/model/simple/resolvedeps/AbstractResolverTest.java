@@ -14,66 +14,33 @@ import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public abstract class AbstractResolverTest implements IProxyDependencyResolver {
 
-  /** - */
   @Rule
   public SimpleTestModelRule   _model = new SimpleTestModelRule();
 
-  /** - */
   private HGCoreDependency _newDependency_1;
 
-  /** - */
   private HGCoreDependency _newDependency_2;
 
   @Before
   public void before() {
 
-    //
     this._model.root().registerExtension(IProxyDependencyResolver.class, this);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public SimpleTestModelRule model() {
+    public SimpleTestModelRule model() {
     return this._model;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public HGCoreDependency getNewDependency_1() {
+    public HGCoreDependency getNewDependency_1() {
     return this._newDependency_1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public HGCoreDependency getNewDependency_2() {
+    public HGCoreDependency getNewDependency_2() {
     return this._newDependency_2;
   }
 
-  
-  
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public IProxyDependencyResolverJob resolveProxyDependency(HGProxyDependency dependencyToResolve) {
 
@@ -90,31 +57,17 @@ public abstract class AbstractResolverTest implements IProxyDependencyResolver {
     return null;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param runnable
-   */
-  protected void resolve(Runnable runnable) {
+    protected void resolve(Runnable runnable) {
 
-    //
     assertDependenciesBeforeResolve();
 
-    //
     runnable.run();
 
-    //
     assertDependenciesAfterResolve();
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  private void assertDependenciesBeforeResolve() {
+    private void assertDependenciesBeforeResolve() {
 
-    //
     HGAggregatedDependency aggregatedDependency = this._model.a1().getOutgoingDependenciesTo(this._model.b1());
     assertThat(aggregatedDependency).isNotNull();
     assertThat(aggregatedDependency.getAggregatedWeight()).isEqualTo(4);
@@ -122,22 +75,16 @@ public abstract class AbstractResolverTest implements IProxyDependencyResolver {
     assertThat(aggregatedDependency.getCoreDependencies()).hasSize(4).contains(this._model.a1_b1_core1(),
         this._model.a1_b1_core2(), this._model.a2_b2_core1(), this._model.a3_b3_core1());
 
-    //
     List<HGCoreDependency> outgoingDependencies = this._model.a1().getAccumulatedOutgoingCoreDependencies();
     assertThat(outgoingDependencies).hasSize(4).contains(this._model.a1_b1_core1(), this._model.a1_b1_core2(),
         this._model.a2_b2_core1(), this._model.a3_b3_core1());
 
-    //
     List<HGCoreDependency> incomingDependencies = this._model.b1().getAccumulatedIncomingCoreDependencies();
     assertThat(incomingDependencies).hasSize(4).contains(this._model.a1_b1_core1(), this._model.a1_b1_core2(),
         this._model.a2_b2_core1(), this._model.a3_b3_core1());
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  private void assertDependenciesAfterResolve() {
+    private void assertDependenciesAfterResolve() {
 
     // we have to re-read the aggregated dependency
     List<HGCoreDependency> incomingDeps = this._model.b1().getAccumulatedIncomingCoreDependencies();
@@ -152,7 +99,6 @@ public abstract class AbstractResolverTest implements IProxyDependencyResolver {
     assertThat(outgoingDeps).contains(this._model.a1_b1_core1(), this._model.a1_b1_core2(), this._model.a2_b2_core1(),
         getNewDependency_1(), getNewDependency_2());
 
-    //
     HGAggregatedDependency aggregatedDependency = this._model.a1().getOutgoingDependenciesTo(this._model.b1());
     assertThat(aggregatedDependency.getAggregatedWeight()).isEqualTo(4);
     assertThat(aggregatedDependency.getCoreDependencies()).isNotNull();

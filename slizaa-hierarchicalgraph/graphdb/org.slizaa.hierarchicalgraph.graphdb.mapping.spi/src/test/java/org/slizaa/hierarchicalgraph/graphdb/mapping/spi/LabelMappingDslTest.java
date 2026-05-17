@@ -29,57 +29,39 @@ public class LabelMappingDslTest extends AbstractLabelMappingDslTest {
         assertThat(labelDefinition.getText()).isNotNull().isEqualTo("<<LABEL_MAPPING_IS_NULL: (666) >>");
     }
 
-    /**
-     * <p>
-     * </p>
-     */
-    @Test
+        @Test
     public void testSetBaseImage() {
 
-        //
         DefaultLabelDefinition labelDefinition = process(setBaseImage("icons/final_co.png"), createHGNode());
 
-        //
         assertThat(labelDefinition.getBaseImagePath()).isNotNull().isEqualTo("icons/final_co.png");
     }
 
-    /**
-     * <p>
-     * </p>
-     */
-    @Test
+        @Test
     public void testSetOverlayImage() {
 
-        //
         DefaultLabelDefinition labelDefinition = process(
                 setOverlayImage("icons/final_co.png", OverlayPosition.TOP_RIGHT), createHGNode());
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.TOP_RIGHT)).isNotNull()
                 .isEqualTo("icons/final_co.png");
 
-        //
         labelDefinition = process(setOverlayImage("icons/final_co.png", OverlayPosition.TOP_LEFT),
                 createHGNode());
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.TOP_LEFT)).isNotNull()
                 .isEqualTo("icons/final_co.png");
 
-        //
         labelDefinition = process(setOverlayImage("icons/final_co.png", OverlayPosition.BOTTOM_RIGHT),
                 createHGNode());
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.BOTTOM_RIGHT)).isNotNull()
                 .isEqualTo("icons/final_co.png");
 
-        //
         labelDefinition = process(setOverlayImage("icons/final_co.png", OverlayPosition.BOTTOM_LEFT),
                 createHGNode());
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.BOTTOM_LEFT)).isNotNull()
                 .isEqualTo("icons/final_co.png");
     }
 
-    /**
-     * <p>
-     * </p>
-     */
-    @Test
+        @Test
     public void testExclusiceChoice() {
 
         //@formatter:off
@@ -92,18 +74,13 @@ public class LabelMappingDslTest extends AbstractLabelMappingDslTest {
                 , createHGNode());
         //@formatter:on
 
-        //
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.TOP_RIGHT)).isNull();
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.TOP_LEFT)).isNull();
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.BOTTOM_LEFT)).isNull();
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.BOTTOM_RIGHT)).isNotNull();
     }
 
-    /**
-     * <p>
-     * </p>
-     */
-    @Test
+        @Test
     public void testExecuteAll() {
 
         //@formatter:off
@@ -117,7 +94,6 @@ public class LabelMappingDslTest extends AbstractLabelMappingDslTest {
                 , createHGNode());
         //@formatter:on
 
-        //
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.TOP_RIGHT)).isNotNull()
                 .isEqualTo("icons/final_co.png");
         assertThat(labelDefinition.getOverlayImagePath(OverlayPosition.TOP_LEFT)).isNotNull()
@@ -128,33 +104,21 @@ public class LabelMappingDslTest extends AbstractLabelMappingDslTest {
                 .isEqualTo("icons/final_co.png");
     }
 
-    /**
-     * <p>
-     * </p>
-     */
-    @Test
+        @Test
     public void testWhen_True() {
 
-        //
         DefaultLabelDefinition labelDefinition = process(
                 when(n -> true).then(setBaseImage("icons/final_co.png")), createHGNode());
 
-        //
         assertThat(labelDefinition.getBaseImagePath()).isNotNull().isEqualTo("icons/final_co.png");
     }
 
-    /**
-     * <p>
-     * </p>
-     */
-    @Test
+        @Test
     public void testWhen_False() {
 
-        //
         DefaultLabelDefinition labelDefinition = process(
                 when(n -> false).then(setBaseImage("icons/final_co.png")), createHGNode());
 
-        //
         assertThat(labelDefinition.getBaseImagePath()).isNull();
     }
 }

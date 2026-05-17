@@ -3,16 +3,8 @@ package org.slizaa.hierarchicalgraph.graphdb.model.impl;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.common.util.EMap;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- *
- */
 public class ExtendedGraphDbNodeSourceImpl extends GraphDbNodeSourceImpl {
 
-  /** - */
   private ExtendedGraphDbNodeSourceTrait _trait;
 
   /**
@@ -28,17 +20,13 @@ public class ExtendedGraphDbNodeSourceImpl extends GraphDbNodeSourceImpl {
     return this._trait;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public EMap<String, String> getProperties() {
     return this._trait.getProperties();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public EList<String> getLabels() {
     return this._trait.getLabels();
@@ -47,7 +35,6 @@ public class ExtendedGraphDbNodeSourceImpl extends GraphDbNodeSourceImpl {
   // public EMap<String, String> reloadProperties() {
   // return _trait.reloadProperties();
   // }
-  //
   // public EList<String> reloadLabels() {
   // return _trait.reloadLabels();
   // }

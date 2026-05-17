@@ -15,12 +15,6 @@ import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ExtendedHGAggregatedDependencyImpl extends HGAggregatedDependencyImpl {
 
   /**
@@ -35,10 +29,8 @@ public class ExtendedHGAggregatedDependencyImpl extends HGAggregatedDependencyIm
     return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
   }
 
-  /** - */
   private boolean                 initialized = false;
 
-  /** - */
   private EList<HGCoreDependency> coreDependencies;
 
   /**
@@ -57,11 +49,7 @@ public class ExtendedHGAggregatedDependencyImpl extends HGAggregatedDependencyIm
     initialized = false;
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public void initialize() {
+    public void initialize() {
 
     // return immediately if this dependency already has been initialized
     if (initialized) {
@@ -74,7 +62,6 @@ public class ExtendedHGAggregatedDependencyImpl extends HGAggregatedDependencyIm
           HierarchicalgraphPackage.HG_AGGREGATED_DEPENDENCY__CORE_DEPENDENCIES);
     }
 
-    //
     Utilities.getTrait(to).ifPresent((trait) -> {
 
       List<HGCoreDependency> prototypeList = trait.getAccumulatedIncomingCoreDependencies().stream()
@@ -98,21 +85,14 @@ public class ExtendedHGAggregatedDependencyImpl extends HGAggregatedDependencyIm
       setNewAggregatedWeight(weightOfSimpleDependencies + weightOfResovedCoreDependencies);
     });
 
-    //
     initialized = true;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public HGRootNode getRootNode() {
     return getFrom().getRootNode();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public EList<HGCoreDependency> getCoreDependencies() {
 
@@ -121,39 +101,23 @@ public class ExtendedHGAggregatedDependencyImpl extends HGAggregatedDependencyIm
     return coreDependencies;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getAggregatedWeight() {
 
-    //
     initialize();
 
-    //
     return aggregatedWeight;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void resolveProxyDependencies() {
 
-    //
     initialize();
 
-    //
     Utilities.resolveProxyDependencies(this.coreDependencies);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param newAggregatedWeight
-   */
-  private void setNewAggregatedWeight(int newAggregatedWeight) {
+    private void setNewAggregatedWeight(int newAggregatedWeight) {
     if (newAggregatedWeight != aggregatedWeight) {
       int oldAggregatedWeight = aggregatedWeight;
       aggregatedWeight = newAggregatedWeight;

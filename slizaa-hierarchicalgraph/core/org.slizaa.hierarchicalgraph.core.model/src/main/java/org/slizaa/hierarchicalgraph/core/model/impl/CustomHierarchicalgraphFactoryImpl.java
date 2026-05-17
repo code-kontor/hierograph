@@ -11,12 +11,6 @@ import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class CustomHierarchicalgraphFactoryImpl extends HierarchicalgraphFactoryImpl
     implements HierarchicalgraphFactory {
 

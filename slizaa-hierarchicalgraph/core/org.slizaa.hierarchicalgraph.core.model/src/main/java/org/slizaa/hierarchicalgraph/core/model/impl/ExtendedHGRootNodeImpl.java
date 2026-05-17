@@ -18,19 +18,10 @@ import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- *
- */
 public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
 
-  /** - */
   protected ExtendedHGNodeTrait _trait;
 
-  /** - */
   protected Map<Object, HGNode> _idToNodeMap;
 
   /**
@@ -48,20 +39,15 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     return (T) getExtensionRegistry().get(checkNotNull(clazz).getName());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public <T> void registerExtension(Class<T> clazz, T extension) {
 
-    //
     if (getExtensionRegistry().containsKey(checkNotNull(clazz).getName())) {
       eSetDeliver(false);
       getExtensionRegistry().remove(checkNotNull(clazz).getName());
       eSetDeliver(true);
     }
 
-    //
     getExtensionRegistry().put(checkNotNull(clazz).getName(), extension);
   }
 
@@ -98,17 +84,11 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     return false;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public EList<HGNode> getPredecessors() {
     return ECollections.emptyEList();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void invalidateAllCaches() {
     this._trait.invalidateLocalCaches();
@@ -117,9 +97,6 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     });
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void invalidateCaches(List<HGNode> modifiedNodes) {
     for (HGNode hgNode : getSelfAndParentNodes(checkNotNull(modifiedNodes))) {
@@ -127,9 +104,6 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void initializeCaches(List<HGNode> modifiedNodes) {
     for (HGNode hgNode : getSelfAndParentNodes(checkNotNull(modifiedNodes))) {
@@ -137,9 +111,6 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public HGNode lookupNode(Object identifier) {
     if (this._idToNodeMap == null) {
@@ -154,17 +125,11 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     return this._idToNodeMap.get(identifier);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public Object getIdentifier() {
     return this._trait.getIdentifier();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public HGRootNode getRootNode() {
     return this._trait.getRootNode();
@@ -207,49 +172,31 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     return this._trait.getAccumulatedIncomingCoreDependencies();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public HGAggregatedDependency getIncomingDependenciesFrom(HGNode node) {
     return this._trait.getIncomingDependenciesFrom(node);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public List<HGAggregatedDependency> getIncomingDependenciesFrom(List<HGNode> nodes) {
     return this._trait.getIncomingDependenciesFrom(nodes);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public HGAggregatedDependency getOutgoingDependenciesTo(HGNode node) {
     return this._trait.getOutgoingDependenciesTo(node);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public List<HGAggregatedDependency> getOutgoingDependenciesTo(List<HGNode> nodes) {
     return this._trait.getOutgoingDependenciesTo(nodes);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean isPredecessorOf(HGNode node) {
     return this._trait.isPredecessorOf(node);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean isSuccessorOf(HGNode node) {
     return this._trait.isSuccessorOf(node);
@@ -272,7 +219,6 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
   }
 
   private List<HGNode> getSelfAndParentNodes(List<HGNode> modifiedNodes) {
-    //
     List<HGNode> selfAndParentNodes = new ArrayList<HGNode>();
     for (HGNode hgNode : modifiedNodes) {
       if (hgNode instanceof ExtendedHGNodeImpl) {
@@ -284,13 +230,7 @@ public class ExtendedHGRootNodeImpl extends HGRootNodeImpl {
     return selfAndParentNodes;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  private Map<Object, HGNode> idToNodeMap() {
+    private Map<Object, HGNode> idToNodeMap() {
     if (this._idToNodeMap == null) {
       this._idToNodeMap = new HashMap<>();
     }

@@ -21,7 +21,6 @@ public class XRefStack_CropSelectionSelectLeft_Test {
   @Test
   public void test() {
 
-    //
     _probe.xRefStack().pruneDependenciesForUncroppedCenterNodes(Collections.singletonList(_graphProvider.rootNode()),
         _graphProvider.rootNode().getAccumulatedIncomingCoreDependencies(), _graphProvider.rootNode().getAccumulatedOutgoingCoreDependencies());
     
@@ -31,7 +30,6 @@ public class XRefStack_CropSelectionSelectLeft_Test {
 
     _probe.xRefStack().setSelectedLeftsidedNodes(_graphProvider.node(54411));
 
-    //
     assertThat(_probe.xRefStack().getCenterNodes()).hasSize(100);
     assertThat(_probe.xRefStack().getBackreferencedCenterNodes()).hasSize(89);
     assertThat(_probe.xRefStack().getLeftsidedNodes()).hasSize(100);

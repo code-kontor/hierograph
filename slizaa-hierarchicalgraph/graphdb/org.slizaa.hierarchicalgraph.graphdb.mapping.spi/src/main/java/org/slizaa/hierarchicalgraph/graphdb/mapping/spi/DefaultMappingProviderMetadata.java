@@ -10,24 +10,14 @@ import java.util.Map;
 
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider.IMappingProviderMetadata;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DefaultMappingProviderMetadata implements IMappingProviderMetadata {
 
-  /** - */
   private String              _identifier;
 
-  /** - */
   private String              _name;
 
-  /** - */
   private String              _description;
 
-  /** - */
   private Map<String, String> _categories;
 
   /**
@@ -76,24 +66,12 @@ public class DefaultMappingProviderMetadata implements IMappingProviderMetadata 
     this._categories = categories != null ? new HashMap<>(categories) : new HashMap<>();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param categoryValues
-   */
-  public void setCategoryValues(Map<String, String> categoryValues) {
+    public void setCategoryValues(Map<String, String> categoryValues) {
     this._categories.clear();
     this._categories.putAll(categoryValues);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param description
-   */
-  public void setDescription(String description) {
+    public void setDescription(String description) {
     this._description = description;
   }
 

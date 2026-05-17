@@ -8,40 +8,16 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal.DefaultMapp
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.graphdb.model.impl.CustomGraphDbHierarchicalgraphFactoryImpl;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class MappingFactory {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public static IMappingService createMappingServiceForStandaloneSetup() {
+      public static IMappingService createMappingServiceForStandaloneSetup() {
     
-    //
     configureModel();
     
-    //
     return new DefaultMappingService();
   }
   
-  /**
-   * <p>
-   * </p>
-   */
-  private static void configureModel() {
+    private static void configureModel() {
     
     EPackage.Registry.INSTANCE.put(HierarchicalgraphPackage.eNS_URI, new EPackage.Descriptor() {
       @Override

@@ -10,28 +10,22 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyDefinitionProvider, IBoltClientAware {
 
-  /** - */
   private List<Long>   _toplevelNodeIds;
 
-  /** - */
   private List<Long[]> _parentChildNodeIdsQueries;
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public void initialize(IBoltClient boltClient) throws Exception {
 
     checkNotNull(boltClient);
 
-    //
     this._toplevelNodeIds = new ArrayList<>();
     for (String query : toplevelNodeIdQueries()) {
       this._toplevelNodeIds.addAll(
           boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> r.get(0).asLong())).get());
     }
 
-    //
     this._parentChildNodeIdsQueries = new ArrayList<>();
     for (String query : parentChildNodeIdsQueries()) {
       this._parentChildNodeIdsQueries.addAll(
@@ -49,19 +43,7 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
     return this._parentChildNodeIdsQueries;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  protected abstract String[] toplevelNodeIdQueries();
+    protected abstract String[] toplevelNodeIdQueries();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  protected abstract String[] parentChildNodeIdsQueries();
+    protected abstract String[] parentChildNodeIdsQueries();
 }

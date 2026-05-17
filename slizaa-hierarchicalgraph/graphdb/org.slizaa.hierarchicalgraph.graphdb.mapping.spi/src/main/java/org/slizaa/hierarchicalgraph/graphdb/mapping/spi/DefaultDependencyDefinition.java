@@ -1,26 +1,15 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.spi;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DefaultDependencyDefinition implements IDependencyDefinition {
 
-  /** - */
   public long   _idStart;
 
-  /** - */
   public long   _idTarget;
 
-  /** - */
   public long   _idRel;
 
-  /** - */
   public String _type;
 
-  /** - */
   public int _weight;
 
   public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type) {

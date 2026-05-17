@@ -74,10 +74,8 @@ public class DependencyStructureMatrix implements IDependencyStructureMatrix {
     @Override
 	public int[][] getMatrix() {
     	
-    	//
     	int[][] result = new int[nodes.size()][nodes.size()];
     	
-    	//
     	for (int i = 0; i < nodes.size(); i++) {
         	for (int j = 0; j < nodes.size(); j++) {
         		HGAggregatedDependency dependency = nodes.get(i).getOutgoingDependenciesTo(nodes.get(j));
@@ -85,7 +83,6 @@ public class DependencyStructureMatrix implements IDependencyStructureMatrix {
     		}
 		}
     	
-    	//
     	return result;
 	}
 
@@ -122,7 +119,6 @@ public class DependencyStructureMatrix implements IDependencyStructureMatrix {
         Collections.reverse(orderedArtifacts);
         nodes = orderedArtifacts;
 
-        //
         cycles = c.stream().filter(nodeList -> nodeList.size() > 1).collect(Collectors.toList());
     }
 }

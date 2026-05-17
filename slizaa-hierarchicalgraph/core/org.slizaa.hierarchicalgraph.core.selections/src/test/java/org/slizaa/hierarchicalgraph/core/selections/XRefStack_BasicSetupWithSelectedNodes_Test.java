@@ -22,13 +22,11 @@ public class XRefStack_BasicSetupWithSelectedNodes_Test {
   @Test
   public void test() {
 
-    //
     _probe.xRefStack().pruneDependenciesForUncroppedCenterNodes(Collections.singletonList(_graphProvider.rootNode()), _graphProvider.rootNode().getAccumulatedIncomingCoreDependencies(),
         _graphProvider.rootNode().getAccumulatedOutgoingCoreDependencies());
 
     _probe.xRefStack().setSelectedCenterNodes(_graphProvider.node(54411));
     
-    //
     assertThat(_probe.xRefStack().getCenterNodes()).hasSize(13365);
     assertThat(_probe.xRefStack().getBackreferencedCenterNodes()).hasSize(0);
     assertThat(_probe.xRefStack().getLeftsidedNodes()).hasSize(100);

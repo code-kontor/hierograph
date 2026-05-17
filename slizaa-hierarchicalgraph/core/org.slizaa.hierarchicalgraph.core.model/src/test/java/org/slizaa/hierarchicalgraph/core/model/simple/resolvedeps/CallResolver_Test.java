@@ -15,31 +15,18 @@ import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class CallResolver_Test {
 
-  /** - */
   @Rule
   public SimpleTestModelRule           _model = new SimpleTestModelRule();
 
-  /** - */
   private IProxyDependencyResolver _resolver;
 
-  /** - */
   private HGAggregatedDependency   _aggregatedDependency;
 
-  /**
-   * {@inheritDoc}
-   */
   @Before
   public void before() {
 
-    //
     this._resolver = mock(IProxyDependencyResolver.class);
     this._model.root().registerExtension(IProxyDependencyResolver.class, this._resolver);
 
@@ -48,27 +35,19 @@ public class CallResolver_Test {
     assertThat(this._aggregatedDependency).isNotNull();
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Test
+    @Test
   public void testResolveProxyDependencies() {
 
-    //
     this._aggregatedDependency.resolveProxyDependencies();
 
-    //
     verify(this._resolver).resolveProxyDependency(this._model.a3_b3_core1());
     verifyNoMoreInteractions(this._resolver);
 
-    //
     reset(this._resolver);
 
     // don't call 'createNewAggregatedDependencyResolver' again
     this._aggregatedDependency.resolveProxyDependencies();
 
-    //
     verify(this._resolver, never()).resolveProxyDependency(any());
   }
 }

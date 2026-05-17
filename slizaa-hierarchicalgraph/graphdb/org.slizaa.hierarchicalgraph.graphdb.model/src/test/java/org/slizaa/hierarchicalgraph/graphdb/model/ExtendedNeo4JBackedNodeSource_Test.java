@@ -18,12 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewNode;
 import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.createNewRootNode;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 @Ignore("Test database is in Neo4j 3.x format, incompatible with Neo4j 5.x")
 public class ExtendedNeo4JBackedNodeSource_Test {
 
@@ -34,16 +28,13 @@ public class ExtendedNeo4JBackedNodeSource_Test {
   @ClassRule
   public static GraphDatabaseSetupRule graphDatabaseSetup = new GraphDatabaseSetupRule("/mapstruct_1-2-0-Final-db.zip");
 
-  /** - */
   private HGRootNode                        _rootNode;
 
-  /** - */
   private HGNode                            _node;
 
   @Before
   public void init() throws Exception {
 
-    //
     _rootNode = createNewRootNode(() -> {
 
       // create the
@@ -56,7 +47,6 @@ public class ExtendedNeo4JBackedNodeSource_Test {
       return result;
     });
 
-    //
     _node = createNewNode(_rootNode, _rootNode, () -> {
 
       // create the
@@ -77,17 +67,9 @@ public class ExtendedNeo4JBackedNodeSource_Test {
     });
   }
 
-  /**
-   * <p>
-   * </p>
-   * 
-   * @throws ExecutionException
-   * @throws InterruptedException
-   */
-  @Test
+    @Test
   public void testGetProperties() throws InterruptedException, ExecutionException {
 
-    //
     EMap<String, String> properties = ((GraphDbNodeSource) _node.getNodeSource()).getProperties();
 
     assertThat(properties).isNotNull();
@@ -101,14 +83,9 @@ public class ExtendedNeo4JBackedNodeSource_Test {
         .isEqualTo("<T:Ljava/lang/Object;>(Ljava/lang/Class<TT;>;Ljava/lang/ClassLoader;)TT;");
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Test
+    @Test
   public void testGetLabels() {
 
-    //
     EList<String> labels = ((GraphDbNodeSource) _node.getNodeSource()).getLabels();
 
     assertThat(labels).isNotNull();

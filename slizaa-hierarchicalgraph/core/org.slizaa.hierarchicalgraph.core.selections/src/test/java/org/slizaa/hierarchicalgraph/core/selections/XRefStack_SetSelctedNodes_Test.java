@@ -32,10 +32,8 @@ public class XRefStack_SetSelctedNodes_Test {
   @Test
   public void test() {
 
-    //
     _probe.xRefStack().addXRefListener(_listener);
 
-    //
     _probe.xRefStack().pruneDependenciesForUncroppedCenterNodes(Collections.singletonList(_graphProvider.rootNode()),
         _graphProvider.rootNode().getAccumulatedIncomingCoreDependencies(),
         _graphProvider.rootNode().getAccumulatedOutgoingCoreDependencies());

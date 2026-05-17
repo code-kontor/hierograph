@@ -11,29 +11,16 @@ import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver.IProxyDependencyResolverJob;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ExtendedHGProxyDependencyImpl extends HGProxyDependencyImpl {
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public HGRootNode getRootNode() {
     return getFrom().getRootNode();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public <T> Optional<T> getDependencySource(Class<T> clazz) {
 
-    //
     if (checkNotNull(clazz).isInstance(dependencySource)) {
       return Optional.of(clazz.cast(dependencySource));
     }
@@ -41,46 +28,27 @@ public class ExtendedHGProxyDependencyImpl extends HGProxyDependencyImpl {
     return Optional.empty();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void resolveProxyDependencies() {
 
-    //
     if (!resolved) {
       Utilities.resolveProxyDependencies(this);
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public IProxyDependencyResolverJob onResolveProxyDependency() {
+    public IProxyDependencyResolverJob onResolveProxyDependency() {
 
-    //
     if (!resolved) {
 
-      //
       if (getRootNode().hasExtension(IProxyDependencyResolver.class)) {
         return getRootNode().getExtension(IProxyDependencyResolver.class).resolveProxyDependency(this);
       }
     }
 
-    //
     return null;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param newResolved
-   */
-  void setResolved(boolean newResolved) {
+    void setResolved(boolean newResolved) {
     boolean oldResolved = resolved;
     resolved = newResolved;
     if (eNotificationRequired())

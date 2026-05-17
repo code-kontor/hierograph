@@ -7,29 +7,17 @@ import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedGraph;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DependencyTest {
 
   @ClassRule
   public static XmiBasedTestGraphProviderRule _graphProvider                          = new XmiBasedTestGraphProviderRule(
       XmiBasedGraph.MAP_STRUCT);
 
-  /** - */
   public static final Long            ID_PKG_ORG_MAPSTRUCT_AP_INTERNAL_WRITER = new Long(6308);
 
-  /** - */
   public static final Long            ID_TYPE_MODEL_WRITER                    = new Long(5769);
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Test
+    @Test
   public void testOutgoingCoreDependencies() {
 
     // 'mapstruct-1.1.0.Beta2.jar'

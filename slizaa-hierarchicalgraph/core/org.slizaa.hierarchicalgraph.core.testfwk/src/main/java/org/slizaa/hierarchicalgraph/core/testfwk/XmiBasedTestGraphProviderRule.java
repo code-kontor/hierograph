@@ -24,21 +24,13 @@ import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphPackage;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class XmiBasedTestGraphProviderRule implements TestRule {
 
   /** the root node */
   private HGRootNode           _rootNode;
 
-  /** - */
   private XmiBasedGraph        _testGraph;
 
-  /** - */
   private Consumer<HGRootNode> _testGraphConfigurer;
 
   /**
@@ -95,16 +87,13 @@ public class XmiBasedTestGraphProviderRule implements TestRule {
 
   public List<HGNode> nodes(long... ids) {
 
-    //
     List<HGNode> result = new LinkedList<HGNode>();
 
-    //
     for (long id : ids) {
       HGNode node = rootNode().lookupNode(new Long(id));
       result.add(node);
     }
 
-    //
     return result;
   }
 
@@ -121,7 +110,6 @@ public class XmiBasedTestGraphProviderRule implements TestRule {
    */
   private static HGRootNode load(String fileName) {
 
-    //
     CustomFactoryStandaloneSupport.registerCustomHierarchicalgraphFactory();
     
     // register extension, see:
@@ -150,16 +138,7 @@ public class XmiBasedTestGraphProviderRule implements TestRule {
     return (HGRootNode) resource.getContents().get(0);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param zin
-   * @param entry
-   * @return
-   * @throws IOException
-   */
-  static InputStream getInputStream(ZipInputStream zin, String entry) throws IOException {
+    static InputStream getInputStream(ZipInputStream zin, String entry) throws IOException {
     for (ZipEntry e; (e = zin.getNextEntry()) != null;) {
       if (e.getName().equals(entry)) {
         return zin;

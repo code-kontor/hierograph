@@ -17,21 +17,9 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactoryFunctions.removeDependency;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class Utilities {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public static Optional<ExtendedHGNodeTrait> getTrait(HGNode hgNode) {
+    public static Optional<ExtendedHGNodeTrait> getTrait(HGNode hgNode) {
 
     // handle ExtendedHGNodeImpl
     if (hgNode instanceof ExtendedHGNodeImpl) {
@@ -45,35 +33,20 @@ public class Utilities {
     return Optional.empty();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param dependencies
-   */
-  public static void resolveProxyDependencies(HGCoreDependency... dependencies) {
+    public static void resolveProxyDependencies(HGCoreDependency... dependencies) {
     resolveProxyDependencies(Arrays.asList(dependencies));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param dependencies
-   */
-  public static void resolveProxyDependencies(List<? extends HGCoreDependency> dependencies) {
+    public static void resolveProxyDependencies(List<? extends HGCoreDependency> dependencies) {
 
-    //
     if (dependencies == null || dependencies.isEmpty()) {
       return;
     }
 
-    //
     if (!dependencies.get(0).getRootNode().hasExtension(IProxyDependencyResolver.class)) {
       return;
     }
 
-    //
     List<DependencyResolution> dependencyResolutions = new ArrayList<>();
 
     // copy the dependencies (concurrent modifications!)
@@ -82,7 +55,6 @@ public class Utilities {
       if (coreDependency instanceof ExtendedHGProxyDependencyImpl
           && !((ExtendedHGProxyDependencyImpl) coreDependency).isResolved()) {
 
-        //
         ExtendedHGProxyDependencyImpl extendedDependency = (ExtendedHGProxyDependencyImpl) coreDependency;
         dependencyResolutions
             .add(new DependencyResolution(extendedDependency.onResolveProxyDependency(), extendedDependency));
@@ -92,10 +64,8 @@ public class Utilities {
     // wait for completion the result
     for (DependencyResolution dependencyResolution : dependencyResolutions) {
 
-      //
       dependencyResolution.waitForCompletion();
 
-      //
       if (!dependencyResolution.getDependency().getResolvedCoreDependencies().isEmpty()) {
         removeDependency(dependencyResolution.getDependency(), true);
       } 
@@ -104,13 +74,7 @@ public class Utilities {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  private static class DependencyResolution {
+    private static class DependencyResolution {
 
     private IProxyDependencyResolverJob   _resolverJob;
 
@@ -132,13 +96,7 @@ public class Utilities {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  public static class NotificationBuffer {
+    public static class NotificationBuffer {
 
     protected List<Notification> notifications = new ArrayList<Notification>();
 

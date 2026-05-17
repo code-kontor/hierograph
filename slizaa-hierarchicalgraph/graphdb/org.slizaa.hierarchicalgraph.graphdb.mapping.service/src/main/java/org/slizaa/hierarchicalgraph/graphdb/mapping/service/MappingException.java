@@ -1,11 +1,5 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 @SuppressWarnings("serial")
 public class MappingException extends RuntimeException {
 

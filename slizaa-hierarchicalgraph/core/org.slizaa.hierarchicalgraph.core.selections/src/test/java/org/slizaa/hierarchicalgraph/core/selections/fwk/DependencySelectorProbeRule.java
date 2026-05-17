@@ -11,21 +11,12 @@ import org.slizaa.hierarchicalgraph.core.selections.selector.DefaultDependencySe
 import org.slizaa.hierarchicalgraph.core.selections.selector.IDependencySelector;
 import org.slizaa.hierarchicalgraph.core.testfwk.XmiBasedTestGraphProviderRule;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DependencySelectorProbeRule implements TestRule {
 
-  /** - */
   private XmiBasedTestGraphProviderRule  _testGraphProvider;
 
-  /** - */
   private HGAggregatedDependency _aggregatedDependency;
 
-  /** - */
   private IDependencySelector    _dependencySelector;
 
   /**
@@ -39,9 +30,7 @@ public class DependencySelectorProbeRule implements TestRule {
     _testGraphProvider = checkNotNull(testGraphProvider);
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public Statement apply(Statement base, Description description) {
     return new Statement() {
@@ -55,33 +44,19 @@ public class DependencySelectorProbeRule implements TestRule {
         assertThat(_testGraphProvider.node(1063).getOutgoingDependenciesTo(_testGraphProvider.node(5922))
             .getAggregatedWeight()).isEqualTo(50);
 
-        //
         _dependencySelector = new DefaultDependencySelector();
         _dependencySelector.setUnfilteredCoreDependencies(_aggregatedDependency.getCoreDependencies());
 
-        //
         base.evaluate();
       }
     };
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public IDependencySelector dependencySelector() {
+    public IDependencySelector dependencySelector() {
     return _dependencySelector;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public HGAggregatedDependency aggregatedDependency() {
+    public HGAggregatedDependency aggregatedDependency() {
     return _aggregatedDependency;
   }
 }

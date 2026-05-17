@@ -21,20 +21,16 @@ public class DependencySelector_6_Test  {
   @Test
   public void testWithTargetSelection() {
 
-    //
     assertThat(_probe.dependencySelector().getUnfilteredCoreDependencies()).hasSize(50);
     assertThat(_probe.dependencySelector().getUnfilteredSourceNodes()).hasSize(22);
     assertThat(_probe.dependencySelector().getUnfilteredTargetNodes()).hasSize(6);
     
-    //
     _probe.dependencySelector().setSelectedTargetNodes(_graphProvider.node(1383));
     
-    //
     assertThat(_probe.dependencySelector().getFilteredCoreDependencies()).hasSize(7);
     assertThat(_probe.dependencySelector().getFilteredSourceNodes()).hasSize(7);
     assertThat(_probe.dependencySelector().getFilteredTargetNodes()).hasSize(6);
 
-    //
     _probe.dependencySelector().setUnfilteredCoreDependencies(_probe.dependencySelector().getFilteredCoreDependencies());
     
     // the core dependencies and the source nodes have the same size as above

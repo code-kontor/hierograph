@@ -4,23 +4,11 @@ import org.slizaa.hierarchicalgraph.core.model.HGNode;
 
 public interface ILabelDefinitionProvider {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  public static enum OverlayPosition {
+    public static enum OverlayPosition {
     TOP_RIGHT, TOP_LEFT, BOTTOM_RIGHT, BOTTOM_LEFT;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  public interface ILabelDefinition {
+    public interface ILabelDefinition {
 
     /**
      * 
@@ -28,21 +16,9 @@ public interface ILabelDefinitionProvider {
      */
     boolean isOverlayImage();
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    boolean hasBaseImage();
+        boolean hasBaseImage();
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    String getBaseImagePath();
+        String getBaseImagePath();
 
     /**
      * <p>
@@ -62,18 +38,8 @@ public interface ILabelDefinitionProvider {
      */
     String getOverlayImagePath(OverlayPosition overlayPosition);
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    String getText();
+        String getText();
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  ILabelDefinition getLabelDefinition(HGNode node);
+    ILabelDefinition getLabelDefinition(HGNode node);
 }

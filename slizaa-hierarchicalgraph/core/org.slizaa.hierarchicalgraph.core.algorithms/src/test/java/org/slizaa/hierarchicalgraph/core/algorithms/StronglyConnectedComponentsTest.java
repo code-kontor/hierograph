@@ -16,13 +16,10 @@ public class StronglyConnectedComponentsTest extends AbstractAlgorithmTest {
     @Test
     public void detectSCCs() {
 
-		//
 		List<HGNode> nodes = _graphProvider.node(577L).getChildren();
 
-        //
         List<List<HGNode>> stronglyConnectedComponents = GraphUtils.detectStronglyConnectedComponents(nodes);
 
-        //
         assertThat(stronglyConnectedComponents).hasSize(25);
 
 		// @formatter:off

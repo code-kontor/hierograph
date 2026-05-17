@@ -52,17 +52,14 @@ public class NodeCacheHelper {
    */
   public static Optional<ExtendedHGNodeTrait> getTrait(Object o) {
 
-    //
     if (o instanceof ExtendedHGNodeImpl) {
       return Optional.of(((ExtendedHGNodeImpl) o).getTrait());
     }
 
-    //
     if (o instanceof ExtendedHGRootNodeImpl) {
       return Optional.of(((ExtendedHGRootNodeImpl) o).getTrait());
     }
 
-    //
     return Optional.empty();
   }
 }

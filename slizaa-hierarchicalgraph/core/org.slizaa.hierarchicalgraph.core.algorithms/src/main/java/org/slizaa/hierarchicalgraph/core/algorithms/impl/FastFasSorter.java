@@ -25,7 +25,6 @@ public class FastFasSorter implements INodeSorter {
         for (int outerIndex = 1; outerIndex < ordered.length; outerIndex++) {
             for (int index = outerIndex; index >= 1; index--) {
 
-                //
                 if (adjacencyMatrix[ordered[index]][ordered[index
                         - 1]] > adjacencyMatrix[ordered[index - 1]][ordered[index]]) {
 

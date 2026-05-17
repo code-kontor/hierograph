@@ -34,7 +34,6 @@ public class SlizaaNodesAssert extends AbstractAssert<SlizaaNodesAssert, Collect
       assertedIdentifiers.remove(node.getIdentifier());
     }
 
-    //
     if (!assertedIdentifiers.isEmpty()) {
       failWithMessage("Expected node collection to contain <%s>, but is doesn't.", assertedIdentifiers);
     }

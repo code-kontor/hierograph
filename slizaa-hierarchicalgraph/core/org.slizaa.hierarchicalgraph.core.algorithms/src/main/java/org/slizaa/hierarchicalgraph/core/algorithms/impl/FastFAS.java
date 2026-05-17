@@ -87,13 +87,11 @@ public class FastFAS {
     public static int[] reverse(int[] sequence) {
         Objects.requireNonNull(sequence);
 
-        //
         int[] result = new int[sequence.length];
         for (int i = 0; i < sequence.length; i++) {
             result[sequence.length - (1 + i)] = sequence[i];
         }
 
-        //
         return result;
     }
 
@@ -173,13 +171,7 @@ public class FastFAS {
         }
     }
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    private boolean findVertexToRemove() {
+        private boolean findVertexToRemove() {
 
         // initialize current maximum and vertex
         int currentMaximum = Integer.MIN_VALUE;
@@ -197,7 +189,6 @@ public class FastFAS {
         // remove vertex and return true...
         vertices.remove(currentVertex);
 
-        //
         for (Integer j : vertices) {
             if (currentVertex != j && this.adjacencyMatrix[j][currentVertex] != 0) {
                 skippedEdge.add(new Integer[] { j, currentVertex });
@@ -227,7 +218,6 @@ public class FastFAS {
             }
         }
 
-        //
         return out - in;
     }
 

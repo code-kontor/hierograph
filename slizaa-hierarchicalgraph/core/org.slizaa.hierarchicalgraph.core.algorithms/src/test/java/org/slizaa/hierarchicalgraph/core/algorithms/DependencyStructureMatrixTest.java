@@ -16,10 +16,8 @@ public class DependencyStructureMatrixTest extends AbstractAlgorithmTest {
 	@Test
 	public void detectCycle() {
 
-		//
 		List<HGNode> nodes = _graphProvider.node(577L).getChildren();
 
-		//
 		IDependencyStructureMatrix dsm = GraphUtils.createDependencyStructureMatrix(nodes);
 
 		// assert ordered nodes

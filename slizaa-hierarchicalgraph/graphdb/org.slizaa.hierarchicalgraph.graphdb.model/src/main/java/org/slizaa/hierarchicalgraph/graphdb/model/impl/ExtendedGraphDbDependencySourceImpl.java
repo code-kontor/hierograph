@@ -13,12 +13,6 @@ import org.slizaa.hierarchicalgraph.core.model.impl.StringToStringMapImpl;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ExtendedGraphDbDependencySourceImpl extends GraphDbDependencySourceImpl {
 
   @SuppressWarnings("unchecked")
@@ -27,9 +21,7 @@ public class ExtendedGraphDbDependencySourceImpl extends GraphDbDependencySource
     return checkNotNull(type).isInstance(getUserObject()) ? Optional.of((T) getUserObject()) : Optional.empty();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public EMap<String, String> getProperties() {
 
@@ -42,13 +34,7 @@ public class ExtendedGraphDbDependencySourceImpl extends GraphDbDependencySource
     return this.properties;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public EMap<String, String> reloadProperties() {
+    public EMap<String, String> reloadProperties() {
 
     Relationship relationship = getBoltClient().getRelationship((long) getIdentifier());
 
@@ -71,13 +57,7 @@ public class ExtendedGraphDbDependencySourceImpl extends GraphDbDependencySource
     return this.properties;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public IBoltClient getBoltClient() {
+    public IBoltClient getBoltClient() {
     return ((GraphDbRootNodeSource) getDependency().getFrom().getRootNode().getNodeSource()).getBoldClient();
   }
 }

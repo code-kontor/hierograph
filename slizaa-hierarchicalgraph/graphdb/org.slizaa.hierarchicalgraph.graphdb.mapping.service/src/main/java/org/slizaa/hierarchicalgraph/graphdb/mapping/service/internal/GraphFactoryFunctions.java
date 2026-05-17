@@ -17,12 +17,6 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class GraphFactoryFunctions {
 
   /**
@@ -62,14 +56,7 @@ public class GraphFactoryFunctions {
     return dependencySource;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param rootElement
-   * @param nodeSourceCreator
-   */
-  public static void createFirstLevelElements(Long[] firstLevelNodeIds, HGRootNode rootElement,
+    public static void createFirstLevelElements(Long[] firstLevelNodeIds, HGRootNode rootElement,
       final Function<Long, INodeSource> nodeSourceCreator) {
 
     checkNotNull(firstLevelNodeIds);
@@ -81,11 +68,7 @@ public class GraphFactoryFunctions {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public static void createHierarchy(List<Long[]> hierarchyNodeIds, HGRootNode rootElement,
+    public static void createHierarchy(List<Long[]> hierarchyNodeIds, HGRootNode rootElement,
       final Function<Long, INodeSource> nodeSourceCreator) {
 
     checkNotNull(hierarchyNodeIds);
@@ -96,14 +79,7 @@ public class GraphFactoryFunctions {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param rootElement
-   * @param dependencySourceCreator
-   */
-  public static List<HGCoreDependency> createDependencies(List<IDependencyDefinition> dependencies,
+    public static List<HGCoreDependency> createDependencies(List<IDependencyDefinition> dependencies,
       HGRootNode rootElement, BiFunction<Long, String, IDependencySource> dependencySourceCreator,
       boolean reinitializeCaches) {
 
@@ -111,22 +87,17 @@ public class GraphFactoryFunctions {
 
     dependencies.forEach((element) -> {
 
-      //
       if (element instanceof IProxyDependencyDefinition) {
 
-        //
         IProxyDependencyDefinition proxyDependency = (IProxyDependencyDefinition) element;
 
-        //
         Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> resolveFunction = checkNotNull(
             proxyDependency.getResolveFunction());
 
-        //
         HGCoreDependency slizaaProxyDependency = createDependency(proxyDependency.getIdStart(),
             proxyDependency.getIdTarget(), proxyDependency.getIdRel(), proxyDependency.getType(), rootElement,
             dependencySourceCreator, resolveFunction, reinitializeCaches);
 
-        //
         if (slizaaProxyDependency != null) {
           slizaaProxyDependency.setWeight(proxyDependency.getWeight());
 
@@ -137,12 +108,10 @@ public class GraphFactoryFunctions {
           result.add(slizaaProxyDependency);
         }
 
-        //
         else {
 
           // TODO!
 
-          //
 //          IBoltClient boltClient = rootElement.getExtension(IBoltClient.class);
 //          Node startNode = boltClient.getNode(proxyDependency.getIdStart());
 //          Node targetNode = boltClient.getNode(proxyDependency.getIdTarget());
@@ -155,10 +124,8 @@ public class GraphFactoryFunctions {
 
       }
 
-      //
       else if (element instanceof IDependencyDefinition) {
 
-        //
         IDependencyDefinition simpleDependency = element;
 
         HGCoreDependency dep = createDependency(simpleDependency.getIdStart(), simpleDependency.getIdTarget(),
@@ -171,7 +138,6 @@ public class GraphFactoryFunctions {
       }
     });
 
-    //
     return result;
   }
 
@@ -201,13 +167,11 @@ public class GraphFactoryFunctions {
       return null;
     }
 
-    //
     if (resolveFunction != null) {
       return HierarchicalgraphFactoryFunctions.createNewProxyDependency(fromElement, toElement, type,
           () -> dependencySourceCreator.apply(idRel, type), reinitializeCaches);
     }
 
-    //
     else {
       return HierarchicalgraphFactoryFunctions.createNewCoreDependency(fromElement, toElement, type,
           () -> dependencySourceCreator.apply(idRel, type), reinitializeCaches);
@@ -228,7 +192,6 @@ public class GraphFactoryFunctions {
 
     checkNotNull(identifier);
 
-    //
     HGNode newNode = ((ExtendedHGRootNodeImpl) rootNode).getIdToNodeMap().get(identifier);
     if (newNode == null) {
 
@@ -246,28 +209,17 @@ public class GraphFactoryFunctions {
       newNode.setParent(parent);
     }
 
-    //
     return newNode;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  public static class Neo4jRelationship {
+    public static class Neo4jRelationship {
 
-    /** - */
     public long   _idStart;
 
-    /** - */
     public long   _idTarget;
 
-    /** - */
     public long   _idRel;
 
-    /** - */
     public String _type;
 
     public Neo4jRelationship(long idStart, long idTarget, long idRel, String type) {

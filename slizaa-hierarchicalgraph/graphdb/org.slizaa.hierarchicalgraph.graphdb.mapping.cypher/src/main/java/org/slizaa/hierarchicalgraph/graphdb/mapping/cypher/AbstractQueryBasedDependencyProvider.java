@@ -15,21 +15,12 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public abstract class AbstractQueryBasedDependencyProvider implements IDependencyDefinitionProvider, IBoltClientAware {
 
-  /** - */
   private List<String>                       _simpleDependenciesQueries;
 
-  /** - */
   private List<ProxyDependencyQueriesHolder> _proxyDependenciesQueries;
 
-  /** - */
   private List<IDependencyDefinition>        _dependencies;
 
   /**
@@ -42,9 +33,7 @@ public abstract class AbstractQueryBasedDependencyProvider implements IDependenc
     this._proxyDependenciesQueries = new LinkedList<>();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public void initialize(final IBoltClient boltClient) throws Exception {
 
@@ -74,15 +63,9 @@ public abstract class AbstractQueryBasedDependencyProvider implements IDependenc
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  protected abstract void initialize();
+    protected abstract void initialize();
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public List<IDependencyDefinition> getDependencies() throws Exception {
     return this._dependencies;
@@ -98,34 +81,18 @@ public abstract class AbstractQueryBasedDependencyProvider implements IDependenc
    */
   protected void addProxyDependencyDefinitions(String[] proxyDependencyQueries, String[] detailDependencyQueries) {
 
-    //
     this._proxyDependenciesQueries.add(
         new ProxyDependencyQueriesHolder(checkNotNull(proxyDependencyQueries), checkNotNull(detailDependencyQueries)));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param proxyDependencyQuery
-   * @param detailDependencyQueries
-   */
-  protected void addProxyDependencyDefinitions(String proxyDependencyQuery, String[] detailDependencyQueries) {
+    protected void addProxyDependencyDefinitions(String proxyDependencyQuery, String[] detailDependencyQueries) {
 
-    //
     this._proxyDependenciesQueries.add(new ProxyDependencyQueriesHolder(
         new String[] { checkNotNull(proxyDependencyQuery) }, checkNotNull(detailDependencyQueries)));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param simpleDependencyQuery
-   */
-  protected void addSimpleDependencyDefinitions(String simpleDependencyQuery) {
+    protected void addSimpleDependencyDefinitions(String simpleDependencyQuery) {
 
-    //
     this._simpleDependenciesQueries.add(simpleDependencyQuery);
   }
 }

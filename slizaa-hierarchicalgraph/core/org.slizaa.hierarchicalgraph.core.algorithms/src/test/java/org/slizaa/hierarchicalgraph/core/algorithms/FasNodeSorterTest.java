@@ -12,13 +12,10 @@ public class FasNodeSorterTest extends AbstractAlgorithmTest {
     @Test
     public void sortNodes() {
 
-		//
 		List<HGNode> nodes = _graphProvider.node(577L).getChildren();
 
-        //
         INodeSorter nodeSorter = GraphUtils.createFasNodeSorter();
 
-        //
         INodeSorter.SortResult sortResult = nodeSorter.sort(nodes);
 
 		// assert upward dependencies

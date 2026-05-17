@@ -17,7 +17,6 @@ public class TestTest {
   @Test
   public void testTest() {
 
-    //
     EagerResult result =  graphDatabaseSetup.getBoltClient().syncExecCypherQuery("MATCH (node) RETURN count(node)");
 
     assertThat(result.records().get(0).get("count(node)").asInt()).isEqualTo(40549);

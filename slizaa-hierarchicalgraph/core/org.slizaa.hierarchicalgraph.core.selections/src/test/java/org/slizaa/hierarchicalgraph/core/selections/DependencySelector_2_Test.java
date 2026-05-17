@@ -21,15 +21,12 @@ public class DependencySelector_2_Test {
   @Test
   public void testWithSourceSelection() {
 
-    //
     assertThat(_probe.dependencySelector().getUnfilteredCoreDependencies()).hasSize(50);
     assertThat(_probe.dependencySelector().getUnfilteredSourceNodes()).hasSize(22);
     assertThat(_probe.dependencySelector().getUnfilteredTargetNodes()).hasSize(6);
 
-    //
     _probe.dependencySelector().setSelectedSourceNodes(_graphProvider.node(2280));
 
-    //
     assertThat(_probe.dependencySelector().getFilteredCoreDependencies()).hasSize(4);
     assertThat(_probe.dependencySelector().getFilteredSourceNodes()).hasSize(22);
     assertThat(_probe.dependencySelector().getFilteredTargetNodes()).hasSize(4);

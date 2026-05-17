@@ -5,12 +5,6 @@ import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal.DefaultMappingService;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public interface IMappingService {
 
   /**
@@ -26,13 +20,7 @@ public interface IMappingService {
   HGRootNode convert(IMappingProvider mappingProvider, IBoltClient boltClient)
       throws MappingException;
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public static IMappingService createHierarchicalgraphMappingService() {
+    public static IMappingService createHierarchicalgraphMappingService() {
     return new DefaultMappingService();
   }
 }

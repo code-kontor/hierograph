@@ -4,30 +4,18 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.slizaa.hierarchicalgraph.core.model.spi.INodeComparator;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DefaultMappingProvider implements IMappingProvider {
 
-  /** - */
   private IMappingProviderMetadata _metaData;
 
-  /** - */
   private IHierarchyDefinitionProvider       _hierarchyProvider;
 
-  /** - */
   private IDependencyDefinitionProvider      _dependencyProvider;
 
-  /** - */
   private ILabelDefinitionProvider _labelProvider;
 
-  /** - */
   private INodeComparator          _nodeComparator;
 
-  /** - */
   private INodeMetadataProvider    _nodeMetadataProvider;
 
   /**
@@ -54,41 +42,31 @@ public class DefaultMappingProvider implements IMappingProvider {
     this._nodeMetadataProvider = checkNotNull(nodeMetadataProvider);
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public IMappingProviderMetadata getMappingProviderMetadata() {
     return this._metaData;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public IHierarchyDefinitionProvider getHierarchyDefinitionProvider() {
     return this._hierarchyProvider;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public IDependencyDefinitionProvider getDependencyDefinitionProvider() {
     return this._dependencyProvider;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public ILabelDefinitionProvider getLabelDefinitionProvider() {
     return this._labelProvider;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public INodeComparator getNodeComparator() {
     return this._nodeComparator;

@@ -39,10 +39,8 @@ public class ExtendedNeo4JRemoteRepository_GetNodeLabels_Test {
   @ClassRule
   public static GraphDatabaseSetupRule graphDatabaseSetup = new GraphDatabaseSetupRule("/mapstruct_1-2-0-Final-db.zip");
 
-  /** - */
   private Function<IBoltClient, Long>       _nodeIdProvider;
 
-  /** - */
   private List<String>                      _expectedLabels;
 
   /**
@@ -59,11 +57,7 @@ public class ExtendedNeo4JRemoteRepository_GetNodeLabels_Test {
     this._expectedLabels = checkNotNull(expectedLabels);
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Test
+    @Test
   public void getNodeProperties() {
 
     IBoltClient boltClient = graphDatabaseSetup.getBoltClient();
@@ -72,13 +66,7 @@ public class ExtendedNeo4JRemoteRepository_GetNodeLabels_Test {
     assertThat(labels).containsExactlyElementsOf(_expectedLabels);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  @Parameters(name = "{index}: getNodeLabels({0}) = {1}")
+    @Parameters(name = "{index}: getNodeLabels({0}) = {1}")
   public static Collection<Object[]> data() {
 
     Function<IBoltClient, Long> f1 = c -> NodeIdFinder.getAssignmentClassFile(c);

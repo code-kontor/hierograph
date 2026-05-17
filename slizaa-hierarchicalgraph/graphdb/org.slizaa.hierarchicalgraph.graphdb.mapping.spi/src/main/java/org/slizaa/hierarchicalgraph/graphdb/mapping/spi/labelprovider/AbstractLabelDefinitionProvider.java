@@ -10,15 +10,8 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public abstract class AbstractLabelDefinitionProvider extends LabelMappingDsl implements ILabelDefinitionProvider {
 
-  /** - */
   private ILabelDefinitionProcessor _processor;
 
   /**
@@ -38,45 +31,26 @@ public abstract class AbstractLabelDefinitionProvider extends LabelMappingDsl im
     super();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public final ILabelDefinition getLabelDefinition(HGNode node) {
 
-    //
     DefaultLabelDefinition defaultLabelDefinition = new DefaultLabelDefinition();
 
-    //
     processor().processLabelDefinition(node, defaultLabelDefinition);
 
-    //
     return defaultLabelDefinition;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  protected abstract ILabelDefinitionProcessor createLabelDefinitionProcessor();
+    protected abstract ILabelDefinitionProcessor createLabelDefinitionProcessor();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  private ILabelDefinitionProcessor processor() {
+    private ILabelDefinitionProcessor processor() {
 
-    //
     if (this._processor == null) {
       this._processor = createLabelDefinitionProcessor();
       checkNotNull(this._processor);
     }
 
-    //
     return this._processor;
   }
 }

@@ -21,18 +21,10 @@ import org.slizaa.hierarchicalgraph.core.model.impl.StringToStringMapImpl;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphPackage;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ExtendedGraphDbNodeSourceTrait {
 
-  /** - */
   private static final String   BATCH_UPDATE_QUERY = "MATCH (p) where id(p) in { ids } RETURN p";
 
-  /** - */
   private GraphDbNodeSourceImpl _nodeSource;
 
   /**
@@ -46,13 +38,7 @@ public class ExtendedGraphDbNodeSourceTrait {
     this._nodeSource = nodeSource;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public EMap<String, String> getProperties() {
+    public EMap<String, String> getProperties() {
 
     // lazy load...
     if (this._nodeSource.properties == null) {
@@ -63,13 +49,7 @@ public class ExtendedGraphDbNodeSourceTrait {
     return this._nodeSource.properties;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public EList<String> getLabels() {
+    public EList<String> getLabels() {
 
     // lazy load...
     if (this._nodeSource.labels == null) {
@@ -80,13 +60,7 @@ public class ExtendedGraphDbNodeSourceTrait {
     return this._nodeSource.labels;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public void reloadNodeAndProperties() {
+    public void reloadNodeAndProperties() {
 
     Node node = getBoltClient().getNode((long) this._nodeSource.getIdentifier());
 
@@ -97,11 +71,7 @@ public class ExtendedGraphDbNodeSourceTrait {
     setProperties(node);
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  public void loadPropertiesAndLabelsForChildren() {
+    public void loadPropertiesAndLabelsForChildren() {
     batchUpdate(this._nodeSource.getNode().getChildren());
   }
 
@@ -170,13 +140,7 @@ public class ExtendedGraphDbNodeSourceTrait {
     return this._nodeSource.properties;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param hgNodes
-   */
-  private void batchUpdate(List<HGNode> hgNodes) {
+    private void batchUpdate(List<HGNode> hgNodes) {
 
     Map<Long, HGNode> nodes = new HashMap<>();
     hgNodes.forEach((n) -> nodes.put((Long) n.getIdentifier(), n));
@@ -209,19 +173,11 @@ public class ExtendedGraphDbNodeSourceTrait {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public IBoltClient getBoltClient() {
+    public IBoltClient getBoltClient() {
 
-    //
     GraphDbRootNodeSource rootNodeSource = (GraphDbRootNodeSource) this._nodeSource.getNode().getRootNode()
         .getNodeSource();
 
-    //
     IBoltClient boltClient = rootNodeSource.getBoldClient();
     checkNotNull(boltClient, "No bolt client set.");
     return boltClient;

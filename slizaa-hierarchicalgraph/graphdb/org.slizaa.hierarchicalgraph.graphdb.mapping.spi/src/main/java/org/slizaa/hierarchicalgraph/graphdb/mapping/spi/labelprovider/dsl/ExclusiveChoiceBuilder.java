@@ -6,12 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ExclusiveChoiceBuilder {
 
   /**
@@ -42,10 +36,8 @@ public class ExclusiveChoiceBuilder {
    */
   public ILabelDefinitionProcessor otherwise(ILabelDefinitionProcessor processor) {
 
-    //
     return (n, l) -> {
 
-      //
       for (ExclusiveChoiceAlternative alternative : this._alternatives) {
         if (alternative.getCondition().apply(n)) {
           alternative.getProcessor().processLabelDefinition(n, l);
@@ -53,7 +45,6 @@ public class ExclusiveChoiceBuilder {
         }
       }
 
-      //
       processor.processLabelDefinition(n, l);
     };
   }

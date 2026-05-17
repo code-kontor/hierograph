@@ -15,35 +15,20 @@ import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.model.simple.SimpleTestModelRule;
 import org.slizaa.hierarchicalgraph.core.model.spi.INodeComparator;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class RegisterExtensionNotification_HGNodeTest {
 
-  /** - */
   @Rule
   public SimpleTestModelRule _model = new SimpleTestModelRule();
 
-  /** - */
   private List<Notification> _notifications;
 
-  /** - */
   private Adapter            _adapter;
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Before
+    @Before
   public void setup() {
 
-    //
     this._notifications = new ArrayList<>();
 
-    //
     this._adapter = new AdapterImpl() {
       @Override
       public void notifyChanged(Notification notification) {
@@ -52,48 +37,29 @@ public class RegisterExtensionNotification_HGNodeTest {
       }
     };
 
-    //
     this._model.root().eAdapters().add(this._adapter);
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  @After
+    @After
   public void teardown() {
 
-    //
     this._model.root().eAdapters().remove(this._adapter);
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Test
+    @Test
   public void testHGNodeOutgoingDependenciesNotification() {
 
-    //
     assertThat(this._notifications).isEmpty();
 
-    //
     this._model.root().registerExtension(INodeComparator.class, new DummyNodeComparator());
     assertThat(this._notifications).hasSize(1);
 
     this._model.root().registerExtension(INodeComparator.class, new DummyNodeComparator());
     assertThat(this._notifications).hasSize(2);
 
-    //
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  private static class DummyNodeComparator implements INodeComparator {
+    private static class DummyNodeComparator implements INodeComparator {
 
     @Override
     public int compare(Object e1, Object e2) {

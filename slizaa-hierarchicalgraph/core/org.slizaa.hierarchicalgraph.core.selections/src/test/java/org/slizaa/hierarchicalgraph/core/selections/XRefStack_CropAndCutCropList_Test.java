@@ -57,11 +57,7 @@ public class XRefStack_CropAndCutCropList_Test {
     // assertSelection_1();
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  private void assertSelection_1() {
+    private void assertSelection_1() {
 
     // assert center:
     // - '/WEB-INF/lib/aws-java-sdk-autoscaling-1.11.9.jar (124105)'
@@ -81,11 +77,7 @@ public class XRefStack_CropAndCutCropList_Test {
     _probe.assertRightsidedNodes(355, 83045, 124105, 251957, 281112, 346380);
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  private void assertSelection_2_a() {
+    private void assertSelection_2_a() {
 
     // assert center:
     // - '/WEB-INF/lib/aws-java-sdk-autoscaling-1.11.9.jar (124105)'
@@ -101,11 +93,7 @@ public class XRefStack_CropAndCutCropList_Test {
     _probe.assertRightsidedNodes(5, 346380);
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  private void assertSelection_2b() {
+    private void assertSelection_2b() {
 
     // assert center:
     // - '/WEB-INF/lib/aws-java-sdk-autoscaling-1.11.9.jar (124105)'

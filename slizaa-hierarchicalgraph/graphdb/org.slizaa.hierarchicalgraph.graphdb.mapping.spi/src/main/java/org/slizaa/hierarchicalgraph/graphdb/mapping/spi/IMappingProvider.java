@@ -6,38 +6,20 @@ import java.util.Map;
 
 import org.slizaa.hierarchicalgraph.core.model.spi.INodeComparator;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public interface IMappingProvider {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  public class DefaultMappingProvider implements IMappingProvider {
+    public class DefaultMappingProvider implements IMappingProvider {
 
-    /** - */
     private IMappingProviderMetadata _metaData;
 
-    /** - */
     private IHierarchyDefinitionProvider       _hierarchyProvider;
 
-    /** - */
     private IDependencyDefinitionProvider      _dependencyProvider;
 
-    /** - */
     private ILabelDefinitionProvider _labelProvider;
 
-    /** - */
     private INodeComparator          _nodeComparator;
 
-    /** - */
     private INodeMetadataProvider    _nodeMetadataProvider;
 
     /**
@@ -113,45 +95,15 @@ public interface IMappingProvider {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  public interface IMappingProviderMetadata {
+    public interface IMappingProviderMetadata {
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    String getIdentifier();
+        String getIdentifier();
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    String getName();
+        String getName();
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    String getDescription();
+        String getDescription();
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @return
-     */
-    String[] getCategories();
+        String[] getCategories();
 
     /**
      * <p>
@@ -183,45 +135,15 @@ public interface IMappingProvider {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  IMappingProviderMetadata getMappingProviderMetadata();
+    IMappingProviderMetadata getMappingProviderMetadata();
 
-  /**
-   * <p>
-   * </p>
-   */
-  IHierarchyDefinitionProvider getHierarchyDefinitionProvider();
+    IHierarchyDefinitionProvider getHierarchyDefinitionProvider();
 
-  /**
-   * <p>
-   * </p>
-   */
-  IDependencyDefinitionProvider getDependencyDefinitionProvider();
+    IDependencyDefinitionProvider getDependencyDefinitionProvider();
 
-  /**
-   * <p>
-   * </p>
-   */
-  ILabelDefinitionProvider getLabelDefinitionProvider();
+    ILabelDefinitionProvider getLabelDefinitionProvider();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  INodeComparator getNodeComparator();
+    INodeComparator getNodeComparator();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  INodeMetadataProvider getNodeMetadataProvider();
+    INodeMetadataProvider getNodeMetadataProvider();
 }

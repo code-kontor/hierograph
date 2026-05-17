@@ -93,14 +93,7 @@ public class LabelMappingDsl {
     return (node) -> nodeSource(node).getLabels().contains(string);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param
-   * @return
-   */
-  public Function<HGNode, Boolean> nodeHasProperty(String propertyName) {
+    public Function<HGNode, Boolean> nodeHasProperty(String propertyName) {
     checkNotNull(propertyName);
     return (node) -> nodeSource(node).getProperties().containsKey(propertyName);
   }
@@ -130,24 +123,12 @@ public class LabelMappingDsl {
     return new LabelMappingConditionBuilder(checkNotNull(containsLabel));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public ILabelDefinitionProcessor doNothing() {
+    public ILabelDefinitionProcessor doNothing() {
     return (n, l) -> {
     };
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public ExclusiveChoiceBuilder exclusiveChoice() {
+    public ExclusiveChoiceBuilder exclusiveChoice() {
     return new ExclusiveChoiceBuilder();
   }
 
@@ -161,7 +142,6 @@ public class LabelMappingDsl {
   public ILabelDefinitionProcessor executeAll(ILabelDefinitionProcessor... processors) {
     checkNotNull(processors);
 
-    //
     return (n, l) -> {
       for (ILabelDefinitionProcessor labelDefinitionProcessor : processors) {
         labelDefinitionProcessor.processLabelDefinition(n, l);

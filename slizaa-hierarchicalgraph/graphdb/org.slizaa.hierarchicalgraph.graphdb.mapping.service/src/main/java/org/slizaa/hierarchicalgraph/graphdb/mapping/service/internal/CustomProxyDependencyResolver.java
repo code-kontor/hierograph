@@ -15,34 +15,18 @@ import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbDependencySource;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class CustomProxyDependencyResolver implements IProxyDependencyResolver {
 
-  /**
-   * {@inheritDoc}
-   */
+
   @Override
   public IProxyDependencyResolverJob resolveProxyDependency(final HGProxyDependency dependency) {
     return new ProxyDependencyResolverJob(checkNotNull(dependency));
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
-   */
-  private class ProxyDependencyResolverJob implements IProxyDependencyResolverJob {
+    private class ProxyDependencyResolverJob implements IProxyDependencyResolverJob {
 
-    /** - */
     private List<Future<List<IDependencyDefinition>>> _futures;
 
-    /** - */
     private HGProxyDependency                         _proxyDependency;
 
     /**
@@ -52,10 +36,8 @@ public class CustomProxyDependencyResolver implements IProxyDependencyResolver {
      */
     public ProxyDependencyResolverJob(HGProxyDependency proxyDependency) {
 
-      //
       this._proxyDependency = checkNotNull(proxyDependency);
 
-      //
       GraphDbDependencySource dependencySource = (GraphDbDependencySource) proxyDependency.getDependencySource();
 
       // TODO List<Future<List<IDependencyDefinition>>>>
@@ -63,17 +45,14 @@ public class CustomProxyDependencyResolver implements IProxyDependencyResolver {
       Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>> resolveFunction = (Function<HGProxyDependency, List<Future<List<IDependencyDefinition>>>>) dependencySource
           .getUserObject();
 
-      //
       this._futures = resolveFunction.apply(proxyDependency);
     }
 
     @Override
     public void waitForCompletion() {
 
-      //
       List<IDependencyDefinition> resolvedDependencyDefinitions = new ArrayList<>();
 
-      //
       for (Future<List<IDependencyDefinition>> future : this._futures) {
         try {
           resolvedDependencyDefinitions.addAll(future.get());
@@ -82,12 +61,10 @@ public class CustomProxyDependencyResolver implements IProxyDependencyResolver {
         }
       }
 
-      //
       List<HGCoreDependency> coreDependencies = createDependencies(resolvedDependencyDefinitions,
           this._proxyDependency.getRootNode(),
           (id, type) -> GraphFactoryFunctions.createDependencySource(id, type, null), false);
 
-      //
       this._proxyDependency.getResolvedCoreDependencies().addAll(coreDependencies);
     }
   }

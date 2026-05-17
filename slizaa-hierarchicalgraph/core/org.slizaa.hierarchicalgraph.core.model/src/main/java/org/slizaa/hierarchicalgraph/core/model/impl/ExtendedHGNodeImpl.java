@@ -11,7 +11,6 @@ import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 
 public class ExtendedHGNodeImpl extends HGNodeImpl {
 
-  /** - */
   protected ExtendedHGNodeTrait _trait;
 
   public ExtendedHGNodeImpl() {
@@ -63,17 +62,11 @@ public class ExtendedHGNodeImpl extends HGNodeImpl {
     return _trait.getOutgoingDependenciesTo(nodes);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void resolveIncomingProxyDependencies() {
     _trait.resolveIncomingProxyDependencies();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void resolveOutgoingProxyDependencies() {
     _trait.resolveOutgoingProxyDependencies();

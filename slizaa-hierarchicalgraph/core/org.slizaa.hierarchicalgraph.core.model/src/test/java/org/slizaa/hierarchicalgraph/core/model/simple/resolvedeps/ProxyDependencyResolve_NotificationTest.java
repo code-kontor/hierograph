@@ -9,31 +9,17 @@ import org.eclipse.emf.common.notify.impl.AdapterImpl;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ProxyDependencyResolve_NotificationTest extends AbstractResolverTest {
 
-  /** - */
   private List<Notification> _notifications;
 
-  /** - */
   private Adapter            _adapter;
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Before
+    @Before
   public void setup() {
 
-    //
     _notifications = new ArrayList<>();
 
-    //
     _adapter = new AdapterImpl() {
       public void notifyChanged(Notification notification) {
         if (notification.getEventType() == Notification.SET ) {
@@ -47,15 +33,12 @@ public class ProxyDependencyResolve_NotificationTest extends AbstractResolverTes
   @Test
   public void coreDependencyResolve() {
 
-    //
     model().a3_b3_core1().eAdapters().add(_adapter);
 
-    //
     resolve(() -> {
       model().a3_b3_core1().resolveProxyDependencies();
     });
 
-    //
     model().a3_b3_core1().eAdapters().remove(_adapter);
   }
 }

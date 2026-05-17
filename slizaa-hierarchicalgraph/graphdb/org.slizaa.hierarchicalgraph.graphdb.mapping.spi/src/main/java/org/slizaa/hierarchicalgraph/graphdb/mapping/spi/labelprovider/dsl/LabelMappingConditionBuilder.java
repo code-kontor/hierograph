@@ -6,12 +6,6 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class LabelMappingConditionBuilder {
 
   /**
@@ -39,10 +33,8 @@ public class LabelMappingConditionBuilder {
    */
   public ILabelDefinitionProcessor then(ILabelDefinitionProcessor processor) {
 
-    //
     checkNotNull(processor);
 
-    //
     return (hgNode, labelDefinition) -> {
       if (this._condition.apply(hgNode)) {
         processor.processLabelDefinition(hgNode, labelDefinition);

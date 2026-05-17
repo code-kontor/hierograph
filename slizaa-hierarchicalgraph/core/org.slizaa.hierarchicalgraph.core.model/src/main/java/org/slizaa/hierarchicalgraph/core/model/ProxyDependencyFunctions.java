@@ -9,12 +9,6 @@ import java.util.stream.Collectors;
 
 import org.slizaa.hierarchicalgraph.core.model.impl.Utilities;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ProxyDependencyFunctions {
 
   /**
@@ -26,12 +20,10 @@ public class ProxyDependencyFunctions {
    */
   public static boolean containsUnresolvedProxyDependencies(List<? extends AbstractHGDependency> dependencies) {
 
-    //
     if (dependencies == null) {
       return false;
     }
 
-    //
     for (AbstractHGDependency dependency : dependencies) {
 
       // HGAggregatedDependency
@@ -50,24 +42,15 @@ public class ProxyDependencyFunctions {
       }
     }
 
-    //
     return false;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param dependencies
-   */
-  public static void resolveProxyDependencies(List<AbstractHGDependency> dependencies) {
+    public static void resolveProxyDependencies(List<AbstractHGDependency> dependencies) {
 
     checkNotNull(dependencies);
 
-    //
     List<HGProxyDependency> proxyDependencies = new ArrayList<>();
 
-    //
     for (AbstractHGDependency dependency : dependencies) {
       if (dependency instanceof HGAggregatedDependency) {
         HGAggregatedDependency aggregatedDependency = (HGAggregatedDependency) dependency;
@@ -82,32 +65,19 @@ public class ProxyDependencyFunctions {
       }
     }
 
-    //
     Utilities.resolveProxyDependencies(proxyDependencies);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param nodes
-   * @param incoming
-   * @param outgoing
-   */
-  public static void resolveProxyDependencies(Collection<HGNode> nodes, boolean incoming, boolean outgoing) {
+    public static void resolveProxyDependencies(Collection<HGNode> nodes, boolean incoming, boolean outgoing) {
 
-    //
     checkNotNull(nodes);
 
-    //
     List<HGProxyDependency> proxyDependencies = new ArrayList<>();
 
-    //
     for (HGNode hgNode : nodes) {
       addProxyDependencies(hgNode, incoming, outgoing, proxyDependencies);
     }
 
-    //
     Utilities.resolveProxyDependencies(proxyDependencies);
   }
 
@@ -123,11 +93,9 @@ public class ProxyDependencyFunctions {
    */
   private static List<HGProxyDependency> addProxyDependencies(HGNode node, boolean incoming, boolean outgoing, List<HGProxyDependency> proxyDependencies) {
 
-    //
     checkNotNull(node);
     checkNotNull(proxyDependencies);
 
-    //
     if (incoming) {
       proxyDependencies.addAll(filterProxyDependencies(node.getIncomingCoreDependencies()));
       for (HGNode predecessor : node.getPredecessors()) {
@@ -135,7 +103,6 @@ public class ProxyDependencyFunctions {
       }
     }
 
-    //
     if (outgoing) {
       proxyDependencies.addAll(filterProxyDependencies(node.getOutgoingCoreDependencies()));
       for (HGNode predecessor : node.getPredecessors()) {

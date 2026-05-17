@@ -9,7 +9,6 @@ import org.slizaa.hierarchicalgraph.core.selections.xref.XRefStack;
 
 public class XRefStackProbeRule implements TestRule {
 
-  /** - */
   private XRefStack _xRefStack;
 
   @Override
@@ -19,10 +18,8 @@ public class XRefStackProbeRule implements TestRule {
       @Override
       public void evaluate() throws Throwable {
 
-        //
         _xRefStack = new XRefStack();
 
-        //
         base.evaluate();
       }
     };

@@ -21,12 +21,10 @@ public class DependencySelector_1_Test {
   @Test
   public void testWithoutSelection() {
 
-    //
     assertThat(_probe.dependencySelector().getUnfilteredCoreDependencies()).hasSize(50);
     assertThat(_probe.dependencySelector().getUnfilteredSourceNodes()).hasSize(22);
     assertThat(_probe.dependencySelector().getUnfilteredTargetNodes()).hasSize(6);
 
-    //
     assertThat(_probe.dependencySelector().getFilteredCoreDependencies()).hasSize(50);
     assertThat(_probe.dependencySelector().getFilteredSourceNodes()).hasSize(22);
     assertThat(_probe.dependencySelector().getFilteredTargetNodes()).hasSize(6);

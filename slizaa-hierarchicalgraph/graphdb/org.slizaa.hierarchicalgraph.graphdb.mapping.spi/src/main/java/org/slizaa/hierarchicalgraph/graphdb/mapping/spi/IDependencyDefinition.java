@@ -3,45 +3,15 @@
  */
 package org.slizaa.hierarchicalgraph.graphdb.mapping.spi;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public interface IDependencyDefinition {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public long getIdStart();
+    public long getIdStart();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public long getIdTarget();
+    public long getIdTarget();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public long getIdRel();
+    public long getIdRel();
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public String getType();
+    public String getType();
 
   default int getWeight() {
     return 1;

@@ -36,18 +36,11 @@ public class ExclusiveChoiceAlternative {
    */
   public ExclusiveChoiceAlternative(ExclusiveChoiceBuilder parent, Function<HGNode, Boolean> condition) {
 
-    //
     this._parent = checkNotNull(parent);
     this._condition = checkNotNull(condition);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public Function<HGNode, Boolean> getCondition() {
+    public Function<HGNode, Boolean> getCondition() {
     return this._condition;
   }
 

@@ -5,18 +5,10 @@ package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.internal;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class ProxyDependencyQueriesHolder {
 
-  /** - */
   private String[] _proxyDependencyQueries;
 
-  /** - */
   private String[] _detailDependencyQueries;
 
   /**
@@ -32,23 +24,11 @@ public class ProxyDependencyQueriesHolder {
     this._detailDependencyQueries = checkNotNull(detailDependencyQueries);
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public String[] proxyDependencyQueries() {
+    public String[] proxyDependencyQueries() {
     return this._proxyDependencyQueries;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public String[] detailDependencyQueries() {
+    public String[] detailDependencyQueries() {
     return this._detailDependencyQueries;
   }
 }

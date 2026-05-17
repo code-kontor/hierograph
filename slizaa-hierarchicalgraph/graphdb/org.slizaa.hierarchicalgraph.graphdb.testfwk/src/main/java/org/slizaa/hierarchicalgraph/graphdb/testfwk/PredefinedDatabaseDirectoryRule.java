@@ -22,10 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
  */
 public class PredefinedDatabaseDirectoryRule implements TestRule {
 
-  //
   private File parent;
 
-  //
   private InputStream inputStream;
 
   /**
@@ -91,14 +89,11 @@ public class PredefinedDatabaseDirectoryRule implements TestRule {
    */
   private static String unzipDatabase(File parentDirectory, InputStream zippedDatabaseStream) {
 
-    //
     checkNotNull(parentDirectory);
     checkNotNull(zippedDatabaseStream);
 
-    //
     File realDir = new File(parentDirectory, "databases/graph.db");
 
-    //
     //if (!realDir.exists()) {
       try {
         unzip(zippedDatabaseStream, realDir);
@@ -107,18 +102,10 @@ public class PredefinedDatabaseDirectoryRule implements TestRule {
       }
     //}
 
-    //
     return parentDirectory.getAbsolutePath();
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param inputStream
-   * @param folder
-   */
-  private static void unzip(InputStream inputStream, File folder) {
+    private static void unzip(InputStream inputStream, File folder) {
 
     checkNotNull(inputStream);
     checkNotNull(folder);

@@ -34,21 +34,17 @@ public class XRefStack_SetSelectedLeftsidedNodes_Test {
   @Test
   public void test() {
 
-    //
     _probe.xRefStack().pruneDependenciesForUncroppedCenterNodes(Collections.singletonList(_graphProvider.rootNode()),
         _graphProvider.rootNode().getAccumulatedIncomingCoreDependencies(),
         _graphProvider.rootNode().getAccumulatedOutgoingCoreDependencies());
 
-    //
     assertThat(_probe.xRefStack().getSelectedDependencies()).isEmpty();
 
     // select "/WEB-INF/lib/archaius-core-0.7.3.jar (54411)"
     _probe.xRefStack().setSelectedCenterNodes(_graphProvider.node(54411));
 
-    //
     assertThat(_probe.xRefStack().getSelectedDependencies()).isEmpty();
 
-    //
     long[] ids = new long[] { 6303, 44027, 54411, 23 };
     int[] sizes = new int[] { 12, 9, 257, 22 };
 

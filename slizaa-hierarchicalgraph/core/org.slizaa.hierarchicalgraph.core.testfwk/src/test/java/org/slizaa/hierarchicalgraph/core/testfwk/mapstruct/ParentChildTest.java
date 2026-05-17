@@ -19,11 +19,7 @@ public class ParentChildTest {
   @ClassRule
   public static XmiBasedTestGraphProviderRule _graphProvider = new XmiBasedTestGraphProviderRule(XmiBasedGraph.MAP_STRUCT);
 
-  /**
-   * <p>
-   * </p>
-   */
-  @Test
+    @Test
   public void testParentChild() {
     EcoreUtil.getAllContents(_graphProvider.rootNode(), false).forEachRemaining((c) -> {
       if (HierarchicalgraphPackage.eINSTANCE.getHGNode().isInstance(c)) {
@@ -36,13 +32,7 @@ public class ParentChildTest {
     });
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param node
-   */
-  private void checkParentChild(HGNode node) {
+    private void checkParentChild(HGNode node) {
 
     // check parent
     if (node.getParent() != null) {
@@ -55,14 +45,7 @@ public class ParentChildTest {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param node
-   * @param predecessor
-   */
-  private void checkBloodline(HGNode node, HGNode predecessor) {
+    private void checkBloodline(HGNode node, HGNode predecessor) {
     if (predecessor != null) {
       assertThat(predecessor.isPredecessorOf(node));
       assertThat(!predecessor.isSuccessorOf(node));
@@ -72,13 +55,7 @@ public class ParentChildTest {
     }
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  @Parameters
+    @Parameters
   public static Collection<Object[]> data() {
     return Arrays.asList(new Object[][] { {  } });
   }

@@ -19,50 +19,30 @@ import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.core.model.IDependencySource;
 import org.slizaa.hierarchicalgraph.core.model.INodeSource;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class SimpleTestModelRule implements TestRule {
 
-  /** - */
   private HGNode            _a1;
 
-  /** - */
   private HGNode            _b1;
 
-  /** - */
   private HGNode            _b2;
 
-  /** - */
   private HGNode            _a2;
 
-  /** - */
   private HGNode            _a3;
 
-  /** - */
   private HGNode            _b3;
 
-  /** - */
   private HGCoreDependency  _dep_a1_b1_core1;
 
-  /** - */
   private HGCoreDependency  _dep_a1_b1_core2;
 
-  /** - */
   private HGCoreDependency  _dep_a2_b2_core1;
 
-  /** - */
   private HGProxyDependency _dep_a3_b3_core1;
 
-  /** - */
   private HGRootNode        _rootNode;
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public Statement apply(Statement base, Description description) {
 
@@ -71,135 +51,61 @@ public class SimpleTestModelRule implements TestRule {
       @Override
       public void evaluate() throws Throwable {
 
-        //
         init();
 
-        //
         base.evaluate();
       }
     };
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return
-   */
-  public HGRootNode root() {
+    public HGRootNode root() {
     return this._rootNode;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the a1
-   */
-  public HGNode a1() {
+    public HGNode a1() {
     return this._a1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the b1
-   */
-  public HGNode b1() {
+    public HGNode b1() {
     return this._b1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the b2
-   */
-  public HGNode b2() {
+    public HGNode b2() {
     return this._b2;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the a2
-   */
-  public HGNode a2() {
+    public HGNode a2() {
     return this._a2;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the a3
-   */
-  public HGNode a3() {
+    public HGNode a3() {
     return this._a3;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the b3
-   */
-  public HGNode b3() {
+    public HGNode b3() {
     return this._b3;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the dep_a1_b1_core1
-   */
-  public HGCoreDependency a1_b1_core1() {
+    public HGCoreDependency a1_b1_core1() {
     return this._dep_a1_b1_core1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the dep_a1_b1_core2
-   */
-  public HGCoreDependency a1_b1_core2() {
+    public HGCoreDependency a1_b1_core2() {
     return this._dep_a1_b1_core2;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the dep_a2_b2_core1
-   */
-  public HGCoreDependency a2_b2_core1() {
+    public HGCoreDependency a2_b2_core1() {
     return this._dep_a2_b2_core1;
   }
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @return the dep_a3_b3_core1
-   */
-  public HGProxyDependency a3_b3_core1() {
+    public HGProxyDependency a3_b3_core1() {
     return this._dep_a3_b3_core1;
   }
 
-  /**
-   * <p>
-   * </p>
-   */
-  private void init() {
+    private void init() {
 
-    //
     CustomFactoryStandaloneSupport.registerCustomHierarchicalgraphFactory();
     
-    //
     Supplier<INodeSource> nodeSourceSupplier = () -> HierarchicalgraphFactory.eINSTANCE.createDefaultNodeSource();
     Supplier<IDependencySource> dependencySourceSupplier = () -> HierarchicalgraphFactory.eINSTANCE
         .createDefaultDependencySource();

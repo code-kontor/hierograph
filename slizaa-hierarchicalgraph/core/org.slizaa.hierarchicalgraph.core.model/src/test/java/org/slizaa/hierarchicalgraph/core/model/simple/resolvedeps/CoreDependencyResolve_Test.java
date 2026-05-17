@@ -6,12 +6,6 @@ import org.junit.Test;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGProxyDependency;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class CoreDependencyResolve_Test extends AbstractResolverTest {
 
   /**
@@ -34,7 +28,6 @@ public class CoreDependencyResolve_Test extends AbstractResolverTest {
   @Test
   public void coreDependencyResolve() {
     
-    //
     resolve(() -> {
       for (HGCoreDependency outgoingDependency : new ArrayList<>(model().a1().getAccumulatedOutgoingCoreDependencies())) {
         if (outgoingDependency instanceof HGProxyDependency) {

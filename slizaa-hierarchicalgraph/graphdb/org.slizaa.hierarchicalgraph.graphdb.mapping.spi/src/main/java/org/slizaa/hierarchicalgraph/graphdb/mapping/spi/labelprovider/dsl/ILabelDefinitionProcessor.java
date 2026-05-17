@@ -8,14 +8,7 @@ import java.util.Objects;
 @FunctionalInterface
 public interface ILabelDefinitionProcessor {
 
-  /**
-   * <p>
-   * </p>
-   *
-   * @param hgNode
-   * @param labelDefinition
-   */
-  void processLabelDefinition(HGNode hgNode, DefaultLabelDefinition labelDefinition);
+    void processLabelDefinition(HGNode hgNode, DefaultLabelDefinition labelDefinition);
 
   default ILabelDefinitionProcessor and(ILabelDefinitionProcessor next) {
     Objects.requireNonNull(next);
