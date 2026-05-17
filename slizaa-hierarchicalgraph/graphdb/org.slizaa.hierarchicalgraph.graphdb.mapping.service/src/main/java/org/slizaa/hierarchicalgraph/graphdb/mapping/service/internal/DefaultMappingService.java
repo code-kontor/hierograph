@@ -1,11 +1,12 @@
 package org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.core.model.HierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.core.model.INodeSource;
 import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
-import org.slizaa.hierarchicalgraph.core.model.spi.IAutoExpandInterceptor;
 import org.slizaa.hierarchicalgraph.core.model.spi.INodeComparator;
 import org.slizaa.hierarchicalgraph.core.model.spi.IProxyDependencyResolver;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.IBoltClientAware;
@@ -18,11 +19,9 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ILabelDefinitionProvider
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
-import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -30,30 +29,15 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.slizaa.hierarchicalgraph.graphdb.mapping.service.internal.GraphFactoryFunctions.*;
 
-/**
- * <p>
- * </p>
- *
- * @author Gerd W&uuml;therich (gerd@gerd-wuetherich.de)
- */
 public class DefaultMappingService implements IMappingService {
 
-    /**
-     * -
-     */
+    private static final Logger log = LoggerFactory.getLogger(DefaultMappingService.class);
+
     private List<IMappingParticipator> _mappingParticipators = new CopyOnWriteArrayList<>();
 
-    /**
-     * create the node source creator function
-     */
     static Function<Long, INodeSource> createNodeSourceFunction = (id) -> {
-
-        // create the node source
-        INodeSource nodeSource = GraphDbHierarchicalgraphFactory.eINSTANCE
-                .createGraphDbNodeSource();
+        INodeSource nodeSource = GraphDbHierarchicalgraphFactory.eINSTANCE.createGraphDbNodeSource();
         nodeSource.setIdentifier(id);
-
-        // return the result
         return nodeSource;
     };
 
@@ -65,9 +49,6 @@ public class DefaultMappingService implements IMappingService {
         this._mappingParticipators.remove(mappingParticipator);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public HGRootNode convert(IMappingProvider mappingDescriptor, final IBoltClient boltClient) throws MappingException {
 
@@ -75,6 +56,9 @@ public class DefaultMappingService implements IMappingService {
         checkNotNull(boltClient);
 
         try {
+            long totalStart = System.currentTimeMillis();
+            long stepStart;
+
             // create the root element
             final HGRootNode rootNode = HierarchicalgraphFactory.eINSTANCE.createHGRootNode();
             rootNode.registerExtension(IBoltClient.class, boltClient);
@@ -84,29 +68,38 @@ public class DefaultMappingService implements IMappingService {
             rootNode.setNodeSource(rootNodeSource);
 
             // process root, hierarchy and dependency queries
+            stepStart = System.currentTimeMillis();
             IHierarchyDefinitionProvider hierarchyProvider = initializeBoltClientAwareMappingProviderComponent(
                     mappingDescriptor.getHierarchyDefinitionProvider(), boltClient);
+            log.info("Initialized hierarchy provider in {}ms", System.currentTimeMillis() - stepStart);
 
             if (hierarchyProvider != null) {
 
-                //
+                stepStart = System.currentTimeMillis();
                 List<Long> rootNodes = hierarchyProvider.getToplevelNodeIds();
                 createFirstLevelElements(rootNodes.toArray(new Long[0]), rootNode, createNodeSourceFunction);
+                log.info("Created {} root nodes in {}ms", rootNodes.size(), System.currentTimeMillis() - stepStart);
 
-                //
+                stepStart = System.currentTimeMillis();
                 List<Long[]> parentChildNodeIds = hierarchyProvider.getParentChildNodeIds();
                 createHierarchy(parentChildNodeIds, rootNode, createNodeSourceFunction);
+                log.info("Created hierarchy ({} parent-child pairs) in {}ms", parentChildNodeIds.size(), System.currentTimeMillis() - stepStart);
 
-                // filter 'dangling' nodes
+                stepStart = System.currentTimeMillis();
                 removeDanglingNodes(rootNode);
+                log.info("Removed dangling nodes in {}ms", System.currentTimeMillis() - stepStart);
 
-                //
+                stepStart = System.currentTimeMillis();
                 IDependencyDefinitionProvider dependencyProvider = initializeBoltClientAwareMappingProviderComponent(
                         mappingDescriptor.getDependencyDefinitionProvider(), boltClient);
+                log.info("Initialized dependency provider in {}ms", System.currentTimeMillis() - stepStart);
 
                 if (dependencyProvider != null) {
-                    createDependencies(dependencyProvider.getDependencies(), rootNode,
+                    stepStart = System.currentTimeMillis();
+                    var dependencies = dependencyProvider.getDependencies();
+                    createDependencies(dependencies, rootNode,
                             (id, type) -> GraphFactoryFunctions.createDependencySource(id, type, null), false);
+                    log.info("Created {} dependencies in {}ms", dependencies.size(), System.currentTimeMillis() - stepStart);
                 }
             }
 
@@ -117,39 +110,18 @@ public class DefaultMappingService implements IMappingService {
             rootNode.registerExtension(ILabelDefinitionProvider.class, mappingDescriptor.getLabelDefinitionProvider());
             rootNode.registerExtension(INodeMetadataProvider.class, mappingDescriptor.getNodeMetadataProvider());
 
-            //
-            rootNode.registerExtension(IAutoExpandInterceptor.class, node -> {
-
-                Optional<GraphDbNodeSource> nodeSource = node.getNodeSource(GraphDbNodeSource.class);
-                if (nodeSource.isPresent()) {
-                    // TODO
-                    return nodeSource.get().getLabels().contains("Resource");
-                }
-                return false;
-            });
-
-            //
             for (IMappingParticipator mappingParticipator : this._mappingParticipators) {
                 mappingParticipator.postCreate(rootNode, mappingDescriptor, boltClient);
             }
 
-            //
+            log.info("Graph conversion completed in {}ms", System.currentTimeMillis() - totalStart);
             return rootNode;
         }
-        //
         catch (Exception e) {
             throw new MappingException(e.getMessage(), e);
         }
     }
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @param boltClient
-     * @param progressMonitor
-     * @throws Exception
-     */
     private <T> T initializeBoltClientAwareMappingProviderComponent(T component, final IBoltClient boltClient) throws Exception {
 
         if (component instanceof IBoltClientAware) {
@@ -159,15 +131,7 @@ public class DefaultMappingService implements IMappingService {
         return component;
     }
 
-    /**
-     * <p>
-     * </p>
-     *
-     * @param rootNode
-     */
     private void removeDanglingNodes(final HGRootNode rootNode) {
-
-        //
         List<Object> nodeKeys2Remove = ((ExtendedHGRootNodeImpl) rootNode).getIdToNodeMap().entrySet().stream()
                 .filter((n) -> {
                     try {
@@ -176,9 +140,6 @@ public class DefaultMappingService implements IMappingService {
                         return true;
                     }
                 }).map(n -> n.getKey()).collect(Collectors.toList());
-
-        //
         nodeKeys2Remove.forEach(k -> ((ExtendedHGRootNodeImpl) rootNode).getIdToNodeMap().remove(k));
     }
-
 }

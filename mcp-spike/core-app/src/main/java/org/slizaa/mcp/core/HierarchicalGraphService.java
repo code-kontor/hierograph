@@ -4,9 +4,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.core.boltclient.IBoltClientFactory;
-import org.slizaa.hierarchicalgraph.core.algorithms.impl.DependencyStructureMatrix;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingFactory;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
 import org.slizaa.jqassistant.hierarchicalgraph.JQAssistant_MappingProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +35,11 @@ public class HierarchicalGraphService {
         boltClient = boltClientFactory.createBoltClient(boltUri);
         boltClient.connect();
 
-        log.info("Creating jQAssistant hierarchical graph...");
+        IMappingProvider mappingProvider = new JQAssistant_MappingProvider();
+
+        log.info("Creating hierarchical graph using '{}' ...", mappingProvider.getClass().getName());
         rootNode = MappingFactory.createMappingServiceForStandaloneSetup()
-                .convert(new JQAssistant_MappingProvider(), boltClient);
+                .convert(mappingProvider, boltClient);
 
         var children = rootNode.getChildren();
 
