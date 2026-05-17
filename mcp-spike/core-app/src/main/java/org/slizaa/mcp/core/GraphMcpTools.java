@@ -1225,6 +1225,299 @@ public class GraphMcpTools {
         return result;
     }
 
+    @Tool(name = "list_fields",
+            description = "[Detail-level] Return the fields declared on a type, with lightweight metadata for each. " +
+                    "Use this when you have identified a type and want to understand its data members — " +
+                    "for example, 'what fields does UserEntity have?' or 'list the autowired dependencies of this Spring component.' " +
+                    "Returns each field as a NodeRef plus metadata: modifiers, field type name, annotation count, and flags " +
+                    "like is_constant. The annotation_count is particularly valuable for framework-wiring questions — " +
+                    "fields with annotations are often where Spring injection, JPA mappings, or validation rules live. " +
+                    "The summary block surfaces aggregate signals like annotated_count, constant_count, and visibility " +
+                    "distribution, which often tell the framework story before you even look at individual fields. " +
+                    "Common parameter patterns: " +
+                    "Just type_id: enumerate all declared fields. " +
+                    "type_id + modifier_filter: ['private', 'final']: list constructor-injected dependencies. " +
+                    "type_id + modifier_filter: ['static', 'final']: list the constants this type defines. " +
+                    "type_id + name_pattern: 'id': find ID-like fields. " +
+                    "type_id + include_inherited: true: see all fields, including inherited ones. " +
+                    "For deep information about one specific field (full type as a NodeRef, list of annotations, " +
+                    "methods that read or write it), use field_details. " +
+                    "For 'which methods read this field?' or dependency-driven views, use detail_dependencies. " +
+                    "For methods rather than fields, use list_methods (same shape, different entity).")
+    public Map<String, Object> listFields(
+            @ToolParam(description = "The node ID of the type whose fields should be enumerated. " +
+                    "Must be a type-kind node (Class, Interface, Enum, Annotation, Record).") long typeId,
+            @ToolParam(description = "Optional case-insensitive substring match against the field name.",
+                    required = false) String namePattern,
+            @ToolParam(description = "Optional list of Java modifiers, ANDed together. " +
+                    "Allowed values: public, protected, private, package-private, static, final, transient, volatile.",
+                    required = false) List<String> modifierFilter,
+            @ToolParam(description = "Whether to include inherited fields from superclasses. Default false.",
+                    required = false) Boolean includeInherited,
+            @ToolParam(description = "Max fields to return (1-500, default 50).", required = false) Integer limit) {
+
+        // Validate modifier_filter values
+        Set<String> allowedModifiers = Set.of("public", "protected", "private", "package-private",
+                "static", "final", "transient", "volatile");
+        if (modifierFilter != null) {
+            for (String mod : modifierFilter) {
+                if (!allowedModifiers.contains(mod)) {
+                    Map<String, Object> error = new LinkedHashMap<>();
+                    error.put("error", "INVALID_MODIFIER");
+                    error.put("message", "Invalid modifier: '" + mod + "'. Allowed values for fields: " + allowedModifiers);
+                    error.put("invalid_value", mod);
+                    return error;
+                }
+            }
+        }
+
+        // Validate type_id exists in HG model
+        HGNode typeNode = graphService.getRootNode().lookupNode(typeId);
+        if (typeNode == null) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "NODE_NOT_FOUND");
+            error.put("message", "Node not found: " + typeId + ". Re-resolve via find_node.");
+            return error;
+        }
+
+        // Validate it's a type kind
+        INodeMetadataProvider mp = getMetadataProvider();
+        String kind = mp.getKind(typeNode);
+        Set<String> typeKinds = Set.of("Class", "Interface", "Enum", "Annotation", "Record");
+        if (!typeKinds.contains(kind)) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "WRONG_NODE_KIND");
+            error.put("message", "Node " + typeId + " is a '" + kind + "', not a type. " +
+                    "list_fields requires a Class, Interface, Enum, Annotation, or Record.");
+            error.put("actual_kind", kind);
+            return error;
+        }
+
+        boolean inherited = includeInherited != null && includeInherited;
+        int effectiveLimit = limit != null ? Math.min(Math.max(limit, 1), 500) : 50;
+
+        // Build Cypher query
+        String cypher = buildListFieldsCypher(inherited);
+
+        var queryResult = graphService.getBoltClient().syncExecCypherQuery(
+                cypher, Map.of("typeId", typeId));
+
+        // Process results and apply filters
+        List<Map<String, Object>> allFields = new ArrayList<>();
+        int totalPublic = 0, totalProtected = 0, totalPrivate = 0, totalPackagePrivate = 0;
+        int totalAnnotated = 0, totalStatic = 0, totalFinal = 0, totalConstant = 0;
+        int totalDeclared = 0, totalInherited = 0;
+
+        for (Record record : queryResult.records()) {
+            long fieldId = record.get("fieldId").asLong();
+            String fieldName = record.get("fieldName").asString("");
+            String fieldFqn = record.get("fieldFqn").asString("");
+            long declaringTypeId = record.get("declaringTypeId").asLong();
+            String declaringTypeName = record.get("declaringTypeName").asString("");
+            String declaringTypeFqn = record.get("declaringTypeFqn").asString("");
+            List<String> declaringTypeLabels = record.get("declaringTypeLabels").asList(org.neo4j.driver.Value::asString);
+            String fieldTypeName = record.get("fieldTypeName").isNull() ? "unknown" : record.get("fieldTypeName").asString("unknown");
+            long annotationCount = record.get("annotationCount").asLong(0);
+
+            // Extract modifiers
+            List<String> modifiers = extractFieldModifiers(record);
+
+            // Determine visibility
+            String visibility = getVisibility(modifiers);
+
+            // Apply name_pattern filter
+            if (namePattern != null && !namePattern.isBlank()) {
+                if (!fieldName.toLowerCase().contains(namePattern.toLowerCase())) {
+                    continue;
+                }
+            }
+
+            // Apply modifier_filter
+            if (modifierFilter != null && !modifierFilter.isEmpty()) {
+                boolean allMatch = true;
+                for (String requiredMod : modifierFilter) {
+                    if (requiredMod.equals("package-private")) {
+                        if (!visibility.equals("package-private")) {
+                            allMatch = false;
+                            break;
+                        }
+                    } else if (!modifiers.contains(requiredMod)) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (!allMatch) continue;
+            }
+
+            // Compute is_constant
+            boolean isConstant = modifiers.contains("static") && modifiers.contains("final");
+
+            // Count for summary
+            boolean isInherited = declaringTypeId != typeId;
+            if (isInherited) totalInherited++; else totalDeclared++;
+            switch (visibility) {
+                case "public" -> totalPublic++;
+                case "protected" -> totalProtected++;
+                case "private" -> totalPrivate++;
+                case "package-private" -> totalPackagePrivate++;
+            }
+            if (annotationCount > 0) totalAnnotated++;
+            if (modifiers.contains("static")) totalStatic++;
+            if (modifiers.contains("final")) totalFinal++;
+            if (isConstant) totalConstant++;
+
+            // Build field entry
+            Map<String, Object> fieldEntry = new LinkedHashMap<>();
+
+            // NodeRef for field
+            Map<String, Object> nodeRef = new LinkedHashMap<>();
+            nodeRef.put("id", fieldId);
+            nodeRef.put("name", fieldName);
+            nodeRef.put("qualified_name", fieldFqn);
+            nodeRef.put("kind", "java.field");
+            nodeRef.put("parent_id", declaringTypeId);
+            nodeRef.put("parent_kind", mp.getKindFromLabels(declaringTypeLabels));
+            fieldEntry.put("node", nodeRef);
+
+            fieldEntry.put("modifiers", modifiers);
+            fieldEntry.put("field_type_name", fieldTypeName);
+            fieldEntry.put("annotation_count", annotationCount);
+            fieldEntry.put("is_constant", isConstant);
+            fieldEntry.put("is_inherited", isInherited);
+
+            if (isInherited) {
+                Map<String, Object> declaredBy = new LinkedHashMap<>();
+                declaredBy.put("id", declaringTypeId);
+                declaredBy.put("name", declaringTypeName);
+                declaredBy.put("qualified_name", declaringTypeFqn);
+                declaredBy.put("kind", mp.getKindFromLabels(declaringTypeLabels));
+                fieldEntry.put("declared_by", declaredBy);
+            } else {
+                fieldEntry.put("declared_by", null);
+            }
+
+            allFields.add(fieldEntry);
+        }
+
+        int totalMatching = allFields.size();
+        boolean truncated = totalMatching > effectiveLimit;
+        List<Map<String, Object>> returnedFields = allFields.stream()
+                .limit(effectiveLimit)
+                .toList();
+
+        // Build type ref
+        Map<String, Object> typeRef = new LinkedHashMap<>();
+        typeRef.put("id", typeId);
+        typeRef.put("name", mp.getName(typeNode));
+        typeRef.put("qualified_name", mp.getQualifiedName(typeNode));
+        typeRef.put("kind", kind);
+
+        // Build summary
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("total_matching", totalMatching);
+        summary.put("returned", returnedFields.size());
+        summary.put("truncated", truncated);
+        summary.put("declared_count", totalDeclared);
+        summary.put("inherited_count", totalInherited);
+        Map<String, Object> byVisibility = new LinkedHashMap<>();
+        byVisibility.put("public", totalPublic);
+        byVisibility.put("protected", totalProtected);
+        byVisibility.put("private", totalPrivate);
+        byVisibility.put("package-private", totalPackagePrivate);
+        summary.put("by_visibility", byVisibility);
+        summary.put("annotated_count", totalAnnotated);
+        summary.put("static_count", totalStatic);
+        summary.put("final_count", totalFinal);
+        summary.put("constant_count", totalConstant);
+
+        // Build result
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("type", typeRef);
+        result.put("fields", returnedFields);
+        result.put("summary", summary);
+
+        return result;
+    }
+
+    private String buildListFieldsCypher(boolean includeInherited) {
+        if (includeInherited) {
+            return """
+                MATCH (t:Type) WHERE id(t) = $typeId
+                CALL {
+                    WITH t
+                    MATCH (t)-[:DECLARES]->(f:Field)
+                    MATCH (dt:Type)-[:DECLARES]->(f)
+                    OPTIONAL MATCH (f)-[:OF_TYPE]->(ft:Type)
+                    OPTIONAL MATCH (f)-[:ANNOTATED_BY]->(a)
+                    RETURN f, dt, ft,
+                           count(DISTINCT a) AS annotationCount
+                    UNION
+                    WITH t
+                    MATCH (t)-[:EXTENDS*1..]->(ancestor:Type)-[:DECLARES]->(f:Field)
+                    MATCH (dt:Type)-[:DECLARES]->(f)
+                    OPTIONAL MATCH (f)-[:OF_TYPE]->(ft:Type)
+                    OPTIONAL MATCH (f)-[:ANNOTATED_BY]->(a)
+                    RETURN f, dt, ft,
+                           count(DISTINCT a) AS annotationCount
+                }
+                RETURN id(f) AS fieldId,
+                       f.name AS fieldName,
+                       f.fqn AS fieldFqn,
+                       f.visibility AS visibility,
+                       f.static AS isStatic,
+                       f.final AS isFinal,
+                       f.transient AS isTransient,
+                       f.volatile AS isVolatile,
+                       id(dt) AS declaringTypeId,
+                       dt.name AS declaringTypeName,
+                       dt.fqn AS declaringTypeFqn,
+                       labels(dt) AS declaringTypeLabels,
+                       ft.fqn AS fieldTypeName,
+                       annotationCount
+                """;
+        } else {
+            return """
+                MATCH (t:Type)-[:DECLARES]->(f:Field) WHERE id(t) = $typeId
+                OPTIONAL MATCH (f)-[:OF_TYPE]->(ft:Type)
+                OPTIONAL MATCH (f)-[:ANNOTATED_BY]->(a)
+                RETURN id(f) AS fieldId,
+                       f.name AS fieldName,
+                       f.fqn AS fieldFqn,
+                       f.visibility AS visibility,
+                       f.static AS isStatic,
+                       f.final AS isFinal,
+                       f.transient AS isTransient,
+                       f.volatile AS isVolatile,
+                       id(t) AS declaringTypeId,
+                       t.name AS declaringTypeName,
+                       t.fqn AS declaringTypeFqn,
+                       labels(t) AS declaringTypeLabels,
+                       ft.fqn AS fieldTypeName,
+                       count(DISTINCT a) AS annotationCount
+                """;
+        }
+    }
+
+    private List<String> extractFieldModifiers(Record record) {
+        List<String> modifiers = new ArrayList<>();
+
+        // Visibility first (canonical order)
+        String visibility = record.get("visibility").asString(null);
+        if (visibility != null) {
+            modifiers.add(visibility.toLowerCase());
+        } else {
+            modifiers.add("package-private");
+        }
+
+        // Storage modifiers in canonical order
+        if (record.get("isStatic").asBoolean(false)) modifiers.add("static");
+        if (record.get("isFinal").asBoolean(false)) modifiers.add("final");
+        if (record.get("isTransient").asBoolean(false)) modifiers.add("transient");
+        if (record.get("isVolatile").asBoolean(false)) modifiers.add("volatile");
+
+        return modifiers;
+    }
+
     private String buildListMethodsCypher(boolean includeInherited) {
         if (includeInherited) {
             return """
