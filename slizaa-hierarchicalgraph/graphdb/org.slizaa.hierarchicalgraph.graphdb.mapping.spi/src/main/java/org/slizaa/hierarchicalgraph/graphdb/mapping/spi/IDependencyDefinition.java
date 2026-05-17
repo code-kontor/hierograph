@@ -42,4 +42,8 @@ public interface IDependencyDefinition {
    * @return
    */
   public String getType();
+
+  default int getWeight() {
+    return 1;
+  }
 }

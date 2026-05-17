@@ -20,21 +20,19 @@ public class DefaultDependencyDefinition implements IDependencyDefinition {
   /** - */
   public String _type;
 
-  /**
-   * <p>
-   * Creates a new instance of type {@link AbstractDependency}.
-   * </p>
-   *
-   * @param idStart
-   * @param idTarget
-   * @param idRel
-   * @param type
-   */
+  /** - */
+  public int _weight;
+
   public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type) {
+    this(idStart, idTarget, idRel, type, 1);
+  }
+
+  public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type, int weight) {
     this._idStart = idStart;
     this._idTarget = idTarget;
     this._idRel = idRel;
     this._type = type;
+    this._weight = weight;
   }
 
   @Override
@@ -55,6 +53,11 @@ public class DefaultDependencyDefinition implements IDependencyDefinition {
   @Override
   public String getType() {
     return this._type;
+  }
+
+  @Override
+  public int getWeight() {
+    return this._weight;
   }
 
   @Override

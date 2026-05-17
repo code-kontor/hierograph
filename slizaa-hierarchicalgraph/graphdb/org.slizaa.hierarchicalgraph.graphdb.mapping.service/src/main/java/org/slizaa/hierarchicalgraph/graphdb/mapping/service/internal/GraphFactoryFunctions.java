@@ -128,12 +128,12 @@ public class GraphFactoryFunctions {
 
         //
         if (slizaaProxyDependency != null) {
+          slizaaProxyDependency.setWeight(proxyDependency.getWeight());
 
           // TODO: Should we really use the user object here?
           ((GraphDbDependencySource) slizaaProxyDependency.getDependencySource())
               .setUserObject(proxyDependency.getResolveFunction());
 
-          //
           result.add(slizaaProxyDependency);
         }
 
@@ -161,10 +161,13 @@ public class GraphFactoryFunctions {
         //
         IDependencyDefinition simpleDependency = element;
 
-        //
-        result.add(createDependency(simpleDependency.getIdStart(), simpleDependency.getIdTarget(),
+        HGCoreDependency dep = createDependency(simpleDependency.getIdStart(), simpleDependency.getIdTarget(),
             simpleDependency.getIdTarget(), simpleDependency.getType(), rootElement, dependencySourceCreator, null,
-            reinitializeCaches));
+            reinitializeCaches);
+        if (dep != null) {
+          dep.setWeight(simpleDependency.getWeight());
+          result.add(dep);
+        }
       }
     });
 
