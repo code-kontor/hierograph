@@ -8,6 +8,12 @@ In a large codebase, there can be thousands of fine-grained dependencies between
 
 The proxy pattern lets you build the hierarchical graph quickly with coarse-grained edges, then lazily resolve the details only when the user actually inspects a specific dependency.
 
+## Intended Use Case
+
+Proxy dependencies are designed for **interactive UI scenarios** where a user navigates a hierarchical view of the software architecture and wants to drill down from coarse-grained dependencies (e.g., package-to-package) into fine-grained ones (e.g., individual field accesses or method invocations). This avoids loading potentially thousands of detail edges upfront when most of them will never be viewed.
+
+**Proxy dependencies are not intended for use with MCP tools.** For AI agent scenarios, the hierarchical graph should be built with type-to-type dependencies loaded eagerly (as simple dependencies). If an agent needs finer-grained information (e.g., method/field-level relationships), it should request these via explicit MCP tools that query the graph database directly — not through the proxy resolution mechanism.
+
 ## Model
 
 ```
@@ -49,6 +55,8 @@ Defines the high-level edges that appear initially in the graph. Must return 5 c
 ### Detail Query (fine-grained)
 
 Resolves the proxy into concrete edges on demand. Also returns 5 columns (same format as above). Detail queries must use `$from` and `$to` parameters, which are populated with the Neo4j node IDs of all descendants of the source and target nodes respectively.
+
+**Important prerequisite:** The `$from` and `$to` parameter sets are computed by traversing the children of the source and target nodes in the hierarchical graph. This means the child nodes (e.g., types within a package) **must already exist in the hierarchical graph** at the time of resolution. The hierarchy provider must have created these nodes during initial graph construction — proxy dependencies only defer the *dependency edges*, not the node structure.
 
 ## Example
 

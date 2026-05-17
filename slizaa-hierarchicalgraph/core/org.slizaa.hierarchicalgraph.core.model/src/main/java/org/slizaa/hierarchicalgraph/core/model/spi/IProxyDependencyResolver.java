@@ -6,8 +6,8 @@ public interface IProxyDependencyResolver {
 
     IProxyDependencyResolverJob resolveProxyDependency(HGProxyDependency dependencyToResolve);
 
-    public static interface IProxyDependencyResolverJob {
+    interface IProxyDependencyResolverJob {
 
         void waitForCompletion();
-  }
+    }
 }
