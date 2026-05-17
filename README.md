@@ -8,39 +8,39 @@ Cartograph gives your AI a structural map of your codebase. Six questions that g
 
 ### 1. "I'm new to this codebase — what's the overall structure?"
 
-❌ **Without Cartograph:** your AI lists folder names, summarizes README fragments, and produces an overview that mostly reflects how the code is *named*, not how it actually *works*.
+**Without Cartograph:** your AI lists folder names, summarizes README fragments, and produces an overview that mostly reflects how the code is *named*, not how it actually *works*.
 
-✅ **With Cartograph:** the real architecture — every module, how they depend on each other, which ones are central, which are peripheral. Not the file tree; the structure underneath it.
+**With Cartograph:** the real architecture — every module, how they depend on each other, which ones are central, which are peripheral. Not the file tree; the structure underneath it.
 
 ### 2. "If I change this class, what breaks?"
 
-❌ **Without Cartograph:** your AI greps, follows imports two levels deep, gives up, and confidently misses 60% of the impact.
+**Without Cartograph:** your AI greps, follows imports two levels deep, gives up, and confidently misses 60% of the impact.
 
-✅ **With Cartograph:** full transitive blast radius — every affected module, ranked by coupling, with concrete call sites. One tool call.
+**With Cartograph:** full transitive blast radius — every affected module, ranked by coupling, with concrete call sites. One tool call.
 
 ### 3. "Does the domain layer depend on infrastructure?"
 
-❌ **Without Cartograph:** effectively unanswerable. Hundreds of file reads to check imports, ending in "I didn't find obvious violations."
+**Without Cartograph:** effectively unanswerable. Hundreds of file reads to check imports, ending in "I didn't find obvious violations."
 
-✅ **With Cartograph:** yes or no, definitively. If yes — every offending call site, by line number.
+**With Cartograph:** yes or no, definitively. If yes — every offending call site, by line number.
 
 ### 4. "Can I move this class to another module without breaking anything?"
 
-❌ **Without Cartograph:** your AI reads the class, checks its imports, misses the 14 other classes that import *it*.
+**Without Cartograph:** your AI reads the class, checks its imports, misses the 14 other classes that import *it*.
 
-✅ **With Cartograph:** every incoming and outgoing dependency, which modules they cross, and whether the move creates a new cycle. A yes/no answer with evidence.
+**With Cartograph:** every incoming and outgoing dependency, which modules they cross, and whether the move creates a new cycle. A yes/no answer with evidence.
 
 ### 5. "If I extract this package as a library, what comes with it?"
 
-❌ **Without Cartograph:** not tractable. The dependency graph is too big for context windows.
+**Without Cartograph:** not tractable. The dependency graph is too big for context windows.
 
-✅ **With Cartograph:** the cohesive boundary, the cross-cutting dependencies, the density of internal coupling. Decisions architects used to make with a week and a whiteboard.
+**With Cartograph:** the cohesive boundary, the cross-cutting dependencies, the density of internal coupling. Decisions architects used to make with a week and a whiteboard.
 
 ### 6. "Why does module A depend on module B?"
 
-❌ **Without Cartograph:** a plausible-sounding summary from one or two files.
+**Without Cartograph:** a plausible-sounding summary from one or two files.
 
-✅ **With Cartograph:** *"47 call sites across 3 classes — 31 from ClusterCoordinator for state replication, 11 from LeaderElector for vote propagation, 5 for diagnostics."* What the dependency is actually for.
+**With Cartograph:** *"47 call sites across 3 classes — 31 from ClusterCoordinator for state replication, 11 from LeaderElector for vote propagation, 5 for diagnostics."* What the dependency is actually for.
 
 ---
 
