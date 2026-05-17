@@ -1,5 +1,6 @@
 package org.slizaa.mcp.core;
 
+import org.slizaa.mcp.core.logging.LoggingToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -17,8 +18,9 @@ public class McpApplication {
 
     @Bean
     public ToolCallbackProvider graphToolCallbackProvider(GraphMcpTools graphMcpTools) {
-        return MethodToolCallbackProvider.builder()
+        ToolCallbackProvider delegate = MethodToolCallbackProvider.builder()
                 .toolObjects(graphMcpTools)
                 .build();
+        return new LoggingToolCallbackProvider(delegate);
     }
 }

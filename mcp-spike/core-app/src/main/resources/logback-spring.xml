@@ -26,6 +26,7 @@
     <!-- MCP tool call logger: only to file, not to console -->
     <logger name="mcp.tool.calls" level="INFO" additivity="false">
         <appender-ref ref="MCP_TOOL_CALLS"/>
+        <appender-ref ref="CONSOLE"/>
     </logger>
 
     <!-- Root logger -->
