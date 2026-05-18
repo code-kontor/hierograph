@@ -1,4 +1,4 @@
-package org.slizaa.mcp.core.utils;
+package org.slizaa.hierarchicalgraph.graphdb.model;
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.model.INodeSource;
