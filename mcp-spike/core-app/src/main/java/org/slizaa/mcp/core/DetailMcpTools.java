@@ -459,6 +459,166 @@ public class DetailMcpTools extends AbstractGraphMcpTools {
         return result;
     }
 
+    @Tool(name = "method_details",
+            description = "[Detail-level] Return the full structural details of a single method, in one call. " +
+                    "Use this when you've identified a method of interest (via list_methods, detail_dependencies, " +
+                    "or another tool that surfaces method IDs) and need the complete picture: modifiers, return type, " +
+                    "parameters with names and types, declared exceptions, annotations, the method it overrides " +
+                    "(if any), and source location. " +
+                    "The response includes the declaring type as a NodeRef, so you can navigate back to the " +
+                    "hierarchical model. Parameter types and return type are also NodeRefs — you can feed these " +
+                    "into other tools to investigate, e.g., find_node on the qualified name or aggregated_incoming " +
+                    "to see what depends on a particular parameter type. " +
+                    "Primitive types (void, int, boolean, etc.) appear with id: null and kind: 'java.primitive' — " +
+                    "these are not first-class entities in the graph and cannot be used as input to other tools. " +
+                    "For generic types like List<String>, the erased type (java.util.List) is reported; type " +
+                    "parameters are not surfaced in v0.2. " +
+                    "Use the location field together with your file-reading tools when you need to inspect the " +
+                    "actual method implementation (the line number points to the method declaration; the body " +
+                    "follows from there). " +
+                    "When to use this vs. neighboring tools: " +
+                    "For the methods declared on a type (composition, not single-method detail), use list_methods. " +
+                    "For 'which methods call this one?' or 'which methods throw this exception?', use " +
+                    "detail_dependencies — that's the dependency-driven view rather than the entity-detail view. " +
+                    "For fields rather than methods, use field_details (parallel tool, parallel shape).")
+    public Map<String, Object> methodDetails(
+            @ToolParam(description = "The node ID of the method to inspect. Must be a method-kind node " +
+                    "(java.method or java.constructor). Typically obtained from list_methods or detail_dependencies.")
+            long methodId) {
+
+        INodeMetadataProvider mp = getMetadataProvider();
+
+        // Run the main details query — relaxed match so we can distinguish NODE_NOT_FOUND from WRONG_NODE_KIND
+        String cypher = buildMethodDetailsCypher();
+        var queryResult = graphService.getBoltClient().syncExecCypherQuery(
+                cypher, Map.of("methodId", methodId));
+
+        var records = queryResult.records();
+        if (records.isEmpty()) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "NODE_NOT_FOUND");
+            error.put("code", "NODE_NOT_FOUND");
+            error.put("message", "Node not found: " + methodId + ". Re-resolve via find_node or list_methods.");
+            return error;
+        }
+
+        Record record = records.get(0);
+        List<String> methodLabels = record.get("methodLabels").asList(org.neo4j.driver.Value::asString);
+        if (!methodLabels.contains("Method")) {
+            String actualKind = mp.getKindFromLabels(methodLabels);
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "WRONG_NODE_KIND");
+            error.put("code", "WRONG_NODE_KIND");
+            error.put("message", "Node " + methodId + " is a '" + actualKind + "', not a method. " +
+                    "method_details requires a method-kind node.");
+            error.put("actual_kind", actualKind);
+            return error;
+        }
+
+        boolean isConstructor = methodLabels.contains("Constructor");
+        String methodName = record.get("methodName").asString("");
+        String methodFqn = record.get("methodFqn").asString("");
+        long lineNumber = record.get("lineNumber").asLong(-1);
+
+        // Declaring type
+        long declaringTypeId = record.get("declaringTypeId").asLong(-1);
+        String declaringTypeName = record.get("declaringTypeName").asString("");
+        String declaringTypeFqn = record.get("declaringTypeFqn").asString("");
+        List<String> declaringTypeLabels = record.get("declaringTypeLabels").isNull()
+                ? List.of()
+                : record.get("declaringTypeLabels").asList(org.neo4j.driver.Value::asString);
+        String declaringTypeKind = mp.getKindFromLabels(declaringTypeLabels);
+
+        // Modifiers
+        List<String> modifiers = extractModifiers(record);
+
+        // Method NodeRef
+        Map<String, Object> methodRef = new LinkedHashMap<>();
+        methodRef.put("id", methodId);
+        methodRef.put("name", methodName);
+        methodRef.put("qualified_name", methodFqn);
+        methodRef.put("kind", isConstructor ? "java.constructor" : "java.method");
+        methodRef.put("parent_id", declaringTypeId);
+        methodRef.put("parent_kind", declaringTypeKind);
+
+        // Declaring type NodeRef
+        Map<String, Object> declaringTypeRef = new LinkedHashMap<>();
+        declaringTypeRef.put("id", declaringTypeId);
+        declaringTypeRef.put("name", declaringTypeName);
+        declaringTypeRef.put("qualified_name", declaringTypeFqn);
+        declaringTypeRef.put("kind", declaringTypeKind);
+
+        // Return type — for constructors, fall back to the declaring type if not explicitly captured
+        Map<String, Object> returnTypeRef;
+        if (record.get("returnTypeId").isNull()) {
+            if (isConstructor) {
+                returnTypeRef = declaringTypeRef;
+            } else {
+                // No return type captured (rare); treat as void primitive
+                returnTypeRef = primitiveRef("void");
+            }
+        } else {
+            long rtId = record.get("returnTypeId").asLong();
+            String rtName = record.get("returnTypeName").asString("");
+            String rtFqn = record.get("returnTypeFqn").asString("");
+            List<String> rtLabels = record.get("returnTypeLabels").asList(org.neo4j.driver.Value::asString);
+            returnTypeRef = toTypeRef(rtId, rtName, rtFqn, rtLabels, mp);
+        }
+
+        // Parameters
+        List<Map<String, Object>> parameters = buildParameters(record, mp);
+
+        // Throws
+        List<Map<String, Object>> throwsList = buildTypeRefList(record.get("throwsList"), mp);
+
+        // Annotations on method
+        List<Map<String, Object>> methodAnnotations = buildAnnotationList(record.get("methodAnnotations"), mp);
+
+        // Overrides
+        Map<String, Object> overridesRef = null;
+        if (!record.get("overrideId").isNull()) {
+            long ovId = record.get("overrideId").asLong();
+            String ovName = record.get("overrideName").asString("");
+            String ovFqn = record.get("overrideFqn").asString("");
+            List<String> ovLabels = record.get("overrideLabels").asList(org.neo4j.driver.Value::asString);
+            boolean ovIsCtor = ovLabels.contains("Constructor");
+            long ovDtId = record.get("overrideDeclTypeId").asLong(-1);
+            List<String> ovDtLabels = record.get("overrideDeclTypeLabels").isNull()
+                    ? List.of()
+                    : record.get("overrideDeclTypeLabels").asList(org.neo4j.driver.Value::asString);
+
+            overridesRef = new LinkedHashMap<>();
+            overridesRef.put("id", ovId);
+            overridesRef.put("name", ovName);
+            overridesRef.put("qualified_name", ovFqn);
+            overridesRef.put("kind", ovIsCtor ? "java.constructor" : "java.method");
+            overridesRef.put("parent_id", ovDtId);
+            overridesRef.put("parent_kind", mp.getKindFromLabels(ovDtLabels));
+        }
+
+        // Location
+        Map<String, Object> location = null;
+        if (lineNumber > 0) {
+            location = new LinkedHashMap<>();
+            location.put("line_number", lineNumber);
+        }
+
+        // Assemble result
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("method", methodRef);
+        result.put("declaring_type", declaringTypeRef);
+        result.put("modifiers", modifiers);
+        result.put("is_constructor", isConstructor);
+        result.put("return_type", returnTypeRef);
+        result.put("parameters", parameters);
+        result.put("throws", throwsList);
+        result.put("annotations", methodAnnotations);
+        result.put("overrides", overridesRef);
+        result.put("location", location);
+
+        return result;
+    }
+
     @Tool(name = "list_fields",
             description = "[Detail-level] Return the fields declared on a type, with lightweight metadata for each. " +
                     "Use this when you have identified a type and want to understand its data members — " +
@@ -1075,5 +1235,186 @@ public class DetailMcpTools extends AbstractGraphMcpTools {
         if (modifiers.contains("protected")) return "protected";
         if (modifiers.contains("private")) return "private";
         return "package-private";
+    }
+
+    // --- method_details helpers ---
+
+    private static final Set<String> JAVA_PRIMITIVES = Set.of(
+            "void", "boolean", "byte", "char", "short", "int", "long", "float", "double");
+
+    private String buildMethodDetailsCypher() {
+        return """
+                MATCH (m) WHERE id(m) = $methodId
+                OPTIONAL MATCH (dt:Type)-[:DECLARES]->(m)
+                OPTIONAL MATCH (m)-[:RETURNS]->(rt:Type)
+                OPTIONAL MATCH (m)-[:OVERRIDES]->(ov:Method)
+                OPTIONAL MATCH (odt:Type)-[:DECLARES]->(ov)
+                CALL {
+                    WITH m
+                    OPTIONAL MATCH (m)-[:HAS]->(p:Parameter)
+                    WITH p WHERE p IS NOT NULL
+                    OPTIONAL MATCH (p)-[:OF_TYPE]->(pt:Type)
+                    CALL {
+                        WITH p
+                        OPTIONAL MATCH (p)-[:ANNOTATED_BY]->(pa)-[:OF_TYPE]->(pat:Type)
+                        RETURN collect(DISTINCT {id: id(pat), name: pat.name, fqn: pat.fqn, labels: labels(pat)}) AS pAnns
+                    }
+                    RETURN collect({
+                        index: p.index,
+                        name: p.name,
+                        paramTypeId: id(pt),
+                        paramTypeName: pt.name,
+                        paramTypeFqn: pt.fqn,
+                        paramTypeLabels: labels(pt),
+                        annotations: pAnns
+                    }) AS parameters
+                }
+                CALL {
+                    WITH m
+                    OPTIONAL MATCH (m)-[:THROWS]->(ex:Type)
+                    RETURN collect(DISTINCT {id: id(ex), name: ex.name, fqn: ex.fqn, labels: labels(ex)}) AS throwsList
+                }
+                CALL {
+                    WITH m
+                    OPTIONAL MATCH (m)-[:ANNOTATED_BY]->(ma)-[:OF_TYPE]->(at:Type)
+                    RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at)}) AS methodAnnotations
+                }
+                RETURN labels(m) AS methodLabels,
+                       m.name AS methodName,
+                       m.fqn AS methodFqn,
+                       m.firstLineNumber AS lineNumber,
+                       m.visibility AS visibility,
+                       m.static AS isStatic,
+                       m.final AS isFinal,
+                       m.abstract AS isAbstract,
+                       m.synchronized AS isSynchronized,
+                       m.native AS isNative,
+                       m.default AS isDefault,
+                       id(dt) AS declaringTypeId,
+                       dt.name AS declaringTypeName,
+                       dt.fqn AS declaringTypeFqn,
+                       labels(dt) AS declaringTypeLabels,
+                       id(rt) AS returnTypeId,
+                       rt.name AS returnTypeName,
+                       rt.fqn AS returnTypeFqn,
+                       labels(rt) AS returnTypeLabels,
+                       id(ov) AS overrideId,
+                       ov.name AS overrideName,
+                       ov.fqn AS overrideFqn,
+                       labels(ov) AS overrideLabels,
+                       id(odt) AS overrideDeclTypeId,
+                       labels(odt) AS overrideDeclTypeLabels,
+                       parameters,
+                       throwsList,
+                       methodAnnotations
+                """;
+    }
+
+    private List<Map<String, Object>> buildParameters(Record record, INodeMetadataProvider mp) {
+        var paramsValue = record.get("parameters");
+        if (paramsValue.isNull()) return List.of();
+
+        List<Map<String, Object>> raw = new ArrayList<>();
+        for (var v : paramsValue.values()) {
+            raw.add(v.asMap());
+        }
+
+        // Sort by index ascending (defensive — Cypher subquery order may not be guaranteed)
+        raw.sort(Comparator.comparingLong(m -> {
+            Object idx = m.get("index");
+            return idx instanceof Number ? ((Number) idx).longValue() : 0L;
+        }));
+
+        List<Map<String, Object>> out = new ArrayList<>(raw.size());
+        for (int i = 0; i < raw.size(); i++) {
+            Map<String, Object> p = raw.get(i);
+            Map<String, Object> paramEntry = new LinkedHashMap<>();
+            Object idx = p.get("index");
+            long position = idx instanceof Number ? ((Number) idx).longValue() : i;
+            paramEntry.put("position", position);
+            paramEntry.put("name", p.get("name"));
+
+            Long ptId = p.get("paramTypeId") instanceof Number ? ((Number) p.get("paramTypeId")).longValue() : null;
+            String ptName = (String) p.get("paramTypeName");
+            String ptFqn = (String) p.get("paramTypeFqn");
+            @SuppressWarnings("unchecked")
+            List<String> ptLabels = (List<String>) p.get("paramTypeLabels");
+            paramEntry.put("type", toTypeRefFromMap(ptId, ptName, ptFqn, ptLabels, mp));
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> annsRaw = (List<Map<String, Object>>) p.get("annotations");
+            paramEntry.put("annotations", buildAnnotationListFromMaps(annsRaw, mp));
+
+            out.add(paramEntry);
+        }
+        return out;
+    }
+
+    private List<Map<String, Object>> buildTypeRefList(org.neo4j.driver.Value value, INodeMetadataProvider mp) {
+        if (value.isNull()) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (var v : value.values()) {
+            Map<String, Object> m = v.asMap();
+            Long id = m.get("id") instanceof Number ? ((Number) m.get("id")).longValue() : null;
+            if (id == null) continue;
+            String name = (String) m.get("name");
+            String fqn = (String) m.get("fqn");
+            @SuppressWarnings("unchecked")
+            List<String> labels = (List<String>) m.get("labels");
+            out.add(toTypeRefFromMap(id, name, fqn, labels, mp));
+        }
+        return out;
+    }
+
+    private List<Map<String, Object>> buildAnnotationList(org.neo4j.driver.Value value, INodeMetadataProvider mp) {
+        if (value.isNull()) return List.of();
+        List<Map<String, Object>> raw = new ArrayList<>();
+        for (var v : value.values()) {
+            raw.add(v.asMap());
+        }
+        return buildAnnotationListFromMaps(raw, mp);
+    }
+
+    private List<Map<String, Object>> buildAnnotationListFromMaps(List<Map<String, Object>> raw, INodeMetadataProvider mp) {
+        if (raw == null || raw.isEmpty()) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>(raw.size());
+        for (Map<String, Object> m : raw) {
+            Long id = m.get("id") instanceof Number ? ((Number) m.get("id")).longValue() : null;
+            if (id == null) continue;
+            String name = (String) m.get("name");
+            String fqn = (String) m.get("fqn");
+            @SuppressWarnings("unchecked")
+            List<String> labels = (List<String>) m.get("labels");
+            Map<String, Object> wrapper = new LinkedHashMap<>();
+            wrapper.put("type", toTypeRefFromMap(id, name, fqn, labels, mp));
+            out.add(wrapper);
+        }
+        return out;
+    }
+
+    private Map<String, Object> toTypeRef(long id, String name, String fqn, List<String> labels, INodeMetadataProvider mp) {
+        return toTypeRefFromMap(id, name, fqn, labels, mp);
+    }
+
+    private Map<String, Object> toTypeRefFromMap(Long id, String name, String fqn, List<String> labels, INodeMetadataProvider mp) {
+        // Primitive detection: jQAssistant represents primitives as Type nodes with fqn like "void", "int", etc.
+        if (fqn != null && JAVA_PRIMITIVES.contains(fqn)) {
+            return primitiveRef(fqn);
+        }
+        Map<String, Object> ref = new LinkedHashMap<>();
+        ref.put("id", id);
+        ref.put("name", name != null ? name : "");
+        ref.put("qualified_name", fqn != null ? fqn : "");
+        ref.put("kind", mp.getKindFromLabels(labels != null ? labels : List.of()));
+        return ref;
+    }
+
+    private Map<String, Object> primitiveRef(String name) {
+        Map<String, Object> ref = new LinkedHashMap<>();
+        ref.put("id", null);
+        ref.put("name", name);
+        ref.put("qualified_name", name);
+        ref.put("kind", "java.primitive");
+        return ref;
     }
 }

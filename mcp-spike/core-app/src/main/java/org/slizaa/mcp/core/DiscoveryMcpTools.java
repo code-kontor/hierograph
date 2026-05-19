@@ -123,6 +123,9 @@ public class DiscoveryMcpTools extends AbstractGraphMcpTools {
 
         Map<String, Object> params = scopeId != null ? Map.of("scopeId", scopeId) : Map.of();
 
+        // TODO All these information shouldn't be provided by the INodeMetadataProvider!!
+        // Do we need a separate interface for metadata related stuff?
+
         // Node count by kind
         var nodeCountResult = boltClient.syncExecCypherQuery(mp.getNodeCountCypherQuery(scopeId), params);
         Map<String, Object> nodeCountByKind = new LinkedHashMap<>();
