@@ -134,18 +134,36 @@ public class ReachabilityMcpTools extends AbstractGraphMcpTools {
     }
 
     @Tool(name = "pairwise_dependencies",
-            description = "[Hierarchical scope-based] Bundled pairwise dependency analysis over a node set. Given a set of nodes " +
-                    "(typically siblings, layers, or a user-specified group), return all pairwise aggregated " +
-                    "dependencies among them as an edge list, plus server-computed structural insights: " +
-                    "density, cycle presence, strongly connected components, and topological order (if acyclic). " +
-                    "This is the right tool when you need to understand internal coupling within a group of " +
-                    "modules — one call instead of N-squared calls to dependency_between. " +
-                    "Use cases: layering violation detection (has_cycles), coupling analysis (density, edge weights), " +
-                    "extraction feasibility (internal coupling pattern), and architecture assessment (SCC structure).")
+            description = "[Hierarchical pairwise] **Use this for: dependency structure matrix (DSM), module coupling matrix, " +
+                    "cycle detection across a module set, layering analysis, all-pairs coupling within a group of modules.** " +
+                    "Given a set of nodes (typically siblings, layers, or a user-specified group), return all pairwise " +
+                    "aggregated dependencies among them as an edge list, plus server-computed structural insights: density, " +
+                    "cycle presence, strongly connected components, and topological order. One call instead of N² calls to " +
+                    "dependency_between or aggregated_outgoing. " +
+                    "Example: pairwise_dependencies(nodeIds=[ids of top-level projects from describe_graph or list_children of root]) " +
+                    "→ returns the DSM edge list, plus density, cycle status, SCCs, and topological order. " +
+                    "Returns nodes once in a top-level 'nodes' map keyed by ID; 'edges' reference nodes by ID, not embedded copies. " +
+                    "The 'summary' block carries the structural digest — for many architectural questions (cycle check, density, " +
+                    "layering) the summary alone is the answer: has_cycles==false confirms proper layering (and " +
+                    "strongly_connected_components names the nodes to untangle when true), density characterizes how tightly " +
+                    "coupled the set is, max_edge_weight flags the heaviest pair, topological_order (when acyclic) gives the " +
+                    "natural reading order. " +
+                    "Do NOT loop aggregated_outgoing or dependency_between over a node set to build a matrix — use this tool " +
+                    "instead. For a single (source, target) check use dependency_between; for one source against many targets " +
+                    "use outgoing_to; for many sources against one target use incoming_from; for fan-out use aggregated_outgoing; " +
+                    "for blast radius use aggregated_incoming; for method/field-level evidence underneath an aggregated edge " +
+                    "use detail_dependencies.")
     public Map<String, Object> pairwiseDependencies(
-            @ToolParam(description = "List of node IDs to analyze pairwise") List<Long> nodeIds,
-            @ToolParam(description = "Whether to include self-loops (internal coupling within each node's subtree). Default false.",
+            @ToolParam(description = "List of node IDs to analyze pairwise (the analysis set; typically siblings, layers, " +
+                    "or a user-specified group of modules)") List<Long> nodeIds,
+            @ToolParam(description = "Whether to include self-loops (internal coupling within each node's subtree). " +
+                    "Default false — the headline use cases (layering check, cycle detection, DSM rendering) are about " +
+                    "between-node coupling. Set true when ranking modules by internal coupling.",
                     required = false) Boolean includeSelfLoops) {
+
+        if (nodeIds == null || nodeIds.isEmpty()) {
+            return Map.of("error", "node_ids must contain at least one node ID", "code", "EMPTY_NODE_SET");
+        }
 
         boolean selfLoops = includeSelfLoops != null && includeSelfLoops;
 
@@ -154,7 +172,7 @@ public class ReachabilityMcpTools extends AbstractGraphMcpTools {
         for (Long id : nodeIds) {
             HGNode node = graphService.getRootNode().lookupNode(id);
             if (node == null) {
-                return Map.of("error", "Node not found: " + id);
+                return Map.of("error", "Node not found: " + id, "code", "NODE_NOT_FOUND");
             }
             nodes.add(node);
         }
@@ -164,78 +182,79 @@ public class ReachabilityMcpTools extends AbstractGraphMcpTools {
         List<HGNode> orderedNodes = dsm.getOrderedNodes();
         int size = orderedNodes.size();
 
-        // Node info
-        List<Map<String, Object>> nodeInfos = orderedNodes.stream()
-                .map(this::toNodeRefShort)
-                .toList();
+        // Slim-encoded nodes map: keyed by stringified ID, in DSM order, short NodeRef as value
+        Map<String, Object> nodesMap = new LinkedHashMap<>();
+        for (HGNode node : orderedNodes) {
+            Map<String, Object> info = new LinkedHashMap<>();
+            info.put("name", getMetadataProvider().getName(node));
+            info.put("qualified_name", getMetadataProvider().getQualifiedName(node));
+            info.put("kind", getMetadataProvider().getKind(node));
+            nodesMap.put(String.valueOf(node.getIdentifier()), info);
+        }
 
-        // Edge list
+        // Edge list — ID-referenced, with sorted distinct kinds per edge
         List<Map<String, Object>> edges = new ArrayList<>();
         int totalWeight = 0;
         int edgeCount = 0;
         int maxWeight = 0;
+        int nonSelfEdges = 0;
 
         for (int i = 0; i < size; i++) {
+            HGNode source = orderedNodes.get(i);
             for (int j = 0; j < size; j++) {
                 if (!selfLoops && i == j) continue;
-                int weight = dsm.getWeight(i, j);
-                if (weight > 0) {
-                    Map<String, Object> edge = new LinkedHashMap<>();
-                    edge.put("from", toNodeRefShort(orderedNodes.get(i)));
-                    edge.put("to", toNodeRefShort(orderedNodes.get(j)));
-                    edge.put("weight", weight);
-                    edge.put("in_cycle", dsm.isCellInCycle(i, j));
-                    edges.add(edge);
-                    totalWeight += weight;
-                    edgeCount++;
-                    maxWeight = Math.max(maxWeight, weight);
+                HGNode target = orderedNodes.get(j);
+                HGAggregatedDependency aggDep = source.getOutgoingDependenciesTo(target);
+                if (aggDep == null || aggDep.getAggregatedWeight() <= 0) continue;
+
+                int weight = aggDep.getAggregatedWeight();
+                Set<String> kinds = new TreeSet<>();
+                for (HGCoreDependency coreDep : aggDep.getCoreDependencies()) {
+                    if (coreDep.getType() != null) {
+                        kinds.add(coreDep.getType());
+                    }
                 }
+
+                Map<String, Object> edge = new LinkedHashMap<>();
+                edge.put("from", source.getIdentifier());
+                edge.put("to", target.getIdentifier());
+                edge.put("weight", weight);
+                edge.put("kinds", new ArrayList<>(kinds));
+                edges.add(edge);
+
+                totalWeight += weight;
+                edgeCount++;
+                maxWeight = Math.max(maxWeight, weight);
+                if (i != j) nonSelfEdges++;
             }
         }
 
-        // Cycles / SCCs
-        List<List<HGNode>> cycles = dsm.getCycles();
-        List<List<Map<String, Object>>> cycleRefs = cycles.stream()
-                .map(cycle -> cycle.stream().map(this::toNodeRefShort).toList())
-                .toList();
-
-        // Topological order (the DSM ordered nodes are already topologically sorted if acyclic)
-        List<Map<String, Object>> topologicalOrder = null;
-        if (cycles.isEmpty()) {
-            topologicalOrder = orderedNodes.stream()
-                    .map(this::toNodeRefShort)
-                    .toList();
-        }
-
-        // Density: actual edges / possible edges (excluding self-loops)
+        // Density: off-diagonal only, regardless of include_self_loops
         int possibleEdges = size * (size - 1);
-        // Count non-self-loop edges for density
-        int nonSelfEdges = 0;
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                if (i != j && dsm.getWeight(i, j) > 0) {
-                    nonSelfEdges++;
-                }
-            }
-        }
         double density = possibleEdges > 0 ? Math.round(nonSelfEdges * 1000.0 / possibleEdges) / 1000.0 : 0.0;
 
-        // Build summary
+        // SCCs as ID lists; topological_order present only when acyclic
+        List<List<HGNode>> cycles = dsm.getCycles();
+        boolean hasCycles = !cycles.isEmpty();
+        List<List<Object>> sccs = cycles.stream()
+                .map(cycle -> cycle.stream().map(HGNode::getIdentifier).toList())
+                .toList();
+
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("node_count", size);
         summary.put("edge_count", edgeCount);
         summary.put("total_weight", totalWeight);
         summary.put("max_edge_weight", maxWeight);
         summary.put("density", density);
-        summary.put("has_cycles", !cycles.isEmpty());
-        summary.put("strongly_connected_components", cycleRefs);
-        if (topologicalOrder != null) {
-            summary.put("topological_order", topologicalOrder);
+        summary.put("has_cycles", hasCycles);
+        summary.put("strongly_connected_components", sccs);
+        if (!hasCycles) {
+            summary.put("topological_order",
+                    orderedNodes.stream().map(HGNode::getIdentifier).toList());
         }
 
-        // Build result
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("nodes", nodeInfos);
+        result.put("nodes", nodesMap);
         result.put("edges", edges);
         result.put("summary", summary);
 
