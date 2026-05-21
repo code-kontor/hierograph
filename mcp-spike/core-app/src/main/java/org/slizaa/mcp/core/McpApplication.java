@@ -1,6 +1,15 @@
 package org.slizaa.mcp.core;
 
 import org.slizaa.mcp.core.logging.LoggingToolCallbackProvider;
+import org.slizaa.mcp.core.mcp.detail.DetailDependenciesMcpTool;
+import org.slizaa.mcp.core.mcp.detail.FieldDetailsMcpTool;
+import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool;
+import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool;
+import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool;
+import org.slizaa.mcp.core.mcp.discovery.DiscoveryMcpTools;
+import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools;
+import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools;
+import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;

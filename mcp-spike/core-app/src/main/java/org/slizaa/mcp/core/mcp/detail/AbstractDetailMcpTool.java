@@ -1,7 +1,9 @@
-package org.slizaa.mcp.core;
+package org.slizaa.mcp.core.mcp.detail;
 
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
+import org.slizaa.mcp.core.HierarchicalGraphService;
+import org.slizaa.mcp.core.mcp.AbstractGraphMcpTools;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

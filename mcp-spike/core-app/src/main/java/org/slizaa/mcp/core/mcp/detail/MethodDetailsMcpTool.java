@@ -1,8 +1,9 @@
-package org.slizaa.mcp.core;
+package org.slizaa.mcp.core.mcp.detail;
 
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;

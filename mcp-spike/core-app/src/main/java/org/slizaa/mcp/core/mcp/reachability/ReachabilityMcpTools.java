@@ -1,10 +1,12 @@
-package org.slizaa.mcp.core;
+package org.slizaa.mcp.core.mcp.reachability;
 
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGCoreDependency;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.core.algorithms.GraphUtils;
 import org.slizaa.hierarchicalgraph.core.algorithms.IDependencyStructureMatrix;
+import org.slizaa.mcp.core.mcp.AbstractGraphMcpTools;
+import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;

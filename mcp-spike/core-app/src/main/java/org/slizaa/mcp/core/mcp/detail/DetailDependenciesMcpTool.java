@@ -1,10 +1,11 @@
-package org.slizaa.mcp.core;
+package org.slizaa.mcp.core.mcp.detail;
 
 import org.neo4j.driver.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,7 +51,7 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
     }
 
     @Tool(name = "detail_dependencies",
-            description = "Return the method-level and field-level dependencies between a source subtree and a target " +
+            description = "[Detail-level] Return the method-level and field-level dependencies between a source subtree and a target " +
                     "subtree. This is the drill-down tool that bridges the hierarchical level and the detail level — " +
                     "given an aggregated dependency you've identified (typically via aggregated_outgoing, " +
                     "aggregated_incoming, or outgoing_core_dependencies), this returns the underlying concrete " +

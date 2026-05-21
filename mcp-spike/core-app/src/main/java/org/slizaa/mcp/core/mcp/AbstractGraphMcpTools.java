@@ -1,7 +1,8 @@
-package org.slizaa.mcp.core;
+package org.slizaa.mcp.core.mcp;
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.core.HierarchicalGraphService;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

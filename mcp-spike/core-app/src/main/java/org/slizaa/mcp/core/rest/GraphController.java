@@ -1,14 +1,14 @@
 package org.slizaa.mcp.core.rest;
 
-import org.slizaa.mcp.core.DetailDependenciesMcpTool;
-import org.slizaa.mcp.core.DiscoveryMcpTools;
-import org.slizaa.mcp.core.FieldDetailsMcpTool;
-import org.slizaa.mcp.core.ListFieldsMcpTool;
-import org.slizaa.mcp.core.ListMethodsMcpTool;
-import org.slizaa.mcp.core.MethodDetailsMcpTool;
-import org.slizaa.mcp.core.PairwiseDependencyMcpTools;
-import org.slizaa.mcp.core.ReachabilityMcpTools;
-import org.slizaa.mcp.core.ScopeDependencyMcpTools;
+import org.slizaa.mcp.core.mcp.detail.DetailDependenciesMcpTool;
+import org.slizaa.mcp.core.mcp.discovery.DiscoveryMcpTools;
+import org.slizaa.mcp.core.mcp.detail.FieldDetailsMcpTool;
+import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool;
+import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool;
+import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool;
+import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools;
+import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools;
+import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
