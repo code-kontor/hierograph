@@ -10,7 +10,10 @@ logs/
 .mvn/
 
 # Claude Code workspace
-.claude/
+# Project skills under .claude/skills/ are tracked; everything else
+# (settings.local.json, per-user state) stays per-user.
+.claude/*
+!.claude/skills/
 
 # Embedded test database
 mcp-example-db/
