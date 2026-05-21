@@ -147,11 +147,11 @@ This tool emits graph-shaped output — many edges, the same nodes appearing as 
 
 **`from`** — Node ID of the source method or field. Resolve via `nodes[from]` for display fields.
 
-**`from_parent`** — Node ID of the source method/field's declaring type. Always present on edges. Most edges in a single query share a small number of declaring types; this field plus `by_source_type` lets the LLM see which types are responsible for the coupling without resolving qualified names. The declaring type's display fields are in `nodes`.
+**`from_parent`** — Node ID of the source method/field's *actual* declaring type. Always present on edges. When the source is inherited, this is the ancestor that physically declares the method/field — it may be outside the from-subtree the caller passed in (see *Inheritance* under Semantics). Most edges in a single query share a small number of declaring types; this field plus `by_source_type` lets the LLM see which types are responsible for the coupling. The declaring type's display fields are in `nodes`.
 
 **`to`** — Node ID of the target. The target kind depends on the relationship: types for `throws`/`returns`/`parameter_type`/`has_type`/`annotated_by`, methods for `calls`/`overrides`, fields for `reads_field`/`writes_field`, methods for `read_by`/`written_by`. Resolve via `nodes[to]`.
 
-**`to_parent`** — Node ID of the target's declaring type, when the target is a method or field. Omitted when the target is itself a type (`throws`, `returns`, etc.). The declaring type's display fields are in `nodes`.
+**`to_parent`** — Node ID of the target's actual declaring type, when the target is a method or field. Omitted when the target is itself a type (`throws`, `returns`, etc.). Same inheritance caveat as `from_parent`: when the target is inherited, this points to the ancestor declarer, which may be outside the to-subtree.
 
 **`relationship`** — The relationship kind for this edge. One of the kinds in the v0.2 vocabulary. When the `relationship` parameter is supplied to the call, all edges have the same value here; when omitted, edges may carry different values.
 
@@ -188,6 +188,16 @@ For method-targeted relationships (`calls`, `overrides`), the target is a method
 For field-targeted relationships (`reads_field`, `writes_field`), the target is a field, and the condition is "the field's declaring type is in the target subtree."
 
 This matches how `outgoing_core_dependencies` handles type-level edges, and gives the LLM a consistent mental model: subtree scoping always means "the entity lives somewhere under this subtree, transitively."
+
+### Inheritance
+
+The tool always traverses inheritance on both sides of the query. For the source: an edge whose source method/field is declared on an *ancestor* of a type in the from-subtree (reached via `EXTENDS` or `IMPLEMENTS`) is included as if the entity belonged to the descendant. Symmetrically for the target: when the target is a method or field, an edge whose target is declared on an ancestor of a type in the to-subtree is included.
+
+`from_parent` and `to_parent` on each edge report the *actual* declaring type — the ancestor where the source code physically lives. They may therefore point to nodes *outside* the from-subtree (or to-subtree) the caller passed in. The `nodes` map carries entries for these out-of-subtree ancestors so the LLM can resolve them.
+
+This means "the subtree" is not a tight container — it is the *anchor* for inheritance traversal. The tool answers "what does this subtree depend on, including through inheritance" rather than "what code physically inside this subtree depends on things". To recover the narrow, physically-declared view, filter the returned `edges` to those whose `from_parent` is in the from-subtree (use `list_descendants(from_id)` to get the ID set). Inherited edges are useful for behavioral analysis; the filtered subset is useful for refactoring queries.
+
+Edges that traverse external (unscanned) ancestors are silently absent — the graph only contains relationships for code in the scan. If `A extends ExternalLib.Base`, the tool cannot return `Base`'s edges as `A`'s.
 
 ### Multi-relationship default
 
@@ -252,6 +262,8 @@ This is the text exposed to the LLM via MCP.
 > Return the method-level and field-level dependencies between a source subtree and a target subtree. This is the drill-down tool that bridges the hierarchical level and the detail level — given an aggregated dependency you've identified (typically via `aggregated_outgoing`, `aggregated_incoming`, or `outgoing_core_dependencies`), this returns the underlying concrete method/field edges that explain it.
 >
 > Returns a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus an `edges` list whose entries reference nodes by ID. Each edge carries `from` and `to` (node IDs), `from_parent` and optionally `to_parent` (declaring-type IDs for navigation back to the hierarchical model), the relationship kind, and the source location (file path and line number). The `summary` block groups edges by relationship kind (`by_relationship`) and by source type (`by_source_type`) — these are often more useful than enumerating individual edges, because they tell you *what kind of coupling* exists and *which types in the source subtree are responsible*.
+>
+> Inheritance: the query always traverses `EXTENDS` / `IMPLEMENTS` on both sides. An edge whose source method/field is declared on an ancestor of a type in the from-subtree is included; same for the target subtree when the target is a method or field. `from_parent` (and `to_parent`) therefore report the *actual* declaring type, which may be an ancestor outside the from-subtree (or to-subtree) when the entity is inherited. To restrict the result to physically-declared edges, filter `edges` where `from_parent` is in the from-subtree (use `list_descendants(from_id)` to get the ID set).
 >
 > Common parameter patterns:
 >
@@ -350,7 +362,7 @@ The exact patterns depend on jQAssistant's schema; the key idea is parameterized
 
 **Edge case: the `relationship` is supplied but produces no edges.** Return `edges: []` and `summary.total_edges: 0`. The summary's `by_relationship` map still includes the supplied kind (with count 0), so the LLM sees the absence clearly.
 
-**Cypher logging (debug).** The assembled Cypher statement (together with the resolved `fromTypes` / `toTypes` parameters and the effective `relationship` / `include_inherited` flags) is logged at INFO when the property `slizaa.mcp.tools.detail-dependencies.log-cypher` is set to `true`. Defaults to `false`. Useful for debugging query shape and inheritance traversal without attaching a debugger. The property namespace is per-tool; each detail tool gets its own flag as the need arises.
+**Cypher logging (debug).** The assembled Cypher statement (together with the effective `relationship` filter and the resolved `fromTypes` / `toTypes` parameters) is logged at INFO when the property `slizaa.mcp.tools.detail-dependencies.log-cypher` is set to `true`. Defaults to `false`. Useful for debugging query shape and inheritance traversal without attaching a debugger. The property namespace is per-tool; each detail tool gets its own flag as the need arises.
 
 **Testing checklist:**
 

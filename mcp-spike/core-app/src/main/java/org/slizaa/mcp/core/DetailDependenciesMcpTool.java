@@ -36,8 +36,8 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
 
     /**
      * When true, the Cypher statement built for each invocation is logged at INFO together
-     * with the effective {@code relationship} / {@code include_inherited} flags and the
-     * resolved {@code fromTypes} / {@code toTypes} parameters. Set via
+     * with the effective {@code relationship} filter and the resolved {@code fromTypes} /
+     * {@code toTypes} parameters. Set via
      * {@code slizaa.mcp.tools.detail-dependencies.log-cypher=true} in
      * {@code application.properties}; defaults to {@code false}. Each detail tool gets its
      * own flag as the need arises.
@@ -62,6 +62,13 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
                     "number). The 'summary' block groups edges by relationship kind (by_relationship) and by source " +
                     "type (by_source_type) — these are often more useful than enumerating individual edges, because " +
                     "they tell you what kind of coupling exists and which types in the source subtree are responsible. " +
+                    "Inheritance: the query always traverses EXTENDS/IMPLEMENTS on both sides. An edge whose source " +
+                    "method/field is declared on an ancestor of a type in the from-subtree is included; same for the " +
+                    "target subtree when the target is a method or field. 'from_parent' (and 'to_parent') therefore " +
+                    "report the actual declaring type, which may be an ancestor outside the from-subtree (or " +
+                    "to-subtree) when the entity is inherited. To restrict the result to physically-declared edges, " +
+                    "filter 'edges' where 'from_parent' is in the from-subtree (use list_descendants(from_id) to get " +
+                    "the ID set). " +
                     "Common parameter patterns: " +
                     "from_id + to_id (no relationship): see the full structural picture of detail-level coupling " +
                     "between two subtrees. Returns all relationship kinds; the by_relationship summary tells you the " +
@@ -72,10 +79,6 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
                     "with this annotation. " +
                     "from_id = root_id + to_id = some_field with relationship 'writes_field': global query — find " +
                     "every method that writes this field. " +
-                    "include_inherited=true: also include edges where the source method/field is inherited from an " +
-                    "ancestor of a type in the source subtree (and symmetrically for the target subtree, when the " +
-                    "target is a method or field). When the source method is inherited, 'from_parent' is the actual " +
-                    "declaring ancestor (not the subtree-anchor type); same for 'to_parent'. Default false. " +
                     "When to use this vs. neighboring tools: " +
                     "For the type-level evidence (which type-pairs are coupled), use outgoing_core_dependencies or " +
                     "incoming_core_dependencies. This tool drills one level deeper, into the methods and fields that " +
@@ -95,11 +98,6 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
                     "has_type, read_by, written_by.",
                     required = false)
             String relationship,
-            @ToolParam(description = "Whether to also include edges where the source method/field is inherited from " +
-                    "an ancestor of a type in the source subtree (and symmetrically for the target subtree, when the " +
-                    "target is a method or field). Default false.",
-                    required = false)
-            Boolean includeInherited,
             @ToolParam(description = "Max edges to return (1-500, default 50).", required = false)
             Integer limit) {
 
@@ -124,7 +122,6 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
 
         // --- Parameters & subtree expansion -----------------------------------------------
         int effectiveLimit = limit != null ? Math.min(Math.max(limit, 1), 500) : 50;
-        boolean inherited = includeInherited != null && includeInherited;
         String effectiveRel = (relationship != null && !relationship.isBlank()) ? relationship : null;
         INodeMetadataProvider mp = getMetadataProvider();
 
@@ -137,10 +134,10 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
         }
 
         // --- Build & (optionally) log the Cypher ------------------------------------------
-        String cypher = buildCypher(effectiveRel, inherited);
+        String cypher = buildCypher(effectiveRel);
         if (logCypher) {
-            log.info("detail_dependencies cypher (relationship={}, include_inherited={}, fromTypes={}, toTypes={}):\n{}",
-                    effectiveRel, inherited, fromTypeIds, toTypeIds, cypher);
+            log.info("detail_dependencies cypher (relationship={}, fromTypes={}, toTypes={}):\n{}",
+                    effectiveRel, fromTypeIds, toTypeIds, cypher);
         }
         var queryResult = graphService.getBoltClient().syncExecCypherQuery(
                 cypher, Map.of("fromTypes", fromTypeIds, "toTypes", toTypeIds));
@@ -347,13 +344,15 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
 
     /**
      * Assembles the full Cypher statement as a {@code UNION ALL} of one branch per matching
-     * {@link BranchSpec}. Each branch carries the source/target declarer joins (with optional
-     * inheritance traversal) and projects a uniform tuple of columns.
+     * {@link BranchSpec}. Each branch traverses inheritance on both the source and target
+     * declarer joins (zero or more {@code EXTENDS|IMPLEMENTS} hops); {@code RETURN DISTINCT}
+     * collapses duplicates that arise when the from / to subtrees include both a type and
+     * one of its ancestors.
      */
-    private String buildCypher(String relationship, boolean inherited) {
+    private String buildCypher(String relationship) {
         List<String> branches = BRANCHES.stream()
                 .filter(b -> relationship == null || b.cartographKind().equals(relationship))
-                .map(b -> renderBranch(b, inherited))
+                .map(this::renderBranch)
                 .toList();
 
         if (branches.isEmpty()) {
@@ -364,17 +363,16 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
     }
 
     /** Renders one branch from a {@link BranchSpec}. */
-    private String renderBranch(BranchSpec b, boolean inherited) {
-        String srcDeclarer = inherited
-                ? "(st:Type)-[:EXTENDS|IMPLEMENTS*0..]->(so:Type)-[:DECLARES]->(src:" + b.srcLabel() + ")"
-                : "(st:Type)-[:DECLARES]->(src:" + b.srcLabel() + ")";
+    private String renderBranch(BranchSpec b) {
+        // Source declarer: 'st' is the subtree-anchor type (must be in $fromTypes); 'so' is
+        // the actual declarer of the source entity, reached by zero or more EXTENDS|IMPLEMENTS
+        // hops from 'st'. *0..* lets 'so == st' for non-inherited cases.
+        String srcDeclarer = "(st:Type)-[:EXTENDS|IMPLEMENTS*0..]->(so:Type)-[:DECLARES]->(src:" + b.srcLabel() + ")";
+        String srcProj = "id(so) AS srcTypeId, so.name AS srcTypeName, so.fqn AS srcTypeFqn, labels(so) AS srcTypeLabels";
 
-        String srcProj = inherited
-                ? "id(so) AS srcTypeId, so.name AS srcTypeName, so.fqn AS srcTypeFqn, labels(so) AS srcTypeLabels"
-                : "id(st) AS srcTypeId, st.name AS srcTypeName, st.fqn AS srcTypeFqn, labels(st) AS srcTypeLabels";
-
-        // Target side: differs between TO_TYPE (direct Type target) and the two entity-shaped
-        // branches (which add the declarer join on the target so inheritance can be applied).
+        // Target side: TO_TYPE branches end at a Type directly (no declarer join). Entity-
+        // shaped branches end at a Method/Field and join through the declarer 'to' to the
+        // subtree-anchor 'tt' (which must be in $toTypes).
         String tgtMatch;
         String tgtProj;
         String whereTgt;
@@ -383,12 +381,8 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
             tgtProj = "id(tgt) AS tgtTypeId, tgt.name AS tgtTypeName, tgt.fqn AS tgtTypeFqn, labels(tgt) AS tgtTypeLabels";
             whereTgt = "id(tgt) IN $toTypes";
         } else {
-            tgtMatch = inherited
-                    ? "(tgt:" + b.tgtLabel() + ")<-[:DECLARES]-(to:Type)<-[:EXTENDS|IMPLEMENTS*0..]-(tt:Type)"
-                    : "(tgt:" + b.tgtLabel() + ")<-[:DECLARES]-(tt:Type)";
-            tgtProj = inherited
-                    ? "id(to) AS tgtTypeId, to.name AS tgtTypeName, to.fqn AS tgtTypeFqn, labels(to) AS tgtTypeLabels"
-                    : "id(tt) AS tgtTypeId, tt.name AS tgtTypeName, tt.fqn AS tgtTypeFqn, labels(tt) AS tgtTypeLabels";
+            tgtMatch = "(tgt:" + b.tgtLabel() + ")<-[:DECLARES]-(to:Type)<-[:EXTENDS|IMPLEMENTS*0..]-(tt:Type)";
+            tgtProj = "id(to) AS tgtTypeId, to.name AS tgtTypeName, to.fqn AS tgtTypeFqn, labels(to) AS tgtTypeLabels";
             whereTgt = "id(tt) IN $toTypes";
         }
 

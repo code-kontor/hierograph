@@ -184,9 +184,8 @@ public class GraphController {
             @RequestParam long fromId,
             @RequestParam long toId,
             @RequestParam(required = false) String relationship,
-            @RequestParam(required = false) Boolean includeInherited,
             @RequestParam(required = false) Integer limit) {
-        return detailDependenciesTool.detailDependencies(fromId, toId, relationship, includeInherited, limit);
+        return detailDependenciesTool.detailDependencies(fromId, toId, relationship, limit);
     }
 
     @GetMapping("/method-details")
