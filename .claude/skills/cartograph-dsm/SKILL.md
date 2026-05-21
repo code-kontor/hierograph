@@ -20,13 +20,36 @@ isn't a valid topological ordering. Worse, in a cyclic graph it can hide a real 
 both participants in the right relative position by luck. `pairwise_dependencies` computes the
 ordering once, authoritatively, and tells you whether the graph is acyclic.
 
-This skill exists because that mistake was made: a DSM was rendered with three above-diagonal
-entries that the author dismissed as "back-edges to investigate" when in fact the graph was
-acyclic and the row order was wrong.
+This skill exists because two mistakes were made: (1) a DSM was rendered with three
+above-diagonal entries that the author dismissed as "back-edges to investigate" when in fact the
+graph was acyclic and the row order was wrong; and (2) a package-level DSM was published while
+cartograph's scan was missing an entire intermediate package (`core.mcp`) and its five
+sub-packages, because the scan predated a recent refactor. Both failures are cheap to prevent
+and the procedure below does so.
 
 ## The procedure
 
-### 1. Choose the node set
+### 1. Verify the scan is fresh for your scope
+
+Cartograph runs on a periodic jQAssistant scan; the working tree may be ahead of it. Before any
+analysis, spot-check that cartograph's package set matches the source tree under your proposed
+scope. For a Maven/Gradle-style layout:
+
+```bash
+find <module-root>/src/main/java -mindepth 1 -type d \
+  | sed "s|.*/src/main/java/||" | sort
+```
+
+Cross-reference that list against `list_descendants(rootId=<scope>, kindFilter=["Package"])`.
+On any mismatch — a package on disk that cartograph doesn't know about, or vice versa —
+**stop**. Either ask the user to re-run the jQAssistant scan, or proceed only with their
+explicit acknowledgement that the analysis is on outdated data. Don't silently power through.
+
+This check takes seconds. Skipping it once produced the failure described in
+`todos/hierarchical-package-dsm-caveat.md`, where an entire intermediate package and its five
+sub-packages were missing from analysis because the scan predated a refactor commit.
+
+### 2. Choose the node set
 
 Resolve the modules of interest to concrete node IDs:
 
@@ -38,25 +61,30 @@ Resolve the modules of interest to concrete node IDs:
 If the user said "modules" without scoping, default to top-level projects (children of root).
 Read the resolved set back to the user before continuing.
 
-### 2. Call `pairwise_dependencies` exactly once
+If the proposed set contains both a parent and one of its descendants, surface the dilemma to
+the user before running anything. The strict-non-hierarchical interpretation may give a useless
+answer (empty DSM); the permissive interpretation mixes hierarchy with real coupling.
+`todos/hierarchical-package-dsm-caveat.md` covers the trade-offs.
+
+### 3. Call `pairwise_dependencies` exactly once
 
 ```
 pairwise_dependencies(
-  nodeIds          = [<all IDs from step 1>],
+  nodeIds          = [<all IDs from step 2>],
   includeSelfLoops = false   # true only if ranking modules by internal coupling
 )
 ```
 
 One call. Do **not** loop `aggregated_outgoing` or `dependency_between` to assemble the matrix.
 
-### 3. Read the `summary` block before rendering
+### 4. Read the `summary` block before rendering
 
 `summary.has_cycles`, `summary.density`, `summary.max_edge_weight`,
 `summary.strongly_connected_components`, `summary.topological_order` are the headline answer for
 most layering questions. Check them first; for "is this properly layered?" the summary alone is
 the answer and a matrix may not even be necessary.
 
-### 4. Render using `topological_order`, reversed
+### 5. Render using `topological_order`, reversed
 
 The tool returns `topological_order` as [consumer, …, sink]. **Reverse it** so sinks (base
 modules) sit at the top of the matrix and consumers at the bottom. Matrix convention:
@@ -68,7 +96,7 @@ modules) sit at the top of the matrix and consumers at the bottom. Matrix conven
 With a reversed topological order on an acyclic graph, every edge falls **on or below** the
 diagonal. That visual is the signal of clean layering.
 
-### 5. Verify before reporting (mandatory)
+### 6. Verify before reporting (mandatory)
 
 Scan the rendered matrix for any cell above the diagonal:
 
@@ -82,7 +110,7 @@ Scan the rendered matrix for any cell above the diagonal:
 This scan is the cheapest possible self-check. Skipping it is exactly how this skill came to
 exist.
 
-### 6. Report from the `summary`, not just the matrix
+### 7. Report from the `summary`, not just the matrix
 
 Lead the writeup with the structural facts:
 
@@ -98,6 +126,9 @@ its name).
 
 ## Anti-patterns to avoid
 
+- ❌ Trusting cartograph's node set without checking the source tree first. The scan is a
+  cache; the working tree may be ahead. A 5-second `find` rules out wasted analysis on stale
+  data.
 - ❌ Looping `aggregated_outgoing` over the node set to build the matrix. One
   `pairwise_dependencies` call replaces N of those and includes the SCC/topo analysis for free.
 - ❌ Hand-picking the row order from module names. The `*.testfwk → main module` direction is
@@ -107,10 +138,12 @@ its name).
   still contain a cycle if your ordering happens to place SCC members in the right order.
 - ❌ Ignoring `strongly_connected_components` when `has_cycles == true`. The SCC list names
   exactly what to untangle.
-- ❌ Skipping the above-diagonal scan in step 5. If `has_cycles == false`, that scan must come
+- ❌ Skipping the above-diagonal scan in step 6. If `has_cycles == false`, that scan must come
   back empty before you publish the matrix.
 - ❌ Treating "back-edge" as a finding when `has_cycles == false`. There is no back-edge in an
   acyclic graph; what you're seeing is a rendering bug.
+- ❌ Silently relaxing a user-stated constraint (e.g. "no hierarchical comparison") when the
+  strict reading gives an unsatisfying answer. Surface the dilemma; let the user pick.
 
 ## When NOT to use this skill
 
