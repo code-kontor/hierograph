@@ -6,16 +6,16 @@ jQAssistant's Java scanner creates per-artifact stub `:Type` nodes for any class
 
 The built-in `classpath:Resolve` concept solves an adjacent problem (linking references across scanned artifacts to fully-scanned counterparts) but does nothing for the all-stub case. It also leaves the duplicate stubs in place.
 
-This spec defines a set of jQAssistant concepts that produce **canonical virtual nodes** — one `:Virtual:Type` per external FQN and one `:Virtual:Package` per package FQN — without modifying or deleting the original stubs. Stubs are linked to their canonicals via `:RESOLVES_TO`. Packages contain their types and their child packages via `:CONTAINS`.
+This spec defines a set of jQAssistant concepts that produce **canonical virtual nodes** — one `:Virtual:Type` per external FQN, one `:Virtual:Package` per package FQN, and one `:Virtual:Artifact` ("External") that owns the whole virtual subgraph — without modifying or deleting the original stubs. Stubs are linked to their canonicals via `:RESOLVES_TO`. Packages contain their types and their child packages via `:CONTAINS`. The `External` artifact contains every virtual package and every virtual type flatly, mirroring how jQAssistant's Java scanner relates a real `:Artifact:Jar` to its packages and types.
 
 ## Goals
 
 - One canonical node per external type FQN, queryable as `:Virtual:Type`.
 - One canonical node per external package FQN, queryable as `:Virtual:Package`.
 - Full package hierarchy (`com` → `com.acme` → `com.acme.foo`) materialized as `:CONTAINS` edges.
+- A single `:Virtual:Artifact {name: "External"}` that flatly `:CONTAINS` every virtual package and every virtual type, mirroring jQAssistant's Java scanner pattern for real `:Artifact:Jar` nodes.
 - Non-destructive: original stubs and their relationships are untouched.
 - Idempotent: re-running the concepts does not duplicate nodes or edges.
-- Optional bridging to fully-scanned types when one exists for the same FQN.
 
 ## Non-goals
 
@@ -37,6 +37,29 @@ Canonical nodes carry `:Virtual` in addition to `:Type` or `:Package`. This prev
 
 Reuses the relationship type already established by `classpath:Resolve` for "this reference points at a richer representation." A query that follows `(:Type)-[:RESOLVES_TO*]->(target)` works uniformly whether `target` is a fully-scanned type from `classpath:Resolve` or a virtual node from this spec.
 
+### Flat containment from the `External` artifact
+
+The Java scanner emits `(:Artifact:Jar)-[:CONTAINS]->(:Package)` and `(:Artifact:Jar)-[:CONTAINS]->(:Type)` for **every** package and type in a JAR, not just the top-level ones. Top-level packages are then identified by filtering — `WHERE NOT (:Package)-[:CONTAINS]->(b)` — against the parallel `:Package`/`:Type` hierarchy. The `External` virtual artifact follows the same pattern so that queries already written against real artifacts (including slizaa's top-level node discovery) work on the virtual subgraph by swapping `:Artifact:Jar` for `:Virtual:Artifact`.
+
+### Queries against the real Java model must exclude `:Virtual`
+
+Virtual nodes carry **both** the `:Virtual` label and one of `:Type` / `:Package` / `:Artifact`. That means a query written as `MATCH (t:Type)` matches real types *and* `:Virtual:Type` canonicals; `MATCH (p:Package)` likewise includes virtual packages, and `MATCH (a:Artifact)` includes the `External` artifact. Most queries authored against the Java scanner's output assume only real nodes — running them unchanged against a graph that has the virtual layer will silently include the wrong nodes.
+
+Rule: **every `MATCH`/`MERGE` whose pattern is meant to address real `:Type`, `:Package`, or `:Artifact` nodes must explicitly exclude `:Virtual`**. The standard form is:
+
+```cypher
+MATCH (t:Type)   WHERE NOT t:Virtual ...
+MATCH (p:Package) WHERE NOT p:Virtual ...
+MATCH (a:Artifact) WHERE NOT a:Virtual ...
+```
+
+This applies to:
+
+- The concepts in this spec (in particular `hierograph:VirtualExternalType`, whose `MATCH (t:Type)` would otherwise re-pick up its own outputs on a re-run and create `(:Virtual:Type)-[:RESOLVES_TO]->(:Virtual:Type)` self-loops).
+- Any downstream rule or ad-hoc query that operates on the Java model (dependency reports, metrics, sanity checks). If such a query is missing the `NOT x:Virtual` guard, treat it as a bug.
+
+Queries that intentionally target the virtual layer must match on `:Virtual` explicitly (e.g., `:Virtual:Type`, `:Virtual:Package`, `:Virtual:Artifact`) so the symmetry is enforced by both sides.
+
 ### Exclusions
 
 The following are deliberately excluded from virtual-type creation:
@@ -49,39 +72,13 @@ Array element types can be derived in a separate concept if needed; this spec do
 
 ## Prerequisites
 
-Uniqueness constraints on `:Virtual:Type(fqn)` and `:Virtual:Package(fqn)` must exist before the merge concepts run. Without them every `MERGE` falls back to a label scan and runtime grows quadratically with the number of stubs. These are created automatically by the `my-rules:VirtualExternalSetup` concept defined below; all other concepts depend on it transitively.
+No explicit setup is required. The Java plugin's descriptor framework already creates indexes on `:Type(fqn)` and `:Package(fqn)` when the store is initialized, which is what the MERGEs below benefit from. Multi-label uniqueness constraints (e.g., `FOR (v:Virtual:Type)`) are not expressible in Cypher — only single-label patterns are allowed in `CREATE CONSTRAINT ... FOR (...)` — so we don't add explicit constraints for the virtual layer. Idempotency is guaranteed by `MERGE` semantics, not by a unique constraint.
 
 ## Concepts
 
-### 0. `my-rules:VirtualExternalSetup`
-
-Creates the uniqueness constraints required by the merge concepts. Idempotent (`IF NOT EXISTS`), runs once per store.
-
-**Inputs**: none.
-
-**Outputs**:
-- Uniqueness constraint on `:Virtual:Type(fqn)`.
-- Uniqueness constraint on `:Virtual:Package(fqn)`.
-
-**Cypher**:
-
-```cypher
-CREATE CONSTRAINT virtual_type_fqn IF NOT EXISTS
-FOR (v:Virtual:Type) REQUIRE v.fqn IS UNIQUE;
-CREATE CONSTRAINT virtual_package_fqn IF NOT EXISTS
-FOR (p:Virtual:Package) REQUIRE p.fqn IS UNIQUE;
-RETURN 1 AS Setup
-```
-
-The trailing `RETURN` is required — jQAssistant verifies that concepts produce at least one row. `CREATE CONSTRAINT` itself returns nothing, so a constant row is appended.
-
-Note: Neo4j does not allow schema commands (`CREATE CONSTRAINT`) and data commands (`MATCH`, `MERGE`, `RETURN`) in the same transaction. If the runtime rejects the combined statement, split the concept into two `<cypher>` blocks (jQAssistant runs them as separate transactions) or move the constraints into a manual setup step run once in the Neo4j browser.
-
-### 1. `my-rules:VirtualExternalType`
+### 1. `hierograph:VirtualExternalType`
 
 Creates a `:Virtual:Type` node for every unparsed type stub, keyed by FQN, and links each stub to it.
-
-**Depends on**: `my-rules:VirtualExternalSetup`.
 
 **Inputs**: existing `:Type` nodes with no `byteCodeVersion`, excluding primitives, arrays, and default-package names.
 
@@ -93,7 +90,8 @@ Creates a `:Virtual:Type` node for every unparsed type stub, keyed by FQN, and l
 
 ```cypher
 MATCH (t:Type)
-WHERE t.byteCodeVersion IS NULL
+WHERE NOT t:Virtual
+  AND t.byteCodeVersion IS NULL
   AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
   AND NOT t.fqn STARTS WITH "["
   AND t.fqn CONTAINS "."
@@ -104,11 +102,11 @@ MERGE (t)-[:RESOLVES_TO]->(v)
 RETURN count(DISTINCT v) AS VirtualTypes
 ```
 
-### 2. `my-rules:VirtualExternalPackage`
+### 2. `hierograph:VirtualExternalPackage`
 
 Creates a `:Virtual:Package` node for each virtual type's package and links package to type.
 
-**Depends on**: `my-rules:VirtualExternalType`.
+**Depends on**: `hierograph:VirtualExternalType`.
 
 **Inputs**: `:Virtual:Type` nodes created by concept 1.
 
@@ -127,11 +125,11 @@ MERGE (p)-[:CONTAINS]->(v)
 RETURN count(DISTINCT p) AS VirtualPackages
 ```
 
-### 3. `my-rules:VirtualPackageHierarchy`
+### 3. `hierograph:VirtualPackageHierarchy`
 
 Builds the parent-child hierarchy between virtual packages by walking each FQN's dotted path and materializing every ancestor.
 
-**Depends on**: `my-rules:VirtualExternalPackage`.
+**Depends on**: `hierograph:VirtualExternalPackage`.
 
 **Inputs**: `:Virtual:Package` nodes whose FQN contains a dot (top-level packages like `java` have nothing to do).
 
@@ -159,28 +157,45 @@ RETURN count(DISTINCT parent) AS ParentPackages
 
 Note: this concept also ensures that single-segment ancestors (`java`, `com`, `org`) exist as `:Virtual:Package` nodes even if no type lives directly in them.
 
-### 4. (Optional) `my-rules:VirtualResolvesToParsed`
+### 4. `hierograph:VirtualExternalArtifact`
 
-Bridges virtual types to their fully-scanned counterparts when both exist. Enables uniform traversal: stub → virtual → fully-scanned.
+Creates a single `:Virtual:Artifact {name: "External"}` node and links it to every `:Virtual:Package` and every `:Virtual:Type` via `:CONTAINS`. Flat containment — every package and every type, not just top-level ones — mirrors how jQAssistant's Java scanner relates a real `:Artifact:Jar` to its contents.
 
-**Depends on**: `my-rules:VirtualExternalType`.
+**Depends on**: `hierograph:VirtualPackageHierarchy` (so intermediate ancestor packages such as `java`, `com`, `org` are present before they get linked).
 
-**Inputs**: `:Virtual:Type` nodes; fully-scanned `:Type` nodes (those with `byteCodeVersion`).
+**Inputs**: `:Virtual:Type` nodes from concept 1; `:Virtual:Package` nodes from concepts 2 and 3.
 
 **Outputs**:
-- One `(:Virtual:Type)-[:RESOLVES_TO]->(:Type)` edge per FQN match.
+- One `:Virtual:Artifact {name: "External"}` node.
+- One `(:Virtual:Artifact)-[:CONTAINS]->(:Virtual:Package)` edge per virtual package.
+- One `(:Virtual:Artifact)-[:CONTAINS]->(:Virtual:Type)` edge per virtual type.
 
 **Cypher**:
 
 ```cypher
-MATCH (v:Virtual:Type), (real:Type)
-WHERE v.fqn = real.fqn
-  AND real.byteCodeVersion IS NOT NULL
-MERGE (v)-[:RESOLVES_TO]->(real)
-RETURN count(*) AS Linked
+MERGE (a:Virtual:Artifact {name: "External"})
+WITH a
+OPTIONAL MATCH (p:Virtual:Package)
+FOREACH (_ IN CASE WHEN p IS NULL THEN [] ELSE [1] END |
+  MERGE (a)-[:CONTAINS]->(p)
+)
+WITH a, count(p) AS Packages
+OPTIONAL MATCH (t:Virtual:Type)
+FOREACH (_ IN CASE WHEN t IS NULL THEN [] ELSE [1] END |
+  MERGE (a)-[:CONTAINS]->(t)
+)
+RETURN Packages, count(t) AS Types
 ```
 
-Include this only when fully-scanned versions of external types may exist in the graph (e.g. JDK classes after a deliberate JDK scan, or library JARs included via `maven3.dependencies.scan`).
+The `OPTIONAL MATCH` + `FOREACH` guard keeps the concept from failing on an empty graph (which would otherwise drop the row before the second `MATCH` and return zero rows, violating jQAssistant's "at least one row" rule).
+
+Top-level packages within the virtual subgraph remain discoverable with the same filter pattern the Java scanner uses:
+
+```cypher
+MATCH (a:Virtual:Artifact)-[:CONTAINS]->(p:Virtual:Package)
+WHERE NOT (:Virtual:Package)-[:CONTAINS]->(p)
+RETURN p
+```
 
 ## Rule file
 
@@ -193,35 +208,14 @@ Save as `jqassistant/virtual-external.xml` in the project root:
                    xsi:schemaLocation="http://schema.jqassistant.org/rule/v2.9
                                        https://jqassistant.github.io/jqassistant/current/schema/jqassistant-rule-v2.9.xsd">
 
-  <group id="virtual-external">
-    <includeConcept refId="my-rules:VirtualExternalType"/>
-    <includeConcept refId="my-rules:VirtualExternalPackage"/>
-    <includeConcept refId="my-rules:VirtualPackageHierarchy"/>
-    <!-- Uncomment if fully-scanned external types may exist:
-    <includeConcept refId="my-rules:VirtualResolvesToParsed"/>
-    -->
+  <group id="hierograph:virtual-external">
+    <includeConcept refId="hierograph:VirtualExternalType"/>
+    <includeConcept refId="hierograph:VirtualExternalPackage"/>
+    <includeConcept refId="hierograph:VirtualPackageHierarchy"/>
+    <includeConcept refId="hierograph:VirtualExternalArtifact"/>
   </group>
 
-  <concept id="my-rules:VirtualExternalSetup">
-    <description>
-      Creates uniqueness constraints on :Virtual:Type(fqn) and :Virtual:Package(fqn) so the
-      MERGE-based concepts use index-backed lookups instead of label scans. Idempotent.
-    </description>
-    <cypher><![CDATA[
-      CREATE CONSTRAINT virtual_type_fqn IF NOT EXISTS
-      FOR (v:Virtual:Type) REQUIRE v.fqn IS UNIQUE
-    ]]></cypher>
-    <cypher><![CDATA[
-      CREATE CONSTRAINT virtual_package_fqn IF NOT EXISTS
-      FOR (p:Virtual:Package) REQUIRE p.fqn IS UNIQUE
-    ]]></cypher>
-    <cypher><![CDATA[
-      RETURN 1 AS Setup
-    ]]></cypher>
-  </concept>
-
-  <concept id="my-rules:VirtualExternalType">
-    <requiresConcept refId="my-rules:VirtualExternalSetup"/>
+  <concept id="hierograph:VirtualExternalType">
     <description>
       For every unparsed (stub) :Type referenced in the graph, create a canonical :Virtual:Type
       node keyed by fqn, and link each stub to it via :RESOLVES_TO. Primitives, JVM array
@@ -229,7 +223,8 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     </description>
     <cypher><![CDATA[
       MATCH (t:Type)
-      WHERE t.byteCodeVersion IS NULL
+      WHERE NOT t:Virtual
+        AND t.byteCodeVersion IS NULL
         AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
         AND NOT t.fqn STARTS WITH "["
         AND t.fqn CONTAINS "."
@@ -241,8 +236,8 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     ]]></cypher>
   </concept>
 
-  <concept id="my-rules:VirtualExternalPackage">
-    <requiresConcept refId="my-rules:VirtualExternalType"/>
+  <concept id="hierograph:VirtualExternalPackage">
+    <requiresConcept refId="hierograph:VirtualExternalType"/>
     <description>
       For every :Virtual:Type, create a canonical :Virtual:Package node derived from the type's
       FQN (everything before the last dot), and link package to type via :CONTAINS.
@@ -257,8 +252,8 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     ]]></cypher>
   </concept>
 
-  <concept id="my-rules:VirtualPackageHierarchy">
-    <requiresConcept refId="my-rules:VirtualExternalPackage"/>
+  <concept id="hierograph:VirtualPackageHierarchy">
+    <requiresConcept refId="hierograph:VirtualExternalPackage"/>
     <description>
       Build the parent-child hierarchy between :Virtual:Package nodes by walking each package's
       FQN and creating ancestor packages, linked by :CONTAINS.
@@ -280,18 +275,28 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     ]]></cypher>
   </concept>
 
-  <concept id="my-rules:VirtualResolvesToParsed">
-    <requiresConcept refId="my-rules:VirtualExternalType"/>
+  <concept id="hierograph:VirtualExternalArtifact">
+    <requiresConcept refId="hierograph:VirtualPackageHierarchy"/>
     <description>
-      If a fully-scanned :Type with the same FQN exists, link the :Virtual:Type to it via
-      :RESOLVES_TO, enabling uniform traversal from stub to virtual to fully-scanned type.
+      Create a single :Virtual:Artifact {name: "External"} node and link it via :CONTAINS to every
+      :Virtual:Package and every :Virtual:Type. Flat containment mirrors how jQAssistant's Java
+      scanner relates a real :Artifact:Jar to its contents (every package and every type, not just
+      top-level ones), so existing queries that filter by NOT (:Package)-[:CONTAINS]->(b) work
+      against the virtual subgraph too.
     </description>
     <cypher><![CDATA[
-      MATCH (v:Virtual:Type), (real:Type)
-      WHERE v.fqn = real.fqn
-        AND real.byteCodeVersion IS NOT NULL
-      MERGE (v)-[:RESOLVES_TO]->(real)
-      RETURN count(*) AS Linked
+      MERGE (a:Virtual:Artifact {name: "External"})
+      WITH a
+      OPTIONAL MATCH (p:Virtual:Package)
+      FOREACH (_ IN CASE WHEN p IS NULL THEN [] ELSE [1] END |
+        MERGE (a)-[:CONTAINS]->(p)
+      )
+      WITH a, count(p) AS Packages
+      OPTIONAL MATCH (t:Virtual:Type)
+      FOREACH (_ IN CASE WHEN t IS NULL THEN [] ELSE [1] END |
+        MERGE (a)-[:CONTAINS]->(t)
+      )
+      RETURN Packages, count(t) AS Types
     ]]></cypher>
   </concept>
 
@@ -300,10 +305,10 @@ Save as `jqassistant/virtual-external.xml` in the project root:
 
 ## Activation
 
-Activate the `virtual-external` group on the command line:
+Activate the `hierograph:virtual-external` group on the command line:
 
 ```bash
-jqassistant.sh analyze --groups virtual-external
+jqassistant.sh analyze --groups hierograph:virtual-external
 ```
 
 Or via `.jqassistant.yml`:
@@ -312,16 +317,16 @@ Or via `.jqassistant.yml`:
 jqassistant:
   analyze:
     groups:
-      - virtual-external
+      - hierograph:virtual-external
 ```
 
 Or via Maven property:
 
 ```bash
-mvn jqassistant:analyze -Djqassistant.analyze.groups=virtual-external
+mvn jqassistant:analyze -Djqassistant.analyze.groups=hierograph:virtual-external
 ```
 
-Because of the `requiresConcept` chain, the group only needs to include the leaf concept(s); dependencies pull in their prerequisites automatically. The group above lists all three for discoverability.
+Because of the `requiresConcept` chain, the group only needs to include the leaf concept(s); dependencies pull in their prerequisites automatically. The group above lists all four for discoverability.
 
 ## Verification
 
@@ -330,16 +335,19 @@ After running, confirm the concepts produced output:
 ```cypher
 MATCH (v:Virtual:Type) RETURN count(v) AS VirtualTypes;
 MATCH (p:Virtual:Package) RETURN count(p) AS VirtualPackages;
+MATCH (a:Virtual:Artifact) RETURN count(a) AS VirtualArtifacts;
 MATCH (:Type)-[r:RESOLVES_TO]->(:Virtual:Type) RETURN count(r) AS StubLinks;
 MATCH (:Virtual:Package)-[r:CONTAINS]->(:Virtual:Type) RETURN count(r) AS PackageContents;
 MATCH (:Virtual:Package)-[r:CONTAINS]->(:Virtual:Package) RETURN count(r) AS PackageHierarchy;
+MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Package) RETURN count(r) AS ArtifactPackages;
+MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Type) RETURN count(r) AS ArtifactTypes;
 ```
 
 Sanity-check a known external type, e.g.:
 
 ```cypher
 MATCH (v:Virtual:Type {fqn: "java.util.List"})
-OPTIONAL MATCH (stub:Type)-[:RESOLVES_TO]->(v)
+OPTIONAL MATCH (stub:Type)-[:RESOLVES_TO]->(v) WHERE NOT stub:Virtual
 OPTIONAL MATCH (pkg:Virtual:Package)-[:CONTAINS]->(v)
 RETURN v.fqn, count(DISTINCT stub) AS StubCount, pkg.fqn AS Package;
 ```
@@ -348,11 +356,11 @@ The `StubCount` should equal the number of scanned artifacts that referenced `ja
 
 ## Operational notes
 
-**Performance**. With the uniqueness constraints in place, the concepts scale roughly linearly with the number of stub nodes. On graphs with hundreds of thousands of stubs, expect total runtime in the low tens of seconds. Without the constraints, runtime grows quadratically and becomes impractical past a few thousand stubs.
+**Performance**. The MERGEs benefit from the indexes that jQAssistant's Java plugin already creates on `:Type(fqn)` and `:Package(fqn)` at store-init time (via descriptor annotations, not rule-level `CREATE CONSTRAINT`). Cypher's `CREATE CONSTRAINT ... FOR (...)` accepts only a single label, so a `:Virtual:Type` uniqueness constraint cannot be expressed as a rule — and isn't needed: the existing single-label indexes already give MERGE an index-backed lookup. The `:Virtual:Artifact` MERGE creates exactly one node so its lookup cost is irrelevant.
 
-**Idempotency**. All three concepts use `MERGE`, so re-running them produces no duplicate nodes or edges. They can safely be run after every scan.
+**Idempotency**. All concepts use `MERGE`, so re-running them produces no duplicate nodes or edges. They can safely be run after every scan.
 
-**Interaction with `classpath:Resolve`**. The two are complementary. `classpath:Resolve` adds cross-artifact edges to fully-scanned types when those exist; this spec creates canonical virtual nodes when no fully-scanned version exists. Run both for the most complete graph: `classpath:Resolve` first (so the fully-scanned bridges are in place), then the virtual concepts. If concept 4 (`VirtualResolvesToParsed`) is enabled, it provides a uniform second-hop bridge that also covers the cases `classpath:Resolve` handled.
+**Interaction with `classpath:Resolve`**. The two are complementary. `classpath:Resolve` adds cross-artifact edges to fully-scanned types when those exist; this spec creates canonical virtual nodes when no fully-scanned version exists. Run both for the most complete graph: `classpath:Resolve` first (so the fully-scanned bridges are in place), then the virtual concepts.
 
 **Cleanup**. To remove the virtual layer entirely:
 
@@ -360,7 +368,7 @@ The `StubCount` should equal the number of scanned artifacts that referenced `ja
 MATCH (v:Virtual) DETACH DELETE v;
 ```
 
-This deletes both `:Virtual:Type` and `:Virtual:Package` nodes along with all their edges. Original stubs and their relationships are unaffected.
+This deletes `:Virtual:Type`, `:Virtual:Package`, and `:Virtual:Artifact` nodes along with all their edges. Original stubs and their relationships are unaffected.
 
 **Schema version**. The XML uses jQAssistant schema v2.9. Adjust the namespace and `xsi:schemaLocation` to match the installed jQAssistant version; mismatched versions are usually silently ignored rather than reported as errors.
 

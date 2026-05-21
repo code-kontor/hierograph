@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jqassistant-rules xmlns="http://schema.jqassistant.org/rule/v2.9"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://schema.jqassistant.org/rule/v2.9
+                                       https://jqassistant.github.io/jqassistant/current/schema/jqassistant-rule-v2.9.xsd">
+
+    <group id="hierograph:virtual-external">
+        <includeConcept refId="hierograph:VirtualExternalType"/>
+        <includeConcept refId="hierograph:VirtualExternalPackage"/>
+        <includeConcept refId="hierograph:VirtualPackageHierarchy"/>
+        <includeConcept refId="hierograph:VirtualExternalArtifact"/>
+    </group>
+
+    <concept id="hierograph:VirtualExternalType">
+        <description>
+            For every unparsed (stub) :Type referenced in the graph, create a canonical :Virtual:Type
+            node keyed by fqn, and link each stub to it via :RESOLVES_TO. Primitives, JVM array
+            descriptors, and default-package types are excluded.
+        </description>
+        <cypher><![CDATA[
+      MATCH (t:Type)
+      WHERE NOT t:Virtual
+        AND t.byteCodeVersion IS NULL
+        AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
+        AND NOT t.fqn STARTS WITH "["
+        AND t.fqn CONTAINS "."
+      WITH t, t.fqn AS fqn
+      MERGE (v:Virtual:Type {fqn: fqn})
+        ON CREATE SET v.name = split(fqn, ".")[-1]
+      MERGE (t)-[:RESOLVES_TO]->(v)
+      RETURN count(DISTINCT v) AS VirtualTypes
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:VirtualExternalPackage">
+        <requiresConcept refId="hierograph:VirtualExternalType"/>
+        <description>
+            For every :Virtual:Type, create a canonical :Virtual:Package node derived from the type's
+            FQN (everything before the last dot), and link package to type via :CONTAINS.
+        </description>
+        <cypher><![CDATA[
+      MATCH (v:Virtual:Type)
+      WITH v, substring(v.fqn, 0, size(v.fqn) - size(v.name) - 1) AS pkgFqn
+      MERGE (p:Virtual:Package {fqn: pkgFqn})
+        ON CREATE SET p.name = split(pkgFqn, ".")[-1]
+      MERGE (p)-[:CONTAINS]->(v)
+      RETURN count(DISTINCT p) AS VirtualPackages
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:VirtualPackageHierarchy">
+        <requiresConcept refId="hierograph:VirtualExternalPackage"/>
+        <description>
+            Build the parent-child hierarchy between :Virtual:Package nodes by walking each package's
+            FQN and creating ancestor packages, linked by :CONTAINS.
+        </description>
+        <cypher><![CDATA[
+      MATCH (p:Virtual:Package)
+      WHERE p.fqn CONTAINS "."
+      WITH p, split(p.fqn, ".") AS parts
+      UNWIND range(1, size(parts) - 1) AS i
+      WITH parts, i,
+           reduce(s = head(parts), x IN parts[1..i] | s + "." + x) AS parentFqn,
+           reduce(s = head(parts), x IN parts[1..i+1] | s + "." + x) AS childFqn
+      MERGE (parent:Virtual:Package {fqn: parentFqn})
+        ON CREATE SET parent.name = split(parentFqn, ".")[-1]
+      MERGE (child:Virtual:Package {fqn: childFqn})
+        ON CREATE SET child.name = split(childFqn, ".")[-1]
+      MERGE (parent)-[:CONTAINS]->(child)
+      RETURN count(DISTINCT parent) AS ParentPackages
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:VirtualExternalArtifact">
+        <requiresConcept refId="hierograph:VirtualPackageHierarchy"/>
+        <description>
+            Create a single :Virtual:Artifact {name: "External"} node and link it via :CONTAINS to
+            every :Virtual:Package and every :Virtual:Type. Flat containment mirrors how
+            jQAssistant's Java scanner relates a real :Artifact:Jar to its contents (every package
+            and every type, not just top-level ones), so existing queries that filter by
+            NOT (:Package)-[:CONTAINS]->(b) work against the virtual subgraph too.
+        </description>
+        <cypher><![CDATA[
+      MERGE (a:Virtual:Artifact {name: "External"})
+      WITH a
+      OPTIONAL MATCH (p:Virtual:Package)
+      FOREACH (_ IN CASE WHEN p IS NULL THEN [] ELSE [1] END |
+        MERGE (a)-[:CONTAINS]->(p)
+      )
+      WITH a, count(p) AS Packages
+      OPTIONAL MATCH (t:Virtual:Type)
+      FOREACH (_ IN CASE WHEN t IS NULL THEN [] ELSE [1] END |
+        MERGE (a)-[:CONTAINS]->(t)
+      )
+      RETURN Packages, count(t) AS Types
+    ]]></cypher>
+    </concept>
+
+</jqassistant-rules>
