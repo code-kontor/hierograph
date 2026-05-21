@@ -22,10 +22,16 @@ public class McpApplication {
             PairwiseDependencyMcpTools pairwiseDependencyMcpTools,
             ScopeDependencyMcpTools scopeDependencyMcpTools,
             ReachabilityMcpTools reachabilityMcpTools,
-            DetailMcpTools detailMcpTools) {
+            ListMethodsMcpTool listMethodsTool,
+            ListFieldsMcpTool listFieldsTool,
+            DetailDependenciesMcpTool detailDependenciesTool,
+            MethodDetailsMcpTool methodDetailsTool,
+            FieldDetailsMcpTool fieldDetailsTool) {
         ToolCallbackProvider delegate = MethodToolCallbackProvider.builder()
                 .toolObjects(discoveryMcpTools, pairwiseDependencyMcpTools,
-                        scopeDependencyMcpTools, reachabilityMcpTools, detailMcpTools)
+                        scopeDependencyMcpTools, reachabilityMcpTools,
+                        listMethodsTool, listFieldsTool, detailDependenciesTool,
+                        methodDetailsTool, fieldDetailsTool)
                 .build();
         return new LoggingToolCallbackProvider(delegate);
     }

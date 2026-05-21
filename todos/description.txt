@@ -1,0 +1,56 @@
+❯ what can i do (at the mcp tool level) to force you in the right direction for DSMs and graphs?
+
+⏺ Good question — the failure was lexical: I never noticed pairwise_dependencies was the DSM tool, because the word "DSM" doesn't appear anywhere in its description. Here's what would
+   have actually fixed it, in priority order:
+
+  1. Put the canonical term in the description
+
+  pairwise_dependencies currently opens with "Bundled pairwise dependency analysis over a node set." That doesn't pattern-match to "DSM." Lead with the use case instead:
+
+  ▎ Use this for: dependency structure matrix (DSM), module coupling matrix, cycle detection across a module set, layering analysis. Bundled pairwise dependency analysis over a node
+  ▎ set…
+
+  Same trick for the other tools — make sure the user-vocabulary term (DSM, blast radius, fan-in, fan-out, hotspots) appears verbatim. aggregated_incoming already does this well ("the
+   primary blast-radius tool"). The others don't.
+
+  2. Add explicit anti-patterns
+
+  list_children has a great example of this: "Do NOT use this tool recursively… If you find yourself wanting to call list_children more than once…" — that's the pattern that works.
+
+  Add the same to aggregated_outgoing:
+
+  ▎ Do NOT loop this over many source nodes to build a matrix. If you want pairwise dependencies among a module set (DSM, coupling analysis, cycle check), use pairwise_dependencies —
+  ▎ one call, plus server-computed DAG/SCC analysis.
+
+  That single sentence would have stopped me cold at the 53-call mistake.
+
+  3. Make describe_graph recommend follow-ups
+
+  describe_graph is the first call for orientation. Have its response (not just docs) emit a small "suggested next tools" section based on what's in the graph — e.g.:
+
+  "suggested_workflows": {
+    "build_dsm": "pairwise_dependencies(nodeIds=<top-level project IDs>)",
+    "blast_radius_for_node": "aggregated_incoming(targetId=...)",
+    "find_by_name": "find_node(query=...)"
+  }
+
+  Dynamic recipes in the tool output beat static docs because they're seen at exactly the moment of decision.
+
+  4. MCP server instructions field
+
+  MCP servers can return an instructions string in the initialize response that Claude Code surfaces as part of the system prompt. A 5-line "common tasks → which tool" table there
+  would put the dispatch logic upstream of any individual tool description.
+
+  5. Tool naming, if you control it
+
+  pairwise_dependencies is technically accurate but doesn't ring the "matrix" bell. If renaming is on the table: dependency_matrix or module_coupling_matrix. If renaming would break
+  callers, just alias.
+
+  6. Add a worked example
+
+  The most reliable nudge: a one-line example in the description. "Example: pairwise_dependencies(nodeIds=[top-level module ids from describe_graph]) → returns the DSM edge list."
+  Examples beat descriptions for tool selection.
+
+  ---
+  Highest leverage of these: #1 (put "DSM" in the description) and #2 (anti-pattern in aggregated_outgoing). Either alone would have steered me right. Both together is
+  belt-and-suspenders.

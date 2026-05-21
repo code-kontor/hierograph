@@ -62,62 +62,44 @@ When `total_matching` exceeds `limit`, the response truncates and sets `truncate
 
 ## Response shape
 
+The response references multiple nodes — the queried type, every field, and (for inherited fields) one or more ancestor declaring types. To keep the response compact, display fields live once in a top-level `nodes` map; every other reference is an ID. The `parent` field on each field entry is a per-context ID (it varies between the queried type and the ancestor declaring type for inherited fields), so it stays at the appearance site rather than being folded into `nodes` — same treatment as `list_methods`.
+
 ```json
 {
-  "type": {
-    "id": 47291,
-    "name": "ClusterService",
-    "qualified_name": "org.elasticsearch.cluster.ClusterService",
-    "kind": "java.class"
+  "nodes": {
+    "47291": { "name": "ClusterService", "qualified_name": "org.elasticsearch.cluster.ClusterService", "kind": "java.class" },
+    "88456": { "name": "clusterState", "qualified_name": "org.elasticsearch.cluster.ClusterService.clusterState", "kind": "java.field" },
+    "88457": { "name": "transportService", "qualified_name": "org.elasticsearch.cluster.ClusterService.transportService", "kind": "java.field" },
+    "88458": { "name": "DEFAULT_TIMEOUT", "qualified_name": "org.elasticsearch.cluster.ClusterService.DEFAULT_TIMEOUT", "kind": "java.field" }
   },
+  "type": 47291,
   "fields": [
     {
-      "node": {
-        "id": 88456,
-        "name": "clusterState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.clusterState",
-        "kind": "java.field",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
+      "node": 88456,
+      "parent": 47291,
       "modifiers": ["private", "volatile"],
       "field_type_name": "org.elasticsearch.cluster.ClusterState",
       "annotation_count": 0,
       "is_constant": false,
-      "is_inherited": false,
-      "declared_by": null
+      "is_inherited": false
     },
     {
-      "node": {
-        "id": 88457,
-        "name": "transportService",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.transportService",
-        "kind": "java.field",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
+      "node": 88457,
+      "parent": 47291,
       "modifiers": ["private", "final"],
       "field_type_name": "org.elasticsearch.transport.TransportService",
       "annotation_count": 1,
       "is_constant": false,
-      "is_inherited": false,
-      "declared_by": null
+      "is_inherited": false
     },
     {
-      "node": {
-        "id": 88458,
-        "name": "DEFAULT_TIMEOUT",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.DEFAULT_TIMEOUT",
-        "kind": "java.field",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
+      "node": 88458,
+      "parent": 47291,
       "modifiers": ["public", "static", "final"],
       "field_type_name": "long",
       "annotation_count": 0,
       "is_constant": true,
-      "is_inherited": false,
-      "declared_by": null
+      "is_inherited": false
     }
   ],
   "summary": {
@@ -140,9 +122,17 @@ When `total_matching` exceeds `limit`, the response truncates and sets `truncate
 }
 ```
 
+### Top-level fields
+
+**`nodes`** — Map from stringified node ID to display fields (`name`, `qualified_name`, `kind`). Contains exactly: the queried type, every field in the `fields` array, and every distinct declaring type referenced by an inherited field's `parent`. No other entries.
+
+**`type`** — Node ID of the queried type. Display fields are in `nodes[type]`.
+
 ### Per-field fields
 
-**`node`** — Full NodeRef for the field. Includes `parent_id` and `parent_kind`, which bridge back to the hierarchical model. The `parent_id` is the *declaring type's* ID, which equals `type_id` for declared fields and differs for inherited ones.
+**`node`** — Node ID of the field. Resolve via `nodes[node]`.
+
+**`parent`** — Node ID of the field's declaring type. Equals `type` for declared fields; for inherited fields, points to the ancestor type that actually declares the field. Always present. This is the slim-encoded form of what would otherwise be `parent_id` on a full NodeRef.
 
 **`modifiers`** — List of Java modifier keywords, in canonical order: visibility first (`public`/`protected`/`private`/`package-private`), then storage modifiers (`static`, `final`, `transient`, `volatile`).
 
@@ -152,9 +142,7 @@ When `total_matching` exceeds `limit`, the response truncates and sets `truncate
 
 **`is_constant`** — Boolean. `true` for fields that are both `static` and `final` (the conventional definition of a Java constant). Surfaced separately because constants are often interesting on their own — they're the named values a class exposes to the rest of the system.
 
-**`is_inherited`** — Boolean. `true` only when `include_inherited` was set and this field is inherited from an ancestor.
-
-**`declared_by`** — NodeRef of the type that declares this field. `null` for declared fields (the declarer is the queried type, already in `type.id`); a full NodeRef for inherited fields.
+**`is_inherited`** — Boolean. `true` only when `include_inherited` was set and this field is inherited from an ancestor. Equivalent to `parent != type` — surfaced as its own field so the LLM doesn't need to compare IDs.
 
 ### Summary fields
 
@@ -224,7 +212,7 @@ This is the text exposed to the LLM via MCP.
 
 > Return the fields declared on a type, with lightweight metadata for each. Use this when you have identified a type and want to understand its data members — for example, *"what fields does `UserEntity` have?"* or *"list the autowired dependencies of this Spring component."*
 >
-> Returns each field as a NodeRef plus metadata: modifiers, field type name, annotation count, and flags like `is_constant`. The `annotation_count` is particularly valuable for framework-wiring questions — fields with annotations are often where Spring injection, JPA mappings, or validation rules live. The `summary` block surfaces aggregate signals like `annotated_count`, `constant_count`, and visibility distribution, which often tell the framework story before you even look at individual fields.
+> Response shape: a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus a `fields` list whose entries reference nodes by ID. Each field entry carries `node` (the field ID), `parent` (declaring-type ID), and metadata: modifiers, field type name, annotation count, and flags like `is_constant`. The `annotation_count` is particularly valuable for framework-wiring questions — fields with annotations are often where Spring injection, JPA mappings, or validation rules live. The `summary` block surfaces aggregate signals like `annotated_count`, `constant_count`, and visibility distribution, which often tell the framework story before you even look at individual fields.
 >
 > Common parameter patterns:
 >
@@ -303,7 +291,7 @@ The exact graph patterns depend on jQAssistant's Java schema; verify the relatio
 
 **Field type name formatting.** jQAssistant typically records the field's type as a separate `Type` node linked by an `OF_TYPE` (or similar) relationship. The `field_type_name` in the response is a string formatted from that node's qualified name plus any generic type parameters jQAssistant captures. For unparameterized types this is just the FQN; for generics, format as `Container<Element>` etc. Some loss of fidelity is acceptable here since `field_details` provides the structured form for navigation.
 
-**NodeRef construction.** The `parent_id` field on each field's NodeRef should be the declaring type's ID, not always `type_id`. For declared fields these are equal; for inherited fields they differ.
+**NodeRef construction.** Don't call `AbstractGraphMcpTools.toNodeRefShort(HGNode)` for field entries; emit IDs only and add display fields to the `nodes` map. The `parent` field on each field entry should be the declaring type's ID, not always `type_id`. For declared fields these are equal; for inherited fields they differ. The `nodes` map contains exactly the queried type, every field, and every distinct declaring type referenced by an inherited field's `parent` — collect these IDs while assembling the response, then resolve display fields in one pass.
 
 **Modifier normalization.** As with methods, jQAssistant may store modifiers as boolean properties or a string list. Normalize to the canonical list-of-strings form regardless.
 

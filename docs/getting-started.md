@@ -73,6 +73,10 @@ jqassistant:
   analyze:
     concepts:
       - java-classpath:Resolve
+      - java:TypeAssignableFrom
+      - java:MethodOverrides
+      - java:MemberInheritedFrom
+      - java:VirtualInvokes
   scan:
     reset: true
 ```

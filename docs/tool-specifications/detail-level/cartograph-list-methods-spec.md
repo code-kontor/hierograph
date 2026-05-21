@@ -58,55 +58,39 @@ When `total_matching` exceeds `limit`, the response truncates and sets `truncate
 
 ## Response shape
 
+The response references multiple nodes — the queried type, every method, and (for inherited methods) one or more ancestor declaring types. To keep the response compact, display fields live once in a top-level `nodes` map; every other reference is an ID. The `parent` field on each method entry is a per-context ID (it varies between the queried type and the declaring type for inherited methods), so it stays at the appearance site rather than being folded into `nodes`.
+
 ```json
 {
-  "type": {
-    "id": 47291,
-    "name": "ClusterService",
-    "qualified_name": "org.elasticsearch.cluster.ClusterService",
-    "kind": "java.class"
+  "nodes": {
+    "47291": { "name": "ClusterService", "qualified_name": "org.elasticsearch.cluster.ClusterService", "kind": "java.class" },
+    "12": { "name": "Object", "qualified_name": "java.lang.Object", "kind": "java.class" },
+    "91204": { "name": "applyState", "qualified_name": "org.elasticsearch.cluster.ClusterService.applyState", "kind": "java.method" },
+    "91205": { "name": "toString", "qualified_name": "java.lang.Object.toString", "kind": "java.method" }
   },
+  "type": 47291,
   "methods": [
     {
-      "node": {
-        "id": 91204,
-        "name": "applyState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.applyState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
+      "node": 91204,
+      "parent": 47291,
       "modifiers": ["public", "synchronized"],
       "return_type_name": "void",
       "parameter_count": 2,
       "throws_count": 1,
       "annotation_count": 0,
       "is_constructor": false,
-      "is_inherited": false,
-      "declared_by": null
+      "is_inherited": false
     },
     {
-      "node": {
-        "id": 91205,
-        "name": "toString",
-        "qualified_name": "java.lang.Object.toString",
-        "kind": "java.method",
-        "parent_id": 12,
-        "parent_kind": "java.class"
-      },
+      "node": 91205,
+      "parent": 12,
       "modifiers": ["public"],
       "return_type_name": "java.lang.String",
       "parameter_count": 0,
       "throws_count": 0,
       "annotation_count": 0,
       "is_constructor": false,
-      "is_inherited": true,
-      "declared_by": {
-        "id": 12,
-        "name": "Object",
-        "qualified_name": "java.lang.Object",
-        "kind": "java.class"
-      }
+      "is_inherited": true
     }
   ],
   "summary": {
@@ -127,9 +111,17 @@ When `total_matching` exceeds `limit`, the response truncates and sets `truncate
 }
 ```
 
+### Top-level fields
+
+**`nodes`** — Map from stringified node ID to display fields (`name`, `qualified_name`, `kind`). Contains exactly: the queried type, every method in the `methods` array, and every distinct declaring type referenced by an inherited method's `parent`. No other entries.
+
+**`type`** — Node ID of the queried type. Display fields are in `nodes[type]`.
+
 ### Per-method fields
 
-**`node`** — Full NodeRef for the method. Includes `parent_id` and `parent_kind`, which bridge back to the hierarchical model. The `parent_id` is the *declaring type's* ID, which equals `type_id` for declared methods and differs for inherited ones.
+**`node`** — Node ID of the method. Resolve via `nodes[node]`.
+
+**`parent`** — Node ID of the method's declaring type. Equals `type` for declared methods; for inherited methods, points to the ancestor type that actually declares the method. Always present. This is the slim-encoded form of what would otherwise be `parent_id` on a full NodeRef.
 
 **`modifiers`** — List of Java modifier keywords, in canonical order: visibility first (`public`/`protected`/`private`/`package-private`), then other modifiers (`static`, `final`, `abstract`, `synchronized`, `native`, `default`).
 
@@ -143,9 +135,7 @@ When `total_matching` exceeds `limit`, the response truncates and sets `truncate
 
 **`is_constructor`** — Boolean. Constructors are technically methods in the bytecode model but are usually treated differently in reasoning.
 
-**`is_inherited`** — Boolean. `true` only when `include_inherited` was set and this method is inherited from an ancestor.
-
-**`declared_by`** — NodeRef of the type that declares this method. `null` for declared methods (the declarer is the queried type, already in `type.id`); a full NodeRef for inherited methods.
+**`is_inherited`** — Boolean. `true` only when `include_inherited` was set and this method is inherited from an ancestor. Equivalent to `parent != type` — surfaced as its own field so the LLM doesn't need to compare IDs.
 
 ### Summary fields
 
@@ -213,7 +203,7 @@ This is the text exposed to the LLM via MCP. It should establish the tool's purp
 
 > Return the methods declared on a type, with lightweight metadata for each. Use this when you have identified a type and want to understand its method-level composition — for example, *"what does `ClusterService` contain?"* or *"list the public methods of this class."*
 >
-> Returns each method as a NodeRef plus counts: parameter count, throws count, annotation count, plus modifier flags. The counts let you decide which methods are worth investigating further (high `annotation_count` suggests framework wiring; high `throws_count` suggests error-handling complexity). The `summary` block gives a structural overview (visibility distribution, constructor count, declared vs. inherited) that's often more useful than enumerating every method.
+> Response shape: a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus a `methods` list whose entries reference nodes by ID. Each method entry carries `node` (the method ID), `parent` (declaring-type ID), and metadata: parameter count, throws count, annotation count, plus modifier flags. The counts let you decide which methods are worth investigating further (high `annotation_count` suggests framework wiring; high `throws_count` suggests error-handling complexity). The `summary` block gives a structural overview (visibility distribution, constructor count, declared vs. inherited) that's often more useful than enumerating every method.
 >
 > Common parameter patterns:
 >
@@ -280,7 +270,7 @@ The exact graph patterns depend on jQAssistant's Java schema; verify the relatio
 
 **Metadata extraction.** Modifiers, parameter count, throws count, and annotation count can all be derived in one query via subquery patterns. Avoid making separate queries per method — Neo4j is good at this when the query is structured well, but degrades fast if you N+1 it.
 
-**NodeRef construction.** The `parent_id` field on each method's NodeRef should be the declaring type's ID, not always `type_id`. For declared methods these are equal; for inherited methods they differ.
+**NodeRef construction.** Don't call `AbstractGraphMcpTools.toNodeRefShort(HGNode)` for method entries; emit IDs only and add display fields to the `nodes` map. The `parent` field on each method entry should be the declaring type's ID, not always `type_id`. For declared methods these are equal; for inherited methods they differ. The `nodes` map contains exactly the queried type, every method, and every distinct declaring type referenced by an inherited method's `parent` — collect these IDs while assembling the response, then resolve display fields in one pass.
 
 **Modifier normalization.** jQAssistant may store modifiers as a set of boolean properties (`isPublic`, `isStatic`, etc.) or as a string list. The tool's response normalizes to the canonical list-of-strings form regardless of the underlying representation.
 

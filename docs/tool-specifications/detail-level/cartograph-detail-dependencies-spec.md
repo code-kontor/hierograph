@@ -41,26 +41,28 @@ For relationship kinds that target specific entities (e.g., `throws` targets exc
 
 A relationship kind to filter on. If omitted, all relationship kinds are returned and grouped in the response's `by_relationship` summary.
 
-The v0.2 vocabulary, derived from jQAssistant's Java schema:
+The v0.2 vocabulary, derived from jQAssistant's Java schema. Each entry lists the Cartograph kind, a description, and the underlying jQAssistant edge label(s) the tool maps to.
 
 **Method-originated relationships:**
-- `throws` — method declares it throws this exception type
-- `calls` — method invokes a method
-- `returns` — method's return type
-- `parameter_type` — method has a parameter of this type
-- `reads_field` — method reads a field
-- `writes_field` — method writes a field
-- `overrides` — method overrides another method
-- `annotated_by` — method has this annotation type
-- `parameter_annotated_by` — method has a parameter with this annotation type
+- `throws` — method declares it throws this exception type — jQAssistant: `THROWS`
+- `calls` — method invokes a method — jQAssistant: `INVOKES`, `VIRTUAL_INVOKES`
+- `returns` — method's return type — jQAssistant: `RETURNS`
+- `parameter_type` — method has a parameter of this type — jQAssistant: `HAS` (to Parameter) + `OF_TYPE` (to Type)
+- `reads_field` — method reads a field — jQAssistant: `READS`
+- `writes_field` — method writes a field — jQAssistant: `WRITES`
+- `overrides` — method overrides another method — jQAssistant: `OVERRIDES`
+- `annotated_by` — method has this annotation type — jQAssistant: `ANNOTATED_BY` (to Annotation) + `OF_TYPE` (to Type)
+- `parameter_annotated_by` — method has a parameter with this annotation type — jQAssistant: `HAS` (to Parameter) + `ANNOTATED_BY` + `OF_TYPE`
 
 **Field-originated relationships:**
-- `has_type` — field is of this type
-- `annotated_by` — field has this annotation type
-- `read_by` — field is read by this method
-- `written_by` — field is written by this method
+- `has_type` — field is of this type — jQAssistant: `OF_TYPE`
+- `annotated_by` — field has this annotation type — jQAssistant: `ANNOTATED_BY` (to Annotation) + `OF_TYPE` (to Type)
+- `read_by` — field is read by this method — jQAssistant: `READS` (reverse direction)
+- `written_by` — field is written by this method — jQAssistant: `WRITES` (reverse direction)
 
 `annotated_by` appears in both groups; the source kind (method or field) makes it unambiguous in context.
+
+The jQAssistant labels are shown here for reviewability of the mapping. The tool itself takes only the Cartograph `relationship` string as input — consumers never pass raw jQAssistant labels.
 
 The list is surfaced through `describe_graph`'s response (per the convention discussed in the v2 detail-tools doc) so the LLM discovers the vocabulary once per session rather than guessing.
 
@@ -72,36 +74,28 @@ Because both source and target subtrees scope the query, result sets are typical
 
 ## Response shape
 
+This tool emits graph-shaped output — many edges, the same nodes appearing as endpoints of multiple edges, plus referenced again in `by_source_type`. To keep the response compact, it uses **slim payload encoding**: a single top-level `nodes` map carries each node's display fields once, and every other reference is an ID.
+
 ```json
 {
-  "from_scope": {
-    "id": 47291,
-    "name": "coordination",
-    "qualified_name": "org.elasticsearch.cluster.coordination",
-    "kind": "java.module"
+  "nodes": {
+    "47291": { "name": "coordination", "qualified_name": "org.elasticsearch.cluster.coordination", "kind": "java.module" },
+    "38104": { "name": "transport", "qualified_name": "org.elasticsearch.transport", "kind": "java.module" },
+    "47200": { "name": "ClusterCoordinator", "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator", "kind": "java.class" },
+    "47201": { "name": "LeaderElector", "qualified_name": "org.elasticsearch.cluster.coordination.LeaderElector", "kind": "java.class" },
+    "47202": { "name": "StateRecoverer", "qualified_name": "org.elasticsearch.cluster.coordination.StateRecoverer", "kind": "java.class" },
+    "91204": { "name": "applyState", "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator.applyState", "kind": "java.method" },
+    "91205": { "name": "sendState", "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator.sendState", "kind": "java.method" },
+    "88301": { "name": "TransportException", "qualified_name": "org.elasticsearch.transport.TransportException", "kind": "java.class" },
+    "88401": { "name": "send", "qualified_name": "org.elasticsearch.transport.TransportService.send", "kind": "java.method" }
   },
-  "to_scope": {
-    "id": 38104,
-    "name": "transport",
-    "qualified_name": "org.elasticsearch.transport",
-    "kind": "java.module"
-  },
+  "from_scope": 47291,
+  "to_scope": 38104,
   "edges": [
     {
-      "from": {
-        "id": 91204,
-        "name": "applyState",
-        "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator.applyState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
-      "to": {
-        "id": 88301,
-        "name": "TransportException",
-        "qualified_name": "org.elasticsearch.transport.TransportException",
-        "kind": "java.class"
-      },
+      "from": 91204,
+      "from_parent": 47200,
+      "to": 88301,
       "relationship": "throws",
       "location": {
         "absolute_path": "/Users/gerd/elasticsearch/server/src/main/java/org/elasticsearch/cluster/coordination/ClusterCoordinator.java",
@@ -111,22 +105,10 @@ Because both source and target subtrees scope the query, result sets are typical
       }
     },
     {
-      "from": {
-        "id": 91205,
-        "name": "sendState",
-        "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator.sendState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
-      "to": {
-        "id": 88401,
-        "name": "send",
-        "qualified_name": "org.elasticsearch.transport.TransportService.send",
-        "kind": "java.method",
-        "parent_id": 38104,
-        "parent_kind": "java.class"
-      },
+      "from": 91205,
+      "from_parent": 47200,
+      "to": 88401,
+      "to_parent": 38104,
       "relationship": "calls",
       "location": {
         "absolute_path": "/Users/gerd/elasticsearch/server/src/main/java/org/elasticsearch/cluster/coordination/ClusterCoordinator.java",
@@ -147,43 +129,29 @@ Because both source and target subtrees scope the query, result sets are typical
       "reads_field": 3
     },
     "by_source_type": [
-      {
-        "type": {
-          "id": 47291,
-          "name": "ClusterCoordinator",
-          "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator",
-          "kind": "java.class"
-        },
-        "edge_count": 23
-      },
-      {
-        "type": {
-          "id": 47292,
-          "name": "LeaderElector",
-          "qualified_name": "org.elasticsearch.cluster.coordination.LeaderElector",
-          "kind": "java.class"
-        },
-        "edge_count": 18
-      },
-      {
-        "type": {
-          "id": 47293,
-          "name": "StateRecoverer",
-          "qualified_name": "org.elasticsearch.cluster.coordination.StateRecoverer",
-          "kind": "java.class"
-        },
-        "edge_count": 6
-      }
+      { "type": 47200, "edge_count": 23 },
+      { "type": 47201, "edge_count": 18 },
+      { "type": 47202, "edge_count": 6 }
     ]
   }
 }
 ```
 
+### Top-level fields
+
+**`nodes`** — Map from stringified node ID to display fields (`name`, `qualified_name`, `kind`). Every node referenced anywhere in the response (scope endpoints, edge endpoints, declaring types, `by_source_type` entries) has exactly one entry here. Insertion order is meaningful — types appear grouped with their declared methods/fields, and types appear in `by_source_type` order — but consumers must not depend on key iteration order for correctness.
+
+**`from_scope`** / **`to_scope`** — Node IDs of the source and target subtrees, as passed in via `from_id` and `to_id`. The corresponding display fields are in `nodes`.
+
 ### Per-edge fields
 
-**`from`** — Full NodeRef for the source method or field. Includes `parent_id` and `parent_kind`, which bridge back to the hierarchical model. The `parent_id` is the *declaring type's* ID.
+**`from`** — Node ID of the source method or field. Resolve via `nodes[from]` for display fields.
 
-**`to`** — Full NodeRef for the target. The target kind depends on the relationship: types for `throws`/`returns`/`parameter_type`/`has_type`/`annotated_by`, methods for `calls`/`overrides`, fields for `reads_field`/`writes_field`, methods for `read_by`/`written_by`. The NodeRef format is consistent — only the `kind` field varies.
+**`from_parent`** — Node ID of the source method/field's declaring type. Always present on edges. Most edges in a single query share a small number of declaring types; this field plus `by_source_type` lets the LLM see which types are responsible for the coupling without resolving qualified names. The declaring type's display fields are in `nodes`.
+
+**`to`** — Node ID of the target. The target kind depends on the relationship: types for `throws`/`returns`/`parameter_type`/`has_type`/`annotated_by`, methods for `calls`/`overrides`, fields for `reads_field`/`writes_field`, methods for `read_by`/`written_by`. Resolve via `nodes[to]`.
+
+**`to_parent`** — Node ID of the target's declaring type, when the target is a method or field. Omitted when the target is itself a type (`throws`, `returns`, etc.). The declaring type's display fields are in `nodes`.
 
 **`relationship`** — The relationship kind for this edge. One of the kinds in the v0.2 vocabulary. When the `relationship` parameter is supplied to the call, all edges have the same value here; when omitted, edges may carry different values.
 
@@ -201,7 +169,7 @@ Because both source and target subtrees scope the query, result sets are typical
 
 **`by_relationship`** — Map from relationship kind to edge count. When the `relationship` parameter is omitted, this gives the LLM a quick picture of *what kinds of coupling* exist between the subtrees — "mostly calls with some throws and a few annotations." When the `relationship` parameter is supplied, this map has a single entry; the structural insight comes from `by_source_type` instead.
 
-**`by_source_type`** — A list of `(type, edge_count)` pairs, grouped by the declaring type of the source method/field. Lets the LLM see *which types within the source subtree are responsible* for the coupling, ranked by edge count. The list is sorted descending by `edge_count` and capped at 10 entries — for source subtrees with many contributing types, this surfaces the top contributors. If more than 10 types contribute, the cap is signaled by an `others_count` field on the summary (omitted here for clarity; add when relevant).
+**`by_source_type`** — A list of `{type, edge_count}` pairs, grouped by the declaring type of the source method/field. `type` is a node ID; resolve via `nodes[type]`. Lets the LLM see *which types within the source subtree are responsible* for the coupling, ranked by edge count. The list is sorted descending by `edge_count` and capped at 10 entries — for source subtrees with many contributing types, this surfaces the top contributors. If more than 10 types contribute, the cap is signaled by an `others_count` field on the summary (omitted here for clarity; add when relevant).
 
 The summary fields together transform a flat edge list into a *structured* understanding. The LLM can answer "what's the coupling between A and B?" from just the summary, without enumerating individual edges — though the edges are there if needed for line-level investigation.
 
@@ -283,7 +251,7 @@ This is the text exposed to the LLM via MCP.
 
 > Return the method-level and field-level dependencies between a source subtree and a target subtree. This is the drill-down tool that bridges the hierarchical level and the detail level — given an aggregated dependency you've identified (typically via `aggregated_outgoing`, `aggregated_incoming`, or `outgoing_core_dependencies`), this returns the underlying concrete method/field edges that explain it.
 >
-> Returns each edge with full NodeRefs for source and target (including `parent_id` so you can navigate back to the hierarchical model), the relationship kind, and the source location (file path and line number). The `summary` block groups edges by relationship kind (`by_relationship`) and by source type (`by_source_type`) — these are often more useful than enumerating individual edges, because they tell you *what kind of coupling* exists and *which types in the source subtree are responsible*.
+> Returns a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus an `edges` list whose entries reference nodes by ID. Each edge carries `from` and `to` (node IDs), `from_parent` and optionally `to_parent` (declaring-type IDs for navigation back to the hierarchical model), the relationship kind, and the source location (file path and line number). The `summary` block groups edges by relationship kind (`by_relationship`) and by source type (`by_source_type`) — these are often more useful than enumerating individual edges, because they tell you *what kind of coupling* exists and *which types in the source subtree are responsible*.
 >
 > Common parameter patterns:
 >
@@ -368,17 +336,21 @@ LIMIT $limit
 
 The exact patterns depend on jQAssistant's schema; the key idea is parameterized type ID lists from in-memory expansion, plus a single Cypher query that joins everything.
 
-**Relationship kind mapping.** jQAssistant uses specific edge labels (`THROWS`, `INVOKES`, `READS`, `WRITES`, `OF_TYPE`, etc.). The tool's `relationship` parameter is a Cartograph-normalized vocabulary that maps to these. Maintain the mapping in one place; don't scatter it.
+**Relationship kind mapping.** jQAssistant uses specific edge labels (`THROWS`, `INVOKES`, `VIRTUAL_INVOKES`, `READS`, `WRITES`, `OF_TYPE`, etc.). The tool's `relationship` parameter is a Cartograph-normalized vocabulary that maps to these. Maintain the mapping in one place; don't scatter it.
 
 **Location data.** jQAssistant captures source positions on most detail-level edges via `LineNumber` properties or via a `Source` node attached to the edge. The exact mechanism varies by relationship kind; handle each case in the loader/mapper rather than in the query.
 
 **`by_source_type` computation.** Compute this in the same Cypher query via a separate aggregation, not as a post-process in Java. Neo4j is good at this; avoid round-trips.
+
+**Slim payload construction.** Build the `nodes` map manually rather than calling `AbstractGraphMcpTools.toNodeRefShort(HGNode)` for edge endpoints. Insert into `nodes` in a meaningful order — group declaring types with their declared methods/fields, and order types by `by_source_type` ranking. The set of node IDs needed for the map is the union of: `from_scope`, `to_scope`, every `edge.from`, every `edge.to`, every `from_parent` / `to_parent`, and every `by_source_type[].type`. Collect these IDs while assembling the response, then resolve display fields in one pass.
 
 **Truncation honesty.** When the limit is hit, the `total_edges` count should still reflect the true total. This requires a separate `count(*)` query or a Cypher subquery — slightly more expensive than returning `total_edges = returned`, but essential for the LLM to know the truth.
 
 **Edge case: `from_id` equals `to_id`.** This is the self-loop case (internal coupling). The query above handles it correctly — types in both lists, edges retrieved. No special-casing needed.
 
 **Edge case: the `relationship` is supplied but produces no edges.** Return `edges: []` and `summary.total_edges: 0`. The summary's `by_relationship` map still includes the supplied kind (with count 0), so the LLM sees the absence clearly.
+
+**Cypher logging (debug).** The assembled Cypher statement (together with the resolved `fromTypes` / `toTypes` parameters and the effective `relationship` / `include_inherited` flags) is logged at INFO when the property `slizaa.mcp.tools.detail-dependencies.log-cypher` is set to `true`. Defaults to `false`. Useful for debugging query shape and inheritance traversal without attaching a debugger. The property namespace is per-tool; each detail tool gets its own flag as the need arises.
 
 **Testing checklist:**
 

@@ -2,7 +2,7 @@
 
 This is the complete specification for `method_details`, one of the detail-level tools introduced in v0.2. It is the "open file" equivalent for a single method — given a method's node ID, return everything Cartograph can say about it structurally, in one call.
 
-This specification builds on conventions established in `mcp-tools.md` (NodeRef, node IDs, JSON precision) and the architectural framing in `detail-level-tools.md` (the hierarchical/detail/code layer model). It parallels `field_details` closely; differences between the two are highlighted where they matter.
+This specification builds on conventions established in `mcp-tools.md` (NodeRef, node IDs, JSON precision) and the architectural framing in `detail-level-tools.md` (the hierarchical/detail/code layer model). It parallels `field_details` closely, but with one important encoding difference: `method_details` keeps inline NodeRefs. A single-entity response with one declaring type does not benefit from a `nodes` wrapper map — the overhead exceeds the savings, since each referenced node appears at most once. `field_details`, by contrast, has reader/writer methods that can repeat across samples and types that repeat in `by_declaring_type`, so it does use slim encoding.
 
 ## Purpose
 
@@ -29,6 +29,8 @@ Typically obtained from prior queries — `list_methods` returns method IDs on e
 If the node ID is unknown or stale, the tool returns a structured error rather than empty results.
 
 ## Response shape
+
+This is a single-entity response with inline NodeRefs. No `nodes` wrapper map — see the rationale above. If a future version adds reader/caller digests (analogous to `field_details.read_access`), revisit the encoding then.
 
 ```json
 {

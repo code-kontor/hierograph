@@ -1,6 +1,11 @@
 package org.slizaa.mcp.core.rest;
 
+import org.slizaa.mcp.core.DetailDependenciesMcpTool;
 import org.slizaa.mcp.core.DiscoveryMcpTools;
+import org.slizaa.mcp.core.FieldDetailsMcpTool;
+import org.slizaa.mcp.core.ListFieldsMcpTool;
+import org.slizaa.mcp.core.ListMethodsMcpTool;
+import org.slizaa.mcp.core.MethodDetailsMcpTool;
 import org.slizaa.mcp.core.PairwiseDependencyMcpTools;
 import org.slizaa.mcp.core.ReachabilityMcpTools;
 import org.slizaa.mcp.core.ScopeDependencyMcpTools;
@@ -17,15 +22,30 @@ public class GraphController {
     private final PairwiseDependencyMcpTools pairwiseTools;
     private final ScopeDependencyMcpTools scopeTools;
     private final ReachabilityMcpTools reachabilityTools;
+    private final ListMethodsMcpTool listMethodsTool;
+    private final ListFieldsMcpTool listFieldsTool;
+    private final DetailDependenciesMcpTool detailDependenciesTool;
+    private final MethodDetailsMcpTool methodDetailsTool;
+    private final FieldDetailsMcpTool fieldDetailsTool;
 
     public GraphController(DiscoveryMcpTools discoveryTools,
                            PairwiseDependencyMcpTools pairwiseTools,
                            ScopeDependencyMcpTools scopeTools,
-                           ReachabilityMcpTools reachabilityTools) {
+                           ReachabilityMcpTools reachabilityTools,
+                           ListMethodsMcpTool listMethodsTool,
+                           ListFieldsMcpTool listFieldsTool,
+                           DetailDependenciesMcpTool detailDependenciesTool,
+                           MethodDetailsMcpTool methodDetailsTool,
+                           FieldDetailsMcpTool fieldDetailsTool) {
         this.discoveryTools = discoveryTools;
         this.pairwiseTools = pairwiseTools;
         this.scopeTools = scopeTools;
         this.reachabilityTools = reachabilityTools;
+        this.listMethodsTool = listMethodsTool;
+        this.listFieldsTool = listFieldsTool;
+        this.detailDependenciesTool = detailDependenciesTool;
+        this.methodDetailsTool = methodDetailsTool;
+        this.fieldDetailsTool = fieldDetailsTool;
     }
 
     @GetMapping("/find-node")
@@ -135,5 +155,47 @@ public class GraphController {
             @RequestParam List<Long> sourceIds,
             @RequestParam(required = false) Boolean includeMissing) {
         return pairwiseTools.incomingFrom(targetId, sourceIds, includeMissing);
+    }
+
+    // --- Detail-level tools ---
+
+    @GetMapping("/list-methods")
+    public Map<String, Object> listMethods(
+            @RequestParam long typeId,
+            @RequestParam(required = false) String namePattern,
+            @RequestParam(required = false) List<String> modifierFilter,
+            @RequestParam(required = false) Boolean includeInherited,
+            @RequestParam(required = false) Integer limit) {
+        return listMethodsTool.listMethods(typeId, namePattern, modifierFilter, includeInherited, limit);
+    }
+
+    @GetMapping("/list-fields")
+    public Map<String, Object> listFields(
+            @RequestParam long typeId,
+            @RequestParam(required = false) String namePattern,
+            @RequestParam(required = false) List<String> modifierFilter,
+            @RequestParam(required = false) Boolean includeInherited,
+            @RequestParam(required = false) Integer limit) {
+        return listFieldsTool.listFields(typeId, namePattern, modifierFilter, includeInherited, limit);
+    }
+
+    @GetMapping("/detail-dependencies")
+    public Map<String, Object> detailDependencies(
+            @RequestParam long fromId,
+            @RequestParam long toId,
+            @RequestParam(required = false) String relationship,
+            @RequestParam(required = false) Boolean includeInherited,
+            @RequestParam(required = false) Integer limit) {
+        return detailDependenciesTool.detailDependencies(fromId, toId, relationship, includeInherited, limit);
+    }
+
+    @GetMapping("/method-details")
+    public Map<String, Object> methodDetails(@RequestParam long methodId) {
+        return methodDetailsTool.methodDetails(methodId);
+    }
+
+    @GetMapping("/field-details")
+    public Map<String, Object> fieldDetails(@RequestParam long fieldId) {
+        return fieldDetailsTool.fieldDetails(fieldId);
     }
 }

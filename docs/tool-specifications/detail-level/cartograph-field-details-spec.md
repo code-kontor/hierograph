@@ -2,7 +2,7 @@
 
 This is the complete specification for `field_details`, one of the detail-level tools introduced in v0.2. It is the "open file" equivalent for a single field — given a field's node ID, return everything Cartograph can say about it structurally, in one call.
 
-This specification builds on conventions established in `mcp-tools.md` (NodeRef, node IDs, JSON precision) and the architectural framing in `detail-level-tools.md` (the hierarchical/detail/code layer model). It parallels `method_details` closely; differences between the two are highlighted where they matter.
+This specification builds on conventions established in `mcp-tools.md` (NodeRef, node IDs, JSON precision) and the architectural framing in `detail-level-tools.md` (the hierarchical/detail/code layer model). It parallels `method_details` closely; differences between the two are highlighted where they matter — notably, `field_details` uses slim payload encoding because reader/writer methods can appear in both `read_access` and `write_access`, and their declaring types repeat in `by_declaring_type`. `method_details` does not, since it is a single-entity response where each referenced node appears at most once.
 
 ## Purpose
 
@@ -30,98 +30,47 @@ If the node ID is unknown or stale, the tool returns a structured error rather t
 
 ## Response shape
 
+The response uses **slim payload encoding**: a single top-level `nodes` map carries each referenced node's display fields once, and every other reference (field, declaring type, field type, annotation types, reader/writer methods, `by_declaring_type` entries) is an ID. Reader/writer methods commonly appear in both `read_access.methods_sample` and `write_access.methods_sample` (e.g., a method that both reads and writes the field), and their declaring types repeat in `by_declaring_type` — this is where slim encoding pays off.
+
 ```json
 {
-  "field": {
-    "id": 88456,
-    "name": "clusterState",
-    "qualified_name": "org.elasticsearch.cluster.ClusterService.clusterState",
-    "kind": "java.field",
-    "parent_id": 47291,
-    "parent_kind": "java.class"
+  "nodes": {
+    "88456": { "name": "clusterState", "qualified_name": "org.elasticsearch.cluster.ClusterService.clusterState", "kind": "java.field" },
+    "47291": { "name": "ClusterService", "qualified_name": "org.elasticsearch.cluster.ClusterService", "kind": "java.class" },
+    "47305": { "name": "ClusterMonitor", "qualified_name": "org.elasticsearch.cluster.ClusterMonitor", "kind": "java.class" },
+    "47408": { "name": "StateExporter", "qualified_name": "org.elasticsearch.cluster.StateExporter", "kind": "java.class" },
+    "38104": { "name": "ClusterState", "qualified_name": "org.elasticsearch.cluster.ClusterState", "kind": "java.class" },
+    "12201": { "name": "Autowired", "qualified_name": "org.springframework.beans.factory.annotation.Autowired", "kind": "java.annotation" },
+    "91204": { "name": "getState", "qualified_name": "org.elasticsearch.cluster.ClusterService.getState", "kind": "java.method" },
+    "91207": { "name": "applyState", "qualified_name": "org.elasticsearch.cluster.ClusterService.applyState", "kind": "java.method" },
+    "91208": { "name": "resetState", "qualified_name": "org.elasticsearch.cluster.ClusterService.resetState", "kind": "java.method" },
+    "91209": { "name": "initState", "qualified_name": "org.elasticsearch.cluster.ClusterService.initState", "kind": "java.method" }
   },
-  "declaring_type": {
-    "id": 47291,
-    "name": "ClusterService",
-    "qualified_name": "org.elasticsearch.cluster.ClusterService",
-    "kind": "java.class"
-  },
+  "field": 88456,
+  "declaring_type": 47291,
   "modifiers": ["private", "volatile"],
   "is_constant": false,
-  "type": {
-    "id": 38104,
-    "name": "ClusterState",
-    "qualified_name": "org.elasticsearch.cluster.ClusterState",
-    "kind": "java.class"
-  },
+  "type": 38104,
+  "type_name": "org.elasticsearch.cluster.ClusterState",
   "annotations": [
-    {
-      "type": {
-        "id": 12201,
-        "name": "Autowired",
-        "qualified_name": "org.springframework.beans.factory.annotation.Autowired",
-        "kind": "java.annotation"
-      }
-    }
+    { "type": 12201 }
   ],
   "read_access": {
     "method_count": 47,
-    "methods_sample": [
-      {
-        "id": 91204,
-        "name": "getState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.getState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
-      {
-        "id": 91207,
-        "name": "applyState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.applyState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      }
-    ],
+    "methods_sample": [91204, 91207],
     "sample_truncated": true,
     "by_declaring_type": [
-      { "type": { "id": 47291, "name": "ClusterService", "qualified_name": "...", "kind": "java.class" }, "count": 32 },
-      { "type": { "id": 47305, "name": "ClusterMonitor", "qualified_name": "...", "kind": "java.class" }, "count": 11 },
-      { "type": { "id": 47408, "name": "StateExporter", "qualified_name": "...", "kind": "java.class" }, "count": 4 }
+      { "type": 47291, "count": 32 },
+      { "type": 47305, "count": 11 },
+      { "type": 47408, "count": 4 }
     ]
   },
   "write_access": {
     "method_count": 3,
-    "methods_sample": [
-      {
-        "id": 91207,
-        "name": "applyState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.applyState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
-      {
-        "id": 91208,
-        "name": "resetState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.resetState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      },
-      {
-        "id": 91209,
-        "name": "initState",
-        "qualified_name": "org.elasticsearch.cluster.ClusterService.initState",
-        "kind": "java.method",
-        "parent_id": 47291,
-        "parent_kind": "java.class"
-      }
-    ],
+    "methods_sample": [91207, 91208, 91209],
     "sample_truncated": false,
     "by_declaring_type": [
-      { "type": { "id": 47291, "name": "ClusterService", "qualified_name": "...", "kind": "java.class" }, "count": 3 }
+      { "type": 47291, "count": 3 }
     ]
   },
   "location": {
@@ -135,31 +84,35 @@ If the node ID is unknown or stale, the tool returns a structured error rather t
 
 ### Field-by-field
 
-**`field`** — Full NodeRef for the field itself. Same shape as everywhere else in the API.
+**`nodes`** — Map from stringified node ID to display fields (`name`, `qualified_name`, `kind`). Contains every node referenced anywhere in the response: the field itself, its declaring type, its field type (if a reference type), every annotation type, every reader/writer method in the samples, and every type that appears in `read_access.by_declaring_type` or `write_access.by_declaring_type`.
 
-**`declaring_type`** — Full NodeRef for the type that declares this field. Always present. Same as `field.parent_id` resolved to a full NodeRef — surfaced separately because the LLM commonly wants to navigate up to the type, and an explicit field beats requiring a separate `find_node` call.
+**`field`** — Node ID of the field itself. Resolve via `nodes[field]`.
+
+**`declaring_type`** — Node ID of the type that declares this field. Always present. Surfaced separately because the LLM commonly wants to navigate up to the type, and an explicit field beats requiring a separate `find_node` call.
 
 **`modifiers`** — List of Java modifier keywords, in canonical order: visibility first (`public`/`protected`/`private`/`package-private`), then storage modifiers (`static`, `final`, `transient`, `volatile`). Same convention as `list_fields`.
 
 **`is_constant`** — Boolean. `true` for fields that are both `static` and `final`. Surfaced explicitly because constants are reasoned about differently than regular fields.
 
-**`type`** — NodeRef for the field's type. For primitives (`int`, `long`, `boolean`, etc.), the NodeRef has `id: null` and `kind: "java.primitive"` — same convention as `method_details`. For reference types, the full NodeRef is populated and the LLM can use it as input to other tools.
+**`type`** — Node ID of the field's type, resolved via `nodes[type]`. For primitives (`int`, `long`, `boolean`, etc.), `type` is `null` and no `nodes` entry exists for it — primitives aren't first-class entities in the graph. For reference types, the ID resolves and the LLM can feed it to other tools.
 
-**`annotations`** — List of annotations on the field. Each entry has a `type` field with the annotation type's NodeRef. Empty list if none.
+**`type_name`** — Always-present string form of the field's type. Mirrors `list_fields`'s `field_type_name` field. For reference types this is the qualified name (e.g. `"java.util.List"`); for primitives it's the keyword (`"int"`, `"boolean"`, `"void"`). The LLM should read `type_name` for at-a-glance display and `type` for navigation. Including both keeps the slim form unambiguous when `type` is `null`.
 
-The wrapper-object structure (`{type: NodeRef}`) parallels `method_details` and leaves room for future expansion to include annotation values (e.g., `@Column(name = "user_id", nullable = false)` → `attributes: {name: "user_id", nullable: false}`). For v0.2, only the annotation type is captured.
+**`annotations`** — List of annotations on the field. Each entry has a `type` field with the annotation type's node ID (resolve via `nodes[entry.type]`). Empty list if none.
+
+The wrapper-object structure (`{type: ID}`) parallels `method_details` and leaves room for future expansion to include annotation values (e.g., `@Column(name = "user_id", nullable = false)` → `attributes: {name: "user_id", nullable: false}`). For v0.2, only the annotation type is captured.
 
 **`read_access`** — Information about methods that read this field. Structure:
 
 - `method_count` — total number of methods that read this field, across the entire codebase. The truth-telling field.
-- `methods_sample` — an inline sample of up to 10 reader methods, as NodeRefs. For most fields this *is* the full list, since most fields are read by only a few methods.
+- `methods_sample` — an inline sample of up to 10 reader method IDs (resolve each via `nodes[id]`). For most fields this *is* the full list, since most fields are read by only a few methods.
 - `sample_truncated` — boolean, `true` if `method_count > methods_sample.length`. Tells the LLM "there are more readers than this sample."
-- `by_declaring_type` — a digest of which types contain the reading methods, with counts. Always present (computed from the full reader set, not just the sample). Sorted descending by count, capped at 10 entries.
+- `by_declaring_type` — a digest of which types contain the reading methods, with counts. Each entry is `{type: ID, count: N}` where `type` is a node ID. Always present (computed from the full reader set, not just the sample). Sorted descending by count, capped at 10 entries.
 
 The design choice here is critical: for fields with many readers (loggers, common services, framework-injected dependencies), we don't want to return hundreds of NodeRefs inline. The pattern is:
 
 1. **Always report the true count** (`method_count`).
-2. **Inline a small sample** for the common case where the field has few readers.
+2. **Inline a small sample** of IDs for the common case where the field has few readers; display fields land once in the top-level `nodes` map.
 3. **Always provide structural summary** via `by_declaring_type`, so the LLM understands *where* the readers are even when truncated.
 4. **For exhaustive enumeration**, the LLM uses `detail_dependencies(from=root, to=field_id, relationship="reads_field")`.
 
@@ -179,9 +132,12 @@ A few details worth being explicit about:
 
 ### Primitive types
 
-Primitives (`void`, `int`, `boolean`, `long`, `double`, `float`, `char`, `short`, `byte`) appear in the `type` position but aren't first-class nodes in the graph. The NodeRef uses `id: null` and `kind: "java.primitive"`. Same handling as `method_details`.
+Primitives (`void`, `int`, `boolean`, `long`, `double`, `float`, `char`, `short`, `byte`) appear in the `type` position but aren't first-class nodes in the graph. Under slim encoding this manifests as:
 
-The LLM should not try to use a primitive NodeRef as input to other tools.
+- `type: null` (no ID; no entry in `nodes`)
+- `type_name: "<primitive keyword>"` (e.g. `"int"`)
+
+`type_name` is always present, so the LLM gets the field's type at a glance regardless of whether it's a primitive or a reference type. `type == null` is the unambiguous signal that the type is a primitive (or, in pathological cases, missing). The LLM should not try to use a `null` type ID as input to other tools.
 
 ### Generic types
 
@@ -263,11 +219,13 @@ This is the text exposed to the LLM via MCP.
 
 > Return the full structural details of a single field, in one call. Use this when you've identified a field of interest (via `list_fields`, `detail_dependencies`, or another tool that surfaces field IDs) and need the complete picture: type, annotations, and information about which methods read or write it.
 >
-> The response includes a digest of read and write access — how many methods read or write this field, a sample of those methods (up to 10), and a `by_declaring_type` breakdown showing which types contain the accessing methods. For fields with many readers (loggers, common dependencies), the digest tells you the structural story without needing to enumerate every accessor.
+> Response shape: a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus the field's structural details — `field`, `declaring_type`, `type`, `annotations`, `read_access`, `write_access` — all referencing nodes by ID.
+>
+> The response includes a digest of read and write access — how many methods read or write this field, a sample of those methods (up to 10, as IDs that resolve to entries in `nodes`), and a `by_declaring_type` breakdown showing which types contain the accessing methods. For fields with many readers (loggers, common dependencies), the digest tells you the structural story without needing to enumerate every accessor.
 >
 > If you need the full list of readers or writers (beyond the inline sample), use `detail_dependencies(from=root_id, to=field_id, relationship="reads_field")` (or `writes_field`) for exhaustive enumeration.
 >
-> The field type and declaring type are NodeRefs — you can feed these into other tools to investigate, e.g., `find_node`, `aggregated_incoming`, or `list_fields` on the declaring type.
+> The field type and declaring type are node IDs (resolve via `nodes[id]` for display fields) — you can feed these into other tools to investigate, e.g., `find_node`, `aggregated_incoming`, or `list_fields` on the declaring type. For primitive field types, `type` is `null`; read `type_name` to see the primitive keyword.
 >
 > Use the `location` field together with your file-reading tools when you need to inspect the field declaration in context.
 >
@@ -343,6 +301,8 @@ RETURN f, declarer, fieldType, annotations,
 (Pseudo-Cypher; the exact syntax for the aggregations needs care, and the schema details depend on jQAssistant's actual relationship names — `READS`/`WRITES`/`READS_FIELD`/`WRITES_FIELD` etc.)
 
 The key insight: do everything in one query. Multiple round-trips per `field_details` call would be too expensive for an operation that's expected to be cheap.
+
+**Slim payload construction.** Build the `nodes` map manually rather than calling `AbstractGraphMcpTools.toNodeRefShort(HGNode)` for sample methods, declaring types, annotation types, or the field type. The set of IDs needed for the map is the union of: `field`, `declaring_type`, `type` (if non-null), every `annotations[].type`, every ID in `read_access.methods_sample` / `write_access.methods_sample`, and every `type` in `read_access.by_declaring_type` / `write_access.by_declaring_type`. Collect these IDs while assembling the response, then resolve display fields in one pass. The same method ID commonly appears in both samples (a method that reads and writes the field) — emit one `nodes` entry for it, not two.
 
 **Sample selection.** The 10-method sample should be *representative*, not necessarily a specific subset. The simplest implementation is "first 10 by some stable order" (e.g., by method qualified name). This is fine for v0.2; if usage shows the LLM wants more sophisticated sampling (e.g., one method per declaring type), revisit.
 
