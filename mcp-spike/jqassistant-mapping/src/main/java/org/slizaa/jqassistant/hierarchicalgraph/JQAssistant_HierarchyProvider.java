@@ -26,6 +26,8 @@ public class JQAssistant_HierarchyProvider extends AbstractQueryBasedHierarchyPr
 				"MATCH (a:Package)-[:CONTAINS]->(b:Package) RETURN id(a), id(b)",
 				// Package -> Types (Class, Interface, Enum, Annotation, Record)
 				"MATCH (a:Package)-[:CONTAINS]->(b:Type) WHERE b:Type OR b:Interface OR b:Enum OR b:Annotation OR b:Record RETURN id(a), id(b)",
+				// Types -> Methods and Fields
+				"MATCH (a:Type)-[:DECLARES]->(b) WHERE b:Field OR b:Method RETURN id(a),id(b)"
 		};
 	}
 }
