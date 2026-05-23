@@ -11,6 +11,8 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -61,8 +63,10 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
                     "(node IDs), 'from_parent' and optionally 'to_parent' (declaring-type IDs for navigation back to " +
                     "the hierarchical model), the relationship kind, and the source location (file path and line " +
                     "number). The 'summary' block groups edges by relationship kind (by_relationship) and by source " +
-                    "type (by_source_type) — these are often more useful than enumerating individual edges, because " +
-                    "they tell you what kind of coupling exists and which types in the source subtree are responsible. " +
+                    "type (by_source_type), by source child nodes (by_source_nodes), and by target child nodes " +
+                    "(by_target_nodes) — these are often more useful than enumerating individual edges, because " +
+                    "they tell you what kind of coupling exists, which types are responsible, and how the coupling " +
+                    "is distributed across sub-areas of the source and target subtrees. " +
                     "Inheritance: the query always traverses EXTENDS/IMPLEMENTS on both sides. An edge whose source " +
                     "method/field is declared on an ancestor of a type in the from-subtree is included; same for the " +
                     "target subtree when the target is a method or field. 'from_parent' (and 'to_parent') therefore " +
@@ -99,7 +103,7 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
                     "has_type, read_by, written_by.",
                     required = false)
             String relationship,
-            @ToolParam(description = "Max edges to return (1-500, default 50).", required = false)
+            @ToolParam(description = "Max edges to return (1-150, default 50).", required = false)
             Integer limit) {
 
         // --- Validate relationship --------------------------------------------------------
@@ -122,7 +126,7 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
         }
 
         // --- Parameters & subtree expansion -----------------------------------------------
-        int effectiveLimit = limit != null ? Math.min(Math.max(limit, 1), 500) : 50;
+        int effectiveLimit = limit != null ? Math.min(Math.max(limit, 1), 150) : 50;
         String effectiveRel = (relationship != null && !relationship.isBlank()) ? relationship : null;
         INodeMetadataProvider mp = getMetadataProvider();
 
@@ -227,8 +231,13 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
                 })
                 .toList();
 
+        // --- by_source_nodes / by_target_nodes (hierarchical-level context) ----------------
+        List<Map<String, Object>> bySourceNodes = computeBySourceNodes(fromNode, toNode);
+        List<Map<String, Object>> byTargetNodes = computeByTargetNodes(fromNode, toNode);
+
         // --- Assemble slim nodes map: only what the response actually references ---------
-        Map<String, Object> nodes = buildNodesMap(fromNode, toNode, bySourceType, returnedEdges, nodeDisplay);
+        Map<String, Object> nodes = buildNodesMap(fromNode, toNode, bySourceType,
+                bySourceNodes, byTargetNodes, returnedEdges, nodeDisplay);
 
         // --- Summary ----------------------------------------------------------------------
         Map<String, Object> summary = new LinkedHashMap<>();
@@ -245,6 +254,8 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
         if (totalSourceTypes > bySourceType.size()) {
             summary.put("others_count", totalSourceTypes - bySourceType.size());
         }
+        summary.put("by_source_nodes", bySourceNodes);
+        summary.put("by_target_nodes", byTargetNodes);
 
         // --- Result -----------------------------------------------------------------------
         Map<String, Object> result = new LinkedHashMap<>();
@@ -442,12 +453,15 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
 
     /**
      * Builds the slim {@code nodes} map containing exactly the nodes referenced by the
-     * truncated edge set, {@code by_source_type} entries, and the two scope endpoints. The
-     * scope endpoints are emitted first so the LLM can locate them at the top; the rest
-     * follow in iteration order over the collected reference set.
+     * truncated edge set, {@code by_source_type} entries, {@code by_source_nodes} entries,
+     * {@code by_target_nodes} entries, and the two scope endpoints. The scope endpoints are
+     * emitted first so the LLM can locate them at the top; the rest follow in iteration
+     * order over the collected reference set.
      */
     private Map<String, Object> buildNodesMap(HGNode fromNode, HGNode toNode,
                                               List<Map<String, Object>> bySourceType,
+                                              List<Map<String, Object>> bySourceNodes,
+                                              List<Map<String, Object>> byTargetNodes,
                                               List<Map<String, Object>> returnedEdges,
                                               Map<Long, String[]> nodeDisplay) {
         Set<Long> referenced = new LinkedHashSet<>();
@@ -469,6 +483,13 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
         // is not in Neo4j, so nodeDisplay may not have it).
         putSlimNode(nodes, fromNode);
         putSlimNode(nodes, toNode);
+        // by_source_nodes / by_target_nodes entries — resolved from the HG model.
+        for (Map<String, Object> entry : bySourceNodes) {
+            putSlimNode(nodes, graphService.getRootNode().lookupNode((Long) entry.get("node")));
+        }
+        for (Map<String, Object> entry : byTargetNodes) {
+            putSlimNode(nodes, graphService.getRootNode().lookupNode((Long) entry.get("node")));
+        }
         for (Long id : referenced) {
             String[] disp = nodeDisplay.get(id);
             if (disp != null) {
@@ -480,15 +501,25 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
 
     /** Build the empty-edges result for the early-return path. */
     private Map<String, Object> emptyResult(HGNode fromNode, HGNode toNode, String effectiveRel) {
+        List<Map<String, Object>> bySourceNodes = computeBySourceNodes(fromNode, toNode);
+        List<Map<String, Object>> byTargetNodes = computeByTargetNodes(fromNode, toNode);
         Map<String, Object> nodes = new LinkedHashMap<>();
         putSlimNode(nodes, fromNode);
         putSlimNode(nodes, toNode);
+        for (Map<String, Object> entry : bySourceNodes) {
+            putSlimNode(nodes, graphService.getRootNode().lookupNode((Long) entry.get("node")));
+        }
+        for (Map<String, Object> entry : byTargetNodes) {
+            putSlimNode(nodes, graphService.getRootNode().lookupNode((Long) entry.get("node")));
+        }
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("total_edges", 0);
         summary.put("returned", 0);
         summary.put("truncated", false);
         summary.put("by_relationship", effectiveRel != null ? Map.of(effectiveRel, 0) : Map.of());
         summary.put("by_source_type", List.of());
+        summary.put("by_source_nodes", bySourceNodes);
+        summary.put("by_target_nodes", byTargetNodes);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("nodes", nodes);
         result.put("from_scope", fromNode.getIdentifier());
@@ -496,6 +527,71 @@ public class DetailDependenciesMcpTool extends AbstractDetailMcpTool {
         result.put("edges", List.of());
         result.put("summary", summary);
         return result;
+    }
+
+    /**
+     * Computes the {@code by_source_nodes} summary: drills down from {@code fromNode} through
+     * single-child levels to the first level with more than one child, then computes the
+     * aggregated outgoing dependency weight from each child at that level to {@code toNode}.
+     * Uses the in-memory hierarchical model — no Neo4j query.
+     */
+    private List<Map<String, Object>> computeBySourceNodes(HGNode fromNode, HGNode toNode) {
+        List<HGNode> children = drillDownToMultiChildLevel(fromNode);
+        if (children.isEmpty()) return List.of();
+        return children.stream()
+                .map(child -> {
+                    HGAggregatedDependency dep = child.getOutgoingDependenciesTo(toNode);
+                    int weight = dep != null ? dep.getAggregatedWeight() : 0;
+                    return Map.entry(child, weight);
+                })
+                .filter(e -> e.getValue() > 0)
+                .sorted(Comparator.<Map.Entry<HGNode, Integer>>comparingInt(Map.Entry::getValue).reversed())
+                .map(e -> {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("node", (Long) e.getKey().getIdentifier());
+                    entry.put("aggregated_weight", e.getValue());
+                    return entry;
+                })
+                .toList();
+    }
+
+    /**
+     * Computes the {@code by_target_nodes} summary: drills down from {@code toNode} through
+     * single-child levels to the first level with more than one child, then computes the
+     * aggregated incoming dependency weight from {@code fromNode} to each child at that level.
+     * Uses the in-memory hierarchical model — no Neo4j query.
+     */
+    private List<Map<String, Object>> computeByTargetNodes(HGNode fromNode, HGNode toNode) {
+        List<HGNode> children = drillDownToMultiChildLevel(toNode);
+        if (children.isEmpty()) return List.of();
+        return children.stream()
+                .map(child -> {
+                    HGAggregatedDependency dep = fromNode.getOutgoingDependenciesTo(child);
+                    int weight = dep != null ? dep.getAggregatedWeight() : 0;
+                    return Map.entry(child, weight);
+                })
+                .filter(e -> e.getValue() > 0)
+                .sorted(Comparator.<Map.Entry<HGNode, Integer>>comparingInt(Map.Entry::getValue).reversed())
+                .map(e -> {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("node", (Long) e.getKey().getIdentifier());
+                    entry.put("aggregated_weight", e.getValue());
+                    return entry;
+                })
+                .toList();
+    }
+
+    /**
+     * Walks down from {@code node} through single-child levels until a node with more than
+     * one child is found, then returns that node's children. Returns an empty list if the
+     * node is a leaf or the entire chain down to the leaves is single-child.
+     */
+    private List<HGNode> drillDownToMultiChildLevel(HGNode node) {
+        HGNode current = node;
+        while (current.getChildren().size() == 1) {
+            current = current.getChildren().get(0);
+        }
+        return current.getChildren();
     }
 
     private Map<String, Object> error(String code, String message, Map<String, Object> extra) {

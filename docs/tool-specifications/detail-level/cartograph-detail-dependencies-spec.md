@@ -68,7 +68,7 @@ The list is surfaced through `describe_graph`'s response (per the convention dis
 
 ### `limit` (default 50)
 
-Maximum number of edges to return. Server-side cap at 500.
+Maximum number of edges to return. Server-side cap at 150.
 
 Because both source and target subtrees scope the query, result sets are typically bounded — most aggregated edges have tens to low hundreds of underlying detail edges, not thousands. When the cap is reached, the `summary` block still reports the true total so the LLM can either re-issue with a larger limit or apply a tighter filter (most often, narrowing `relationship`).
 
@@ -84,6 +84,12 @@ This tool emits graph-shaped output — many edges, the same nodes appearing as 
     "47200": { "name": "ClusterCoordinator", "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator", "kind": "java.class" },
     "47201": { "name": "LeaderElector", "qualified_name": "org.elasticsearch.cluster.coordination.LeaderElector", "kind": "java.class" },
     "47202": { "name": "StateRecoverer", "qualified_name": "org.elasticsearch.cluster.coordination.StateRecoverer", "kind": "java.class" },
+    "47310": { "name": "coordination", "qualified_name": "org.elasticsearch.cluster.coordination", "kind": "java.package" },
+    "47311": { "name": "service", "qualified_name": "org.elasticsearch.cluster.service", "kind": "java.package" },
+    "47312": { "name": "health", "qualified_name": "org.elasticsearch.cluster.health", "kind": "java.package" },
+    "38210": { "name": "netty4", "qualified_name": "org.elasticsearch.transport.netty4", "kind": "java.package" },
+    "38211": { "name": "nio", "qualified_name": "org.elasticsearch.transport.nio", "kind": "java.package" },
+    "38212": { "name": "core", "qualified_name": "org.elasticsearch.transport.core", "kind": "java.package" },
     "91204": { "name": "applyState", "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator.applyState", "kind": "java.method" },
     "91205": { "name": "sendState", "qualified_name": "org.elasticsearch.cluster.coordination.ClusterCoordinator.sendState", "kind": "java.method" },
     "88301": { "name": "TransportException", "qualified_name": "org.elasticsearch.transport.TransportException", "kind": "java.class" },
@@ -132,6 +138,16 @@ This tool emits graph-shaped output — many edges, the same nodes appearing as 
       { "type": 47200, "edge_count": 23 },
       { "type": 47201, "edge_count": 18 },
       { "type": 47202, "edge_count": 6 }
+    ],
+    "by_source_nodes": [
+      { "node": 47310, "aggregated_weight": 84 },
+      { "node": 47311, "aggregated_weight": 31 },
+      { "node": 47312, "aggregated_weight": 12 }
+    ],
+    "by_target_nodes": [
+      { "node": 38210, "aggregated_weight": 67 },
+      { "node": 38211, "aggregated_weight": 42 },
+      { "node": 38212, "aggregated_weight": 18 }
     ]
   }
 }
@@ -139,7 +155,7 @@ This tool emits graph-shaped output — many edges, the same nodes appearing as 
 
 ### Top-level fields
 
-**`nodes`** — Map from stringified node ID to display fields (`name`, `qualified_name`, `kind`). Every node referenced anywhere in the response (scope endpoints, edge endpoints, declaring types, `by_source_type` entries) has exactly one entry here. Insertion order is meaningful — types appear grouped with their declared methods/fields, and types appear in `by_source_type` order — but consumers must not depend on key iteration order for correctness.
+**`nodes`** — Map from stringified node ID to display fields (`name`, `qualified_name`, `kind`). Every node referenced anywhere in the response (scope endpoints, edge endpoints, declaring types, `by_source_type` entries, `by_source_nodes` entries, `by_target_nodes` entries) has exactly one entry here. Insertion order is meaningful — types appear grouped with their declared methods/fields, and types appear in `by_source_type` order — but consumers must not depend on key iteration order for correctness.
 
 **`from_scope`** / **`to_scope`** — Node IDs of the source and target subtrees, as passed in via `from_id` and `to_id`. The corresponding display fields are in `nodes`.
 
@@ -170,6 +186,12 @@ This tool emits graph-shaped output — many edges, the same nodes appearing as 
 **`by_relationship`** — Map from relationship kind to edge count. When the `relationship` parameter is omitted, this gives the LLM a quick picture of *what kinds of coupling* exist between the subtrees — "mostly calls with some throws and a few annotations." When the `relationship` parameter is supplied, this map has a single entry; the structural insight comes from `by_source_type` instead.
 
 **`by_source_type`** — A list of `{type, edge_count}` pairs, grouped by the declaring type of the source method/field. `type` is a node ID; resolve via `nodes[type]`. Lets the LLM see *which types within the source subtree are responsible* for the coupling, ranked by edge count. The list is sorted descending by `edge_count` and capped at 10 entries — for source subtrees with many contributing types, this surfaces the top contributors. If more than 10 types contribute, the cap is signaled by an `others_count` field on the summary (omitted here for clarity; add when relevant).
+
+**`by_source_nodes`** — A list of `{node, aggregated_weight}` pairs representing the children of the *effective source level* — the first level below `from_id` where more than one child exists. Starting from `from_id`, the tool walks down through single-child nodes (e.g., a module containing only one package) until it reaches a node with more than one child, then emits those children. This auto-drill-down skips uninformative single-child levels and presents the first level where a meaningful distribution is visible. `node` is the child's node ID (resolve via `nodes[node]`); `aggregated_weight` is the weight of the aggregated outgoing dependency from that child subtree to the `to_id` subtree — the same weight that `aggregated_outgoing` would report for that edge. The list is sorted descending by `aggregated_weight`. Children with zero weight (no outgoing dependency to the target) are omitted. When `from_id` is a type-kind node (leaf, no children) or the entire chain down to the leaves is single-child, this list is empty.
+
+**`by_target_nodes`** — A list of `{node, aggregated_weight}` pairs representing the children of the *effective target level* — the first level below `to_id` where more than one child exists. The same auto-drill-down logic as `by_source_nodes` applies: single-child levels are skipped. `node` is the child's node ID (resolve via `nodes[node]`); `aggregated_weight` is the weight of the aggregated incoming dependency from the `from_id` subtree into that child subtree — the same weight that `aggregated_incoming` would report for that edge. The list is sorted descending by `aggregated_weight`. Children with zero weight (no incoming dependency from the source) are omitted. When `to_id` is a type-kind node (leaf, no children) or the entire chain down to the leaves is single-child, this list is empty.
+
+Together, `by_source_nodes` and `by_target_nodes` provide a hierarchical-level frame around the detail-level edges. The auto-drill-down ensures the LLM always sees a meaningful distribution — it never gets a single-entry list that adds no information. For example, if a module contains only one top-level package but that package has five sub-packages, the tool skips the uninformative single-package level and presents the five sub-packages directly. This is especially valuable when the source or target subtree is large (a module with many packages) — the hierarchical distribution gives the LLM orientation before it decides which detail edges to inspect.
 
 The summary fields together transform a flat edge list into a *structured* understanding. The LLM can answer "what's the coupling between A and B?" from just the summary, without enumerating individual edges — though the edges are there if needed for line-level investigation.
 
@@ -261,7 +283,7 @@ This is the text exposed to the LLM via MCP.
 
 > Return the method-level and field-level dependencies between a source subtree and a target subtree. This is the drill-down tool that bridges the hierarchical level and the detail level — given an aggregated dependency you've identified (typically via `aggregated_outgoing`, `aggregated_incoming`, or `outgoing_core_dependencies`), this returns the underlying concrete method/field edges that explain it.
 >
-> Returns a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus an `edges` list whose entries reference nodes by ID. Each edge carries `from` and `to` (node IDs), `from_parent` and optionally `to_parent` (declaring-type IDs for navigation back to the hierarchical model), the relationship kind, and the source location (file path and line number). The `summary` block groups edges by relationship kind (`by_relationship`) and by source type (`by_source_type`) — these are often more useful than enumerating individual edges, because they tell you *what kind of coupling* exists and *which types in the source subtree are responsible*.
+> Returns a top-level `nodes` map (each referenced node listed once with `name`, `qualified_name`, `kind`) plus an `edges` list whose entries reference nodes by ID. Each edge carries `from` and `to` (node IDs), `from_parent` and optionally `to_parent` (declaring-type IDs for navigation back to the hierarchical model), the relationship kind, and the source location (file path and line number). The `summary` block groups edges by relationship kind (`by_relationship`), by source type (`by_source_type`), by source child nodes (`by_source_nodes`), and by target child nodes (`by_target_nodes`) — these are often more useful than enumerating individual edges, because they tell you *what kind of coupling* exists, *which types are responsible*, and *how the coupling is distributed across sub-areas of the source and target subtrees*.
 >
 > Inheritance: the query always traverses `EXTENDS` / `IMPLEMENTS` on both sides. An edge whose source method/field is declared on an ancestor of a type in the from-subtree is included; same for the target subtree when the target is a method or field. `from_parent` (and `to_parent`) therefore report the *actual* declaring type, which may be an ancestor outside the from-subtree (or to-subtree) when the entity is inherited. To restrict the result to physically-declared edges, filter `edges` where `from_parent` is in the from-subtree (use `list_descendants(from_id)` to get the ID set).
 >
@@ -354,7 +376,9 @@ The exact patterns depend on jQAssistant's schema; the key idea is parameterized
 
 **`by_source_type` computation.** Compute this in the same Cypher query via a separate aggregation, not as a post-process in Java. Neo4j is good at this; avoid round-trips.
 
-**Slim payload construction.** Build the `nodes` map manually rather than calling `AbstractGraphMcpTools.toNodeRefShort(HGNode)` for edge endpoints. Insert into `nodes` in a meaningful order — group declaring types with their declared methods/fields, and order types by `by_source_type` ranking. The set of node IDs needed for the map is the union of: `from_scope`, `to_scope`, every `edge.from`, every `edge.to`, every `from_parent` / `to_parent`, and every `by_source_type[].type`. Collect these IDs while assembling the response, then resolve display fields in one pass.
+**`by_source_nodes` / `by_target_nodes` computation.** These use the in-memory hierarchical model, not Neo4j. Both apply an auto-drill-down: starting from the scope node, walk down through single-child nodes until a node with more than one child is found, then use that node's children. For `by_source_nodes`: drill down from `from_id` to the effective level, then for each child at that level compute the aggregated outgoing dependency weight to `to_id`'s subtree using the same aggregation logic as `aggregated_outgoing`. For `by_target_nodes`: drill down from `to_id` to the effective level, then for each child at that level compute the aggregated incoming dependency weight from `from_id`'s subtree. Both computations are cheap — they operate on the in-memory model's pre-computed aggregated weights. The results are independent of the `relationship` filter and the `limit` parameter; they always reflect the full hierarchical picture.
+
+**Slim payload construction.** Build the `nodes` map manually rather than calling `AbstractGraphMcpTools.toNodeRefShort(HGNode)` for edge endpoints. Insert into `nodes` in a meaningful order — group declaring types with their declared methods/fields, and order types by `by_source_type` ranking. The set of node IDs needed for the map is the union of: `from_scope`, `to_scope`, every `edge.from`, every `edge.to`, every `from_parent` / `to_parent`, every `by_source_type[].type`, every `by_source_nodes[].node`, and every `by_target_nodes[].node`. Collect these IDs while assembling the response, then resolve display fields in one pass.
 
 **Truncation honesty.** When the limit is hit, the `total_edges` count should still reflect the true total. This requires a separate `count(*)` query or a Cypher subquery — slightly more expensive than returning `total_edges = returned`, but essential for the LLM to know the truth.
 
