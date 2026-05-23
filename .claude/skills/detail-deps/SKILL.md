@@ -1,6 +1,6 @@
 # Detail Dependencies Analysis
 
-Analyze the detail-level dependencies between two modules using the cartograph MCP server.
+Drill into the detail-level dependencies between two modules using the cartograph MCP server. Use when the user asks to drill into, inspect, detail, or analyze dependencies between two specific modules or nodes.
 
 ## Instructions
 
@@ -43,10 +43,12 @@ Example: When querying `analysis.jar → rule.jar`, the types `AbstractRuleVisit
 
 Present the user with these options:
 
-1. **Drill into a specific relationship kind** — e.g., only `calls`, `parameter_type`, `overrides`, `throws`, `reads_field`, `returns`, `has_type`, `writes_field`, `annotated_by`
-2. **Drill into a specific source type** — show all edges originating from one particular class
-3. **Fetch more edges** — increase the limit to see the actual edges (warn about context size)
-4. **Done** — end the analysis
+1. **Drill into a specific source artifact** — show all edges originating from one particular artifact
+2. **Drill into a specific target artifact** — show all edges originating to one particular artifact
+3. **Drill into a specific relationship kind** — e.g., only `calls`, `parameter_type`, `overrides`, `throws`, `reads_field`, `returns`, `has_type`, `writes_field`, `annotated_by`
+4. **Drill into a specific source type** — show all edges originating from one particular class
+5. **Fetch more edges** — increase the limit to see the actual edges (warn about context size)
+6. **Done** — end the analysis
 
 Wait for the user's choice before proceeding.
 
