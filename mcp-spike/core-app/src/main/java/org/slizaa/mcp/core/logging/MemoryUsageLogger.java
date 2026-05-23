@@ -15,6 +15,7 @@ public class MemoryUsageLogger {
     @Scheduled(fixedRate = 30_000)
     public void logMemoryUsage() {
         Runtime runtime = Runtime.getRuntime();
+        // runtime.gc(); // Suggest garbage collection to get more accurate free memory
         long totalMb = runtime.totalMemory() / (1024 * 1024);
         long freeMb = runtime.freeMemory() / (1024 * 1024);
         long usedMb = totalMb - freeMb;

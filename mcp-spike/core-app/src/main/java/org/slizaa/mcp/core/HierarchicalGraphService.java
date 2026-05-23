@@ -7,11 +7,15 @@ import org.slizaa.core.boltclient.IBoltClientFactory;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingFactory;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
+import org.slizaa.hierarchicalgraph.graphdb.model.GraphTraversalUtil;
 import org.slizaa.jqassistant.hierarchicalgraph.JQAssistant_MappingProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slizaa.mcp.core.logging.MemoryUsageLogger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
 import java.util.concurrent.Executors;
 
@@ -19,6 +23,9 @@ import java.util.concurrent.Executors;
 public class HierarchicalGraphService {
 
     private static final Logger log = LoggerFactory.getLogger(HierarchicalGraphService.class);
+
+//    @Autowired
+//    private MemoryUsageLogger memoryUsageLogger;
 
     @Value("${slizaa.bolt.uri:bolt://localhost:7687}")
     private String boltUri;
@@ -44,6 +51,15 @@ public class HierarchicalGraphService {
         var children = rootNode.getChildren();
 
         log.info("Hierarchical graph created with {} root children.", children.size());
+
+//        memoryUsageLogger.logMemoryUsage();
+//        log.info("Now pre-loading properies and labels...");
+//        StopWatch stopWatch = new StopWatch();
+//        stopWatch.start();
+//        GraphTraversalUtil.resolveAll(rootNode);
+//        stopWatch.stop();
+//        log.info("Done pre-loading properies and labels. Time taken: {} ms", stopWatch.getTotalTimeMillis());
+//        memoryUsageLogger.logMemoryUsage();
     }
 
     @PreDestroy
