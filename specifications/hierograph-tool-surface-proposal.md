@@ -372,7 +372,6 @@ list_children(
     kind_filter: string[]?,              // optional
     name_pattern: string?,               // optional substring match on names
     modifier_filter: string[]?,          // optional, only meaningful for methods/fields
-    include_inherited: bool = false,     // optional, only meaningful for types
     limit: int = 200
 )
 ```
@@ -390,7 +389,6 @@ Because every node in the hierarchy is in memory with its metadata, browsing is 
 - `kind_filter` — restricts the result to specific kinds. Accepts specific values (`"java.class"`) and group aliases (`"types"`, `"members"`, `"packages"`).
 - `name_pattern` — case-insensitive substring match against child names. Useful for finding members by partial name on a type with many methods.
 - `modifier_filter` — restricts to children whose modifiers include *all* listed values. Example: `["private", "final"]` returns only effectively-immutable members. Only meaningful when the children are methods or fields; passing it for other input kinds is silently ignored.
-- `include_inherited` — when called on a type, includes methods and fields inherited from ancestor types. Default false (only declared members). Only meaningful for type inputs.
 - `limit` — caps the number of children returned. Default 200; honest truncation with `total` in the summary if exceeded.
 
 **Use cases:**
@@ -410,7 +408,6 @@ list_descendants(
     kind_filter: string[]?,              // optional
     name_pattern: string?,               // optional substring filter on name
     modifier_filter: string[]?,          // optional, only meaningful for methods/fields
-    include_inherited: bool = false,     // optional, only meaningful when types appear in traversal
     limit: int = 200,
     cursor: string?                      // for pagination on large results
 )
