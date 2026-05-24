@@ -71,25 +71,35 @@ Uses **slim payload encoding** — source and target types appear as edge endpoi
       "to": 52103,
       "weight": 15,
       "type_pair_count": 1,
-      "kinds": ["depends_on"]
+      "attributes": {
+        "is_extends": false,
+        "is_implements": false,
+        "is_annotated_by": false,
+        "is_depends_on_other": true
+      }
     },
     {
       "from": 47291,
       "to": 52110,
       "weight": 3,
       "type_pair_count": 1,
-      "kinds": ["depends_on", "implements"]
+      "attributes": {
+        "is_extends": false,
+        "is_implements": true,
+        "is_annotated_by": false,
+        "is_depends_on_other": false
+      }
     }
   ],
   "summary": {
     "total": 42,
     "returned": 42,
     "truncated": false,
-    "by_kind": {
-      "depends_on": 42,
-      "extends": 3,
-      "implements": 7,
-      "annotated_by": 5
+    "by_attribute": {
+      "is_extends": 3,
+      "is_implements": 7,
+      "is_annotated_by": 5,
+      "is_depends_on_other": 38
     },
     "by_source_type": [
       { "id": 47291, "count": 12 },
@@ -107,7 +117,7 @@ Uses **slim payload encoding** — source and target types appear as edge endpoi
 
 **`type_pair_count`** — always 1 at the type level (each edge is a single type pair).
 
-**`kinds`** — set of type-level edge kind flags: `depends_on`, `extends`, `implements`, `annotated_by`.
+**`attributes`** — structured set of boolean flags indicating which specific kinds of underlying relationships contribute to this edge. For the Java provider: `is_extends`, `is_implements`, `is_annotated_by`, `is_depends_on_other`. Multiple can be true simultaneously.
 
 ## Response shape at `detail_level: "detail"`
 
@@ -171,7 +181,7 @@ Uses **slim payload encoding** — source entities, target entities, and their d
 
 **`truncated`** — `true` if more pages exist.
 
-**`by_kind`** (type level) / **`by_relationship`** (detail level) — distribution of edges by kind/relationship, computed over the full result set. Lets the LLM see the shape of the dependency without processing all edges.
+**`by_attribute`** (type level) / **`by_relationship`** (detail level) — distribution of edges by attribute/relationship, computed over the full result set. At the type level, each count indicates how many edges have that attribute flag set (an edge with multiple attributes is counted in each). At the detail level, each edge has exactly one relationship kind. Lets the LLM see the shape of the dependency without processing all edges.
 
 **`by_source_type`** — top source types by edge count, computed over the full result set. Identifies which types concentrate the most outgoing coupling.
 
@@ -237,7 +247,7 @@ The tool layer never sees Cypher or scanner-specific labels. The `DetailDependen
 - **"What types in module A depend on types in module B?"** — `outgoing_dependencies(from_id: A, to_id: B)` (type level, default)
 - **"What methods in class X call methods in class Y?"** — `outgoing_dependencies(from_id: X, to_id: Y, detail_level: "detail", relationship: "calls")`
 - **"Show me all detail-level evidence between these two packages"** — `outgoing_dependencies(from_id: pkg_A, to_id: pkg_B, detail_level: "detail")`
-- **"Which types in this package extend types in that package?"** — `outgoing_dependencies(from_id: pkg_A, to_id: pkg_B)` at type level, inspect `kinds` for `extends`
+- **"Which types in this package extend types in that package?"** — `outgoing_dependencies(from_id: pkg_A, to_id: pkg_B)` at type level, inspect `attributes.is_extends`
 
 ## LLM tool description
 
@@ -247,5 +257,5 @@ The `@Tool` description should communicate:
 2. `detail_level: "type"` (default) returns type-to-type edges from the in-memory model (fast)
 3. `detail_level: "detail"` returns method/field-level edges with source locations (slower, from Neo4j)
 4. The `relationship` filter is only valid at detail level
-5. Results are paginated; summaries (`by_relationship`, `by_source_type`) give the shape without needing to process all edges
+5. Results are paginated; summaries (`by_attribute`/`by_relationship`, `by_source_type`) give the shape without needing to process all edges
 6. Direction: this tool shows what the source uses of the target. For the reverse, use `incoming_dependencies`

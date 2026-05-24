@@ -39,11 +39,11 @@ The current implementation accepts an optional `scopeId` to describe a subtree. 
       "java.field": 9103
     },
     "total_type_level_edges": 47291,
-    "type_level_edges_by_kind": {
-      "depends_on": 38102,
-      "extends": 3291,
-      "implements": 4102,
-      "annotated_by": 1796
+    "type_level_edges_by_attribute": {
+      "is_extends": 3291,
+      "is_implements": 4102,
+      "is_annotated_by": 1796,
+      "is_depends_on_other": 38102
     }
   },
   "kinds": {
@@ -65,11 +65,11 @@ The current implementation accepts an optional `scopeId` to describe a subtree. 
     }
   },
   "relationships": {
-    "type_level": [
-      { "kind": "depends_on", "description": "Generic dependency (always present when any detail-level dependency exists)" },
-      { "kind": "extends", "description": "Source type extends target type" },
-      { "kind": "implements", "description": "Source type implements target interface" },
-      { "kind": "annotated_by", "description": "Source type is annotated by target annotation type" }
+    "type_level_attributes": [
+      { "attribute": "is_extends", "description": "At least one type in the source subtree extends a type in the target subtree" },
+      { "attribute": "is_implements", "description": "At least one type in the source subtree implements an interface in the target subtree" },
+      { "attribute": "is_annotated_by", "description": "At least one type in the source subtree is annotated by an annotation type in the target subtree" },
+      { "attribute": "is_depends_on_other", "description": "At least one other form of dependency exists (calls, throws, parameter types, field types, etc. — the residual after extends/implements/annotated_by)" }
     ],
     "detail_level": [
       { "kind": "throws", "source": "method", "description": "Method declares it throws this exception type" },
@@ -134,11 +134,11 @@ The current implementation accepts an optional `scopeId` to describe a subtree. 
 
 ### Response sections
 
-**`stats`** — quantitative summary of the loaded graph. Node counts by kind, total type-level edge count, and edge counts by type-level edge kind. Gives the LLM a sense of scale before it starts navigating.
+**`stats`** — quantitative summary of the loaded graph. Node counts by kind, total type-level edge count, and edge counts by type-level edge attribute (how many edges have each attribute flag set). Gives the LLM a sense of scale before it starts navigating.
 
 **`kinds`** — the vocabulary of node kinds present in the graph, with brief descriptions. Includes group aliases that other tools accept in `kind_filter` parameters. The LLM learns the valid kind values here and uses them in subsequent tool calls.
 
-**`relationships`** — the vocabulary of relationship kinds, split into type-level (flags on aggregated edges) and detail-level (specific edge kinds queryable via `outgoing_dependencies`/`incoming_dependencies` with `detail_level: "detail"`). Each detail-level kind indicates whether the source is a method, field, or both.
+**`relationships`** — the vocabulary of type-level edge attributes and detail-level relationship kinds. Type-level attributes are boolean flags on each type-level edge (e.g., `is_extends`, `is_implements`) — declared by the active provider and used in `aggregated_dependencies`, `pairwise_dependencies`, and `outgoing_dependencies`/`incoming_dependencies` at `detail_level: "type"`. Detail-level relationship kinds are specific edge kinds queryable via `outgoing_dependencies`/`incoming_dependencies` with `detail_level: "detail"`. Each detail-level kind indicates whether the source is a method, field, or both.
 
 **`hierarchy`** — the top-level modules with enriched metadata (child count, descendant type/method counts, dependency counts). This is the entry point for navigation — the LLM picks a module from here and drills down with `list_children` or `list_descendants`.
 
@@ -155,14 +155,14 @@ The current implementation accepts an optional `scopeId` to describe a subtree. 
 The following are computed directly from the in-memory hierarchical graph:
 
 - **`stats.total_nodes`** and **`stats.nodes_by_kind`** — counted from the in-memory node set
-- **`stats.total_type_level_edges`** and **`stats.type_level_edges_by_kind`** — counted from the in-memory type-level dependency edges
+- **`stats.total_type_level_edges`** and **`stats.type_level_edges_by_attribute`** — counted from the in-memory type-level dependency edges; each attribute count indicates how many edges have that flag set
 - **`hierarchy`** — the top-level modules with their enriched metadata, all from the in-memory model
 - **`model`** — static content, hardcoded in the tool
 
 ### Provider layer (vocabularies and metadata)
 
 - **`kinds`** — the kind vocabulary is declared by the provider. The set of structural kinds and group aliases comes from the `MappingProvider`, not from hardcoded lists. This makes the response correct for any scanner.
-- **`relationships`** — the detail-level relationship vocabulary comes from `DetailDependencyProvider.supportedRelationshipKinds`. The type-level edge kinds come from the in-memory model's edge kind flags.
+- **`relationships`** — the detail-level relationship vocabulary comes from `DetailDependencyProvider.supportedRelationshipKinds`. The type-level edge attribute vocabulary comes from `CoreDependencyProvider.supportedAttributeKinds`.
 - **`scan_metadata`** — scanner name and scan timestamp come from the provider.
 
 This split means `graph_overview` doesn't issue any Neo4j queries at call time. Everything is either already in memory or statically declared by the provider. The response is assembled in microseconds.

@@ -74,14 +74,19 @@ Uses **slim payload encoding**.
       "to": 47291,
       "weight": 8,
       "type_pair_count": 1,
-      "kinds": ["depends_on"]
+      "attributes": {
+        "is_extends": false,
+        "is_implements": false,
+        "is_annotated_by": false,
+        "is_depends_on_other": true
+      }
     }
   ],
   "summary": {
     "total": 12,
     "returned": 12,
     "truncated": false,
-    "by_kind": { "depends_on": 12, "extends": 1 },
+    "by_attribute": { "is_extends": 1, "is_implements": 0, "is_annotated_by": 0, "is_depends_on_other": 12 },
     "by_source_type": [
       { "id": 52103, "count": 5 },
       { "id": 52110, "count": 4 }
@@ -96,7 +101,7 @@ Same structure as `outgoing_dependencies` detail-level response, with `from`, `t
 
 ### Summary fields
 
-Identical to `outgoing_dependencies`: `total`, `returned`, `truncated`, `by_kind`/`by_relationship`, `by_source_type`.
+Identical to `outgoing_dependencies`: `total`, `returned`, `truncated`, `by_attribute`/`by_relationship`, `by_source_type`.
 
 `by_source_type` here identifies which types in the `to_id` subtree concentrate the most incoming coupling to the `from_id` subtree.
 

@@ -80,21 +80,36 @@ Uses **slim payload encoding** — each node appears as both edge endpoints and 
       "to": 1002,
       "weight": 247,
       "type_pair_count": 38,
-      "kinds": ["depends_on", "extends", "implements"]
+      "attributes": {
+        "is_extends": true,
+        "is_implements": true,
+        "is_annotated_by": false,
+        "is_depends_on_other": true
+      }
     },
     {
       "from": 1001,
       "to": 1003,
       "weight": 91,
       "type_pair_count": 14,
-      "kinds": ["depends_on", "annotated_by"]
+      "attributes": {
+        "is_extends": false,
+        "is_implements": false,
+        "is_annotated_by": true,
+        "is_depends_on_other": true
+      }
     },
     {
       "from": 1002,
       "to": 1003,
       "weight": 33,
       "type_pair_count": 7,
-      "kinds": ["depends_on"]
+      "attributes": {
+        "is_extends": false,
+        "is_implements": false,
+        "is_annotated_by": false,
+        "is_depends_on_other": true
+      }
     }
   ],
   "summary": {
@@ -111,7 +126,7 @@ Uses **slim payload encoding** — each node appears as both edge endpoints and 
 
 ### Edge fields
 
-Same as `aggregated_dependencies`: `from`, `to`, `weight`, `type_pair_count`, `kinds`.
+Same as `aggregated_dependencies`: `from`, `to`, `weight`, `type_pair_count`, `attributes`.
 
 Edges are ordered by `(from, to)` following the node insertion order in the `nodes` map.
 

@@ -5,7 +5,7 @@
 
 ## Purpose
 
-Returns the aggregated dependency edges from a set of source subtrees to a set of target subtrees. Each edge represents the total dependency from one specific source to one specific target, with weight, type pair count, and type-level edge kind flags.
+Returns the aggregated dependency edges from a set of source subtrees to a set of target subtrees. Each edge represents the total dependency from one specific source to one specific target, with weight, type pair count, and structured type-level edge attributes.
 
 This is the general-purpose aggregation tool. It consolidates the previous `aggregated_outgoing`, `aggregated_incoming`, `dependency_between`, `outgoing_to`, and `incoming_from` tools into a single symmetric interface. The directional concept (outgoing vs. incoming) is implicit in how the LLM populates `source_ids` and `target_ids` — there is no direction parameter.
 
@@ -88,14 +88,24 @@ Uses **slim payload encoding** — nodes appear as edge endpoints across multipl
       "to": 1002,
       "weight": 247,
       "type_pair_count": 38,
-      "kinds": ["depends_on", "extends", "implements"]
+      "attributes": {
+        "is_extends": true,
+        "is_implements": true,
+        "is_annotated_by": false,
+        "is_depends_on_other": true
+      }
     },
     {
       "from": 1001,
       "to": 1003,
       "weight": 91,
       "type_pair_count": 14,
-      "kinds": ["depends_on", "annotated_by"]
+      "attributes": {
+        "is_extends": false,
+        "is_implements": false,
+        "is_annotated_by": true,
+        "is_depends_on_other": true
+      }
     }
   ],
   "summary": {
@@ -116,7 +126,11 @@ Uses **slim payload encoding** — nodes appear as edge endpoints across multipl
 
 **`type_pair_count`** — number of distinct (source type, target type) pairs that contribute to this aggregated edge. A high type pair count with moderate weight means the coupling is spread across many type pairs; a low type pair count with high weight means the coupling is concentrated in a few type pairs.
 
-**`kinds`** — set of type-level edge kind flags present in this aggregated edge. Values: `depends_on`, `extends`, `implements`, `annotated_by`. Multiple flags can be true simultaneously.
+**`attributes`** — structured set of boolean flags indicating which specific kinds of underlying relationships contribute to this aggregated edge. Each flag is independently true or false; multiple can be true simultaneously. The attribute set is declared by the active provider (scanner-specific). For the Java provider:
+- `is_extends` — at least one type in the source subtree extends a type in the target subtree
+- `is_implements` — at least one type in the source subtree implements an interface in the target subtree
+- `is_annotated_by` — at least one type in the source subtree is annotated by an annotation type in the target subtree
+- `is_depends_on_other` — at least one other form of dependency exists (calls, throws, parameter types, field types, return types, field reads/writes, etc. — the residual after the three structural kinds above)
 
 ### Summary fields
 
