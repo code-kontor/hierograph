@@ -85,18 +85,34 @@ A scanner for another language would provide equivalent queries against its own 
 
 ### `CoreDependencyProvider`
 
-Returns the type-level dependency edges. Called once at startup to load the dependency graph into memory.
+Returns the type-level dependency edges with their attributes. Called once at startup to load the dependency graph into memory.
 
 Conceptually, it provides:
-- A query that returns all type-to-type dependency edges with their weights and kinds
+- A query that returns all type-to-type dependency edges with their weights and structured attribute set
+- A declaration of which attribute kinds the scanner supports (e.g., for Java: `is_extends`, `is_implements`, `is_annotated_by`, `is_depends_on_other`)
 
-The current jQAssistant implementation uses a query like:
+Each edge between a (source, target) type pair is *one* edge with attributes — not multiple edges per kind. The attributes are flags indicating which specific kinds of underlying detail-level relationships contribute to the edge. This design keeps the in-memory graph topology simple (one edge per pair) while preserving the kind information that would be lost in a generic `depends_on`-only representation.
+
+For the Java provider, the loader derives the attribute flags from jQAssistant's specific relationship types. The skeleton of the query joins the canonical `DEPENDS_ON` edge with the more specific `EXTENDS`, `IMPLEMENTS`, and `ANNOTATED_BY` edges, computing a boolean for each:
+
 ```cypher
 MATCH (t1:Type)-[r:DEPENDS_ON]->(t2:Type)
-RETURN id(t1), id(t2), id(r), type(r), r.weight
+OPTIONAL MATCH (t1)-[ext:EXTENDS]->(t2)
+OPTIONAL MATCH (t1)-[impl:IMPLEMENTS]->(t2)
+OPTIONAL MATCH (t1)-[ann:ANNOTATED_BY]->(t2)
+RETURN id(t1) AS source_id,
+       id(t2) AS target_id,
+       id(r) AS edge_id,
+       r.weight AS weight,
+       count(ext) > 0 AS is_extends,
+       count(impl) > 0 AS is_implements,
+       count(ann) > 0 AS is_annotated_by,
+       count(ext) = 0 AND count(impl) = 0 AND count(ann) = 0 AS is_depends_on_other
 ```
 
-A scanner for another language would provide a query against its own dependency schema. The shape of the returned data is fixed by Hierograph (source ID, target ID, relationship ID, kind, weight); the scanner-specific part is how to extract this shape from the underlying graph.
+(Pseudo-Cypher; the exact pattern depends on jQAssistant's schema and the loader's query style. The `is_depends_on_other` computation is more nuanced — it's true when *some* dependency exists that isn't extends/implements/annotated_by, which means weight > 0 even after accounting for the structural relationships.)
+
+A scanner for another language would provide a query against its own dependency schema, derive its own attribute set, and produce the same edge shape: (source_id, target_id, edge_id, weight, attributes_map). The shape is fixed by Hierograph; the scanner-specific part is how to compute it.
 
 ### `DetailDependencyProvider`
 
@@ -127,9 +143,13 @@ interface HierarchyProvider {
 }
 
 interface CoreDependencyProvider {
+    /** The vocabulary of edge attribute kinds this provider supports. */
+    val supportedAttributeKinds: Set<String>
+
     /**
-     * Returns the type-level dependency edges.
-     * Each row: (sourceId, targetId, edgeId, kind, weight)
+     * Returns the type-level dependency edges with their attributes.
+     * Each row: (sourceId, targetId, edgeId, weight, attributesMap)
+     * where attributesMap is keyed by the names declared in supportedAttributeKinds.
      */
     fun typeDependencyQuery(): String
 }
@@ -174,13 +194,15 @@ The model layer takes a `MappingProvider` and uses it to populate itself at load
 
 ## How scanner-specific vocabularies are handled
 
-A key consequence of the provider model: the vocabulary of node kinds and relationship kinds is scanner-driven, not hardcoded in Hierograph.
+A key consequence of the provider model: the vocabulary of node kinds, edge attributes, and relationship kinds is scanner-driven, not hardcoded in Hierograph.
 
 **Node kinds:** the hierarchy provider returns nodes with their kind strings (`java.module`, `java.method`, etc.). Hierograph doesn't validate against a hardcoded list; it accepts whatever kinds the provider produces. The namespace convention (`java.*`, `python.*`) is a convention scanners follow, but Hierograph treats kinds as opaque strings.
 
+**Type-level edge attributes:** the core dependency provider declares its `supportedAttributeKinds` set. The Java provider declares `is_extends`, `is_implements`, `is_annotated_by`, `is_depends_on_other`. A Python provider would declare its own set, possibly including `is_decorated_by` instead of `is_annotated_by`, and might add `is_imports` as a distinct attribute. The set is scanner-specific.
+
 **Detail-level relationship kinds:** the detail dependency provider declares its `supportedRelationshipKinds` set. When a tool receives a `relationship` parameter, it validates against the provider's declared set. If the parameter isn't in the set, the error response includes the supported set so the LLM learns what's available.
 
-**The `graph_overview` tool surfaces the active vocabulary.** Its response includes both the node kinds present in the loaded data and the relationship kinds supported by the detail dependency provider. The LLM learns the vocabulary at session start, regardless of which scanner is in use.
+**The `graph_overview` tool surfaces all three vocabularies.** Its response includes the node kinds present in the loaded data, the type-level edge attributes the active provider supports, and the detail-level relationship kinds it supports. The LLM learns the vocabulary at session start, regardless of which scanner is in use.
 
 This makes Hierograph genuinely scanner-agnostic. The Java vocabulary documented in the tool surface proposal is what the jQAssistant provider supports; other scanners support what they support, and the API adapts.
 

@@ -148,19 +148,19 @@ Items are enriched NodeRefs (~250 bytes JSON each).
 
 ### `outgoing_dependencies` / `incoming_dependencies` at `detail_level: "type"`
 
-Items are type-to-type edges with source/target NodeRefs, weight, type_pair_count, and kind flags (~350 bytes JSON each).
+Items are type-to-type edges with source/target NodeRefs, weight, type_pair_count, and structured attributes (~350 bytes JSON each).
 
 - Default `limit`: **100** (~35 KB, ~9K tokens — under warning threshold)
 - Server-side cap: 400 (~140 KB, ~35K tokens — exceeds default limit, requires user raise)
 
 ### `outgoing_dependencies` / `incoming_dependencies` at `detail_level: "detail"`
 
-Items are method/field-level edges carrying source/target member IDs, source/target parent (type) IDs, relationship kind, and source location (file path + line number), plus the `nodes` map resolving every referenced ID to `{ name, qualified_name, kind }` (~550 bytes JSON each — larger because of the location data and parent references).
+Items are method/field-level edges with source location (file path + line number), source/target NodeRefs, and relationship kind (~550 bytes JSON each — larger because of the location data).
 
 - Default `limit`: **80** (~44 KB, ~11K tokens — at warning threshold)
 - Server-side cap: 250 (~138 KB, ~34K tokens — exceeds default limit, requires user raise)
 
-The detail-level case is the tightest — 80 edges is significantly fewer than 150, but the per-item payload is substantially larger.
+The detail-level case is the tightest — 80 edges is significantly fewer than 200, but the per-item payload is substantially larger.
 
 ### `affected_by`
 
@@ -176,16 +176,6 @@ These defaults assume Claude Code's default token limits. Users who raise `MAX_M
 The server-side caps are deliberately above Claude Code's default 25K-token limit. This means a user with the default configuration will see truncation or warnings if they request `limit` values near the cap. The cap exists to prevent runaway responses, not to enforce the client-side limit — that's the client's job.
 
 The `anthropic/maxResultSizeChars` annotation should be set per tool to match the *server-side cap converted to characters* (roughly cap × per-item-size). This tells Claude Code "this tool's responses won't exceed X characters," letting the client size its budget appropriately.
-
-### Empirical validation
-
-Observed response sizes from the predecessor system (Cartograph `detail_dependencies`) confirm the per-item estimates and default choices:
-
-- ~100 detail-level edges ≈ 25–30 KB → fits comfortably in context
-- ~200 detail-level edges ≈ 50–60 KB → borderline, may trigger warnings
-- ~300+ detail-level edges ≈ 80 KB+ → exceeds default limits, spills to file
-
-These measurements include the `nodes` resolution map, which grows sub-linearly (many edges reference the same types). The default of 80 for detail-level edges sits well within the safe zone.
 
 ### Why the defaults are conservative
 
@@ -333,32 +323,6 @@ This is usually the better workflow. If a query is truncated at 200 of 750 resul
 
 Both workflows are valid and should be supported. The tool description for each paginated tool should briefly mention both paths so the LLM understands the choice. Skills can give more detailed guidance about when each workflow applies.
 
-## Complementary mechanism: server-side aggregation
-
-Pagination solves the "too many items to fit in one response" problem. But there is a related problem it doesn't solve well: when the LLM needs a *summary* of a large result set rather than the individual items. Paginating through 750 detail-level edges to aggregate them by type pair is wasteful — the LLM processes seven pages only to reduce them to ~40 rows.
-
-For this case, a server-side aggregation parameter is the better mechanism. A tool like `outgoing_dependencies` could accept an `aggregate` parameter:
-
-```
-outgoing_dependencies(sourceId, targetId, detail_level: "detail", aggregate: "by_type_pair")
-```
-
-This would return pre-grouped results:
-
-```json
-{
-  "aggregated_edges": [
-    { "source_type": 12345, "target_type": 67890, "count": 15 },
-    ...
-  ],
-  "nodes": { ... only referenced types ... }
-}
-```
-
-The result is always small — bounded by the number of unique type pairs, typically under 50 even for large modules — and requires no post-processing. This eliminates both the pagination overhead and the LLM's aggregation burden.
-
-**Pagination and aggregation are complementary, not competing.** Pagination handles the case where the LLM needs the individual items (e.g., finding specific method-level dependencies). Aggregation handles the case where the LLM needs the shape of the data (e.g., which type pairs are most coupled). Both should be available; the LLM or skill chooses based on the task.
-
 ## What's deliberately not in this design
 
 A few choices made by exclusion, worth being explicit about:
@@ -378,5 +342,3 @@ A few choices made by exclusion, worth being explicit about:
 Pagination in Hierograph is opt-in per tool, applied only where response size can genuinely grow large. Cursors are self-contained tokens encoding version, tool, query hash, data hash, and offset. The design is stateless — cursors work across server restarts as long as the underlying data is unchanged. Stale cursors fail with clear errors that include recovery paths. The LLM uses cursors transparently, choosing between paginating through and narrowing the query based on what its task requires.
 
 The paginated tools are `list_descendants`, `outgoing_dependencies` and `incoming_dependencies` at both detail levels, and `affected_by`. Page-size defaults are calibrated per tool against Claude Code's 10K-token warning threshold: 150 for `list_descendants`, 100 for type-level dependency tools and `affected_by`, 80 for detail-level dependency tools. Server-side caps prevent any `limit` value from producing pathologically large responses.
-
-For use cases where the LLM needs aggregated summaries rather than individual items, server-side aggregation (e.g., `aggregate: "by_type_pair"`) is a complementary mechanism that avoids the need to paginate through large result sets entirely.

@@ -49,7 +49,7 @@ This is the *lexical* hierarchy as a developer thinks about it. It is the same h
 
 Three zoom levels apply to dependency analysis:
 
-- **Aggregated** — pairwise summaries between two subtrees (e.g., "module A depends on module B with weight 247, kinds: depends_on, extends")
+- **Aggregated** — pairwise summaries between two subtrees (e.g., "module A depends on module B with weight 247; the dependency includes extends relationships")
 - **Type** — type-to-type edges between two subtrees (e.g., "class A.X depends on class B.Y; class A.X extends class B.Z")
 - **Detail** — method-to-method, method-to-field, field-to-type edges (e.g., "method A.X.foo calls method B.Y.bar at line 247")
 
@@ -64,7 +64,7 @@ The split between in-memory and Neo4j is along a meaningful axis — *navigation
 **The in-memory model contains:**
 
 - **The complete lexical hierarchy.** Every module, package, type, method, and field is represented as a first-class node in memory, with parent references and child references. The full containment tree is navigable from any node without touching Neo4j.
-- **Type-level dependency edges.** The aggregated dependency graph between types — with weights and kind flags — is in memory. This is what makes aggregation, traversal, and reachability fast even on large codebases.
+- **Type-level dependency edges.** The aggregated dependency graph between types — with weights and kind attributes — is in memory. Each edge between a (source, target) type pair carries scanner-declared attributes indicating which specific kinds of dependency contribute (extends, implements, annotated_by, and a residual catch-all for the Java provider). This is what makes aggregation, traversal, and reachability fast even on large codebases.
 
 **Neo4j contains (queried on demand):**
 
@@ -290,20 +290,73 @@ These are the values accepted by `kind_filter` parameters and reported as the `k
 
 Group aliases are an ergonomic shortcut; specific kinds always work too. Mixing groups and specific kinds in the same filter list is allowed: `kind_filter=["types", "java.method"]` returns all types and all methods.
 
-### Type-level edge kinds
+### Type-level edge attributes
 
-These are the values that appear in the `kinds` field on type-level aggregated edges (returned by `aggregated_dependencies`, `pairwise_dependencies`, and `outgoing_dependencies` / `incoming_dependencies` at `detail_level: "type"`). Each kind is a flag indicating that at least one detail-level edge of that category contributes to the type-level edge.
+Type-level dependency edges (returned by `aggregated_dependencies`, `pairwise_dependencies`, and `outgoing_dependencies` / `incoming_dependencies` at `detail_level: "type"`) carry attributes that indicate which specific *kinds* of underlying relationships contribute to them. These attributes preserve information that would otherwise be lost if only a generic "depends_on" edge were tracked.
 
-- `depends_on` — generic dependency (the canonical edge that subsumes the others; always present when any detail-level dependency exists)
-- `extends` — the source type extends the target type
-- `implements` — the source type implements the target interface
-- `annotated_by` — the source type is annotated by the target annotation type
+The design principle is **one edge per (source, target) pair, with attributes describing the kinds of dependency that contribute to it.** This is different from a multi-edge design where each kind would be a separate edge — that approach would force every traversal, aggregation, and reachability algorithm to deduplicate, and would inflate the in-memory graph with parallel edges. The attribute-on-edge design keeps the graph topology clean while preserving the kind information.
 
-The `kinds` field on a type-level edge is a set; multiple flags can be true simultaneously. For example, class A extending class B and also being annotated by an annotation in B's module would have both `extends` and `annotated_by` true on the edge from A to B.
+For the Java provider, the attribute set is:
+
+- **`is_extends`** — at least one type in the source subtree extends a type in the target subtree
+- **`is_implements`** — at least one type in the source subtree implements an interface in the target subtree
+- **`is_annotated_by`** — at least one type in the source subtree is annotated by an annotation type in the target subtree
+- **`is_depends_on_other`** — at least one *other* form of dependency exists (calls, throws, parameter types, field types, return types, field reads/writes, etc. — the residual after the three structural kinds above)
+
+Multiple attributes can be true simultaneously. A class that extends another class *and* uses methods from it would have both `is_extends: true` and `is_depends_on_other: true` on the edge.
+
+**Why this matters for the LLM:**
+
+The attribute-on-edge design lets the LLM answer kind-specific questions at the aggregated and type levels without needing to drill into detail-level evidence:
+
+- *"Does anything in the API layer extend anything in the infrastructure layer?"* → filter aggregated edges by `is_extends: true` between the two scopes
+- *"Show me the inheritance structure of this module"* → query type-level edges where `is_extends: true` or `is_implements: true`
+- *"Which annotation types are used heavily in this codebase?"* → query edges to annotation types where `is_annotated_by: true`
+- *"Is this dependency more than just usage — is there a structural commitment?"* → check whether `is_extends` or `is_implements` is true
+
+Without the attributes, these questions would require descending to `detail_level: "detail"` for the answer.
+
+**Response shape:**
+
+The attributes appear on each type-level edge as a structured set:
+
+```json
+{
+  "source": { ... NodeRef ... },
+  "target": { ... NodeRef ... },
+  "weight": 12,
+  "type_pair_count": 3,
+  "attributes": {
+    "is_extends": true,
+    "is_implements": false,
+    "is_annotated_by": false,
+    "is_depends_on_other": true
+  }
+}
+```
+
+The `weight` is the sum of underlying detail-level edge weights (the count of concrete dependencies). The `type_pair_count` is the number of distinct type-to-type edges that contribute (relevant on aggregated edges between subtrees; always 1 on direct type-to-type edges). The `attributes` carry the kind information independently from weight.
+
+**Scanner-driven vocabulary:**
+
+The attribute set is declared by the provider, not hardcoded in Hierograph. The Java provider declares `is_extends`, `is_implements`, `is_annotated_by`, `is_depends_on_other`. A future Python provider would declare its own set — possibly overlapping (Python has `extends` in single inheritance and now also explicit `implements` for protocols) but with language-specific differences (`decorated_by` rather than `annotated_by`, perhaps). The `graph_overview` tool surfaces the active attribute vocabulary so the LLM learns it at session start.
+
+**Why not separate edges per kind:**
+
+An alternative design would represent each kind as a separate edge: `A —[extends]→ B` and `A —[depends_on]→ B` as two parallel edges. This was considered and rejected because:
+
+1. The graph topology becomes a multigraph, forcing every algorithm to deduplicate
+2. Aggregation gets harder — combining counts across kinds requires deciding which edges to merge
+3. Reachability and pathfinding become ambiguous when multiple edges connect the same pair
+4. The natural question "is there *any* dependency between A and B" requires examining multiple edges
+
+The attribute-on-edge design avoids all of these. The graph is simple; the kind information is preserved; questions can be asked at either the "any dependency" level (does the edge exist?) or the "specific kind" level (which attribute is true?).
 
 ### Detail-level relationship kinds
 
 These are the values accepted by the `relationship` parameter on `outgoing_dependencies` / `incoming_dependencies` at `detail_level: "detail"`, and reported as the `relationship` field on each detail-level edge.
+
+Unlike the type-level attributes (which are *flags on a single edge*), detail-level relationships *are* the edges — each detail-level edge has exactly one relationship kind. This is correct at the detail level because the source entities are different (a method *calls* another method, but doesn't extend it; that's a different concrete relationship).
 
 **Method-originated relationships** (the source entity is a method):
 
@@ -332,6 +385,8 @@ When other language scanners are added, they introduce their own namespaces:
 
 - `python.module`, `python.class`, `python.function`, `python.method`, ...
 - `typescript.module`, `typescript.class`, `typescript.function`, ...
+
+Each scanner also declares its own type-level edge attribute set and detail-level relationship vocabulary. The framework is uniform; the specifics adapt to what each scanner captures.
 
 The MCP tools accept these uniformly; only the loader (and any per-language metadata in `method_details` / `field_details`) needs to be aware of the language-specific specifics. The `graph_overview` response reports which namespaces are present in the current graph so the LLM knows what to expect.
 
@@ -439,7 +494,7 @@ aggregated_dependencies(
 
 *(Replaces `aggregated_outgoing`, `aggregated_incoming`, and `dependency_between`.)*
 
-Returns the aggregated edges from any source in `source_ids` to any target in `target_ids`. Each edge represents the total dependency from one specific source to one specific target, with weight, type_pair_count, and kinds.
+Returns the aggregated edges from any source in `source_ids` to any target in `target_ids`. Each edge represents the total dependency from one specific source to one specific target, with weight, type_pair_count, and the structured attribute set (see *Type-level edge attributes* above).
 
 Aggregation is always pairwise. Given two subtrees A and B, there is exactly one aggregated dependency from A to B. This tool computes that for every (source, target) pair in the cross product of the input sets.
 
