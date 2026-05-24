@@ -12,10 +12,6 @@ public class DefaultMappingProvider implements IMappingProvider {
 
   private IDependencyDefinitionProvider      _dependencyProvider;
 
-  private ILabelDefinitionProvider _labelProvider;
-
-  private INodeComparator          _nodeComparator;
-
   private INodeMetadataProvider    _nodeMetadataProvider;
 
   /**
@@ -26,20 +22,15 @@ public class DefaultMappingProvider implements IMappingProvider {
    * @param metaInformation
    * @param hierarchyProvider
    * @param dependencyProvider
-   * @param labelProvider
-   * @param nodeComparator
    * @param nodeMetadataProvider
    */
   public DefaultMappingProvider(IMappingProviderMetadata metaInformation, IHierarchyDefinitionProvider hierarchyProvider,
-      IDependencyDefinitionProvider dependencyProvider, ILabelDefinitionProvider labelProvider,
-      INodeComparator nodeComparator, INodeMetadataProvider nodeMetadataProvider) {
+      IDependencyDefinitionProvider dependencyProvider, INodeMetadataProvider nodeMetadataProvider) {
 
     this._metaData = checkNotNull(metaInformation);
     this._hierarchyProvider = checkNotNull(hierarchyProvider);
     this._dependencyProvider = checkNotNull(dependencyProvider);
-    this._labelProvider = checkNotNull(labelProvider);
-    this._nodeComparator = checkNotNull(nodeComparator);
-    this._nodeMetadataProvider = checkNotNull(nodeMetadataProvider);
+     this._nodeMetadataProvider = checkNotNull(nodeMetadataProvider);
   }
 
 
@@ -58,18 +49,6 @@ public class DefaultMappingProvider implements IMappingProvider {
   @Override
   public IDependencyDefinitionProvider getDependencyDefinitionProvider() {
     return this._dependencyProvider;
-  }
-
-
-  @Override
-  public ILabelDefinitionProvider getLabelDefinitionProvider() {
-    return this._labelProvider;
-  }
-
-
-  @Override
-  public INodeComparator getNodeComparator() {
-    return this._nodeComparator;
   }
 
   @Override

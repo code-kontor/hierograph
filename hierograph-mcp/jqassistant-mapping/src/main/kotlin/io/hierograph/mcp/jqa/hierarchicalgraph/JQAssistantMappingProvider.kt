@@ -7,13 +7,11 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.annotations.SlizaaMappin
 @SlizaaMappingProvider
 class JQAssistantMappingProvider : DefaultMappingProvider(
     IMappingProvider.IMappingProviderMetadata.createMetadata(
-        "org.slizaa.jqassistant.hierarchicalgraph",
-        "Slizaa jQAssistant (hierarchical packages)",
+        "io.hierograph.jqassistant.hierarchicalgraph",
+        "Hierograph jQAssistant (hierarchical packages)",
         null, null
     ),
     JQAssistantHierarchyProvider(),
     JQAssistantDependencyProvider(),
-    JQAssistantLabelProvider(),
-    JQAssistantNodeComparator(),
     JQAssistantNodeMetadataProvider()
 )

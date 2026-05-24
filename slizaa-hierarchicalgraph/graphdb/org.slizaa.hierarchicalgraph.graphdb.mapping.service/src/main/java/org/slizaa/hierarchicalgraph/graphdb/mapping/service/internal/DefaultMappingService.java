@@ -105,8 +105,6 @@ public class DefaultMappingService implements IMappingService {
             // register default extensions
             rootNode.registerExtension(IProxyDependencyResolver.class, new CustomProxyDependencyResolver());
             rootNode.registerExtension(IMappingProvider.class, mappingDescriptor);
-            rootNode.registerExtension(INodeComparator.class, mappingDescriptor.getNodeComparator());
-            rootNode.registerExtension(ILabelDefinitionProvider.class, mappingDescriptor.getLabelDefinitionProvider());
             rootNode.registerExtension(INodeMetadataProvider.class, mappingDescriptor.getNodeMetadataProvider());
 
             for (IMappingParticipator mappingParticipator : this._mappingParticipators) {
