@@ -1,14 +1,13 @@
-package io.hierograph.mcp.server.mcp.reachability
+package io.hierograph.mcp.server.tools.reachability
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
-import org.slizaa.mcp.core.HierarchicalGraphService
-import org.slizaa.mcp.core.mcp.INodeRefFactory
+import io.hierograph.mcp.server.HierarchicalGraphService
+import io.hierograph.mcp.server.tools.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
-import java.util.*
 
 /**
  * MCP tool: `find_dependency_path`

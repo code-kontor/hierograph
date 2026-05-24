@@ -1,18 +1,18 @@
 package io.hierograph.mcp.server.rest
 
-import org.slizaa.mcp.core.mcp.navigation.ListDescendantsTool
-import org.slizaa.mcp.core.mcp.detail.FieldDetailsTool
-import org.slizaa.mcp.core.mcp.detail.MethodDetailsTool
-import org.slizaa.mcp.core.mcp.detail.TypeDetailsTool
-import org.slizaa.mcp.core.mcp.navigation.FindNodeTool
-import org.slizaa.mcp.core.mcp.navigation.GraphOverviewTool
-import org.slizaa.mcp.core.mcp.navigation.ListChildrenTool
-import org.slizaa.mcp.core.mcp.dependencyanalysis.AggregatedDependenciesTool
-import org.slizaa.mcp.core.mcp.dependencyanalysis.IncomingDependenciesTool
-import org.slizaa.mcp.core.mcp.dependencyanalysis.OutgoingDependenciesTool
-import org.slizaa.mcp.core.mcp.dependencyanalysis.PairwiseDependenciesTool
-import org.slizaa.mcp.core.mcp.reachability.AffectedByTool
-import org.slizaa.mcp.core.mcp.reachability.FindDependencyPathTool
+import io.hierograph.mcp.server.tools.navigation.ListDescendantsTool
+import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
+import io.hierograph.mcp.server.tools.detail.MethodDetailsTool
+import io.hierograph.mcp.server.tools.detail.TypeDetailsTool
+import io.hierograph.mcp.server.tools.navigation.FindNodeTool
+import io.hierograph.mcp.server.tools.navigation.GraphOverviewTool
+import io.hierograph.mcp.server.tools.navigation.ListChildrenTool
+import io.hierograph.mcp.server.tools.dependencyanalysis.AggregatedDependenciesTool
+import io.hierograph.mcp.server.tools.dependencyanalysis.IncomingDependenciesTool
+import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
+import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesTool
+import io.hierograph.mcp.server.tools.reachability.AffectedByTool
+import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import org.springframework.web.bind.annotation.*
 
 @RestController

@@ -21,7 +21,7 @@ class LoggingToolCallbackProvider(
 ) : ToolCallbackProvider {
 
     companion object {
-        private val log = LoggerFactory.getLogger("mcp.tool.calls")
+        private val log = LoggerFactory.getLogger("tools.tool.calls")
         private const val MAX_RESPONSE_BODY_BYTES = 50 * 1024
         private const val MAX_ERROR_MESSAGE_LENGTH = 500
     }

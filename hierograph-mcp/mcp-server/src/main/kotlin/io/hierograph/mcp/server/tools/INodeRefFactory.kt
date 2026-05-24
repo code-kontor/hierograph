@@ -1,4 +1,4 @@
-package io.hierograph.mcp.server.mcp
+package io.hierograph.mcp.server.tools
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 

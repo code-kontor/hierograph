@@ -89,7 +89,7 @@ In addition to MCP, Hierograph exposes the same tools as a REST API under `/api`
 **How it's launched**:
 
 ```bash
-cd mcp-spike/core-app
+cd tools-spike/core-app
 mvn spring-boot:run
 ```
 
@@ -110,7 +110,7 @@ Claude — via Claude Code, Claude Desktop, or another MCP-compatible client —
 The user registers Hierograph once:
 
 ```bash
-claude mcp add hierograph --transport streamable-http http://localhost:8080/mcp
+claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
 ```
 
 After that, any Claude session in any project where this is registered has access to Hierograph's tools. When the user asks an architectural question, Claude decides which tools to call, in what order, with what arguments. The structural answers come from Hierograph; Claude synthesizes them, combines them with its own reasoning, and produces the final response.

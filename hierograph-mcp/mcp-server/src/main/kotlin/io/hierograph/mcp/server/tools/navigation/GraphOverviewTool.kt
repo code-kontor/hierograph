@@ -1,11 +1,11 @@
-package io.hierograph.mcp.server.mcp.navigation
+package io.hierograph.mcp.server.tools.navigation
 
 import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
-import org.slizaa.mcp.core.HierarchicalGraphService
-import org.slizaa.mcp.core.mcp.INodeRefFactory
+import io.hierograph.mcp.server.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.mcp.server.tools.INodeRefFactory
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component

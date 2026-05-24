@@ -1,10 +1,10 @@
-package io.hierograph.mcp.server.mcp.detail
+package io.hierograph.mcp.server.tools.detail
 
 import org.slf4j.LoggerFactory
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import org.slizaa.mcp.core.HierarchicalGraphService
+import io.hierograph.mcp.server.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.Comparator
@@ -28,11 +28,11 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
      * When true, the Cypher statement built for each invocation is logged at INFO together
      * with the effective `relationship` filter and the resolved `fromTypes` /
      * `toTypes` parameters. Set via
-     * `slizaa.mcp.tools.detail-dependencies.log-cypher=true` in
+     * `slizaa.tools.tools.detail-dependencies.log-cypher=true` in
      * `application.properties`; defaults to `false`. Each detail tool gets its
      * own flag as the need arises.
      */
-    @Value("\${slizaa.mcp.tools.detail-dependencies.log-cypher:false}")
+    @Value("\${slizaa.tools.tools.detail-dependencies.log-cypher:false}")
     private var logCypher: Boolean = false
 
     /**

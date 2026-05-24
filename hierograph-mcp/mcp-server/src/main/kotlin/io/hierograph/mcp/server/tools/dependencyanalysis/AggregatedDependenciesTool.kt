@@ -1,10 +1,10 @@
-package io.hierograph.mcp.server.mcp.dependencyanalysis
+package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.mcp.core.HierarchicalGraphService
-import org.slizaa.mcp.core.mcp.INodeRefFactory
+import io.hierograph.mcp.server.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.server.tools.INodeRefFactory
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component

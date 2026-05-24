@@ -80,11 +80,11 @@ mvn clean install
 mvn com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server
 
 # 3. Start the Hierograph MCP server (in a new terminal)
-cd mcp-spike/core-app
+cd tools-spike/core-app
 mvn spring-boot:run
 
 # 4. Register with Claude Code
-claude mcp add hierograph --transport streamable-http http://localhost:8080/mcp
+claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
 ```
 
 Then ask Claude things like *"Give me an overview of the project structure"* or

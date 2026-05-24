@@ -1,9 +1,9 @@
-package io.hierograph.mcp.server.mcp.detail
+package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Value
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import org.slizaa.mcp.core.HierarchicalGraphService
-import org.slizaa.mcp.core.mcp.INodeRefFactory
+import io.hierograph.mcp.server.HierarchicalGraphService
+import io.hierograph.mcp.server.tools.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -160,7 +160,7 @@ class TypeDetailsTool(
         }
 
         // ── inner types (from in-memory model) ─────────────────────────
-        val innerTypes = if (hgNode != null) {
+        val innerTypes: List<LinkedHashMap<String, Any?>> = if (hgNode != null) {
             hgNode.children
                 .filter { it.kind in JavaKinds.TYPE_KINDS }
                 .map { nodeRefFactory.minimalNodeRef(it) }

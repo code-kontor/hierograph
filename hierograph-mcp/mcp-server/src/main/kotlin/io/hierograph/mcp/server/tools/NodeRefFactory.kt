@@ -1,9 +1,9 @@
-package io.hierograph.mcp.server.mcp
+package io.hierograph.mcp.server.tools
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
-import org.slizaa.mcp.core.HierarchicalGraphService
+import io.hierograph.mcp.server.HierarchicalGraphService
 import org.springframework.stereotype.Component
 
 /**

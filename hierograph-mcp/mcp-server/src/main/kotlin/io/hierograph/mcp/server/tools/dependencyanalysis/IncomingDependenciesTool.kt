@@ -1,6 +1,6 @@
-package io.hierograph.mcp.server.mcp.dependencyanalysis
+package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import org.slizaa.mcp.core.mcp.detail.DetailDependenciesComponent
+import io.hierograph.mcp.server.tools.detail.DetailDependenciesComponent
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component

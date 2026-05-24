@@ -1,6 +1,6 @@
 jqassistant:
   store:
-    uri: file:mcp-example-db
+    uri: file:tools-example-db
   plugins:
     - group-id: com.buschmais.jqassistant.plugin 
       artifact-id: java

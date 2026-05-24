@@ -62,7 +62,7 @@ Create a `.jqassistant.yml` file in your project root:
 ```yaml
 jqassistant:
   store:
-    uri: file:mcp-example-db
+    uri: file:tools-example-db
   plugins:
     - group-id: com.buschmais.jqassistant.plugin
       artifact-id: java
@@ -116,7 +116,7 @@ You can also browse the raw graph data at `http://localhost:7474` using Neo4j's 
 In a new terminal, start the Hierograph MCP server (Spring Boot application):
 
 ```bash
-cd mcp-spike/core-app
+cd tools-spike/core-app
 mvn spring-boot:run
 ```
 
@@ -133,13 +133,13 @@ slizaa.bolt.uri=bolt://localhost:7687
 Register the Hierograph MCP server with the Claude CLI:
 
 ```bash
-claude mcp add hierograph --transport streamable-http http://localhost:8080/mcp
+claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
 ```
 
 Verify it's connected:
 
 ```bash
-claude mcp list
+claude tools list
 ```
 
 You should see `hierograph` listed with its tools.
