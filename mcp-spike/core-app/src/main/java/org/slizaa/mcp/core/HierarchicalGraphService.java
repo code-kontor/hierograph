@@ -7,7 +7,6 @@ import org.slizaa.core.boltclient.IBoltClientFactory;
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingFactory;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider;
-import org.slizaa.hierarchicalgraph.graphdb.model.GraphTraversalUtil;
 import org.slizaa.jqassistant.hierarchicalgraph.JQAssistant_MappingProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

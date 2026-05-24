@@ -6,6 +6,7 @@ import org.slizaa.mcp.core.mcp.detail.FieldDetailsMcpTool;
 import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool;
 import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool;
 import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool;
+import org.slizaa.mcp.core.mcp.navigation.FindNodeTool;
 import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools;
 import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools;
 import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools;
@@ -18,6 +19,7 @@ import java.util.Map;
 @RequestMapping("/api")
 public class GraphController {
 
+    private final FindNodeTool findNodeTool;
     private final DiscoveryMcpTools discoveryTools;
     private final PairwiseDependencyMcpTools pairwiseTools;
     private final ScopeDependencyMcpTools scopeTools;
@@ -28,7 +30,8 @@ public class GraphController {
     private final MethodDetailsMcpTool methodDetailsTool;
     private final FieldDetailsMcpTool fieldDetailsTool;
 
-    public GraphController(DiscoveryMcpTools discoveryTools,
+    public GraphController(FindNodeTool findNodeTool,
+                           DiscoveryMcpTools discoveryTools,
                            PairwiseDependencyMcpTools pairwiseTools,
                            ScopeDependencyMcpTools scopeTools,
                            ReachabilityMcpTools reachabilityTools,
@@ -37,6 +40,7 @@ public class GraphController {
                            DetailDependenciesMcpTool detailDependenciesTool,
                            MethodDetailsMcpTool methodDetailsTool,
                            FieldDetailsMcpTool fieldDetailsTool) {
+        this.findNodeTool = findNodeTool;
         this.discoveryTools = discoveryTools;
         this.pairwiseTools = pairwiseTools;
         this.scopeTools = scopeTools;
@@ -49,11 +53,10 @@ public class GraphController {
     }
 
     @GetMapping("/find-node")
-    public List<Map<String, Object>> findNode(
-            @RequestParam String query,
-            @RequestParam(required = false) String kind,
-            @RequestParam(required = false) Integer limit) {
-        return discoveryTools.findNode(query, kind, limit);
+    public Map<String, ?> findNode(
+            @RequestParam String name,
+            @RequestParam(required = false) List<String> kindFilter) {
+        return findNodeTool.findNode(name, kindFilter);
     }
 
     @GetMapping("/list-children")

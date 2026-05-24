@@ -18,47 +18,6 @@ public class DiscoveryMcpTools extends AbstractGraphMcpTools {
         super(graphService);
     }
 
-    @Tool(name = "find_node",
-            description = "[Discovery and orientation] Look up nodes by name. This is the primary way to obtain node IDs and should be the " +
-                    "first tool called when the user mentions a specific class, package, or artifact by name. " +
-                    "Searches by name or fully qualified name using case-insensitive substring matching. " +
-                    "Use the kind filter when names are ambiguous across node types (e.g. a package and a class " +
-                    "sharing the same name).")
-    public List<Map<String, Object>> findNode(
-            @ToolParam(description = "Name or fragment to search for, e.g. 'ClusterService', 'payment.api'") String query,
-            @ToolParam(description = "Optional node kind filter: 'Class', 'Interface', 'Enum', 'Annotation', 'Record', 'Package', 'Artifact'",
-                    required = false) String kind,
-            @ToolParam(description = "Max results to return (1-50, default 10)", required = false) Integer limit) {
-
-        int effectiveLimit = limit != null ? Math.min(Math.max(limit, 1), 50) : 10;
-        INodeMetadataProvider mp = getMetadataProvider();
-
-        String cypher = mp.getFindNodeCypherQuery(kind, effectiveLimit);
-
-        var result = graphService.getBoltClient().syncExecCypherQuery(
-                cypher, Map.of("query", query));
-
-        List<Map<String, Object>> nodes = new ArrayList<>();
-        for (Record record : result.records()) {
-            long nodeId = record.get("nodeId").asLong();
-            HGNode hgNode = graphService.getRootNode().lookupNode(nodeId);
-
-            if (hgNode != null) {
-                nodes.add(toNodeRef(hgNode));
-            } else {
-                // Node found in DB but not in HG model
-                Map<String, Object> entry = new LinkedHashMap<>();
-                entry.put("id", nodeId);
-                entry.put("name", record.get("name").asString(null));
-                entry.put("qualified_name", record.get("fqn").asString(null));
-                entry.put("kind", mp.getKindFromLabels(record.get("labels").asList(org.neo4j.driver.Value::asString)));
-                nodes.add(entry);
-            }
-        }
-
-        return nodes;
-    }
-
     @Tool(name = "list_children",
             description = "[Discovery and orientation] Returns the immediate direct children of a node — only one level. " +
                     "Use this for shallow exploration when you want to see what's directly contained " +
