@@ -3,6 +3,7 @@ package org.slizaa.mcp.core.mcp.detail;
 import org.neo4j.driver.Record;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.javaspec.JavaKinds;
 import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -162,7 +163,7 @@ public class ListMethodsMcpTool extends AbstractDetailMcpTool {
             allMethods.add(methodEntry);
 
             nodeDisplay.putIfAbsent(methodId, new String[]{
-                    methodName, methodFqn, isConstructor ? "java.constructor" : "java.method"});
+                    methodName, methodFqn, isConstructor ? JavaKinds.CONSTRUCTOR : JavaKinds.METHOD});
             nodeDisplay.putIfAbsent(declaringTypeId, new String[]{
                     declaringTypeName, declaringTypeFqn, mp.getKindFromLabels(declaringTypeLabels)});
         }

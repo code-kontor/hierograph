@@ -19,6 +19,7 @@
     <name>mcp-spike</name>
 
     <modules>
+        <module>java-spec</module>
         <module>core-app</module>
         <module>jqassistant-mapping</module>
     </modules>

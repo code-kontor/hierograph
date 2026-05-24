@@ -4,6 +4,7 @@ import org.neo4j.driver.Record;
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider;
+import org.slizaa.mcp.javaspec.JavaKinds;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,22 +30,15 @@ public class JQAssistantSearchProvider implements ISearchProvider {
 
     /** Hierograph kind → jQAssistant Neo4j label(s). */
     private static final Map<String, List<String>> KIND_TO_LABELS = Map.ofEntries(
-            Map.entry("java.module", List.of("Artifact")),
-            Map.entry("java.package", List.of("Package")),
-            Map.entry("java.class", List.of("Class")),
-            Map.entry("java.interface", List.of("Interface")),
-            Map.entry("java.enum", List.of("Enum")),
-            Map.entry("java.record", List.of("Record")),
-            Map.entry("java.annotation", List.of("Annotation")),
-            Map.entry("java.method", List.of("Method")),
-            Map.entry("java.field", List.of("Field"))
-    );
-
-    /** Group aliases → Hierograph kinds. */
-    private static final Map<String, List<String>> GROUP_ALIASES = Map.of(
-            "types", List.of("java.class", "java.interface", "java.enum", "java.record", "java.annotation"),
-            "members", List.of("java.method", "java.field"),
-            "packages", List.of("java.package")
+            Map.entry(JavaKinds.MODULE, List.of("Artifact")),
+            Map.entry(JavaKinds.PACKAGE, List.of("Package")),
+            Map.entry(JavaKinds.CLASS, List.of("Class")),
+            Map.entry(JavaKinds.INTERFACE, List.of("Interface")),
+            Map.entry(JavaKinds.ENUM, List.of("Enum")),
+            Map.entry(JavaKinds.RECORD, List.of("Record")),
+            Map.entry(JavaKinds.ANNOTATION, List.of("Annotation")),
+            Map.entry(JavaKinds.METHOD, List.of("Method")),
+            Map.entry(JavaKinds.FIELD, List.of("Field"))
     );
 
     // ── search ─────────────────────────────────────────────────────────
@@ -115,7 +109,7 @@ public class JQAssistantSearchProvider implements ISearchProvider {
 
         Set<String> labels = new LinkedHashSet<>();
         for (String kind : kindFilter) {
-            List<String> expanded = GROUP_ALIASES.get(kind);
+            List<String> expanded = JavaKinds.expandAlias(kind);
             if (expanded != null) {
                 for (String k : expanded) {
                     List<String> mapped = KIND_TO_LABELS.get(k);

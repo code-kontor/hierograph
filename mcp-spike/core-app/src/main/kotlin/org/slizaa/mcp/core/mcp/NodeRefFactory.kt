@@ -2,6 +2,7 @@ package org.slizaa.mcp.core.mcp
 
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import org.slizaa.mcp.javaspec.JavaKinds
 import org.slizaa.mcp.core.HierarchicalGraphService
 import org.springframework.stereotype.Component
 
@@ -51,11 +52,11 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         val kind = mp.getKind(node)
 
         when {
-            kind.startsWith("java.module") || kind == "java.module" -> enrichModule(ref, node)
-            kind == "java.package" -> enrichPackage(ref, node)
-            kind in TYPE_KINDS -> enrichType(ref, node, mp)
-            kind == "java.method" -> enrichMethod(ref, node, mp)
-            kind == "java.field" -> enrichField(ref, node, mp)
+            kind == JavaKinds.MODULE -> enrichModule(ref, node)
+            kind == JavaKinds.PACKAGE -> enrichPackage(ref, node)
+            kind in JavaKinds.TYPE_KINDS -> enrichType(ref, node, mp)
+            kind == JavaKinds.METHOD -> enrichMethod(ref, node, mp)
+            kind == JavaKinds.FIELD -> enrichField(ref, node, mp)
         }
 
         return ref
@@ -63,21 +64,21 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
 
     private fun enrichModule(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         ref["child_count"] = node.children.size
-        ref["descendant_type_count"] = countDescendantsByKind(node, TYPE_KINDS)
-        ref["descendant_method_count"] = countDescendantsByKind(node, setOf("java.method"))
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
+        ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaKinds.METHOD))
     }
 
     private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         ref["child_count"] = node.children.size
-        ref["descendant_type_count"] = countDescendantsByKind(node, TYPE_KINDS)
-        ref["direct_type_count"] = node.children.count { metadataProvider.getKind(it) in TYPE_KINDS }
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
+        ref["direct_type_count"] = node.children.count { metadataProvider.getKind(it) in JavaKinds.TYPE_KINDS }
     }
 
     private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode, mp: INodeMetadataProvider) {
         // TODO: modifiers, annotation_count, interface_count, is_abstract, is_generic, parent_type
         //       require property materialisation — will be filled in when the enriched metadata is available
-        val methods = node.children.count { mp.getKind(it) == "java.method" }
-        val fields = node.children.count { mp.getKind(it) == "java.field" }
+        val methods = node.children.count { mp.getKind(it) == JavaKinds.METHOD }
+        val fields = node.children.count { mp.getKind(it) == JavaKinds.FIELD }
         ref["member_count"] = methods + fields
         ref["method_count"] = methods
         ref["field_count"] = fields
@@ -130,7 +131,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         "id" to null,
         "name" to name,
         "qualified_name" to name,
-        "kind" to "java.primitive"
+        "kind" to JavaKinds.PRIMITIVE
     )
 
     // ── utility ────────────────────────────────────────────────────────
@@ -163,9 +164,6 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     }
 
     companion object {
-        /** The set of type-level node kinds. */
-        val TYPE_KINDS = setOf("java.class", "java.interface", "java.enum", "java.record", "java.annotation")
-
         private fun linkedMapOf(vararg pairs: Pair<String, Any?>): LinkedHashMap<String, Any?> {
             val map = LinkedHashMap<String, Any?>()
             for ((k, v) in pairs) map[k] = v

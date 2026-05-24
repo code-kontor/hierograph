@@ -3,6 +3,7 @@ package org.slizaa.mcp.core.mcp.detail;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.javaspec.JavaKinds;
 import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -96,7 +97,7 @@ public class MethodDetailsMcpTool extends AbstractDetailMcpTool {
         methodRef.put("id", methodId);
         methodRef.put("name", methodName);
         methodRef.put("qualified_name", methodFqn);
-        methodRef.put("kind", isConstructor ? "java.constructor" : "java.method");
+        methodRef.put("kind", isConstructor ? JavaKinds.CONSTRUCTOR : JavaKinds.METHOD);
         methodRef.put("parent_id", declaringTypeId);
         methodRef.put("parent_kind", declaringTypeKind);
 
@@ -141,7 +142,7 @@ public class MethodDetailsMcpTool extends AbstractDetailMcpTool {
             overridesRef.put("id", ovId);
             overridesRef.put("name", ovName);
             overridesRef.put("qualified_name", ovFqn);
-            overridesRef.put("kind", ovIsCtor ? "java.constructor" : "java.method");
+            overridesRef.put("kind", ovIsCtor ? JavaKinds.CONSTRUCTOR : JavaKinds.METHOD);
             overridesRef.put("parent_id", ovDtId);
             overridesRef.put("parent_kind", mp.getKindFromLabels(ovDtLabels));
         }

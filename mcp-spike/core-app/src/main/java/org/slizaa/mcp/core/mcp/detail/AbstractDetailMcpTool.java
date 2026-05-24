@@ -2,6 +2,7 @@ package org.slizaa.mcp.core.mcp.detail;
 
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
+import org.slizaa.mcp.javaspec.JavaKinds;
 import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.slizaa.mcp.core.mcp.AbstractGraphMcpTools;
 
@@ -21,8 +22,7 @@ import java.util.Set;
  */
 public abstract class AbstractDetailMcpTool extends AbstractGraphMcpTools {
 
-    protected static final Set<String> JAVA_PRIMITIVES = Set.of(
-            "void", "boolean", "byte", "char", "short", "int", "long", "float", "double");
+    protected static final Set<String> JAVA_PRIMITIVES = JavaKinds.JAVA_PRIMITIVES;
 
     protected AbstractDetailMcpTool(HierarchicalGraphService graphService) {
         super(graphService);
@@ -34,20 +34,20 @@ public abstract class AbstractDetailMcpTool extends AbstractGraphMcpTools {
         ref.put("id", null);
         ref.put("name", name);
         ref.put("qualified_name", name);
-        ref.put("kind", "java.primitive");
+        ref.put("kind", JavaKinds.PRIMITIVE);
         return ref;
     }
 
-    /** Derives a Cartograph-normalized kind string from Neo4j node labels for detail-level entities. */
+    /** Derives a Hierograph-normalized kind string from Neo4j node labels for detail-level entities. */
     protected String deriveDetailKind(List<String> labels) {
-        if (labels.contains("Constructor")) return "java.constructor";
-        if (labels.contains("Method")) return "java.method";
-        if (labels.contains("Field")) return "java.field";
-        if (labels.contains("Interface")) return "java.interface";
-        if (labels.contains("Enum")) return "java.enum";
-        if (labels.contains("Annotation")) return "java.annotation";
-        if (labels.contains("Class")) return "java.class";
-        if (labels.contains("Type")) return "java.class";
+        if (labels.contains("Constructor")) return JavaKinds.CONSTRUCTOR;
+        if (labels.contains("Method")) return JavaKinds.METHOD;
+        if (labels.contains("Field")) return JavaKinds.FIELD;
+        if (labels.contains("Interface")) return JavaKinds.INTERFACE;
+        if (labels.contains("Enum")) return JavaKinds.ENUM;
+        if (labels.contains("Annotation")) return JavaKinds.ANNOTATION;
+        if (labels.contains("Class")) return JavaKinds.CLASS;
+        if (labels.contains("Type")) return JavaKinds.CLASS;
         return "unknown";
     }
 

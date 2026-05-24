@@ -16,6 +16,7 @@
         <module name="ecoregenerator-maven-plugin" />
         <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="org.slizaa.hierarchicalgraph.graphdb.model" />
+        <module name="java-spec" />
         <module name="org.slizaa.hierarchicalgraph.core.model" />
         <module name="org.slizaa.hierarchicalgraph.core.testfwk" />
         <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.service" />
@@ -33,6 +34,7 @@
       <module name="core-app" options="-parameters" />
       <module name="ecoregenerator-maven-plugin" options="-parameters" />
       <module name="hierarchicalgraph" options="-parameters" />
+      <module name="java-spec" options="-parameters" />
       <module name="jqassistant-mapping" options="-parameters" />
       <module name="mcp-spike" options="-parameters" />
       <module name="mojos" options="-parameters" />

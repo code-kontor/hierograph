@@ -3,6 +3,7 @@ package org.slizaa.mcp.core.mcp.detail;
 import org.neo4j.driver.Record;
 import org.slizaa.hierarchicalgraph.core.model.HGNode;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.javaspec.JavaKinds;
 import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -160,7 +161,7 @@ public class ListFieldsMcpTool extends AbstractDetailMcpTool {
             fieldEntry.put("is_inherited", isInherited);
             allFields.add(fieldEntry);
 
-            nodeDisplay.putIfAbsent(fieldId, new String[]{fieldName, fieldFqn, "java.field"});
+            nodeDisplay.putIfAbsent(fieldId, new String[]{fieldName, fieldFqn, JavaKinds.FIELD});
             nodeDisplay.putIfAbsent(declaringTypeId, new String[]{
                     declaringTypeName, declaringTypeFqn, mp.getKindFromLabels(declaringTypeLabels)});
         }

@@ -3,6 +3,7 @@ package org.slizaa.mcp.core.mcp.detail;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider;
+import org.slizaa.mcp.javaspec.JavaKinds;
 import org.slizaa.mcp.core.HierarchicalGraphService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -135,7 +136,7 @@ public class FieldDetailsMcpTool extends AbstractDetailMcpTool {
         }
 
         Map<String, Object> nodes = new LinkedHashMap<>();
-        putSlimNode(nodes, fieldId, fieldName, fieldFqn, "java.field");
+        putSlimNode(nodes, fieldId, fieldName, fieldFqn, JavaKinds.FIELD);
         putSlimNode(nodes, declaringTypeId, declaringTypeName, declaringTypeFqn, declaringTypeKind);
         if (typeIdForResponse != null) {
             putSlimNode(nodes, typeIdForResponse,
