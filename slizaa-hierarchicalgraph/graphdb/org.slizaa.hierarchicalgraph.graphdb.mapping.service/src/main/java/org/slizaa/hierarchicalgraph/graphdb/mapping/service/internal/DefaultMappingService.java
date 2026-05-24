@@ -15,6 +15,7 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.service.IMappingService;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingException;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.*;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
+import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
 
 import java.util.List;
@@ -32,7 +33,7 @@ public class DefaultMappingService implements IMappingService {
     private List<IMappingParticipator> _mappingParticipators = new CopyOnWriteArrayList<>();
 
     static Function<Long, INodeSource> createNodeSourceFunction = (id) -> {
-        INodeSource nodeSource = GraphDbHierarchicalgraphFactory.eINSTANCE.createGraphDbNodeSource();
+        GraphDbNodeSource nodeSource = GraphDbHierarchicalgraphFactory.eINSTANCE.createGraphDbNodeSource();
         nodeSource.setIdentifier(id);
         return nodeSource;
     };
@@ -77,9 +78,9 @@ public class DefaultMappingService implements IMappingService {
                 log.info("Created {} root nodes in {}ms", rootNodes.size(), System.currentTimeMillis() - stepStart);
 
                 stepStart = System.currentTimeMillis();
-                List<Long[]> parentChildNodeIds = hierarchyProvider.getParentChildNodeIds();
-                createHierarchy(parentChildNodeIds, rootNode, createNodeSourceFunction);
-                log.info("Created hierarchy ({} parent-child pairs) in {}ms", parentChildNodeIds.size(), System.currentTimeMillis() - stepStart);
+                List<ParentChildNode> parentChildNodes = hierarchyProvider.getParentChildNodeIds();
+                createHierarchy(parentChildNodes, rootNode, createNodeSourceFunction);
+                log.info("Created hierarchy ({} parent-child pairs) in {}ms", parentChildNodes.size(), System.currentTimeMillis() - stepStart);
 
                 stepStart = System.currentTimeMillis();
                 removeDanglingNodes(rootNode);

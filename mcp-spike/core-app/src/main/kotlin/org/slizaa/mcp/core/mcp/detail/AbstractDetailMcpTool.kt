@@ -1,0 +1,92 @@
+package org.slizaa.mcp.core.mcp.detail
+
+import org.neo4j.driver.Record
+import org.neo4j.driver.Value
+import org.slizaa.mcp.javaspec.JavaKinds
+import org.slizaa.mcp.core.HierarchicalGraphService
+import org.slizaa.mcp.core.mcp.AbstractGraphMcpTools
+
+/**
+ * Shared base for the detail-level MCP tools (list_methods, list_fields, detail_dependencies,
+ * method_details, field_details). Holds Java-specific helpers used by 2+ of these tools so
+ * each concrete tool class can focus on its own logic.
+ *
+ * This class is intentionally not a Spring `@Component`; only the concrete subclasses
+ * are. Spring sees one bean per tool.
+ */
+abstract class AbstractDetailMcpTool(graphService: HierarchicalGraphService) : AbstractGraphMcpTools(graphService) {
+
+    companion object {
+        @JvmStatic
+        protected val JAVA_PRIMITIVES: Set<String> = JavaKinds.JAVA_PRIMITIVES
+
+        @JvmStatic
+        protected fun asLong(o: Any?): Long? = (o as? Number)?.toLong()
+
+        @JvmStatic
+        protected fun asString(o: Any?): String = o?.toString() ?: ""
+    }
+
+    /** Inline NodeRef used by single-entity tools (e.g. method_details) for primitive type slots. */
+    protected fun primitiveRef(name: String): Map<String, Any?> = linkedMapOf(
+        "id" to null,
+        "name" to name,
+        "qualified_name" to name,
+        "kind" to JavaKinds.PRIMITIVE
+    )
+
+    /** Derives a Hierograph-normalized kind string from Neo4j node labels for detail-level entities. */
+    protected fun deriveDetailKind(labels: List<String>): String = when {
+        labels.contains("Constructor") -> JavaKinds.CONSTRUCTOR
+        labels.contains("Method") -> JavaKinds.METHOD
+        labels.contains("Field") -> JavaKinds.FIELD
+        labels.contains("Interface") -> JavaKinds.INTERFACE
+        labels.contains("Enum") -> JavaKinds.ENUM
+        labels.contains("Annotation") -> JavaKinds.ANNOTATION
+        labels.contains("Class") -> JavaKinds.CLASS
+        labels.contains("Type") -> JavaKinds.CLASS
+        else -> "unknown"
+    }
+
+    /**
+     * Extracts a method's modifiers in canonical order (visibility first, then storage modifiers).
+     * Expects the Record to expose `visibility, isStatic, isFinal, isAbstract, isSynchronized,
+     * isNative, isDefault`.
+     */
+    protected fun extractModifiers(record: Record): List<String> = buildList {
+        val visibility = record.get("visibility").asString(null)
+        add(visibility?.lowercase() ?: "package-private")
+        if (record.get("isStatic").asBoolean(false)) add("static")
+        if (record.get("isFinal").asBoolean(false)) add("final")
+        if (record.get("isAbstract").asBoolean(false)) add("abstract")
+        if (record.get("isSynchronized").asBoolean(false)) add("synchronized")
+        if (record.get("isNative").asBoolean(false)) add("native")
+        if (record.get("isDefault").asBoolean(false)) add("default")
+    }
+
+    /**
+     * Extracts a field's modifiers in canonical order (visibility first, then storage modifiers).
+     * Expects the Record to expose `visibility, isStatic, isFinal, isTransient, isVolatile`.
+     */
+    protected fun extractFieldModifiers(record: Record): List<String> = buildList {
+        val visibility = record.get("visibility").asString(null)
+        add(visibility?.lowercase() ?: "package-private")
+        if (record.get("isStatic").asBoolean(false)) add("static")
+        if (record.get("isFinal").asBoolean(false)) add("final")
+        if (record.get("isTransient").asBoolean(false)) add("transient")
+        if (record.get("isVolatile").asBoolean(false)) add("volatile")
+    }
+
+    protected fun getVisibility(modifiers: List<String>): String = when {
+        modifiers.contains("public") -> "public"
+        modifiers.contains("protected") -> "protected"
+        modifiers.contains("private") -> "private"
+        else -> "package-private"
+    }
+
+    /** Extracts a list of map values from a Neo4j [Value]; returns empty for null. */
+    protected fun collectMaps(value: Value?): List<Map<String, Any>> {
+        if (value == null || value.isNull) return emptyList()
+        return value.values().map { it.asMap() }
+    }
+}

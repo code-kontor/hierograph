@@ -2,6 +2,7 @@ package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher;
 
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ParentChildNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +11,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyDefinitionProvider, IBoltClientAware {
 
-  private List<Long>   _toplevelNodeIds;
+  private List<Long> _toplevelNodeIds;
 
-  private List<Long[]> _parentChildNodeIdsQueries;
+  private List<ParentChildNode> _parentChildNodes;
 
 
   @Override
@@ -26,10 +27,14 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
           boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> r.get(0).asLong())).get());
     }
 
-    this._parentChildNodeIdsQueries = new ArrayList<>();
+    this._parentChildNodes = new ArrayList<>();
     for (String query : parentChildNodeIdsQueries()) {
-      this._parentChildNodeIdsQueries.addAll(
-          boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> new Long[] { r.get(0).asLong(), r.get(1).asLong() })).get());
+      this._parentChildNodes.addAll(
+          boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> new ParentChildNode(
+              r.get(0).asLong(),
+              r.get(1).asLong(),
+              r.get(2).asString()
+          ))).get());
     }
   }
 
@@ -39,8 +44,8 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
   }
 
   @Override
-  public List<Long[]> getParentChildNodeIds() throws Exception {
-    return this._parentChildNodeIdsQueries;
+  public List<ParentChildNode> getParentChildNodeIds() throws Exception {
+    return this._parentChildNodes;
   }
 
     protected abstract String[] toplevelNodeIdQueries();

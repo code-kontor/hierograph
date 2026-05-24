@@ -4,6 +4,7 @@ import org.slizaa.hierarchicalgraph.core.model.*;
 import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IProxyDependencyDefinition;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ParentChildNode;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbDependencySource;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
 
@@ -49,14 +50,14 @@ public class GraphFactoryFunctions {
     }
   }
 
-    public static void createHierarchy(List<Long[]> hierarchyNodeIds, HGRootNode rootElement,
+    public static void createHierarchy(List<ParentChildNode> hierarchyNodes, HGRootNode rootElement,
       final Function<Long, INodeSource> nodeSourceCreator) {
 
-    checkNotNull(hierarchyNodeIds);
+    checkNotNull(hierarchyNodes);
 
-    for (Long[] ids : hierarchyNodeIds) {
-      HGNode parentNode = createNodeIfAbsent(ids[0], rootElement, null, nodeSourceCreator);
-      createNodeIfAbsent(ids[1], rootElement, parentNode, nodeSourceCreator);
+    for (ParentChildNode pcn : hierarchyNodes) {
+      HGNode parentNode = createNodeIfAbsent(pcn.parentId(), rootElement, null, nodeSourceCreator);
+      createNodeIfAbsent(pcn.childId(), rootElement, parentNode, nodeSourceCreator);
     }
   }
 

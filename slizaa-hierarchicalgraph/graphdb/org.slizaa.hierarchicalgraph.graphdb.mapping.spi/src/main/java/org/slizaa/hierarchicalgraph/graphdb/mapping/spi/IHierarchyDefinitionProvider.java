@@ -6,5 +6,5 @@ public interface IHierarchyDefinitionProvider {
 
     List<Long> getToplevelNodeIds() throws Exception;
 
-    List<Long[]> getParentChildNodeIds() throws Exception;
+    List<ParentChildNode> getParentChildNodeIds() throws Exception;
 }
