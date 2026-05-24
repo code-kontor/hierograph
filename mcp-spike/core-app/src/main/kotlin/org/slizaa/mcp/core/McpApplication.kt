@@ -9,9 +9,10 @@ import org.slizaa.mcp.core.mcp.detail.FieldDetailsMcpTool
 import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool
 import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool
 import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool
-import org.slizaa.mcp.core.mcp.discovery.DiscoveryMcpTools
 import org.slizaa.mcp.core.mcp.navigation.FindNodeTool
 import org.slizaa.mcp.core.mcp.navigation.GraphOverviewTool
+import org.slizaa.mcp.core.mcp.navigation.ListChildrenTool
+import org.slizaa.mcp.core.mcp.navigation.ListDescendantsTool
 import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools
 import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools
 import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools
@@ -37,7 +38,8 @@ class McpApplication {
     fun graphToolCallbackProvider(
         findNodeTool: FindNodeTool,
         graphOverviewTool: GraphOverviewTool,
-        discoveryMcpTools: DiscoveryMcpTools,
+        listChildrenTool: ListChildrenTool,
+        listDescendantsTool: ListDescendantsTool,
         pairwiseDependencyMcpTools: PairwiseDependencyMcpTools,
         scopeDependencyMcpTools: ScopeDependencyMcpTools,
         reachabilityMcpTools: ReachabilityMcpTools,
@@ -49,7 +51,7 @@ class McpApplication {
     ): ToolCallbackProvider {
         val delegate = MethodToolCallbackProvider.builder()
             .toolObjects(
-                findNodeTool, graphOverviewTool, discoveryMcpTools, pairwiseDependencyMcpTools,
+                findNodeTool, graphOverviewTool, listChildrenTool, listDescendantsTool, pairwiseDependencyMcpTools,
                 scopeDependencyMcpTools, reachabilityMcpTools,
                 listMethodsTool, listFieldsTool, detailDependenciesTool,
                 methodDetailsTool, fieldDetailsTool

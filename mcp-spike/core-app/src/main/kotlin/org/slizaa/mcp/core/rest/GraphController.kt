@@ -1,13 +1,14 @@
 package org.slizaa.mcp.core.rest
 
 import org.slizaa.mcp.core.mcp.detail.DetailDependenciesMcpTool
-import org.slizaa.mcp.core.mcp.discovery.DiscoveryMcpTools
+import org.slizaa.mcp.core.mcp.navigation.ListDescendantsTool
 import org.slizaa.mcp.core.mcp.detail.FieldDetailsMcpTool
 import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool
 import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool
 import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool
 import org.slizaa.mcp.core.mcp.navigation.FindNodeTool
 import org.slizaa.mcp.core.mcp.navigation.GraphOverviewTool
+import org.slizaa.mcp.core.mcp.navigation.ListChildrenTool
 import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools
 import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools
 import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools
@@ -18,7 +19,8 @@ import org.springframework.web.bind.annotation.*
 class GraphController(
     private val findNodeTool: FindNodeTool,
     private val graphOverviewTool: GraphOverviewTool,
-    private val discoveryTools: DiscoveryMcpTools,
+    private val listChildrenTool: ListChildrenTool,
+    private val listDescendantsTool: ListDescendantsTool,
     private val pairwiseTools: PairwiseDependencyMcpTools,
     private val scopeTools: ScopeDependencyMcpTools,
     private val reachabilityTools: ReachabilityMcpTools,
@@ -37,17 +39,21 @@ class GraphController(
 
     @GetMapping("/list-children")
     fun listChildren(
-        @RequestParam(required = false) nodeId: Long?,
+        @RequestParam nodeId: Long,
+        @RequestParam(required = false) kindFilter: List<String>?,
+        @RequestParam(required = false) namePattern: String?,
+        @RequestParam(required = false) modifierFilter: List<String>?,
         @RequestParam(required = false) limit: Int?
-    ): List<Map<String, Any?>> = discoveryTools.listChildren(nodeId, limit)
+    ): Map<String, Any?> = listChildrenTool.listChildren(nodeId, kindFilter, namePattern, modifierFilter, limit)
 
     @GetMapping("/list-descendants")
     fun listDescendants(
-        @RequestParam rootId: Long,
+        @RequestParam nodeId: Long,
         @RequestParam(required = false) kindFilter: List<String>?,
-        @RequestParam(required = false) excludeKindFilter: List<String>?,
+        @RequestParam(required = false) namePattern: String?,
+        @RequestParam(required = false) modifierFilter: List<String>?,
         @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = discoveryTools.listDescendants(rootId, kindFilter, excludeKindFilter, limit)
+    ): Map<String, Any?> = listDescendantsTool.listDescendants(nodeId, kindFilter, namePattern, modifierFilter, limit)
 
     @GetMapping("/dependency-between")
     fun dependencyBetween(
