@@ -1,17 +1,18 @@
 package org.slizaa.mcp.core.rest
 
-import org.slizaa.mcp.core.mcp.detail.DetailDependenciesMcpTool
 import org.slizaa.mcp.core.mcp.navigation.ListDescendantsTool
-import org.slizaa.mcp.core.mcp.detail.FieldDetailsMcpTool
-import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool
-import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool
-import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool
+import org.slizaa.mcp.core.mcp.detail.FieldDetailsTool
+import org.slizaa.mcp.core.mcp.detail.MethodDetailsTool
+import org.slizaa.mcp.core.mcp.detail.TypeDetailsTool
 import org.slizaa.mcp.core.mcp.navigation.FindNodeTool
 import org.slizaa.mcp.core.mcp.navigation.GraphOverviewTool
 import org.slizaa.mcp.core.mcp.navigation.ListChildrenTool
-import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools
-import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools
-import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools
+import org.slizaa.mcp.core.mcp.dependencyanalysis.AggregatedDependenciesTool
+import org.slizaa.mcp.core.mcp.dependencyanalysis.IncomingDependenciesTool
+import org.slizaa.mcp.core.mcp.dependencyanalysis.OutgoingDependenciesTool
+import org.slizaa.mcp.core.mcp.dependencyanalysis.PairwiseDependenciesTool
+import org.slizaa.mcp.core.mcp.reachability.AffectedByTool
+import org.slizaa.mcp.core.mcp.reachability.FindDependencyPathTool
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -21,21 +22,27 @@ class GraphController(
     private val graphOverviewTool: GraphOverviewTool,
     private val listChildrenTool: ListChildrenTool,
     private val listDescendantsTool: ListDescendantsTool,
-    private val pairwiseTools: PairwiseDependencyMcpTools,
-    private val scopeTools: ScopeDependencyMcpTools,
-    private val reachabilityTools: ReachabilityMcpTools,
-    private val listMethodsTool: ListMethodsMcpTool,
-    private val listFieldsTool: ListFieldsMcpTool,
-    private val detailDependenciesTool: DetailDependenciesMcpTool,
-    private val methodDetailsTool: MethodDetailsMcpTool,
-    private val fieldDetailsTool: FieldDetailsMcpTool
+    private val aggregatedDependenciesTool: AggregatedDependenciesTool,
+    private val pairwiseDependenciesTool: PairwiseDependenciesTool,
+    private val outgoingDependenciesTool: OutgoingDependenciesTool,
+    private val incomingDependenciesTool: IncomingDependenciesTool,
+    private val affectedByTool: AffectedByTool,
+    private val findDependencyPathTool: FindDependencyPathTool,
+    private val typeDetailsTool: TypeDetailsTool,
+    private val methodDetailsTool: MethodDetailsTool,
+    private val fieldDetailsTool: FieldDetailsTool
 ) {
+
+    // --- Navigation ---
 
     @GetMapping("/find-node")
     fun findNode(
         @RequestParam name: String,
         @RequestParam(required = false) kindFilter: List<String>?
     ): Map<String, *> = findNodeTool.findNode(name, kindFilter)
+
+    @GetMapping("/graph-overview")
+    fun graphOverview(): Map<String, Any?> = graphOverviewTool.graphOverview()
 
     @GetMapping("/list-children")
     fun listChildren(
@@ -55,105 +62,62 @@ class GraphController(
         @RequestParam(required = false) limit: Int?
     ): Map<String, Any?> = listDescendantsTool.listDescendants(nodeId, kindFilter, namePattern, modifierFilter, limit)
 
-    @GetMapping("/dependency-between")
-    fun dependencyBetween(
-        @RequestParam fromId: Long,
-        @RequestParam toId: Long
-    ): Map<String, Any?> = pairwiseTools.dependencyBetween(fromId, toId)
+    // --- Dependency analysis ---
 
-    @GetMapping("/aggregated-outgoing")
-    fun aggregatedOutgoing(
-        @RequestParam sourceId: Long,
-        @RequestParam(required = false) targetScopeId: Long?,
-        @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = scopeTools.aggregatedOutgoing(sourceId, targetScopeId, limit)
+    @GetMapping("/aggregated-dependencies")
+    fun aggregatedDependencies(
+        @RequestParam sourceIds: List<Long>,
+        @RequestParam targetIds: List<Long>
+    ): Map<String, Any?> = aggregatedDependenciesTool.aggregatedDependencies(sourceIds, targetIds)
 
-    @GetMapping("/aggregated-incoming")
-    fun aggregatedIncoming(
-        @RequestParam targetId: Long,
-        @RequestParam(required = false) sourceScopeId: Long?,
-        @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = scopeTools.aggregatedIncoming(targetId, sourceScopeId, limit)
+    @GetMapping("/pairwise-dependencies")
+    fun pairwiseDependencies(
+        @RequestParam nodeIds: List<Long>,
+        @RequestParam(required = false) direction: String?
+    ): Map<String, Any?> = pairwiseDependenciesTool.pairwiseDependencies(nodeIds, direction)
 
-    @GetMapping("/outgoing-core-dependencies")
-    fun outgoingCoreDependencies(
+    @GetMapping("/outgoing-dependencies")
+    fun outgoingDependencies(
         @RequestParam fromId: Long,
         @RequestParam toId: Long,
+        @RequestParam(required = false) detailLevel: String?,
+        @RequestParam(required = false) relationship: String?,
         @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = scopeTools.outgoingCoreDependencies(fromId, toId, limit)
+    ): Map<String, Any?> = outgoingDependenciesTool.outgoingDependencies(fromId, toId, detailLevel, relationship, limit)
 
-    @GetMapping("/incoming-core-dependencies")
-    fun incomingCoreDependencies(
-        @RequestParam toId: Long,
+    @GetMapping("/incoming-dependencies")
+    fun incomingDependencies(
         @RequestParam fromId: Long,
+        @RequestParam toId: Long,
+        @RequestParam(required = false) detailLevel: String?,
+        @RequestParam(required = false) relationship: String?,
         @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = scopeTools.incomingCoreDependencies(toId, fromId, limit)
+    ): Map<String, Any?> = incomingDependenciesTool.incomingDependencies(fromId, toId, detailLevel, relationship, limit)
 
-    @GetMapping("/graph-overview")
-    fun graphOverview(): Map<String, Any?> = graphOverviewTool.graphOverview()
+    // --- Reachability ---
+
+    @GetMapping("/affected-by")
+    fun affectedBy(
+        @RequestParam nodeId: Long,
+        @RequestParam(required = false) direction: String?,
+        @RequestParam(required = false) maxDepth: Int?,
+        @RequestParam(required = false) kindFilter: List<String>?,
+        @RequestParam(required = false) limit: Int?
+    ): Map<String, Any?> = affectedByTool.affectedBy(nodeId, direction, maxDepth, kindFilter, limit)
 
     @GetMapping("/find-dependency-path")
     fun findDependencyPath(
         @RequestParam fromId: Long,
         @RequestParam toId: Long,
+        @RequestParam(required = false) maxPaths: Int?,
         @RequestParam(required = false) maxLength: Int?
-    ): Map<String, Any?> = reachabilityTools.findDependencyPath(fromId, toId, maxLength)
+    ): Map<String, Any?> = findDependencyPathTool.findDependencyPath(fromId, toId, maxPaths, maxLength)
 
-    @GetMapping("/pairwise-dependencies")
-    fun pairwiseDependencies(
-        @RequestParam nodeIds: List<Long>,
-        @RequestParam(required = false) includeSelfLoops: Boolean?
-    ): Map<String, Any?> = reachabilityTools.pairwiseDependencies(nodeIds, includeSelfLoops)
+    // --- Entity detail ---
 
-    @GetMapping("/affected-by")
-    fun affectedBy(
-        @RequestParam sourceId: Long,
-        @RequestParam(required = false) maxDepth: Int?,
-        @RequestParam(required = false) groupingScopeId: Long?,
-        @RequestParam(required = false) topN: Int?
-    ): Map<String, Any?> = reachabilityTools.affectedBy(sourceId, maxDepth, groupingScopeId, topN)
-
-    @GetMapping("/outgoing-to")
-    fun outgoingTo(
-        @RequestParam sourceId: Long,
-        @RequestParam targetIds: List<Long>,
-        @RequestParam(required = false) includeMissing: Boolean?
-    ): Map<String, Any?> = pairwiseTools.outgoingTo(sourceId, targetIds, includeMissing)
-
-    @GetMapping("/incoming-from")
-    fun incomingFrom(
-        @RequestParam targetId: Long,
-        @RequestParam sourceIds: List<Long>,
-        @RequestParam(required = false) includeMissing: Boolean?
-    ): Map<String, Any?> = pairwiseTools.incomingFrom(targetId, sourceIds, includeMissing)
-
-    // --- Detail-level tools ---
-
-    @GetMapping("/list-methods")
-    fun listMethods(
-        @RequestParam typeId: Long,
-        @RequestParam(required = false) namePattern: String?,
-        @RequestParam(required = false) modifierFilter: List<String>?,
-        @RequestParam(required = false) includeInherited: Boolean?,
-        @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = listMethodsTool.listMethods(typeId, namePattern, modifierFilter, includeInherited, limit)
-
-    @GetMapping("/list-fields")
-    fun listFields(
-        @RequestParam typeId: Long,
-        @RequestParam(required = false) namePattern: String?,
-        @RequestParam(required = false) modifierFilter: List<String>?,
-        @RequestParam(required = false) includeInherited: Boolean?,
-        @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = listFieldsTool.listFields(typeId, namePattern, modifierFilter, includeInherited, limit)
-
-    @GetMapping("/detail-dependencies")
-    fun detailDependencies(
-        @RequestParam fromId: Long,
-        @RequestParam toId: Long,
-        @RequestParam(required = false) relationship: String?,
-        @RequestParam(required = false) limit: Int?
-    ): Map<String, Any?> = detailDependenciesTool.detailDependencies(fromId, toId, relationship, limit)
+    @GetMapping("/type-details")
+    fun typeDetails(@RequestParam typeId: Long): Map<String, Any?> =
+        typeDetailsTool.typeDetails(typeId)
 
     @GetMapping("/method-details")
     fun methodDetails(@RequestParam methodId: Long): Map<String, Any?> =

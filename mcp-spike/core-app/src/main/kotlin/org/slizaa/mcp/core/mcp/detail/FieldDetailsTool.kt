@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 import java.util.Comparator
 
 @Component
-class FieldDetailsMcpTool(graphService: HierarchicalGraphService) : AbstractDetailMcpTool(graphService) {
+class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService) {
 
     @Tool(
         name = "field_details",

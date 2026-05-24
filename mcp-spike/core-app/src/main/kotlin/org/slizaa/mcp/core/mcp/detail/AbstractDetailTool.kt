@@ -2,9 +2,10 @@ package org.slizaa.mcp.core.mcp.detail
 
 import org.neo4j.driver.Record
 import org.neo4j.driver.Value
+import org.slizaa.hierarchicalgraph.core.model.HGNode
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import org.slizaa.mcp.javaspec.JavaKinds
 import org.slizaa.mcp.core.HierarchicalGraphService
-import org.slizaa.mcp.core.mcp.AbstractGraphMcpTools
 
 /**
  * Shared base for the detail-level MCP tools (list_methods, list_fields, detail_dependencies,
@@ -14,7 +15,28 @@ import org.slizaa.mcp.core.mcp.AbstractGraphMcpTools
  * This class is intentionally not a Spring `@Component`; only the concrete subclasses
  * are. Spring sees one bean per tool.
  */
-abstract class AbstractDetailMcpTool(graphService: HierarchicalGraphService) : AbstractGraphMcpTools(graphService) {
+abstract class AbstractDetailTool(
+    protected val graphService: HierarchicalGraphService
+) {
+
+    protected fun getMetadataProvider(): INodeMetadataProvider =
+        graphService.rootNode.getExtension(INodeMetadataProvider::class.java)
+
+    protected fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?) {
+        val key = id.toString()
+        if (nodes.containsKey(key)) return
+        nodes[key] = linkedMapOf(
+            "name" to (name ?: ""),
+            "qualified_name" to (fqn ?: ""),
+            "kind" to (kind ?: "unknown")
+        )
+    }
+
+    protected fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
+        val mp = getMetadataProvider()
+        val id = (node.identifier as? Number)?.toLong() ?: 0L
+        putSlimNode(nodes, id, mp.getName(node), mp.getQualifiedName(node), mp.getKind(node))
+    }
 
     companion object {
         @JvmStatic

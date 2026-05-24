@@ -1,20 +1,17 @@
 package org.slizaa.mcp.core.mcp.detail
 
-import org.neo4j.driver.Record
 import org.slf4j.LoggerFactory
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import org.slizaa.mcp.core.HierarchicalGraphService
-import org.springframework.ai.tool.annotation.Tool
-import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.Comparator
 import java.util.TreeMap
 
 /**
- * Implementation of the `detail_dependencies` MCP tool. See the spec at
+ * Implementation of the `detail_dependencies` tool. See the spec at
  * `docs/tool-specifications/detail-level/cartograph-detail-dependencies-spec.md`.
  *
  * Returns method/field-level edges between a source subtree and a target subtree, with
@@ -23,9 +20,9 @@ import java.util.TreeMap
  * when adding, renaming, or remapping a relationship kind.
  */
 @Component
-class DetailDependenciesMcpTool(graphService: HierarchicalGraphService) : AbstractDetailMcpTool(graphService) {
+class DetailDependenciesComponent(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService) {
 
-    private val log = LoggerFactory.getLogger(DetailDependenciesMcpTool::class.java)
+    private val log = LoggerFactory.getLogger(DetailDependenciesComponent::class.java)
 
     /**
      * When true, the Cypher statement built for each invocation is logged at INFO together
@@ -38,64 +35,14 @@ class DetailDependenciesMcpTool(graphService: HierarchicalGraphService) : Abstra
     @Value("\${slizaa.mcp.tools.detail-dependencies.log-cypher:false}")
     private var logCypher: Boolean = false
 
-    @Tool(
-        name = "detail_dependencies",
-        description = "[Detail-level] Return the method-level and field-level dependencies between a source subtree and a target " +
-                "subtree. This is the drill-down tool that bridges the hierarchical level and the detail level — " +
-                "given an aggregated dependency you've identified (typically via aggregated_outgoing, " +
-                "aggregated_incoming, or outgoing_core_dependencies), this returns the underlying concrete " +
-                "method/field edges that explain it. " +
-                "Returns a top-level 'nodes' map (each referenced node listed once with name, qualified_name, kind) " +
-                "plus an 'edges' list whose entries reference nodes by ID. Each edge carries 'from' and 'to' " +
-                "(node IDs), 'from_parent' and optionally 'to_parent' (declaring-type IDs for navigation back to " +
-                "the hierarchical model), the relationship kind, and the source location (file path and line " +
-                "number). The 'summary' block groups edges by relationship kind (by_relationship) and by source " +
-                "type (by_source_type), by source child nodes (by_source_nodes), and by target child nodes " +
-                "(by_target_nodes) — these are often more useful than enumerating individual edges, because " +
-                "they tell you what kind of coupling exists, which types are responsible, and how the coupling " +
-                "is distributed across sub-areas of the source and target subtrees. " +
-                "Inheritance: the query always traverses EXTENDS/IMPLEMENTS on both sides. An edge whose source " +
-                "method/field is declared on an ancestor of a type in the from-subtree is included; same for the " +
-                "target subtree when the target is a method or field. 'from_parent' (and 'to_parent') therefore " +
-                "report the actual declaring type, which may be an ancestor outside the from-subtree (or " +
-                "to-subtree) when the entity is inherited. To restrict the result to physically-declared edges, " +
-                "filter 'edges' where 'from_parent' is in the from-subtree (use list_descendants(from_id) to get " +
-                "the ID set). " +
-                "Common parameter patterns: " +
-                "from_id + to_id (no relationship): see the full structural picture of detail-level coupling " +
-                "between two subtrees. Returns all relationship kinds; the by_relationship summary tells you the " +
-                "distribution. " +
-                "from_id + to_id + relationship 'throws': drill into one specific kind of coupling (here, " +
-                "exception throws). " +
-                "from_id = root_id + to_id = some_annotation_type: global query — find every method anywhere " +
-                "with this annotation. " +
-                "from_id = root_id + to_id = some_field with relationship 'writes_field': global query — find " +
-                "every method that writes this field. " +
-                "When to use this vs. neighboring tools: " +
-                "For the type-level evidence (which type-pairs are coupled), use outgoing_core_dependencies or " +
-                "incoming_core_dependencies. This tool drills one level deeper, into the methods and fields that " +
-                "realize those type-level edges. " +
-                "For the methods declared on a single type (composition rather than dependency), use list_methods. " +
-                "For everything about one specific method or field, use method_details or field_details. " +
-                "Relationship kinds available: throws, calls, returns, parameter_type, reads_field, writes_field, " +
-                "overrides, annotated_by, parameter_annotated_by, has_type, read_by, written_by."
-    )
+    /**
+     * Returns method/field-level edges between two subtrees with optional relationship filtering.
+     * Called internally by [org.slizaa.mcp.core.mcp.dependencyanalysis.OutgoingDependenciesTool] and [org.slizaa.mcp.core.mcp.dependencyanalysis.IncomingDependenciesTool] at detail level.
+     */
     fun detailDependencies(
-        @ToolParam(
-            description = "Source subtree root node ID. All types under this node are included as sources. " +
-                    "Pass the root node ID for global queries."
-        )
         fromId: Long,
-        @ToolParam(description = "Target subtree root node ID. All types under this node are included as targets.")
         toId: Long,
-        @ToolParam(
-            description = "Optional relationship kind filter. One of: throws, calls, returns, " +
-                    "parameter_type, reads_field, writes_field, overrides, annotated_by, parameter_annotated_by, " +
-                    "has_type, read_by, written_by.",
-            required = false
-        )
         relationship: String?,
-        @ToolParam(description = "Max edges to return (1-150, default 50).", required = false)
         limit: Int?
     ): Map<String, Any?> {
 
