@@ -19,8 +19,8 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
                 "or another tool that surfaces method IDs) and need the complete picture: modifiers, return type, " +
                 "parameters with names and types, declared exceptions, annotations, the method it overrides " +
                 "(if any), and source location. " +
-                "Response shape: single-entity inline form (no slim 'nodes' wrapper map). Per ADR-0001, " +
-                "single-entity responses with one declaring type don't benefit from slim encoding; inline " +
+                "Response shape: single-entity inline form (no slim 'nodes' wrapper map). " +
+                "Single-entity responses with one declaring type don't benefit from slim encoding; inline " +
                 "NodeRefs are kept. The declaring_type, return_type, parameter types, throws types, annotation " +
                 "types, and overrides target are all full NodeRefs — feed these into other tools (find_node, " +
                 "aggregated_incoming, list_methods, etc.) to investigate. " +

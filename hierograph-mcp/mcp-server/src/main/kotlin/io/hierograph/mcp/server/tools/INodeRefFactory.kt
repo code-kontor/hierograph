@@ -9,7 +9,7 @@ import org.slizaa.hierarchicalgraph.core.model.HGNode
  * Three flavours of node representation:
  * - **Minimal NodeRef** – identity fields only; used inside larger structures (edge endpoints, path steps).
  * - **Enriched NodeRef** – identity plus kind-appropriate metadata; used as primary browse results.
- * - **Slim node entry** – display fields registered into a shared `nodes` map for deduplication (ADR-0001).
+ * - **Slim node entry** – display fields registered into a shared `nodes` map for deduplication.
  */
 interface INodeRefFactory {
 
@@ -32,7 +32,7 @@ interface INodeRefFactory {
      */
     fun primitiveRef(name: String): LinkedHashMap<String, Any?>
 
-    // ── slim payload encoding (ADR-0001) ───────────────────────────────
+    // ── slim payload encoding ───────────────────────────────
 
     /**
      * Registers a node's display fields into a per-response [nodes] map keyed by

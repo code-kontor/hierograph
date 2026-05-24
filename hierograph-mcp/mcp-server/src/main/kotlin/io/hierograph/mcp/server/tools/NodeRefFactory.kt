@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component
  * Provides three flavours:
  * - [minimalNodeRef]  – identity fields only (id, name, qualified_name, kind, parent_id, parent_kind)
  * - [enrichedNodeRef] – identity plus kind-appropriate metadata (counts, modifiers, flags)
- * - [putSlimNode]     – registers a node's display fields into a shared `nodes` map for slim payload encoding (ADR-0001)
+ * - [putSlimNode]     – registers a node's display fields into a shared `nodes` map for slim payload encoding
  */
 @Component
 class NodeRefFactory(private val graphService: HierarchicalGraphService) : INodeRefFactory {
@@ -95,7 +95,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         //       require property materialisation
     }
 
-    // ── slim payload encoding (ADR-0001) ───────────────────────────────
+    // ── slim payload encoding ───────────────────────────────
 
     /**
      * Registers a node's display fields into a per-response `nodes` map keyed by stringified ID.

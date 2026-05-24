@@ -17,7 +17,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
                 "Use this when you've identified a field of interest (via list_fields, detail_dependencies, " +
                 "or another tool that surfaces field IDs) and need the complete picture: type, annotations, and " +
                 "information about which methods read or write it. " +
-                "Response shape (slim encoding, ADR-0001): top-level 'nodes' map (each referenced node listed once " +
+                "Response shape (slim encoding): top-level 'nodes' map (each referenced node listed once " +
                 "with name, qualified_name, kind, keyed by stringified ID) plus the field's structural details — " +
                 "'field', 'declaring_type', 'type' (or null for primitives), 'type_name' (always-present string — " +
                 "qualified name for reference types, keyword for primitives), 'annotations' (each entry is " +
@@ -37,8 +37,8 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
                 "For all the fields declared on a type (composition, not single-field detail), use list_fields. " +
                 "For 'which methods read this specific field?' with exhaustive enumeration or filters, use " +
                 "detail_dependencies with relationship: 'reads_field'. " +
-                "For methods rather than fields, use method_details (parallel tool, but inline NodeRefs since " +
-                "method_details is a single-entity response per ADR-0001)."
+                "For methods rather than fields, use method_details (parallel tool, but uses inline NodeRefs since " +
+                "method_details is a single-entity response)."
     )
     fun fieldDetails(
         @ToolParam(
