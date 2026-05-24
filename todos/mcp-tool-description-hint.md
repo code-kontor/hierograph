@@ -2,11 +2,11 @@
 
 ## Problem
 
-When Claude sees a user request like "drill into Analysis → Rule," it may call the raw MCP tool (`mcp__cartograph__detail_dependencies`) directly instead of using the higher-level `/detail-deps` skill. This happens because Claude is already in a flow of calling Cartograph tools and doesn't pause to check the available skills list.
+When Claude sees a user request like "drill into Analysis → Rule," it may call the raw MCP tool (`mcp__hierograph__detail_dependencies`) directly instead of using the higher-level `/detail-deps` skill. This happens because Claude is already in a flow of calling Hierograph tools and doesn't pause to check the available skills list.
 
 ## Solution
 
-Add a hint to the MCP tool description returned by the Cartograph server. The tool description is the first thing Claude reads when it resolves a deferred tool via `ToolSearch` — a note there intercepts Claude at the exact moment it's about to call the raw tool.
+Add a hint to the MCP tool description returned by the Hierograph server. The tool description is the first thing Claude reads when it resolves a deferred tool via `ToolSearch` — a note there intercepts Claude at the exact moment it's about to call the raw tool.
 
 ### Current tool description (excerpt)
 
@@ -34,4 +34,4 @@ Prefer invoking that skill instead of calling this tool directly.
 
 ## Where to implement
 
-The tool description is defined server-side in the Cartograph MCP server, typically in the tool registration / schema definition code. Update the `description` string for the `detail_dependencies` tool to include the hint.
+The tool description is defined server-side in the Hierograph MCP server, typically in the tool registration / schema definition code. Update the `description` string for the `detail_dependencies` tool to include the hint.

@@ -1,11 +1,11 @@
-# Getting Started with Cartograph
+# Getting Started with Hierograph
 
-Cartograph is an MCP-based tool that lets you explore and analyze the dependency structure of your
+Hierograph is an MCP-based tool that lets you explore and analyze the dependency structure of your
 Java project using an agentic AI. It uses jQAssistant to scan your codebase into a Neo4j graph
 database, then exposes that graph via an MCP server that Claude can query.
 
 This guide covers Maven-based projects. For a deeper look at how the pieces fit together, see the
-[Architecture Overview](cartograph-architecture-overview.md).
+[Architecture Overview](hierograph-architecture-overview.md).
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ cd <your-project>
 
 If you already have the project checked out, make sure you're on the branch you want to analyze.
 
-> **Note:** Cartograph analyzes compiled bytecode, not source code. The project must build
+> **Note:** Hierograph analyzes compiled bytecode, not source code. The project must build
 > successfully (`mvn clean install`) before it can be scanned.
 
 ## Step 2: Add jQAssistant to the build
@@ -111,9 +111,9 @@ This starts a Neo4j Bolt endpoint at `bolt://localhost:7687`. Keep this terminal
 
 You can also browse the raw graph data at `http://localhost:7474` using Neo4j's built-in browser UI.
 
-## Step 5: Start the Cartograph MCP server
+## Step 5: Start the Hierograph MCP server
 
-In a new terminal, start the Cartograph MCP server (Spring Boot application):
+In a new terminal, start the Hierograph MCP server (Spring Boot application):
 
 ```bash
 cd mcp-spike/core-app
@@ -130,10 +130,10 @@ slizaa.bolt.uri=bolt://localhost:7687
 
 ## Step 6: Add the MCP server to Claude Code
 
-Register the Cartograph MCP server with the Claude CLI:
+Register the Hierograph MCP server with the Claude CLI:
 
 ```bash
-claude mcp add cartograph --transport streamable-http http://localhost:8080/mcp
+claude mcp add hierograph --transport streamable-http http://localhost:8080/mcp
 ```
 
 Verify it's connected:
@@ -142,7 +142,7 @@ Verify it's connected:
 claude mcp list
 ```
 
-You should see `cartograph` listed with its tools.
+You should see `hierograph` listed with its tools.
 
 ---
 
@@ -210,10 +210,10 @@ that constitute the aggregated dependency.
 ## Tips
 
 > **Hint:** Sometimes the AI needs a nudge to use the graph tools. If Claude starts guessing or
-> reading source files instead of querying the graph, steer it with **"use cartograph"** in your
+> reading source files instead of querying the graph, steer it with **"use hierograph"** in your
 > prompt. For example:
 >
-> *"Use cartograph to find all classes that depend on AuthService"*
+> *"Use hierograph to find all classes that depend on AuthService"*
 >
 > This ensures Claude uses the MCP tools for structural analysis rather than doing text-based
 > code search.

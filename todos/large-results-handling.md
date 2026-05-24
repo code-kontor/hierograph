@@ -2,7 +2,7 @@
 
 ## Problem
 
-When `mcp__cartograph__detail_dependencies` is called with a high `limit` (e.g., 300+), the result can exceed the context window limit (~90KB+ for 300 edges). When this happens:
+When `mcp__hierograph__detail_dependencies` is called with a high `limit` (e.g., 300+), the result can exceed the context window limit (~90KB+ for 300 edges). When this happens:
 
 1. The result is saved to a temporary file instead of being returned inline
 2. The main context doesn't have the data needed to build the graph
@@ -65,7 +65,7 @@ This avoids the large-result problem in most cases and falls back gracefully.
 **Pros:** Simple decision logic, no server changes
 **Cons:** Still needs the jq fallback for large graphs
 
-### Solution 3: Server-side aggregation parameter (Cartograph enhancement)
+### Solution 3: Server-side aggregation parameter (Hierograph enhancement)
 
 Add an `aggregate` or `groupBy` parameter to `detail_dependencies`:
 
@@ -87,9 +87,9 @@ Returns:
 This is the cleanest solution — the server does the aggregation, the result is always small (bounded by number of unique class pairs, typically <50 even for large modules), and no post-processing is needed.
 
 **Pros:** Cleanest, fastest, always fits in context, no jq dependency
-**Cons:** Requires a Cartograph server change
+**Cons:** Requires a Hierograph server change
 
-### Solution 4: Pagination (Cartograph enhancement, alternative)
+### Solution 4: Pagination (Hierograph enhancement, alternative)
 
 Add `offset` support to `detail_dependencies`:
 
@@ -107,7 +107,7 @@ Fetch in pages of 100, aggregate incrementally.
 
 **Short term:** Update the `dep-graph` SKILL.md to implement Solution 2 (limit cap + jq fallback). This works today without any server changes.
 
-**Medium term:** Implement Solution 3 in Cartograph. This eliminates the problem entirely and makes the visualization skill trivial.
+**Medium term:** Implement Solution 3 in Hierograph. This eliminates the problem entirely and makes the visualization skill trivial.
 
 ## Decision Threshold
 

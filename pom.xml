@@ -18,7 +18,7 @@
         <module>slizaa-mojos</module>
         <module>slizaa-core</module>
         <module>slizaa-hierarchicalgraph</module>
-        <module>mcp-spike</module>
+        <module>hierograph-mcp</module>
     </modules>
 
 </project>

@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/java-spec/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/java-spec/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/jqassistant-mapping/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/jqassistant-mapping/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/jqassistant-mapping/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/mcp-server/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/mcp-server/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mcp-spike/core-app/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/core-app/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/core-app/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mcp-spike/java-spec/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/java-spec/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/java-spec/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/jqassistant-mapping/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/jqassistant-mapping/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/jqassistant-mapping/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mcp-spike/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient.testfwk/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient.testfwk/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.boltclient/src/main/java" charset="UTF-8" />

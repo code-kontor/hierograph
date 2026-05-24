@@ -4,7 +4,7 @@
 
 **Date:** 2026-05-21
 
-**First applied in:** `detail_dependencies` ([spec](../../specifications/tool-specifications/detail-level/cartograph-detail-dependencies-spec.md), implementation in `mcp-spike/core-app/.../DetailDependenciesMcpTool.java`)
+**First applied in:** `detail_dependencies` ([spec](../../specifications/tool-specifications/detail-level/hierograph-detail-dependencies-spec.md), implementation in `mcp-spike/core-app/.../DetailDependenciesMcpTool.java`)
 
 ---
 
@@ -121,6 +121,6 @@ Tempting for consistency. Rejected because those tools ask a different question 
 
 ## Related
 
-- Specification: [`docs/tool-specifications/detail-level/cartograph-detail-dependencies-spec.md`](../../specifications/tool-specifications/detail-level/cartograph-detail-dependencies-spec.md) — see *"Inheritance"* under *Semantics* and the *Per-edge fields* description of `from_parent` / `to_parent`.
+- Specification: [`docs/tool-specifications/detail-level/hierograph-detail-dependencies-spec.md`](../../specifications/tool-specifications/detail-level/hierograph-detail-dependencies-spec.md) — see *"Inheritance"* under *Semantics* and the *Per-edge fields* description of `from_parent` / `to_parent`.
 - Discussion that led to this decision: [`docs/design-notes/detail-dependencies-inheritance.md`](../design-notes/detail-dependencies-inheritance.md).
 - Related encoding decision: [ADR-0001 — Slim Payload Encoding](0001-slim-payload-encoding.md). The slim shape is what makes the always-traverse rule cheap to ship — out-of-subtree ancestor types land once in the `nodes` map regardless of how many edges reference them.
