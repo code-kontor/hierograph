@@ -2,7 +2,8 @@ package org.slizaa.hierarchicalgraph.graphdb.mapping.cypher;
 
 import org.slizaa.core.boltclient.IBoltClient;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ParentChildNode;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider.ParentChildNode;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider.RootNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,10 +12,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyDefinitionProvider, IBoltClientAware {
 
-  private List<Long> _toplevelNodeIds;
+  private List<RootNode> _toplevelNodeIds;
 
   private List<ParentChildNode> _parentChildNodes;
-
 
   @Override
   public void initialize(IBoltClient boltClient) throws Exception {
@@ -24,7 +24,10 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
     this._toplevelNodeIds = new ArrayList<>();
     for (String query : toplevelNodeIdQueries()) {
       this._toplevelNodeIds.addAll(
-          boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> r.get(0).asLong())).get());
+          boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> new RootNode(
+              r.get(0).asLong(),
+              parseKind(r.get(1).asString())
+          ))).get());
     }
 
     this._parentChildNodes = new ArrayList<>();
@@ -33,13 +36,13 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
           boltClient.asyncExecCypherQueryAndTransformResult(query, result -> result.list(r -> new ParentChildNode(
               r.get(0).asLong(),
               r.get(1).asLong(),
-              r.get(2).asString()
+              parseKind(r.get(2).asString())
           ))).get());
     }
   }
 
   @Override
-  public List<Long> getToplevelNodeIds() throws Exception {
+  public List<RootNode> getToplevelNodeIds() throws Exception {
     return this._toplevelNodeIds;
   }
 
@@ -48,7 +51,17 @@ public abstract class AbstractQueryBasedHierarchyProvider implements IHierarchyD
     return this._parentChildNodes;
   }
 
-    protected abstract String[] toplevelNodeIdQueries();
+  protected abstract String[] toplevelNodeIdQueries();
 
-    protected abstract String[] parentChildNodeIdsQueries();
+  protected abstract String[] parentChildNodeIdsQueries();
+
+  /**
+   * Converts a kind string read from a Cypher result into the kind object
+   * stored on the node. Subclasses override this to return an enum value
+   * (e.g. {@code JavaNodeKind.fromValue(kindString)}). The default returns
+   * the string as-is.
+   */
+  protected Object parseKind(String kindString) {
+    return kindString;
+  }
 }

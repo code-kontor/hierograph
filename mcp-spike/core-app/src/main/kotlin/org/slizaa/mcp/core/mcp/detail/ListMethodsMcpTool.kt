@@ -164,7 +164,7 @@ class ListMethodsMcpTool(graphService: HierarchicalGraphService) : AbstractDetai
 
             nodeDisplay.putIfAbsent(
                 methodId, arrayOf(
-                    methodName, methodFqn, if (isConstructor) JavaKinds.CONSTRUCTOR else JavaKinds.METHOD
+                    methodName, methodFqn, if (isConstructor) JavaKinds.CONSTRUCTOR.value else JavaKinds.METHOD.value
                 )
             )
             nodeDisplay.putIfAbsent(

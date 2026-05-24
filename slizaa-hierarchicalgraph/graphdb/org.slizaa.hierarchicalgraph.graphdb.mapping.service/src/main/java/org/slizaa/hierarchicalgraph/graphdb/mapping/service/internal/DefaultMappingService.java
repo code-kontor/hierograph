@@ -14,6 +14,8 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.service.IMappingParticipator
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.IMappingService;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingException;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.*;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider.ParentChildNode;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider.RootNode;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource;
@@ -73,8 +75,8 @@ public class DefaultMappingService implements IMappingService {
             if (hierarchyProvider != null) {
 
                 stepStart = System.currentTimeMillis();
-                List<Long> rootNodes = hierarchyProvider.getToplevelNodeIds();
-                createFirstLevelElements(rootNodes.toArray(new Long[0]), rootNode, createNodeSourceFunction);
+                List<RootNode> rootNodes = hierarchyProvider.getToplevelNodeIds();
+                createFirstLevelElements(rootNodes, rootNode, createNodeSourceFunction);
                 log.info("Created {} root nodes in {}ms", rootNodes.size(), System.currentTimeMillis() - stepStart);
 
                 stepStart = System.currentTimeMillis();

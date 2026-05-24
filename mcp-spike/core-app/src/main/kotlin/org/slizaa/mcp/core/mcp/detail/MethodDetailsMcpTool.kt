@@ -93,7 +93,7 @@ class MethodDetailsMcpTool(graphService: HierarchicalGraphService) : AbstractDet
             "id" to methodId,
             "name" to methodName,
             "qualified_name" to methodFqn,
-            "kind" to if (isConstructor) JavaKinds.CONSTRUCTOR else JavaKinds.METHOD,
+            "kind" to if (isConstructor) JavaKinds.CONSTRUCTOR.value else JavaKinds.METHOD.value,
             "parent_id" to declaringTypeId,
             "parent_kind" to declaringTypeKind
         )
@@ -133,7 +133,7 @@ class MethodDetailsMcpTool(graphService: HierarchicalGraphService) : AbstractDet
                 "id" to ovId,
                 "name" to ovName,
                 "qualified_name" to ovFqn,
-                "kind" to if (ovIsCtor) JavaKinds.CONSTRUCTOR else JavaKinds.METHOD,
+                "kind" to if (ovIsCtor) JavaKinds.CONSTRUCTOR.value else JavaKinds.METHOD.value,
                 "parent_id" to ovDtId,
                 "parent_kind" to mp.getKindFromLabels(ovDtLabels)
             )

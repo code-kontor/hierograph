@@ -7,6 +7,7 @@ import org.slizaa.mcp.core.mcp.detail.ListFieldsMcpTool
 import org.slizaa.mcp.core.mcp.detail.ListMethodsMcpTool
 import org.slizaa.mcp.core.mcp.detail.MethodDetailsMcpTool
 import org.slizaa.mcp.core.mcp.navigation.FindNodeTool
+import org.slizaa.mcp.core.mcp.navigation.GraphOverviewTool
 import org.slizaa.mcp.core.mcp.pairwisedependency.PairwiseDependencyMcpTools
 import org.slizaa.mcp.core.mcp.reachability.ReachabilityMcpTools
 import org.slizaa.mcp.core.mcp.scopedependency.ScopeDependencyMcpTools
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api")
 class GraphController(
     private val findNodeTool: FindNodeTool,
+    private val graphOverviewTool: GraphOverviewTool,
     private val discoveryTools: DiscoveryMcpTools,
     private val pairwiseTools: PairwiseDependencyMcpTools,
     private val scopeTools: ScopeDependencyMcpTools,
@@ -81,10 +83,8 @@ class GraphController(
         @RequestParam(required = false) limit: Int?
     ): Map<String, Any?> = scopeTools.incomingCoreDependencies(toId, fromId, limit)
 
-    @GetMapping("/describe-graph")
-    fun describeGraph(
-        @RequestParam(required = false) scopeId: Long?
-    ): Map<String, Any?> = discoveryTools.describeGraph(scopeId)
+    @GetMapping("/graph-overview")
+    fun graphOverview(): Map<String, Any?> = graphOverviewTool.graphOverview()
 
     @GetMapping("/find-dependency-path")
     fun findDependencyPath(

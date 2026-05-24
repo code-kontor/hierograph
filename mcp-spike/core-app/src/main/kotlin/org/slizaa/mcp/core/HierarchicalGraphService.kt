@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slizaa.core.boltclient.IBoltClient
 import org.slizaa.core.boltclient.IBoltClientFactory
+import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
 import org.slizaa.hierarchicalgraph.core.model.HGRootNode
 import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingFactory
 import org.slizaa.jqassistant.hierarchicalgraph.JQAssistantMappingProvider
@@ -43,6 +44,18 @@ class HierarchicalGraphService {
         val children = rootNode.children
 
         log.info("Hierarchical graph created with {} root children.", children.size)
+
+        // Count nodes by kind (skip the root node itself)
+        val kindCounts = mutableMapOf<Any?, Int>()
+        for (child in rootNode.children) {
+            HGNodeTraverser.traverse(child) { node ->
+                kindCounts.merge(node.kind, 1) { a, b -> a + b }
+            }
+        }
+        kindCounts.entries
+            .sortedByDescending { it.value }
+            .forEach { (kind, count) -> log.info("  {}: {}", kind, count) }
+        log.info("Total nodes: {}", kindCounts.values.sum())
     }
 
     @PreDestroy

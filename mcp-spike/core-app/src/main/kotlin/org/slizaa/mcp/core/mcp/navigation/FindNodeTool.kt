@@ -4,6 +4,7 @@ import org.slizaa.mcp.core.HierarchicalGraphService
 import org.slizaa.mcp.core.mcp.INodeRefFactory
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import org.slizaa.mcp.javaspec.JavaKinds
+import org.slizaa.mcp.javaspec.JavaNodeKind
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -49,16 +50,17 @@ class FindNodeTool(
 
         // ── validate kind_filter ───────────────────────────────────────
         if (kindFilter != null) {
-            val invalid = kindFilter.filter { it !in JavaKinds.ALL_KINDS && it !in JavaKinds.ALL_ALIASES }
+            val validKindValues = JavaKinds.ALL_KINDS.map { it.value }.toSet()
+            val invalid = kindFilter.filter { it !in validKindValues && it !in JavaKinds.ALL_ALIASES }
             if (invalid.isNotEmpty()) {
                 return mapOf(
                     "error" to mapOf(
                         "code" to "INVALID_KIND",
                         "message" to "Unknown kind${if (invalid.size > 1) "s" else ""}: ${invalid.joinToString(", ") { "'$it'" }}. " +
-                                "Valid kinds: ${JavaKinds.ALL_KINDS.joinToString(", ")}. " +
+                                "Valid kinds: ${validKindValues.joinToString(", ")}. " +
                                 "Group aliases: ${JavaKinds.ALL_ALIASES.joinToString(", ")}.",
                         "invalid_values" to invalid,
-                        "valid_kinds" to JavaKinds.ALL_KINDS.toList(),
+                        "valid_kinds" to validKindValues.toList(),
                         "valid_aliases" to JavaKinds.ALL_ALIASES.toList()
                     )
                 )

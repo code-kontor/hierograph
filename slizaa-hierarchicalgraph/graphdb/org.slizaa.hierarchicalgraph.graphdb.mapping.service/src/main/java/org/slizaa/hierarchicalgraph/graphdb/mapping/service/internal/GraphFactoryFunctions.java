@@ -4,7 +4,8 @@ import org.slizaa.hierarchicalgraph.core.model.*;
 import org.slizaa.hierarchicalgraph.core.model.impl.ExtendedHGRootNodeImpl;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition;
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IProxyDependencyDefinition;
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ParentChildNode;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider.ParentChildNode;
+import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider.RootNode;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbDependencySource;
 import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbHierarchicalgraphFactory;
 
@@ -38,15 +39,18 @@ public class GraphFactoryFunctions {
     return dependencySource;
   }
 
-    public static void createFirstLevelElements(Long[] firstLevelNodeIds, HGRootNode rootElement,
+    public static void createFirstLevelElements(List<RootNode> rootNodes, HGRootNode rootElement,
       final Function<Long, INodeSource> nodeSourceCreator) {
 
-    checkNotNull(firstLevelNodeIds);
+    checkNotNull(rootNodes);
     checkNotNull(rootElement);
     checkNotNull(nodeSourceCreator);
 
-    for (int i = 0; i < firstLevelNodeIds.length; i++) {
-      createNodeIfAbsent(firstLevelNodeIds[i], rootElement, rootElement, nodeSourceCreator);
+    for (RootNode rn : rootNodes) {
+      HGNode node = createNodeIfAbsent(rn.id(), rootElement, rootElement, nodeSourceCreator);
+      if (node.getKind() == null) {
+        node.setKind(rn.kind());
+      }
     }
   }
 
@@ -57,7 +61,10 @@ public class GraphFactoryFunctions {
 
     for (ParentChildNode pcn : hierarchyNodes) {
       HGNode parentNode = createNodeIfAbsent(pcn.parentId(), rootElement, null, nodeSourceCreator);
-      createNodeIfAbsent(pcn.childId(), rootElement, parentNode, nodeSourceCreator);
+      HGNode childNode = createNodeIfAbsent(pcn.childId(), rootElement, parentNode, nodeSourceCreator);
+      if (childNode.getKind() == null) {
+           childNode.setKind(pcn.childKind());
+      }
     }
   }
 

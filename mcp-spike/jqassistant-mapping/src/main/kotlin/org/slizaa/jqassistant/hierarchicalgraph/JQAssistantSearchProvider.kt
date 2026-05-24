@@ -5,6 +5,7 @@ import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider.SearchResult
 import org.slizaa.mcp.javaspec.JavaKinds
+import org.slizaa.mcp.javaspec.JavaNodeKind
 
 /**
  * jQAssistant-specific [ISearchProvider] implementation.
@@ -79,7 +80,10 @@ class JQAssistantSearchProvider(
                     kindToLabels[k]?.let { labels.addAll(it) }
                 }
             } else {
-                kindToLabels[kind]?.let { labels.addAll(it) }
+                val nodeKind = JavaNodeKind.fromValue(kind)
+                if (nodeKind != null) {
+                    kindToLabels[nodeKind]?.let { labels.addAll(it) }
+                }
             }
         }
         return labels.ifEmpty { null }

@@ -20,6 +20,7 @@
       <genTypeParameters ecoreTypeParameter="hierarchicalgraph.ecore#//Optional/T"/>
     </genDataTypes>
     <genClasses image="false" ecoreClass="hierarchicalgraph.ecore#//HGNode">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph.ecore#//HGNode/kind"/>
       <genFeatures property="None" notify="false" createChild="false" propertyCategory=""
           propertySortChoices="true" ecoreFeature="ecore:EReference hierarchicalgraph.ecore#//HGNode/rootNode"/>
       <genFeatures property="None" notify="false" createChild="false" propertySortChoices="true"

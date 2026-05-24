@@ -50,7 +50,7 @@ interface INodeRefFactory {
     /**
      * Counts all descendants of [node] whose kind is in [kinds].
      */
-    fun countDescendantsByKind(node: HGNode, kinds: Set<String>): Int
+    fun countDescendantsByKind(node: HGNode, kinds: Set<*>): Int
 
     /**
      * Counts all descendants of [node] (regardless of kind).

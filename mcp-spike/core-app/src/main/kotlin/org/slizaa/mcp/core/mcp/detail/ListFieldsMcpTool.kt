@@ -162,7 +162,7 @@ class ListFieldsMcpTool(graphService: HierarchicalGraphService) : AbstractDetail
                 )
             )
 
-            nodeDisplay.putIfAbsent(fieldId, arrayOf(fieldName, fieldFqn, JavaKinds.FIELD))
+            nodeDisplay.putIfAbsent(fieldId, arrayOf(fieldName, fieldFqn, JavaKinds.FIELD.value))
             nodeDisplay.putIfAbsent(
                 declaringTypeId, arrayOf(
                     declaringTypeName, declaringTypeFqn, mp.getKindFromLabels(declaringTypeLabels)

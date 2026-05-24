@@ -4,40 +4,39 @@ package org.slizaa.mcp.javaspec
  * Canonical constants for Java-specific node kinds, relationship kinds,
  * and group aliases used throughout Hierograph's tool surface.
  *
- * All string constants match the namespaced vocabulary defined in the
- * tool surface proposal (`java.class`, `java.method`, etc.).
- * Use these constants instead of string literals to avoid typos and keep
- * the vocabulary in one place.
+ * Node kinds are defined as [JavaNodeKind] enum values. The string constants
+ * (`MODULE`, `CLASS`, etc.) are kept as aliases for the enum's [value][JavaNodeKind.value]
+ * property for use in contexts that need plain strings (Cypher queries, JSON keys).
  */
 object JavaKinds {
 
-    // ── node kinds ─────────────────────────────────────────────────────
+    // ── node kinds (enum values) ───────────────────────────────────────
 
-    const val MODULE = "java.module"
-    const val PACKAGE = "java.package"
-    const val CLASS = "java.class"
-    const val INTERFACE = "java.interface"
-    const val ENUM = "java.enum"
-    const val RECORD = "java.record"
-    const val ANNOTATION = "java.annotation"
-    const val METHOD = "java.method"
-    const val FIELD = "java.field"
-    const val PRIMITIVE = "java.primitive"
-    const val CONSTRUCTOR = "java.constructor"
+    @JvmField val MODULE = JavaNodeKind.MODULE
+    @JvmField val PACKAGE = JavaNodeKind.PACKAGE
+    @JvmField val CLASS = JavaNodeKind.CLASS
+    @JvmField val INTERFACE = JavaNodeKind.INTERFACE
+    @JvmField val ENUM = JavaNodeKind.ENUM
+    @JvmField val RECORD = JavaNodeKind.RECORD
+    @JvmField val ANNOTATION = JavaNodeKind.ANNOTATION
+    @JvmField val METHOD = JavaNodeKind.METHOD
+    @JvmField val FIELD = JavaNodeKind.FIELD
+    @JvmField val PRIMITIVE = JavaNodeKind.PRIMITIVE
+    @JvmField val CONSTRUCTOR = JavaNodeKind.CONSTRUCTOR
 
     // ── kind groups ────────────────────────────────────────────────────
 
     /** All type-level node kinds. */
     @JvmField
-    val TYPE_KINDS: Set<String> = setOf(CLASS, INTERFACE, ENUM, RECORD, ANNOTATION)
+    val TYPE_KINDS: Set<JavaNodeKind> = setOf(CLASS, INTERFACE, ENUM, RECORD, ANNOTATION)
 
     /** All member-level node kinds. */
     @JvmField
-    val MEMBER_KINDS: Set<String> = setOf(METHOD, FIELD)
+    val MEMBER_KINDS: Set<JavaNodeKind> = setOf(METHOD, FIELD)
 
     /** All valid node kinds (excluding pseudo-kinds like primitive and constructor). */
     @JvmField
-    val ALL_KINDS: Set<String> = setOf(MODULE, PACKAGE, CLASS, INTERFACE, ENUM, RECORD, ANNOTATION, METHOD, FIELD)
+    val ALL_KINDS: Set<JavaNodeKind> = setOf(MODULE, PACKAGE, CLASS, INTERFACE, ENUM, RECORD, ANNOTATION, METHOD, FIELD)
 
     // ── group aliases (accepted by kind_filter parameters) ─────────────
 
@@ -53,7 +52,7 @@ object JavaKinds {
      * Returns `null` if the input is not a recognized alias.
      */
     @JvmStatic
-    fun expandAlias(alias: String): List<String>? = when (alias) {
+    fun expandAlias(alias: String): List<JavaNodeKind>? = when (alias) {
         ALIAS_TYPES -> listOf(CLASS, INTERFACE, ENUM, RECORD, ANNOTATION)
         ALIAS_MEMBERS -> listOf(METHOD, FIELD)
         ALIAS_PACKAGES -> listOf(PACKAGE)

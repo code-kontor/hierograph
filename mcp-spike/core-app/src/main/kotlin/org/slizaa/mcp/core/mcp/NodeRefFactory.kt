@@ -34,9 +34,9 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             "id" to node.identifier,
             "name" to mp.getName(node),
             "qualified_name" to mp.getQualifiedName(node),
-            "kind" to mp.getKind(node),
+            "kind" to node.kind?.toString(),
             "parent_id" to node.parent?.identifier,
-            "parent_kind" to node.parent?.let { mp.getKind(it) }
+            "parent_kind" to node.parent?.kind?.toString()
         )
     }
 
@@ -48,15 +48,14 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      */
     override fun enrichedNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
         val ref = minimalNodeRef(node)
-        val mp = metadataProvider
-        val kind = mp.getKind(node)
+        val kind = node.kind
 
-        when {
-            kind == JavaKinds.MODULE -> enrichModule(ref, node)
-            kind == JavaKinds.PACKAGE -> enrichPackage(ref, node)
-            kind in JavaKinds.TYPE_KINDS -> enrichType(ref, node, mp)
-            kind == JavaKinds.METHOD -> enrichMethod(ref, node, mp)
-            kind == JavaKinds.FIELD -> enrichField(ref, node, mp)
+        when (kind) {
+            JavaKinds.MODULE -> enrichModule(ref, node)
+            JavaKinds.PACKAGE -> enrichPackage(ref, node)
+            in JavaKinds.TYPE_KINDS -> enrichType(ref, node)
+            JavaKinds.METHOD -> enrichMethod(ref, node)
+            JavaKinds.FIELD -> enrichField(ref, node)
         }
 
         return ref
@@ -71,27 +70,27 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         ref["child_count"] = node.children.size
         ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
-        ref["direct_type_count"] = node.children.count { metadataProvider.getKind(it) in JavaKinds.TYPE_KINDS }
+        ref["direct_type_count"] = node.children.count { it.kind in JavaKinds.TYPE_KINDS }
     }
 
-    private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode, mp: INodeMetadataProvider) {
+    private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         // TODO: modifiers, annotation_count, interface_count, is_abstract, is_generic, parent_type
         //       require property materialisation — will be filled in when the enriched metadata is available
-        val methods = node.children.count { mp.getKind(it) == JavaKinds.METHOD }
-        val fields = node.children.count { mp.getKind(it) == JavaKinds.FIELD }
+        val methods = node.children.count { it.kind == JavaKinds.METHOD }
+        val fields = node.children.count { it.kind == JavaKinds.FIELD }
         ref["member_count"] = methods + fields
         ref["method_count"] = methods
         ref["field_count"] = fields
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun enrichMethod(ref: LinkedHashMap<String, Any?>, node: HGNode, mp: INodeMetadataProvider) {
+    private fun enrichMethod(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         // TODO: modifiers, parameter_count, throws_count, annotation_count, is_constructor
         //       require property materialisation
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun enrichField(ref: LinkedHashMap<String, Any?>, node: HGNode, mp: INodeMetadataProvider) {
+    private fun enrichField(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         // TODO: modifiers, field_type_name, annotation_count, is_constant
         //       require property materialisation
     }
@@ -131,7 +130,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         "id" to null,
         "name" to name,
         "qualified_name" to name,
-        "kind" to JavaKinds.PRIMITIVE
+        "kind" to JavaKinds.PRIMITIVE.value
     )
 
     // ── utility ────────────────────────────────────────────────────────
@@ -139,12 +138,11 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     /**
      * Counts all descendants of [node] whose kind is in [kinds].
      */
-    override fun countDescendantsByKind(node: HGNode, kinds: Set<String>): Int {
-        val mp = metadataProvider
+    override fun countDescendantsByKind(node: HGNode, kinds: Set<*>): Int {
         var count = 0
         fun walk(n: HGNode) {
             for (child in n.children) {
-                if (mp.getKind(child) in kinds) count++
+                if (child.kind in kinds) count++
                 walk(child)
             }
         }

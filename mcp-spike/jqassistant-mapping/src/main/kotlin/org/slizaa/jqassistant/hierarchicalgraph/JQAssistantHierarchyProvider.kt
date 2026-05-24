@@ -2,8 +2,12 @@ package org.slizaa.jqassistant.hierarchicalgraph
 
 import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.AbstractQueryBasedHierarchyProvider
 import org.slizaa.mcp.javaspec.JavaKinds
+import org.slizaa.mcp.javaspec.JavaNodeKind
 
 class JQAssistantHierarchyProvider : AbstractQueryBasedHierarchyProvider() {
+
+    override fun parseKind(kindString: String): Any =
+        JavaNodeKind.fromValue(kindString) ?: kindString
 
     override fun toplevelNodeIdQueries(): Array<String> = arrayOf(
         // scanned jars directly
@@ -14,7 +18,7 @@ class JQAssistantHierarchyProvider : AbstractQueryBasedHierarchyProvider() {
 
     override fun parentChildNodeIdsQueries(): Array<String> = arrayOf(
         // Artifact -> top-level Packages
-        "MATCH (a:Artifact:Jar)-[:CONTAINS]->(b:Package) WHERE NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.MODULE}'",
+        "MATCH (a:Artifact:Jar)-[:CONTAINS]->(b:Package) WHERE NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}'",
         "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a), id(b), '${JavaKinds.MODULE}'",
         "MATCH (a:Artifact:Maven:File:Main)-[:CONTAINS]->(b:Package) where a.type = 'jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}'",
         "MATCH (a:Artifact:Maven:File:Test)-[:CONTAINS]->(b:Package) where a.type = 'test-jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}'",
@@ -28,6 +32,6 @@ class JQAssistantHierarchyProvider : AbstractQueryBasedHierarchyProvider() {
         "MATCH (a:Package)-[:CONTAINS]->(b:Record) RETURN id(a), id(b), '${JavaKinds.RECORD}'",
         // Types -> Methods and Fields
         "MATCH (a:Type)-[:DECLARES]->(b:Field) RETURN id(a), id(b), '${JavaKinds.FIELD}'",
-        "MATCH (a:Type)-[:DECLARES]->(b:Methode) RETURN id(a), id(b), '${JavaKinds.METHOD}'"
+        "MATCH (a:Type)-[:DECLARES]->(b:Method) RETURN id(a), id(b), '${JavaKinds.METHOD}'"
     )
 }

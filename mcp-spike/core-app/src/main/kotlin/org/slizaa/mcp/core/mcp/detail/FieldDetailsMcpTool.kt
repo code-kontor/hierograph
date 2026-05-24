@@ -125,7 +125,7 @@ class FieldDetailsMcpTool(graphService: HierarchicalGraphService) : AbstractDeta
         }
 
         val nodes = linkedMapOf<String, Any>()
-        putSlimNode(nodes, fieldId, fieldName, fieldFqn, JavaKinds.FIELD)
+        putSlimNode(nodes, fieldId, fieldName, fieldFqn, JavaKinds.FIELD.value)
         putSlimNode(nodes, declaringTypeId, declaringTypeName, declaringTypeFqn, declaringTypeKind)
         if (typeIdForResponse != null) {
             putSlimNode(

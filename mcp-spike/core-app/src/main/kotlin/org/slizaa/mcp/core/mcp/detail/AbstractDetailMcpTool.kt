@@ -32,19 +32,19 @@ abstract class AbstractDetailMcpTool(graphService: HierarchicalGraphService) : A
         "id" to null,
         "name" to name,
         "qualified_name" to name,
-        "kind" to JavaKinds.PRIMITIVE
+        "kind" to JavaKinds.PRIMITIVE.value
     )
 
     /** Derives a Hierograph-normalized kind string from Neo4j node labels for detail-level entities. */
     protected fun deriveDetailKind(labels: List<String>): String = when {
-        labels.contains("Constructor") -> JavaKinds.CONSTRUCTOR
-        labels.contains("Method") -> JavaKinds.METHOD
-        labels.contains("Field") -> JavaKinds.FIELD
-        labels.contains("Interface") -> JavaKinds.INTERFACE
-        labels.contains("Enum") -> JavaKinds.ENUM
-        labels.contains("Annotation") -> JavaKinds.ANNOTATION
-        labels.contains("Class") -> JavaKinds.CLASS
-        labels.contains("Type") -> JavaKinds.CLASS
+        "Constructor" in labels -> JavaKinds.CONSTRUCTOR.value
+        "Method" in labels -> JavaKinds.METHOD.value
+        "Field" in labels -> JavaKinds.FIELD.value
+        "Interface" in labels -> JavaKinds.INTERFACE.value
+        "Enum" in labels -> JavaKinds.ENUM.value
+        "Annotation" in labels -> JavaKinds.ANNOTATION.value
+        "Class" in labels -> JavaKinds.CLASS.value
+        "Type" in labels -> JavaKinds.CLASS.value
         else -> "unknown"
     }
 
