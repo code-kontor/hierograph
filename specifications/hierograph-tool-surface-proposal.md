@@ -27,7 +27,7 @@ This split shows up consistently throughout the API:
 
 | Category | Tools | Protection |
 |---|---|---|
-| Input-bounded | `aggregated_dependencies`, `pairwise_dependencies`, `find_dependency_path`, `method_details`, `field_details`, `find_node`, `list_children`, `graph_overview` | Input validation |
+| Input-bounded | `aggregated_dependencies`, `pairwise_dependencies`, `find_dependency_path`, `type_details`, `method_details`, `field_details`, `find_node`, `list_children`, `graph_overview` | Input validation |
 | Data-bounded | `list_descendants`, `outgoing_dependencies`, `incoming_dependencies`, `affected_by` | Pagination (cursors) |
 
 The pagination protocol is specified in `hierograph-pagination.md` as a separate document; this proposal references it where relevant.
@@ -214,7 +214,7 @@ Affected tools:
 Affected tools:
 - `outgoing_dependencies` and `incoming_dependencies` at `detail_level: "detail"`
 
-**Entity-detail tools** accept only their target kind. `method_details` accepts method IDs only; `field_details` accepts field IDs only. Other kinds return a structured error indicating the expected kind.
+**Entity-detail tools** accept only their target kind. `type_details` accepts type-kind IDs (`java.class`, `java.interface`, `java.enum`, `java.record`, `java.annotation`); `method_details` accepts method IDs only; `field_details` accepts field IDs only. Other kinds return a structured error indicating the expected kind.
 
 **Navigation tools** (`find_node`, `list_children`, `list_descendants`, `graph_overview`) accept any kind, since they operate uniformly across the hierarchy.
 
@@ -249,7 +249,9 @@ A concise reference:
 |---|---|---|---|---|
 | Type-level dependency tools | ✓ (expand to types) | ✓ (expand to types) | ✓ (direct) | ✗ (error with declaring_type) |
 | Detail-level dependency tools | ✓ (expand) | ✓ (expand) | ✓ (expand) | ✓ (direct) |
-| Entity-detail tools | ✗ | ✗ | ✗ | ✓ (only the relevant kind) |
+| Entity-detail tools (`type_details`) | ✗ | ✗ | ✓ (direct) | ✗ |
+| Entity-detail tools (`method_details`) | ✗ | ✗ | ✗ | ✓ (method only) |
+| Entity-detail tools (`field_details`) | ✗ | ✗ | ✗ | ✓ (field only) |
 | Navigation tools | ✓ | ✓ | ✓ | ✓ |
 
 This matrix is invariant across the API. The LLM learns it once via the error responses and `graph_overview`'s description of the model.
@@ -372,6 +374,7 @@ list_children(
     kind_filter: string[]?,              // optional
     name_pattern: string?,               // optional substring match on names
     modifier_filter: string[]?,          // optional, only meaningful for methods/fields
+    include_inherited: bool = false,     // optional, only meaningful for types
     limit: int = 200
 )
 ```
@@ -389,6 +392,7 @@ Because every node in the hierarchy is in memory with its metadata, browsing is 
 - `kind_filter` — restricts the result to specific kinds. Accepts specific values (`"java.class"`) and group aliases (`"types"`, `"members"`, `"packages"`).
 - `name_pattern` — case-insensitive substring match against child names. Useful for finding members by partial name on a type with many methods.
 - `modifier_filter` — restricts to children whose modifiers include *all* listed values. Example: `["private", "final"]` returns only effectively-immutable members. Only meaningful when the children are methods or fields; passing it for other input kinds is silently ignored.
+- `include_inherited` — when called on a type, includes methods and fields inherited from ancestor types. Default false (only declared members). Only meaningful for type inputs.
 - `limit` — caps the number of children returned. Default 200; honest truncation with `total` in the summary if exceeded.
 
 **Use cases:**
@@ -408,6 +412,7 @@ list_descendants(
     kind_filter: string[]?,              // optional
     name_pattern: string?,               // optional substring filter on name
     modifier_filter: string[]?,          // optional, only meaningful for methods/fields
+    include_inherited: bool = false,     // optional, only meaningful when types appear in traversal
     limit: int = 200,
     cursor: string?                      // for pagination on large results
 )
@@ -630,7 +635,40 @@ If no path exists, returns `paths: []`. Not an error — "no dependency relation
 
 ### Entity-detail tools
 
-These tools answer "tell me everything about this specific entity." They're single-ID-in, rich-response-out.
+These tools answer "tell me everything about this specific entity." They're single-ID-in, rich-response-out. The pattern is uniform across kinds: every leaf-ish entity (type, method, field) has a dedicated detail tool that returns the entity's full structural picture in one call.
+
+#### `type_details`
+
+```
+type_details(type_id: long)
+```
+
+Full structural details for a single type: modifiers, inheritance (extends and implements), declared methods and fields, inner types, annotations, type parameters (for generic types), source location.
+
+**Response includes:**
+
+- `node` — the full NodeRef for the type (enriched, with all the kind-aware metadata)
+- `parent_type` — the superclass as a NodeRef, or `null` for interfaces, root classes, and types without a meaningful superclass
+- `interfaces` — list of NodeRefs for implemented interfaces (empty list if none)
+- `methods` — list of method NodeRefs with per-method enriched metadata (modifiers, parameter_count, throws_count, annotation_count, is_constructor). Capped at 50; if more exist, `methods_total` and `methods_truncated: true` indicate the truncation, and the LLM can use `list_children` or `list_methods` for the full list.
+- `fields` — list of field NodeRefs with per-field enriched metadata (modifiers, field_type_name, annotation_count, is_constant). Same capping behavior as methods.
+- `inner_types` — list of NodeRefs for nested classes/interfaces/enums declared inside this type
+- `annotations` — list of annotation wrappers (`{type: NodeRef}` per annotation, matching `method_details` and `field_details`)
+- `type_parameters` — for generic types, the declared type parameters as NodeRefs or names (empty list for non-generic types)
+- `location` — file path and line number of the type's declaration
+
+**What it doesn't include:**
+
+`type_details` covers the type's *own structure* — its inheritance, members, annotations, location. It deliberately does *not* include:
+
+- Who depends on this type (use `aggregated_dependencies` or `incoming_dependencies`)
+- What this type depends on (use `aggregated_dependencies` or `outgoing_dependencies`)
+- Subtypes that extend this class (use `affected_by` with `direction: "incoming"` to find them)
+- Implementations of this interface (same)
+
+The principle parallels `method_details` and `field_details`: entity-detail tools describe what's *inside* the entity, not the entity's *external relationships*. External relationships have their own dedicated tools.
+
+No `detail_level` parameter — this tool returns the type's structural detail, which is its own zoom level.
 
 #### `method_details`
 
@@ -672,11 +710,12 @@ No `detail_level` parameter — same reasoning as `method_details`.
 - `affected_by`
 - `find_dependency_path`
 
-**Entity detail (2 tools):**
+**Entity detail (3 tools):**
+- `type_details`
 - `method_details`
 - `field_details`
 
-**Total: 12 tools** — down from roughly 18 in the previous catalog.
+**Total: 13 tools** — down from roughly 18 in the previous catalog.
 
 ## Tools eliminated in this proposal
 
@@ -724,7 +763,7 @@ The decision tree, roughly:
 
 8. **"Why does A end up depending on B?"** → `find_dependency_path`
 
-9. **"Tell me everything about this method/field"** → `method_details` or `field_details`
+9. **"Tell me everything about this specific type, method, or field"** → `type_details`, `method_details`, or `field_details` respectively
 
 Each branch leads to one tool (or one tool plus a parameter). The LLM picks based on the question shape, not by remembering which of several similar tool names applies.
 
