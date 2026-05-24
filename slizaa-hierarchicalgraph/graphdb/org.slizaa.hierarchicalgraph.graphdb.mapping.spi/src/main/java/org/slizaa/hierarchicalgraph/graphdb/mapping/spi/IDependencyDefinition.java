@@ -16,4 +16,8 @@ public interface IDependencyDefinition {
   default int getWeight() {
     return 1;
   }
+
+  default int getAttributesBitmap() {
+    return 0;
+  }
 }

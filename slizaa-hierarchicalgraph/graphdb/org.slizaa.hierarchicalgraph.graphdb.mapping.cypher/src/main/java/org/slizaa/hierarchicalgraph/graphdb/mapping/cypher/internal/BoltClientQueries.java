@@ -31,13 +31,23 @@ public class BoltClientQueries {
 
     return checkNotNull(boltClient).asyncExecCypherQueryAndTransformResult(checkNotNull(query), result -> result.list(r -> {
 
+      int attributesBitmap = 0;
+      if (r.size() > 5) {
+        // Columns 5..N are boolean attribute flags; each true flag sets its bit position
+        for (int i = 5; i < r.size(); i++) {
+          if (r.get(i).asBoolean(false)) {
+            attributesBitmap |= (1 << (i - 5));
+          }
+        }
+      }
+
       if (resolverFunction != null) {
         return (IDependencyDefinition) new ProxyDependencyDefinitionImpl(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
             r.get(3).asString(), r.get(4).asInt(), resolverFunction);
       }
       else {
         return (IDependencyDefinition) new DefaultDependencyDefinition(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong(),
-            r.get(3).asString(), r.get(4).asInt());
+            r.get(3).asString(), r.get(4).asInt(), attributesBitmap);
       }
 
     })).get();

@@ -90,13 +90,17 @@ A properly batched bulk-load Cypher query could make full materialization fast (
 
 | Metric | Value |
 |---|---|
-| Skeleton load time (Spring-sized codebase) | 38 ms |
-| Skeleton memory | 64 MB |
+| Hierarchy parent-child pairs (Spring-sized codebase) | ~110,000 |
+| Type-level dependency edges (same codebase) | 115,906 |
+| Skeleton load time | 38 ms |
+| Skeleton memory (hierarchy + type-level dependency graph) | 64 MB |
 | Full-materialization memory (upper bound) | 220 MB |
 | Navigation, aggregation, reachability | microseconds |
 | Detail-level evidence (Neo4j query) | milliseconds |
 
-Memory scales linearly with hierarchy size; even codebases 10x the size of Spring fit comfortably. Performance has not been a constraint in any tested workflow.
+The 64 MB skeleton holds the complete navigable model — both the hierarchical tree (modules through methods and fields) *and* the full type-level dependency graph (115,906 edges with their attributes). Lazy property materialization grows this baseline up to the 220 MB upper bound as the LLM touches nodes.
+
+Memory scales linearly with hierarchy and edge count; even codebases 10x the size of Spring fit comfortably. Performance has not been a constraint in any tested workflow.
 
 Cached properties are held with strong references for the life of the server process. The cache grows monotonically toward an upper bound of ~220 MB on a Spring-sized codebase, which is the measured full-materialization ceiling. For typical deployments, this is fine. Weak-reference variants and explicit eviction policies are available as future refinements if needed.
 
@@ -318,7 +322,7 @@ Without the attributes, these questions would require descending to `detail_leve
 
 **Response shape:**
 
-The attributes appear on each type-level edge as a structured set:
+Type-level edges (whether aggregated between subtrees or direct between specific types) carry weight, optionally a `type_pair_count`, and the structured attribute set:
 
 ```json
 {
@@ -335,7 +339,15 @@ The attributes appear on each type-level edge as a structured set:
 }
 ```
 
-The `weight` is the sum of underlying detail-level edge weights (the count of concrete dependencies). The `type_pair_count` is the number of distinct type-to-type edges that contribute (relevant on aggregated edges between subtrees; always 1 on direct type-to-type edges). The `attributes` carry the kind information independently from weight.
+**The three numeric/structural fields capture different aspects of the dependency:**
+
+- **`weight`** — the sum of underlying detail-level edge weights. Answers "how strong is the dependency?" — counting concrete things like method calls, throws, field references, parameter type uses, etc., that exist between the types involved.
+
+- **`type_pair_count`** — the number of distinct type-to-type edges that contribute to this aggregated edge. Answers "how broad is the dependency?" — whether the coupling is concentrated in a few type pairs or spread across many. Only appears on *aggregated* edges between subtrees (e.g., between two packages or two modules). Omitted on direct type-to-type edges, since they connect exactly one type pair and the value would always be 1.
+
+- **`attributes`** — kind flags indicating which specific structural relationships contribute. Answers "what kinds of dependency exist?" — extends, implements, annotated_by, or just general use.
+
+These three are independent. An aggregated edge with `weight: 100, type_pair_count: 1` indicates a deep dependency between a single type pair; with `weight: 100, type_pair_count: 50` indicates broad shallow coupling across many type pairs. Same total weight, architecturally very different situations. The LLM uses both numbers to characterize the relationship.
 
 **Scanner-driven vocabulary:**
 
@@ -575,7 +587,7 @@ The directional naming stays here because the question shape genuinely differs: 
 
 **At `detail_level: "type"` (the default):**
 
-Returns type-to-type edges between the source subtree and the target subtree. Each edge has a source type NodeRef, a target type NodeRef, a weight (number of underlying detail edges), a type_pair_count of 1, and kind flags (extends, implements, annotated_by, etc.) indicating what kinds of detail-level relationships contribute to this type-level edge.
+Returns type-to-type edges between the source subtree and the target subtree. Each edge has a source type NodeRef, a target type NodeRef, a weight (sum of underlying detail-level edge weights), and the structured attribute set (`is_extends`, `is_implements`, `is_annotated_by`, `is_depends_on_other` for the Java provider — see *Type-level edge attributes* above). The `type_pair_count` field is omitted since direct type-to-type edges connect exactly one type pair.
 
 This uses the in-memory hierarchical model. Fast — microseconds to milliseconds.
 

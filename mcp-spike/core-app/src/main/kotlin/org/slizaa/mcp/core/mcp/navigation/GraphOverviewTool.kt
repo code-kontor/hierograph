@@ -3,6 +3,7 @@ package org.slizaa.mcp.core.mcp.navigation
 import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
 import org.slizaa.mcp.core.HierarchicalGraphService
 import org.slizaa.mcp.core.mcp.INodeRefFactory
+import org.slizaa.mcp.javaspec.JavaEdgeAttributes
 import org.slizaa.mcp.javaspec.JavaKinds
 import org.slizaa.mcp.javaspec.JavaNodeKind
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
@@ -29,9 +30,9 @@ class GraphOverviewTool(
                 "tool — call it first when starting a new session to learn what's in the " +
                 "codebase, what vocabulary the other tools use, and how dependency analysis " +
                 "tools relate to each other. Returns statistics (node counts by kind, edge " +
-                "counts), the kind and relationship vocabularies, top-level module structure, " +
-                "and the zoom-level model. No parameters needed. For known codebases, this " +
-                "can be skipped."
+                "counts by attribute), the kind and relationship vocabularies, top-level " +
+                "module structure, and the zoom-level model. No parameters needed. For known " +
+                "codebases, this can be skipped."
     )
     fun graphOverview(): Map<String, Any?> {
 
@@ -48,15 +49,22 @@ class GraphOverviewTool(
             }
         }
 
-        // ── stats: count type-level edges by kind ──────────────────────
-        val edgesByKind = linkedMapOf<String, Int>()
+        // ── stats: count type-level edges by attribute ────────────────
+        val edgesByAttribute = linkedMapOf<String, Int>()
+        for ((_, name) in JavaEdgeAttributes.ALL) {
+            edgesByAttribute[name] = 0
+        }
         var totalEdges = 0
         for (child in rootNode.children) {
             HGNodeTraverser.traverse(child) { node ->
                 for (dep in node.outgoingCoreDependencies) {
-                    val edgeKind = dep.type ?: "unknown"
-                    edgesByKind.merge(edgeKind, 1) { a, b -> a + b }
                     totalEdges++
+                    val bitmap = dep.attributesBitmap
+                    for ((pos, name) in JavaEdgeAttributes.ALL) {
+                        if (JavaEdgeAttributes.isSet(bitmap, pos)) {
+                            edgesByAttribute.merge(name, 1) { a, b -> a + b }
+                        }
+                    }
                 }
             }
         }
@@ -83,12 +91,9 @@ class GraphOverviewTool(
 
         // ── relationships vocabulary ───────────────────────────────────
         val relationships = mapOf(
-            "type_level" to listOf(
-                relEntry("depends_on", "Generic dependency (always present when any detail-level dependency exists)"),
-                relEntry("extends", "Source type extends target type"),
-                relEntry("implements", "Source type implements target interface"),
-                relEntry("annotated_by", "Source type is annotated by target annotation type")
-            ),
+            "type_level_attributes" to JavaEdgeAttributes.ALL.map { (_, name) ->
+                attrEntry(name)
+            },
             "detail_level" to listOf(
                 detailRelEntry("throws", "method", "Method declares it throws this exception type"),
                 detailRelEntry("calls", "method", "Method invokes a method"),
@@ -121,7 +126,7 @@ class GraphOverviewTool(
             "levels" to listOf(
                 mapOf(
                     "name" to "aggregated",
-                    "description" to "Pairwise rollup of dependencies between subtrees, with weight and kinds",
+                    "description" to "Pairwise rollup of dependencies between subtrees, with weight and attributes",
                     "tools" to listOf("aggregated_dependencies", "pairwise_dependencies")
                 ),
                 mapOf(
@@ -151,7 +156,7 @@ class GraphOverviewTool(
                 "total_nodes" to totalNodes,
                 "nodes_by_kind" to nodesByKind,
                 "total_type_level_edges" to totalEdges,
-                "type_level_edges_by_kind" to edgesByKind
+                "type_level_edges_by_attribute" to edgesByAttribute
             ),
             "kinds" to kinds,
             "relationships" to relationships,
@@ -164,8 +169,16 @@ class GraphOverviewTool(
     private fun kindEntry(kind: JavaNodeKind, description: String) =
         mapOf("kind" to kind.value, "description" to description)
 
-    private fun relEntry(kind: String, description: String) =
-        mapOf("kind" to kind, "description" to description)
+    private fun attrEntry(attribute: String): Map<String, String> {
+        val description = when (attribute) {
+            "is_extends" -> "At least one type in the source subtree extends a type in the target subtree"
+            "is_implements" -> "At least one type in the source subtree implements an interface in the target subtree"
+            "is_annotated_by" -> "At least one type in the source subtree is annotated by an annotation type in the target subtree"
+            "is_depends_on_other" -> "At least one other form of dependency exists (calls, throws, parameter types, field types, etc. — the residual after extends/implements/annotated_by)"
+            else -> attribute
+        }
+        return mapOf("attribute" to attribute, "description" to description)
+    }
 
     private fun detailRelEntry(kind: String, source: String, description: String) =
         mapOf("kind" to kind, "source" to source, "description" to description)

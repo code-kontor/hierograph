@@ -12,12 +12,19 @@ public class DefaultDependencyDefinition implements IDependencyDefinition {
 
   public int _weight;
 
+  public int _attributesBitmap;
+
   public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type, int weight) {
+    this(idStart, idTarget, idRel, type, weight, 0);
+  }
+
+  public DefaultDependencyDefinition(long idStart, long idTarget, long idRel, String type, int weight, int attributesBitmap) {
     this._idStart = idStart;
     this._idTarget = idTarget;
     this._idRel = idRel;
     this._type = type;
     this._weight = weight;
+    this._attributesBitmap = attributesBitmap;
   }
 
   @Override
@@ -43,6 +50,11 @@ public class DefaultDependencyDefinition implements IDependencyDefinition {
   @Override
   public int getWeight() {
     return this._weight;
+  }
+
+  @Override
+  public int getAttributesBitmap() {
+    return this._attributesBitmap;
   }
 
   @Override

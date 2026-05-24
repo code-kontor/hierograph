@@ -89,6 +89,7 @@ public class GraphFactoryFunctions {
 
         if (slizaaProxyDependency != null) {
           slizaaProxyDependency.setWeight(proxyDependency.getWeight());
+          slizaaProxyDependency.setAttributesBitmap(proxyDependency.getAttributesBitmap());
 
           // TODO: Should we really use the user object here?
           ((GraphDbDependencySource) slizaaProxyDependency.getDependencySource())
@@ -122,6 +123,7 @@ public class GraphFactoryFunctions {
             reinitializeCaches);
         if (dep != null) {
           dep.setWeight(simpleDependency.getWeight());
+          dep.setAttributesBitmap(simpleDependency.getAttributesBitmap());
           result.add(dep);
         }
       }

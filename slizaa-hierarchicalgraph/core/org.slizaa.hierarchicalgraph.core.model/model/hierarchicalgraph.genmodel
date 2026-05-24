@@ -138,6 +138,7 @@
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph.ecore#//HGCoreDependency/weight"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference hierarchicalgraph.ecore#//HGCoreDependency/dependencySource"/>
       <genFeatures notify="false" createChild="false" propertySortChoices="true" ecoreFeature="ecore:EReference hierarchicalgraph.ecore#//HGCoreDependency/proxyDependencyParent"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute hierarchicalgraph.ecore#//HGCoreDependency/attributesBitmap"/>
       <genOperations ecoreOperation="hierarchicalgraph.ecore#//HGCoreDependency/getDependencySource">
         <genParameters ecoreParameter="hierarchicalgraph.ecore#//HGCoreDependency/getDependencySource/clazz"/>
         <genTypeParameters ecoreTypeParameter="hierarchicalgraph.ecore#//HGCoreDependency/getDependencySource/T"/>

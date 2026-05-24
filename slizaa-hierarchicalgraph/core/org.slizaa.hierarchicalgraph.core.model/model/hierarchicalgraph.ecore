@@ -188,6 +188,8 @@
         containment="true" eOpposite="#//IDependencySource/dependency"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="proxyDependencyParent"
         eType="#//HGProxyDependency" eOpposite="#//HGProxyDependency/resolvedCoreDependencies"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="attributesBitmap" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"
+        defaultValueLiteral="0"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="HGProxyDependency" eSuperTypes="#//HGCoreDependency">
     <eOperations name="resolveProxyDependencies"/>

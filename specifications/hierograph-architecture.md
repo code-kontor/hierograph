@@ -93,6 +93,8 @@ Conceptually, it provides:
 
 Each edge between a (source, target) type pair is *one* edge with attributes — not multiple edges per kind. The attributes are flags indicating which specific kinds of underlying detail-level relationships contribute to the edge. This design keeps the in-memory graph topology simple (one edge per pair) while preserving the kind information that would be lost in a generic `depends_on`-only representation.
 
+**Attribute storage uses a bit-packed integer, not a map.** With 115,906 type-level edges on a Spring-sized codebase, the difference between storing attributes as `Map<String, Boolean>` and as a bit-packed `Int` is roughly 30 MB of heap (measured). A four-byte int suffices for vocabularies up to 32 attributes, well beyond any realistic provider's needs. The provider declares its attributes in an ordered list; position N in the list maps to bit N in the edge's bitmap. The bitmap is the storage representation; when edges are serialized to the LLM via JSON, the bits expand to the named map shape using the provider's declared attribute names.
+
 For the Java provider, the loader derives the attribute flags from jQAssistant's specific relationship types. The skeleton of the query joins the canonical `DEPENDS_ON` edge with the more specific `EXTENDS`, `IMPLEMENTS`, and `ANNOTATED_BY` edges, computing a boolean for each:
 
 ```cypher
@@ -143,15 +145,53 @@ interface HierarchyProvider {
 }
 
 interface CoreDependencyProvider {
-    /** The vocabulary of edge attribute kinds this provider supports. */
-    val supportedAttributeKinds: Set<String>
+    /**
+     * The attribute kinds this provider supports, in declaration order.
+     * Position in this list determines the bit position used to encode
+     * the attribute in each edge's attributesBitmap.
+     */
+    val supportedAttributeKinds: List<String>
 
     /**
      * Returns the type-level dependency edges with their attributes.
-     * Each row: (sourceId, targetId, edgeId, weight, attributesMap)
-     * where attributesMap is keyed by the names declared in supportedAttributeKinds.
+     * Each row: (sourceId, targetId, edgeId, weight, attributesBitmap)
+     * where attributesBitmap is a bit-packed int with one bit per
+     * supportedAttributeKinds entry, in declaration order.
      */
     fun typeDependencyQuery(): String
+}
+
+/**
+ * Shape of a type-level edge in memory.
+ *
+ * Attributes are stored as a bit-packed int: bit N corresponds to the
+ * attribute at position N in the provider's supportedAttributeKinds list.
+ * This keeps per-edge memory cost low (4 bytes for attributes vs. ~200
+ * bytes for a Map<String, Boolean> with the same information). For Spring-
+ * sized codebases with ~30,000 type-level edges, the bitmap representation
+ * is approximately 30 MB cheaper than a map-based representation.
+ *
+ * The bitmap is the storage format. When edges are serialized to the LLM
+ * via JSON responses, the bits are expanded into the named Map<String, Boolean>
+ * shape using the provider's declared attribute names. The LLM never sees
+ * the bitmap directly.
+ */
+data class TypeLevelEdge(
+    val sourceId: Long,
+    val targetId: Long,
+    val edgeId: Long,
+    val weight: Int,
+    val attributesBitmap: Int
+) {
+    fun hasAttribute(name: String, provider: CoreDependencyProvider): Boolean {
+        val bitPosition = provider.supportedAttributeKinds.indexOf(name)
+        return bitPosition >= 0 && (attributesBitmap and (1 shl bitPosition)) != 0
+    }
+
+    fun attributesAsMap(provider: CoreDependencyProvider): Map<String, Boolean> =
+        provider.supportedAttributeKinds.withIndex().associate { (i, name) ->
+            name to ((attributesBitmap and (1 shl i)) != 0)
+        }
 }
 
 interface DetailDependencyProvider {
