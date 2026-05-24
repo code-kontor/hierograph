@@ -4,7 +4,7 @@
 
 **Date:** 2026-05-20
 
-**First applied in:** `pairwise_dependencies` ([spec](../tool-specifications/cartograph-pairwise-dependencies-spec.md), implementation in `mcp-spike/core-app/.../ReachabilityMcpTools.java`)
+**First applied in:** `pairwise_dependencies`
 
 ---
 
@@ -28,6 +28,19 @@ For any MCP tool response whose payload contains a graph — multiple references
 
 The shape mirrors the standard graph-data idiom used by GraphML, Gephi, d3-force, NetworkX, and JGraphT, so any downstream post-processor handles it without custom code.
 
+### Relationship to Hierograph's NodeRef shapes
+
+Hierograph defines two NodeRef shapes: **minimal** (identity fields only: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`) and **enriched** (identity plus kind-appropriate metadata like `member_count`, `modifiers`, `is_abstract`, etc.).
+
+Slim payload encoding is a separate concern from the NodeRef shape distinction:
+
+- **Slim encoding** solves *deduplication* — it prevents the same node's display fields from appearing N times in a response with N references to that node.
+- **NodeRef shapes** solve *information density* — they determine how much metadata a node carries when it appears in a response.
+
+The two interact cleanly: the `nodes` map in a slim-encoded response carries display fields (`name`, `qualified_name`, `kind`). These are a subset of the minimal NodeRef — just the fields needed to make IDs human-readable. Additional per-context fields (weights, distances, relationship kinds) stay at the reference site, not in the `nodes` map.
+
+Tools that return enriched NodeRefs as primary results (e.g., `find_node`, `list_children`, `list_descendants`) use inline enriched NodeRefs — each node appears once as a result item, so deduplication doesn't apply. Tools that return graph-shaped data where nodes appear as edge endpoints, path steps, or structural members (e.g., `pairwise_dependencies`, `outgoing_dependencies`, `incoming_dependencies`, `find_dependency_path`) use slim encoding.
+
 ## Scope
 
 **Apply to:**
@@ -35,10 +48,17 @@ The shape mirrors the standard graph-data idiom used by GraphML, Gephi, d3-force
 - Any tool whose response references the same node more than once. The canonical case is an edge list, but the rule covers SCCs, topological orders, ranked node lists where the same node may appear in multiple sections, and any future tool that emits graph-shaped output.
 - New tools by default — do not introduce embedded NodeRefs in fresh designs without a specific reason.
 
+Specifically, the following Hierograph tools use slim encoding:
+
+- `pairwise_dependencies` — nodes appear as matrix axes and edge endpoints
+- `aggregated_dependencies` — nodes appear as edge endpoints across multiple edges
+- `outgoing_dependencies` / `incoming_dependencies` — nodes appear as edge endpoints; at `detail_level: "detail"`, source and target entities reference their declaring types
+- `find_dependency_path` — nodes appear as steps in multiple paths
+
 **Do not apply to:**
 
-- Tools whose response references each node at most once. A `find_node` result, a single-pair `dependency_between` answer, or a `method_details` response with one declaring type does not benefit from the wrapper. The overhead of the `nodes` map exceeds the savings; keep the inline NodeRef form.
-- Per-endpoint detail that is genuinely different per appearance (e.g., `parent_id` of an inherited method on `list_methods`, where the parent varies between the queried type and the declaring type). Slim encoding deduplicates *node-display* info; per-context fields stay at the appearance site.
+- Tools whose response references each node at most once. `find_node`, `list_children`, `list_descendants`, `graph_overview`, `affected_by`, `method_details`, and `field_details` return each node once as a primary result item. The overhead of the `nodes` map exceeds the savings; use inline NodeRefs (minimal or enriched as appropriate).
+- Per-endpoint detail that is genuinely different per appearance. Slim encoding deduplicates *node-display* info; per-context fields stay at the reference site.
 
 The dividing line is: *does this node appear more than once with the same display fields?* If yes, slim encoding wins. If no, inline NodeRefs are fine.
 
@@ -49,11 +69,11 @@ The canonical structure:
 ```json
 {
   "nodes": {
-    "5625164": { "name": "core-api", "qualified_name": "com.example.core-api", "kind": "Project" },
-    "5625163": { "name": "core-impl", "qualified_name": "com.example.core-impl", "kind": "Project" }
+    "5625164": { "name": "core-api", "qualified_name": "com.example:core-api", "kind": "java.module" },
+    "5625163": { "name": "core-impl", "qualified_name": "com.example:core-impl", "kind": "java.module" }
   },
   "edges": [
-    { "from": 5625163, "to": 5625164, "weight": 142, "kinds": ["calls", "extends"] }
+    { "from": 5625163, "to": 5625164, "weight": 142, "type_pair_count": 28, "kinds": ["depends_on", "extends"] }
   ],
   "summary": {
     "node_count": 2,
@@ -83,11 +103,11 @@ Rules:
 
 - **Consumers need a lookup step.** Reading an edge requires a `nodes[edge.from]` access to get the display name. For LLMs this is trivial; for `jq` users it's a join (`.edges[] | . + {from_name: $nodes[(.from | tostring)].name}`), still a one-liner.
 - **Slightly less readable in raw form.** A reader scanning the JSON cannot see edge endpoint names without consulting `nodes`. The audience is overwhelmingly LLM and machine consumers, not humans reading raw responses — but worth flagging.
-- **Two encoding conventions in the codebase.** Tools that emit single-reference responses keep inline NodeRefs; tools that emit multi-reference responses use slim. The dividing line is principled and easy to apply, but reviewers need to know it exists.
+- **Two encoding conventions in the codebase.** Browse tools (single-reference results) use inline NodeRefs; graph-shaped tools (multi-reference results) use slim encoding. The dividing line is principled and easy to apply, but reviewers need to know it exists.
 
 ### Implementation guidance
 
-- The MCP layer already has a helper, `AbstractGraphMcpTools.toNodeRefShort(HGNode)`, that produces the inline form. For slim responses, construct the `nodes` map manually and reference IDs directly; do not call `toNodeRefShort` for edge endpoints or derived structures.
+- For slim responses, build the `nodes` map via `putSlimNode()` and reference IDs directly in edges, paths, and structural members. Do not embed full NodeRefs at reference sites.
 - Insert into `nodes` in a meaningful order (e.g., DSM order for `pairwise_dependencies`, rank order for ranked lists). Most JSON parsers preserve insertion order even though the spec doesn't require it; this makes the response scannable without breaking consumers that don't depend on it.
 - Round derived metrics (`density`, similar) to a fixed precision rather than emitting raw floats — bloat reduction is the headline benefit of this ADR, and full-precision decimals erode it.
 
@@ -108,8 +128,3 @@ Decouples the encoding from the data, but adds a round-trip per response. Reject
 ### D. Apply slim encoding everywhere, including single-reference responses
 
 Consistent, but adds the `nodes` wrapper to responses that don't benefit from it. Rejected: a `method_details` response that references one type doesn't gain anything by moving that type to a top-level `nodes` map; it just nests information one level deeper for no reason.
-
-## Related
-
-- Tool specification that codifies this for the first time: [`cartograph-pairwise-dependencies-spec.md`](../tool-specifications/cartograph-pairwise-dependencies-spec.md) — see *"Encoding: slim, id-referenced"* and *"Implementation notes"*.
-- Original problem write-up: `todos/cartograph-mcp-design-suggestions.md`, section *"Payload shape — slim node-id references"*.
