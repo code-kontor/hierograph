@@ -10,7 +10,7 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>core-app</artifactId>
+    <artifactId>mcp-server</artifactId>
     <packaging>jar</packaging>
 
     <properties>
