@@ -8,11 +8,11 @@
         <groupId>io.hierograph</groupId>
         <artifactId>hierograph-hierarchicalgraph</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>io.hierograph</groupId>
-    <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
+    <artifactId>io.hierograph.hierarchicalgraph.core.algorithms</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -21,6 +21,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
