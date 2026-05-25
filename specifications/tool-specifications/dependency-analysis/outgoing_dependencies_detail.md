@@ -133,12 +133,28 @@ Standard Hierograph cursor protocol.
 
 ## Architecture
 
-Uses the `DetailDependencyProvider` from the provider layer:
+Uses the `DetailDependencyProvider` from the provider layer. The expansion strategy depends on whether the input ID refers to a **container node** (module, package, type) or a **member node** (method, field):
+
+### Case 1: `from_id` / `to_id` is a module, package, or type
 
 1. Expand `from_id` and `to_id` to their contained types
 2. Call `provider.detailDependency.detailEdgeQuery(relationship, fromTypeIds, toTypeIds)`
-3. The provider translates to scanner-specific Cypher and returns results in Hierograph domain terms
+3. The provider translates to scanner-specific Cypher that starts from **type nodes** and traverses down to their methods/fields to find detail-level edges
 4. Sort by iteration order, compute summary, slice for page
+
+### Case 2: `from_id` / `to_id` is a method or field
+
+When a method or field ID is passed, the node does not *contain* types — it **is** a member of a type. The Cypher query must start from the **method/field node directly** rather than expanding to contained types:
+
+1. Resolve the member node (method or field) from `from_id` / `to_id`
+2. Call `provider.detailDependency.detailEdgeQueryForMember(relationship, memberNodeId, oppositeTypeIds)` (or equivalent)
+3. The provider translates to scanner-specific Cypher that starts from the **member node** and matches its outgoing/incoming detail-level edges against the opposite subtree
+
+> **Current gap:** This member-level Cypher path is not yet implemented. When a method or field ID is passed as `from_id` or `to_id`, the current implementation falls through to the type-expansion path, which yields zero contained types for a member node, resulting in an empty result set with no error. The fix requires a separate Cypher query (or query branch) that anchors on the member node directly.
+
+### Mixed case
+
+When one parameter is a container (module/package/type) and the other is a member (method/field), each side uses its own expansion strategy: the container side expands to types, the member side anchors on the member node.
 
 The tool layer never sees Cypher or scanner-specific labels. The `DetailDependencyProvider` encapsulates the query and maps results to Hierograph's relationship vocabulary.
 

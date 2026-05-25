@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency
 import org.slizaa.hierarchicalgraph.core.model.HGNode
 import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.server.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -66,25 +67,30 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         val effectiveRel = if (relationship != null && relationship.isNotBlank()) relationship else null
         val mp = getMetadataProvider()
 
-        val fromTypeIds = collectSubtreeTypeIds(fromNode, mp)
-        val toTypeIds = collectSubtreeTypeIds(toNode, mp)
+        val fromScope = resolveScopeInfo(fromNode, mp)
+        val toScope = resolveScopeInfo(toNode, mp)
 
         // Empty subtree on either side -> no edges, but still return a well-formed response.
-        if (fromTypeIds.isEmpty() || toTypeIds.isEmpty()) {
+        if (fromScope.typeIds.isEmpty() || toScope.typeIds.isEmpty()) {
             return emptyResult(fromNode, toNode, effectiveRel)
         }
 
         // --- Build & (optionally) log the Cypher ------------------------------------------
-        val cypher = buildCypher(effectiveRel)
+        val cypher = buildCypher(effectiveRel, fromScope, toScope)
+        val params = mutableMapOf<String, Any>(
+            "fromTypes" to fromScope.typeIds,
+            "toTypes" to toScope.typeIds
+        )
+        if (fromScope.memberId != null) params["fromMemberId"] = fromScope.memberId
+        if (toScope.memberId != null) params["toMemberId"] = toScope.memberId
+
         if (logCypher) {
             log.info(
-                "detail_dependencies cypher (relationship={}, fromTypes={}, toTypes={}):\n{}",
-                effectiveRel, fromTypeIds, toTypeIds, cypher
+                "detail_dependencies cypher (relationship={}, fromScope={}, toScope={}):\n{}",
+                effectiveRel, fromScope, toScope, cypher
             )
         }
-        val queryResult = graphService.boltClient.syncExecCypherQuery(
-            cypher, mapOf("fromTypes" to fromTypeIds, "toTypes" to toTypeIds)
-        )
+        val queryResult = graphService.boltClient.syncExecCypherQuery(cypher, params)
 
         // --- Aggregate result rows --------------------------------------------------------
         val allEdges = mutableListOf<SortableEdge>()
@@ -254,6 +260,19 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
     )
 
     /**
+     * Describes how a scope parameter (from_id / to_id) was resolved. For container nodes
+     * (module, package, type), [typeIds] holds the expanded set of type IDs and [memberId]
+     * is null. For member nodes (method, field), [typeIds] holds the declaring type's ID,
+     * [memberId] is the member's node ID, and [memberNeoLabel] is the Neo4j label
+     * ("Method" or "Field") used for branch filtering.
+     */
+    private data class ScopeInfo(
+        val typeIds: List<Long>,
+        val memberId: Long? = null,
+        val memberNeoLabel: String? = null
+    )
+
+    /**
      * Pairs an edge map with its sort keys so the keys don't leak into the serialized
      * response. Sort key precedence is: relationship, source-type FQN, source name, line.
      */
@@ -323,11 +342,15 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
      * declarer joins (zero or more `EXTENDS|IMPLEMENTS` hops); `RETURN DISTINCT`
      * collapses duplicates that arise when the from / to subtrees include both a type and
      * one of its ancestors.
+     *
+     * When [fromScope] or [toScope] is a member scope, branches are filtered to those
+     * whose src/tgt label matches the member's Neo4j label, and the Cypher anchors
+     * directly on the member node instead of expanding from the type level.
      */
-    private fun buildCypher(relationship: String?): String {
+    private fun buildCypher(relationship: String?, fromScope: ScopeInfo, toScope: ScopeInfo): String {
         val branches = BRANCHES
             .filter { relationship == null || it.hierographKind == relationship }
-            .map { renderBranch(it) }
+            .mapNotNull { renderBranch(it, fromScope, toScope) }
 
         if (branches.isEmpty()) {
             return EMPTY_CYPHER
@@ -335,26 +358,65 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         return branches.joinToString(" UNION ALL ")
     }
 
-    /** Renders one branch from a [BranchSpec]. */
-    private fun renderBranch(b: BranchSpec): String {
-        val srcDeclarer = "(st:Type)-[:EXTENDS|IMPLEMENTS*0..]->(so:Type)-[:DECLARES]->(src:${b.srcLabel})"
+    /**
+     * Renders one branch from a [BranchSpec], taking member scopes into account.
+     * Returns `null` when the branch is inapplicable (e.g., source is a Field but
+     * the branch expects a Method source, or target is a member but the branch
+     * targets a Type).
+     */
+    private fun renderBranch(b: BranchSpec, fromScope: ScopeInfo, toScope: ScopeInfo): String? {
+
+        // --- Filter inapplicable branches ------------------------------------------------
+
+        // When from_id is a member, only include branches whose srcLabel matches
+        if (fromScope.memberNeoLabel != null && b.srcLabel != fromScope.memberNeoLabel) return null
+
+        // When to_id is a member and the branch targets a Type (e.g. throws, returns),
+        // a member can't be a Type target → skip
+        if (toScope.memberId != null && b.shape == BranchShape.TO_TYPE) return null
+
+        // When to_id is a member, only include branches whose tgtLabel matches
+        if (toScope.memberNeoLabel != null && b.tgtLabel != toScope.memberNeoLabel) return null
+
+        // --- Source side -----------------------------------------------------------------
+
+        val srcDeclarer: String
+        val srcWhere: String
+        if (fromScope.memberId != null) {
+            // Member scope: anchor on the specific member, resolve declaring type for projection
+            srcDeclarer = "(so:Type)-[:DECLARES]->(src:${b.srcLabel})"
+            srcWhere = "id(src) = \$fromMemberId"
+        } else {
+            // Container scope: traverse inheritance from type set
+            srcDeclarer = "(st:Type)-[:EXTENDS|IMPLEMENTS*0..]->(so:Type)-[:DECLARES]->(src:${b.srcLabel})"
+            srcWhere = "id(st) IN \$fromTypes"
+        }
         val srcProj = "id(so) AS srcTypeId, so.name AS srcTypeName, so.fqn AS srcTypeFqn, labels(so) AS srcTypeLabels"
+
+        // --- Target side -----------------------------------------------------------------
 
         val tgtMatch: String
         val tgtProj: String
         val whereTgt: String
         if (b.shape == BranchShape.TO_TYPE) {
+            // TO_TYPE: target is a Type node (already filtered out member toScope above)
             tgtMatch = "(tgt:${b.tgtLabel})"
             tgtProj = "id(tgt) AS tgtTypeId, tgt.name AS tgtTypeName, tgt.fqn AS tgtTypeFqn, labels(tgt) AS tgtTypeLabels"
             whereTgt = "id(tgt) IN \$toTypes"
+        } else if (toScope.memberId != null) {
+            // TO_ENTITY / REVERSE_FROM_ENTITY with member scope: anchor on the specific member
+            tgtMatch = "(tgt:${b.tgtLabel})<-[:DECLARES]-(to:Type)"
+            tgtProj = "id(to) AS tgtTypeId, to.name AS tgtTypeName, to.fqn AS tgtTypeFqn, labels(to) AS tgtTypeLabels"
+            whereTgt = "id(tgt) = \$toMemberId"
         } else {
+            // TO_ENTITY / REVERSE_FROM_ENTITY with container scope: traverse inheritance
             tgtMatch = "(tgt:${b.tgtLabel})<-[:DECLARES]-(to:Type)<-[:EXTENDS|IMPLEMENTS*0..]-(tt:Type)"
             tgtProj = "id(to) AS tgtTypeId, to.name AS tgtTypeName, to.fqn AS tgtTypeFqn, labels(to) AS tgtTypeLabels"
             whereTgt = "id(tt) IN \$toTypes"
         }
 
         return "MATCH $srcDeclarer${b.middle}$tgtMatch " +
-                "WHERE id(st) IN \$fromTypes AND $whereTgt " +
+                "WHERE $srcWhere AND $whereTgt " +
                 "RETURN DISTINCT " +
                 "id(src) AS srcId, src.name AS srcName, src.fqn AS srcFqn, labels(src) AS srcLabels, " +
                 "$srcProj, " +
@@ -375,6 +437,38 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
             return graphService.rootNode
         }
         return null
+    }
+
+    /**
+     * Resolves a scope node into a [ScopeInfo]. For container nodes (module, package, type),
+     * expands to contained type IDs. For member nodes (method, field), returns the declaring
+     * type's ID plus the member's own ID and Neo4j label for Cypher anchoring.
+     */
+    private fun resolveScopeInfo(node: HGNode, mp: INodeMetadataProvider): ScopeInfo {
+        val neoLabel = neoLabelForMember(node)
+        if (neoLabel != null) {
+            // Member node: use declaring type (parent) for the type set
+            val parentNode = node.parent ?: return ScopeInfo(emptyList())
+            val parentTypeIds = collectSubtreeTypeIds(parentNode, mp)
+            return ScopeInfo(parentTypeIds, node.identifier as Long, neoLabel)
+        }
+        // Container node: expand subtree to type IDs
+        return ScopeInfo(collectSubtreeTypeIds(node, mp))
+    }
+
+    /**
+     * Returns the Neo4j label ("Method" or "Field") if the node is a member, or `null`
+     * if it is a container (module, package, type). Constructors are mapped to "Method"
+     * since they carry the Neo4j `Method` label.
+     */
+    private fun neoLabelForMember(node: HGNode): String? {
+        val src = node.nodeSource as? GraphDbNodeSource ?: return null
+        val labels = src.labels
+        return when {
+            "Field" in labels -> "Field"
+            "Method" in labels -> "Method"  // includes constructors (Constructor + Method labels)
+            else -> null
+        }
     }
 
     private fun collectSubtreeTypeIds(node: HGNode, mp: INodeMetadataProvider): List<Long> {
