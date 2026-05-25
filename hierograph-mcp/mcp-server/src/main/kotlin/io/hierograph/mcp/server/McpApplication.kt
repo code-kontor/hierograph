@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server
 
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantSearchProvider
 import io.hierograph.mcp.server.logging.LoggingToolCallbackProvider
 import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
@@ -32,7 +32,7 @@ class McpApplication {
     fun searchProvider(graphService: HierarchicalGraphService): ISearchProvider =
         JQAssistantSearchProvider(
             graphService.boltClient,
-            graphService.rootNode.getExtension(INodeMetadataProvider::class.java)
+            graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
         )
 
     @Bean

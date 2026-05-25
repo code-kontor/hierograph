@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.mcp.server.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds

@@ -1,6 +1,6 @@
 package io.hierograph.mcp.server.tools
 
-import org.slizaa.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 
 /**
  * Defines the API for converting [HGNode] instances into the map-based

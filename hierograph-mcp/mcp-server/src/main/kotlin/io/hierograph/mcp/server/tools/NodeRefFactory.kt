@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server.tools
 
-import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.server.HierarchicalGraphService
 import org.springframework.stereotype.Component
@@ -20,7 +20,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     // ── metadata provider ──────────────────────────────────────────────
 
     private val metadataProvider: INodeMetadataProvider
-        get() = graphService.rootNode.getExtension(INodeMetadataProvider::class.java)
+        get() = graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
 
     // ── minimal NodeRef ────────────────────────────────────────────────
 

@@ -1,12 +1,12 @@
 package io.hierograph.mcp.server.tools.navigation
 
-import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.mcp.server.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.tools.INodeRefFactory
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component
 
@@ -146,8 +146,8 @@ class GraphOverviewTool(
 
         // ── scan metadata ──────────────────────────────────────────────
         val mp = rootNode.getExtension(INodeMetadataProvider::class.java)
-        val scanMetadata = mapOf(
-            "scanner" to mp?.scannerName
+        val scanMetadata = mapOf<String, Any?>(
+            "scanner" to mp?.getScannerName()
         )
 
         // ── assemble response ──────────────────────────────────────────

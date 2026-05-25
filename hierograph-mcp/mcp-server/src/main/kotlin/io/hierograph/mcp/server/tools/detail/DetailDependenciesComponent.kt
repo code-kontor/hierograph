@@ -1,10 +1,10 @@
 package io.hierograph.mcp.server.tools.detail
 
 import org.slf4j.LoggerFactory
-import org.slizaa.hierarchicalgraph.core.model.HGAggregatedDependency
-import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource
+import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
+import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.server.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -527,10 +527,10 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         putSlimNode(nodes, toNode)
         // by_source_nodes / by_target_nodes entries
         for (entry in bySourceNodes) {
-            putSlimNode(nodes, graphService.rootNode.lookupNode(entry["node"] as Long))
+            graphService.rootNode.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
         }
         for (entry in byTargetNodes) {
-            putSlimNode(nodes, graphService.rootNode.lookupNode(entry["node"] as Long))
+            graphService.rootNode.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
         }
         for (id in referenced) {
             val disp = nodeDisplay[id]
@@ -549,10 +549,10 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         putSlimNode(nodes, fromNode)
         putSlimNode(nodes, toNode)
         for (entry in bySourceNodes) {
-            putSlimNode(nodes, graphService.rootNode.lookupNode(entry["node"] as Long))
+            graphService.rootNode.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
         }
         for (entry in byTargetNodes) {
-            putSlimNode(nodes, graphService.rootNode.lookupNode(entry["node"] as Long))
+            graphService.rootNode.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
         }
         val summary = linkedMapOf<String, Any?>(
             "total_edges" to 0,

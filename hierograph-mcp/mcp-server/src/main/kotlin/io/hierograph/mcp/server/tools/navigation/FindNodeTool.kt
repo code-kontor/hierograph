@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.mcp.server.HierarchicalGraphService
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.server.tools.INodeRefFactory
 import org.springframework.ai.tool.annotation.Tool

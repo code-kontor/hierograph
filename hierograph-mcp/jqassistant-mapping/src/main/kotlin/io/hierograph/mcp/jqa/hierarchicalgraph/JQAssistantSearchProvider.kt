@@ -1,9 +1,9 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
 import org.slizaa.core.boltclient.IBoltClient
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider.SearchResult
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.SearchResult
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 

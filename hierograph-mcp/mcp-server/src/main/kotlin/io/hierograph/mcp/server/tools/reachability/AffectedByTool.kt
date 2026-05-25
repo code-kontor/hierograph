@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server.tools.reachability
 
-import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.mcp.server.HierarchicalGraphService
 import io.hierograph.mcp.server.tools.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -218,9 +218,9 @@ class AffectedByTool(
         for (entry in allResults) {
             byDistance.merge(entry.distance, 1) { a, b -> a + b }
             // Walk up to find the top-level module
-            var ancestor = entry.node
-            while (ancestor.parent != null && ancestor.parent != graphService.rootNode) {
-                ancestor = ancestor.parent
+            var ancestor: HGNode = entry.node
+            while (ancestor.parent != null && ancestor.parent !== graphService.rootNode) {
+                ancestor = ancestor.parent!!
             }
             if (ancestor.parent == graphService.rootNode) {
                 moduleCountMap.merge(ancestor.identifier, 1) { a, b -> a + b }

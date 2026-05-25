@@ -6,14 +6,19 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="io.hierograph.hierarchicalgraph.core.algorithms" />
+        <module name="io.hierograph.hierarchicalgraph.core.model" />
         <module name="org.slizaa.hierarchicalgraph.graphdb.testfwk" />
-        <module name="core-app" />
         <module name="org.slizaa.hierarchicalgraph.core.algorithms" />
         <module name="jqassistant-mapping" />
         <module name="org.slizaa.hierarchicalgraph.core.workbench.model" />
+        <module name="mcp-server" />
+        <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
         <module name="org.slizaa.hierarchicalgraph.core.selections" />
         <module name="org.slizaa.core.boltclient.testfwk" />
+        <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
         <module name="ecoregenerator-maven-plugin" />
+        <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="org.slizaa.hierarchicalgraph.graphdb.model" />
         <module name="java-spec" />
@@ -25,6 +30,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="core-app" target="21" />
       <module name="mcp-spike" target="1.5" />
       <module name="org.slizaa.core.progressmonitor" target="21" />
     </bytecodeTargetLevel>
@@ -32,10 +38,14 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="core" options="-parameters" />
-      <module name="core-app" options="-parameters" />
       <module name="ecoregenerator-maven-plugin" options="-parameters" />
       <module name="hierarchicalgraph" options="-parameters" />
       <module name="hierograph-mcp" options="-parameters" />
+      <module name="io.hierograph.hierarchicalgraph.core.algorithms" options="-parameters" />
+      <module name="io.hierograph.hierarchicalgraph.core.model" options="-parameters" />
+      <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" options="-parameters" />
+      <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" options="-parameters" />
+      <module name="io.hierograph.hierarchicalgraph.graphdb.model" options="-parameters" />
       <module name="java-spec" options="-parameters" />
       <module name="jqassistant-mapping" options="-parameters" />
       <module name="mcp-server" options="-parameters" />

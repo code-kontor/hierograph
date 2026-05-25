@@ -1,6 +1,6 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.AbstractQueryBasedHierarchyProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.service.AbstractQueryBasedHierarchyProvider
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 

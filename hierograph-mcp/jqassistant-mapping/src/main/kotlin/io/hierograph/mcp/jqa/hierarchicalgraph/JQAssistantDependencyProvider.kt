@@ -1,6 +1,6 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import org.slizaa.hierarchicalgraph.graphdb.mapping.cypher.AbstractQueryBasedDependencyProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.service.AbstractQueryBasedDependencyProvider
 
 class JQAssistantDependencyProvider : AbstractQueryBasedDependencyProvider() {
 

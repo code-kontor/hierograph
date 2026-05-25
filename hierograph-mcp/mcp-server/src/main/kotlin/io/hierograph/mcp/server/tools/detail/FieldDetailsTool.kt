@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Value
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.server.HierarchicalGraphService
 import org.springframework.ai.tool.annotation.Tool

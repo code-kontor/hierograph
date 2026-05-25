@@ -21,7 +21,7 @@ object HierarchicalGraphFactory {
         val source = nodeSourceSupplier()
         val node = HGNodeImpl(kind = null, nodeSource = source)
         node._parent = parent
-        (parent as HGNodeImpl)._children.add(node)
+        (parent as HGNodeImpl).childrenMutable().add(node)
         source.node = node
         (rootNode as HGRootNodeImpl).registerNodeInMap(node)
         return node
@@ -38,8 +38,8 @@ object HierarchicalGraphFactory {
         val dep = HGCoreDependencyImpl(from = source, to = target, type = type, dependencySource = depSource)
         depSource.dependency = dep
 
-        (source as HGNodeImpl)._outgoingCoreDependencies.add(dep)
-        (target as HGNodeImpl)._incomingCoreDependencies.add(dep)
+        (source as HGNodeImpl).outgoingMutable().add(dep)
+        (target as HGNodeImpl).incomingMutable().add(dep)
 
         source.rootNode.invalidateCaches(listOf(source, target))
         if (reinitializeCaches) {
@@ -52,15 +52,15 @@ object HierarchicalGraphFactory {
     fun setParent(node: HGNode, parent: HGNode) {
         val impl = node as HGNodeImpl
         if (impl._parent != null) {
-            (impl._parent as HGNodeImpl)._children.remove(node)
+            (impl._parent as HGNodeImpl)._children?.remove(node)
         }
         impl._parent = parent
-        (parent as HGNodeImpl)._children.add(node)
+        (parent as HGNodeImpl).childrenMutable().add(node)
     }
 
     fun removeDependency(dependency: HGCoreDependency, invalidateCaches: Boolean = true) {
-        (dependency.from as HGNodeImpl)._outgoingCoreDependencies.remove(dependency)
-        (dependency.to as HGNodeImpl)._incomingCoreDependencies.remove(dependency)
+        (dependency.from as HGNodeImpl)._outgoingCoreDependencies?.remove(dependency)
+        (dependency.to as HGNodeImpl)._incomingCoreDependencies?.remove(dependency)
 
         if (invalidateCaches) {
             dependency.from.rootNode.invalidateCaches(listOf(dependency.from, dependency.to))

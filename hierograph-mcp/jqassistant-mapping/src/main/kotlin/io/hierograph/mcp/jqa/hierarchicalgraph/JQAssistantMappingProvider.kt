@@ -1,15 +1,12 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider.DefaultMappingProvider
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.annotations.SlizaaMappingProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.DefaultMappingProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.DefaultMappingProviderMetadata
 
-@SlizaaMappingProvider
 class JQAssistantMappingProvider : DefaultMappingProvider(
-    IMappingProvider.IMappingProviderMetadata.createMetadata(
-        "io.hierograph.jqassistant.hierarchicalgraph",
-        "Hierograph jQAssistant (hierarchical packages)",
-        null, null
+    DefaultMappingProviderMetadata(
+        identifier = "io.hierograph.jqassistant.hierarchicalgraph",
+        name = "Hierograph jQAssistant (hierarchical packages)"
     ),
     JQAssistantHierarchyProvider(),
     JQAssistantDependencyProvider(),

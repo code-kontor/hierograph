@@ -1,8 +1,8 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import org.slizaa.hierarchicalgraph.graphdb.model.GraphDbNodeSource
+import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 
 class JQAssistantNodeMetadataProvider : INodeMetadataProvider {
 

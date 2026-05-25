@@ -4,9 +4,9 @@ import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slizaa.core.boltclient.IBoltClient
 import org.slizaa.core.boltclient.IBoltClientFactory
-import org.slizaa.hierarchicalgraph.core.model.HGNodeTraverser
-import org.slizaa.hierarchicalgraph.core.model.HGRootNode
-import org.slizaa.hierarchicalgraph.graphdb.mapping.service.MappingFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantMappingProvider
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -38,7 +38,7 @@ class HierarchicalGraphService {
         val mappingProvider = JQAssistantMappingProvider()
 
         log.info("Creating hierarchical graph using '{}' ...", mappingProvider.javaClass.name)
-        rootNode = MappingFactory.createMappingServiceForStandaloneSetup()
+        rootNode = DefaultMappingService()
             .convert(mappingProvider, boltClient)
 
         val children = rootNode.children

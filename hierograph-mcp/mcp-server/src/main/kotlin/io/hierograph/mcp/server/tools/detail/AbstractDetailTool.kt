@@ -2,8 +2,8 @@ package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Record
 import org.neo4j.driver.Value
-import org.slizaa.hierarchicalgraph.core.model.HGNode
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.server.HierarchicalGraphService
 
@@ -21,7 +21,7 @@ abstract class AbstractDetailTool(
 ) {
 
     protected fun getMetadataProvider(): INodeMetadataProvider =
-        graphService.rootNode.getExtension(INodeMetadataProvider::class.java)
+        graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
 
     protected fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?) {
         val key = id.toString()

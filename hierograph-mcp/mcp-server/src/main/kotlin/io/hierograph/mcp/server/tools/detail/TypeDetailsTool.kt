@@ -1,7 +1,7 @@
 package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Value
-import org.slizaa.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.server.HierarchicalGraphService
 import io.hierograph.mcp.server.tools.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -102,8 +102,9 @@ class TypeDetailsTool(
         )
 
         // ── parent container ───────────────────────────────────────────
-        val parentContainer = if (hgNode?.parent != null && hgNode.parent != graphService.rootNode) {
-            nodeRefFactory.minimalNodeRef(hgNode.parent)
+        val parentNode = hgNode?.parent
+        val parentContainer = if (parentNode != null && parentNode !== graphService.rootNode) {
+            nodeRefFactory.minimalNodeRef(parentNode)
         } else null
 
         // ── modifiers ──────────────────────────────────────────────────

@@ -10,14 +10,19 @@ open class HGNodeImpl(
     override var kind: Any? = kind
 
     internal var _parent: HGNode? = null
-    internal val _children: MutableList<HGNode> = mutableListOf()
+    internal var _children: MutableList<HGNode>? = null
 
-    internal val _outgoingCoreDependencies: MutableList<HGCoreDependency> = mutableListOf()
-    internal val _incomingCoreDependencies: MutableList<HGCoreDependency> = mutableListOf()
+    internal var _outgoingCoreDependencies: MutableList<HGCoreDependency>? = null
+    internal var _incomingCoreDependencies: MutableList<HGCoreDependency>? = null
 
-    private val _cachedPredecessors = InvalidatableLazy { computePredecessors() }
-    private val _cachedAccumulatedOutgoing = InvalidatableLazy { computeAccumulatedOutgoing() }
-    private val _cachedAccumulatedIncoming = InvalidatableLazy { computeAccumulatedIncoming() }
+    private var _predecessorsInitialized = false
+    private var _predecessors: List<HGNode>? = null
+
+    private var _accumulatedOutgoingInitialized = false
+    private var _accumulatedOutgoing: List<HGCoreDependency>? = null
+
+    private var _accumulatedIncomingInitialized = false
+    private var _accumulatedIncoming: List<HGCoreDependency>? = null
 
     private var _cachedAggregatedOutgoing: MutableMap<HGNode, HGAggregatedDependencyImpl>? = null
     private var _cachedAggregatedIncoming: MutableMap<HGNode, HGAggregatedDependencyImpl>? = null
@@ -25,7 +30,7 @@ open class HGNodeImpl(
     // -- stored properties --
 
     override val parent: HGNode? get() = _parent
-    override val children: List<HGNode> get() = _children
+    override val children: List<HGNode> get() = _children ?: emptyList()
 
     // -- derived properties --
 
@@ -40,12 +45,38 @@ open class HGNodeImpl(
             return _parent!!.rootNode
         }
 
-    override val predecessors: List<HGNode> get() = _cachedPredecessors.get()
+    override val predecessors: List<HGNode>
+        get() {
+            if (!_predecessorsInitialized) {
+                _predecessors = computePredecessors()
+                _predecessorsInitialized = true
+            }
+            return _predecessors!!
+        }
 
-    override val outgoingCoreDependencies: List<HGCoreDependency> get() = _outgoingCoreDependencies
-    override val incomingCoreDependencies: List<HGCoreDependency> get() = _incomingCoreDependencies
-    override val accumulatedOutgoingCoreDependencies: List<HGCoreDependency> get() = _cachedAccumulatedOutgoing.get()
-    override val accumulatedIncomingCoreDependencies: List<HGCoreDependency> get() = _cachedAccumulatedIncoming.get()
+    override val outgoingCoreDependencies: List<HGCoreDependency>
+        get() = _outgoingCoreDependencies ?: emptyList()
+
+    override val incomingCoreDependencies: List<HGCoreDependency>
+        get() = _incomingCoreDependencies ?: emptyList()
+
+    override val accumulatedOutgoingCoreDependencies: List<HGCoreDependency>
+        get() {
+            if (!_accumulatedOutgoingInitialized) {
+                _accumulatedOutgoing = computeAccumulatedOutgoing()
+                _accumulatedOutgoingInitialized = true
+            }
+            return _accumulatedOutgoing!!
+        }
+
+    override val accumulatedIncomingCoreDependencies: List<HGCoreDependency>
+        get() {
+            if (!_accumulatedIncomingInitialized) {
+                _accumulatedIncoming = computeAccumulatedIncoming()
+                _accumulatedIncomingInitialized = true
+            }
+            return _accumulatedIncoming!!
+        }
 
     // -- operations --
 
@@ -98,18 +129,21 @@ open class HGNodeImpl(
     // -- cache management --
 
     internal fun invalidateLocalCaches() {
-        _cachedPredecessors.invalidate()
-        _cachedAccumulatedOutgoing.invalidate()
-        _cachedAccumulatedIncoming.invalidate()
+        _predecessorsInitialized = false
+        _predecessors = null
+        _accumulatedOutgoingInitialized = false
+        _accumulatedOutgoing = null
+        _accumulatedIncomingInitialized = false
+        _accumulatedIncoming = null
 
         _cachedAggregatedOutgoing?.values?.forEach { it.invalidate() }
         _cachedAggregatedIncoming?.values?.forEach { it.invalidate() }
     }
 
     internal fun initializeLocalCaches() {
-        _cachedPredecessors.get()
-        _cachedAccumulatedOutgoing.get()
-        _cachedAccumulatedIncoming.get()
+        predecessors
+        accumulatedOutgoingCoreDependencies
+        accumulatedIncomingCoreDependencies
 
         _cachedAggregatedOutgoing?.values?.forEach { it.initialize() }
         _cachedAggregatedIncoming?.values?.forEach { it.initialize() }
@@ -129,6 +163,23 @@ open class HGNodeImpl(
         return _cachedAggregatedIncoming!!
     }
 
+    // -- mutable list access (lazy allocation) --
+
+    internal fun childrenMutable(): MutableList<HGNode> {
+        if (_children == null) _children = mutableListOf()
+        return _children!!
+    }
+
+    internal fun outgoingMutable(): MutableList<HGCoreDependency> {
+        if (_outgoingCoreDependencies == null) _outgoingCoreDependencies = mutableListOf()
+        return _outgoingCoreDependencies!!
+    }
+
+    internal fun incomingMutable(): MutableList<HGCoreDependency> {
+        if (_incomingCoreDependencies == null) _incomingCoreDependencies = mutableListOf()
+        return _incomingCoreDependencies!!
+    }
+
     // -- computation --
 
     private fun computePredecessors(): List<HGNode> {
@@ -141,8 +192,8 @@ open class HGNodeImpl(
 
     private fun computeAccumulatedOutgoing(): List<HGCoreDependency> {
         return buildList {
-            addAll(_outgoingCoreDependencies)
-            for (child in _children) {
+            _outgoingCoreDependencies?.let { addAll(it) }
+            _children?.forEach { child ->
                 addAll(child.accumulatedOutgoingCoreDependencies)
             }
         }
@@ -150,8 +201,8 @@ open class HGNodeImpl(
 
     private fun computeAccumulatedIncoming(): List<HGCoreDependency> {
         return buildList {
-            addAll(_incomingCoreDependencies)
-            for (child in _children) {
+            _incomingCoreDependencies?.let { addAll(it) }
+            _children?.forEach { child ->
                 addAll(child.accumulatedIncomingCoreDependencies)
             }
         }

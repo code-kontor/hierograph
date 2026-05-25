@@ -20,6 +20,10 @@
     <file url="file://$PROJECT_DIR$/slizaa-core/org.slizaa.core.progressmonitor/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-core/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/io.hierograph.hierarchicalgraph.core.algorithms/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/io.hierograph.hierarchicalgraph.core.algorithms/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/io.hierograph.hierarchicalgraph.core.model/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/io.hierograph.hierarchicalgraph.core.model/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.algorithms/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.algorithms/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.model" charset="UTF-8" />
@@ -30,6 +34,12 @@
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.testfwk/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.workbench.model" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/core/org.slizaa.hierarchicalgraph.core.workbench.model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/io.hierograph.hierarchicalgraph.graphdb.mapping.service/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/io.hierograph.hierarchicalgraph.graphdb.mapping.service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/io.hierograph.hierarchicalgraph.graphdb.mapping.spi/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/io.hierograph.hierarchicalgraph.graphdb.mapping.spi/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/io.hierograph.hierarchicalgraph.graphdb.model/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/io.hierograph.hierarchicalgraph.graphdb.model/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.cypher/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/slizaa-hierarchicalgraph/graphdb/org.slizaa.hierarchicalgraph.graphdb.mapping.service/src/main/java" charset="UTF-8" />
