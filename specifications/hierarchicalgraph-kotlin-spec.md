@@ -86,13 +86,10 @@ either by class name (typed access) or by an arbitrary string key.
 | `hasExtension<T>(clazz: Class<T>)` | `Boolean` | True if an extension is registered under `clazz.name`. |
 | `hasExtension<T>(key: String, clazz: Class<T>)` | `Boolean` | True if an extension is registered under `key` and is assignable to `clazz`. |
 
-**Cache Management:**
+**Lookup:**
 
-| Operation | Description |
-|-----------|-------------|
-| `invalidateAllCaches()` | Invalidates all cached derived properties on every node in the tree. |
-| `invalidateCaches(nodes: List<HGNode>)` | Invalidates caches on the given nodes **and all their ancestors** (up to and including the root). |
-| `initializeCaches(nodes: List<HGNode>)` | Pre-computes caches on the given nodes **and all their ancestors**. |
+| Operation | Return | Description |
+|-----------|--------|-------------|
 | `lookupNode(identifier: Any)` | `HGNode?` | Returns the node with the given identifier. Uses a lazily-built `identifier -> node` map that indexes all nodes in the tree on first call. |
 
 ### 2.3 INodeSource
@@ -218,40 +215,15 @@ dependency with `from=B`, `to=A`.
 
 ---
 
-## 4. Cache Invalidation
+## 4. Immutable-After-Construction Model
 
-Each node maintains the following caches:
-- `predecessors` list
-- `accumulatedOutgoingCoreDependencies` list
-- `accumulatedIncomingCoreDependencies` list
-- Map of `HGNode -> HGAggregatedDependency` for outgoing aggregated deps
-- Map of `HGNode -> HGAggregatedDependency` for incoming aggregated deps
+The graph is **immutable after construction**. All nodes and dependencies are created
+during graph construction (via factory functions). Once construction is complete, the
+graph is read-only.
 
-### 4.1 `invalidateLocalCaches(node)`
-
-Resets all five caches on `node`:
-- Marks predecessors, accumulated outgoing, and accumulated incoming as uninitialized.
-- For each entry in both aggregated dependency maps: invalidates the aggregated dependency
-  (marks it as uninitialized so `coreDependencies` and `aggregatedWeight` are recomputed
-  on next access).
-
-Does **not** clear the aggregated dependency maps themselves — only invalidates their entries.
-
-### 4.2 `invalidateCaches(nodes)`
-
-For each node in `nodes`: invalidate `node` **and every ancestor** up to the root.
-
-Specifically: collect `{node} + node.predecessors` for each node in the input, then call
-`invalidateLocalCaches` on each collected node.
-
-### 4.3 `invalidateAllCaches()`
-
-Walk the entire tree (all descendants of root) and call `invalidateLocalCaches` on every node.
-
-### 4.4 `initializeCaches(nodes)`
-
-For each node in `nodes` and all their ancestors: force-compute all cached properties
-(predecessors, accumulated deps, and re-initialize all aggregated dep entries).
+Computed properties (`predecessors`, `accumulatedOutgoingCoreDependencies`,
+`accumulatedIncomingCoreDependencies`, aggregated dependencies) are lazily computed
+on first access and cached permanently. There is no cache invalidation.
 
 ---
 
@@ -276,7 +248,15 @@ instantiate nodes or dependencies directly.
 5. Register `node` in `rootNode`'s identifier-to-node map: `map[node.identifier] = node`.
 6. Return the node.
 
-### 5.3 `createCoreDependency(source: HGNode, target: HGNode, type: String, depSourceSupplier: () -> IDependencySource, reinitializeCaches: Boolean = false): HGCoreDependency`
+### 5.3 `createOrphanNode(rootNode: HGRootNode, nodeSourceSupplier: () -> INodeSource): HGNode`
+
+1. Create a new `HGNode` with no parent.
+2. Create the node source via `nodeSourceSupplier()`.
+3. Set `node.nodeSource = source` and `source.node = node` (bidirectional).
+4. Register `node` in `rootNode`'s identifier-to-node map.
+5. Return the node. (Parent is set later via `setParent`.)
+
+### 5.4 `createCoreDependency(source: HGNode, target: HGNode, type: String, depSourceSupplier: () -> IDependencySource): HGCoreDependency`
 
 1. Create a new `HGCoreDependency`.
 2. Set `dep.from = source`, `dep.to = target`, `dep.type = type`.
@@ -284,15 +264,12 @@ instantiate nodes or dependencies directly.
 4. Set `dep.dependencySource = depSource` and `depSource.dependency = dep` (bidirectional).
 5. Add `dep` to `source.outgoingCoreDependencies`.
 6. Add `dep` to `target.incomingCoreDependencies`.
-7. Call `source.rootNode.invalidateCaches([source, target])`.
-8. If `reinitializeCaches`: call `source.rootNode.initializeCaches([source, target])`.
-9. Return the dependency.
+7. Return the dependency.
 
-### 5.4 `removeDependency(dependency: HGCoreDependency, invalidateCaches: Boolean = true)`
+### 5.5 `setParent(node: HGNode, parent: HGNode)`
 
-1. Remove `dependency` from `dependency.from.outgoingCoreDependencies`.
-2. Remove `dependency` from `dependency.to.incomingCoreDependencies`.
-3. If `invalidateCaches`: call `dependency.from.rootNode.invalidateCaches([dependency.from, dependency.to])`.
+1. If `node` already has a parent, remove it from the old parent's children.
+2. Set `node.parent = parent` and add `node` to `parent.children`.
 
 ---
 
@@ -423,6 +400,7 @@ The following are **not** part of this specification and will be addressed separ
 - **Proxy dependencies** — the EMF implementation had `HGProxyDependency` and `IProxyDependencyResolver` for lazy resolution of dependencies. This mechanism is not used and is excluded from the Kotlin reimplementation.
 - **Algorithms** (DSM, topological sort, cycle detection) — separate module/spec.
 - **GraphDB mapping** (populating the graph from Neo4j/Cypher) — separate concern.
-- **Change observation** — the EMF implementation used EMF notifications (adapters). Not carried over. If change observation is needed later, it will be designed as a Kotlin-native mechanism.
-- **Thread safety** — the model is not thread-safe, matching the EMF implementation. Concurrent access must be externally synchronized.
+- **Cache invalidation / mutable graph** — the graph is immutable after construction. There is no `invalidateCaches`, `removeDependency`, or dynamic modification. All computed properties use Kotlin's `lazy` delegation.
+- **Change observation** — not needed since the graph is immutable after construction.
+- **Thread safety** — the model is not thread-safe during construction. After construction, read access is safe from multiple threads (lazy properties use `LazyThreadSafetyMode.SYNCHRONIZED` by default in Kotlin).
 - **Serialization** (XMI or other) — not in initial scope.

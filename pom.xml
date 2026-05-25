@@ -13,11 +13,8 @@
     <description>Aggregator POM for the slizaa project.</description>
 
     <modules>
-        <module>slizaa-parent</module>
-        <!-- mojos must be built first as they are used as build plugins -->
-        <module>slizaa-mojos</module>
+        <module>hierograph-parent</module>
         <module>slizaa-core</module>
-        <module>slizaa-hierarchicalgraph</module>
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-mcp</module>
     </modules>

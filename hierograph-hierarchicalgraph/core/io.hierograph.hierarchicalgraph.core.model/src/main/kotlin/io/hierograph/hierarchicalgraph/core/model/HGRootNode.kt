@@ -10,8 +10,5 @@ interface HGRootNode : HGNode {
     fun <T : Any> hasExtension(clazz: Class<T>): Boolean
     fun <T : Any> hasExtension(key: String, clazz: Class<T>): Boolean
 
-    fun invalidateAllCaches()
-    fun invalidateCaches(nodes: List<HGNode>)
-    fun initializeCaches(nodes: List<HGNode>)
     fun lookupNode(identifier: Any): HGNode?
 }

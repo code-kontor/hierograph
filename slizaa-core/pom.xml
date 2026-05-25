@@ -4,10 +4,10 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.slizaa</groupId>
-		<artifactId>slizaa-parent</artifactId>
+		<groupId>io.hierograph</groupId>
+		<artifactId>hierograph-parent</artifactId>
 		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>../slizaa-parent/pom.xml</relativePath>
+		<relativePath>../hierograph-parent/pom.xml</relativePath>
 	</parent>
 
 	<groupId>org.slizaa.core</groupId>

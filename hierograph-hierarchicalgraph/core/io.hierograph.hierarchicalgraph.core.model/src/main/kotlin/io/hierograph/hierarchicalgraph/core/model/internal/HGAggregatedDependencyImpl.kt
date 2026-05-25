@@ -9,39 +9,13 @@ class HGAggregatedDependencyImpl(
     override val to: HGNode
 ) : HGAggregatedDependency {
 
-    private var initialized = false
-    private var _coreDependencies: List<HGCoreDependency> = emptyList()
-    private var _aggregatedWeight: Int = 0
-
-    override val coreDependencies: List<HGCoreDependency>
-        get() {
-            initialize()
-            return _coreDependencies
-        }
-
-    override val aggregatedWeight: Int
-        get() {
-            initialize()
-            return _aggregatedWeight
-        }
-
-    fun initialize() {
-        if (initialized) return
-
-        val toNode = to as HGNodeImpl
-        val deps = toNode.accumulatedIncomingCoreDependencies.filter { dep ->
+    override val coreDependencies: List<HGCoreDependency> by lazy {
+        to.accumulatedIncomingCoreDependencies.filter { dep ->
             dep.from === from || from.isPredecessorOf(dep.from)
         }
-
-        _coreDependencies = deps
-        _aggregatedWeight = deps.sumOf { it.weight }
-        initialized = true
     }
 
-    fun invalidate() {
-        if (!initialized) return
-        initialized = false
-        _coreDependencies = emptyList()
-        _aggregatedWeight = 0
+    override val aggregatedWeight: Int by lazy {
+        coreDependencies.sumOf { it.weight }
     }
 }

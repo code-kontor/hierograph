@@ -15,17 +15,8 @@ open class HGNodeImpl(
     internal var _outgoingCoreDependencies: MutableList<HGCoreDependency>? = null
     internal var _incomingCoreDependencies: MutableList<HGCoreDependency>? = null
 
-    private var _predecessorsInitialized = false
-    private var _predecessors: List<HGNode>? = null
-
-    private var _accumulatedOutgoingInitialized = false
-    private var _accumulatedOutgoing: List<HGCoreDependency>? = null
-
-    private var _accumulatedIncomingInitialized = false
-    private var _accumulatedIncoming: List<HGCoreDependency>? = null
-
-    private var _cachedAggregatedOutgoing: MutableMap<HGNode, HGAggregatedDependencyImpl>? = null
-    private var _cachedAggregatedIncoming: MutableMap<HGNode, HGAggregatedDependencyImpl>? = null
+    private var _cachedAggregatedOutgoing: MutableMap<HGNode, HGAggregatedDependency>? = null
+    private var _cachedAggregatedIncoming: MutableMap<HGNode, HGAggregatedDependency>? = null
 
     // -- stored properties --
 
@@ -45,14 +36,13 @@ open class HGNodeImpl(
             return _parent!!.rootNode
         }
 
-    override val predecessors: List<HGNode>
-        get() {
-            if (!_predecessorsInitialized) {
-                _predecessors = computePredecessors()
-                _predecessorsInitialized = true
-            }
-            return _predecessors!!
+    override val predecessors: List<HGNode> by lazy {
+        val p = _parent ?: return@lazy emptyList()
+        buildList {
+            add(p)
+            addAll(p.predecessors)
         }
+    }
 
     override val outgoingCoreDependencies: List<HGCoreDependency>
         get() = _outgoingCoreDependencies ?: emptyList()
@@ -60,23 +50,23 @@ open class HGNodeImpl(
     override val incomingCoreDependencies: List<HGCoreDependency>
         get() = _incomingCoreDependencies ?: emptyList()
 
-    override val accumulatedOutgoingCoreDependencies: List<HGCoreDependency>
-        get() {
-            if (!_accumulatedOutgoingInitialized) {
-                _accumulatedOutgoing = computeAccumulatedOutgoing()
-                _accumulatedOutgoingInitialized = true
+    override val accumulatedOutgoingCoreDependencies: List<HGCoreDependency> by lazy {
+        buildList {
+            _outgoingCoreDependencies?.let { addAll(it) }
+            _children?.forEach { child ->
+                addAll(child.accumulatedOutgoingCoreDependencies)
             }
-            return _accumulatedOutgoing!!
         }
+    }
 
-    override val accumulatedIncomingCoreDependencies: List<HGCoreDependency>
-        get() {
-            if (!_accumulatedIncomingInitialized) {
-                _accumulatedIncoming = computeAccumulatedIncoming()
-                _accumulatedIncomingInitialized = true
+    override val accumulatedIncomingCoreDependencies: List<HGCoreDependency> by lazy {
+        buildList {
+            _incomingCoreDependencies?.let { addAll(it) }
+            _children?.forEach { child ->
+                addAll(child.accumulatedIncomingCoreDependencies)
             }
-            return _accumulatedIncoming!!
         }
+    }
 
     // -- operations --
 
@@ -92,13 +82,11 @@ open class HGNodeImpl(
 
     override fun getOutgoingDependenciesTo(target: HGNode): HGAggregatedDependency? {
         val map = cachedAggregatedOutgoing()
-        if (!map.containsKey(target)) {
-            val dep = HGAggregatedDependencyImpl(from = this, to = target)
-            dep.initialize()
-            map[target] = dep
-            (target as HGNodeImpl).cachedAggregatedIncoming()[this] = dep
+        val dep = map.getOrPut(target) {
+            HGAggregatedDependencyImpl(from = this, to = target).also {
+                (target as HGNodeImpl).cachedAggregatedIncoming()[this] = it
+            }
         }
-        val dep = map[target]!!
         return if (dep.aggregatedWeight > 0) dep else null
     }
 
@@ -108,13 +96,11 @@ open class HGNodeImpl(
 
     override fun getIncomingDependenciesFrom(source: HGNode): HGAggregatedDependency? {
         val map = cachedAggregatedIncoming()
-        if (!map.containsKey(source)) {
-            val dep = HGAggregatedDependencyImpl(from = source, to = this)
-            dep.initialize()
-            map[source] = dep
-            (source as HGNodeImpl).cachedAggregatedOutgoing()[this] = dep
+        val dep = map.getOrPut(source) {
+            HGAggregatedDependencyImpl(from = source, to = this).also {
+                (source as HGNodeImpl).cachedAggregatedOutgoing()[this] = it
+            }
         }
-        val dep = map[source]!!
         return if (dep.aggregatedWeight > 0) dep else null
     }
 
@@ -124,43 +110,6 @@ open class HGNodeImpl(
 
     override fun <T : Any> getNodeSource(clazz: Class<T>): T? {
         return if (clazz.isInstance(nodeSource)) clazz.cast(nodeSource) else null
-    }
-
-    // -- cache management --
-
-    internal fun invalidateLocalCaches() {
-        _predecessorsInitialized = false
-        _predecessors = null
-        _accumulatedOutgoingInitialized = false
-        _accumulatedOutgoing = null
-        _accumulatedIncomingInitialized = false
-        _accumulatedIncoming = null
-
-        _cachedAggregatedOutgoing?.values?.forEach { it.invalidate() }
-        _cachedAggregatedIncoming?.values?.forEach { it.invalidate() }
-    }
-
-    internal fun initializeLocalCaches() {
-        predecessors
-        accumulatedOutgoingCoreDependencies
-        accumulatedIncomingCoreDependencies
-
-        _cachedAggregatedOutgoing?.values?.forEach { it.initialize() }
-        _cachedAggregatedIncoming?.values?.forEach { it.initialize() }
-    }
-
-    internal fun cachedAggregatedOutgoing(): MutableMap<HGNode, HGAggregatedDependencyImpl> {
-        if (_cachedAggregatedOutgoing == null) {
-            _cachedAggregatedOutgoing = mutableMapOf()
-        }
-        return _cachedAggregatedOutgoing!!
-    }
-
-    internal fun cachedAggregatedIncoming(): MutableMap<HGNode, HGAggregatedDependencyImpl> {
-        if (_cachedAggregatedIncoming == null) {
-            _cachedAggregatedIncoming = mutableMapOf()
-        }
-        return _cachedAggregatedIncoming!!
     }
 
     // -- mutable list access (lazy allocation) --
@@ -180,31 +129,13 @@ open class HGNodeImpl(
         return _incomingCoreDependencies!!
     }
 
-    // -- computation --
-
-    private fun computePredecessors(): List<HGNode> {
-        val p = _parent ?: return emptyList()
-        return buildList {
-            add(p)
-            addAll(p.predecessors)
-        }
+    private fun cachedAggregatedOutgoing(): MutableMap<HGNode, HGAggregatedDependency> {
+        if (_cachedAggregatedOutgoing == null) _cachedAggregatedOutgoing = mutableMapOf()
+        return _cachedAggregatedOutgoing!!
     }
 
-    private fun computeAccumulatedOutgoing(): List<HGCoreDependency> {
-        return buildList {
-            _outgoingCoreDependencies?.let { addAll(it) }
-            _children?.forEach { child ->
-                addAll(child.accumulatedOutgoingCoreDependencies)
-            }
-        }
-    }
-
-    private fun computeAccumulatedIncoming(): List<HGCoreDependency> {
-        return buildList {
-            _incomingCoreDependencies?.let { addAll(it) }
-            _children?.forEach { child ->
-                addAll(child.accumulatedIncomingCoreDependencies)
-            }
-        }
+    private fun cachedAggregatedIncoming(): MutableMap<HGNode, HGAggregatedDependency> {
+        if (_cachedAggregatedIncoming == null) _cachedAggregatedIncoming = mutableMapOf()
+        return _cachedAggregatedIncoming!!
     }
 }

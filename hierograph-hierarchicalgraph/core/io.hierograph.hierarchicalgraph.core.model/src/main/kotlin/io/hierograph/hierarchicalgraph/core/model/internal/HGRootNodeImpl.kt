@@ -50,27 +50,6 @@ class HGRootNodeImpl(
         return clazz.isAssignableFrom(value.javaClass)
     }
 
-    // -- cache management --
-
-    override fun invalidateAllCaches() {
-        invalidateLocalCaches()
-        traverseChildren(this) { (it as HGNodeImpl).invalidateLocalCaches() }
-    }
-
-    override fun invalidateCaches(nodes: List<HGNode>) {
-        val toInvalidate = collectSelfAndPredecessors(nodes)
-        for (node in toInvalidate) {
-            (node as HGNodeImpl).invalidateLocalCaches()
-        }
-    }
-
-    override fun initializeCaches(nodes: List<HGNode>) {
-        val toInitialize = collectSelfAndPredecessors(nodes)
-        for (node in toInitialize) {
-            (node as HGNodeImpl).initializeLocalCaches()
-        }
-    }
-
     // -- lookup --
 
     override fun lookupNode(identifier: Any): HGNode? {
@@ -84,23 +63,8 @@ class HGRootNodeImpl(
     }
 
     internal fun registerNodeInMap(node: HGNode) {
-        idToNodeMap()[node.identifier] = node
-    }
-
-    private fun idToNodeMap(): MutableMap<Any, HGNode> {
-        if (_idToNodeMap == null) {
-            _idToNodeMap = mutableMapOf()
-        }
-        return _idToNodeMap!!
-    }
-
-    private fun collectSelfAndPredecessors(nodes: List<HGNode>): Set<HGNode> {
-        val result = mutableSetOf<HGNode>()
-        for (node in nodes) {
-            result.add(node)
-            result.addAll(node.predecessors)
-        }
-        return result
+        if (_idToNodeMap == null) _idToNodeMap = mutableMapOf()
+        _idToNodeMap!![node.identifier] = node
     }
 
     private fun traverseChildren(node: HGNode, action: (HGNode) -> Unit) {
