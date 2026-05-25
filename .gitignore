@@ -16,7 +16,7 @@ logs/
 !.claude/skills/
 
 # Embedded test database
-mcp-example-db/
+
 
 # IntelliJ IDEA
 # Shared project configuration under .idea/ is tracked.
