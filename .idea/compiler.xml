@@ -40,6 +40,7 @@
       <module name="core" options="-parameters" />
       <module name="ecoregenerator-maven-plugin" options="-parameters" />
       <module name="hierarchicalgraph" options="-parameters" />
+      <module name="hierograph-hierarchicalgraph" options="-parameters" />
       <module name="hierograph-mcp" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.core.algorithms" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.core.model" options="-parameters" />

@@ -27,6 +27,17 @@ object HierarchicalGraphFactory {
         return node
     }
 
+    fun createOrphanNode(
+        rootNode: HGRootNode,
+        nodeSourceSupplier: () -> INodeSource
+    ): HGNode {
+        val source = nodeSourceSupplier()
+        val node = HGNodeImpl(kind = null, nodeSource = source)
+        source.node = node
+        (rootNode as HGRootNodeImpl).registerNodeInMap(node)
+        return node
+    }
+
     fun createCoreDependency(
         source: HGNode,
         target: HGNode,

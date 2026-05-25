@@ -89,7 +89,11 @@ class DefaultMappingService : IMappingService {
 
         // Create new node
         val nodeSource = GraphDbNodeSource(identifier = id)
-        val node = HierarchicalGraphFactory.createNode(rootNode, parent ?: rootNode) { nodeSource }
+        val node = if (parent != null) {
+            HierarchicalGraphFactory.createNode(rootNode, parent) { nodeSource }
+        } else {
+            HierarchicalGraphFactory.createOrphanNode(rootNode) { nodeSource }
+        }
         idToNodeMap[id] = node
         return node
     }
