@@ -25,3 +25,4 @@ logs/
 *.iml
 *.iws
 out/
+/mcp-example-db/
