@@ -11,6 +11,41 @@
 
     <name>Hierograph Parent</name>
     <description>Parent POM for the Hierograph project.</description>
+    <url>https://www.hierograph.io</url>
+    <inceptionYear>2018</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>wuetherich</id>
+            <name>Gerd Wuetherich</name>
+            <email>gerd.wuetherich@code-kontor.io</email>
+            <url>http://www.code-kontor.io</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/code-kontor/io.hierograph.git</connection>
+        <developerConnection>scm:git:ssh://github.com:code-kontor/io.hierograph.git</developerConnection>
+        <url>https://github.com/code-kontor/io.hierograph</url>
+    </scm>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <java.version>21</java.version>
@@ -32,6 +67,8 @@
     </properties>
 
     <build>
+        <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
+        <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -47,6 +84,28 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <version>${kotlin.version}</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>test-compile</id>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <jvmTarget>${java.version}</jvmTarget>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>com.buschmais.jqassistant</groupId>
                 <artifactId>jqassistant-maven-plugin</artifactId>

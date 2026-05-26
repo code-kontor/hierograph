@@ -20,26 +20,4 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
-        <plugins>
-            <plugin>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-maven-plugin</artifactId>
-                <version>${kotlin.version}</version>
-                <executions>
-                    <execution>
-                        <id>compile</id>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <jvmTarget>21</jvmTarget>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
 </project>
