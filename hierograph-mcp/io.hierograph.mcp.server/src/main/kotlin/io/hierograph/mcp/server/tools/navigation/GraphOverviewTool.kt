@@ -16,11 +16,11 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
-import io.hierograph.mcp.server.HierarchicalGraphService
+import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.server.tools.INodeRefFactory
+import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component

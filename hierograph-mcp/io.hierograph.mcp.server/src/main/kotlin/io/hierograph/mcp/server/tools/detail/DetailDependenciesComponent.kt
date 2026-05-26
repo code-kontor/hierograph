@@ -20,7 +20,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
-import io.hierograph.mcp.server.HierarchicalGraphService
+import io.hierograph.mcp.server.core.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.Comparator

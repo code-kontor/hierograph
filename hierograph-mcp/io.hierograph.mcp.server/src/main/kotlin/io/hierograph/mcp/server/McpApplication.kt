@@ -18,7 +18,8 @@ package io.hierograph.mcp.server
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantSearchProvider
-import io.hierograph.mcp.server.logging.LoggingToolCallbackProvider
+import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.mcp.server.core.logging.LoggingToolCallbackProvider
 import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
 import io.hierograph.mcp.server.tools.detail.MethodDetailsTool
 import io.hierograph.mcp.server.tools.detail.TypeDetailsTool

@@ -18,7 +18,8 @@ package io.hierograph.mcp.server.tools
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.server.HierarchicalGraphService
+import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
 
 /**
