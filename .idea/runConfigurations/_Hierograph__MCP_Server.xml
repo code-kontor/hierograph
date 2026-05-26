@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="[Hierograph] MCP-Server" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="io.hierograph.mcp.server" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="io.hierograph.mcp.server.McpApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
