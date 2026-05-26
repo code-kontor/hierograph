@@ -10,8 +10,6 @@
         <module name="io.hierograph.hierarchicalgraph.core.model" />
         <module name="io.hierograph.boltclient" />
         <module name="io.hierograph.mcp.javaspec" />
-        <module name="jqassistant-mapping" />
-        <module name="mcp-server" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
         <module name="io.hierograph.mcp.jqassistant.mapping" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
@@ -22,9 +20,6 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="core-app" target="21" />
-      <module name="ecoregenerator-maven-plugin" target="21" />
-      <module name="mcp-spike" target="1.5" />
       <module name="org.slizaa.core.boltclient" target="21" />
       <module name="org.slizaa.core.boltclient.testfwk" target="21" />
       <module name="org.slizaa.core.progressmonitor" target="21" />
