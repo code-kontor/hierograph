@@ -5,7 +5,7 @@ Java project using an agentic AI. It uses jQAssistant to scan your codebase into
 database, then exposes that graph via an MCP server that Claude can query.
 
 This guide covers Maven-based projects. For a deeper look at how the pieces fit together, see the
-[Architecture Overview](hierograph-architecture-overview.md).
+[Architecture Overview](architecture-overview.md).
 
 ## Prerequisites
 
