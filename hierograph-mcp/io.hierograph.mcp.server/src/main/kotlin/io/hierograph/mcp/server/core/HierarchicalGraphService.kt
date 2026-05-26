@@ -35,7 +35,7 @@ class HierarchicalGraphService {
         private val log = LoggerFactory.getLogger(HierarchicalGraphService::class.java)
     }
 
-    @Value("\${slizaa.bolt.uri:bolt://localhost:7687}")
+    @Value("\${hierograph.bolt.uri:bolt://localhost:7687}")
     private lateinit var boltUri: String
 
     lateinit var boltClient: IBoltClient

@@ -44,11 +44,11 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
      * When true, the Cypher statement built for each invocation is logged at INFO together
      * with the effective `relationship` filter and the resolved `fromTypes` /
      * `toTypes` parameters. Set via
-     * `slizaa.tools.tools.detail-dependencies.log-cypher=true` in
+     * `hierograph.mcp.tools.detail-dependencies.log-cypher=true` in
      * `application.properties`; defaults to `false`. Each detail tool gets its
      * own flag as the need arises.
      */
-    @Value("\${slizaa.tools.tools.detail-dependencies.log-cypher:false}")
+    @Value("\${hierograph.mcp.tools.detail-dependencies.log-cypher:false}")
     private var logCypher: Boolean = false
 
     /**

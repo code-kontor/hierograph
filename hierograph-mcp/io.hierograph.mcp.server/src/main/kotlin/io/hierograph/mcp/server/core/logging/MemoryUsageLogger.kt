@@ -21,7 +21,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 @Component
-@ConditionalOnProperty(name = ["slizaa.memory-usage-logger.enabled"], havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = ["hierograph.memory-usage-logger.enabled"], havingValue = "true", matchIfMissing = false)
 class MemoryUsageLogger {
 
     companion object {
