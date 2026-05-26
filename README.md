@@ -90,7 +90,7 @@ Claude (AI assistant)
 
 The whole graph fits in memory. Aggregation runs in microseconds. Self-hosted — runs on your machine.
 
-For detailed explanations, see the [Hierograph Architecture Overview](docs/hierograph-architecture-overview.md) guide.
+For detailed explanations, see the [Hierograph Architecture Overview](docs/architecture-overview.md) guide.
 
 ---
 
@@ -103,3 +103,9 @@ The first answer tells you whether this is the missing piece.
 Hierograph works with any graph-based structural model. Today, jQAssistant provides that for Java; additional scanners (Python, TypeScript, others) can plug into the same hierarchical model with adapted MCP tools.
 
 For a detailed step-by-step description, see the [Get started](docs/getting-started.md) guide.
+
+---
+
+## License
+
+Hierograph is released under the [Apache License, Version 2.0](LICENSE). Copyright 2024 Gerd Wuetherich.
