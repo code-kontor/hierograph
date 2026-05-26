@@ -2,7 +2,7 @@ package io.hierograph.hierarchicalgraph.graphdb.model
 
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.IDependencySource
-import org.slizaa.core.boltclient.IBoltClient
+import io.hierograph.boltclient.IBoltClient
 
 class GraphDbDependencySource(
     override val identifier: Any,

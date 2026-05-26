@@ -2,8 +2,8 @@ package io.hierograph.mcp.server
 
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
-import org.slizaa.core.boltclient.IBoltClient
-import org.slizaa.core.boltclient.IBoltClientFactory
+import io.hierograph.boltclient.IBoltClient
+import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.hierarchicalgraph.core.model.HGRootNode
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService

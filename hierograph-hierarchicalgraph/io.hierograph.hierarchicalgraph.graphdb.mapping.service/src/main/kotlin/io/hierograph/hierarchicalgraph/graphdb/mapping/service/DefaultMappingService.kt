@@ -11,7 +11,7 @@ import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.RootNode
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbDependencySource
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource
-import org.slizaa.core.boltclient.IBoltClient
+import io.hierograph.boltclient.IBoltClient
 
 class DefaultMappingService : IMappingService {
 

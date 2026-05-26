@@ -3,7 +3,7 @@ package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ParentChildNode
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.RootNode
-import org.slizaa.core.boltclient.IBoltClient
+import io.hierograph.boltclient.IBoltClient
 
 abstract class AbstractQueryBasedHierarchyProvider : IHierarchyDefinitionProvider, IBoltClientAware {
 

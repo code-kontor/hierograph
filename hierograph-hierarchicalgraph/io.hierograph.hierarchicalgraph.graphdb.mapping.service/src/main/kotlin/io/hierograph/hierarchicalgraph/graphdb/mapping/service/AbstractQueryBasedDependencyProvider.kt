@@ -3,7 +3,7 @@ package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.DefaultDependencyDefinition
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinitionProvider
-import org.slizaa.core.boltclient.IBoltClient
+import io.hierograph.boltclient.IBoltClient
 
 abstract class AbstractQueryBasedDependencyProvider : IDependencyDefinitionProvider, IBoltClientAware {
 

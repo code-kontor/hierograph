@@ -14,7 +14,7 @@
 
     <modules>
         <module>hierograph-parent</module>
-        <module>slizaa-core</module>
+        <module>hierograph-core</module>
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-mcp</module>
     </modules>

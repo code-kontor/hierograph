@@ -8,20 +8,21 @@
         <outputRelativeToContentRoot value="true" />
         <module name="io.hierograph.hierarchicalgraph.core.algorithms" />
         <module name="io.hierograph.hierarchicalgraph.core.model" />
+        <module name="io.hierograph.boltclient" />
         <module name="jqassistant-mapping" />
         <module name="mcp-server" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
-        <module name="org.slizaa.core.boltclient.testfwk" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="java-spec" />
-        <module name="org.slizaa.core.boltclient" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="core-app" target="21" />
       <module name="ecoregenerator-maven-plugin" target="21" />
       <module name="mcp-spike" target="1.5" />
+      <module name="org.slizaa.core.boltclient" target="21" />
+      <module name="org.slizaa.core.boltclient.testfwk" target="21" />
       <module name="org.slizaa.core.progressmonitor" target="21" />
       <module name="org.slizaa.hierarchicalgraph.core.algorithms" target="21" />
       <module name="org.slizaa.hierarchicalgraph.core.model" target="21" />
@@ -33,6 +34,7 @@
       <module name="org.slizaa.hierarchicalgraph.graphdb.mapping.spi" target="21" />
       <module name="org.slizaa.hierarchicalgraph.graphdb.model" target="21" />
       <module name="org.slizaa.hierarchicalgraph.graphdb.testfwk" target="21" />
+      <module name="slizaa-core" target="1.5" />
       <module name="slizaa-hierarchicalgraph" target="1.5" />
       <module name="slizaa-mojos" target="1.5" />
       <module name="slizaa-parent" target="1.5" />
@@ -43,9 +45,11 @@
       <module name="core" options="-parameters" />
       <module name="ecoregenerator-maven-plugin" options="-parameters" />
       <module name="hierarchicalgraph" options="-parameters" />
+      <module name="hierograph-core" options="-parameters" />
       <module name="hierograph-hierarchicalgraph" options="-parameters" />
       <module name="hierograph-mcp" options="-parameters" />
       <module name="hierograph-parent" options="-parameters" />
+      <module name="io.hierograph.boltclient" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.core.algorithms" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.core.model" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" options="-parameters" />

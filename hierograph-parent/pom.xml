@@ -239,32 +239,6 @@
             <!-- slizaa modules       -->
             <!-- ==================== -->
 
-            <!-- slizaa-core -->
-            <dependency>
-                <groupId>org.slizaa.core</groupId>
-                <artifactId>org.slizaa.core.boltclient</artifactId>
-                <version>${slizaa.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slizaa.core</groupId>
-                <artifactId>org.slizaa.core.boltclient.testfwk</artifactId>
-                <version>${slizaa.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slizaa.core</groupId>
-                <artifactId>org.slizaa.core.mvnresolver.api</artifactId>
-                <version>${slizaa.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slizaa.core</groupId>
-                <artifactId>org.slizaa.core.mvnresolver.implementation</artifactId>
-                <version>${slizaa.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slizaa.core</groupId>
-                <artifactId>org.slizaa.core.mvnresolver.uber</artifactId>
-                <version>${slizaa.version}</version>
-            </dependency>
 
             <!-- slizaa-scanner-core -->
             <dependency>
