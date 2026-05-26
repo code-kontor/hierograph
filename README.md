@@ -1,103 +1,81 @@
 # Hierograph
 
-**Hierograph** is an MCP server that gives AI assistants a structural map of Java codebases, built on jQAssistant and Neo4j.
+### Your AI assistant can read every file in your codebase. So why does it still feel lost?
 
-Your AI is great at reading code. It's terrible at understanding architecture — because architecture lives in the relationships between files, and no amount of grepping reveals it.
+Watch what your AI does on an unfamiliar codebase. It opens a file. Reads it. Greps for a class name. Opens another file. Greps again. It's a junior developer on day one, hoping that enough fragments add up to understanding.
 
-Hierograph gives your AI a structural map of your codebase. Six questions that go from *nearly impossible* to *one quick answer*:
+But your codebase isn't a stack of files. It's an *architecture* — a structure of dependencies, layers, and seams that lives in the relationships *between* files. No amount of reading individual files reveals it.
 
-### 1. "I'm new to this codebase — what's the overall structure?"
-
-**Without Hierograph:** your AI lists folder names, summarizes README fragments, and produces an overview that mostly reflects how the code is *named*, not how it actually *works*.
-
-**With Hierograph:** the real architecture — every module, how they depend on each other, which ones are central, which are peripheral. Not the file tree; the structure underneath it.
-
-### 2. "If I change this class, what breaks?"
-
-**Without Hierograph:** your AI greps, follows imports two levels deep, gives up, and confidently misses 60% of the impact.
-
-**With Hierograph:** full transitive blast radius — every affected module, ranked by coupling, with concrete call sites. One tool call.
-
-### 3. "Does the domain layer depend on infrastructure?"
-
-**Without Hierograph:** effectively unanswerable. Hundreds of file reads to check imports, ending in "I didn't find obvious violations."
-
-**With Hierograph:** yes or no, definitively. If yes — every offending call site, by line number.
-
-### 4. "Can I move this class to another module without breaking anything?"
-
-**Without Hierograph:** your AI reads the class, checks its imports, misses the 14 other classes that import *it*.
-
-**With Hierograph:** every incoming and outgoing dependency, which modules they cross, and whether the move creates a new cycle. A yes/no answer with evidence.
-
-### 5. "If I extract this package as a library, what comes with it?"
-
-**Without Hierograph:** not tractable. The dependency graph is too big for context windows.
-
-**With Hierograph:** the cohesive boundary, the cross-cutting dependencies, the density of internal coupling. Decisions architects used to make with a week and a whiteboard.
-
-### 6. "Why does module A depend on module B?"
-
-**Without Hierograph:** a plausible-sounding summary from one or two files.
-
-**With Hierograph:** *"47 call sites across 3 classes — 31 from ClusterCoordinator for state replication, 11 from LeaderElector for vote propagation, 5 for diagnostics."* What the dependency is actually for.
+Your AI is great at reading code. It's terrible at understanding architecture. Hierograph closes that gap.
 
 ---
 
-## How it works
+### The architecture is already there. Your AI just can't see it.
 
-For detailed explanations, see the [Hierograph Architecture Overview](docs/hierograph-architecture-overview.md) guide.
+Hieroglyphs were carved into temple walls for thousands of years before anyone could read them. The structure was always there; what changed was the Rosetta Stone.
 
-```
-Your Java project
-       │
-       ▼
-jQAssistant (scan)
-       │
-       ▼
-Neo4j (graph database)
-       │
-       ▼
-Hierograph (MCP server)
-       │
-       ▼
-Claude (AI assistant)
-```
+Your codebase is the same. The architecture is real and encoded in every import, every type reference, every method call. It's just unreadable to anything that reads one file at a time.
 
-1. **jQAssistant** scans compiled bytecode and writes structural data into a Neo4j graph database
-2. **Hierograph** loads the graph into memory and serves it as MCP tools (with a direct HTTP API for non-MCP clients)
-3. **Claude** calls the tools to navigate, query, and reason about your project's architecture
+Hierograph builds a hierarchical map of your codebase's structure and exposes it to your AI through MCP, in shapes the AI can actually reason about. Suddenly your AI doesn't grep for callers. It asks: *which modules depend on this, ranked by coupling?* — and gets the answer in one tool call. It doesn't read fifty files to check a layering rule. It asks: *does the domain layer depend on infrastructure?* — and gets a definitive yes or no, with every offending line.
 
-## Quick start
+---
 
-For detailed instructions, see the [Getting Started](docs/getting-started.md) guide.
+### Six questions your AI couldn't answer yesterday
 
-```bash
-# 1. Build the project (includes jQAssistant scan)
-mvn clean install
+### 1. "I'm new to this codebase — what's the overall structure?"
 
-# 2. Start the Neo4j server (leave running)
-mvn com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server
+***Without Hierograph:*** a tour of folder names.
 
-# 3. Start the Hierograph MCP server (in a new terminal)
-cd tools-spike/core-app
-mvn spring-boot:run
+***With:*** the real architecture, every module ranked by centrality.
 
-# 4. Register with Claude Code
-claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
-```
+### 2. "If I change this class, what breaks?"
 
-Then ask Claude things like *"Give me an overview of the project structure"* or
-*"What is the blast radius of class X?"*.
+***Without:*** confident guesses that miss 60% of the impact.
 
-## Documentation
+***With:*** full transitive blast radius, every call site, every cycle.
 
-- [Getting Started](docs/getting-started.md) — step-by-step setup guide
-- [Architecture Overview](docs/hierograph-architecture-overview.md) — how the pieces fit together
-- [HTTP API](docs/rest-api.md) — direct HTTP endpoints for non-MCP clients
+### 3. "Does the domain layer depend on infrastructure?"
 
-## Requirements
+***Without:*** hundreds of file reads ending in "I didn't find obvious violations."
 
-- Java 21+
-- Maven 3.9+
-- Claude Code CLI (for MCP integration)
+***With:*** yes or no, definitively.
+
+### 4. "Can I move this class without breaking anything?"
+
+***Without:*** an answer that misses the 14 classes that import it.
+
+***With:*** every dependency, every boundary, every new cycle.
+
+### 5. "If I extract this package as a library, what comes with it?"
+
+***Without:*** not tractable — the graph is too big for context.
+
+***With:*** the cohesive boundary, the cross-cutting dependencies.
+
+### 6. "Why does module A depend on module B?"
+
+***Without:*** a plausible summary from one file.
+
+***With:*** *"47 call sites across 3 classes — 31 for state replication, 11 for vote propagation, 5 for diagnostics."*
+
+---
+
+### How it works
+
+HieroGraph builds on [**jQAssistant**](https://jqassistant.org) — a mature open-source tool that scans Java bytecode and produces a flat structural graph in Neo4j. From that flat graph, HieroGraph derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level (modules, packages, types, or arbitrary subtrees). It then serves this model through MCP tools designed for AI reasoning.
+
+The whole graph fits in memory. Aggregation runs in microseconds. Everything stays local — your code never leaves your machine.
+
+---
+
+### Five minutes to try it
+
+Install Hierograph. Point it at a Java codebase you know well. Register it with Claude Code. Then ask Claude *"what's the most fragile coupling in this codebase?"* — or any architectural question you've always wished it could answer.
+
+The first answer tells you whether this is the missing piece.
+
+Hierograph works with any graph-based structural model. Today, jQAssistant provides that for Java; additional scanners (Python, TypeScript, others) can plug into the same hierarchical model with adapted MCP tools.
+
+Open source. Self-hosted.
+
+[**Get started →**](docs/getting-started.md)
