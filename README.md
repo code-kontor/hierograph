@@ -4,7 +4,7 @@
 
 ---
 
-### Your AI assistant can read every file in your codebase. So why does it still feel lost?
+## Your AI assistant can read every file in your codebase. So why does it still feel lost?
 
 Watch what your AI does on an unfamiliar codebase. It opens a file. Reads it. Greps for a class name. Opens another file. Greps again. It's a junior developer on day one, hoping that enough fragments add up to understanding.
 
@@ -12,7 +12,9 @@ But your codebase isn't a stack of files. It's an *architecture* — a structure
 
 Your AI is great at reading code. It's terrible at understanding architecture. Hierograph closes that gap.
 
-### The architecture is already there. Your AI just can't see it.
+---
+
+## The architecture is already there. Your AI just can't see it.
 
 Hieroglyphs were carved into temple walls for thousands of years before anyone could read them. The structure was always there; what changed was the Rosetta Stone.
 
@@ -22,7 +24,7 @@ Hierograph builds a hierarchical map of your codebase's structure and exposes it
 
 ---
 
-### Six questions your AI couldn't answer yesterday
+## Six questions your AI couldn't answer yesterday
 
 ### 1. "I'm new to this codebase — what's the overall structure?"
 
@@ -62,15 +64,37 @@ Hierograph builds a hierarchical map of your codebase's structure and exposes it
 
 ---
 
-### How it works
+## How it works
 
-HieroGraph builds on [**jQAssistant**](https://jqassistant.org) — a mature open-source tool that scans Java bytecode and produces a flat structural graph in Neo4j. From that flat graph, HieroGraph derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level (modules, packages, types, or arbitrary subtrees). It then serves this model through MCP tools designed for AI reasoning.
+```
+Your Java project
+       │
+       ▼
+jQAssistant (scan)
+       │
+       ▼
+Neo4j (graph database)
+       │
+       ▼
+Hierograph (MCP server)
+       │
+       ▼
+Claude (AI assistant)
+```
 
-The whole graph fits in memory. Aggregation runs in microseconds. Everything stays local — your code never leaves your machine.
+1. **[jQAssistant](https://jqassistant.org)** — a mature open-source tool — scans Java bytecode and writes a flat structural graph into a Neo4j database.
+
+2. **Hierograph** derives a hierarchical model from that flat graph in memory, with dependency aggregations computable for any pair of nodes at any level (modules, packages, types, or arbitrary subtrees). It then serves this model through MCP tools designed for AI reasoning.
+
+3. **Claude** calls the tools to navigate, query, and reason about your project's architecture.
+
+The whole graph fits in memory. Aggregation runs in microseconds. Self-hosted — runs on your machine.
+
+For detailed explanations, see the [Hierograph Architecture Overview](docs/hierograph-architecture-overview.md) guide.
 
 ---
 
-### Five minutes to try it
+## Five minutes to try it
 
 Install Hierograph. Point it at a Java codebase you know well. Register it with Claude Code. Then ask Claude *"what's the most fragile coupling in this codebase?"* — or any architectural question you've always wished it could answer.
 
@@ -78,6 +102,4 @@ The first answer tells you whether this is the missing piece.
 
 Hierograph works with any graph-based structural model. Today, jQAssistant provides that for Java; additional scanners (Python, TypeScript, others) can plug into the same hierarchical model with adapted MCP tools.
 
-Open source. Self-hosted.
-
-[**Get started →**](docs/getting-started.md)
+For a detailed step-by-step description, see the [Get started](docs/getting-started.md) guide.
