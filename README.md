@@ -1,4 +1,8 @@
-# Hierograph
+<p align="center">
+  <img src="hierograph-logo.svg" alt="Hierograph" width="750px"/>
+</p>
+
+---
 
 ### Your AI assistant can read every file in your codebase. So why does it still feel lost?
 
@@ -7,8 +11,6 @@ Watch what your AI does on an unfamiliar codebase. It opens a file. Reads it. Gr
 But your codebase isn't a stack of files. It's an *architecture* — a structure of dependencies, layers, and seams that lives in the relationships *between* files. No amount of reading individual files reveals it.
 
 Your AI is great at reading code. It's terrible at understanding architecture. Hierograph closes that gap.
-
----
 
 ### The architecture is already there. Your AI just can't see it.
 
