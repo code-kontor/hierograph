@@ -13,45 +13,34 @@
     <artifactId>io.hierograph.mcp.jqassistant</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <kotlin.version>2.1.21</kotlin.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
-            <version>${kotlin.version}</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.mcp.javaspec</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.boltclient</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.graphdb.model</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.service</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 

@@ -13,15 +13,10 @@
     <artifactId>io.hierograph.mcp.javaspec</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <kotlin.version>2.1.21</kotlin.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
-            <version>${kotlin.version}</version>
         </dependency>
     </dependencies>
 
