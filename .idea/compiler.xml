@@ -9,12 +9,16 @@
         <module name="io.hierograph.hierarchicalgraph.core.algorithms" />
         <module name="io.hierograph.hierarchicalgraph.core.model" />
         <module name="io.hierograph.boltclient" />
+        <module name="io.hierograph.mcp.javaspec" />
         <module name="jqassistant-mapping" />
         <module name="mcp-server" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
+        <module name="io.hierograph.mcp.jqassistant.mapping" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" />
+        <module name="io.hierograph.mcp.jqassistant" />
         <module name="java-spec" />
+        <module name="io.hierograph.mcp.server" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -55,6 +59,10 @@
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.model" options="-parameters" />
+      <module name="io.hierograph.mcp.javaspec" options="-parameters" />
+      <module name="io.hierograph.mcp.jqassistant" options="-parameters" />
+      <module name="io.hierograph.mcp.jqassistant.mapping" options="-parameters" />
+      <module name="io.hierograph.mcp.server" options="-parameters" />
       <module name="java-spec" options="-parameters" />
       <module name="jqassistant-mapping" options="-parameters" />
       <module name="mcp-server" options="-parameters" />

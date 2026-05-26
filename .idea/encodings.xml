@@ -29,8 +29,8 @@
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.jqassistant.mapping/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.jqassistant.mapping/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.jqassistant/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.jqassistant/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.server/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.server/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/java-spec/src/main/kotlin" charset="UTF-8" />
