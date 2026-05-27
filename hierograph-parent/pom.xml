@@ -126,7 +126,7 @@
                 <configuration>
                     <licenseSets>
                         <licenseSet>
-                            <inlineHeader><![CDATA[Copyright 2024 Gerd Wuetherich
+                            <inlineHeader><![CDATA[Copyright 2026 Gerd Wuetherich
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
