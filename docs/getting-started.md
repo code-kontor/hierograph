@@ -2,7 +2,7 @@
 
 Hierograph is an MCP-based tool that lets you explore and analyze the dependency structure of your
 Java project using an agentic AI. It uses jQAssistant to scan your codebase into a Neo4j graph
-database, then exposes that graph via an MCP server that Claude can query.
+database, then exposes that graph via an MCP server that any MCP-compatible client can query.
 
 This guide covers Maven-based projects. For a deeper look at how the pieces fit together, see the
 [Architecture Overview](architecture-overview.md).
@@ -11,7 +11,8 @@ This guide covers Maven-based projects. For a deeper look at how the pieces fit 
 
 - Java 21+
 - Maven 3.9+
-- Claude Code CLI installed
+- An MCP-compatible client (e.g. Claude Code, Claude Desktop, Cursor, or any other client that
+  supports the Model Context Protocol over HTTP)
 
 ## Step 1: Checkout your Maven project
 
@@ -128,92 +129,107 @@ spring.ai.mcp.server.protocol=STREAMABLE
 hierograph.bolt.uri=bolt://localhost:7687
 ```
 
-## Step 6: Add the MCP server to Claude Code
+## Step 6: Register the MCP server with your client
 
-Register the Hierograph MCP server with the Claude CLI:
+Point your MCP-compatible client at the Hierograph server. The transport is streamable HTTP and the
+default endpoint is:
 
-```bash
-claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
+```
+http://localhost:8080/mcp
 ```
 
-Verify it's connected:
+How you register the server depends on the client — consult its documentation for the exact
+command or configuration. Two common examples:
 
-```bash
-claude tools list
-```
+- **Claude Code (CLI):**
+  ```bash
+  claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
+  ```
+- **Claude Desktop / Cursor / other JSON-config clients:** add an entry like
+  ```json
+  {
+    "mcpServers": {
+      "hierograph": {
+        "type": "streamable-http",
+        "url": "http://localhost:8080/mcp"
+      }
+    }
+  }
+  ```
 
-You should see `hierograph` listed with its tools.
+After registration, the client should list `hierograph` along with its tools.
 
 ---
 
 ## Example Queries
 
-Once everything is running, start a Claude Code session and try these queries:
+Once everything is running, start a session in your MCP client and try these queries:
 
 ### Get an overview of your project
 
 > "Give me an overview of the project structure"
 
-Claude will use `graph_overview` and `list_children` to show you the top-level artifacts, package
-distribution, and dependency statistics.
+The client will use `graph_overview` and `list_children` to show you the top-level artifacts,
+package distribution, and dependency statistics.
 
 ### Find a specific class
 
 > "Find the class UserService and show me its dependencies"
 
-Claude will use `find_node` to locate the class, then `outgoing_dependencies` to show what it
+The client will use `find_node` to locate the class, then `outgoing_dependencies` to show what it
 depends on.
 
 ### Blast radius analysis
 
 > "What is the blast radius of class PaymentProcessor?"
 
-Claude will use `incoming_dependencies` or `affected_by` to show you every module and class that
-depends on `PaymentProcessor` -- helping you understand the impact of a change.
+The client will use `incoming_dependencies` or `affected_by` to show you every module and class
+that depends on `PaymentProcessor` -- helping you understand the impact of a change.
 
 ### Build a Dependency Structure Matrix (DSM)
 
 > "Build a DSM for the top-level modules"
 
-Claude will use `pairwise_dependencies` to generate a matrix showing how all top-level artifacts
-depend on each other -- a powerful way to spot circular dependencies and layering violations.
+The client will use `pairwise_dependencies` to generate a matrix showing how all top-level
+artifacts depend on each other -- a powerful way to spot circular dependencies and layering
+violations.
 
 ### Trace a dependency path
 
 > "Is there a dependency path from module A to module B?"
 
-Claude will use `find_dependency_path` to check transitive reachability between two nodes.
+The client will use `find_dependency_path` to check transitive reachability between two nodes.
 
 ### Explore a package
 
 > "Show me all classes in the org.example.service package and their relationships"
 
-Claude will use `list_descendants` with a kind filter to enumerate types, then
+The client will use `list_descendants` with a kind filter to enumerate types, then
 `pairwise_dependencies` to show their internal coupling.
 
 ### Identify top consumers
 
 > "Who is the top consumer of the Repository interface?"
 
-Claude will use `incoming_dependencies` to rank all dependants by weight, showing you which modules
-are most coupled to that interface.
+The client will use `incoming_dependencies` to rank all dependants by weight, showing you which
+modules are most coupled to that interface.
 
 ### Drill into specific dependencies
 
 > "Show me the core dependencies from module-web to module-api"
 
-Claude will use `outgoing_dependencies` to list the concrete class-to-class relationships
+The client will use `outgoing_dependencies` to list the concrete class-to-class relationships
 that constitute the aggregated dependency.
 
 ---
 
 ## Tips
 
-> **Hint:** Sometimes the AI needs a nudge to use the graph tools. If Claude starts guessing or
-> reading source files instead of querying the graph, steer it with **"use hierograph"** in your
-> prompt. For example:
+> **Hint:** Sometimes the AI needs a nudge to use the graph tools. If it starts guessing or reading
+> source files instead of querying the graph, steer it with **"use hierograph"** in your prompt.
+> For example:
 >
 > *"Use hierograph to find all classes that depend on AuthService"*
 >
-> This ensures Claude uses the MCP tools for structural analysis rather than doing text-based
-> code search.
+> This ensures the assistant uses the MCP tools for structural analysis rather than doing
+> text-based code search.
