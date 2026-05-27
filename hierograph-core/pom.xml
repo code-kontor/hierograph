@@ -7,11 +7,10 @@
     <parent>
         <groupId>io.hierograph</groupId>
         <artifactId>hierograph-parent</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>0.1.0-SNAPSHOT</version>
         <relativePath>../hierograph-parent/pom.xml</relativePath>
     </parent>
 
-    <groupId>io.hierograph</groupId>
     <artifactId>hierograph-core</artifactId>
     <packaging>pom</packaging>
 

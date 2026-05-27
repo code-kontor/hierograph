@@ -4,6 +4,7 @@
     <file url="file://$PROJECT_DIR$/hierograph-core/io.hierograph.boltclient/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-core/io.hierograph.boltclient/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-core/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-core/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-core/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/core/io.hierograph.hierarchicalgraph.core.algorithms/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/core/io.hierograph.hierarchicalgraph.core.algorithms/src/main/resources" charset="UTF-8" />
@@ -26,6 +27,7 @@
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.graphdb.model/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.graphdb.model/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/resources" charset="UTF-8" />
@@ -41,8 +43,10 @@
     <file url="file://$PROJECT_DIR$/hierograph-mcp/mcp-server/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/mcp-server/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-parent/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-parent/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-parent/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mcp-spike/core-app/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mcp-spike/java-spec/src/main/java" charset="UTF-8" />
