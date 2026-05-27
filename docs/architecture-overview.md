@@ -82,21 +82,19 @@ Hierograph is a Spring Boot application that:
 
 The in-memory model is what makes Hierograph fast. Once the data is loaded, all aggregation queries (which subtrees depend on which, blast radius, structural metrics) are computed against in-memory data structures rather than via repeated Cypher queries against Neo4j. That's why questions that would take seconds via raw Cypher answer in milliseconds via Hierograph.
 
-The MCP server exposes a set of tools (currently fourteen) for navigating the hierarchical model: finding nodes by name, listing children, computing aggregated dependencies between subtrees, finding transitive blast radius, etc. Each tool is designed to be consumed by an LLM rather than a human UI — responses are structured, summary-rich, and self-describing.
-
-In addition to MCP, Hierograph exposes the same tools as a REST API under `/api` (see [rest-api.md](rest-api.md) for details).
+The MCP server exposes a set of tools (currently thirteen) for navigating the hierarchical model: finding nodes by name, listing children, computing aggregated dependencies between subtrees, finding transitive blast radius, etc. Each tool is designed to be consumed by an LLM rather than a human UI — responses are structured, summary-rich, and self-describing.
 
 **How it's launched**:
 
 ```bash
-cd tools-spike/core-app
+cd hierograph-mcp/io.hierograph.mcp.server
 mvn spring-boot:run
 ```
 
 The connection to Neo4j is configured via `application.properties`:
 
 ```properties
-slizaa.bolt.uri=bolt://localhost:7687
+hierograph.bolt.uri=bolt://localhost:7687
 ```
 
 Hierograph reads Neo4j once at startup, populates its in-memory model, and then serves MCP requests at `http://localhost:8080/mcp` (default).

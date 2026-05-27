@@ -62,7 +62,7 @@ Create a `.jqassistant.yml` file in your project root:
 ```yaml
 jqassistant:
   store:
-    uri: file:tools-example-db
+    uri: file:mcp-example-db
   plugins:
     - group-id: com.buschmais.jqassistant.plugin
       artifact-id: java
@@ -116,16 +116,16 @@ You can also browse the raw graph data at `http://localhost:7474` using Neo4j's 
 In a new terminal, start the Hierograph MCP server (Spring Boot application):
 
 ```bash
-cd tools-spike/core-app
+cd hierograph-mcp/io.hierograph.mcp.server
 mvn spring-boot:run
 ```
 
 The server starts with these defaults (configured in `application.properties`):
 
 ```properties
-spring.ai.mcp.server.name=slizaa-graph
+spring.ai.mcp.server.name=hierograph-graph
 spring.ai.mcp.server.protocol=STREAMABLE
-slizaa.bolt.uri=bolt://localhost:7687
+hierograph.bolt.uri=bolt://localhost:7687
 ```
 
 ## Step 6: Add the MCP server to Claude Code
@@ -154,21 +154,21 @@ Once everything is running, start a Claude Code session and try these queries:
 
 > "Give me an overview of the project structure"
 
-Claude will use `describe_graph` and `list_children` to show you the top-level artifacts, package
+Claude will use `graph_overview` and `list_children` to show you the top-level artifacts, package
 distribution, and dependency statistics.
 
 ### Find a specific class
 
 > "Find the class UserService and show me its dependencies"
 
-Claude will use `find_node` to locate the class, then `aggregated_outgoing` to show what it
+Claude will use `find_node` to locate the class, then `outgoing_dependencies` to show what it
 depends on.
 
 ### Blast radius analysis
 
 > "What is the blast radius of class PaymentProcessor?"
 
-Claude will use `aggregated_incoming` or `affected_by` to show you every module and class that
+Claude will use `incoming_dependencies` or `affected_by` to show you every module and class that
 depends on `PaymentProcessor` -- helping you understand the impact of a change.
 
 ### Build a Dependency Structure Matrix (DSM)
@@ -195,14 +195,14 @@ Claude will use `list_descendants` with a kind filter to enumerate types, then
 
 > "Who is the top consumer of the Repository interface?"
 
-Claude will use `aggregated_incoming` to rank all dependants by weight, showing you which modules
+Claude will use `incoming_dependencies` to rank all dependants by weight, showing you which modules
 are most coupled to that interface.
 
 ### Drill into specific dependencies
 
 > "Show me the core dependencies from module-web to module-api"
 
-Claude will use `outgoing_core_dependencies` to list the concrete class-to-class relationships
+Claude will use `outgoing_dependencies` to list the concrete class-to-class relationships
 that constitute the aggregated dependency.
 
 ---
