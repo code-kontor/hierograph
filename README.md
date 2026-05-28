@@ -4,23 +4,27 @@
 
 ---
 
-## Your AI assistant can read every file in your codebase. So why does it still feel lost?
+## Your AI can trace what calls what. It still can't tell you how your architecture fits together.
 
-Watch what your AI does on an unfamiliar codebase. It opens a file. Reads it. Greps for a class name. Opens another file. Greps again. It's a junior developer on day one, hoping that enough fragments add up to understanding.
+A capable AI assistant, given enough patience, can chase a call chain through your codebase. Tools that map function calls and imports help it do that faster — they answer *what breaks if I change this function?*
 
-But your codebase isn't a stack of files. It's an *architecture* — a structure of dependencies, layers, and seams that lives in the relationships *between* files. No amount of reading individual files reveals it.
+But that's not the question an architect asks. The architect asks: *how coupled are these two modules, and is it deep or broad? Does the domain layer leak into infrastructure? If I extract this package, what comes with it?* These aren't function-level questions. They live at the level of packages, modules, and subsystems — and they require aggregating thousands of individual dependencies into a picture you can actually reason about.
 
-Your AI is great at reading code. It's terrible at understanding architecture. Hierograph closes that gap.
+A flat graph of every function and call can't answer them cleanly. You need a model that understands the *hierarchy* — and can roll dependencies up to any level you ask about.
+
+Hierograph is that model.
 
 ---
 
-## The architecture is already there. Your AI just can't see it.
+## The architecture is already there. It just isn't legible.
 
 Hieroglyphs were carved into temple walls for thousands of years before anyone could read them. The structure was always there; what changed was the Rosetta Stone.
 
-Your codebase is the same. The architecture is real and encoded in every import, every type reference, every method call. It's just unreadable to anything that reads one file at a time.
+Your codebase is the same. The architecture is real — encoded in every import, every resolved type, every method call. But it's scattered across thousands of individual relationships, unreadable to anything that examines them one at a time.
 
-Hierograph builds a hierarchical map of your codebase's structure and exposes it to your AI through MCP, in shapes the AI can actually reason about. Suddenly your AI doesn't grep for callers. It asks: *which modules depend on this, ranked by coupling?* — and gets the answer in one tool call. It doesn't read fifty files to check a layering rule. It asks: *does the domain layer depend on infrastructure?* — and gets a definitive yes or no, with every offending line.
+Hierograph deciphers it. It builds a *hierarchical* model of your codebase — module, package, type, method, field — and lets your AI ask about dependencies at any altitude. Not just "what does this function call," but "what is the coupling between these two packages, and what kind of coupling is it."
+
+Think of the flat-graph tools as a street map: every road and intersection, complete and detailed. Hierograph is a zoomable atlas — continents, countries, cities, streets — where you can ask "how connected are these two regions?" at any level of zoom, and get an answer that aggregates everything beneath.
 
 ---
 
@@ -79,33 +83,43 @@ Neo4j (graph database)
 Hierograph (MCP server)
        │
        ▼
-Claude (AI assistant)
+Agentic AI (Claude, Cursor, …)
 ```
 
-1. **[jQAssistant](https://jqassistant.org)** — a mature open-source tool — scans Java bytecode and writes a flat structural graph into a Neo4j database.
+Hierograph builds on **[jQAssistant](https://jqassistant.org)** — a mature open-source tool that scans Java *bytecode* and produces a structural graph in Neo4j. Bytecode matters: where syntactic parsers see `foo.bar()` and record a call to *some* `bar`, jQAssistant knows *which* `bar`, on which resolved type, reached through which inheritance path — including across library dependencies and generics. The dependencies are resolved facts, not textual guesses.
 
-2. **Hierograph** derives a hierarchical model from that flat graph in memory, with dependency aggregations computable for any pair of nodes at any level (modules, packages, types, or arbitrary subtrees). It then serves this model through MCP tools designed for AI reasoning.
+From that graph, **Hierograph** derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level — modules, packages, types, or arbitrary subtrees. It then serves this model through MCP tools designed for AI reasoning.
 
-3. **Claude** calls the tools to navigate, query, and reason about your project's architecture.
+An **agentic AI** — Claude (via Claude Code or Claude Desktop), Cursor, or any other MCP-compatible agent — calls the tools to navigate, query, and reason about your project's architecture.
 
-The whole graph fits in memory. Aggregation runs in microseconds. Self-hosted — runs on your machine.
+The whole model fits in memory: on a Spring Framework-sized codebase, the full hierarchy plus 115,906 type-level dependency edges load in 38 milliseconds and occupy 64 MB. Aggregation, blast-radius, and reachability queries run in microseconds — which is exactly what makes free-form, any-level aggregation practical rather than a slow database round-trip. Everything stays local; your code never leaves your machine.
 
-For detailed explanations, see the [Hierograph Architecture Overview](docs/architecture-overview.md) guide.
+For detailed explanations, see the [Hierograph Architecture Overview](docs/architecture-overview.md).
+
+---
+
+## Built for JVM codebases that have earned their complexity
+
+Hierograph is not a generalist. It goes deep on the JVM rather than wide across twenty languages, and it's aimed at the engineer who needs that depth: someone working a large, long-lived Java system — Spring, Elasticsearch, a sprawling enterprise monolith — who needs to reason about structure, coupling, and architectural integrity, not just trace a single function.
+
+If that's you, the things a generalist treats as edge cases — resolved generic types, deep inheritance hierarchies, annotation-driven wiring — are exactly the things Hierograph gets right, because jQAssistant gets them right.
 
 ---
 
 ## Five minutes to try it
 
-Install Hierograph. Point it at a Java codebase you know well. Register it with Claude Code. Then ask Claude *"what's the most fragile coupling in this codebase?"* — or any architectural question you've always wished it could answer.
+Install Hierograph. Point it at a Java codebase you know well. Register it with your agentic AI of choice. Then ask it *"what's the most fragile coupling in this codebase?"* — or any architectural question you've always wished it could answer.
 
 The first answer tells you whether this is the missing piece.
 
-Hierograph works with any graph-based structural model. Today, jQAssistant provides that for Java; additional scanners (Python, TypeScript, others) can plug into the same hierarchical model with adapted MCP tools.
+Hierograph's core is scanner-agnostic: it derives its hierarchical model from any structural graph, and jQAssistant provides that for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
 
 For a detailed step-by-step description, see the [Get started](docs/getting-started.md) guide.
+
+Open source. Self-hosted.
 
 ---
 
 ## License
 
-Hierograph is released under the [Apache License, Version 2.0](LICENSE). Copyright 2024 Gerd Wuetherich.
+Hierograph is released under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Gerd Wuetherich.
