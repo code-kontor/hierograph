@@ -99,12 +99,15 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
         // scanned jars directly
         "MATCH (a:Artifact:Jar) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn",
         // scanned maven projects
-        "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn"
+        "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn",
+        // Virtual 'External' module
+        "MATCH (a:Virtual:Artifact) RETURN id(a) as id, '${JavaKinds.MODULE}'",
     )
 
     private val parentChildNodeIdsQueries: List<String> = listOf(
         // Artifact -> top-level Packages
         "MATCH (a:Artifact:Jar)-[:CONTAINS]->(b:Package) WHERE NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
+        "MATCH (a:Artifact:Virtual)-[:CONTAINS]->(b:Package) WHERE NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
         "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a), id(b), '${JavaKinds.MODULE}', b.name, b.fqn",
         "MATCH (a:Artifact:Maven:File:Main)-[:CONTAINS]->(b:Package) where a.type = 'jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
         "MATCH (a:Artifact:Maven:File:Test)-[:CONTAINS]->(b:Package) where a.type = 'test-jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
@@ -118,6 +121,8 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
         "MATCH (a:Package)-[:CONTAINS]->(b:Record) RETURN id(a), id(b), '${JavaKinds.RECORD}', b.name, b.fqn",
         // Types -> Methods and Fields (signature used as the display name; fqn is type.fqn + '#' + signature)
         "MATCH (a:Type)-[:DECLARES]->(b:Field) RETURN id(a), id(b), '${JavaKinds.FIELD}', b.signature, a.fqn + '#' + b.signature",
-        "MATCH (a:Type)-[:DECLARES]->(b:Method) RETURN id(a), id(b), '${JavaKinds.METHOD}', b.signature, a.fqn + '#' + b.signature"
+        "MATCH (a:Type)-[:DECLARES]->(b:Method) RETURN id(a), id(b), '${JavaKinds.METHOD}', b.signature, a.fqn + '#' + b.signature",
+        //
+        "MATCH (a:Virtual:Package)-[:CONTAINS]->(b:Virtual:Type) RETURN id(a), id(b), '${JavaKinds.CLASS}', b.name, b.fqn",
     )
 }

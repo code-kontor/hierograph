@@ -9,13 +9,13 @@ jqassistant:
       artifact-id: common
       version: 2.9.1
   analyze:
+    groups:
+      - hierograph:virtual-external
     concepts:
       - java-classpath:Resolve
       - java:TypeAssignableFrom
       - java:MethodOverrides
       - java:MemberInheritedFrom
       - java:VirtualInvokes
-    groups:
-      - hierograph:virtual-external
   scan:
     reset: true
