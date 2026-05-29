@@ -36,7 +36,7 @@ import java.util.TreeMap
  * when adding, renaming, or remapping a relationship kind.
  */
 @Component
-class DetailDependenciesComponent(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService) {
+class DetailDependenciesComponent(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService), IDetailDependencies {
 
     private val log = LoggerFactory.getLogger(DetailDependenciesComponent::class.java)
 
@@ -55,7 +55,7 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
      * Returns method/field-level edges between two subtrees with optional relationship filtering.
      * Called internally by [org.slizaa.mcp.core.mcp.dependencyanalysis.OutgoingDependenciesTool] and [org.slizaa.mcp.core.mcp.dependencyanalysis.IncomingDependenciesTool] at detail level.
      */
-    fun detailDependencies(
+    override fun detailDependencies(
         fromId: Long,
         toId: Long,
         relationship: String?,

@@ -21,7 +21,7 @@ import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.mcp.server.tools.detail.DetailDependenciesComponent
+import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component
 class OutgoingDependenciesTool(
     private val graphService: HierarchicalGraphService,
     private val nodeRefFactory: INodeRefFactory,
-    private val detailDependenciesTool: DetailDependenciesComponent
+    private val detailDependenciesTool: IDetailDependencies
 ) {
 
     @Tool(

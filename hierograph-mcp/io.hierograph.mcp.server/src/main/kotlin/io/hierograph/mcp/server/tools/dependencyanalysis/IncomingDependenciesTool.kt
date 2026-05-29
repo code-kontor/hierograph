@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.mcp.server.tools.detail.DetailDependenciesComponent
+import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -28,13 +28,13 @@ import org.springframework.stereotype.Component
  * — i.e., what B uses of A.
  *
  * Delegates type-level queries to [OutgoingDependenciesTool.typeLevelDependencies]
- * with `outgoing = false`, and detail-level queries to [DetailDependenciesComponent]
+ * with `outgoing = false`, and detail-level queries to [IDetailDependencies]
  * with swapped from/to.
  */
 @Component
 class IncomingDependenciesTool(
     private val outgoingTool: OutgoingDependenciesTool,
-    private val detailDependenciesTool: DetailDependenciesComponent
+    private val detailDependenciesTool: IDetailDependencies
 ) {
 
     @Tool(
