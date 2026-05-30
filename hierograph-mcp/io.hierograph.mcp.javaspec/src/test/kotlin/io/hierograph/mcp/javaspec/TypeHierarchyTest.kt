@@ -24,7 +24,7 @@ import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-class TypeHierarchyClosureTest {
+class TypeHierarchyTest {
 
     // ── supertypes (upward) ─────────────────────────────────────────────
 
@@ -282,6 +282,106 @@ class TypeHierarchyClosureTest {
 
         assertThat(a.supertypes()).isEqualTo(a.supertypes(includeSelf = false))
         assertThat(a.supertypes()).doesNotContain(a)
+    }
+
+    // ── collection seeds ────────────────────────────────────────────────
+
+    @Test
+    fun `supertypes on a collection unions per-seed closures`() {
+        // A -extends-> B, C -implements-> I
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        val c = g.type()
+        val i = g.type()
+        g.extends(a, b)
+        g.implements(c, i)
+
+        assertThat(listOf(a, c).supertypes()).containsExactlyInAnyOrder(b, i)
+    }
+
+    @Test
+    fun `supertypes on a collection deduplicates shared ancestors`() {
+        // A -extends-> X, B -extends-> X
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        val x = g.type()
+        g.extends(a, x)
+        g.extends(b, x)
+
+        assertThat(listOf(a, b).supertypes()).containsExactly(x)
+    }
+
+    @Test
+    fun `supertypes on a collection includes a seed reached from another seed`() {
+        // A -extends-> B, B has no out-edges; both A and B are seeds.
+        // includeSelf = false, but B is reachable from A → B in result, A is not.
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        g.extends(a, b)
+
+        val closure = listOf(a, b).supertypes()
+        assertThat(closure).containsExactly(b)
+        assertThat(closure).doesNotContain(a)
+    }
+
+    @Test
+    fun `supertypes on an empty collection returns empty set`() {
+        assertThat(emptyList<HGNode>().supertypes()).isEmpty()
+        assertThat(emptyList<HGNode>().supertypes(includeSelf = true)).isEmpty()
+    }
+
+    @Test
+    fun `supertypes on a collection with includeSelf adds every seed`() {
+        // A -extends-> B
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        val c = g.type()
+        g.extends(a, b)
+
+        assertThat(listOf(a, c).supertypes(includeSelf = true))
+            .containsExactlyInAnyOrder(a, b, c)
+    }
+
+    @Test
+    fun `subtypes on a collection unions per-seed closures`() {
+        // A <-extends- X, B <-implements- Y
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        val x = g.type()
+        val y = g.type()
+        g.extends(x, a)
+        g.implements(y, b)
+
+        assertThat(listOf(a, b).subtypes()).containsExactlyInAnyOrder(x, y)
+    }
+
+    @Test
+    fun `subtypes on a collection with includeSelf adds every seed`() {
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        val sub = g.type()
+        g.extends(sub, a)
+
+        assertThat(listOf(a, b).subtypes(includeSelf = true))
+            .containsExactlyInAnyOrder(a, b, sub)
+    }
+
+    @Test
+    fun `supertypes on a collection is a Sequence-compatible iterable`() {
+        // Verify the extension works on any Iterable<HGNode>, not just List.
+        val g = Graph()
+        val a = g.type()
+        val b = g.type()
+        g.extends(a, b)
+
+        val seeds: Sequence<HGNode> = sequenceOf(a)
+        assertThat(seeds.asIterable().supertypes()).containsExactly(b)
     }
 
     // ── test fixture ────────────────────────────────────────────────────

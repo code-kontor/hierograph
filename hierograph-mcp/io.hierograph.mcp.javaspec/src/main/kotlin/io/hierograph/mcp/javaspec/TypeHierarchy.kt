@@ -28,7 +28,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGNode
  * so each type appears at most once.
  */
 fun HGNode.supertypes(includeSelf: Boolean = false): Set<HGNode> =
-    walkHierarchy(this, includeSelf, upward = true)
+    walkHierarchy(listOf(this), includeSelf, upward = true)
 
 /**
  * Returns the transitive subtype / implementor closure of this type node — every
@@ -38,13 +38,34 @@ fun HGNode.supertypes(includeSelf: Boolean = false): Set<HGNode> =
  * See [supertypes] for the semantics of [includeSelf].
  */
 fun HGNode.subtypes(includeSelf: Boolean = false): Set<HGNode> =
+    walkHierarchy(listOf(this), includeSelf, upward = false)
+
+/**
+ * Returns the union of the transitive supertype closures of every node in this
+ * collection. Visited state is shared across the seeds, so overlapping ancestor
+ * chains are traversed only once.
+ *
+ * When [includeSelf] is `true` all seeds are included in the result; when `false`
+ * (the default) a seed appears only if it is reachable via the closure starting
+ * from another seed (or via a cycle).
+ */
+fun Iterable<HGNode>.supertypes(includeSelf: Boolean = false): Set<HGNode> =
+    walkHierarchy(this, includeSelf, upward = true)
+
+/**
+ * Returns the union of the transitive subtype closures of every node in this
+ * collection. See [Iterable.supertypes] for [includeSelf] semantics.
+ */
+fun Iterable<HGNode>.subtypes(includeSelf: Boolean = false): Set<HGNode> =
     walkHierarchy(this, includeSelf, upward = false)
 
-private fun walkHierarchy(seed: HGNode, includeSelf: Boolean, upward: Boolean): Set<HGNode> {
+private fun walkHierarchy(seeds: Iterable<HGNode>, includeSelf: Boolean, upward: Boolean): Set<HGNode> {
     val visited = LinkedHashSet<HGNode>()
-    if (includeSelf) visited.add(seed)
     val stack = ArrayDeque<HGNode>()
-    stack.addLast(seed)
+    for (seed in seeds) {
+        if (includeSelf) visited.add(seed)
+        stack.addLast(seed)
+    }
     while (stack.isNotEmpty()) {
         val current = stack.removeLast()
         val edges = if (upward) current.outgoingCoreDependencies else current.incomingCoreDependencies
