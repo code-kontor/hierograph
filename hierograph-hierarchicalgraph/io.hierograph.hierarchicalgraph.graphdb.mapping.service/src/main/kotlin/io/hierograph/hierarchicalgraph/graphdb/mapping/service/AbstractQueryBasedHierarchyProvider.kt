@@ -16,21 +16,21 @@
 package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ParentChildNode
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.RootNode
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ParentChildNodeId
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ToplevelNodeId
 import io.hierograph.boltclient.IBoltClient
 
 abstract class AbstractQueryBasedHierarchyProvider : IHierarchyDefinitionProvider, IBoltClientAware {
 
-    private var _toplevelNodeIds: List<RootNode> = emptyList()
-    private var _parentChildNodes: List<ParentChildNode> = emptyList()
+    private var _toplevelNodeIds: List<ToplevelNodeId> = emptyList()
+    private var _parentChildNodes: List<ParentChildNodeId> = emptyList()
 
     override fun initialize(boltClient: IBoltClient) {
-        val toplevel = mutableListOf<RootNode>()
+        val toplevel = mutableListOf<ToplevelNodeId>()
         for (query in toplevelNodeIdQueries()) {
             val results = boltClient.asyncExecCypherQueryAndTransformResult(query) { result ->
                 result.list { r ->
-                    RootNode(
+                    ToplevelNodeId(
                         id = r.get(0).asLong(),
                         kind = parseKind(r.get(1).asString())
                     )
@@ -40,11 +40,11 @@ abstract class AbstractQueryBasedHierarchyProvider : IHierarchyDefinitionProvide
         }
         _toplevelNodeIds = toplevel
 
-        val parentChild = mutableListOf<ParentChildNode>()
+        val parentChild = mutableListOf<ParentChildNodeId>()
         for (query in parentChildNodeIdsQueries()) {
             val results = boltClient.asyncExecCypherQueryAndTransformResult(query) { result ->
                 result.list { r ->
-                    ParentChildNode(
+                    ParentChildNodeId(
                         parentId = r.get(0).asLong(),
                         childId = r.get(1).asLong(),
                         childKind = parseKind(r.get(2).asString())
@@ -56,9 +56,9 @@ abstract class AbstractQueryBasedHierarchyProvider : IHierarchyDefinitionProvide
         _parentChildNodes = parentChild
     }
 
-    override fun getToplevelNodeIds(): List<RootNode> = _toplevelNodeIds
+    override fun getToplevelNodeIds(): List<ToplevelNodeId> = _toplevelNodeIds
 
-    override fun getParentChildNodeIds(): List<ParentChildNode> = _parentChildNodes
+    override fun getParentChildNodeIds(): List<ParentChildNodeId> = _parentChildNodes
 
     protected abstract fun toplevelNodeIdQueries(): Array<String>
 

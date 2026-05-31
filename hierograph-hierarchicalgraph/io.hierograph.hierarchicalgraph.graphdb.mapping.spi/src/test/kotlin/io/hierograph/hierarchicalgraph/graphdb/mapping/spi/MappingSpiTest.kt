@@ -67,14 +67,14 @@ class MappingSpiTest {
 
     @Test
     fun `RootNode data class`() {
-        val root = RootNode(id = 42L, kind = "MODULE")
+        val root = ToplevelNodeId(id = 42L, kind = "MODULE")
         assertThat(root.id).isEqualTo(42L)
         assertThat(root.kind).isEqualTo("MODULE")
     }
 
     @Test
     fun `ParentChildNode data class`() {
-        val pc = ParentChildNode(parentId = 1L, childId = 2L, childKind = "CLASS")
+        val pc = ParentChildNodeId(parentId = 1L, childId = 2L, childKind = "CLASS")
         assertThat(pc.parentId).isEqualTo(1L)
         assertThat(pc.childId).isEqualTo(2L)
         assertThat(pc.childKind).isEqualTo("CLASS")
@@ -93,8 +93,8 @@ class MappingSpiTest {
     fun `DefaultMappingProvider aggregates providers`() {
         val meta = DefaultMappingProviderMetadata(identifier = "test", name = "Test")
         val hierarchy = object : IHierarchyDefinitionProvider {
-            override fun getToplevelNodeIds() = listOf(RootNode(1L, "MODULE"))
-            override fun getParentChildNodeIds() = emptyList<ParentChildNode>()
+            override fun getToplevelNodeIds() = listOf(ToplevelNodeId(1L, "MODULE"))
+            override fun getParentChildNodeIds() = emptyList<ParentChildNodeId>()
         }
         val deps = object : IDependencyDefinitionProvider {
             override fun getDependencies() = emptyList<IDependencyDefinition>()

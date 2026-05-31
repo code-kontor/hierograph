@@ -7,15 +7,16 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="io.hierograph.hierarchicalgraph.core.algorithms" />
+        <module name="io.hierograph.mcp.jqassistant.mapping" />
         <module name="io.hierograph.hierarchicalgraph.core.model" />
         <module name="io.hierograph.boltclient" />
         <module name="io.hierograph.mcp.javaspec" />
-        <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
-        <module name="io.hierograph.mcp.jqassistant.mapping" />
+        <module name="io.hierograph.hierarchicalgraph.serialization" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="io.hierograph.mcp.jqassistant" />
         <module name="java-spec" />
+        <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
         <module name="io.hierograph.mcp.server" />
       </profile>
     </annotationProcessing>
@@ -54,6 +55,7 @@
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.model" options="-parameters" />
+      <module name="io.hierograph.hierarchicalgraph.serialization" options="-parameters" />
       <module name="io.hierograph.mcp.javaspec" options="-parameters" />
       <module name="io.hierograph.mcp.jqassistant" options="-parameters" />
       <module name="io.hierograph.mcp.jqassistant.mapping" options="-parameters" />

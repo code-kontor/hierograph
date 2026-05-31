@@ -26,6 +26,8 @@
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.graphdb.mapping.spi/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.graphdb.model/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.graphdb.model/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.serialization/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.serialization/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/src/main/resources" charset="UTF-8" />
