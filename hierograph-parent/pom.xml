@@ -252,6 +252,11 @@ limitations under the License.]]></inlineHeader>
             </dependency>
             <dependency>
                 <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.hierarchicalgraph.serialization</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.hierograph</groupId>
                 <artifactId>io.hierograph.mcp.javaspec</artifactId>
                 <version>${project.version}</version>
             </dependency>
