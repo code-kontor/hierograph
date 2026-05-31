@@ -19,14 +19,15 @@ import io.hierograph.boltclient.IBoltClient
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.hierarchicalgraph.core.model.HGRootNode
-import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantMappingProvider
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantMappingService
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.concurrent.Executors
+import kotlin.time.measureTimedValue
 
 @Service
 class HierarchicalGraphService {
@@ -53,12 +54,13 @@ class HierarchicalGraphService {
         val mappingProvider = JQAssistantMappingProvider()
 
         log.info("Creating hierarchical graph using '{}' ...", mappingProvider.javaClass.name)
-        rootNode = DefaultMappingService()
-            .convert(mappingProvider, boltClient)
+        val (createdRoot, elapsed) = measureTimedValue {
+            JQAssistantMappingService().convert(mappingProvider, boltClient)
+        }
+        rootNode = createdRoot
 
         val children = rootNode.children
-
-        log.info("Hierarchical graph created with {} root children.", children.size)
+        log.info("Hierarchical graph created with {} root children in {}.", children.size, elapsed)
 
         // Count nodes by kind (skip the root node itself)
         val kindCounts = mutableMapOf<Any?, Int>()
