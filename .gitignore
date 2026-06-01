@@ -26,3 +26,4 @@ logs/
 *.iws
 out/
 /mcp-example-db/
+/hierarchical-graph.txt

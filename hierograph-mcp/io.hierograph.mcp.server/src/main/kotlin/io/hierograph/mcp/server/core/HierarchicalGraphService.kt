@@ -26,6 +26,7 @@ import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.io.File
 import java.util.concurrent.Executors
 import kotlin.time.measureTimedValue
 
@@ -38,6 +39,9 @@ class HierarchicalGraphService {
 
     @Value("\${hierograph.bolt.uri:bolt://localhost:7687}")
     private lateinit var boltUri: String
+
+    @Value("\${hierograph.graph.dumpFile:hierarchical-graph.txt}")
+    private lateinit var graphDumpFile: String
 
     lateinit var boltClient: IBoltClient
 
@@ -71,6 +75,13 @@ class HierarchicalGraphService {
             .sortedByDescending { it.value }
             .forEach { (kind, count) -> log.info("  {}: {}", kind, count) }
         log.info("Total nodes: {}", kindCounts.values.sum())
+
+        // Dump the hierarchical graph to a file: one indented line per node, with name/fqn.
+        val outputFile = File(graphDumpFile)
+        outputFile.bufferedWriter().use { writer ->
+            TreeTraverser.dumpTree(rootNode, sink = { writer.appendLine(it) })
+        }
+        log.info("Hierarchical graph written to: {}", outputFile.absolutePath)
     }
 
     @PreDestroy
