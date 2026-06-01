@@ -14,12 +14,13 @@ This spec defines a set of jQAssistant concepts that produce **canonical virtual
 - One canonical node per external package FQN, queryable as `:Virtual:Package`.
 - Full package hierarchy (`com` → `com.acme` → `com.acme.foo`) materialized as `:CONTAINS` edges.
 - A single `:Virtual:Artifact {name: "External"}` that flatly `:CONTAINS` every virtual package and every virtual type, mirroring jQAssistant's Java scanner pattern for real `:Artifact:Jar` nodes.
+- Canonical dependencies: dependencies that target external stubs are additively lifted onto the canonical `:Virtual:Type`, reachable in a single `:DEPENDS_ON` hop.
 - Non-destructive: original stubs and their relationships are untouched.
 - Idempotent: re-running the concepts does not duplicate nodes or edges.
 
 ## Non-goals
 
-- Replacing or rewriting `:DEPENDS_ON`, `:INVOKES`, `:READS`, `:WRITES`, or other edges on the original stubs. Traversals that want the canonical view add one extra `:RESOLVES_TO` hop.
+- Rewriting or deleting the `:INVOKES`, `:READS`, `:WRITES`, or `:DEPENDS_ON` edges that already exist on the original stubs — these stay exactly as the scanner produced them. (Concept 5 *adds* parallel `:DEPENDS_ON` edges from the depending node to the canonical `:Virtual:Type`; it never modifies the stub's own edges. Traversals that prefer the explicit form can still follow `:DEPENDS_ON` then `:RESOLVES_TO`.)
 - Inferring members (methods, fields) of external types beyond what the bytecode references already produced as signature stubs.
 - Merging virtual nodes with real `:Package` nodes created by the Java scanner. The `:Virtual` label keeps them distinct.
 
@@ -36,6 +37,10 @@ Canonical nodes carry `:Virtual` in addition to `:Type` or `:Package`. This prev
 ### `:RESOLVES_TO` for stub→canonical links
 
 Reuses the relationship type already established by `classpath:Resolve` for "this reference points at a richer representation." A query that follows `(:Type)-[:RESOLVES_TO*]->(target)` works uniformly whether `target` is a fully-scanned type from `classpath:Resolve` or a virtual node from this spec.
+
+### Lifted `:DEPENDS_ON` to canonical types (additive)
+
+Concept 5 mirrors each `(a)-[:DEPENDS_ON]->(stub)` onto `(a)-[:DEPENDS_ON]->(:Virtual:Type)` when the stub resolves to a canonical node. This is purely additive — the stub edge is untouched — and lets dependency analysis (DSM, layering, cycle detection) treat the canonical virtual type as a first-class dependency target without threading a `:RESOLVES_TO` hop into every query. The lifted edge carries a `weight` summed from the stub edges it consolidates, matching the weighted `:DEPENDS_ON` the Java scanner emits.
 
 ### Flat containment from the `External` artifact
 
@@ -67,6 +72,7 @@ The following are deliberately excluded from virtual-type creation:
 - **Primitives**: `byte`, `short`, `int`, `long`, `char`, `float`, `double`, `boolean`, `void`.
 - **JVM array descriptors**: any FQN starting with `[` (e.g. `[D`, `[Ljava/lang/String;`).
 - **Default-package types**: any FQN with no `.` (these are rare and usually represent edge cases not worth a canonical node).
+- **JDK/runtime ubiquitous types**: any FQN starting with `java.lang.` or `kotlin.`. These are referenced by nearly every type; canonicalizing them adds noise without analytical value.
 
 Array element types can be derived in a separate concept if needed; this spec doesn't cover that.
 
@@ -80,7 +86,7 @@ No explicit setup is required. The Java plugin's descriptor framework already cr
 
 Creates a `:Virtual:Type` node for every unparsed type stub, keyed by FQN, and links each stub to it.
 
-**Inputs**: existing `:Type` nodes with no `byteCodeVersion`, excluding primitives, arrays, and default-package names.
+**Inputs**: existing `:Type` nodes with no `byteCodeVersion`, excluding primitives, arrays, default-package names, and `java.lang.*` / `kotlin.*` types.
 
 **Outputs**:
 - One `:Virtual:Type {fqn, name}` node per distinct external FQN.
@@ -94,6 +100,8 @@ WHERE NOT t:Virtual
   AND t.byteCodeVersion IS NULL
   AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
   AND NOT t.fqn STARTS WITH "["
+  AND NOT t.fqn STARTS WITH "java.lang."
+  AND NOT t.fqn STARTS WITH "kotlin."
   AND t.fqn CONTAINS "."
 WITH t, t.fqn AS fqn
 MERGE (v:Virtual:Type {fqn: fqn})
@@ -197,6 +205,30 @@ WHERE NOT (:Virtual:Package)-[:CONTAINS]->(p)
 RETURN p
 ```
 
+### 5. `hierograph:VirtualExternalTypeDependency`
+
+Lifts each dependency that targets an external stub onto the stub's canonical `:Virtual:Type`, so the canonical view is reachable in a single `:DEPENDS_ON` hop instead of via `:DEPENDS_ON` + `:RESOLVES_TO`.
+
+**Depends on**: `hierograph:VirtualExternalType` (which creates the `:RESOLVES_TO` edges).
+
+**Inputs**: any real node `a` with `(a)-[:DEPENDS_ON]->(b)` where the stub `b` resolves to a `:Virtual:Type` `c`.
+
+**Outputs**:
+- One `(a)-[:DEPENDS_ON]->(c:Virtual:Type)` edge per distinct `(a, c)` pair, with `weight` summed from the underlying stub edges.
+
+**Cypher**:
+
+```cypher
+MATCH (a)-[r1:DEPENDS_ON]->(b)-[r2:RESOLVES_TO]->(c:Virtual:Type)
+WHERE NOT a:Virtual
+WITH a, c, sum(coalesce(r1.weight, 1)) AS weight
+MERGE (a)-[d:DEPENDS_ON]->(c)
+  SET d.weight = weight
+RETURN count(*) AS LiftedDependencies
+```
+
+The original `(a)-[:DEPENDS_ON]->(b)` edge to the stub is left in place; this concept only *adds* a parallel edge to the canonical node. `WHERE NOT a:Virtual` follows the spec's rule that any pattern addressing real source nodes excludes `:Virtual`. Because the leg requires `c:Virtual:Type`, the concept also ignores any `:RESOLVES_TO` edges `classpath:Resolve` may have created toward real, fully-scanned types — it lifts dependencies onto virtual canonicals only. Virtual types have no outgoing `:DEPENDS_ON` or `:RESOLVES_TO`, so the lifted edge can never re-match either leg of the pattern: the concept is non-cascading. Re-running it is idempotent — the `(a, c)` grouping makes `weight` a pure function of the current graph, so `SET d.weight = weight` overwrites with the same value rather than accumulating.
+
 ## Rule file
 
 Save as `jqassistant/virtual-external.xml` in the project root:
@@ -213,13 +245,14 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     <includeConcept refId="hierograph:VirtualExternalPackage"/>
     <includeConcept refId="hierograph:VirtualPackageHierarchy"/>
     <includeConcept refId="hierograph:VirtualExternalArtifact"/>
+    <includeConcept refId="hierograph:VirtualExternalTypeDependency"/>
   </group>
 
   <concept id="hierograph:VirtualExternalType">
     <description>
       For every unparsed (stub) :Type referenced in the graph, create a canonical :Virtual:Type
       node keyed by fqn, and link each stub to it via :RESOLVES_TO. Primitives, JVM array
-      descriptors, and default-package types are excluded.
+      descriptors, default-package types, and java.lang.* / kotlin.* types are excluded.
     </description>
     <cypher><![CDATA[
       MATCH (t:Type)
@@ -227,6 +260,8 @@ Save as `jqassistant/virtual-external.xml` in the project root:
         AND t.byteCodeVersion IS NULL
         AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
         AND NOT t.fqn STARTS WITH "["
+        AND NOT t.fqn STARTS WITH "java.lang."
+        AND NOT t.fqn STARTS WITH "kotlin."
         AND t.fqn CONTAINS "."
       WITH t, t.fqn AS fqn
       MERGE (v:Virtual:Type {fqn: fqn})
@@ -300,6 +335,26 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     ]]></cypher>
   </concept>
 
+  <concept id="hierograph:VirtualExternalTypeDependency">
+    <requiresConcept refId="hierograph:VirtualExternalType"/>
+    <description>
+      For every dependency that targets an external stub, (a)-[:DEPENDS_ON]->(b), where the stub b
+      resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a parallel
+      (a)-[:DEPENDS_ON]->(c) edge so the canonical view is reachable in a single hop. The original
+      stub edge is left untouched; the lifted edge's weight is the summed weight of the underlying
+      edges. Real source nodes are guaranteed by NOT a:Virtual, and the c:Virtual:Type leg ignores
+      :RESOLVES_TO edges that classpath:Resolve may have created toward real types.
+    </description>
+    <cypher><![CDATA[
+      MATCH (a)-[r1:DEPENDS_ON]->(b)-[r2:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT a:Virtual
+      WITH a, c, sum(coalesce(r1.weight, 1)) AS weight
+      MERGE (a)-[d:DEPENDS_ON]->(c)
+        SET d.weight = weight
+      RETURN count(*) AS LiftedDependencies
+    ]]></cypher>
+  </concept>
+
 </jqassistant-rules>
 ```
 
@@ -326,7 +381,7 @@ Or via Maven property:
 mvn jqassistant:analyze -Djqassistant.analyze.groups=hierograph:virtual-external
 ```
 
-Because of the `requiresConcept` chain, the group only needs to include the leaf concept(s); dependencies pull in their prerequisites automatically. The group above lists all four for discoverability.
+Because of the `requiresConcept` chain, the group only needs to include the leaf concept(s); dependencies pull in their prerequisites automatically. The group above lists all five for discoverability.
 
 ## Verification
 
@@ -341,6 +396,7 @@ MATCH (:Virtual:Package)-[r:CONTAINS]->(:Virtual:Type) RETURN count(r) AS Packag
 MATCH (:Virtual:Package)-[r:CONTAINS]->(:Virtual:Package) RETURN count(r) AS PackageHierarchy;
 MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Package) RETURN count(r) AS ArtifactPackages;
 MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Type) RETURN count(r) AS ArtifactTypes;
+MATCH (a)-[r:DEPENDS_ON]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedDependencies;
 ```
 
 Sanity-check a known external type, e.g.:
@@ -353,6 +409,16 @@ RETURN v.fqn, count(DISTINCT stub) AS StubCount, pkg.fqn AS Package;
 ```
 
 The `StubCount` should equal the number of scanned artifacts that referenced `java.util.List`, and `Package` should be `java.util`.
+
+Confirm dependencies were lifted onto the same canonical node:
+
+```cypher
+MATCH (a)-[r:DEPENDS_ON]->(v:Virtual:Type {fqn: "java.util.List"})
+WHERE NOT a:Virtual
+RETURN count(DISTINCT a) AS Dependents, sum(r.weight) AS TotalWeight;
+```
+
+`Dependents` is the number of real nodes that depended on any stub of `java.util.List`; each now has a direct `:DEPENDS_ON` to the canonical `:Virtual:Type`.
 
 ## Operational notes
 
@@ -368,7 +434,7 @@ The `StubCount` should equal the number of scanned artifacts that referenced `ja
 MATCH (v:Virtual) DETACH DELETE v;
 ```
 
-This deletes `:Virtual:Type`, `:Virtual:Package`, and `:Virtual:Artifact` nodes along with all their edges. Original stubs and their relationships are unaffected.
+This deletes `:Virtual:Type`, `:Virtual:Package`, and `:Virtual:Artifact` nodes along with all their edges — including the lifted `:DEPENDS_ON` edges from concept 5, which terminate on `:Virtual:Type` nodes. Original stubs and their own relationships are unaffected.
 
 **Schema version**. The XML uses jQAssistant schema v2.9. Adjust the namespace and `xsi:schemaLocation` to match the installed jQAssistant version; mismatched versions are usually silently ignored rather than reported as errors.
 
