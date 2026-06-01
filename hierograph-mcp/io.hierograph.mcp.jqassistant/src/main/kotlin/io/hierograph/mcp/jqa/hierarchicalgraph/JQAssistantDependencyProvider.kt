@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import io.hierograph.hierarchicalgraph.graphdb.mapping.service.AbstractQueryBasedDependencyProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt.AbstractQueryBasedDependencyProvider
 
 class JQAssistantDependencyProvider : AbstractQueryBasedDependencyProvider() {
 
@@ -32,5 +32,6 @@ class JQAssistantDependencyProvider : AbstractQueryBasedDependencyProvider() {
                        AND NOT EXISTS { (t1)-[:ANNOTATED_BY]->(t2) }
             """.trimIndent()
         )
+        super.initialize()
     }
 }

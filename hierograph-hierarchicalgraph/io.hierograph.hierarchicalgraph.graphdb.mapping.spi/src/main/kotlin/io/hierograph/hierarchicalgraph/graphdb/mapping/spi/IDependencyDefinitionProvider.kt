@@ -15,6 +15,22 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.mapping.spi
 
+import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbDependencySource
+
 interface IDependencyDefinitionProvider {
-    fun getDependencies(): List<IDependencyDefinition>
+    fun initialize()
+    fun dispose()
+    val dependencies: List<DependencyDefinition>
+
+    fun createDependencySource(depDef: DependencyDefinition): GraphDbDependencySource =
+        GraphDbDependencySource(identifier = depDef.idRel, type = depDef.type)
 }
+
+data class DependencyDefinition(
+    val idStart: Long,
+    val idTarget: Long,
+    val idRel: Long,
+    val type: String,
+    val weight: Int = 1,
+    val attributesBitmap: Int = 0
+)

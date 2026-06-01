@@ -15,9 +15,16 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.mapping.spi
 
+import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
+
 interface IHierarchyDefinitionProvider {
-    fun getToplevelNodeIds(): List<ToplevelNodeId>
-    fun getParentChildNodeIds(): List<ParentChildNodeId>
+    fun initialize()
+    fun dispose()
+    val toplevelNodeIds: List<ToplevelNodeId>
+    val parentChildNodeIds: List<ParentChildNodeId>
+
+    fun createNodeSource(id: Long): GraphDbNodeSource =
+        GraphDbNodeSource(identifier = id)
 }
 
 data class ToplevelNodeId(val id: Long, val kind: Any)

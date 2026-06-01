@@ -13,22 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.hierarchicalgraph.graphdb.mapping.spi
+package io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt
 
-interface IDependencyDefinition {
-    val idStart: Long
-    val idTarget: Long
-    val idRel: Long
-    val type: String
-    val weight: Int get() = 1
-    val attributesBitmap: Int get() = 0
+import io.hierograph.boltclient.IBoltClient
+
+abstract class AbstractBoltClientAware : IBoltClientAware {
+
+    override lateinit var boltClient: IBoltClient
 }
-
-data class DefaultDependencyDefinition(
-    override val idStart: Long,
-    override val idTarget: Long,
-    override val idRel: Long,
-    override val type: String,
-    override val weight: Int = 1,
-    override val attributesBitmap: Int = 0
-) : IDependencyDefinition

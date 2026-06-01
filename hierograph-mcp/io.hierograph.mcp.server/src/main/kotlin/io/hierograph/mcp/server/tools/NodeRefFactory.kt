@@ -16,8 +16,8 @@
 package io.hierograph.mcp.server.tools
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
@@ -33,11 +33,6 @@ import org.springframework.stereotype.Component
 @Component
 class NodeRefFactory(private val graphService: HierarchicalGraphService) : INodeRefFactory {
 
-    // ── metadata provider ──────────────────────────────────────────────
-
-    private val metadataProvider: INodeMetadataProvider
-        get() = graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
-
     // ── minimal NodeRef ────────────────────────────────────────────────
 
     /**
@@ -45,11 +40,10 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      * Used when a NodeRef appears inside a larger structure (edge endpoint, path step, etc.).
      */
     override fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
-        val mp = metadataProvider
         return linkedMapOf(
             "id" to node.identifier,
-            "name" to mp.getName(node),
-            "qualified_name" to mp.getQualifiedName(node),
+            "name" to JQAssistantNodeMetadataProvider.getName(node),
+            "qualified_name" to JQAssistantNodeMetadataProvider.getQualifiedName(node),
             "kind" to node.kind?.toString(),
             "parent_id" to node.parent?.identifier,
             "parent_kind" to node.parent?.kind?.toString()
@@ -131,9 +125,8 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      * Convenience overload that extracts display fields from an [HGNode].
      */
     override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
-        val mp = metadataProvider
         val id = (node.identifier as? Number)?.toLong() ?: 0L
-        putSlimNode(nodes, id, mp.getName(node), mp.getQualifiedName(node), mp.getKind(node))
+        putSlimNode(nodes, id, JQAssistantNodeMetadataProvider.getName(node), JQAssistantNodeMetadataProvider.getQualifiedName(node), JQAssistantNodeMetadataProvider.getKind(node))
     }
 
     // ── primitive ref ──────────────────────────────────────────────────

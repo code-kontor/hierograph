@@ -18,24 +18,22 @@ package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HGRootNode
 import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinition
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IMappingProvider
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbDependencySource
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.MappingProvider
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource
 import io.hierograph.boltclient.IBoltClient
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.DependencyDefinition
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IDependencyDefinitionProvider
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.IHierarchyDefinitionProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt.IBoltClientAware
 
 open class DefaultMappingService : IMappingService {
 
-    override fun convert(mappingProvider: IMappingProvider, boltClient: IBoltClient): HGRootNode {
+    override fun convert(mappingProvider: MappingProvider, boltClient: IBoltClient): HGRootNode {
 
         val hierarchyDefinitionProvider = mappingProvider.hierarchyDefinitionProvider
 
         // 1. Create root node
-        val rootNodeSource = createRootNodeSource(hierarchyDefinitionProvider)
+        val rootNodeSource = GraphDbRootNodeSource(identifier = -1L)
         rootNodeSource.boltClient = boltClient
         val rootNode = HierarchicalGraphFactory.createRootNode { rootNodeSource }
         rootNode.registerExtension(IBoltClient::class.java, boltClient)
@@ -45,18 +43,19 @@ open class DefaultMappingService : IMappingService {
 
         // 2. Initialize hierarchy provider
         if (hierarchyDefinitionProvider is IBoltClientAware) {
-            hierarchyDefinitionProvider.initialize(boltClient)
+            hierarchyDefinitionProvider.boltClient = boltClient
         }
+        hierarchyDefinitionProvider.initialize()
 
         // 3. Build root-level nodes
-        val rootNodes = hierarchyDefinitionProvider.getToplevelNodeIds()
+        val rootNodes = hierarchyDefinitionProvider.toplevelNodeIds
         for (rn in rootNodes) {
             val node = createNodeIfAbsent(rn.id, rootNode, rootNode, idToNodeMap, hierarchyDefinitionProvider)
             setKindIfNull(node, rn.kind)
         }
 
         // 4. Build hierarchy
-        val parentChildNodes = hierarchyDefinitionProvider.getParentChildNodeIds()
+        val parentChildNodes = hierarchyDefinitionProvider.parentChildNodeIds
         for (pcn in parentChildNodes) {
             val parentNode = createNodeIfAbsent(pcn.parentId, rootNode, null, idToNodeMap, hierarchyDefinitionProvider)
             val childNode = createNodeIfAbsent(pcn.childId, rootNode, parentNode, idToNodeMap, hierarchyDefinitionProvider)
@@ -72,29 +71,26 @@ open class DefaultMappingService : IMappingService {
         // 6. Initialize dependency provider
         val dependencyDefinitionProvider = mappingProvider.dependencyDefinitionProvider
         if (dependencyDefinitionProvider is IBoltClientAware) {
-            dependencyDefinitionProvider.initialize(boltClient)
+            dependencyDefinitionProvider.boltClient = boltClient
         }
+        dependencyDefinitionProvider.initialize()
 
         // 7. Build dependencies
-        val dependencies = dependencyDefinitionProvider.getDependencies()
+        val dependencies = dependencyDefinitionProvider.dependencies
         for (depDef in dependencies) {
-            createDependency(depDef, rootNode, idToNodeMap, dependencyDefinitionProvider)
+            createDependency(depDef, idToNodeMap, dependencyDefinitionProvider)
         }
 
         // 8. Register extensions
-        rootNode.registerExtension(IMappingProvider::class.java, mappingProvider)
-        rootNode.registerExtension(INodeMetadataProvider::class.java, mappingProvider.nodeMetadataProvider)
+        rootNode.registerExtension(MappingProvider::class.java, mappingProvider)
 
-        // 9. Return
+        // 9. dispose
+        hierarchyDefinitionProvider.dispose()
+        dependencyDefinitionProvider.dispose()
+
+        // 10. Return
         return rootNode
     }
-
-    protected open fun createRootNodeSource(hierarchyDefinitionProvider: IHierarchyDefinitionProvider): GraphDbRootNodeSource = GraphDbRootNodeSource(identifier = -1L)
-
-    protected open fun createNodeSource(id: Long, hierarchyDefinitionProvider: IHierarchyDefinitionProvider): GraphDbNodeSource = GraphDbNodeSource(identifier = id)
-
-    protected open fun createDependencySource(depDef: IDependencyDefinition, dependencyDefinitionProvider: IDependencyDefinitionProvider): GraphDbDependencySource =
-        GraphDbDependencySource(identifier = depDef.idRel, type = depDef.type)
 
     private fun createNodeIfAbsent(
         id: Long,
@@ -113,7 +109,7 @@ open class DefaultMappingService : IMappingService {
         }
 
         // Create new node
-        val nodeSource = createNodeSource(id, hierarchyDefinitionProvider)
+        val nodeSource = hierarchyDefinitionProvider.createNodeSource(id)
         val node = if (parent != null) {
             HierarchicalGraphFactory.createNode(rootNode, parent) { nodeSource }
         } else {
@@ -130,8 +126,7 @@ open class DefaultMappingService : IMappingService {
     }
 
     private fun createDependency(
-        depDef: IDependencyDefinition,
-        rootNode: HGRootNode,
+        depDef: DependencyDefinition,
         idToNodeMap: Map<Long, HGNode>,
         dependencyDefinitionProvider: IDependencyDefinitionProvider
     ) {
@@ -140,7 +135,7 @@ open class DefaultMappingService : IMappingService {
 
         val dep = HierarchicalGraphFactory.createCoreDependency(
             fromNode, toNode, depDef.type,
-            { createDependencySource(depDef, dependencyDefinitionProvider) }
+            { dependencyDefinitionProvider.createDependencySource(depDef) }
         )
         dep.weight = depDef.weight
         dep.attributesBitmap = depDef.attributesBitmap

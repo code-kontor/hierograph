@@ -15,15 +15,14 @@
  */
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.DefaultMappingProvider
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.DefaultMappingProviderMetadata
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.MappingProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.MappingProviderMetadata
 
-class JQAssistantMappingProvider : DefaultMappingProvider(
-    DefaultMappingProviderMetadata(
+fun jQAssistantMappingProvider() = MappingProvider(
+    MappingProviderMetadata(
         identifier = "io.hierograph.jqassistant.hierarchicalgraph",
         name = "Hierograph jQAssistant (hierarchical packages)"
     ),
     JQAssistantHierarchyProvider(),
-    JQAssistantDependencyProvider(),
-    JQAssistantNodeMetadataProvider()
+    JQAssistantDependencyProvider()
 )

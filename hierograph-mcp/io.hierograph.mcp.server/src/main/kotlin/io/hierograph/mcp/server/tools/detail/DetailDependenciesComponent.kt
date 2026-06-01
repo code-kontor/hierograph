@@ -18,8 +18,8 @@ package io.hierograph.mcp.server.tools.detail
 import org.slf4j.LoggerFactory
 import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -51,10 +51,6 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
     @Value("\${hierograph.mcp.tools.detail-dependencies.log-cypher:false}")
     private var logCypher: Boolean = false
 
-    /**
-     * Returns method/field-level edges between two subtrees with optional relationship filtering.
-     * Called internally by [org.slizaa.mcp.core.mcp.dependencyanalysis.OutgoingDependenciesTool] and [org.slizaa.mcp.core.mcp.dependencyanalysis.IncomingDependenciesTool] at detail level.
-     */
     override fun detailDependencies(
         fromId: Long,
         toId: Long,
@@ -80,10 +76,9 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         // --- Parameters & subtree expansion -----------------------------------------------
         val effectiveLimit = if (limit != null) limit.coerceIn(1, 150) else 50
         val effectiveRel = if (relationship != null && relationship.isNotBlank()) relationship else null
-        val mp = getMetadataProvider()
 
-        val fromScope = resolveScopeInfo(fromNode, mp)
-        val toScope = resolveScopeInfo(toNode, mp)
+        val fromScope = resolveScopeInfo(fromNode)
+        val toScope = resolveScopeInfo(toNode)
 
         // Empty subtree on either side -> no edges, but still return a well-formed response.
         if (fromScope.typeIds.isEmpty() || toScope.typeIds.isEmpty()) {
@@ -134,7 +129,7 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
                 srcTypeId, arrayOf(
                     record.get("srcTypeName").asString(""),
                     record.get("srcTypeFqn").asString(""),
-                    mp.getKindFromLabels(record.get("srcTypeLabels").asList(org.neo4j.driver.Value::asString))
+                    JQAssistantNodeMetadataProvider.getKindFromLabels(record.get("srcTypeLabels").asList(org.neo4j.driver.Value::asString))
                 )
             )
             nodeDisplay.putIfAbsent(
@@ -149,7 +144,7 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
                     tgtTypeId, arrayOf(
                         record.get("tgtTypeName").asString(""),
                         record.get("tgtTypeFqn").asString(""),
-                        mp.getKindFromLabels(record.get("tgtTypeLabels").asList(org.neo4j.driver.Value::asString))
+                        JQAssistantNodeMetadataProvider.getKindFromLabels(record.get("tgtTypeLabels").asList(org.neo4j.driver.Value::asString))
                     )
                 )
             }
@@ -459,16 +454,16 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
      * expands to contained type IDs. For member nodes (method, field), returns the declaring
      * type's ID plus the member's own ID and Neo4j label for Cypher anchoring.
      */
-    private fun resolveScopeInfo(node: HGNode, mp: INodeMetadataProvider): ScopeInfo {
+    private fun resolveScopeInfo(node: HGNode): ScopeInfo {
         val neoLabel = neoLabelForMember(node)
         if (neoLabel != null) {
             // Member node: use declaring type (parent) for the type set
             val parentNode = node.parent ?: return ScopeInfo(emptyList())
-            val parentTypeIds = collectSubtreeTypeIds(parentNode, mp)
+            val parentTypeIds = collectSubtreeTypeIds(parentNode)
             return ScopeInfo(parentTypeIds, node.identifier as Long, neoLabel)
         }
         // Container node: expand subtree to type IDs
-        return ScopeInfo(collectSubtreeTypeIds(node, mp))
+        return ScopeInfo(collectSubtreeTypeIds(node))
     }
 
     /**
@@ -486,22 +481,22 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         }
     }
 
-    private fun collectSubtreeTypeIds(node: HGNode, mp: INodeMetadataProvider): List<Long> {
+    private fun collectSubtreeTypeIds(node: HGNode): List<Long> {
         val typeKinds = setOf("Class", "Interface", "Enum", "Annotation", "Record")
         val result = mutableListOf<Long>()
-        collectSubtreeTypeIdsRecursive(node, typeKinds, mp, result)
+        collectSubtreeTypeIdsRecursive(node, typeKinds, result)
         return result
     }
 
     private fun collectSubtreeTypeIdsRecursive(
         node: HGNode, typeKinds: Set<String>,
-        mp: INodeMetadataProvider, result: MutableList<Long>
+        result: MutableList<Long>
     ) {
-        if (mp.getKind(node) in typeKinds) {
+        if (JQAssistantNodeMetadataProvider.getKind(node) in typeKinds) {
             result.add(node.identifier as Long)
         }
         for (child in node.children) {
-            collectSubtreeTypeIdsRecursive(child, typeKinds, mp, result)
+            collectSubtreeTypeIdsRecursive(child, typeKinds, result)
         }
     }
 

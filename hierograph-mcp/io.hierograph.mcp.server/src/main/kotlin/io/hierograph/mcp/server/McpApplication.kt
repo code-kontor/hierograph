@@ -15,8 +15,6 @@
  */
 package io.hierograph.mcp.server
 
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantSearchProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.logging.LoggingToolCallbackProvider
@@ -45,10 +43,9 @@ import org.springframework.ai.tool.method.MethodToolCallbackProvider
 class McpApplication {
 
     @Bean
-    fun searchProvider(graphService: HierarchicalGraphService): ISearchProvider =
+    fun searchProvider(graphService: HierarchicalGraphService): JQAssistantSearchProvider =
         JQAssistantSearchProvider(
             graphService.boltClient,
-            graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
         )
 
     @Bean

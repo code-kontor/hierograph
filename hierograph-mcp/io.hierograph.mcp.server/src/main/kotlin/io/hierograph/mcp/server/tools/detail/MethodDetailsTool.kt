@@ -17,8 +17,8 @@ package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Record
 import org.neo4j.driver.Value
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -60,8 +60,6 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
         methodId: Long
     ): Map<String, Any?> {
 
-        val mp = getMetadataProvider()
-
         val cypher = buildMethodDetailsCypher()
         val queryResult = graphService.boltClient.syncExecCypherQuery(
             cypher, mapOf("methodId" to methodId)
@@ -79,7 +77,7 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
         val record = records[0]
         val methodLabels = record.get("methodLabels").asList(Value::asString)
         if ("Method" !in methodLabels) {
-            val actualKind = mp.getKindFromLabels(methodLabels)
+            val actualKind = JQAssistantNodeMetadataProvider.getKindFromLabels(methodLabels)
             return linkedMapOf(
                 "error" to "WRONG_NODE_KIND",
                 "code" to "WRONG_NODE_KIND",
@@ -99,7 +97,7 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
         val declaringTypeFqn = record.get("declaringTypeFqn").asString("")
         val declaringTypeLabels = if (record.get("declaringTypeLabels").isNull)
             emptyList() else record.get("declaringTypeLabels").asList(Value::asString)
-        val declaringTypeKind = mp.getKindFromLabels(declaringTypeLabels)
+        val declaringTypeKind = JQAssistantNodeMetadataProvider.getKindFromLabels(declaringTypeLabels)
 
         val modifiers = extractModifiers(record)
 
@@ -126,12 +124,12 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
             val rtName = record.get("returnTypeName").asString("")
             val rtFqn = record.get("returnTypeFqn").asString("")
             val rtLabels = record.get("returnTypeLabels").asList(Value::asString)
-            toTypeRef(rtId, rtName, rtFqn, rtLabels, mp)
+            toTypeRef(rtId, rtName, rtFqn, rtLabels)
         }
 
-        val parameters = buildParameters(record, mp)
-        val throwsList = buildTypeRefList(record.get("throwsList"), mp)
-        val methodAnnotations = buildAnnotationList(record.get("methodAnnotations"), mp)
+        val parameters = buildParameters(record)
+        val throwsList = buildTypeRefList(record.get("throwsList"))
+        val methodAnnotations = buildAnnotationList(record.get("methodAnnotations"))
 
         val overridesRef: Map<String, Any?>? = if (!record.get("overrideId").isNull) {
             val ovId = record.get("overrideId").asLong()
@@ -149,7 +147,7 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
                 "qualified_name" to ovFqn,
                 "kind" to if (ovIsCtor) JavaKinds.CONSTRUCTOR.value else JavaKinds.METHOD.value,
                 "parent_id" to ovDtId,
-                "parent_kind" to mp.getKindFromLabels(ovDtLabels)
+                "parent_kind" to JQAssistantNodeMetadataProvider.getKindFromLabels(ovDtLabels)
             )
         } else null
 
@@ -235,7 +233,7 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
                methodAnnotations
     """.trimIndent()
 
-    private fun buildParameters(record: Record, mp: INodeMetadataProvider): List<Map<String, Any?>> {
+    private fun buildParameters(record: Record): List<Map<String, Any?>> {
         val paramsValue = record.get("parameters")
         if (paramsValue.isNull) return emptyList()
 
@@ -262,13 +260,13 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
             linkedMapOf<String, Any?>(
                 "position" to position,
                 "name" to p["name"],
-                "type" to toTypeRef(ptId, ptName, ptFqn, ptLabels, mp),
-                "annotations" to buildAnnotationListFromMaps(annsRaw, mp)
+                "type" to toTypeRef(ptId, ptName, ptFqn, ptLabels),
+                "annotations" to buildAnnotationListFromMaps(annsRaw)
             )
         }
     }
 
-    private fun buildTypeRefList(value: Value, mp: INodeMetadataProvider): List<Map<String, Any?>> {
+    private fun buildTypeRefList(value: Value): List<Map<String, Any?>> {
         if (value.isNull) return emptyList()
         return value.values().mapNotNull { v ->
             val m = v.asMap()
@@ -277,17 +275,17 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
             val fqn = m["fqn"] as? String
             @Suppress("UNCHECKED_CAST")
             val labels = m["labels"] as? List<String>
-            toTypeRef(id, name, fqn, labels, mp)
+            toTypeRef(id, name, fqn, labels)
         }
     }
 
-    private fun buildAnnotationList(value: Value, mp: INodeMetadataProvider): List<Map<String, Any?>> {
+    private fun buildAnnotationList(value: Value): List<Map<String, Any?>> {
         if (value.isNull) return emptyList()
         val raw = value.values().map { it.asMap() }
-        return buildAnnotationListFromMaps(raw, mp)
+        return buildAnnotationListFromMaps(raw)
     }
 
-    private fun buildAnnotationListFromMaps(raw: List<Map<String, Any>>?, mp: INodeMetadataProvider): List<Map<String, Any?>> {
+    private fun buildAnnotationListFromMaps(raw: List<Map<String, Any>>?): List<Map<String, Any?>> {
         if (raw.isNullOrEmpty()) return emptyList()
         return raw.mapNotNull { m ->
             val id = asLong(m["id"]) ?: return@mapNotNull null
@@ -295,11 +293,11 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
             val fqn = m["fqn"] as? String
             @Suppress("UNCHECKED_CAST")
             val labels = m["labels"] as? List<String>
-            linkedMapOf<String, Any?>("type" to toTypeRef(id, name, fqn, labels, mp))
+            linkedMapOf<String, Any?>("type" to toTypeRef(id, name, fqn, labels))
         }
     }
 
-    private fun toTypeRef(id: Long?, name: String?, fqn: String?, labels: List<String>?, mp: INodeMetadataProvider): Map<String, Any?> {
+    private fun toTypeRef(id: Long?, name: String?, fqn: String?, labels: List<String>?): Map<String, Any?> {
         if (fqn != null && fqn in JAVA_PRIMITIVES) {
             return primitiveRef(fqn)
         }
@@ -307,7 +305,7 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
             "id" to id,
             "name" to (name ?: ""),
             "qualified_name" to (fqn ?: ""),
-            "kind" to mp.getKindFromLabels(labels ?: emptyList())
+            "kind" to JQAssistantNodeMetadataProvider.getKindFromLabels(labels ?: emptyList())
         )
     }
 }

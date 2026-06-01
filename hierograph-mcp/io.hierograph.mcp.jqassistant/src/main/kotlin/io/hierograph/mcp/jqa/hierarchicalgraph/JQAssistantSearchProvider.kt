@@ -16,9 +16,6 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
 import io.hierograph.boltclient.IBoltClient
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.SearchResult
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 
@@ -30,9 +27,8 @@ import io.hierograph.mcp.javaspec.JavaNodeKind
  * Hierograph kinds. All Cypher and label knowledge is confined to this class.
  */
 class JQAssistantSearchProvider(
-    private val boltClient: IBoltClient,
-    private val metadataProvider: INodeMetadataProvider
-) : ISearchProvider {
+    private val boltClient: IBoltClient
+) {
 
     /** Hierograph kind -> jQAssistant Neo4j label(s). */
     private val kindToLabels = mapOf(
@@ -47,7 +43,7 @@ class JQAssistantSearchProvider(
         JavaKinds.FIELD to listOf("Field")
     )
 
-    override fun search(name: String, kindFilter: List<String>?, limit: Int): List<SearchResult> {
+    fun search(name: String, kindFilter: List<String>?, limit: Int): List<SearchResult> {
         val resolvedLabels = resolveKindFilter(kindFilter)
         val cypher = buildCypher(resolvedLabels, limit)
 
@@ -59,7 +55,7 @@ class JQAssistantSearchProvider(
                 record.get("nodeId").asLong(),
                 record.get("name").asString(""),
                 record.get("fqn").asString(""),
-                metadataProvider.getKindFromLabels(labels)
+                JQAssistantNodeMetadataProvider.getKindFromLabels(labels)
             )
         }
     }
@@ -104,3 +100,9 @@ class JQAssistantSearchProvider(
         return labels.ifEmpty { null }
     }
 }
+data class SearchResult(
+    val nodeId: Long,
+    val name: String,
+    val qualifiedName: String,
+    val kind: String
+)

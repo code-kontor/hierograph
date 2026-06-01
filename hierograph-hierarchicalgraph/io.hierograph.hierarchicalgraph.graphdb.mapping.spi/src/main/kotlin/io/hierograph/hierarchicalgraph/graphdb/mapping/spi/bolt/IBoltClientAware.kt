@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.hierarchicalgraph.graphdb.mapping.spi
+package io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt
 
-open class DefaultMappingProvider(
-    override val metadata: IMappingProviderMetadata,
-    override val hierarchyDefinitionProvider: IHierarchyDefinitionProvider,
-    override val dependencyDefinitionProvider: IDependencyDefinitionProvider,
-    override val nodeMetadataProvider: INodeMetadataProvider
-) : IMappingProvider
+import io.hierograph.boltclient.IBoltClient
+
+interface IBoltClientAware {
+    var boltClient: IBoltClient
+}

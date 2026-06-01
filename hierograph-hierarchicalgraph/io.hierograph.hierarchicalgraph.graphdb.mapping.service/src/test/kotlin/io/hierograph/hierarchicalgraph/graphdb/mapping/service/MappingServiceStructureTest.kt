@@ -15,7 +15,8 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.*
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt.AbstractQueryBasedDependencyProvider
+import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt.IBoltClientAware
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -35,6 +36,7 @@ class MappingServiceStructureTest {
 
     @Test
     fun `IBoltClientAware interface is defined`() {
-        assertThat(IBoltClientAware::class.java.methods.map { it.name }).contains("initialize")
+        assertThat(IBoltClientAware::class.java.methods.map { it.name })
+            .contains("getBoltClient", "setBoltClient")
     }
 }

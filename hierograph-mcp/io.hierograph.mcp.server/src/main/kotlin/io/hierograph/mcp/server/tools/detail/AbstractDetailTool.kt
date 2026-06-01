@@ -18,8 +18,8 @@ package io.hierograph.mcp.server.tools.detail
 import org.neo4j.driver.Record
 import org.neo4j.driver.Value
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 
 
@@ -35,9 +35,6 @@ abstract class AbstractDetailTool(
     protected val graphService: HierarchicalGraphService
 ) {
 
-    protected fun getMetadataProvider(): INodeMetadataProvider =
-        graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
-
     protected fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?) {
         val key = id.toString()
         if (nodes.containsKey(key)) return
@@ -49,9 +46,8 @@ abstract class AbstractDetailTool(
     }
 
     protected fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
-        val mp = getMetadataProvider()
         val id = (node.identifier as? Number)?.toLong() ?: 0L
-        putSlimNode(nodes, id, mp.getName(node), mp.getQualifiedName(node), mp.getKind(node))
+        putSlimNode(nodes, id, JQAssistantNodeMetadataProvider.getName(node), JQAssistantNodeMetadataProvider.getQualifiedName(node), JQAssistantNodeMetadataProvider.getKind(node))
     }
 
     companion object {

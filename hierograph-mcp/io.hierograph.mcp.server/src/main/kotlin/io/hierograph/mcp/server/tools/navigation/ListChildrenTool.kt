@@ -20,7 +20,7 @@ import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -104,7 +104,6 @@ class ListChildrenTool(
             )
         }
 
-        val mp = metadataProvider()
         val effectiveLimit = (limit ?: 200).coerceIn(1, 1000)
         val nameLower = namePattern?.lowercase()
 
@@ -118,7 +117,7 @@ class ListChildrenTool(
 
             // 2. name pattern
             if (nameLower != null) {
-                val name = mp.getName(child) ?: ""
+                val name = JQAssistantNodeMetadataProvider.getName(child) ?: ""
                 if (!name.lowercase().contains(nameLower)) continue
             }
 
@@ -154,9 +153,6 @@ class ListChildrenTool(
     }
 
     // ── helpers ────────────────────────────────────────────────────────
-
-    private fun metadataProvider(): INodeMetadataProvider =
-        graphService.rootNode.getExtension(INodeMetadataProvider::class.java)!!
 
     /**
      * Expands a kind filter list (which may contain group aliases) into a set of

@@ -58,7 +58,7 @@ class LoggingToolCallbackProvider(
 
         override fun call(toolInput: String): String = logAndCall(toolInput, null)
 
-        override fun call(toolInput: String, toolContext: ToolContext): String =
+        override fun call(toolInput: String, toolContext: ToolContext?): String =
             logAndCall(toolInput, toolContext)
 
         private fun logAndCall(toolInput: String, toolContext: ToolContext?): String {

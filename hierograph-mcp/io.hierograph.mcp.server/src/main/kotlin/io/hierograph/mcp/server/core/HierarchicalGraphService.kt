@@ -19,8 +19,8 @@ import io.hierograph.boltclient.IBoltClient
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.hierarchicalgraph.core.model.HGRootNode
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantMappingProvider
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantMappingService
+import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
+import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
@@ -51,11 +51,9 @@ class HierarchicalGraphService {
         boltClient = boltClientFactory.createBoltClient(boltUri)
         boltClient.connect()
 
-        val mappingProvider = JQAssistantMappingProvider()
-
-        log.info("Creating hierarchical graph using '{}' ...", mappingProvider.javaClass.name)
+        log.info("Creating hierarchical graph...")
         val (createdRoot, elapsed) = measureTimedValue {
-            JQAssistantMappingService().convert(mappingProvider, boltClient)
+            DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
         }
         rootNode = createdRoot
 

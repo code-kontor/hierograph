@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.hierarchicalgraph.graphdb.mapping.service
+package io.hierograph.hierarchicalgraph.graphdb.mapping.spi
 
-import io.hierograph.boltclient.IBoltClient
-
-interface IBoltClientAware {
-    fun initialize(boltClient: IBoltClient)
-}
+data class MappingProviderMetadata (
+    val identifier: String,
+    val name: String,
+    val description: String? = null,
+    val categories: Map<String, String> = emptyMap()
+)

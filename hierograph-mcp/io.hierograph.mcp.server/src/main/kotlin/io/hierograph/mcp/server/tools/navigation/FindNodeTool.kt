@@ -16,8 +16,8 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.mcp.server.core.HierarchicalGraphService
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.ISearchProvider
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantSearchProvider
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component
 @Component
 class FindNodeTool(
     private val graphService: HierarchicalGraphService,
-    private val searchProvider: ISearchProvider,
+    private val searchProvider: JQAssistantSearchProvider,
     private val nodeRefFactory: INodeRefFactory
 ) {
 

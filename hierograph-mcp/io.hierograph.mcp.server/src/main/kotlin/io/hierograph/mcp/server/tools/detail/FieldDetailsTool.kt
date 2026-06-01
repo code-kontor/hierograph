@@ -16,8 +16,8 @@
 package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Value
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -63,8 +63,6 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
         fieldId: Long
     ): Map<String, Any?> {
 
-        val mp = getMetadataProvider()
-
         val cypher = buildFieldDetailsCypher()
         val queryResult = graphService.boltClient.syncExecCypherQuery(
             cypher, mapOf("fieldId" to fieldId)
@@ -82,7 +80,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
         val record = records[0]
         val fieldLabels = record.get("fieldLabels").asList(Value::asString)
         if ("Field" !in fieldLabels) {
-            val actualKind = mp.getKindFromLabels(fieldLabels)
+            val actualKind = JQAssistantNodeMetadataProvider.getKindFromLabels(fieldLabels)
             return linkedMapOf(
                 "error" to "WRONG_NODE_KIND",
                 "code" to "WRONG_NODE_KIND",
@@ -100,7 +98,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
         val declaringTypeFqn = record.get("declaringTypeFqn").asString("")
         val declaringTypeLabels = if (record.get("declaringTypeLabels").isNull)
             emptyList() else record.get("declaringTypeLabels").asList(Value::asString)
-        val declaringTypeKind = mp.getKindFromLabels(declaringTypeLabels)
+        val declaringTypeKind = JQAssistantNodeMetadataProvider.getKindFromLabels(declaringTypeLabels)
 
         val modifiers = extractFieldModifiers(record)
         val isConstant = "static" in modifiers && "final" in modifiers
@@ -134,7 +132,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
             val aLabels = a["labels"] as? List<String>
             annotationDisplay[aid] = arrayOf(
                 asString(a["name"]), asString(a["fqn"]),
-                mp.getKindFromLabels(aLabels ?: emptyList())
+                JQAssistantNodeMetadataProvider.getKindFromLabels(aLabels ?: emptyList())
             )
         }
 
@@ -146,7 +144,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
                 nodes, typeIdForResponse,
                 fieldTypeName ?: "",
                 fieldTypeFqn ?: "",
-                mp.getKindFromLabels(fieldTypeLabels)
+                JQAssistantNodeMetadataProvider.getKindFromLabels(fieldTypeLabels)
             )
         }
         for ((key, d) in annotationDisplay) {
@@ -155,12 +153,12 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
 
         val readCount = record.get("readCount").asLong(0)
         val rawReaders = collectMaps(record.get("readers"))
-        val readAccess = buildAccessDigest(rawReaders, mp, nodes)
+        val readAccess = buildAccessDigest(rawReaders, nodes)
         readAccess["method_count"] = readCount
 
         val writeCount = record.get("writeCount").asLong(0)
         val rawWriters = collectMaps(record.get("writers"))
-        val writeAccess = buildAccessDigest(rawWriters, mp, nodes)
+        val writeAccess = buildAccessDigest(rawWriters, nodes)
         writeAccess["method_count"] = writeCount
 
         val location: Map<String, Any>? = if (lineNumber > 0) linkedMapOf("line_number" to lineNumber) else null
@@ -233,7 +231,6 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
      */
     private fun buildAccessDigest(
         rawMethods: List<Map<String, Any>>,
-        mp: INodeMetadataProvider,
         nodes: MutableMap<String, Any>
     ): MutableMap<String, Any> {
 
@@ -283,7 +280,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
                 putSlimNode(
                     nodes, declarerId,
                     asString(m["declarerName"]), asString(m["declarerFqn"]),
-                    mp.getKindFromLabels(declarerLabels ?: emptyList())
+                    JQAssistantNodeMetadataProvider.getKindFromLabels(declarerLabels ?: emptyList())
                 )
             }
         }

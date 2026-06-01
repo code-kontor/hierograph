@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test
 class MappingSpiTest {
 
     @Test
-    fun `DefaultMappingProviderMetadata properties`() {
-        val meta = DefaultMappingProviderMetadata(
+    fun `MappingProviderMetadata properties`() {
+        val meta = MappingProviderMetadata(
             identifier = "test.provider",
             name = "Test Provider",
             description = "A test",
@@ -36,15 +36,15 @@ class MappingSpiTest {
     }
 
     @Test
-    fun `DefaultMappingProviderMetadata defaults`() {
-        val meta = DefaultMappingProviderMetadata(identifier = "id", name = "n")
+    fun `MappingProviderMetadata defaults`() {
+        val meta = MappingProviderMetadata(identifier = "id", name = "n")
         assertThat(meta.description).isNull()
         assertThat(meta.categories).isEmpty()
     }
 
     @Test
-    fun `DefaultDependencyDefinition properties`() {
-        val dep = DefaultDependencyDefinition(
+    fun `DependencyDefinition properties`() {
+        val dep = DependencyDefinition(
             idStart = 1L, idTarget = 2L, idRel = 3L,
             type = "DEPENDS_ON", weight = 5, attributesBitmap = 0b0011
         )
@@ -57,8 +57,8 @@ class MappingSpiTest {
     }
 
     @Test
-    fun `DefaultDependencyDefinition defaults`() {
-        val dep = DefaultDependencyDefinition(
+    fun `DependencyDefinition defaults`() {
+        val dep = DependencyDefinition(
             idStart = 1L, idTarget = 2L, idRel = 3L, type = "USES"
         )
         assertThat(dep.weight).isEqualTo(1)
@@ -81,46 +81,25 @@ class MappingSpiTest {
     }
 
     @Test
-    fun `SearchResult data class`() {
-        val sr = SearchResult(nodeId = 10L, name = "Foo", qualifiedName = "com.example.Foo", kind = "java.class")
-        assertThat(sr.nodeId).isEqualTo(10L)
-        assertThat(sr.name).isEqualTo("Foo")
-        assertThat(sr.qualifiedName).isEqualTo("com.example.Foo")
-        assertThat(sr.kind).isEqualTo("java.class")
-    }
-
-    @Test
-    fun `DefaultMappingProvider aggregates providers`() {
-        val meta = DefaultMappingProviderMetadata(identifier = "test", name = "Test")
+    fun `MappingProvider aggregates providers`() {
+        val meta = MappingProviderMetadata(identifier = "test", name = "Test")
         val hierarchy = object : IHierarchyDefinitionProvider {
-            override fun getToplevelNodeIds() = listOf(ToplevelNodeId(1L, "MODULE"))
-            override fun getParentChildNodeIds() = emptyList<ParentChildNodeId>()
+            override fun initialize() {}
+            override fun dispose() {}
+            override val toplevelNodeIds = listOf(ToplevelNodeId(1L, "MODULE"))
+            override val parentChildNodeIds = emptyList<ParentChildNodeId>()
         }
         val deps = object : IDependencyDefinitionProvider {
-            override fun getDependencies() = emptyList<IDependencyDefinition>()
+            override fun initialize() {}
+            override fun dispose() {}
+            override val dependencies = emptyList<DependencyDefinition>()
         }
-        val nodeMeta = stubNodeMetadataProvider()
 
-        val provider = DefaultMappingProvider(meta, hierarchy, deps, nodeMeta)
+        val provider = MappingProvider(meta, hierarchy, deps)
 
         assertThat(provider.metadata).isSameAs(meta)
         assertThat(provider.hierarchyDefinitionProvider).isSameAs(hierarchy)
         assertThat(provider.dependencyDefinitionProvider).isSameAs(deps)
-        assertThat(provider.nodeMetadataProvider).isSameAs(nodeMeta)
-        assertThat(provider.hierarchyDefinitionProvider.getToplevelNodeIds()).hasSize(1)
-    }
-
-    private fun stubNodeMetadataProvider() = object : INodeMetadataProvider {
-        override fun getName(node: HGNode) = "name"
-        override fun getQualifiedName(node: HGNode) = "fqn"
-        override fun getKind(node: HGNode) = "Class"
-        override fun getKindFromLabels(labels: List<String>) = "Class"
-        override fun getKnownKinds() = listOf("Class")
-        override fun getFindNodeCypherQuery(kind: String?, limit: Int) = ""
-        override fun getNodeCountCypherQuery(scopeId: Long?) = ""
-        override fun getDepthStatsCypherQuery(scopeId: Long?) = ""
-        override fun getDependencyKindDistributionCypherQuery(scopeId: Long?) = ""
-        override fun getScanMetadataCypherQuery() = ""
-        override fun getScannerName() = "test"
+        assertThat(provider.hierarchyDefinitionProvider.toplevelNodeIds).hasSize(1)
     }
 }

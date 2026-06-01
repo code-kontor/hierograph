@@ -16,10 +16,10 @@
 package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Value
-import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.INodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -54,8 +54,6 @@ class TypeDetailsTool(
         typeId: Long
     ): Map<String, Any?> {
 
-        val mp = getMetadataProvider()
-
         // ── query Neo4j ────────────────────────────────────────────────
         val cypher = buildTypeDetailsCypher()
         val queryResult = graphService.boltClient.syncExecCypherQuery(
@@ -79,7 +77,7 @@ class TypeDetailsTool(
         // ── validate kind ──────────────────────────────────────────────
         val typeKindLabels = setOf("Class", "Interface", "Enum", "Annotation", "Record")
         if (typeKindLabels.none { it in typeLabels }) {
-            val actualKind = mp.getKindFromLabels(typeLabels)
+            val actualKind = JQAssistantNodeMetadataProvider.getKindFromLabels(typeLabels)
             val hgNode = graphService.rootNode.lookupNode(typeId)
             val declaringType = hgNode?.parent
 
@@ -103,7 +101,7 @@ class TypeDetailsTool(
         // ── build type NodeRef ─────────────────────────────────────────
         val typeName = record.get("typeName").asString("")
         val typeFqn = record.get("typeFqn").asString("")
-        val typeKind = mp.getKindFromLabels(typeLabels)
+        val typeKind = JQAssistantNodeMetadataProvider.getKindFromLabels(typeLabels)
 
         val hgNode = graphService.rootNode.lookupNode(typeId)
 
@@ -144,15 +142,15 @@ class TypeDetailsTool(
                 "id" to scId,
                 "name" to scName,
                 "qualified_name" to scFqn,
-                "kind" to mp.getKindFromLabels(scLabels)
+                "kind" to JQAssistantNodeMetadataProvider.getKindFromLabels(scLabels)
             )
         } else null
 
         // ── interfaces ─────────────────────────────────────────────────
-        val interfaces = buildTypeRefList(record.get("interfaces"), mp)
+        val interfaces = buildTypeRefList(record.get("interfaces"))
 
         // ── annotations ────────────────────────────────────────────────
-        val annotationsRaw = buildTypeRefList(record.get("annotations"), mp)
+        val annotationsRaw = buildTypeRefList(record.get("annotations"))
         val annotations = annotationsRaw.map { ref ->
             linkedMapOf<String, Any?>("type" to ref)
         }
@@ -210,7 +208,7 @@ class TypeDetailsTool(
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    private fun buildTypeRefList(value: Value?, mp: INodeMetadataProvider): List<Map<String, Any?>> {
+    private fun buildTypeRefList(value: Value?): List<Map<String, Any?>> {
         if (value == null || value.isNull) return emptyList()
         return value.values()
             .map { it.asMap() }
@@ -225,7 +223,7 @@ class TypeDetailsTool(
                     "id" to id,
                     "name" to name,
                     "qualified_name" to fqn,
-                    "kind" to mp.getKindFromLabels(labels)
+                    "kind" to JQAssistantNodeMetadataProvider.getKindFromLabels(labels)
                 )
             }
     }
