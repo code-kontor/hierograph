@@ -45,13 +45,23 @@ class IncomingDependenciesTool(
                 "detail_level='type' (default) returns type-to-type edges (fast). " +
                 "detail_level='detail' returns method/field-level edges with source locations (slower). " +
                 "The 'relationship' filter is only valid at detail level. " +
-                "For the forward direction (what source uses of target), use outgoing_dependencies."
+                "For the forward direction (what source uses of target), use outgoing_dependencies. " +
+                "At type level, to_id is optional: omit it to return ALL incoming dependencies of " +
+                "from_id (everything that depends on from_id, from anywhere) — answering 'what depends on X'. " +
+                "The summary always includes 'by_target': the from_id types ranked by summed incoming " +
+                "weight (the most heavily used types), computed over the full result set. " +
+                "to_id is required at detail level."
     )
     fun incomingDependencies(
         @ToolParam(description = "The subtree that is depended upon — source side.")
         fromId: Long,
-        @ToolParam(description = "The subtree that does the depending — target side.")
-        toId: Long,
+        @ToolParam(
+            description = "The subtree that does the depending — target side. Optional at type " +
+                    "level — omit to return ALL incoming dependencies of from_id (everything that " +
+                    "depends on it, from anywhere). Required at detail level.",
+            required = false
+        )
+        toId: Long?,
         @ToolParam(
             description = "Zoom level: 'type' (default, in-memory) or 'detail' (method/field-level, Neo4j).",
             required = false
@@ -95,8 +105,19 @@ class IncomingDependenciesTool(
         }
 
         return if (level == "type") {
-            // incoming: edges from toId→fromId (what toId uses of fromId)
+            // incoming: edges from toId→fromId (what toId uses of fromId).
+            // toId may be null → all incoming dependencies of fromId from anywhere.
             outgoingTool.typeLevelDependencies(fromId, toId, limit, outgoing = false)
+        } else if (toId == null) {
+            // detail level requires an explicit depender — the open form is type-level only
+            mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "to_id is required at detail_level='detail'. The open form " +
+                            "(omitted to_id, returning everything that depends on from_id) is supported only at detail_level='type'.",
+                    "recovery" to "Provide a to_id, or set detail_level='type' to query everything that depends on from_id."
+                )
+            )
         } else {
             // Detail level: swap from/to — detail_dependencies(toId, fromId)
             // shows edges from toId subtree into fromId subtree

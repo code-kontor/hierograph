@@ -3,7 +3,7 @@
 > **Implementation note:** This spec and `outgoing_dependencies_type.md` describe two levels of the same tool. They are split into separate spec files for clarity, but must be implemented as a **single `outgoing_dependencies` MCP tool** with a `detail_level` parameter that switches between them.
 
 **Category:** Detail-level dependency evidence
-**Result-size class:** Data-bounded (cursor-based pagination)
+**Result-size class:** Data-bounded (single-page truncation; cursor pagination specified but not yet implemented — see *Pagination*)
 
 ## Purpose
 
@@ -14,11 +14,11 @@ Returns method/field-level edges from a source subtree to a target subtree, with
 ```
 outgoing_dependencies(
     from_id: long,                              // required
-    to_id: long,                                // required
+    to_id: long,                                // required (cannot be omitted at detail level)
     detail_level: "detail",                     // required for this spec
     relationship: string?,                      // optional filter
     limit: int = 80,                            // optional
-    cursor: string?                             // for pagination
+    cursor: string?                             // for pagination (specified, not yet implemented)
 )
 ```
 
@@ -28,7 +28,7 @@ outgoing_dependencies(
 Source subtree root. Accepts module, package, type, method, or field IDs.
 
 **`to_id`** (long, required)
-Target subtree root. Same kind constraints as `from_id`.
+Target subtree root. Same kind constraints as `from_id`. **Required at detail level** — unlike the type level, `to_id` may *not* be omitted here. The open-target form (omit `to_id` to return *all* dependencies of `from_id`) is supported only at `detail_level="type"`, because an unconstrained target at member granularity is unbounded.
 
 **`detail_level`** (string, required)
 Must be `"detail"` for this spec.
@@ -43,10 +43,10 @@ Valid values (surfaced via `graph_overview`):
 Unknown values return a structured error listing the valid kinds.
 
 **`limit`** (int, optional, default 80)
-Maximum items per page. Default 80 (~550 bytes/edge, ~44 KB). Server-side cap: 250.
+Maximum items per page. Default 80 (~550 bytes/edge, ~44 KB). Server-side cap: **150**. (The tool layer accepts values up to 250, but the detail component re-clamps to 150, so 150 is the effective ceiling.)
 
 **`cursor`** (string, optional)
-Opaque cursor from a previous response's `next_cursor`.
+Opaque cursor from a previous response's `next_cursor`. **Not yet implemented — currently ignored** (see *Pagination*).
 
 ## Response shape
 
@@ -60,19 +60,20 @@ Uses **slim payload encoding** — source entities, target entities, and their d
     "52103": { "name": "TransportService", "qualified_name": "org.elasticsearch.transport.TransportService", "kind": "java.class" },
     "52120": { "name": "sendRequest", "qualified_name": "org.elasticsearch.transport.TransportService.sendRequest", "kind": "java.method" }
   },
+  "from_scope": 47291,
+  "to_scope": 52103,
   "edges": [
     {
       "from": 47305,
-      "to": 52120,
       "from_parent": 47291,
+      "to": 52120,
       "to_parent": 52103,
       "relationship": "calls",
-      "source_file": "org/elasticsearch/cluster/ClusterService.java",
-      "source_line": 247
+      "location": { "line_number": 247 }
     }
   ],
   "summary": {
-    "total": 15,
+    "total_edges": 15,
     "returned": 15,
     "truncated": false,
     "by_relationship": {
@@ -82,28 +83,44 @@ Uses **slim payload encoding** — source entities, target entities, and their d
       "returns": 2
     },
     "by_source_type": [
-      { "id": 47291, "count": 12 },
-      { "id": 47310, "count": 3 }
+      { "type": 47291, "edge_count": 12 },
+      { "type": 47310, "edge_count": 3 }
+    ],
+    "by_source_nodes": [
+      { "node": 47291, "aggregated_weight": 12 }
+    ],
+    "by_target_nodes": [
+      { "node": 52103, "aggregated_weight": 15 }
     ]
   }
 }
 ```
 
+### Top-level fields
+
+**`nodes`** — slim node map: `id → { name, qualified_name, kind }` for every id referenced by the edges, the scope endpoints, and the summary rollups.
+
+**`from_scope`** / **`to_scope`** — the resolved `from_id` / `to_id` node ids (echoed back as longs). These confirm which nodes the query actually scoped to after resolution and anchor the `by_source_nodes` / `by_target_nodes` drill-downs.
+
+**`edges`** — the returned page of detail-level edges (see *Edge fields*).
+
+**`summary`** — aggregate rollups over the full result set (see *Summary fields*).
+
 ### Edge fields
 
 **`from`** / **`to`** — source and target entity IDs (method, field, or type; reference the `nodes` map).
 
-**`from_parent`** / **`to_parent`** — declaring type IDs of the source and target entities. Present for navigation back to the type level. When the entity is itself a type, `from_parent` or `to_parent` equals `from` or `to`.
+**`from_parent`** — declaring type ID of the source entity, for navigation back to the type level. **Always present**; equals `from` when the source is itself a type.
+
+**`to_parent`** — declaring type ID of the target entity. Present **only when the target is a method or field**; **omitted** when the target is itself a type (in which case the type ID is already `to`).
 
 **`relationship`** — the detail-level relationship kind (e.g., `calls`, `reads_field`, `annotated_by`).
 
-**`source_file`** — relative file path of the source location.
-
-**`source_line`** — line number in the source file.
+**`location`** — source location of the edge, as `{ "line_number": N }`. **`null`** when no line number is available. No file path is currently emitted — only the line number within the source entity's declaring type.
 
 ### Summary fields
 
-**`total`** — true count of all matching edges (across all pages).
+**`total_edges`** — true count of all matching edges (across all pages).
 
 **`returned`** — number of edges in this page.
 
@@ -111,17 +128,27 @@ Uses **slim payload encoding** — source entities, target entities, and their d
 
 **`by_relationship`** — distribution of edges by relationship kind, computed over the full result set. Each edge has exactly one relationship kind.
 
-**`by_source_type`** — top source types by edge count, computed over the full result set.
+**`by_source_type`** — top 10 source types by edge count, computed over the full result set. Each entry is `{ type, edge_count }`, where `type` is the source type's node id (reference the `nodes` map) and `edge_count` is its number of edges; entries are sorted by descending `edge_count`.
+
+**`others_count`** — present only when more than 10 distinct source types matched: the number of source types beyond the top 10 that are not listed in `by_source_type`.
+
+**`by_source_nodes`** — hierarchical drill-down of the **source** scope (`from_id`). The tool descends from `from_id` through single-child levels until it reaches the first level that branches (more than one child), then reports, for each child at that level, the aggregated **type-level** dependency weight from that child into the `to_id` subtree. Each entry is `{ node, aggregated_weight }`, where `node` references the `nodes` map; children with zero weight are omitted and the list is sorted by descending weight. This shows *which sub-parts of the source* carry the coupling — structural context the flat per-edge list does not give.
+
+**`by_target_nodes`** — the mirror for the **target** scope (`to_id`): descends from `to_id` to its first branching level and reports, for each child, the aggregated **type-level** dependency weight received from the `from_id` subtree. Same `{ node, aggregated_weight }` shape, zero-weight children omitted, sorted by descending weight. This shows *which sub-parts of the target* absorb the coupling.
+
+> Both `by_source_nodes` and `by_target_nodes` are computed from **type-level aggregated weights**, not from the count of detail edges on the current page, so they remain accurate even when the detail edge list is paginated.
 
 ## Pagination
 
 ### Iteration order
 
-Edges sorted by `(source_type_qualified_name, source_entity_name, target_qualified_name, relationship)`. Edges from the same source type are grouped; edges from the same source entity are sub-grouped; within a source/target pair, relationship kinds are alphabetical.
+Edges are sorted by `(relationship, source_type_qualified_name, source_entity_name, location.line_number)`: relationship kind first (alphabetical), then the source type's qualified name, then the source entity name, then the source line number. This order also determines which edges survive truncation.
 
-### Cursor protocol
+### Truncation (current behavior)
 
-Standard Hierograph cursor protocol.
+The implementation runs a single query, sorts the full result set by the iteration order above, and returns the first `limit` edges. `summary.truncated` is `true` when more edges matched than were returned, and `summary.total_edges` reports the full match count — but **edges beyond `limit` are dropped and are not currently retrievable**, because the response carries no continuation token.
+
+> **Current gap:** Cursor-based pagination is specified for this tool (the `cursor` request parameter and a `next_cursor` response field) but is **not yet implemented**. The response carries neither a `cursor` echo nor a `next_cursor`, and the `cursor` parameter is ignored. To retrieve more than `limit` edges today, raise `limit` (up to its server-side cap) or narrow the query with a `relationship` filter or a more specific `from_id` / `to_id`.
 
 ## Input validation
 
@@ -129,7 +156,9 @@ Standard Hierograph cursor protocol.
 
 **Unknown node ID.** Returns `NODE_NOT_FOUND` error.
 
-**Invalid cursor.** Standard cursor error responses per the pagination protocol.
+**Missing `from_id` or `to_id`.** Both are required at detail level. Omitting `to_id` returns `INVALID_PARAMETER` — the open-target form is valid only at `detail_level="type"`. Omitting `from_id` is likewise rejected.
+
+**Invalid cursor.** Specified to return standard cursor error responses per the pagination protocol, but **not yet implemented** — the `cursor` parameter is currently ignored rather than validated (see *Pagination*).
 
 ## Architecture
 

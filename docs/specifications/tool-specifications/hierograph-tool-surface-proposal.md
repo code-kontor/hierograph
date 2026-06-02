@@ -564,7 +564,7 @@ When in doubt between `aggregated_dependencies` and `pairwise_dependencies`: use
 ```
 outgoing_dependencies(
     from_id: long,                              // required
-    to_id: long,                                // required
+    to_id: long?,                               // optional at type level (omit = all dependencies); required at detail level
     detail_level: "type" | "detail" = "type",   // optional, defaults to "type"
     relationship: string?,                      // only valid when detail_level == "detail"
     limit: int = 200
@@ -572,7 +572,7 @@ outgoing_dependencies(
 
 incoming_dependencies(
     from_id: long,
-    to_id: long,
+    to_id: long?,                               // optional at type level (omit = all dependencies); required at detail level
     detail_level: "type" | "detail" = "type",
     relationship: string?,
     limit: int = 200
@@ -584,6 +584,12 @@ incoming_dependencies(
 Return the edges between two specific subtrees, at the requested zoom level. These are the *evidence* tools: given that you know A depends on B (from an aggregated tool result), these tell you what's actually between them.
 
 The directional naming stays here because the question shape genuinely differs: `outgoing_dependencies` asks "what does the source side use of the target side?" while `incoming_dependencies` asks "what does the target side use of the source side?" Both are between the same pair, but the LLM's question shape determines which direction matters.
+
+**Open form — omitting `to_id` (type level only):**
+
+At `detail_level: "type"`, `to_id` is optional. When it is omitted the counterpart side is left unconstrained and the tool returns *all* core (type-level) dependencies of `from_id`: for `outgoing_dependencies`, every edge from `from_id`'s types to anywhere in the graph ("show me the dependencies of X"); for `incoming_dependencies`, every edge into `from_id` from anywhere ("what depends on X"). `from_id` is always required — omitting *both* sides is rejected, since that would request the entire dependency graph (an unbounded N×N result). The open form stays data-bounded: the result size is the in/out-degree of `from_id`, paginated as usual. This is the cheapest answer to whole-graph "deps of X" / "what uses X" questions — no need to enumerate candidate targets the way `aggregated_dependencies` does. Omitting `to_id` is permitted only at type level (see below).
+
+The response summary always carries a **`by_target`** rollup: the depended-upon types ranked by summed edge weight (each entry `{ id, weight }`, top 10), computed over the **full** result set rather than the returned page. For `incoming_dependencies` this ranks the `from_id` types by incoming weight (the most heavily used types within `from_id`); for `outgoing_dependencies` it ranks what `from_id` leans on most. In the open form it spans the whole graph; in the constrained form it ranks within the `to_id` subtree. This is what makes the tool answer "rank the things in X by usage" directly — a weighted target-side rollup that survives pagination — closing the gap that previously forced enumerate-then-hand-sum over `aggregated_dependencies`.
 
 **At `detail_level: "type"` (the default):**
 
@@ -598,6 +604,8 @@ The `relationship` parameter is not valid at this level; passing it returns a st
 Returns method/field-level edges between entities in the source subtree and entities in the target subtree. Each edge has a source method/field NodeRef, a target method/field/type NodeRef, a relationship kind (throws, calls, reads_field, writes_field, annotated_by, etc.), and a source location (file + line number).
 
 This uses Neo4j queries. Slower — milliseconds to a few seconds depending on subtree sizes.
+
+`to_id` is **required** at this level — the open form (omitted `to_id`) is type-level only, because an unconstrained target/depender at member granularity is unbounded. Omitting it returns a structured `INVALID_PARAMETER` error.
 
 The `relationship` parameter is valid and filters to a specific kind. The available relationship vocabulary is surfaced via `graph_overview`.
 
@@ -825,6 +833,7 @@ The decision tree, roughly:
 6. **"What specifically is between subtree A and subtree B?"** → `outgoing_dependencies` or `incoming_dependencies`
    - For type-level edges: `detail_level: "type"` (the default)
    - For method/field-level edges: `detail_level: "detail"`, optionally filtered by `relationship`
+   - **"What does X depend on / what depends on X (across the whole graph)?"** → same tools at `detail_level: "type"` with `to_id` omitted
 
 7. **"What breaks if I change this?"** → `affected_by`
 

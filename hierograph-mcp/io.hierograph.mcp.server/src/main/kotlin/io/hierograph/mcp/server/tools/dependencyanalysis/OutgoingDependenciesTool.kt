@@ -51,13 +51,22 @@ class OutgoingDependenciesTool(
                 "Summaries (by_attribute/by_relationship, by_source_type) give the shape without " +
                 "needing to process all edges. " +
                 "Direction: this tool shows what the source uses of the target. " +
-                "For the reverse, use incoming_dependencies."
+                "For the reverse, use incoming_dependencies. " +
+                "At type level, to_id is optional: omit it to return ALL outgoing dependencies of " +
+                "from_id (every type-level edge to anywhere in the graph) — answering 'show me the " +
+                "dependencies of X'. The summary always includes 'by_target': the depended-upon " +
+                "types ranked by summed weight over the full result set (whole graph when to_id is " +
+                "omitted, within the to_id subtree otherwise). to_id is required at detail level."
     )
     fun outgoingDependencies(
         @ToolParam(description = "Source subtree root ID.")
         fromId: Long,
-        @ToolParam(description = "Target subtree root ID.")
-        toId: Long,
+        @ToolParam(
+            description = "Target subtree root ID. Optional at type level — omit to return ALL " +
+                    "outgoing dependencies of from_id (every edge to anywhere). Required at detail level.",
+            required = false
+        )
+        toId: Long?,
         @ToolParam(
             description = "Zoom level: 'type' (default, in-memory) or 'detail' (method/field-level, Neo4j).",
             required = false
@@ -102,6 +111,16 @@ class OutgoingDependenciesTool(
 
         return if (level == "type") {
             typeLevelDependencies(fromId, toId, limit, outgoing = true)
+        } else if (toId == null) {
+            // detail level requires an explicit target — the open form is type-level only
+            mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "to_id is required at detail_level='detail'. The open form " +
+                            "(omitted to_id, returning all dependencies) is supported only at detail_level='type'.",
+                    "recovery" to "Provide a to_id, or set detail_level='type' to query all dependencies of from_id."
+                )
+            )
         } else {
             // Delegate to existing detail_dependencies tool
             val effectiveLimit = (limit ?: 80).coerceIn(1, 250)
@@ -114,33 +133,41 @@ class OutgoingDependenciesTool(
 
     internal fun typeLevelDependencies(
         fromId: Long,
-        toId: Long,
+        toId: Long?,
         limit: Int?,
         outgoing: Boolean
     ): Map<String, Any?> {
 
-        // ── resolve nodes ──────────────────────────────────────────────
+        // ── resolve from node (always required) ────────────────────────
         val fromNode = graphService.rootNode.lookupNode(fromId)
             ?: return nodeNotFound(fromId)
-        val toNode = graphService.rootNode.lookupNode(toId)
-            ?: return nodeNotFound(toId)
-
-        // ── validate node kinds ────────────────────────────────────────
         validateNodeKind(fromNode)?.let { return it }
-        validateNodeKind(toNode)?.let { return it }
+
+        // ── resolve to node (optional: omitted = unconstrained) ────────
+        // When toId is null the counterpart side is left open and every
+        // matching edge is returned ("show me the dependencies of X" /
+        // "what depends on X"). When provided, edges are filtered to the
+        // toId subtree's types.
+        var toNode: HGNode? = null
+        var otherSideTypeIds: Set<Any>? = null
+        if (toId != null) {
+            toNode = graphService.rootNode.lookupNode(toId)
+                ?: return nodeNotFound(toId)
+            validateNodeKind(toNode)?.let { return it }
+            otherSideTypeIds = collectTypeIds(toNode)
+        }
 
         val effectiveLimit = (limit ?: 100).coerceIn(1, 400)
 
-        // ── determine source and target based on direction ─────────────
-        // outgoing: edges from fromNode to toNode
-        // incoming: edges from toNode to fromNode (what toNode uses of fromNode)
-        val sourceNode = if (outgoing) fromNode else toNode
-        val targetNode = if (outgoing) toNode else fromNode
-
         // ── collect type-level edges ───────────────────────────────────
-        // Expand both subtrees to types, then find core deps between them
-        val sourceTypes = collectTypes(sourceNode)
-        val targetTypeIds = collectTypeIds(targetNode)
+        // Anchor on from_id's types. For the outgoing direction walk each
+        // anchor type's outgoing core dependencies; for incoming, its incoming
+        // ones. Each HGCoreDependency already encodes (from -> to) in
+        // depender->depended-upon orientation, so the edge endpoints are
+        // dep.from / dep.to in both directions. The "other" endpoint (the one
+        // not on the anchor side) is matched against otherSideTypeIds when
+        // to_id is provided; when omitted every edge is kept.
+        val anchorTypes = collectTypes(fromNode)
 
         data class TypeEdge(
             val from: HGNode,
@@ -155,18 +182,25 @@ class OutgoingDependenciesTool(
             byAttribute[name] = 0
         }
         val sourceTypeCounts = linkedMapOf<Any, Int>()
+        // Summed edge weight per depended-upon endpoint (dep.to). Used only by the
+        // open form's by_target rollup; accumulated over the full result set.
+        val targetWeights = linkedMapOf<Any, Int>()
 
-        for (srcType in sourceTypes) {
-            for (dep in srcType.outgoingCoreDependencies) {
-                if (dep.to.identifier in targetTypeIds) {
-                    allEdges.add(TypeEdge(srcType, dep.to, dep.weight, dep.attributesBitmap))
+        for (anchorType in anchorTypes) {
+            val deps = if (outgoing) anchorType.outgoingCoreDependencies
+                       else anchorType.incomingCoreDependencies
+            for (dep in deps) {
+                val otherEndpoint = if (outgoing) dep.to else dep.from
+                if (otherSideTypeIds == null || otherEndpoint.identifier in otherSideTypeIds) {
+                    allEdges.add(TypeEdge(dep.from, dep.to, dep.weight, dep.attributesBitmap))
 
                     for ((pos, name) in JavaEdgeAttributes.ALL) {
                         if (JavaEdgeAttributes.isSet(dep.attributesBitmap, pos)) {
                             byAttribute.merge(name, 1) { a, b -> a + b }
                         }
                     }
-                    sourceTypeCounts.merge(srcType.identifier, 1) { a, b -> a + b }
+                    sourceTypeCounts.merge(dep.from.identifier, 1) { a, b -> a + b }
+                    targetWeights.merge(dep.to.identifier, dep.weight) { a, b -> a + b }
                 }
             }
         }
@@ -185,7 +219,7 @@ class OutgoingDependenciesTool(
         // ── build slim nodes map ───────────────────────────────────────
         val nodes = linkedMapOf<String, Any>()
         nodeRefFactory.putSlimNode(nodes, fromNode)
-        nodeRefFactory.putSlimNode(nodes, toNode)
+        toNode?.let { nodeRefFactory.putSlimNode(nodes, it) }
         for (edge in page) {
             nodeRefFactory.putSlimNode(nodes, edge.from)
             nodeRefFactory.putSlimNode(nodes, edge.to)
@@ -210,16 +244,32 @@ class OutgoingDependenciesTool(
                 linkedMapOf<String, Any?>("id" to id, "count" to count)
             }
 
+        val summary = linkedMapOf<String, Any?>(
+            "total" to total,
+            "returned" to page.size,
+            "truncated" to truncated,
+            "by_attribute" to byAttribute,
+            "by_source_type" to bySourceType
+        )
+
+        // Rank the depended-upon endpoints (dep.to) by summed weight, top 10.
+        // Computed over the FULL result set — not just the returned page — so the
+        // ranking is complete even when edges are truncated. In the open form
+        // (to_id omitted) this spans the whole graph; in the constrained form it
+        // ranks within the to_id subtree. For incoming, dep.to is the from_id type,
+        // so this ranks the most heavily used types within from_id; for outgoing, it
+        // ranks what from_id leans on most.
+        summary["by_target"] = targetWeights.entries
+            .sortedByDescending { it.value }
+            .take(10)
+            .map { (id, weight) ->
+                linkedMapOf<String, Any?>("id" to id, "weight" to weight)
+            }
+
         return linkedMapOf<String, Any?>(
             "nodes" to nodes,
             "edges" to edges,
-            "summary" to linkedMapOf<String, Any?>(
-                "total" to total,
-                "returned" to page.size,
-                "truncated" to truncated,
-                "by_attribute" to byAttribute,
-                "by_source_type" to bySourceType
-            )
+            "summary" to summary
         )
     }
 
