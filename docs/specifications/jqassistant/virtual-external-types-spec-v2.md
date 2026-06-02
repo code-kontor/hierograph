@@ -15,12 +15,13 @@ This spec defines a set of jQAssistant concepts that produce **canonical virtual
 - Full package hierarchy (`com` → `com.acme` → `com.acme.foo`) materialized as `:CONTAINS` edges.
 - A single `:Virtual:Artifact {name: "External"}` that flatly `:CONTAINS` every virtual package and every virtual type, mirroring jQAssistant's Java scanner pattern for real `:Artifact:Jar` nodes.
 - Canonical dependencies: dependencies that target external stubs are additively lifted onto the canonical `:Virtual:Type`, reachable in a single `:DEPENDS_ON` hop.
+- Canonical structural edges: `:EXTENDS`, `:IMPLEMENTS`, and `:ANNOTATED_BY` relationships that target external stubs are additively lifted onto the canonical `:Virtual:Type` as well, so supertype, interface, and annotation analysis reaches the canonical node in a single hop.
 - Non-destructive: original stubs and their relationships are untouched.
 - Idempotent: re-running the concepts does not duplicate nodes or edges.
 
 ## Non-goals
 
-- Rewriting or deleting the `:INVOKES`, `:READS`, `:WRITES`, or `:DEPENDS_ON` edges that already exist on the original stubs — these stay exactly as the scanner produced them. (Concept 5 *adds* parallel `:DEPENDS_ON` edges from the depending node to the canonical `:Virtual:Type`; it never modifies the stub's own edges. Traversals that prefer the explicit form can still follow `:DEPENDS_ON` then `:RESOLVES_TO`.)
+- Rewriting or deleting the `:INVOKES`, `:READS`, `:WRITES`, `:DEPENDS_ON`, `:EXTENDS`, `:IMPLEMENTS`, or `:ANNOTATED_BY` edges that already exist on the original stubs — these stay exactly as the scanner produced them. (Concepts 5–8 *add* parallel `:DEPENDS_ON`, `:EXTENDS`, `:IMPLEMENTS`, and `:ANNOTATED_BY` edges from the depending/declaring node to the canonical `:Virtual:Type`; they never modify the stub's own edges. Traversals that prefer the explicit form can still follow the original edge then `:RESOLVES_TO`.)
 - Inferring members (methods, fields) of external types beyond what the bytecode references already produced as signature stubs.
 - Merging virtual nodes with real `:Package` nodes created by the Java scanner. The `:Virtual` label keeps them distinct.
 
@@ -41,6 +42,18 @@ Reuses the relationship type already established by `classpath:Resolve` for "thi
 ### Lifted `:DEPENDS_ON` to canonical types (additive)
 
 Concept 5 mirrors each `(a)-[:DEPENDS_ON]->(stub)` onto `(a)-[:DEPENDS_ON]->(:Virtual:Type)` when the stub resolves to a canonical node. This is purely additive — the stub edge is untouched — and lets dependency analysis (DSM, layering, cycle detection) treat the canonical virtual type as a first-class dependency target without threading a `:RESOLVES_TO` hop into every query. The lifted edge carries a `weight` summed from the stub edges it consolidates, matching the weighted `:DEPENDS_ON` the Java scanner emits.
+
+### Lifted structural edges: `:EXTENDS`, `:IMPLEMENTS`, `:ANNOTATED_BY` (additive)
+
+Concepts 6–8 mirror the structural relationships that target external stubs onto the canonical `:Virtual:Type`, the same way concept 5 mirrors `:DEPENDS_ON`:
+
+- **`:EXTENDS`** (concept 6): a real class/interface whose superclass or super-interface is unparsed (e.g. a type that `extends` an `org.neo4j.driver.*` stub) gets an additional `(a)-[:EXTENDS]->(:Virtual:Type)` edge to the canonical supertype.
+- **`:IMPLEMENTS`** (concept 7): `(a:Type)-[:IMPLEMENTS]->(stub)` gets a parallel `(a)-[:IMPLEMENTS]->(:Virtual:Type)`.
+- **`:ANNOTATED_BY`** (concept 8): an external annotation type — reached via the scanner's `(x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(stub)` shape — gets a collapsed `(x)-[:ANNOTATED_BY]->(:Virtual:Type)` edge pointing straight at the canonical annotation type.
+
+These lifted edges are **unweighted** (unlike the lifted `:DEPENDS_ON`, which sums stub weights), because the scanner emits `:EXTENDS`/`:IMPLEMENTS`/`:ANNOTATED_BY` as plain structural edges rather than weighted aggregates. They are purely additive — the original edges are untouched — and non-cascading, since virtual types have no outgoing `:EXTENDS`/`:IMPLEMENTS`/`:ANNOTATED_BY` for the pattern to re-match. Re-running is idempotent via `MERGE`.
+
+**Note on the `:ANNOTATED_BY` shape.** The scanner points `:ANNOTATED_BY` at an intermediate `:Value:Annotation` node, which in turn carries `:OF_TYPE` to the annotation's type. The lifted edge deliberately *collapses* that indirection, pointing the annotated element straight at the canonical annotation **type** — mirroring how the lifted `:DEPENDS_ON` targets a type rather than threading through `:RESOLVES_TO`. Because the canonical target is always a `:Virtual:Type` (never a `:Value:Annotation`), queries that select the real annotation value nodes with `MATCH (x)-[:ANNOTATED_BY]->(av:Annotation)` are unaffected by the lifted edges; only queries that intentionally want the canonical annotation type match `(:Virtual:Type)`.
 
 ### Flat containment from the `External` artifact
 
@@ -73,6 +86,7 @@ The following are deliberately excluded from virtual-type creation:
 - **JVM array descriptors**: any FQN starting with `[` (e.g. `[D`, `[Ljava/lang/String;`).
 - **Default-package types**: any FQN with no `.` (these are rare and usually represent edge cases not worth a canonical node).
 - **JDK/runtime ubiquitous types**: any FQN starting with `java.lang.` or `kotlin.`. These are referenced by nearly every type; canonicalizing them adds noise without analytical value.
+- **Nullability annotations**: `org.jetbrains.annotations.NotNull` and `org.jetbrains.annotations.Nullable`. These Kotlin-emitted nullability annotations appear on nearly every member and parameter and would otherwise dominate the lifted `:ANNOTATED_BY` edges (concept 8) with no analytical value. Excluding them at concept 1 propagates automatically: no `:Virtual:Type`, no `:RESOLVES_TO`, and therefore no lifted `:ANNOTATED_BY` edge is created for them.
 
 Array element types can be derived in a separate concept if needed; this spec doesn't cover that.
 
@@ -86,7 +100,7 @@ No explicit setup is required. The Java plugin's descriptor framework already cr
 
 Creates a `:Virtual:Type` node for every unparsed type stub, keyed by FQN, and links each stub to it.
 
-**Inputs**: existing `:Type` nodes with no `byteCodeVersion`, excluding primitives, arrays, default-package names, and `java.lang.*` / `kotlin.*` types.
+**Inputs**: existing `:Type` nodes with no `byteCodeVersion`, excluding primitives, arrays, default-package names, `java.lang.*` / `kotlin.*` types, and `org.jetbrains.annotations.NotNull` / `Nullable`.
 
 **Outputs**:
 - One `:Virtual:Type {fqn, name}` node per distinct external FQN.
@@ -99,6 +113,7 @@ MATCH (t:Type)
 WHERE NOT t:Virtual
   AND t.byteCodeVersion IS NULL
   AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
+  AND NOT t.fqn IN ["org.jetbrains.annotations.NotNull","org.jetbrains.annotations.Nullable"]
   AND NOT t.fqn STARTS WITH "["
   AND NOT t.fqn STARTS WITH "java.lang."
   AND NOT t.fqn STARTS WITH "kotlin."
@@ -229,6 +244,75 @@ RETURN count(*) AS LiftedDependencies
 
 The original `(a)-[:DEPENDS_ON]->(b)` edge to the stub is left in place; this concept only *adds* a parallel edge to the canonical node. `WHERE NOT a:Virtual` follows the spec's rule that any pattern addressing real source nodes excludes `:Virtual`. Because the leg requires `c:Virtual:Type`, the concept also ignores any `:RESOLVES_TO` edges `classpath:Resolve` may have created toward real, fully-scanned types — it lifts dependencies onto virtual canonicals only. Virtual types have no outgoing `:DEPENDS_ON` or `:RESOLVES_TO`, so the lifted edge can never re-match either leg of the pattern: the concept is non-cascading. Re-running it is idempotent — the `(a, c)` grouping makes `weight` a pure function of the current graph, so `SET d.weight = weight` overwrites with the same value rather than accumulating.
 
+### 6. `hierograph:VirtualExternalExtends`
+
+Lifts each `:EXTENDS` relationship that targets an external stub onto the stub's canonical `:Virtual:Type`, so a type's external superclass or super-interface is reachable in a single `:EXTENDS` hop.
+
+**Depends on**: `hierograph:VirtualExternalType` (which creates the `:RESOLVES_TO` edges).
+
+**Inputs**: any real `:Type` `a` with `(a)-[:EXTENDS]->(b)` where the stub `b` resolves to a `:Virtual:Type` `c`.
+
+**Outputs**:
+- One `(a)-[:EXTENDS]->(c:Virtual:Type)` edge per distinct `(a, c)` pair (unweighted).
+
+**Cypher**:
+
+```cypher
+MATCH (a:Type)-[:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+WHERE NOT a:Virtual
+WITH DISTINCT a, c
+MERGE (a)-[:EXTENDS]->(c)
+RETURN count(*) AS LiftedExtends
+```
+
+The original `(a)-[:EXTENDS]->(b)` edge to the stub is left in place. `WITH DISTINCT a, c` collapses multiple stubs of the same FQN to one canonical edge so `MERGE` and the count stay exact. Virtual types have no outgoing `:EXTENDS`, so the lifted edge can never re-match the pattern — non-cascading and idempotent.
+
+### 7. `hierograph:VirtualExternalImplements`
+
+Lifts each `:IMPLEMENTS` relationship that targets an external stub onto the stub's canonical `:Virtual:Type`.
+
+**Depends on**: `hierograph:VirtualExternalType`.
+
+**Inputs**: any real `:Type` `a` with `(a)-[:IMPLEMENTS]->(b)` where the stub `b` resolves to a `:Virtual:Type` `c`.
+
+**Outputs**:
+- One `(a)-[:IMPLEMENTS]->(c:Virtual:Type)` edge per distinct `(a, c)` pair (unweighted).
+
+**Cypher**:
+
+```cypher
+MATCH (a:Type)-[:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+WHERE NOT a:Virtual
+WITH DISTINCT a, c
+MERGE (a)-[:IMPLEMENTS]->(c)
+RETURN count(*) AS LiftedImplements
+```
+
+Identical in shape and guarantees to concept 6, swapping `:EXTENDS` for `:IMPLEMENTS`.
+
+### 8. `hierograph:VirtualExternalAnnotatedBy`
+
+Lifts each `:ANNOTATED_BY` whose annotation type is an external stub onto the stub's canonical `:Virtual:Type`, collapsing the scanner's `:ANNOTATED_BY → :Annotation → :OF_TYPE` indirection so the annotated element points straight at the canonical annotation type.
+
+**Depends on**: `hierograph:VirtualExternalType`.
+
+**Inputs**: any real node `x` with `(x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)` where the annotation-type stub `b` resolves to a `:Virtual:Type` `c`. `x` may be a `:Type`, `:Method`, `:Field`, or `:Parameter` — every annotated element the scanner produced.
+
+**Outputs**:
+- One `(x)-[:ANNOTATED_BY]->(c:Virtual:Type)` edge per distinct `(x, c)` pair (unweighted).
+
+**Cypher**:
+
+```cypher
+MATCH (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+WHERE NOT x:Virtual
+WITH DISTINCT x, c
+MERGE (x)-[:ANNOTATED_BY]->(c)
+RETURN count(*) AS LiftedAnnotations
+```
+
+The original `(x)-[:ANNOTATED_BY]->(:Annotation)` edge to the annotation value node is left in place; this concept only adds the collapsed edge to the canonical annotation type. The lifted target is a `:Virtual:Type`, never a `:Value:Annotation`, so it never re-matches the `(:Annotation)` leg — non-cascading and idempotent.
+
 ## Rule file
 
 Save as `jqassistant/virtual-external.xml` in the project root:
@@ -246,19 +330,24 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     <includeConcept refId="hierograph:VirtualPackageHierarchy"/>
     <includeConcept refId="hierograph:VirtualExternalArtifact"/>
     <includeConcept refId="hierograph:VirtualExternalTypeDependency"/>
+    <includeConcept refId="hierograph:VirtualExternalExtends"/>
+    <includeConcept refId="hierograph:VirtualExternalImplements"/>
+    <includeConcept refId="hierograph:VirtualExternalAnnotatedBy"/>
   </group>
 
   <concept id="hierograph:VirtualExternalType">
     <description>
       For every unparsed (stub) :Type referenced in the graph, create a canonical :Virtual:Type
       node keyed by fqn, and link each stub to it via :RESOLVES_TO. Primitives, JVM array
-      descriptors, default-package types, and java.lang.* / kotlin.* types are excluded.
+      descriptors, default-package types, java.lang.* / kotlin.* types, and the ubiquitous
+      org.jetbrains.annotations.NotNull / Nullable nullability annotations are excluded.
     </description>
     <cypher><![CDATA[
       MATCH (t:Type)
       WHERE NOT t:Virtual
         AND t.byteCodeVersion IS NULL
         AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
+        AND NOT t.fqn IN ["org.jetbrains.annotations.NotNull","org.jetbrains.annotations.Nullable"]
         AND NOT t.fqn STARTS WITH "["
         AND NOT t.fqn STARTS WITH "java.lang."
         AND NOT t.fqn STARTS WITH "kotlin."
@@ -355,6 +444,62 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     ]]></cypher>
   </concept>
 
+  <concept id="hierograph:VirtualExternalExtends">
+    <requiresConcept refId="hierograph:VirtualExternalType"/>
+    <description>
+      For every :EXTENDS that targets an external stub, (a)-[:EXTENDS]->(b), where the stub b
+      resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a parallel
+      (a)-[:EXTENDS]->(c) edge so the canonical supertype is reachable in a single hop. The original
+      stub edge is left untouched. The lifted edge is unweighted. Real source types are guaranteed by
+      NOT a:Virtual, and the c:Virtual:Type leg ignores :RESOLVES_TO edges classpath:Resolve may have
+      created toward real types.
+    </description>
+    <cypher><![CDATA[
+      MATCH (a:Type)-[:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT a:Virtual
+      WITH DISTINCT a, c
+      MERGE (a)-[:EXTENDS]->(c)
+      RETURN count(*) AS LiftedExtends
+    ]]></cypher>
+  </concept>
+
+  <concept id="hierograph:VirtualExternalImplements">
+    <requiresConcept refId="hierograph:VirtualExternalType"/>
+    <description>
+      For every :IMPLEMENTS that targets an external stub, (a)-[:IMPLEMENTS]->(b), where the stub b
+      resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a parallel
+      (a)-[:IMPLEMENTS]->(c) edge so the canonical interface is reachable in a single hop. The original
+      stub edge is left untouched. The lifted edge is unweighted.
+    </description>
+    <cypher><![CDATA[
+      MATCH (a:Type)-[:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT a:Virtual
+      WITH DISTINCT a, c
+      MERGE (a)-[:IMPLEMENTS]->(c)
+      RETURN count(*) AS LiftedImplements
+    ]]></cypher>
+  </concept>
+
+  <concept id="hierograph:VirtualExternalAnnotatedBy">
+    <requiresConcept refId="hierograph:VirtualExternalType"/>
+    <description>
+      For every element annotated by an external annotation type, reached via the scanner's
+      (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b) shape where the annotation-type stub b
+      resolves to a canonical :Virtual:Type c, additively create a collapsed (x)-[:ANNOTATED_BY]->(c)
+      edge pointing straight at the canonical annotation type. The original edge to the annotation
+      value node is left untouched. x may be a :Type, :Method, :Field, or :Parameter. The lifted edge
+      is unweighted; its target is always a :Virtual:Type, never a :Value:Annotation, so it cannot
+      re-match the pattern.
+    </description>
+    <cypher><![CDATA[
+      MATCH (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT x:Virtual
+      WITH DISTINCT x, c
+      MERGE (x)-[:ANNOTATED_BY]->(c)
+      RETURN count(*) AS LiftedAnnotations
+    ]]></cypher>
+  </concept>
+
 </jqassistant-rules>
 ```
 
@@ -381,7 +526,7 @@ Or via Maven property:
 mvn jqassistant:analyze -Djqassistant.analyze.groups=hierograph:virtual-external
 ```
 
-Because of the `requiresConcept` chain, the group only needs to include the leaf concept(s); dependencies pull in their prerequisites automatically. The group above lists all five for discoverability.
+Because of the `requiresConcept` chain, the group only needs to include the leaf concept(s); dependencies pull in their prerequisites automatically. The group above lists all eight for discoverability.
 
 ## Verification
 
@@ -397,6 +542,9 @@ MATCH (:Virtual:Package)-[r:CONTAINS]->(:Virtual:Package) RETURN count(r) AS Pac
 MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Package) RETURN count(r) AS ArtifactPackages;
 MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Type) RETURN count(r) AS ArtifactTypes;
 MATCH (a)-[r:DEPENDS_ON]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedDependencies;
+MATCH (a)-[r:EXTENDS]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedExtends;
+MATCH (a)-[r:IMPLEMENTS]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedImplements;
+MATCH (x)-[r:ANNOTATED_BY]->(:Virtual:Type) WHERE NOT x:Virtual RETURN count(r) AS LiftedAnnotations;
 ```
 
 Sanity-check a known external type, e.g.:
@@ -434,7 +582,7 @@ RETURN count(DISTINCT a) AS Dependents, sum(r.weight) AS TotalWeight;
 MATCH (v:Virtual) DETACH DELETE v;
 ```
 
-This deletes `:Virtual:Type`, `:Virtual:Package`, and `:Virtual:Artifact` nodes along with all their edges — including the lifted `:DEPENDS_ON` edges from concept 5, which terminate on `:Virtual:Type` nodes. Original stubs and their own relationships are unaffected.
+This deletes `:Virtual:Type`, `:Virtual:Package`, and `:Virtual:Artifact` nodes along with all their edges — including the lifted `:DEPENDS_ON` edges from concept 5 and the lifted `:EXTENDS` / `:IMPLEMENTS` / `:ANNOTATED_BY` edges from concepts 6–8, all of which terminate on `:Virtual:Type` nodes. Original stubs and their own relationships are unaffected.
 
 **Schema version**. The XML uses jQAssistant schema v2.9. Adjust the namespace and `xsi:schemaLocation` to match the installed jQAssistant version; mismatched versions are usually silently ignored rather than reported as errors.
 

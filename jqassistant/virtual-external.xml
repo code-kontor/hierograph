@@ -10,19 +10,24 @@
         <includeConcept refId="hierograph:VirtualPackageHierarchy"/>
         <includeConcept refId="hierograph:VirtualExternalArtifact"/>
         <includeConcept refId="hierograph:VirtualExternalTypeDependency"/>
+        <includeConcept refId="hierograph:VirtualExternalExtends"/>
+        <includeConcept refId="hierograph:VirtualExternalImplements"/>
+        <includeConcept refId="hierograph:VirtualExternalAnnotatedBy"/>
     </group>
 
     <concept id="hierograph:VirtualExternalType">
         <description>
             For every unparsed (stub) :Type referenced in the graph, create a canonical :Virtual:Type
             node keyed by fqn, and link each stub to it via :RESOLVES_TO. Primitives, JVM array
-            descriptors, default-package types, and java.lang.* / kotlin.* types are excluded.
+            descriptors, default-package types, java.lang.* / kotlin.* types, and the ubiquitous
+            org.jetbrains.annotations.NotNull / Nullable nullability annotations are excluded.
         </description>
         <cypher><![CDATA[
       MATCH (t:Type)
       WHERE NOT t:Virtual
         AND t.byteCodeVersion IS NULL
         AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
+        AND NOT t.fqn IN ["org.jetbrains.annotations.NotNull","org.jetbrains.annotations.Nullable"]
         AND NOT t.fqn STARTS WITH "["
         AND NOT t.fqn STARTS WITH "java.lang."
         AND NOT t.fqn STARTS WITH "kotlin."
@@ -117,6 +122,62 @@
       MERGE (a)-[d:DEPENDS_ON]->(c)
         SET d.weight = weight
       RETURN count(*) AS LiftedDependencies
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:VirtualExternalExtends">
+        <requiresConcept refId="hierograph:VirtualExternalType"/>
+        <description>
+            For every :EXTENDS that targets an external stub, (a)-[:EXTENDS]->(b), where the stub b
+            resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a parallel
+            (a)-[:EXTENDS]->(c) edge so the canonical supertype is reachable in a single hop. The
+            original stub edge is left untouched. The lifted edge is unweighted. Real source types
+            are guaranteed by NOT a:Virtual, and the c:Virtual:Type leg ignores :RESOLVES_TO edges
+            classpath:Resolve may have created toward real types.
+        </description>
+        <cypher><![CDATA[
+      MATCH (a:Type)-[:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT a:Virtual
+      WITH DISTINCT a, c
+      MERGE (a)-[:EXTENDS]->(c)
+      RETURN count(*) AS LiftedExtends
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:VirtualExternalImplements">
+        <requiresConcept refId="hierograph:VirtualExternalType"/>
+        <description>
+            For every :IMPLEMENTS that targets an external stub, (a)-[:IMPLEMENTS]->(b), where the
+            stub b resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a
+            parallel (a)-[:IMPLEMENTS]->(c) edge so the canonical interface is reachable in a single
+            hop. The original stub edge is left untouched. The lifted edge is unweighted.
+        </description>
+        <cypher><![CDATA[
+      MATCH (a:Type)-[:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT a:Virtual
+      WITH DISTINCT a, c
+      MERGE (a)-[:IMPLEMENTS]->(c)
+      RETURN count(*) AS LiftedImplements
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:VirtualExternalAnnotatedBy">
+        <requiresConcept refId="hierograph:VirtualExternalType"/>
+        <description>
+            For every element annotated by an external annotation type, reached via the scanner's
+            (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b) shape where the annotation-type stub b
+            resolves to a canonical :Virtual:Type c, additively create a collapsed
+            (x)-[:ANNOTATED_BY]->(c) edge pointing straight at the canonical annotation type. The
+            original edge to the annotation value node is left untouched. x may be a :Type, :Method,
+            :Field, or :Parameter. The lifted edge is unweighted; its target is always a :Virtual:Type,
+            never a :Value:Annotation, so it cannot re-match the pattern.
+        </description>
+        <cypher><![CDATA[
+      MATCH (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      WHERE NOT x:Virtual
+      WITH DISTINCT x, c
+      MERGE (x)-[:ANNOTATED_BY]->(c)
+      RETURN count(*) AS LiftedAnnotations
     ]]></cypher>
     </concept>
 
