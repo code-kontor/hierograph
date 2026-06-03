@@ -52,16 +52,20 @@ When `properties` or `labels` is accessed for the first time:
 
 ### 2.2 GraphDbRootNodeSource
 
-Extends `GraphDbNodeSource`. The root node's source — holds the database connection.
+Implements `INodeSource` **directly** — it does *not* extend `GraphDbNodeSource` (the
+root is not a real Neo4j node, so it needs none of the lazy-loading machinery). The root
+node's source — holds the database connection.
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `identifier` | `Any` | The root identifier (the mapping service uses `-1L`). From `INodeSource`. |
+| `node` | `HGNode?` | Back-reference. From `INodeSource`. |
 | `boltClient` | `IBoltClient?` | The Bolt client for Neo4j access. Set after graph construction. |
 
-**Overridden behavior:**
+**Behavior:**
 
-- `properties` always returns an empty map (the root is not a real Neo4j node).
-- `labels` always returns an empty list.
+- `properties` is a constant empty map (`val properties = emptyMap()`) — the root is not a real Neo4j node.
+- `labels` is a constant empty list (`val labels = emptyList()`).
 
 ### 2.3 GraphDbDependencySource
 

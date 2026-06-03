@@ -215,15 +215,44 @@ dependency with `from=B`, `to=A`.
 
 ---
 
-## 4. Immutable-After-Construction Model
+## 4. Caching and Cache Invalidation
 
-The graph is **immutable after construction**. All nodes and dependencies are created
-during graph construction (via factory functions). Once construction is complete, the
-graph is read-only.
+The graph is normally built once via factory functions and then read. Computed
+properties (`predecessors`, `accumulatedOutgoingCoreDependencies`,
+`accumulatedIncomingCoreDependencies`, and aggregated dependencies) are computed on
+first access and cached on the node.
 
-Computed properties (`predecessors`, `accumulatedOutgoingCoreDependencies`,
-`accumulatedIncomingCoreDependencies`, aggregated dependencies) are lazily computed
-on first access and cached permanently. There is no cache invalidation.
+Caching is implemented with **manual nullable backing fields**, not Kotlin `lazy`
+delegation. Each `HGNodeImpl` holds `_predecessors`, `_accumulatedOutgoing`,
+`_accumulatedIncoming`, `_cachedAggregatedOutgoing`, and `_cachedAggregatedIncoming`,
+each initialized to `null` and populated on first read.
+
+### 4.1 Post-Construction Mutation
+
+The graph is **not frozen** after construction. Factory operations such as
+`createCoreDependency(...)` and `setParent(...)` may be applied after computed
+properties have already been read. When that happens, previously cached values become
+stale and must be invalidated to be recomputed.
+
+### 4.2 HGCacheInvalidator
+
+`HGCacheInvalidator` clears caches so stale values are recomputed on next access:
+
+```kotlin
+object HGCacheInvalidator {
+    fun invalidate(node: HGNode)
+}
+```
+
+`invalidate(node)` traverses the subtree rooted at `node` (via `HGNodeTraverser`) and
+clears all cached computed properties on every `HGNodeImpl` in that subtree. The
+per-node reset is the internal `HGNodeImpl.invalidateCaches()`, which sets every backing
+field back to `null`.
+
+Invalidation is **scoped to the given subtree**: invalidating `a1` clears caches under
+`a1` but not the caches of an unrelated subtree (e.g. `b1`'s incoming-dependency cache).
+After a structural change, invalidate from a node high enough to cover every node whose
+cached values the change could affect — commonly the root.
 
 ---
 
@@ -400,7 +429,6 @@ The following are **not** part of this specification and will be addressed separ
 - **Proxy dependencies** — the EMF implementation had `HGProxyDependency` and `IProxyDependencyResolver` for lazy resolution of dependencies. This mechanism is not used and is excluded from the Kotlin reimplementation.
 - **Algorithms** (DSM, topological sort, cycle detection) — separate module/spec.
 - **GraphDB mapping** (populating the graph from Neo4j/Cypher) — separate concern.
-- **Cache invalidation / mutable graph** — the graph is immutable after construction. There is no `invalidateCaches`, `removeDependency`, or dynamic modification. All computed properties use Kotlin's `lazy` delegation.
-- **Change observation** — not needed since the graph is immutable after construction.
-- **Thread safety** — the model is not thread-safe during construction. After construction, read access is safe from multiple threads (lazy properties use `LazyThreadSafetyMode.SYNCHRONIZED` by default in Kotlin).
+- **Change observation** — there is no automatic change-notification/observer mechanism. Callers that mutate the graph after construction must invalidate caches manually via `HGCacheInvalidator` (see Section 4).
+- **Thread safety** — the model is not thread-safe. Computed properties are cached in plain (non-synchronized) nullable backing fields, so concurrent first-access reads on the same node may race; external synchronization is required if the graph is read from multiple threads before its caches are warm, and during any mutation.
 - **Serialization** (XMI or other) — not in initial scope.

@@ -243,7 +243,7 @@ io.hierograph.hierarchicalgraph.serialization/
 ├── HGGraphJson.kt              ← public entry point
 └── internal/
     ├── CodecRegistry.kt
-    ├── DefaultCodecs.kt        (DefaultNodeSourceCodec, DefaultDependencySourceCodec)
+    ├── DefaultCodecs.kt        (DefaultNodeSourceCodec, DefaultDependencySourceCodec; plus shared identifier helpers ID_TYPE_KEY, identifierTypeKey(), coerceIdentifier())
     ├── GraphDbCodecs.kt        (GraphDbRootNodeSourceCodec, GraphDbNodeSourceCodec, GraphDbDependencySourceCodec)
     ├── GraphReader.kt
     ├── GraphSnapshot.kt        (GraphSnapshot, NodeRecord, DepRecord, KindRef, SourceRef)

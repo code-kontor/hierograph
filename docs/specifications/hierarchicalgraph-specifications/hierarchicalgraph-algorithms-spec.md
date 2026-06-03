@@ -107,7 +107,11 @@ Creates a DSM using the following procedure:
 2. Sort each SCC (including single-node ones) using FastFAS sorter.
 3. Collect all upward dependencies from the sort results.
 4. Build the ordered node list:
-   a. First, place single-node SCCs that have no outgoing core dependencies.
+   a. First, place single-node SCCs whose node has no **direct** outgoing core
+      dependencies — i.e. `node.outgoingCoreDependencies` is empty. This uses the node's
+      own outgoing core-dependency edges (the `HGNode.outgoingCoreDependencies` property),
+      *not* aggregated dependencies; such a node is a pure sink and is placed first so it
+      ends up last after the reversal in step 4c.
    b. Then, place all remaining nodes (preserving their sorted order within each SCC).
    c. Reverse the entire list.
 5. Filter cycles to only those with size > 1.
