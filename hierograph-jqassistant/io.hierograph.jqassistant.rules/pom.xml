@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.hierograph</groupId>
+        <artifactId>hierograph-jqassistant</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>io.hierograph.jqassistant.rules</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Hierograph jQAssistant Rules</name>
+    <description>
+        Rule-only jQAssistant plugin packaging Hierograph's canonical virtual-external-type
+        concepts. The XML rule files under META-INF/jqassistant-rules/ are discovered
+        automatically when this JAR is declared as a jQAssistant plugin in a consuming
+        project's .jqassistant.yml.
+    </description>
+
+    <properties>
+        <!-- This module only ships rules; it is not itself a jQAssistant analysis target. -->
+        <jqassistant.skip>true</jqassistant.skip>
+    </properties>
+
+    <build>
+        <resources>
+            <!-- Filter only the plugin descriptor so ${project.version} is resolved. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>META-INF/jqassistant-plugin.xml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>META-INF/jqassistant-plugin.xml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+    </build>
+
+</project>

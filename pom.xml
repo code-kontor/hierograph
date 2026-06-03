@@ -17,6 +17,7 @@
         <module>hierograph-core</module>
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-mcp</module>
+        <module>hierograph-jqassistant</module>
     </modules>
 
 </project>
