@@ -21,6 +21,11 @@ import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.mcp.server.core.pagination.DataHashProvider
+import io.hierograph.mcp.server.core.pagination.PageResult
+import io.hierograph.mcp.server.core.pagination.PaginationSpec
+import io.hierograph.mcp.server.core.pagination.Paginator
+import io.hierograph.mcp.server.core.pagination.QueryHash
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.Comparator
@@ -36,7 +41,10 @@ import java.util.TreeMap
  * when adding, renaming, or remapping a relationship kind.
  */
 @Component
-class DetailDependenciesComponent(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService), IDetailDependencies {
+class DetailDependenciesComponent(
+    graphService: HierarchicalGraphService,
+    private val dataHashProvider: DataHashProvider
+) : AbstractDetailTool(graphService), IDetailDependencies {
 
     private val log = LoggerFactory.getLogger(DetailDependenciesComponent::class.java)
 
@@ -55,7 +63,9 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         fromId: Long,
         toId: Long,
         relationship: String?,
-        limit: Int?
+        limit: Int?,
+        cursor: String?,
+        spec: PaginationSpec
     ): Map<String, Any?> {
 
         // --- Validate relationship --------------------------------------------------------
@@ -74,8 +84,19 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
             ?: return error("NODE_NOT_FOUND", "Target node not found: $toId. Re-resolve via find_node.", emptyMap())
 
         // --- Parameters & subtree expansion -----------------------------------------------
-        val effectiveLimit = if (limit != null) limit.coerceIn(1, 150) else 50
         val effectiveRel = if (relationship != null && relationship.isNotBlank()) relationship else null
+
+        // Query hash covers the parameters that define the result set — not limit or cursor.
+        // detail_level is baked in so a detail-level cursor can never be mistaken for a type-level
+        // one. The incoming direction passes already-swapped from/to, so its hash differs naturally.
+        val queryHash = QueryHash.of(
+            mapOf(
+                "fromId" to fromId,
+                "toId" to toId,
+                "relationship" to effectiveRel,
+                "detailLevel" to "detail"
+            )
+        )
 
         val fromScope = resolveScopeInfo(fromNode)
         val toScope = resolveScopeInfo(toNode)
@@ -166,6 +187,9 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
                     edge, relName,
                     record.get("srcTypeFqn").asString(""),
                     record.get("srcName").asString(""),
+                    record.get("tgtFqn").asString(""),
+                    srcId,
+                    tgtId,
                     if (lineNumber > 0) lineNumber else 0L
                 )
             )
@@ -174,20 +198,33 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
             sourceTypeCounts.merge(srcTypeId, 1, Integer::sum)
         }
 
-        // --- Sort, truncate ---------------------------------------------------------------
+        // --- Sort (pagination-spec detail order, total) -----------------------------------
         allEdges.sortWith(
-            Comparator.comparing(SortableEdge::relationship)
-                .thenComparing(SortableEdge::srcTypeFqn)
+            Comparator.comparing(SortableEdge::srcTypeFqn)
                 .thenComparing(SortableEdge::srcName)
+                .thenComparing(SortableEdge::tgtFqn)
+                .thenComparing(SortableEdge::relationship)
+                .thenComparingLong(SortableEdge::srcId)
+                .thenComparingLong(SortableEdge::tgtId)
                 .thenComparingLong(SortableEdge::lineNumber)
         )
 
-        val totalEdges = allEdges.size
-        val truncated = totalEdges > effectiveLimit
-        val returnedEdges = allEdges.asSequence()
-            .take(effectiveLimit)
-            .map { it.edge }
-            .toList()
+        // --- Paginate ---------------------------------------------------------------------
+        val pageResult = Paginator.paginate(
+            allItems = allEdges,
+            spec = spec,
+            queryHash = queryHash,
+            dataHash = dataHashProvider.dataHash,
+            cursor = cursor,
+            limit = limit
+        )
+        val pageData = when (pageResult) {
+            is PageResult.Failed -> return pageResult.error.toResponse()
+            is PageResult.Page -> pageResult
+        }
+        val totalEdges = pageData.total
+        val truncated = pageData.truncated
+        val returnedEdges = pageData.items.map { it.edge }
 
         // --- by_source_type (top 10, with others_count when capped) -----------------------
         val totalSourceTypes = sourceTypeCounts.size
@@ -228,13 +265,16 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
         summary["by_target_nodes"] = byTargetNodes
 
         // --- Result -----------------------------------------------------------------------
-        return linkedMapOf(
+        val result = linkedMapOf<String, Any?>(
             "nodes" to nodes,
             "from_scope" to fromNode.identifier,
             "to_scope" to toNode.identifier,
             "edges" to returnedEdges,
             "summary" to summary
         )
+        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+        pageData.nextCursor?.let { result["next_cursor"] = it }
+        return result
     }
 
     // =====================================================================================
@@ -284,13 +324,18 @@ class DetailDependenciesComponent(graphService: HierarchicalGraphService) : Abst
 
     /**
      * Pairs an edge map with its sort keys so the keys don't leak into the serialized
-     * response. Sort key precedence is: relationship, source-type FQN, source name, line.
+     * response. Sort key precedence follows the pagination spec's detail-level order:
+     * source-type FQN, source name, target FQN, relationship — with srcId/tgtId/line as
+     * total-order tiebreakers so the sequence is reproducible for cursor pagination.
      */
     private data class SortableEdge(
         val edge: Map<String, Any?>,
         val relationship: String,
         val srcTypeFqn: String,
         val srcName: String,
+        val tgtFqn: String,
+        val srcId: Long,
+        val tgtId: Long,
         val lineNumber: Long
     )
 

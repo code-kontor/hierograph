@@ -22,6 +22,8 @@ import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
+import io.hierograph.mcp.server.core.pagination.DataHashProvider
+import io.hierograph.mcp.server.core.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -90,8 +92,9 @@ class DependencyToolsOptionalToIdTest {
         mId = m.identifier as Long
 
         val graphService = HierarchicalGraphService().also { it.rootNode = root }
+        val dataHashProvider = DataHashProvider(graphService).also { it.init() }
         detail = FakeDetail()
-        outgoing = OutgoingDependenciesTool(graphService, FakeNodeRefFactory(), detail)
+        outgoing = OutgoingDependenciesTool(graphService, FakeNodeRefFactory(), detail, dataHashProvider)
         incoming = IncomingDependenciesTool(outgoing, detail)
     }
 
@@ -99,13 +102,13 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `outgoing with to_id constrains to the target subtree`() {
-        val result = outgoing.outgoingDependencies(pkgAId, pkgBId, null, null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, pkgBId, null, null, null, null)
         assertThat(pairs(result)).containsExactlyInAnyOrder(a1Id to b1Id, a2Id to b1Id)
     }
 
     @Test
     fun `outgoing without to_id returns all outgoing dependencies`() {
-        val result = outgoing.outgoingDependencies(pkgAId, null, null, null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, null, null, null, null, null)
         assertThat(pairs(result)).containsExactlyInAnyOrder(
             a1Id to b1Id, a1Id to xId, a2Id to b1Id
         )
@@ -116,19 +119,19 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `incoming with to_id constrains to the depender subtree`() {
-        val result = incoming.incomingDependencies(b1Id, pkgAId, null, null, null)
+        val result = incoming.incomingDependencies(b1Id, pkgAId, null, null, null, null)
         assertThat(pairs(result)).containsExactlyInAnyOrder(a1Id to b1Id, a2Id to b1Id)
     }
 
     @Test
     fun `incoming without to_id returns everything that depends on from_id`() {
-        val result = incoming.incomingDependencies(b1Id, null, null, null, null)
+        val result = incoming.incomingDependencies(b1Id, null, null, null, null, null)
         assertThat(pairs(result)).containsExactlyInAnyOrder(a1Id to b1Id, a2Id to b1Id)
     }
 
     @Test
     fun `incoming without to_id on an external-style target finds its single depender`() {
-        val result = incoming.incomingDependencies(xId, null, null, null, null)
+        val result = incoming.incomingDependencies(xId, null, null, null, null, null)
         assertThat(pairs(result)).containsExactly(a1Id to xId)
     }
 
@@ -136,7 +139,7 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `open outgoing form adds a by_target weighted ranking`() {
-        val result = outgoing.outgoingDependencies(pkgAId, null, null, null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, null, null, null, null, null)
         val byTarget = byTarget(result)
         // pkgA depends on B1 (from A1 and A2) and X (from A1). B1 is depended on
         // by two source types, so it should rank ahead of X.
@@ -148,7 +151,7 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `open incoming form ranks the from_id types by incoming weight`() {
-        val result = incoming.incomingDependencies(b1Id, null, null, null, null)
+        val result = incoming.incomingDependencies(b1Id, null, null, null, null, null)
         val byTarget = byTarget(result)
         // incoming to B1: every edge targets B1, so by_target has a single entry.
         assertThat(byTarget).hasSize(1)
@@ -157,7 +160,7 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `constrained form also emits by_target, scoped to the target subtree`() {
-        val result = outgoing.outgoingDependencies(pkgAId, pkgBId, null, null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, pkgBId, null, null, null, null)
         val byTarget = byTarget(result)
         // Only B1 is in the target subtree; A1→B1 and A2→B1 each weigh 1 → B1 = 2.
         assertThat(byTarget).hasSize(1)
@@ -169,19 +172,19 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `outgoing detail without to_id is rejected`() {
-        val result = outgoing.outgoingDependencies(pkgAId, null, "detail", null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, null, "detail", null, null, null)
         assertThat(errorCode(result)).isEqualTo("INVALID_PARAMETER")
     }
 
     @Test
     fun `incoming detail without to_id is rejected`() {
-        val result = incoming.incomingDependencies(b1Id, null, "detail", null, null)
+        val result = incoming.incomingDependencies(b1Id, null, "detail", null, null, null)
         assertThat(errorCode(result)).isEqualTo("INVALID_PARAMETER")
     }
 
     @Test
     fun `outgoing detail with to_id delegates to detail provider`() {
-        val result = outgoing.outgoingDependencies(pkgAId, pkgBId, "detail", null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, pkgBId, "detail", null, null, null)
         assertThat(result["detail"]).isEqualTo(true)
         assertThat(detail.lastFrom).isEqualTo(pkgAId)
         assertThat(detail.lastTo).isEqualTo(pkgBId)
@@ -189,7 +192,7 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `incoming detail with to_id delegates with swapped endpoints`() {
-        incoming.incomingDependencies(b1Id, pkgAId, "detail", null, null)
+        incoming.incomingDependencies(b1Id, pkgAId, "detail", null, null, null)
         // incoming swaps: detailDependencies(toId, fromId)
         assertThat(detail.lastFrom).isEqualTo(pkgAId)
         assertThat(detail.lastTo).isEqualTo(b1Id)
@@ -199,19 +202,19 @@ class DependencyToolsOptionalToIdTest {
 
     @Test
     fun `member id is rejected with INVALID_NODE_KIND`() {
-        val result = outgoing.outgoingDependencies(mId, null, null, null, null)
+        val result = outgoing.outgoingDependencies(mId, null, null, null, null, null)
         assertThat(errorCode(result)).isEqualTo("INVALID_NODE_KIND")
     }
 
     @Test
     fun `unknown from_id is rejected with NODE_NOT_FOUND`() {
-        val result = outgoing.outgoingDependencies(999999L, null, null, null, null)
+        val result = outgoing.outgoingDependencies(999999L, null, null, null, null, null)
         assertThat(errorCode(result)).isEqualTo("NODE_NOT_FOUND")
     }
 
     @Test
     fun `unknown to_id is rejected with NODE_NOT_FOUND`() {
-        val result = outgoing.outgoingDependencies(pkgAId, 999999L, null, null, null)
+        val result = outgoing.outgoingDependencies(pkgAId, 999999L, null, null, null, null)
         assertThat(errorCode(result)).isEqualTo("NODE_NOT_FOUND")
     }
 
@@ -246,14 +249,20 @@ class DependencyToolsOptionalToIdTest {
     private class FakeDetail : IDetailDependencies {
         var lastFrom: Long? = null
         var lastTo: Long? = null
+        var lastCursor: String? = null
+        var lastSpec: PaginationSpec? = null
         override fun detailDependencies(
             fromId: Long,
             toId: Long,
             relationship: String?,
-            limit: Int?
+            limit: Int?,
+            cursor: String?,
+            spec: PaginationSpec
         ): Map<String, Any?> {
             lastFrom = fromId
             lastTo = toId
+            lastCursor = cursor
+            lastSpec = spec
             return mapOf("detail" to true, "from" to fromId, "to" to toId)
         }
     }

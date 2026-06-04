@@ -74,8 +74,9 @@ class GraphController(
         @RequestParam(name = "kindFilter", required = false) kindFilter: List<String>?,
         @RequestParam(name = "namePattern", required = false) namePattern: String?,
         @RequestParam(name = "modifierFilter", required = false) modifierFilter: List<String>?,
-        @RequestParam(name = "limit", required = false) limit: Int?
-    ): Map<String, Any?> = listDescendantsTool.listDescendants(nodeId, kindFilter, namePattern, modifierFilter, limit)
+        @RequestParam(name = "limit", required = false) limit: Int?,
+        @RequestParam(name = "cursor", required = false) cursor: String?
+    ): Map<String, Any?> = listDescendantsTool.listDescendants(nodeId, kindFilter, namePattern, modifierFilter, limit, cursor)
 
     // --- Dependency analysis ---
 
@@ -97,8 +98,9 @@ class GraphController(
         @RequestParam(name = "toId") toId: Long,
         @RequestParam(name = "detailLevel", required = false) detailLevel: String?,
         @RequestParam(name = "relationship", required = false) relationship: String?,
-        @RequestParam(name = "limit", required = false) limit: Int?
-    ): Map<String, Any?> = outgoingDependenciesTool.outgoingDependencies(fromId, toId, detailLevel, relationship, limit)
+        @RequestParam(name = "limit", required = false) limit: Int?,
+        @RequestParam(name = "cursor", required = false) cursor: String?
+    ): Map<String, Any?> = outgoingDependenciesTool.outgoingDependencies(fromId, toId, detailLevel, relationship, limit, cursor)
 
     @GetMapping("/incoming-dependencies")
     fun incomingDependencies(
@@ -106,8 +108,9 @@ class GraphController(
         @RequestParam(name = "toId") toId: Long,
         @RequestParam(name = "detailLevel", required = false) detailLevel: String?,
         @RequestParam(name = "relationship", required = false) relationship: String?,
-        @RequestParam(name = "limit", required = false) limit: Int?
-    ): Map<String, Any?> = incomingDependenciesTool.incomingDependencies(fromId, toId, detailLevel, relationship, limit)
+        @RequestParam(name = "limit", required = false) limit: Int?,
+        @RequestParam(name = "cursor", required = false) cursor: String?
+    ): Map<String, Any?> = incomingDependenciesTool.incomingDependencies(fromId, toId, detailLevel, relationship, limit, cursor)
 
     // --- Reachability ---
 
@@ -117,8 +120,9 @@ class GraphController(
         @RequestParam(name = "direction", required = false) direction: String?,
         @RequestParam(name = "maxDepth", required = false) maxDepth: Int?,
         @RequestParam(name = "kindFilter", required = false) kindFilter: List<String>?,
-        @RequestParam(name = "limit", required = false) limit: Int?
-    ): Map<String, Any?> = affectedByTool.affectedBy(nodeId, direction, maxDepth, kindFilter, limit)
+        @RequestParam(name = "limit", required = false) limit: Int?,
+        @RequestParam(name = "cursor", required = false) cursor: String?
+    ): Map<String, Any?> = affectedByTool.affectedBy(nodeId, direction, maxDepth, kindFilter, limit, cursor)
 
     @GetMapping("/find-dependency-path")
     fun findDependencyPath(

@@ -15,6 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
+import io.hierograph.mcp.server.core.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -76,7 +77,16 @@ class IncomingDependenciesTool(
             description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 400 / 250.",
             required = false
         )
-        limit: Int?
+        limit: Int?,
+        @ToolParam(
+            description = "Opaque pagination cursor from a previous response's next_cursor. " +
+                    "Pass it to retrieve the next page; omit to start from the first page. " +
+                    "When continuing, keep the other parameters identical to the original call. " +
+                    "If the result set is larger than you need, prefer narrowing the query " +
+                    "(a smaller subtree, or detail-level relationship filter) over paginating through all of it.",
+            required = false
+        )
+        cursor: String?
     ): Map<String, Any?> {
 
         val level = detailLevel ?: "type"
@@ -107,7 +117,7 @@ class IncomingDependenciesTool(
         return if (level == "type") {
             // incoming: edges from toId→fromId (what toId uses of fromId).
             // toId may be null → all incoming dependencies of fromId from anywhere.
-            outgoingTool.typeLevelDependencies(fromId, toId, limit, outgoing = false)
+            outgoingTool.typeLevelDependencies(fromId, toId, limit, cursor, outgoing = false, spec = TYPE_SPEC)
         } else if (toId == null) {
             // detail level requires an explicit depender — the open form is type-level only
             mapOf(
@@ -121,9 +131,16 @@ class IncomingDependenciesTool(
         } else {
             // Detail level: swap from/to — detail_dependencies(toId, fromId)
             // shows edges from toId subtree into fromId subtree
-            val effectiveLimit = (limit ?: 80).coerceIn(1, 250)
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
-            detailDependenciesTool.detailDependencies(toId, fromId, effectiveRel, effectiveLimit)
+            detailDependenciesTool.detailDependencies(toId, fromId, effectiveRel, limit, cursor, DETAIL_SPEC)
         }
+    }
+
+    companion object {
+        /** Type-level pagination for incoming_dependencies (~350 bytes/edge): default 100, cap 400. */
+        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 400)
+
+        /** Detail-level pagination for incoming_dependencies (~550 bytes/edge): default 80, cap 250. */
+        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 250)
     }
 }

@@ -19,8 +19,14 @@ import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
+import io.hierograph.mcp.server.core.pagination.DataHashProvider
+import io.hierograph.mcp.server.core.pagination.PageResult
+import io.hierograph.mcp.server.core.pagination.PaginationSpec
+import io.hierograph.mcp.server.core.pagination.Paginator
+import io.hierograph.mcp.server.core.pagination.QueryHash
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -36,7 +42,8 @@ import java.util.*
 @Component
 class AffectedByTool(
     private val graphService: HierarchicalGraphService,
-    private val nodeRefFactory: INodeRefFactory
+    private val nodeRefFactory: INodeRefFactory,
+    private val dataHashProvider: DataHashProvider
 ) {
 
     private data class PathStep(val from: Any, val to: Any, val weight: Int)
@@ -84,7 +91,16 @@ class AffectedByTool(
             description = "Maximum results per page (1-350, default 100).",
             required = false
         )
-        limit: Int?
+        limit: Int?,
+        @ToolParam(
+            description = "Opaque pagination cursor from a previous response's next_cursor. " +
+                    "Pass it to retrieve the next page; omit to start from the first page. " +
+                    "When continuing, keep the other parameters identical to the original call. " +
+                    "If the blast radius is larger than you need, prefer narrowing the query " +
+                    "(a smaller max_depth or a kind_filter) over paginating through all of it.",
+            required = false
+        )
+        cursor: String?
     ): Map<String, Any?> {
 
         // ── validate direction ─────────────────────────────────────────
@@ -141,8 +157,18 @@ class AffectedByTool(
             resolved.ifEmpty { null }
         } else null
 
-        val effectiveLimit = (limit ?: 100).coerceIn(1, 350)
         val effectiveMaxDepth = maxDepth ?: Int.MAX_VALUE
+
+        // Query hash covers the parameters that define the result set — not limit or cursor.
+        // The kind filter is sorted so a mere reordering is not seen as a different query.
+        val queryHash = QueryHash.of(
+            mapOf(
+                "nodeId" to nodeId,
+                "direction" to effectiveDirection,
+                "maxDepth" to maxDepth,
+                "kindFilter" to kindFilter?.sorted()
+            )
+        )
 
         // ── collect source subtree type IDs ────────────────────────────
         val sourceTypeIds = mutableSetOf<Any>()
@@ -222,10 +248,16 @@ class AffectedByTool(
         }
 
         // ── filter by kind ─────────────────────────────────────────────
+        // Sort by (distance ascending, qualified name), with the identifier as a tiebreaker so the
+        // order is total — the closest-affected types appear first, and the sequence is reproducible
+        // for pagination cursors.
         val allResults = visited.values
             .filter { allowedKinds == null || it.node.kind in allowedKinds }
-            .sortedWith(compareBy<AffectedEntry> { it.distance }
-                .thenBy { it.node.kind?.toString() ?: "" })
+            .sortedWith(
+                compareBy<AffectedEntry> { it.distance }
+                    .thenBy { JQAssistantNodeMetadataProvider.getQualifiedName(it.node) }
+                    .thenBy { it.node.identifier.toString() }
+            )
 
         // ── compute summary over full result set ───────────────────────
         val byDistance = sortedMapOf<Int, Int>()
@@ -255,12 +287,21 @@ class AffectedByTool(
             }
 
         // ── paginate ───────────────────────────────────────────────────
-        val total = allResults.size
-        val truncated = total > effectiveLimit
-        val page = allResults.take(effectiveLimit)
+        val pageResult = Paginator.paginate(
+            allItems = allResults,
+            spec = PAGINATION,
+            queryHash = queryHash,
+            dataHash = dataHashProvider.dataHash,
+            cursor = cursor,
+            limit = limit
+        )
+        val pageData = when (pageResult) {
+            is PageResult.Failed -> return pageResult.error.toResponse()
+            is PageResult.Page -> pageResult
+        }
 
         // ── build results ──────────────────────────────────────────────
-        val results = page.map { entry ->
+        val results = pageData.items.map { entry ->
             linkedMapOf<String, Any?>(
                 "node" to nodeRefFactory.enrichedNodeRef(entry.node),
                 "distance" to entry.distance,
@@ -272,17 +313,25 @@ class AffectedByTool(
         }
 
         // ── assemble response ──────────────────────────────────────────
-        return linkedMapOf<String, Any?>(
+        val response = linkedMapOf<String, Any?>(
             "source" to nodeRefFactory.enrichedNodeRef(node),
             "direction" to effectiveDirection,
             "results" to results,
             "summary" to linkedMapOf<String, Any?>(
-                "total" to total,
-                "returned" to page.size,
-                "truncated" to truncated,
+                "total" to pageData.total,
+                "returned" to pageData.returned,
+                "truncated" to pageData.truncated,
                 "by_distance" to byDistance,
                 "by_parent_module" to byParentModule
             )
         )
+        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+        pageData.nextCursor?.let { response["next_cursor"] = it }
+        return response
+    }
+
+    companion object {
+        /** Pagination policy for affected_by (~450 bytes/item): default 100, server cap 350. */
+        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 350)
     }
 }

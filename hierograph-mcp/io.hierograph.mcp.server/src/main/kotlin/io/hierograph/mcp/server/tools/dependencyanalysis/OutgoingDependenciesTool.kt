@@ -20,7 +20,13 @@ import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.INodeRefFactory
+import io.hierograph.mcp.server.core.pagination.DataHashProvider
+import io.hierograph.mcp.server.core.pagination.PageResult
+import io.hierograph.mcp.server.core.pagination.PaginationSpec
+import io.hierograph.mcp.server.core.pagination.Paginator
+import io.hierograph.mcp.server.core.pagination.QueryHash
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -37,7 +43,8 @@ import org.springframework.stereotype.Component
 class OutgoingDependenciesTool(
     private val graphService: HierarchicalGraphService,
     private val nodeRefFactory: INodeRefFactory,
-    private val detailDependenciesTool: IDetailDependencies
+    private val detailDependenciesTool: IDetailDependencies,
+    private val dataHashProvider: DataHashProvider
 ) {
 
     @Tool(
@@ -81,7 +88,16 @@ class OutgoingDependenciesTool(
             description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 400 / 250.",
             required = false
         )
-        limit: Int?
+        limit: Int?,
+        @ToolParam(
+            description = "Opaque pagination cursor from a previous response's next_cursor. " +
+                    "Pass it to retrieve the next page; omit to start from the first page. " +
+                    "When continuing, keep the other parameters identical to the original call. " +
+                    "If the result set is larger than you need, prefer narrowing the query " +
+                    "(a smaller subtree, or detail-level relationship filter) over paginating through all of it.",
+            required = false
+        )
+        cursor: String?
     ): Map<String, Any?> {
 
         val level = detailLevel ?: "type"
@@ -110,7 +126,7 @@ class OutgoingDependenciesTool(
         }
 
         return if (level == "type") {
-            typeLevelDependencies(fromId, toId, limit, outgoing = true)
+            typeLevelDependencies(fromId, toId, limit, cursor, outgoing = true, spec = TYPE_SPEC)
         } else if (toId == null) {
             // detail level requires an explicit target — the open form is type-level only
             mapOf(
@@ -122,10 +138,9 @@ class OutgoingDependenciesTool(
                 )
             )
         } else {
-            // Delegate to existing detail_dependencies tool
-            val effectiveLimit = (limit ?: 80).coerceIn(1, 250)
+            // Delegate to the detail_dependencies provider; it owns detail-level pagination.
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
-            detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, effectiveLimit)
+            detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC)
         }
     }
 
@@ -135,7 +150,9 @@ class OutgoingDependenciesTool(
         fromId: Long,
         toId: Long?,
         limit: Int?,
-        outgoing: Boolean
+        cursor: String?,
+        outgoing: Boolean,
+        spec: PaginationSpec
     ): Map<String, Any?> {
 
         // ── resolve from node (always required) ────────────────────────
@@ -157,7 +174,17 @@ class OutgoingDependenciesTool(
             otherSideTypeIds = collectTypeIds(toNode)
         }
 
-        val effectiveLimit = (limit ?: 100).coerceIn(1, 400)
+        // Query hash covers the parameters that define the result set — not limit or cursor.
+        // detail_level and direction are baked in so a type-level cursor can never be mistaken
+        // for a detail-level one, nor an outgoing cursor for an incoming one beyond the tool name.
+        val queryHash = QueryHash.of(
+            mapOf(
+                "fromId" to fromId,
+                "toId" to toId,
+                "detailLevel" to "type",
+                "direction" to if (outgoing) "outgoing" else "incoming"
+            )
+        )
 
         // ── collect type-level edges ───────────────────────────────────
         // Anchor on from_id's types. For the outgoing direction walk each
@@ -206,15 +233,33 @@ class OutgoingDependenciesTool(
         }
 
         // ── sort: source qualified name, then target qualified name ────
-        allEdges.sortWith(compareBy(
-            { it.from.kind?.toString() ?: "" },
-            { it.to.kind?.toString() ?: "" }
-        ))
+        // Identifier tiebreakers make this a total order, so the result sequence is reproducible
+        // and pagination cursors stay valid across calls.
+        allEdges.sortWith(
+            compareBy(
+                { JQAssistantNodeMetadataProvider.getQualifiedName(it.from) },
+                { JQAssistantNodeMetadataProvider.getQualifiedName(it.to) },
+                { it.from.identifier.toString() },
+                { it.to.identifier.toString() }
+            )
+        )
 
         // ── paginate ───────────────────────────────────────────────────
-        val total = allEdges.size
-        val truncated = total > effectiveLimit
-        val page = allEdges.take(effectiveLimit)
+        val pageResult = Paginator.paginate(
+            allItems = allEdges,
+            spec = spec,
+            queryHash = queryHash,
+            dataHash = dataHashProvider.dataHash,
+            cursor = cursor,
+            limit = limit
+        )
+        val pageData = when (pageResult) {
+            is PageResult.Failed -> return pageResult.error.toResponse()
+            is PageResult.Page -> pageResult
+        }
+        val total = pageData.total
+        val truncated = pageData.truncated
+        val page = pageData.items
 
         // ── build slim nodes map ───────────────────────────────────────
         val nodes = linkedMapOf<String, Any>()
@@ -266,11 +311,14 @@ class OutgoingDependenciesTool(
                 linkedMapOf<String, Any?>("id" to id, "weight" to weight)
             }
 
-        return linkedMapOf<String, Any?>(
+        val response = linkedMapOf<String, Any?>(
             "nodes" to nodes,
             "edges" to edges,
             "summary" to summary
         )
+        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+        pageData.nextCursor?.let { response["next_cursor"] = it }
+        return response
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
@@ -318,4 +366,12 @@ class OutgoingDependenciesTool(
             "recovery" to "Use find_node to look up the correct node ID."
         )
     )
+
+    companion object {
+        /** Type-level pagination for outgoing_dependencies (~350 bytes/edge): default 100, cap 400. */
+        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 400)
+
+        /** Detail-level pagination for outgoing_dependencies (~550 bytes/edge): default 80, cap 250. */
+        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 250)
+    }
 }
