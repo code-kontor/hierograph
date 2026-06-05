@@ -31,13 +31,22 @@ object JavaEdgeAttributes {
     const val IS_ANNOTATED_BY = 2
     const val IS_DEPENDS_ON_OTHER = 3
 
+    /**
+     * Overlay attribute (bit 4): the edge crosses a Spring Modulith module boundary into a type that is
+     * not part of the target module's public API (named interfaces). Unlike the bits above, it is not
+     * produced by the jQAssistant dependency provider but set post-build by the Spring Modulith overlay
+     * from the authoritative `modulith-model.json`. Always `false` when no overlay is applied.
+     */
+    const val IS_MODULITH_VIOLATION = 4
+
     /** All defined attribute entries: bit position to JSON key name. */
     @JvmField
     val ALL: List<Pair<Int, String>> = listOf(
         IS_EXTENDS to "is_extends",
         IS_IMPLEMENTS to "is_implements",
         IS_ANNOTATED_BY to "is_annotated_by",
-        IS_DEPENDS_ON_OTHER to "is_depends_on_other"
+        IS_DEPENDS_ON_OTHER to "is_depends_on_other",
+        IS_MODULITH_VIOLATION to "is_modulith_violation"
     )
 
     // ── single-bit operations ─────────────────────────────────────────

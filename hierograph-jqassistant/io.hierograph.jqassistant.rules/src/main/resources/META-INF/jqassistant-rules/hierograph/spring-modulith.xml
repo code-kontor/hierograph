@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jqassistant-rules xmlns="http://schema.jqassistant.org/rule/v2.9"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://schema.jqassistant.org/rule/v2.9
+                                       https://jqassistant.github.io/jqassistant/current/schema/jqassistant-rule-v2.9.xsd">
+
+    <!--
+        Spring Modulith enrichment concepts for Hierograph.
+
+        These concepts annotate the jQAssistant graph with Spring Modulith structure so the
+        Hierograph mapping layer can surface application modules as first-class nodes (kind
+        `modulith.module`) and classify cross-module dependencies as compliant or boundary-
+        violating. They are purely additive: every concept only adds labels, relationships, or
+        properties and never rewrites or deletes what the Java scanner produced, so the standard
+        Java hierarchy queries keep working unchanged.
+
+        Vocabulary introduced (all namespaced to avoid clashes with the Java scanner):
+          Labels         :Modulith:BasePackage   the @SpringBootApplication / @Modulithic package
+                         :Modulith:Module        an application module (a package)
+                         :Modulith:Exposed        a type that is part of a module's public API
+          Relationships  (:Modulith:Module)-[:MODULITH_OWNS]->(:Type)       module owns this type
+                         (:Modulith:Module)-[:MODULITH_EXPOSES]->(:Type)    type is in the module API
+                         (:Modulith:Module)-[:MODULITH_ALLOWS]->(:Module)   declared allowed dependency
+          Properties     module.modulithDisplayName                        display name of a module
+                         (:Type)-[:DEPENDS_ON].modulithCrossModule = true  edge crosses a module boundary
+                         (:Type)-[:DEPENDS_ON].modulithViolation   = true  edge violates a module boundary
+                         (:Type)-[:DEPENDS_ON].modulithViolationKind        "ENCAPSULATION" | "DISALLOWED_DEPENDENCY"
+
+        Annotation model assumptions (standard jQAssistant Java plugin shape, matching the
+        existing virtual-external.xml conventions):
+          (annotated)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(:Type {fqn: <annotation fqn>})
+          (:Annotation)-[:HAS]->(:Value:Primitive {name: <attr>, value: <scalar>})  scalar attribute
+          (:Annotation)-[:HAS]->(:Value:Array {name: <attr>})-[:CONTAINS]->(:Value)  array attribute element
+        IMPORTANT — package-info attachment: Spring Modulith's @ApplicationModule / @NamedInterface
+        are @Retention(RUNTIME) and declared on package-info. The Java scanner does NOT put them on the
+        :Package node; it scans package-info.class as a synthetic :Type named "package-info" and attaches
+        the annotation there. A module package therefore carries its package-level annotation via
+        (:Package)-[:CONTAINS]->(:Type {name:"package-info"})-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(...).
+        Type-level @NamedInterface, by contrast, sits directly on the annotated :Type.
+    -->
+
+    <!--
+        Default group: ROBUST concepts only — module identification, ownership and raw cross-module
+        dependency tagging. These do not depend on modelling Spring Modulith's exposure semantics and
+        are safe to ship: modules surface as first-class nodes and the module-level DSM is correct.
+    -->
+    <group id="hierograph:spring-modulith">
+        <includeConcept refId="hierograph:SpringModulithBasePackage"/>
+        <includeConcept refId="hierograph:SpringModulithModuleByConvention"/>
+        <includeConcept refId="hierograph:SpringModulithModuleByAnnotation"/>
+        <includeConcept refId="hierograph:SpringModulithModuleDisplayName"/>
+        <includeConcept refId="hierograph:SpringModulithModuleType"/>
+        <includeConcept refId="hierograph:SpringModulithCrossModuleDependency"/>
+    </group>
+
+    <!--
+        EXPERIMENTAL group: exposure + boundary-violation classification. NOT included in the default
+        group and NOT safe to trust yet. These concepts re-derive Spring Modulith's named-interface
+        ("exposed") set in Cypher, but do NOT model @NamedInterface(propagate=true) (the default since
+        Spring Modulith 2.0): a type appearing in the public method signature (parameter/return type,
+        including generic type arguments) of an explicitly exposed type, within the same package space,
+        is also part of that named interface. Because the exposed set is therefore incomplete, the
+        violation concepts produce FALSE POSITIVES (e.g. on plantify they wrongly flag
+        rose.RoseCareSuggestionFactory -> care.suggestions.CareTaskSuggestion, which the real
+        ApplicationModules.verify() accepts). Open modules and named-interface-granular allowedDependencies
+        are likewise not modelled. For trustworthy exposure/violations, feed the authoritative exposed-type
+        set from Spring Modulith's own ApplicationModules analysis instead of these concepts (see project
+        notes). Enable this group only for experimentation: analyze group hierograph:spring-modulith-experimental.
+    -->
+    <group id="hierograph:spring-modulith-experimental">
+        <includeConcept refId="hierograph:SpringModulithDefaultExposedType"/>
+        <includeConcept refId="hierograph:SpringModulithNamedInterfaceType"/>
+        <includeConcept refId="hierograph:SpringModulithNamedInterfacePackageType"/>
+        <includeConcept refId="hierograph:SpringModulithAllowedDependency"/>
+        <includeConcept refId="hierograph:SpringModulithCrossModuleDependency"/>
+        <includeConcept refId="hierograph:SpringModulithEncapsulationViolation"/>
+        <includeConcept refId="hierograph:SpringModulithAllowedDependencyViolation"/>
+    </group>
+
+    <concept id="hierograph:SpringModulithBasePackage">
+        <description>
+            Identify the application's base package: the package that directly contains a type
+            annotated with @SpringBootApplication or @Modulithic. Spring Modulith derives the whole
+            module structure relative to this package, so it is the anchor for convention-based
+            module detection. The package is labelled :Modulith:BasePackage. A project may have more
+            than one (e.g. several Spring Boot apps in one build); each is handled independently.
+        </description>
+        <cypher><![CDATA[
+      MATCH (p:Package)-[:CONTAINS]->(t:Type)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(at:Type)
+      WHERE at.fqn IN [
+        "org.springframework.boot.autoconfigure.SpringBootApplication",
+        "org.springframework.modulith.Modulithic"
+      ]
+      SET p:Modulith:BasePackage
+      RETURN count(DISTINCT p) AS BasePackages
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithModuleByConvention">
+        <requiresConcept refId="hierograph:SpringModulithBasePackage"/>
+        <description>
+            Mark every package that sits directly below a :Modulith:BasePackage as a :Modulith:Module.
+            This is Spring Modulith's default rule: each direct sub-package of the application base
+            package is an application module, whether or not it carries an explicit @ApplicationModule
+            annotation. The module's display name defaults to the (simple) package name; an explicit
+            annotation can override it later (see SpringModulithModuleDisplayName).
+        </description>
+        <cypher><![CDATA[
+      MATCH (base:Modulith:BasePackage)-[:CONTAINS]->(m:Package)
+      SET m:Modulith:Module
+      SET m.modulithDisplayName = coalesce(m.modulithDisplayName, m.name)
+      RETURN count(DISTINCT m) AS ConventionModules
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithModuleByAnnotation">
+        <description>
+            Mark every package whose package-info is annotated with @ApplicationModule as a
+            :Modulith:Module, independent of the base-package convention. This covers modules declared
+            explicitly (e.g. nested or relocated module packages) and also makes the rule set useful for
+            projects scanned without a discoverable @SpringBootApplication class. Runs in addition to,
+            and idempotently with, the convention-based detection. The annotation is reached through the
+            synthetic package-info :Type, not the :Package node (see header note).
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Package)-[:CONTAINS]->(pi:Type)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(at:Type)
+      WHERE pi.name = "package-info"
+        AND at.fqn = "org.springframework.modulith.ApplicationModule"
+      SET m:Modulith:Module
+      SET m.modulithDisplayName = coalesce(m.modulithDisplayName, m.name)
+      RETURN count(DISTINCT m) AS AnnotatedModules
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithModuleDisplayName">
+        <requiresConcept refId="hierograph:SpringModulithModuleByConvention"/>
+        <requiresConcept refId="hierograph:SpringModulithModuleByAnnotation"/>
+        <description>
+            Override modulithDisplayName from the @ApplicationModule(displayName = "...") attribute when
+            present and non-blank. Best-effort: relies on the scanner exposing the scalar annotation
+            attribute as (:Annotation)-[:HAS]->(:Value {name:"displayName"}) with a `value` property; if
+            the shape differs or the attribute is absent, the convention-derived name from the previous
+            concepts is left in place.
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Modulith:Module)-[:CONTAINS]->(pi:Type)-[:ANNOTATED_BY]->(av:Annotation)-[:OF_TYPE]->(at:Type)
+      WHERE pi.name = "package-info"
+        AND at.fqn = "org.springframework.modulith.ApplicationModule"
+      MATCH (av)-[:HAS]->(v:Value {name: "displayName"})
+      WHERE v.value IS NOT NULL AND trim(toString(v.value)) <> ""
+      SET m.modulithDisplayName = toString(v.value)
+      RETURN count(DISTINCT m) AS NamedModules
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithModuleType">
+        <requiresConcept refId="hierograph:SpringModulithModuleByConvention"/>
+        <requiresConcept refId="hierograph:SpringModulithModuleByAnnotation"/>
+        <description>
+            Materialize module ownership of types: for every :Modulith:Module, link it to all types
+            nested anywhere beneath it via (:Modulith:Module)-[:MODULITH_OWNS]->(:Type). This single
+            relationship lets downstream concepts (exposure, boundary classification) avoid repeated
+            variable-length CONTAINS traversals. Assumes modules are not nested (Spring Modulith's
+            default: sub-packages of a module are internals, not modules); with nested modules a type
+            beneath an inner module would be owned by both, which the boundary concepts do not special-case.
+            Synthetic package-info :Types are excluded — they carry package metadata, not module API.
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Modulith:Module)-[:CONTAINS*1..]->(t:Type)
+      WHERE t.name <> "package-info"
+      MERGE (m)-[:MODULITH_OWNS]->(t)
+      RETURN count(DISTINCT t) AS OwnedTypes
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithDefaultExposedType">
+        <requiresConcept refId="hierograph:SpringModulithModuleType"/>
+        <description>
+            Default named interface: public types located directly in a module's root package form the
+            module's public API. Mark them :Modulith:Exposed and link via :MODULITH_EXPOSES. Types in
+            deeper sub-packages are internal unless a named interface promotes them (see the following
+            concepts). Visibility is taken from the scanner's `visibility` property; types without an
+            explicit public visibility are treated as internal.
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Modulith:Module)-[:CONTAINS]->(t:Type)
+      WHERE t.visibility = "public"
+      SET t:Modulith:Exposed
+      MERGE (m)-[:MODULITH_EXPOSES]->(t)
+      RETURN count(DISTINCT t) AS DefaultExposedTypes
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithNamedInterfaceType">
+        <requiresConcept refId="hierograph:SpringModulithModuleType"/>
+        <description>
+            Type-level named interface: a type directly annotated with @NamedInterface is part of its
+            owning module's public API regardless of which sub-package it lives in. Mark it
+            :Modulith:Exposed and link via :MODULITH_EXPOSES to its owning module.
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Modulith:Module)-[:MODULITH_OWNS]->(t:Type)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(at:Type)
+      WHERE at.fqn = "org.springframework.modulith.NamedInterface"
+      SET t:Modulith:Exposed
+      MERGE (m)-[:MODULITH_EXPOSES]->(t)
+      RETURN count(DISTINCT t) AS NamedInterfaceTypes
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithNamedInterfacePackageType">
+        <requiresConcept refId="hierograph:SpringModulithModuleType"/>
+        <description>
+            Package-level named interface: when a sub-package's package-info is annotated with
+            @NamedInterface, all public types directly in that package become part of the owning
+            module's public API. The annotation is reached through the package-info :Type, not the
+            :Package node. Mark them :Modulith:Exposed and link via :MODULITH_EXPOSES.
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Modulith:Module)-[:MODULITH_OWNS]->(t:Type)
+      MATCH (pkg:Package)-[:CONTAINS]->(t)
+      MATCH (pkg)-[:CONTAINS]->(pi:Type)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(at:Type)
+      WHERE pi.name = "package-info"
+        AND at.fqn = "org.springframework.modulith.NamedInterface"
+        AND t.visibility = "public"
+      SET t:Modulith:Exposed
+      MERGE (m)-[:MODULITH_EXPOSES]->(t)
+      RETURN count(DISTINCT t) AS NamedInterfacePackageTypes
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithAllowedDependency">
+        <requiresConcept refId="hierograph:SpringModulithModuleByConvention"/>
+        <requiresConcept refId="hierograph:SpringModulithModuleByAnnotation"/>
+        <description>
+            Materialize declared dependency rules: for each module whose @ApplicationModule declares a
+            non-empty allowedDependencies list, link it to each referenced module via :MODULITH_ALLOWS.
+            Entries of the form "moduleName :: namedInterface" are reduced to their module-name part.
+            Best-effort and the most scanner-shape-dependent concept here: it assumes the array
+            attribute is exposed as (:Annotation)-[:HAS]->(:Value:Array {name:"allowedDependencies"})-[:CONTAINS]->(:Value)
+            and matches the entry against a module's simple name or display name. The @ApplicationModule
+            annotation is reached through the package-info :Type, not the :Package node. A module that
+            declares no allowedDependencies is treated as unrestricted (Spring Modulith's default), so it
+            produces no :MODULITH_ALLOWS edges and is exempt from the allowed-dependency violation check.
+        </description>
+        <cypher><![CDATA[
+      MATCH (m:Modulith:Module)-[:CONTAINS]->(pi:Type)-[:ANNOTATED_BY]->(av:Annotation)-[:OF_TYPE]->(at:Type)
+      WHERE pi.name = "package-info"
+        AND at.fqn = "org.springframework.modulith.ApplicationModule"
+      MATCH (av)-[:HAS]->(:Value {name: "allowedDependencies"})-[:CONTAINS]->(e)
+      WITH m, trim(split(toString(e.value), "::")[0]) AS allowedName
+      WHERE allowedName <> ""
+      MATCH (target:Modulith:Module)
+      WHERE target.name = allowedName OR target.modulithDisplayName = allowedName
+      MERGE (m)-[:MODULITH_ALLOWS]->(target)
+      RETURN count(*) AS AllowedEdges
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithCrossModuleDependency">
+        <requiresConcept refId="hierograph:SpringModulithModuleType"/>
+        <description>
+            Tag every type-level DEPENDS_ON edge whose endpoints belong to two different modules with
+            modulithCrossModule = true. This is the raw signal the Hierograph dependency provider can
+            aggregate to module level; the two violation concepts then refine a subset of these edges
+            into boundary violations. Edges within a single module, or touching types outside any
+            module, are left untagged.
+        </description>
+        <cypher><![CDATA[
+      MATCH (s:Type)-[r:DEPENDS_ON]->(t:Type)
+      MATCH (m1:Modulith:Module)-[:MODULITH_OWNS]->(s)
+      MATCH (m2:Modulith:Module)-[:MODULITH_OWNS]->(t)
+      WHERE m1 <> m2
+      SET r.modulithCrossModule = true
+      RETURN count(*) AS CrossModuleDependencies
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithEncapsulationViolation">
+        <requiresConcept refId="hierograph:SpringModulithCrossModuleDependency"/>
+        <requiresConcept refId="hierograph:SpringModulithDefaultExposedType"/>
+        <requiresConcept refId="hierograph:SpringModulithNamedInterfaceType"/>
+        <requiresConcept refId="hierograph:SpringModulithNamedInterfacePackageType"/>
+        <description>
+            EXPERIMENTAL — produces false positives because the exposed set ignores @NamedInterface
+            propagation; not in the default group. See the experimental-group comment above.
+            Encapsulation violation: a cross-module dependency that reaches a type which is NOT part of
+            the target module's public API (not :Modulith:Exposed). This is the core Spring Modulith
+            rule — a module may only be accessed through its named interfaces — and holds regardless of
+            any allowedDependencies declaration. Tags the edge with modulithViolation = true and
+            modulithViolationKind = "ENCAPSULATION".
+        </description>
+        <cypher><![CDATA[
+      MATCH (s:Type)-[r:DEPENDS_ON]->(t:Type)
+      WHERE r.modulithCrossModule = true
+        AND NOT t:Modulith:Exposed
+      SET r.modulithViolation = true,
+          r.modulithViolationKind = "ENCAPSULATION"
+      RETURN count(*) AS EncapsulationViolations
+    ]]></cypher>
+    </concept>
+
+    <concept id="hierograph:SpringModulithAllowedDependencyViolation">
+        <requiresConcept refId="hierograph:SpringModulithCrossModuleDependency"/>
+        <requiresConcept refId="hierograph:SpringModulithAllowedDependency"/>
+        <requiresConcept refId="hierograph:SpringModulithEncapsulationViolation"/>
+        <description>
+            EXPERIMENTAL — only models allowedDependencies at module granularity (it ignores the
+            named-interface part of entries like "care :: Suggestion Factory"); not in the default group.
+            Disallowed-dependency violation: a cross-module dependency whose source module restricts its
+            dependencies (declares a non-empty allowedDependencies, i.e. has at least one :MODULITH_ALLOWS
+            edge) but the target module is not among the allowed ones. This holds even when the target
+            type is a legitimately exposed named interface — the access itself is not permitted by the
+            declared rules. Tags modulithViolation = true and sets modulithViolationKind to
+            "DISALLOWED_DEPENDENCY" unless the edge was already classified as an ENCAPSULATION violation,
+            which takes precedence.
+        </description>
+        <cypher><![CDATA[
+      MATCH (s:Type)-[r:DEPENDS_ON]->(t:Type)
+      WHERE r.modulithCrossModule = true
+      MATCH (m1:Modulith:Module)-[:MODULITH_OWNS]->(s)
+      MATCH (m2:Modulith:Module)-[:MODULITH_OWNS]->(t)
+      WHERE EXISTS { (m1)-[:MODULITH_ALLOWS]->(:Modulith:Module) }
+        AND NOT EXISTS { (m1)-[:MODULITH_ALLOWS]->(m2) }
+      SET r.modulithViolation = true,
+          r.modulithViolationKind = coalesce(r.modulithViolationKind, "DISALLOWED_DEPENDENCY")
+      RETURN count(*) AS AllowedDependencyViolations
+    ]]></cypher>
+    </concept>
+
+</jqassistant-rules>

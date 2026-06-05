@@ -95,6 +95,11 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
             fqn.asString("").takeIf { it.isNotBlank() }
     }
 
+    private companion object {
+        /** Node kind for Spring Modulith application modules, surfaced via the spring-modulith concepts. */
+        const val MODULITH_MODULE_KIND = "modulith.module"
+    }
+
     private val toplevelNodeIdQueries: List<String> = listOf(
         // scanned jars directly
         "MATCH (a:Artifact:Jar) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn",
@@ -111,8 +116,14 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
         "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a), id(b), '${JavaKinds.MODULE}', b.name, b.fqn",
         "MATCH (a:Artifact:Maven:File:Main)-[:CONTAINS]->(b:Package) where a.type = 'jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
         "MATCH (a:Artifact:Maven:File:Test)-[:CONTAINS]->(b:Package) where a.type = 'test-jar' AND NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
-        // Package -> sub-Packages
-        "MATCH (a:Package)-[:CONTAINS]->(b:Package) RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
+        // Package -> sub-Packages. Spring Modulith application modules (labelled :Modulith:Module by
+        // the hierograph:spring-modulith jQAssistant concepts) are split out below so they surface as
+        // first-class `modulith.module` nodes instead of plain packages; the NOT b:Module guard here
+        // keeps them from also appearing as java.package (which would create a conflicting second
+        // parent-child edge for the same node).
+        "MATCH (a:Package)-[:CONTAINS]->(b:Package) WHERE NOT b:Module RETURN id(a), id(b), '${JavaKinds.PACKAGE}', b.name, b.fqn",
+        // Package -> Spring Modulith application module
+        "MATCH (a:Package)-[:CONTAINS]->(b:Modulith:Module) RETURN id(a), id(b), '$MODULITH_MODULE_KIND', b.name, b.fqn",
         // Package -> Types (Class, Interface, Enum, Annotation, Record)
         "MATCH (a:Package)-[:CONTAINS]->(b:Class) RETURN id(a), id(b), '${JavaKinds.CLASS}', b.name, b.fqn",
         "MATCH (a:Package)-[:CONTAINS]->(b:Interface) RETURN id(a), id(b), '${JavaKinds.INTERFACE}', b.name, b.fqn",

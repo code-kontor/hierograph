@@ -5,8 +5,9 @@
                     id="io.hierograph.jqassistant.rules"
                     name="Hierograph jQAssistant Rules"
                     version="${project.version}">
-    <description>Canonical virtual-external-type concepts for Hierograph.</description>
+    <description>Canonical virtual-external-type and Spring Modulith concepts for Hierograph.</description>
     <rules>
         <resource>hierograph/virtual-external.xml</resource>
+        <resource>hierograph/spring-modulith.xml</resource>
     </rules>
 </jqassistant-plugin>

@@ -21,6 +21,8 @@ import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.hierarchicalgraph.core.model.HGRootNode
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
+import io.hierograph.mcp.server.modulith.ModulithModel
+import io.hierograph.mcp.server.modulith.ModulithOverlay
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
@@ -43,6 +45,14 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.dumpFile:hierarchical-graph.txt}")
     private lateinit var graphDumpFile: String
 
+    /**
+     * Path to a Spring Modulith `modulith-model.json` (produced by the scanned app's own
+     * ApplicationModules analysis). When set and present, module boundaries and exposed types are
+     * overlaid onto the graph and cross-module boundary violations are flagged. Empty = disabled.
+     */
+    @Value("\${hierograph.modulith.model:}")
+    private lateinit var modulithModelPath: String
+
     lateinit var boltClient: IBoltClient
 
     lateinit var rootNode: HGRootNode
@@ -60,6 +70,8 @@ class HierarchicalGraphService {
             DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
         }
         rootNode = createdRoot
+
+        applyModulithOverlay(rootNode)
 
         val children = rootNode.children
         log.info("Hierarchical graph created with {} root children in {}.", children.size, elapsed)
@@ -82,6 +94,26 @@ class HierarchicalGraphService {
             TreeTraverser.dumpTree(rootNode, sink = { writer.appendLine(it) })
         }
         log.info("Hierarchical graph written to: {}", outputFile.absolutePath)
+    }
+
+    /**
+     * Overlays the authoritative Spring Modulith model (if configured and present) onto the graph,
+     * flagging cross-module boundary violations. No-op when [modulithModelPath] is unset or missing,
+     * so non-modulith projects are unaffected.
+     */
+    private fun applyModulithOverlay(root: HGRootNode) {
+        if (modulithModelPath.isBlank()) return
+        val file = File(modulithModelPath)
+        if (!file.isFile) {
+            log.warn("Spring Modulith model not found at '{}' — skipping overlay.", file.absolutePath)
+            return
+        }
+        val model = ModulithModel.read(file)
+        val stats = ModulithOverlay.apply(root, model)
+        log.info(
+            "Spring Modulith overlay applied from '{}': {} modules, {} cross-module edges, {} boundary violations.",
+            file.name, model.moduleCount, stats.crossModuleEdges, stats.violations
+        )
     }
 
     @PreDestroy

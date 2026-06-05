@@ -189,6 +189,7 @@ class GraphOverviewTool(
             "is_implements" -> "At least one type in the source subtree implements an interface in the target subtree"
             "is_annotated_by" -> "At least one type in the source subtree is annotated by an annotation type in the target subtree"
             "is_depends_on_other" -> "At least one other form of dependency exists (calls, throws, parameter types, field types, etc. — the residual after extends/implements/annotated_by)"
+            "is_modulith_violation" -> "At least one type-level edge crosses a Spring Modulith module boundary into a type that is not exposed by the target module's named interfaces (only present when the Spring Modulith overlay is enabled)"
             else -> attribute
         }
         return mapOf("attribute" to attribute, "description" to description)
