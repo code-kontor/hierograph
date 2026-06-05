@@ -31,16 +31,23 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesToo
 import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesTool
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
+import io.hierograph.graphql.HierarchicalGraphProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ComponentScan
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.ai.tool.ToolCallbackProvider
 import org.springframework.ai.tool.method.MethodToolCallbackProvider
 
 @SpringBootApplication
 @EnableScheduling
+@ComponentScan(basePackages = ["io.hierograph.mcp.server", "io.hierograph.graphql"])
 class McpApplication {
+
+    @Bean
+    fun hierarchicalGraphProvider(graphService: HierarchicalGraphService): HierarchicalGraphProvider =
+        HierarchicalGraphProvider { graphService.rootNode }
 
     @Bean
     fun searchProvider(graphService: HierarchicalGraphService): JQAssistantSearchProvider =

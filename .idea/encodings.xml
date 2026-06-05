@@ -23,6 +23,8 @@
     <file url="file://$PROJECT_DIR$/hierograph-jqassistant/io.hierograph.jqassistant.rules/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-jqassistant/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-jqassistant/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.graphql/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.graphql/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.jqassistant/src/main/kotlin" charset="UTF-8" />

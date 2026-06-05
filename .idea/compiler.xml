@@ -15,6 +15,7 @@
         <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="io.hierograph.mcp.jqassistant" />
+        <module name="io.hierograph.graphql" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" />
         <module name="io.hierograph.mcp.server" />
       </profile>
@@ -28,6 +29,7 @@
       <module name="hierograph-mcp" options="-parameters" />
       <module name="hierograph-parent" options="-parameters" />
       <module name="io.hierograph.boltclient" options="-parameters" />
+      <module name="io.hierograph.graphql" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.core.algorithms" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.core.model" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.service" options="-parameters" />

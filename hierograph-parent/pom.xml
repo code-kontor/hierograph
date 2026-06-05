@@ -262,6 +262,11 @@ limitations under the License.]]></inlineHeader>
                 <artifactId>io.hierograph.jqassistant.rules</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.graphql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>
