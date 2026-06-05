@@ -180,7 +180,7 @@ command or configuration. Two common examples:
 
 - **Claude Code (CLI):**
   ```bash
-  claude tools add hierograph --transport streamable-http http://localhost:8080/mcp
+  claude mcp add --transport sse hierograph http://localhost:8080/mcp
   ```
 - **Claude Desktop / Cursor / other JSON-config clients:** add an entry like
   ```json
