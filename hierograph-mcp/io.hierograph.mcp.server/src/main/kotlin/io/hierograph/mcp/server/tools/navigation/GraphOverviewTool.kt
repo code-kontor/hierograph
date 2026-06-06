@@ -15,7 +15,6 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -51,13 +50,14 @@ class GraphOverviewTool(
     )
     fun graphOverview(): Map<String, Any?> {
 
-        val rootNode = graphService.rootNode
+        val hierarchy = graphService.model.hierarchy
+        val rootNode = hierarchy.rootNode
 
         // ── stats: count nodes by kind ─────────────────────────────────
         val nodesByKind = linkedMapOf<String, Int>()
         var totalNodes = 0
-        for (child in rootNode.children) {
-            HGNodeTraverser.traverse(child) { node ->
+        for (child in hierarchy.childrenOf(rootNode)) {
+            hierarchy.traverse(child) { node ->
                 val kindStr = node.kind?.toString() ?: "unknown"
                 nodesByKind.merge(kindStr, 1) { a, b -> a + b }
                 totalNodes++
@@ -70,8 +70,8 @@ class GraphOverviewTool(
             edgesByAttribute[name] = 0
         }
         var totalEdges = 0
-        for (child in rootNode.children) {
-            HGNodeTraverser.traverse(child) { node ->
+        for (child in hierarchy.childrenOf(rootNode)) {
+            hierarchy.traverse(child) { node ->
                 for (dep in node.outgoingCoreDependencies) {
                     totalEdges++
                     val bitmap = dep.attributesBitmap
@@ -126,10 +126,10 @@ class GraphOverviewTool(
         )
 
         // ── hierarchy: top-level modules with enriched metadata ────────
-        val hierarchy = rootNode.children.map { child ->
+        val hierarchySection = hierarchy.childrenOf(rootNode).map { child ->
             val ref = nodeRefFactory.enrichedNodeRef(child)
-            ref["outgoing_dep_count"] = child.accumulatedOutgoingCoreDependencies.size
-            ref["incoming_dep_count"] = child.accumulatedIncomingCoreDependencies.size
+            ref["outgoing_dep_count"] = hierarchy.accumulatedOutgoing(child).size
+            ref["incoming_dep_count"] = hierarchy.accumulatedIncoming(child).size
             ref
         }
 
@@ -174,7 +174,7 @@ class GraphOverviewTool(
             ),
             "kinds" to kinds,
             "relationships" to relationships,
-            "hierarchy" to hierarchy,
+            "hierarchy" to hierarchySection,
             "model" to model,
             "scan_metadata" to scanMetadata
         )

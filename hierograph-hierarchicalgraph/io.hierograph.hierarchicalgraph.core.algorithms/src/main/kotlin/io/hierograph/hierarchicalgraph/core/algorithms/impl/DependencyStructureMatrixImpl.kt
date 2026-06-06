@@ -17,31 +17,32 @@ package io.hierograph.hierarchicalgraph.core.algorithms.impl
 
 import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.core.algorithms.IDependencyStructureMatrix
-import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
-class DependencyStructureMatrixImpl(nodes: Collection<HGNode>) : IDependencyStructureMatrix {
+class DependencyStructureMatrixImpl(nodes: Collection<CoreNode>, private val hierarchy: Hierarchy) : IDependencyStructureMatrix {
 
-    override val orderedNodes: List<HGNode>
-    override val upwardDependencies: List<HGAggregatedDependency>
-    override val cycles: List<List<HGNode>>
+    override val orderedNodes: List<CoreNode>
+    override val upwardDependencies: List<AggregatedDependency>
+    override val cycles: List<List<CoreNode>>
 
     init {
-        val allUpward = mutableListOf<HGAggregatedDependency>()
+        val allUpward = mutableListOf<AggregatedDependency>()
 
         // 1. Detect all SCCs
-        val sccs = GraphUtils.detectStronglyConnectedComponents(nodes)
+        val sccs = GraphUtils.detectStronglyConnectedComponents(nodes, hierarchy)
 
         // 2. Sort each SCC using FastFAS
         val sorter = FastFasSorter()
         val sortedSccs = sccs.map { scc ->
-            val sortResult = sorter.sort(scc)
+            val sortResult = sorter.sort(scc, hierarchy)
             allUpward.addAll(sortResult.upwardDependencies)
             sortResult.orderedNodes.toMutableList()
         }
 
         // 3. Build ordered node list
-        val ordered = mutableListOf<HGNode>()
+        val ordered = mutableListOf<CoreNode>()
 
         // First: single-node SCCs with no outgoing core dependencies
         for (scc in sortedSccs) {
@@ -78,7 +79,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>) : IDependencyStru
 
     override fun getWeight(i: Int, j: Int): Int {
         if (i < 0 || i >= orderedNodes.size || j < 0 || j >= orderedNodes.size) return -1
-        val dep = orderedNodes[i].getOutgoingDependenciesTo(orderedNodes[j])
+        val dep = hierarchy.getAggregatedDependency(orderedNodes[i], orderedNodes[j])
         return dep?.aggregatedWeight ?: 0
     }
 
@@ -86,7 +87,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>) : IDependencyStru
         val n = orderedNodes.size
         return Array(n) { i ->
             IntArray(n) { j ->
-                val dep = orderedNodes[i].getOutgoingDependenciesTo(orderedNodes[j])
+                val dep = hierarchy.getAggregatedDependency(orderedNodes[i], orderedNodes[j])
                 dep?.aggregatedWeight ?: 0
             }
         }

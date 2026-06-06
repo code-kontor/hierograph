@@ -19,5 +19,5 @@ class DefaultDependencySource(
     override val identifier: Any,
     val properties: MutableMap<String, String> = mutableMapOf()
 ) : IDependencySource {
-    override var dependency: HGCoreDependency? = null
+    override var dependency: CoreDependency? = null
 }

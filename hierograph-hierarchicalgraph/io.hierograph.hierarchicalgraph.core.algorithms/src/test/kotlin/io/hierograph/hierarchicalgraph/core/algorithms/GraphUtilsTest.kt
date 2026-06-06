@@ -28,7 +28,7 @@ class GraphUtilsTest {
 
     @Test
     fun `computeAdjacencyMatrix has correct dimensions`() {
-        val matrix = GraphUtils.computeAdjacencyMatrix(g.nodes)
+        val matrix = GraphUtils.computeAdjacencyMatrix(g.nodes, g.hierarchy)
         assertThat(matrix.size).isEqualTo(8)
         for (row in matrix) {
             assertThat(row.size).isEqualTo(8)
@@ -37,7 +37,7 @@ class GraphUtilsTest {
 
     @Test
     fun `computeAdjacencyMatrix has correct weights`() {
-        val matrix = GraphUtils.computeAdjacencyMatrix(g.nodes)
+        val matrix = GraphUtils.computeAdjacencyMatrix(g.nodes, g.hierarchy)
         // n1 -> n2 (index 1 -> 2)
         assertThat(matrix[1][2]).isEqualTo(1)
         // n2 -> n3 (index 2 -> 3)
@@ -50,7 +50,7 @@ class GraphUtilsTest {
 
     @Test
     fun `computeAdjacencyMatrix diagonal is zero`() {
-        val matrix = GraphUtils.computeAdjacencyMatrix(g.nodes)
+        val matrix = GraphUtils.computeAdjacencyMatrix(g.nodes, g.hierarchy)
         for (i in g.nodes.indices) {
             assertThat(matrix[i][i]).isEqualTo(0)
         }
@@ -58,19 +58,19 @@ class GraphUtilsTest {
 
     @Test
     fun `computeAdjacencyList has correct dimensions`() {
-        val adjList = GraphUtils.computeAdjacencyList(g.nodes)
+        val adjList = GraphUtils.computeAdjacencyList(g.nodes, g.hierarchy)
         assertThat(adjList.size).isEqualTo(8)
     }
 
     @Test
     fun `computeAdjacencyList n0 has no neighbors`() {
-        val adjList = GraphUtils.computeAdjacencyList(g.nodes)
+        val adjList = GraphUtils.computeAdjacencyList(g.nodes, g.hierarchy)
         assertThat(adjList[0]).isEmpty()
     }
 
     @Test
     fun `computeAdjacencyList n1 has one neighbor (n2)`() {
-        val adjList = GraphUtils.computeAdjacencyList(g.nodes)
+        val adjList = GraphUtils.computeAdjacencyList(g.nodes, g.hierarchy)
         // n1 is index 1, n2 is index 2
         assertThat(adjList[1]).hasSize(1)
         assertThat(adjList[1][0]).isEqualTo(2)
@@ -78,7 +78,7 @@ class GraphUtilsTest {
 
     @Test
     fun `computeAdjacencyList n4 has one neighbor (n5)`() {
-        val adjList = GraphUtils.computeAdjacencyList(g.nodes)
+        val adjList = GraphUtils.computeAdjacencyList(g.nodes, g.hierarchy)
         // n4 is index 4, n5 is index 5
         assertThat(adjList[4]).hasSize(1)
         assertThat(adjList[4][0]).isEqualTo(5)

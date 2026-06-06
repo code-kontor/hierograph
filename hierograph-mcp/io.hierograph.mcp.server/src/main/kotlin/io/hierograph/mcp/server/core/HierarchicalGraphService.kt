@@ -17,8 +17,7 @@ package io.hierograph.mcp.server.core
 
 import io.hierograph.boltclient.IBoltClient
 import io.hierograph.boltclient.IBoltClientFactory
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
 import jakarta.annotation.PostConstruct
@@ -45,7 +44,7 @@ class HierarchicalGraphService {
 
     lateinit var boltClient: IBoltClient
 
-    lateinit var rootNode: HGRootNode
+    lateinit var model: HGModel
 
     @PostConstruct
     fun init() {
@@ -56,18 +55,19 @@ class HierarchicalGraphService {
         boltClient.connect()
 
         log.info("Creating hierarchical graph...")
-        val (createdRoot, elapsed) = measureTimedValue {
+        val (createdModel, elapsed) = measureTimedValue {
             DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
         }
-        rootNode = createdRoot
+        model = createdModel
 
-        val children = rootNode.children
+        val hierarchy = model.hierarchy
+        val children = hierarchy.childrenOf(hierarchy.rootNode)
         log.info("Hierarchical graph created with {} root children in {}.", children.size, elapsed)
 
         // Count nodes by kind (skip the root node itself)
         val kindCounts = mutableMapOf<Any?, Int>()
-        for (child in rootNode.children) {
-            HGNodeTraverser.traverse(child) { node ->
+        for (child in children) {
+            hierarchy.traverse(child) { node ->
                 kindCounts.merge(node.kind, 1) { a, b -> a + b }
             }
         }
@@ -79,7 +79,7 @@ class HierarchicalGraphService {
         // Dump the hierarchical graph to a file: one indented line per node, with name/fqn.
         val outputFile = File(graphDumpFile)
         outputFile.bufferedWriter().use { writer ->
-            TreeTraverser.dumpTree(rootNode, sink = { writer.appendLine(it) })
+            TreeTraverser.dumpTree(hierarchy.rootNode, hierarchy, sink = { writer.appendLine(it) })
         }
         log.info("Hierarchical graph written to: {}", outputFile.absolutePath)
     }

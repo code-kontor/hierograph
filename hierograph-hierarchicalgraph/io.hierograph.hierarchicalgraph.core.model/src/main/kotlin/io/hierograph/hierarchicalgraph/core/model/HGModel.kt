@@ -15,14 +15,15 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
-interface HGCoreDependency {
-    val from: HGNode
-    val to: HGNode
-    val type: String
-    var weight: Int
-    var attributesBitmap: Int
-    val dependencySource: IDependencySource
-    val rootNode: HGRootNode
+class HGModel(
+    val coreGraph: CoreGraph,
+    val hierarchy: Hierarchy,
+) {
+    fun lookupNode(identifier: Any): CoreNode? = hierarchy.lookupNode(identifier)
 
-    fun <T : Any> getDependencySource(clazz: Class<T>): T?
+    fun fork(): HGModel = HGModel(coreGraph, hierarchy.fork())
+
+    fun scoped(block: HierarchyScope.() -> Unit) = HierarchyScope(hierarchy).block()
+
+    fun <R> withScope(block: HierarchyScope.() -> R): R = HierarchyScope(hierarchy).block()
 }

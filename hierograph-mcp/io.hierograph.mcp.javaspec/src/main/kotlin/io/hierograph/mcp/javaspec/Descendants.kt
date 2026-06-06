@@ -15,22 +15,23 @@
  */
 package io.hierograph.mcp.javaspec
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 /**
  * Returns this node's descendants in pre-order (parent before children, left-to-right
  * over `children`). The receiver itself is NOT included.
  *
- * When [kinds] is non-empty the result only contains nodes whose [HGNode.kind] equals
+ * When [kinds] is non-empty the result only contains nodes whose [CoreNode.kind] equals
  * one of the supplied [JavaNodeKind] values; the traversal itself still visits the
  * whole subtree so a filtered ancestor never prunes its filtered descendants. When
  * [kinds] is empty no filter is applied.
  */
-fun HGNode.descendants(vararg kinds: JavaNodeKind): List<HGNode> {
-    val out = mutableListOf<HGNode>()
+fun CoreNode.descendants(hierarchy: Hierarchy, vararg kinds: JavaNodeKind): List<CoreNode> {
+    val out = mutableListOf<CoreNode>()
     val filter = if (kinds.isEmpty()) null else kinds.toSet()
-    for (child in children) {
-        collectDescendants(child, filter, out)
+    for (child in hierarchy.childrenOf(this)) {
+        collectDescendants(child, hierarchy, filter, out)
     }
     return out
 }
@@ -41,28 +42,29 @@ fun HGNode.descendants(vararg kinds: JavaNodeKind): List<HGNode> {
  * included. Duplicates are removed; if the same descendant is reachable from
  * multiple seeds it appears once, at its first occurrence.
  *
- * See [HGNode.descendants] for the meaning of [kinds].
+ * See [CoreNode.descendants] for the meaning of [kinds].
  */
-fun Iterable<HGNode>.descendants(vararg kinds: JavaNodeKind): List<HGNode> {
-    val seen = LinkedHashSet<HGNode>()
+fun Iterable<CoreNode>.descendants(hierarchy: Hierarchy, vararg kinds: JavaNodeKind): List<CoreNode> {
+    val seen = LinkedHashSet<CoreNode>()
     val filter = if (kinds.isEmpty()) null else kinds.toSet()
     for (seed in this) {
-        for (child in seed.children) {
-            collectDescendants(child, filter, seen)
+        for (child in hierarchy.childrenOf(seed)) {
+            collectDescendants(child, hierarchy, filter, seen)
         }
     }
     return seen.toList()
 }
 
 private fun collectDescendants(
-    node: HGNode,
+    node: CoreNode,
+    hierarchy: Hierarchy,
     filter: Set<JavaNodeKind>?,
-    out: MutableCollection<HGNode>
+    out: MutableCollection<CoreNode>
 ) {
     if (filter == null || node.kind in filter) {
         out.add(node)
     }
-    for (child in node.children) {
-        collectDescendants(child, filter, out)
+    for (child in hierarchy.childrenOf(node)) {
+        collectDescendants(child, hierarchy, filter, out)
     }
 }

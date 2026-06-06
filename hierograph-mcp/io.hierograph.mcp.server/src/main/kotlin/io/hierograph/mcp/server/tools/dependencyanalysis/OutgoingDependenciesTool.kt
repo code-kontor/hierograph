@@ -15,8 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -156,7 +155,7 @@ class OutgoingDependenciesTool(
     ): Map<String, Any?> {
 
         // ── resolve from node (always required) ────────────────────────
-        val fromNode = graphService.rootNode.lookupNode(fromId)
+        val fromNode = graphService.model.lookupNode(fromId)
             ?: return nodeNotFound(fromId)
         validateNodeKind(fromNode)?.let { return it }
 
@@ -165,10 +164,10 @@ class OutgoingDependenciesTool(
         // matching edge is returned ("show me the dependencies of X" /
         // "what depends on X"). When provided, edges are filtered to the
         // toId subtree's types.
-        var toNode: HGNode? = null
+        var toNode: CoreNode? = null
         var otherSideTypeIds: Set<Any>? = null
         if (toId != null) {
-            toNode = graphService.rootNode.lookupNode(toId)
+            toNode = graphService.model.lookupNode(toId)
                 ?: return nodeNotFound(toId)
             validateNodeKind(toNode)?.let { return it }
             otherSideTypeIds = collectTypeIds(toNode)
@@ -189,7 +188,7 @@ class OutgoingDependenciesTool(
         // ── collect type-level edges ───────────────────────────────────
         // Anchor on from_id's types. For the outgoing direction walk each
         // anchor type's outgoing core dependencies; for incoming, its incoming
-        // ones. Each HGCoreDependency already encodes (from -> to) in
+        // ones. Each CoreDependency already encodes (from -> to) in
         // depender->depended-upon orientation, so the edge endpoints are
         // dep.from / dep.to in both directions. The "other" endpoint (the one
         // not on the anchor side) is matched against otherSideTypeIds when
@@ -197,8 +196,8 @@ class OutgoingDependenciesTool(
         val anchorTypes = collectTypes(fromNode)
 
         data class TypeEdge(
-            val from: HGNode,
-            val to: HGNode,
+            val from: CoreNode,
+            val to: CoreNode,
             val weight: Int,
             val bitmap: Int
         )
@@ -323,26 +322,30 @@ class OutgoingDependenciesTool(
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    private fun collectTypes(node: HGNode): List<HGNode> {
-        val types = mutableListOf<HGNode>()
-        HGNodeTraverser.traverse(node) { n ->
+    private fun collectTypes(node: CoreNode): List<CoreNode> {
+        val hierarchy = graphService.model.hierarchy
+        val types = mutableListOf<CoreNode>()
+        if (node.kind in JavaKinds.TYPE_KINDS) types.add(node)
+        hierarchy.traverse(node) { n ->
             if (n.kind in JavaKinds.TYPE_KINDS) types.add(n)
         }
         return types
     }
 
-    private fun collectTypeIds(node: HGNode): Set<Any> {
+    private fun collectTypeIds(node: CoreNode): Set<Any> {
+        val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
-        HGNodeTraverser.traverse(node) { n ->
+        if (node.kind in JavaKinds.TYPE_KINDS) ids.add(node.identifier)
+        hierarchy.traverse(node) { n ->
             if (n.kind in JavaKinds.TYPE_KINDS) ids.add(n.identifier)
         }
         return ids
     }
 
-    internal fun validateNodeKind(node: HGNode): Map<String, Any?>? {
+    internal fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
-            val declaringType = node.parent
+            val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_NODE_KIND",

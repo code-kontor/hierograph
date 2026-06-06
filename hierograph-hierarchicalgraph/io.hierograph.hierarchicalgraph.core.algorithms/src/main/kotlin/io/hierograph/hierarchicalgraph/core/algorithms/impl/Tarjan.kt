@@ -16,24 +16,25 @@
 package io.hierograph.hierarchicalgraph.core.algorithms.impl
 
 import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 class Tarjan {
 
     private var index = 0
     private val stack = mutableListOf<Int>()
-    private val stronglyConnectedComponents = mutableListOf<List<HGNode>>()
+    private val stronglyConnectedComponents = mutableListOf<List<CoreNode>>()
     private lateinit var vlowlink: IntArray
     private lateinit var vindex: IntArray
-    private lateinit var nodes: List<HGNode>
+    private lateinit var nodes: List<CoreNode>
 
-    fun detectStronglyConnectedComponents(artifacts: Collection<HGNode>): List<List<HGNode>> {
+    fun detectStronglyConnectedComponents(artifacts: Collection<CoreNode>, hierarchy: Hierarchy): List<List<CoreNode>> {
         nodes = artifacts.toList()
-        val adjacencyList = GraphUtils.computeAdjacencyList(artifacts)
+        val adjacencyList = GraphUtils.computeAdjacencyList(artifacts, hierarchy)
         return executeTarjan(adjacencyList)
     }
 
-    private fun executeTarjan(graph: Array<IntArray>): List<List<HGNode>> {
+    private fun executeTarjan(graph: Array<IntArray>): List<List<CoreNode>> {
         stronglyConnectedComponents.clear()
         index = 0
         stack.clear()
@@ -65,7 +66,7 @@ class Tarjan {
         }
 
         if (vlowlink[v] == vindex[v]) {
-            val component = mutableListOf<HGNode>()
+            val component = mutableListOf<CoreNode>()
             do {
                 val n = stack.removeAt(0)
                 component.add(nodes[n])

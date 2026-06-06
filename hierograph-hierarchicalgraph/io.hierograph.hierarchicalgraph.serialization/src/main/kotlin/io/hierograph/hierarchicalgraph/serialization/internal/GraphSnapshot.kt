@@ -16,15 +16,15 @@
 package io.hierograph.hierarchicalgraph.serialization.internal
 
 /**
- * Wire-format root for a serialized [io.hierograph.hierarchicalgraph.core.model.HGRootNode].
+ * Wire-format root for a serialized [io.hierograph.hierarchicalgraph.core.model.HGModel].
  *
  * The shape is intentionally flat — nodes refer to one another by `id`
  * strings — so the snapshot has no object cycles regardless of how
  * interconnected the original graph is.
  *
  * [nodes] is the set of non-root nodes in pre-order (parents before
- * children, in `HGNode.children` iteration order). [deps] is every
- * `HGCoreDependency`, deduplicated by identity.
+ * children, in hierarchy child-iteration order). [deps] is every
+ * `CoreDependency`, deduplicated by identity.
  */
 data class GraphSnapshot(
     val schemaVersion: Int = SCHEMA_VERSION,
@@ -38,8 +38,8 @@ data class GraphSnapshot(
 }
 
 /**
- * Flat record for a single `HGNode`. [parentId] is `null` only for the root.
- * [kind] is `null` exactly when `HGNode.kind` is `null` on the source node.
+ * Flat record for a single `CoreNode`. [parentId] is `null` only for the root.
+ * [kind] is `null` exactly when `CoreNode.kind` is `null` on the source node.
  */
 data class NodeRecord(
     val id: String,
@@ -49,7 +49,7 @@ data class NodeRecord(
 )
 
 /**
- * Flat record for a single `HGCoreDependency`. [id] is the string form of
+ * Flat record for a single `CoreDependency`. [id] is the string form of
  * the underlying `IDependencySource.identifier`.
  */
 data class DepRecord(
@@ -63,7 +63,7 @@ data class DepRecord(
 )
 
 /**
- * Carries enough information to reconstruct `HGNode.kind`. [type] is the FQCN
+ * Carries enough information to reconstruct `CoreNode.kind`. [type] is the FQCN
  * of the kind class; [value] its string form (`Enum.name` for enums, the
  * string itself for `String` kinds).
  */

@@ -28,16 +28,16 @@ class StructuralInvariantsTest {
 
     @Test
     fun `root parent is null`() {
-        assertThat(g.root.parent).isNull()
+        assertThat(g.hierarchy.parentOf(g.root)).isNull()
     }
 
     @Test
     fun `bidirectional parent-children`() {
-        for (child in g.root.children) {
-            assertThat(child.parent).isSameAs(g.root)
+        for (child in g.hierarchy.childrenOf(g.root)) {
+            assertThat(g.hierarchy.parentOf(child)).isSameAs(g.root)
         }
-        assertThat(g.a2.parent).isSameAs(g.a1)
-        assertThat(g.a1.children).contains(g.a2)
+        assertThat(g.hierarchy.parentOf(g.a2)).isSameAs(g.a1)
+        assertThat(g.hierarchy.childrenOf(g.a1)).contains(g.a2)
     }
 
     @Test
@@ -58,10 +58,8 @@ class StructuralInvariantsTest {
     }
 
     @Test
-    fun `rootNode derivation`() {
-        assertThat(g.a3.rootNode).isSameAs(g.root)
-        assertThat(g.b3.rootNode).isSameAs(g.root)
-        assertThat(g.root.rootNode).isSameAs(g.root)
+    fun `root node is hierarchy root`() {
+        assertThat(g.hierarchy.rootNode).isSameAs(g.root)
     }
 
     @Test

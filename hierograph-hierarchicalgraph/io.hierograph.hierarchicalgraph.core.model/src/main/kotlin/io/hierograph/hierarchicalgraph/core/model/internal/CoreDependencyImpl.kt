@@ -15,22 +15,19 @@
  */
 package io.hierograph.hierarchicalgraph.core.model.internal
 
-import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.IDependencySource
 
-class HGAggregatedDependencyImpl(
-    override val from: HGNode,
-    override val to: HGNode
-) : HGAggregatedDependency {
+class CoreDependencyImpl(
+    override val from: CoreNode,
+    override val to: CoreNode,
+    override val type: String,
+    override val dependencySource: IDependencySource,
+) : CoreDependency {
+    override var weight: Int = 1
+    override var attributesBitmap: Int = 0
 
-    override val coreDependencies: List<HGCoreDependency> by lazy {
-        to.accumulatedIncomingCoreDependencies.filter { dep ->
-            dep.from === from || from.isPredecessorOf(dep.from)
-        }
-    }
-
-    override val aggregatedWeight: Int by lazy {
-        coreDependencies.sumOf { it.weight }
-    }
+    override fun <T : Any> getDependencySource(clazz: Class<T>): T? =
+        if (clazz.isInstance(dependencySource)) clazz.cast(dependencySource) else null
 }

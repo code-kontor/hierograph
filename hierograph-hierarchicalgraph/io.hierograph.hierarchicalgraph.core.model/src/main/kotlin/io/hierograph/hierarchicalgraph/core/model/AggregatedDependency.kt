@@ -15,13 +15,9 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
-import io.hierograph.hierarchicalgraph.core.model.internal.HGNodeImpl
-
-object HGCacheInvalidator {
-
-    fun invalidate(node: HGNode) {
-        HGNodeTraverser.traverse(node) { current ->
-            (current as? HGNodeImpl)?.invalidateCaches()
-        }
-    }
+interface AggregatedDependency {
+    val from: CoreNode
+    val to: CoreNode
+    val coreDependencies: List<CoreDependency>
+    val aggregatedWeight: Int
 }

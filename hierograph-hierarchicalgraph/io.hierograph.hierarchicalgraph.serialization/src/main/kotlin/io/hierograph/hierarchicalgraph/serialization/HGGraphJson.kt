@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.serialization.internal.CodecRegistry
 import io.hierograph.hierarchicalgraph.serialization.internal.GraphReader
 import io.hierograph.hierarchicalgraph.serialization.internal.GraphSnapshot
@@ -28,7 +28,7 @@ import java.io.InputStream
 import java.io.OutputStream
 
 /**
- * JSON serializer for `HGRootNode` instances. See the design at
+ * JSON serializer for [HGModel] instances. See the design at
  * `docs/specifications/hierarchicalgraph-specifications/hierarchicalgraph-serialization-spec.md`.
  *
  * Out of the box, `DefaultNodeSource` and `DefaultDependencySource` are
@@ -43,21 +43,21 @@ object HGGraphJson {
     private val writer = GraphWriter(CodecRegistry.defaults())
     private val reader = GraphReader(CodecRegistry.defaults())
 
-    /** Write [root] to a JSON string. Set [prettyPrint] for human-readable output. */
-    fun write(root: HGRootNode, prettyPrint: Boolean = false): String =
-        mapper(prettyPrint).writeValueAsString(writer.write(root))
+    /** Write [model] to a JSON string. Set [prettyPrint] for human-readable output. */
+    fun write(model: HGModel, prettyPrint: Boolean = false): String =
+        mapper(prettyPrint).writeValueAsString(writer.write(model))
 
-    /** Write [root] to [sink] as JSON. The stream is left open. */
-    fun write(root: HGRootNode, sink: OutputStream, prettyPrint: Boolean = false) {
-        mapper(prettyPrint).writeValue(sink, writer.write(root))
+    /** Write [model] to [sink] as JSON. The stream is left open. */
+    fun write(model: HGModel, sink: OutputStream, prettyPrint: Boolean = false) {
+        mapper(prettyPrint).writeValue(sink, writer.write(model))
     }
 
-    /** Read a JSON string previously produced by [write] back into an [HGRootNode]. */
-    fun read(json: String): HGRootNode =
+    /** Read a JSON string previously produced by [write] back into an [HGModel]. */
+    fun read(json: String): HGModel =
         reader.read(compactMapper.readValue(json, GraphSnapshot::class.java))
 
-    /** Read a JSON document from [source] back into an [HGRootNode]. */
-    fun read(source: InputStream): HGRootNode =
+    /** Read a JSON document from [source] back into an [HGModel]. */
+    fun read(source: InputStream): HGModel =
         reader.read(compactMapper.readValue(source, GraphSnapshot::class.java))
 
     private fun mapper(pretty: Boolean): ObjectMapper =

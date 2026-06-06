@@ -38,49 +38,47 @@ class ExtensionRegistryTest {
     @Test
     fun `register and get typed extension`() {
         val ext = MyExtensionImpl()
-        g.root.registerExtension(MyExtension::class.java, ext)
+        g.coreGraph.registerExtension(MyExtension::class.java, ext)
 
-        assertThat(g.root.hasExtension(MyExtension::class.java)).isTrue()
-        assertThat(g.root.getExtension(MyExtension::class.java)).isSameAs(ext)
+        assertThat(g.coreGraph.hasExtension(MyExtension::class.java)).isTrue()
+        assertThat(g.coreGraph.getExtension(MyExtension::class.java)).isSameAs(ext)
     }
 
     @Test
     fun `get unregistered extension returns null`() {
-        assertThat(g.root.hasExtension(MyExtension::class.java)).isFalse()
-        assertThat(g.root.getExtension(MyExtension::class.java)).isNull()
+        assertThat(g.coreGraph.hasExtension(MyExtension::class.java)).isFalse()
+        assertThat(g.coreGraph.getExtension(MyExtension::class.java)).isNull()
     }
 
     @Test
     fun `register and get string-keyed extension`() {
         val ext = MyExtensionImpl()
-        g.root.registerExtension("myKey", ext)
+        g.coreGraph.registerExtension("myKey", ext)
 
-        assertThat(g.root.hasExtension("myKey", MyExtension::class.java)).isTrue()
-        assertThat(g.root.getExtension("myKey", MyExtension::class.java)).isSameAs(ext)
+        assertThat(g.coreGraph.getExtension("myKey", MyExtension::class.java)).isSameAs(ext)
     }
 
     @Test
     fun `getExtension with wrong type throws`() {
-        g.root.registerExtension("myKey", "a string")
+        g.coreGraph.registerExtension("myKey", "a string")
 
         assertThatThrownBy {
-            g.root.getExtension("myKey", MyExtension::class.java)
+            g.coreGraph.getExtension("myKey", MyExtension::class.java)
         }.isInstanceOf(IllegalStateException::class.java)
     }
 
     @Test
-    fun `hasExtension with wrong type returns false`() {
-        g.root.registerExtension("myKey", "a string")
-        assertThat(g.root.hasExtension("myKey", MyExtension::class.java)).isFalse()
+    fun `getExtension with wrong type returns null for unregistered key`() {
+        assertThat(g.coreGraph.getExtension("myKey", MyExtension::class.java)).isNull()
     }
 
     @Test
     fun `registerExtension replaces existing`() {
         val ext1 = MyExtensionImpl()
         val ext2 = MyExtensionImpl()
-        g.root.registerExtension(MyExtension::class.java, ext1)
-        g.root.registerExtension(MyExtension::class.java, ext2)
+        g.coreGraph.registerExtension(MyExtension::class.java, ext1)
+        g.coreGraph.registerExtension(MyExtension::class.java, ext2)
 
-        assertThat(g.root.getExtension(MyExtension::class.java)).isSameAs(ext2)
+        assertThat(g.coreGraph.getExtension(MyExtension::class.java)).isSameAs(ext2)
     }
 }

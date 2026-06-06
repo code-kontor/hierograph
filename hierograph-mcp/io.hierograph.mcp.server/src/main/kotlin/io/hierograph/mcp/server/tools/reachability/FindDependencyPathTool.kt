@@ -15,8 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -65,9 +64,9 @@ class FindDependencyPathTool(
     ): Map<String, Any?> {
 
         // ── resolve nodes ──────────────────────────────────────────────
-        val fromNode = graphService.rootNode.lookupNode(fromId)
+        val fromNode = graphService.model.lookupNode(fromId)
             ?: return nodeNotFound(fromId)
-        val toNode = graphService.rootNode.lookupNode(toId)
+        val toNode = graphService.model.lookupNode(toId)
             ?: return nodeNotFound(toId)
 
         // ── validate node kinds ────────────────────────────────────────
@@ -92,7 +91,7 @@ class FindDependencyPathTool(
         // We use BFS layer by layer to find all shortest paths first,
         // then progressively longer paths up to max_paths.
         data class BfsState(
-            val node: HGNode,
+            val node: CoreNode,
             val path: List<PathStep>  // steps taken to reach this node
         )
 
@@ -102,7 +101,7 @@ class FindDependencyPathTool(
 
         // Seed with all source types
         for (srcId in fromTypeIds) {
-            val srcNode = graphService.rootNode.lookupNode(srcId) ?: continue
+            val srcNode = graphService.model.lookupNode(srcId) ?: continue
             queue.add(BfsState(srcNode, emptyList()))
             visited.add(srcId)
         }
@@ -156,9 +155,9 @@ class FindDependencyPathTool(
         // Register all nodes appearing in paths
         for (path in sortedPaths) {
             for (step in path) {
-                val stepFromNode = graphService.rootNode.lookupNode(step.from)
+                val stepFromNode = graphService.model.lookupNode(step.from)
                 if (stepFromNode != null) nodeRefFactory.putSlimNode(nodes, stepFromNode)
-                val stepToNode = graphService.rootNode.lookupNode(step.to)
+                val stepToNode = graphService.model.lookupNode(step.to)
                 if (stepToNode != null) nodeRefFactory.putSlimNode(nodes, stepToNode)
             }
         }
@@ -198,9 +197,11 @@ class FindDependencyPathTool(
 
     private data class PathStep(val from: Any, val to: Any, val weight: Int)
 
-    private fun collectTypeIds(node: HGNode): Set<Any> {
+    private fun collectTypeIds(node: CoreNode): Set<Any> {
+        val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
-        HGNodeTraverser.traverse(node) { n ->
+        if (node.kind in JavaKinds.TYPE_KINDS) ids.add(node.identifier)
+        hierarchy.traverse(node) { n ->
             if (n.kind in JavaKinds.TYPE_KINDS) {
                 ids.add(n.identifier)
             }
@@ -208,10 +209,10 @@ class FindDependencyPathTool(
         return ids
     }
 
-    private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
+    private fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
-            val declaringType = node.parent
+            val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_NODE_KIND",

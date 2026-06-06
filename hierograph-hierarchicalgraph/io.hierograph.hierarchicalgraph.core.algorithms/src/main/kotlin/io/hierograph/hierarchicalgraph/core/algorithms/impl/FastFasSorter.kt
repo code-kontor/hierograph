@@ -18,13 +18,14 @@ package io.hierograph.hierarchicalgraph.core.algorithms.impl
 import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.core.algorithms.INodeSorter
 import io.hierograph.hierarchicalgraph.core.algorithms.SortResult
-import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 class FastFasSorter : INodeSorter {
 
-    override fun sort(nodes: List<HGNode>): SortResult {
-        val adjacencyMatrix = GraphUtils.computeAdjacencyMatrix(nodes)
+    override fun sort(nodes: List<CoreNode>, hierarchy: Hierarchy): SortResult {
+        val adjacencyMatrix = GraphUtils.computeAdjacencyMatrix(nodes, hierarchy)
 
         val fastFAS = FastFAS(adjacencyMatrix)
         var ordered = fastFAS.getOrderedSequence()
@@ -51,12 +52,12 @@ class FastFasSorter : INodeSorter {
         val resultNodes = ordered.map { nodes[it] }
 
         val upwardDeps = fastFAS.getSkippedEdges().mapNotNull { edge ->
-            nodes[edge[0]].getOutgoingDependenciesTo(nodes[edge[1]])
+            hierarchy.getAggregatedDependency(nodes[edge[0]], nodes[edge[1]])
         }
 
         return object : SortResult {
-            override val orderedNodes: List<HGNode> = resultNodes
-            override val upwardDependencies: List<HGAggregatedDependency> = upwardDeps
+            override val orderedNodes: List<CoreNode> = resultNodes
+            override val upwardDependencies: List<AggregatedDependency> = upwardDeps
         }
     }
 }

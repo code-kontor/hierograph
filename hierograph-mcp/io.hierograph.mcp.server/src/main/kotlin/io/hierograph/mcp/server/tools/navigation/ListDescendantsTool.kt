@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.core.pagination.DataHashProvider
@@ -100,7 +100,7 @@ class ListDescendantsTool(
     ): Map<String, Any?> {
 
         // ── resolve the node ──────────────────────────────────────────
-        val rootNode = graphService.rootNode.lookupNode(nodeId)
+        val rootNode = graphService.model.lookupNode(nodeId)
             ?: return errorResponse(
                 "NODE_NOT_FOUND",
                 "No node with id $nodeId exists in the graph.",
@@ -138,12 +138,13 @@ class ListDescendantsTool(
         // Children at each level are visited in a stable, deterministic order — by qualified name,
         // with the node identifier as a tiebreaker — so the result sequence is reproducible and
         // pagination cursors remain valid across calls.
-        val allFiltered = mutableListOf<HGNode>()
+        val hierarchy = graphService.model.hierarchy
+        val allFiltered = mutableListOf<CoreNode>()
         val byKind = linkedMapOf<String, Int>()
         val parentCounts = linkedMapOf<Any, Int>()
 
-        fun traverse(node: HGNode) {
-            val orderedChildren = node.children.sortedWith(
+        fun traverse(node: CoreNode) {
+            val orderedChildren = hierarchy.childrenOf(node).sortedWith(
                 compareBy({ JQAssistantNodeMetadataProvider.getQualifiedName(it) }, { it.identifier.toString() })
             )
             for (child in orderedChildren) {
@@ -167,7 +168,7 @@ class ListDescendantsTool(
                 if (matches) {
                     val kindStr = child.kind?.toString() ?: "unknown"
                     byKind.merge(kindStr, 1) { a, b -> a + b }
-                    val parentId = child.parent?.identifier
+                    val parentId = hierarchy.parentOf(child)?.identifier
                     if (parentId != null) {
                         parentCounts.merge(parentId, 1) { a, b -> a + b }
                     }
@@ -185,7 +186,7 @@ class ListDescendantsTool(
             .sortedByDescending { it.value }
             .take(10)
             .map { (parentId, count) ->
-                val parentNode = graphService.rootNode.lookupNode(parentId)
+                val parentNode = graphService.model.lookupNode(parentId)
                 linkedMapOf<String, Any?>(
                     "parent" to if (parentNode != null) nodeRefFactory.minimalNodeRef(parentNode) else mapOf("id" to parentId),
                     "match_count" to count

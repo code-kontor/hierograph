@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
 import io.hierograph.hierarchicalgraph.core.model.IDependencySource
 import io.hierograph.boltclient.IBoltClient
 
@@ -24,7 +24,9 @@ class GraphDbDependencySource(
     val type: String
 ) : IDependencySource {
 
-    override var dependency: HGCoreDependency? = null
+    override var dependency: CoreDependency? = null
+
+    var boltClient: IBoltClient? = null
 
     var userObject: Any? = null
 
@@ -44,13 +46,8 @@ class GraphDbDependencySource(
     }
 
     private fun loadRelationshipData() {
-        val boltClient = getBoltClient()
-        val relationship = boltClient.getRelationship(identifier as Long)
+        val client = checkNotNull(boltClient) { "No bolt client set on GraphDbDependencySource for dependency $identifier." }
+        val relationship = client.getRelationship(identifier as Long)
         _properties = relationship.asMap().entries.associate { (k, v) -> k to v.toString() }
-    }
-
-    private fun getBoltClient(): IBoltClient {
-        val rootSource = dependency!!.from.rootNode.nodeSource as GraphDbRootNodeSource
-        return checkNotNull(rootSource.boltClient) { "No bolt client set." }
     }
 }

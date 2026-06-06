@@ -28,7 +28,7 @@ class TarjanTest {
 
     @Test
     fun `detectStronglyConnectedComponents returns all SCCs including singletons`() {
-        val sccs = GraphUtils.detectStronglyConnectedComponents(g.nodes)
+        val sccs = GraphUtils.detectStronglyConnectedComponents(g.nodes, g.hierarchy)
         // 8 nodes: 2 cycles + 4 singletons (n0, n4, n5, and one of the cycle groupings)
         // Actually: {n1,n2,n3}, {n6,n7}, {n0}, {n4}, {n5} = 5 SCCs
         assertThat(sccs).hasSize(5)
@@ -36,13 +36,13 @@ class TarjanTest {
 
     @Test
     fun `detectCycles returns only multi-node SCCs`() {
-        val cycles = GraphUtils.detectCycles(g.nodes)
+        val cycles = GraphUtils.detectCycles(g.nodes, g.hierarchy)
         assertThat(cycles).hasSize(2)
     }
 
     @Test
     fun `cycle 1 contains n1, n2, n3`() {
-        val cycles = GraphUtils.detectCycles(g.nodes)
+        val cycles = GraphUtils.detectCycles(g.nodes, g.hierarchy)
         val cycle1 = cycles.find { it.size == 3 }
         assertThat(cycle1).isNotNull
         assertThat(cycle1).containsExactlyInAnyOrder(g.n1, g.n2, g.n3)
@@ -50,7 +50,7 @@ class TarjanTest {
 
     @Test
     fun `cycle 2 contains n6, n7`() {
-        val cycles = GraphUtils.detectCycles(g.nodes)
+        val cycles = GraphUtils.detectCycles(g.nodes, g.hierarchy)
         val cycle2 = cycles.find { it.size == 2 }
         assertThat(cycle2).isNotNull
         assertThat(cycle2).containsExactlyInAnyOrder(g.n6, g.n7)
@@ -59,14 +59,14 @@ class TarjanTest {
     @Test
     fun `no cycles in acyclic subgraph`() {
         val acyclicNodes = listOf(g.n0, g.n4, g.n5)
-        val cycles = GraphUtils.detectCycles(acyclicNodes)
+        val cycles = GraphUtils.detectCycles(acyclicNodes, g.hierarchy)
         assertThat(cycles).isEmpty()
     }
 
     @Test
     fun `all SCCs for acyclic graph are singletons`() {
         val acyclicNodes = listOf(g.n0, g.n4, g.n5)
-        val sccs = GraphUtils.detectStronglyConnectedComponents(acyclicNodes)
+        val sccs = GraphUtils.detectStronglyConnectedComponents(acyclicNodes, g.hierarchy)
         assertThat(sccs).hasSize(3)
         assertThat(sccs).allMatch { it.size == 1 }
     }

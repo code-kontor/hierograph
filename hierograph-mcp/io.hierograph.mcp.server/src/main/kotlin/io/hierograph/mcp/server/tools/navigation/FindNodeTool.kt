@@ -86,7 +86,7 @@ class FindNodeTool(
 
         // ── stage 2: filter to mapped nodes and enrich ─────────────────
         val results = candidates.mapNotNull { candidate ->
-            val hgNode = graphService.rootNode.lookupNode(candidate.nodeId) ?: return@mapNotNull null
+            val hgNode = graphService.model.lookupNode(candidate.nodeId) ?: return@mapNotNull null
             nodeRefFactory.enrichedNodeRef(hgNode)
         }
 
