@@ -15,10 +15,12 @@
  */
 package io.hierograph.mcp.javaspec
 
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
+import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -41,7 +43,7 @@ class DescendantsTest {
         val m = g.add(a, JavaKinds.METHOD)
         val i = g.add(pkg, JavaKinds.INTERFACE)
 
-        assertThat(module.descendants())
+        assertThat(module.descendants(g.hierarchy))
             .containsExactly(pkg, a, f, m, i)
     }
 
@@ -51,8 +53,8 @@ class DescendantsTest {
         val a = g.add(g.root, JavaKinds.CLASS)
         val b = g.add(a, JavaKinds.METHOD)
 
-        assertThat(a.descendants()).containsExactly(b)
-        assertThat(a.descendants()).doesNotContain(a)
+        assertThat(a.descendants(g.hierarchy)).containsExactly(b)
+        assertThat(a.descendants(g.hierarchy)).doesNotContain(a)
     }
 
     @Test
@@ -73,10 +75,10 @@ class DescendantsTest {
 
         // Filter on METHOD — `m` lives under (Class A) → (Class inner). If the
         // traversal pruned non-matching ancestors, we'd miss `m`.
-        assertThat(pkg.descendants(JavaKinds.METHOD)).containsExactly(m)
+        assertThat(pkg.descendants(g.hierarchy, JavaKinds.METHOD)).containsExactly(m)
 
         // Filter on multiple kinds.
-        assertThat(pkg.descendants(JavaKinds.CLASS, JavaKinds.ENUM))
+        assertThat(pkg.descendants(g.hierarchy, JavaKinds.CLASS, JavaKinds.ENUM))
             .containsExactly(a, inner, enumTy)
     }
 
@@ -86,7 +88,7 @@ class DescendantsTest {
         val pkg = g.add(g.root, JavaKinds.PACKAGE)
         val a = g.add(pkg, JavaKinds.CLASS)
 
-        assertThat(pkg.descendants()).containsExactly(a)
+        assertThat(pkg.descendants(g.hierarchy)).containsExactly(a)
     }
 
     @Test
@@ -94,7 +96,7 @@ class DescendantsTest {
         val g = Tree()
         val a = g.add(g.root, JavaKinds.METHOD)
 
-        assertThat(a.descendants()).isEmpty()
+        assertThat(a.descendants(g.hierarchy)).isEmpty()
     }
 
     @Test
@@ -105,8 +107,8 @@ class DescendantsTest {
         val noKind = g.add(pkg, kind = null)
         val a = g.add(pkg, JavaKinds.CLASS)
 
-        assertThat(pkg.descendants(JavaKinds.CLASS)).containsExactly(a)
-        assertThat(pkg.descendants()).containsExactlyInAnyOrder(noKind, a)
+        assertThat(pkg.descendants(g.hierarchy, JavaKinds.CLASS)).containsExactly(a)
+        assertThat(pkg.descendants(g.hierarchy)).containsExactlyInAnyOrder(noKind, a)
     }
 
     // ── collection variant ─────────────────────────────────────────────
@@ -120,8 +122,8 @@ class DescendantsTest {
         val pkgB = g.add(g.root, JavaKinds.PACKAGE)
         val b = g.add(pkgB, JavaKinds.CLASS)
 
-        assertThat(listOf(pkgA, pkgB).descendants()).containsExactly(a, b)
-        assertThat(listOf(pkgB, pkgA).descendants()).containsExactly(b, a)
+        assertThat(listOf(pkgA, pkgB).descendants(g.hierarchy)).containsExactly(a, b)
+        assertThat(listOf(pkgB, pkgA).descendants(g.hierarchy)).containsExactly(b, a)
     }
 
     @Test
@@ -132,7 +134,7 @@ class DescendantsTest {
         val pkg = g.add(g.root, JavaKinds.PACKAGE)
         val a = g.add(pkg, JavaKinds.CLASS)
 
-        assertThat(listOf(g.root, pkg).descendants(JavaKinds.CLASS))
+        assertThat(listOf(g.root, pkg).descendants(g.hierarchy, JavaKinds.CLASS))
             .containsExactly(a)
     }
 
@@ -145,31 +147,36 @@ class DescendantsTest {
         val pkg2 = g.add(g.root, JavaKinds.PACKAGE)
         val b = g.add(pkg2, JavaKinds.CLASS)
 
-        assertThat(listOf(pkg, pkg2).descendants(JavaKinds.CLASS))
+        assertThat(listOf(pkg, pkg2).descendants(g.hierarchy, JavaKinds.CLASS))
             .containsExactly(a, b)
-        assertThat(listOf(pkg, pkg2).descendants(JavaKinds.METHOD))
+        assertThat(listOf(pkg, pkg2).descendants(g.hierarchy, JavaKinds.METHOD))
             .containsExactly(m)
     }
 
     @Test
     fun `collection variant on empty collection returns empty`() {
-        assertThat(emptyList<HGNode>().descendants()).isEmpty()
-        assertThat(emptyList<HGNode>().descendants(JavaKinds.CLASS)).isEmpty()
+        val g = Tree()
+        assertThat(emptyList<CoreNode>().descendants(g.hierarchy)).isEmpty()
+        assertThat(emptyList<CoreNode>().descendants(g.hierarchy, JavaKinds.CLASS)).isEmpty()
     }
 
     // ── test fixture ───────────────────────────────────────────────────
 
     private class Tree {
-        val root: HGRootNode
+        val root: CoreNode
+        val hierarchy: Hierarchy
+        private val graph: CoreGraphImpl = CoreGraphFactory.createCoreGraph()
         private var nextId = 1L
         private val nodeSource = { DefaultNodeSource(identifier = nextId++) }
 
         init {
-            root = HierarchicalGraphFactory.createRootNode(nodeSource)
+            root = CoreGraphFactory.createNode(graph, nodeSource)
+            hierarchy = HierarchyFactory.createHierarchy(graph, root)
         }
 
-        fun add(parent: HGNode, kind: JavaNodeKind?): HGNode {
-            val node = HierarchicalGraphFactory.createNode(root, parent, nodeSource)
+        fun add(parent: CoreNode, kind: JavaNodeKind?): CoreNode {
+            val node = CoreGraphFactory.createNode(graph, nodeSource)
+            HierarchyFactory.addChild(hierarchy, parent, node)
             node.kind = kind
             return node
         }

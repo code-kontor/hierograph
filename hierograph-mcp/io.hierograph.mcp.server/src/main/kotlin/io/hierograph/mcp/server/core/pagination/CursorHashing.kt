@@ -17,8 +17,7 @@ package io.hierograph.mcp.server.core.pagination
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.HGModel
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -79,13 +78,14 @@ object QueryHash {
  */
 object DataHash {
 
-    /** Computes the data-snapshot fingerprint for the graph rooted at [root]. */
-    fun fingerprint(root: HGRootNode): String {
+    /** Computes the data-snapshot fingerprint for the loaded [model]. */
+    fun fingerprint(model: HGModel): String {
+        val hierarchy = model.hierarchy
         var nodeCount = 0L
         var edgeCount = 0L
         var identityAccumulator = 0L
 
-        HGNodeTraverser.traverse(root) { node ->
+        hierarchy.traverse(hierarchy.rootNode) { node ->
             nodeCount++
             edgeCount += node.outgoingCoreDependencies.size
             val idHash = node.identifier.toString().hashCode().toLong()

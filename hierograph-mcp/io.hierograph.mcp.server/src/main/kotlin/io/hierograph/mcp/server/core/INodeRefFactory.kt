@@ -15,10 +15,10 @@
  */
 package io.hierograph.mcp.server.core
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 
 /**
- * Defines the API for converting [io.hierograph.hierarchicalgraph.core.model.HGNode] instances into the map-based
+ * Defines the API for converting [io.hierograph.hierarchicalgraph.core.model.CoreNode] instances into the map-based
  * representations used in MCP tool responses.
  *
  * Three flavours of node representation:
@@ -33,13 +33,13 @@ interface INodeRefFactory {
     /**
      * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`.
      */
-    fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?>
+    fun minimalNodeRef(node: CoreNode): LinkedHashMap<String, Any?>
 
     /**
      * Identity plus kind-appropriate metadata (counts, modifiers, flags).
      * The metadata varies by node kind (module, package, type, method, field).
      */
-    fun enrichedNodeRef(node: HGNode): LinkedHashMap<String, Any?>
+    fun enrichedNodeRef(node: CoreNode): LinkedHashMap<String, Any?>
 
     /**
      * NodeRef for a Java primitive type (`void`, `int`, `boolean`, etc.).
@@ -56,19 +56,19 @@ interface INodeRefFactory {
     fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?)
 
     /**
-     * Convenience overload that extracts display fields from an [HGNode].
+     * Convenience overload that extracts display fields from an [CoreNode].
      */
-    fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode)
+    fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode)
 
     // ── utility ────────────────────────────────────────────────────────
 
     /**
      * Counts all descendants of [node] whose kind is in [kinds].
      */
-    fun countDescendantsByKind(node: HGNode, kinds: Set<*>): Int
+    fun countDescendantsByKind(node: CoreNode, kinds: Set<*>): Int
 
     /**
      * Counts all descendants of [node] (regardless of kind).
      */
-    fun countDescendants(node: HGNode): Long
+    fun countDescendants(node: CoreNode): Long
 }

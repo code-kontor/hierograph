@@ -15,9 +15,11 @@
  */
 package io.hierograph.mcp.server.core.pagination
 
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -30,24 +32,27 @@ class DataHashTest {
      * The recipe is a list of parent ordinals: entry i creates a node whose parent is the node with
      * ordinal `recipe[i]` (or the root when the ordinal is negative). Each node is given a stable kind.
      */
-    private fun buildGraph(recipe: List<Int>): HGRootNode {
+    private fun buildGraph(recipe: List<Int>): HGModel {
         var nextId = 1L
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
-        val root = HierarchicalGraphFactory.createRootNode(nodeSource)
-        val nodes = ArrayList<io.hierograph.hierarchicalgraph.core.model.HGNode>()
+        val graph = CoreGraphFactory.createCoreGraph()
+        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val hierarchy = HierarchyFactory.createHierarchy(graph, root)
+        val nodes = ArrayList<CoreNode>()
         recipe.forEachIndexed { i, parentOrdinal ->
             val parent = if (parentOrdinal < 0) root else nodes[parentOrdinal]
-            val node = HierarchicalGraphFactory.createNode(root, parent, nodeSource)
+            val node = CoreGraphFactory.createNode(graph, nodeSource)
             node.kind = "kind$i"
+            HierarchyFactory.addChild(hierarchy, parent, node)
             nodes.add(node)
         }
-        return root
+        return HGModel(graph, hierarchy)
     }
 
     @Test
     fun `the fingerprint is deterministic for the same graph`() {
-        val root = buildGraph(listOf(-1, 0, 0, -1))
-        assertThat(DataHash.fingerprint(root)).isEqualTo(DataHash.fingerprint(root))
+        val model = buildGraph(listOf(-1, 0, 0, -1))
+        assertThat(DataHash.fingerprint(model)).isEqualTo(DataHash.fingerprint(model))
     }
 
     @Test
@@ -67,15 +72,15 @@ class DataHashTest {
 
     @Test
     fun `changing a node kind changes the fingerprint`() {
-        val root = buildGraph(listOf(-1, 0))
-        val baseline = DataHash.fingerprint(root)
-        root.children.first().kind = "mutated"
-        assertThat(DataHash.fingerprint(root)).isNotEqualTo(baseline)
+        val model = buildGraph(listOf(-1, 0))
+        val baseline = DataHash.fingerprint(model)
+        model.hierarchy.childrenOf(model.hierarchy.rootNode).first().kind = "mutated"
+        assertThat(DataHash.fingerprint(model)).isNotEqualTo(baseline)
     }
 
     @Test
     fun `the fingerprint is a 16-character url-safe string`() {
-        val root = buildGraph(listOf(-1, 0))
-        assertThat(DataHash.fingerprint(root)).hasSize(16).matches("[A-Za-z0-9_-]+")
+        val model = buildGraph(listOf(-1, 0))
+        assertThat(DataHash.fingerprint(model)).hasSize(16).matches("[A-Za-z0-9_-]+")
     }
 }

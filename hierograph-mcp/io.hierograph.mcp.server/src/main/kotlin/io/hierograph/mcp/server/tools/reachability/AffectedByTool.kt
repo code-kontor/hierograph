@@ -15,8 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.core.pagination.DataHashProvider
@@ -49,7 +48,7 @@ class AffectedByTool(
     private data class PathStep(val from: Any, val to: Any, val weight: Int)
 
     private data class AffectedEntry(
-        val node: HGNode,
+        val node: CoreNode,
         val distance: Int,
         var sourceCount: Int,
         val via: List<PathStep>
@@ -116,7 +115,7 @@ class AffectedByTool(
         }
 
         // ── resolve node ───────────────────────────────────────────────
-        val node = graphService.rootNode.lookupNode(nodeId)
+        val node = graphService.model.lookupNode(nodeId)
             ?: return mapOf(
                 "error" to mapOf(
                     "code" to "NODE_NOT_FOUND",
@@ -126,9 +125,10 @@ class AffectedByTool(
             )
 
         // ── validate node kind (reject methods and fields) ─────────────
+        val hierarchy = graphService.model.hierarchy
         val nodeKind = node.kind
         if (nodeKind == JavaKinds.METHOD || nodeKind == JavaKinds.FIELD) {
-            val declaringType = node.parent
+            val declaringType = hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_NODE_KIND",
@@ -172,7 +172,10 @@ class AffectedByTool(
 
         // ── collect source subtree type IDs ────────────────────────────
         val sourceTypeIds = mutableSetOf<Any>()
-        HGNodeTraverser.traverse(node) { n ->
+        if (node.kind in JavaKinds.TYPE_KINDS) {
+            sourceTypeIds.add(node.identifier)
+        }
+        hierarchy.traverse(node) { n ->
             if (n.kind in JavaKinds.TYPE_KINDS) {
                 sourceTypeIds.add(n.identifier)
             }
@@ -181,11 +184,11 @@ class AffectedByTool(
         // ── BFS over type-level dependency graph ───────────────────────
         // BFS state
         val visited = mutableMapOf<Any, AffectedEntry>() // node identifier → entry
-        val queue: Queue<Pair<HGNode, List<PathStep>>> = ArrayDeque()
+        val queue: Queue<Pair<CoreNode, List<PathStep>>> = ArrayDeque()
 
         // Seed: direct neighbors of source types
         for (sourceId in sourceTypeIds) {
-            val sourceNode = graphService.rootNode.lookupNode(sourceId) ?: continue
+            val sourceNode = graphService.model.lookupNode(sourceId) ?: continue
             val deps = if (effectiveDirection == "incoming")
                 sourceNode.incomingCoreDependencies
             else
@@ -265,11 +268,11 @@ class AffectedByTool(
         for (entry in allResults) {
             byDistance.merge(entry.distance, 1) { a, b -> a + b }
             // Walk up to find the top-level module
-            var ancestor: HGNode = entry.node
-            while (ancestor.parent != null && ancestor.parent !== graphService.rootNode) {
-                ancestor = ancestor.parent!!
+            var ancestor: CoreNode = entry.node
+            while (hierarchy.parentOf(ancestor) != null && hierarchy.parentOf(ancestor) !== hierarchy.rootNode) {
+                ancestor = hierarchy.parentOf(ancestor)!!
             }
-            if (ancestor.parent == graphService.rootNode) {
+            if (hierarchy.parentOf(ancestor) == hierarchy.rootNode) {
                 moduleCountMap.merge(ancestor.identifier, 1) { a, b -> a + b }
             }
         }
@@ -278,7 +281,7 @@ class AffectedByTool(
             .sortedByDescending { it.value }
             .take(10)
             .map { (moduleId, count) ->
-                val moduleNode = graphService.rootNode.lookupNode(moduleId)
+                val moduleNode = graphService.model.lookupNode(moduleId)
                 linkedMapOf<String, Any?>(
                     "id" to moduleId,
                     "name" to (moduleNode?.let { nodeRefFactory.minimalNodeRef(it)["name"] } ?: "unknown"),

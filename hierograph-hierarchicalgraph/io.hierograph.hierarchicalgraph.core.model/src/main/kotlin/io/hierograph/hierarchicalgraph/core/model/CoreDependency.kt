@@ -15,9 +15,12 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
-class DefaultNodeSource(
-    override val identifier: Any,
-    val properties: MutableMap<String, String> = mutableMapOf()
-) : INodeSource {
-    override var node: CoreNode? = null
+interface CoreDependency {
+    val from: CoreNode
+    val to: CoreNode
+    val type: String
+    var weight: Int
+    var attributesBitmap: Int
+    val dependencySource: IDependencySource
+    fun <T : Any> getDependencySource(clazz: Class<T>): T?
 }

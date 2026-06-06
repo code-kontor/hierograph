@@ -15,25 +15,28 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 /**
- * Projects an [HGRootNode] to a [GraphSnapshot] by one pre-order walk of the
- * tree and one identity-dedup pass over the dependencies reachable through
- * `outgoingCoreDependencies` on every visited node.
+ * Projects an [HGModel] to a [GraphSnapshot] by one pre-order walk of the
+ * hierarchy tree and one identity-dedup pass over the dependencies reachable
+ * through `outgoingCoreDependencies` on every visited node.
  *
  * Derived caches (`accumulatedOutgoing/Incoming`, `predecessors`,
- * `getOutgoingDependenciesTo(...)` etc.) are never accessed.
+ * `getAggregatedDependency(...)` etc.) are never accessed.
  */
 class GraphWriter(private val codecs: CodecRegistry) {
 
-    fun write(root: HGRootNode): GraphSnapshot {
+    fun write(model: HGModel): GraphSnapshot {
+        val hierarchy = model.hierarchy
+        val root = hierarchy.rootNode
         val nodes = mutableListOf<NodeRecord>()
-        val seenDeps = LinkedHashSet<HGCoreDependency>()
+        val seenDeps = LinkedHashSet<CoreDependency>()
 
-        traverse(root, parent = null) { node, parent ->
+        traverse(hierarchy, root, parent = null) { node, parent ->
             seenDeps.addAll(node.outgoingCoreDependencies)
             if (node !== root) nodes += toRecord(node, parent)
         }
@@ -45,14 +48,14 @@ class GraphWriter(private val codecs: CodecRegistry) {
         )
     }
 
-    private fun traverse(node: HGNode, parent: HGNode?, visit: (HGNode, HGNode?) -> Unit) {
+    private fun traverse(hierarchy: Hierarchy, node: CoreNode, parent: CoreNode?, visit: (CoreNode, CoreNode?) -> Unit) {
         visit(node, parent)
-        for (child in node.children) {
-            traverse(child, node, visit)
+        for (child in hierarchy.childrenOf(node)) {
+            traverse(hierarchy, child, node, visit)
         }
     }
 
-    private fun toRecord(node: HGNode, parent: HGNode?): NodeRecord {
+    private fun toRecord(node: CoreNode, parent: CoreNode?): NodeRecord {
         val codec = codecs.nodeCodecFor(node.nodeSource)
         return NodeRecord(
             id = node.identifier.toString(),
@@ -62,7 +65,7 @@ class GraphWriter(private val codecs: CodecRegistry) {
         )
     }
 
-    private fun toRecord(dep: HGCoreDependency): DepRecord {
+    private fun toRecord(dep: CoreDependency): DepRecord {
         val codec = codecs.depCodecFor(dep.dependencySource)
         return DepRecord(
             id = dep.dependencySource.identifier.toString(),

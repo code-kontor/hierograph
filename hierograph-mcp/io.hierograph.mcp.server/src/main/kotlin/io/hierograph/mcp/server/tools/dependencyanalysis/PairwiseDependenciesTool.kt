@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -95,16 +95,17 @@ class PairwiseDependenciesTool(
         }
 
         // ── resolve and validate nodes ─────────────────────────────────
-        val resolvedNodes = mutableListOf<HGNode>()
+        val hierarchy = graphService.model.hierarchy
+        val resolvedNodes = mutableListOf<CoreNode>()
         for (id in nodeIds) {
-            val node = graphService.rootNode.lookupNode(id)
+            val node = graphService.model.lookupNode(id)
                 ?: return nodeNotFound(id)
             validateNodeKind(node)?.let { return it }
             resolvedNodes.add(node)
         }
 
         // ── build DSM using the algorithms library ─────────────────────
-        val dsm = GraphUtils.createDependencyStructureMatrix(resolvedNodes)
+        val dsm = GraphUtils.createDependencyStructureMatrix(resolvedNodes, hierarchy)
         val orderedNodes = dsm.orderedNodes
         val size = orderedNodes.size
 
@@ -137,7 +138,7 @@ class PairwiseDependenciesTool(
 
                 if (!include && effectiveDirection != "incoming") continue
 
-                val aggDep = from.getOutgoingDependenciesTo(to)
+                val aggDep = hierarchy.getAggregatedDependency(from, to)
                 if (aggDep == null || aggDep.aggregatedWeight <= 0) continue
 
                 val coreDeps = aggDep.coreDependencies
@@ -196,10 +197,10 @@ class PairwiseDependenciesTool(
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
+    private fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
-            val declaringType = node.parent
+            val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_NODE_KIND",

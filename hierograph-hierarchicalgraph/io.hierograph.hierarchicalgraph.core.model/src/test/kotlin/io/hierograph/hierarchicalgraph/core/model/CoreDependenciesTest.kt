@@ -72,7 +72,7 @@ class CoreDependenciesTest {
     }
 
     @Test
-    fun `dependency rootNode`() {
-        assertThat(g.dep_a1_b1_uses.rootNode).isSameAs(g.root)
+    fun `dependency coreGraph`() {
+        assertThat(g.coreGraph.nodes).contains(g.dep_a1_b1_uses.from)
     }
 }

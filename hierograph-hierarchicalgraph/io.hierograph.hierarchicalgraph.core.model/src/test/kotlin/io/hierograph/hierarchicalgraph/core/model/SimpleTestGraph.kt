@@ -15,41 +15,56 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
+import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
+
 class SimpleTestGraph {
 
-    val root: HGRootNode
-    val a1: HGNode
-    val a2: HGNode
-    val a3: HGNode
-    val b1: HGNode
-    val b2: HGNode
-    val b3: HGNode
+    val coreGraph: CoreGraph
+    val hierarchy: Hierarchy
+    val model: HGModel
 
-    val dep_a1_b1_uses: HGCoreDependency
-    val dep_a1_b1_depends_on: HGCoreDependency
-    val dep_a2_b2_uses: HGCoreDependency
-    val dep_a3_b3_depends_on: HGCoreDependency
+    val root: CoreNode
+    val a1: CoreNode
+    val a2: CoreNode
+    val a3: CoreNode
+    val b1: CoreNode
+    val b2: CoreNode
+    val b3: CoreNode
+
+    val dep_a1_b1_uses: CoreDependency
+    val dep_a1_b1_depends_on: CoreDependency
+    val dep_a2_b2_uses: CoreDependency
+    val dep_a3_b3_depends_on: CoreDependency
 
     private var nextId = 1L
 
     init {
-        val nodeSource = { DefaultNodeSource(identifier = nextId++) }
-        val depSource = { DefaultDependencySource(identifier = nextId++) }
+        val graph = CoreGraphFactory.createCoreGraph()
+        coreGraph = graph
 
-        root = HierarchicalGraphFactory.createRootNode(nodeSource)
+        root = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
+        a1 = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
+        b1 = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
+        a2 = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
+        b2 = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
+        a3 = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
+        b3 = CoreGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
 
-        a1 = HierarchicalGraphFactory.createNode(root, root, nodeSource)
-        b1 = HierarchicalGraphFactory.createNode(root, root, nodeSource)
+        val h = HierarchyFactory.createHierarchy(graph, root)
+        hierarchy = h
 
-        a2 = HierarchicalGraphFactory.createNode(root, a1, nodeSource)
-        b2 = HierarchicalGraphFactory.createNode(root, b1, nodeSource)
+        HierarchyFactory.addChild(h, root, a1)
+        HierarchyFactory.addChild(h, root, b1)
+        HierarchyFactory.addChild(h, a1, a2)
+        HierarchyFactory.addChild(h, b1, b2)
+        HierarchyFactory.addChild(h, a2, a3)
+        HierarchyFactory.addChild(h, b2, b3)
 
-        a3 = HierarchicalGraphFactory.createNode(root, a2, nodeSource)
-        b3 = HierarchicalGraphFactory.createNode(root, b2, nodeSource)
+        dep_a1_b1_uses = CoreGraphFactory.createCoreDependency(a1, b1, "USES") { DefaultDependencySource(identifier = nextId++) }
+        dep_a1_b1_depends_on = CoreGraphFactory.createCoreDependency(a1, b1, "DEPENDS_ON") { DefaultDependencySource(identifier = nextId++) }
+        dep_a2_b2_uses = CoreGraphFactory.createCoreDependency(a2, b2, "USES") { DefaultDependencySource(identifier = nextId++) }
+        dep_a3_b3_depends_on = CoreGraphFactory.createCoreDependency(a3, b3, "DEPENDS_ON") { DefaultDependencySource(identifier = nextId++) }
 
-        dep_a1_b1_uses = HierarchicalGraphFactory.createCoreDependency(a1, b1, "USES", depSource)
-        dep_a1_b1_depends_on = HierarchicalGraphFactory.createCoreDependency(a1, b1, "DEPENDS_ON", depSource)
-        dep_a2_b2_uses = HierarchicalGraphFactory.createCoreDependency(a2, b2, "USES", depSource)
-        dep_a3_b3_depends_on = HierarchicalGraphFactory.createCoreDependency(a3, b3, "DEPENDS_ON", depSource)
+        model = HGModel(coreGraph, hierarchy)
     }
 }

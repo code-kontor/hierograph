@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -83,7 +83,7 @@ class ListChildrenTool(
     ): Map<String, Any?> {
 
         // ── resolve the node ──────────────────────────────────────────
-        val node = graphService.rootNode.lookupNode(nodeId)
+        val node = graphService.model.lookupNode(nodeId)
             ?: return errorResponse(
                 "NODE_NOT_FOUND",
                 "No node with id $nodeId exists in the graph.",
@@ -108,10 +108,11 @@ class ListChildrenTool(
         val nameLower = namePattern?.lowercase()
 
         // ── filter children ───────────────────────────────────────────
-        val allFiltered = mutableListOf<HGNode>()
+        val hierarchy = graphService.model.hierarchy
+        val allFiltered = mutableListOf<CoreNode>()
         val byKind = linkedMapOf<String, Int>()
 
-        for (child in node.children) {
+        for (child in hierarchy.childrenOf(node)) {
             // 1. kind filter
             if (expandedKinds != null && child.kind !in expandedKinds) continue
 

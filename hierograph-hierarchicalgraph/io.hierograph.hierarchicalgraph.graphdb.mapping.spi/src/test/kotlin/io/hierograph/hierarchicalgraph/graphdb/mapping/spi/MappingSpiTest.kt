@@ -15,7 +15,6 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.mapping.spi
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

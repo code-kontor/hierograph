@@ -15,10 +15,12 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -33,21 +35,21 @@ import org.junit.jupiter.api.Test
  * Covers the optional `to_id` behavior on [OutgoingDependenciesTool] and
  * [IncomingDependenciesTool]:
  *
- * - type level, `to_id` provided  → edges constrained to the to_id subtree
- * - type level, `to_id` omitted    → ALL outgoing / incoming core dependencies
- * - detail level, `to_id` omitted   → INVALID_PARAMETER (open form is type-level only)
- * - detail level, `to_id` provided  → delegates to IDetailDependencies
+ * - type level, `to_id` provided  -> edges constrained to the to_id subtree
+ * - type level, `to_id` omitted    -> ALL outgoing / incoming core dependencies
+ * - detail level, `to_id` omitted   -> INVALID_PARAMETER (open form is type-level only)
+ * - detail level, `to_id` provided  -> delegates to IDetailDependencies
  *
  * The fixture builds a tiny in-memory graph:
  *
  *   root
- *    ├ pkgA            (package)
- *    │   ├ A1          (class)   →  B1, X
- *    │   │   └ m       (method)            (for INVALID_NODE_KIND)
- *    │   └ A2          (class)   →  B1
- *    ├ pkgB            (package)
- *    │   └ B1          (class)
- *    └ X               (class)            ("external" target outside pkgA/pkgB)
+ *    +- pkgA            (package)
+ *    |   +- A1          (class)   ->  B1, X
+ *    |   |   +- m       (method)            (for INVALID_NODE_KIND)
+ *    |   +- A2          (class)   ->  B1
+ *    +- pkgB            (package)
+ *    |   +- B1          (class)
+ *    +- X               (class)            ("external" target outside pkgA/pkgB)
  */
 class DependencyToolsOptionalToIdTest {
 
@@ -69,19 +71,28 @@ class DependencyToolsOptionalToIdTest {
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
         val depSource = { DefaultDependencySource(identifier = nextId++) }
 
-        val root = HierarchicalGraphFactory.createRootNode(nodeSource)
+        val graph = CoreGraphFactory.createCoreGraph()
+        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val hierarchy = HierarchyFactory.createHierarchy(graph, root)
 
-        val pkgA = HierarchicalGraphFactory.createNode(root, root, nodeSource).withKind(JavaNodeKind.PACKAGE)
-        val pkgB = HierarchicalGraphFactory.createNode(root, root, nodeSource).withKind(JavaNodeKind.PACKAGE)
-        val a1 = HierarchicalGraphFactory.createNode(root, pkgA, nodeSource).withKind(JavaNodeKind.CLASS)
-        val a2 = HierarchicalGraphFactory.createNode(root, pkgA, nodeSource).withKind(JavaNodeKind.CLASS)
-        val b1 = HierarchicalGraphFactory.createNode(root, pkgB, nodeSource).withKind(JavaNodeKind.CLASS)
-        val x = HierarchicalGraphFactory.createNode(root, root, nodeSource).withKind(JavaNodeKind.CLASS)
-        val m = HierarchicalGraphFactory.createNode(root, a1, nodeSource).withKind(JavaNodeKind.METHOD)
+        val pkgA = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        HierarchyFactory.addChild(hierarchy, root, pkgA)
+        val pkgB = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        HierarchyFactory.addChild(hierarchy, root, pkgB)
+        val a1 = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        HierarchyFactory.addChild(hierarchy, pkgA, a1)
+        val a2 = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        HierarchyFactory.addChild(hierarchy, pkgA, a2)
+        val b1 = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        HierarchyFactory.addChild(hierarchy, pkgB, b1)
+        val x = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        HierarchyFactory.addChild(hierarchy, root, x)
+        val m = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.METHOD }
+        HierarchyFactory.addChild(hierarchy, a1, m)
 
-        HierarchicalGraphFactory.createCoreDependency(a1, b1, "USES", depSource)
-        HierarchicalGraphFactory.createCoreDependency(a1, x, "USES", depSource)
-        HierarchicalGraphFactory.createCoreDependency(a2, b1, "USES", depSource)
+        CoreGraphFactory.createCoreDependency(a1, b1, "USES", depSource)
+        CoreGraphFactory.createCoreDependency(a1, x, "USES", depSource)
+        CoreGraphFactory.createCoreDependency(a2, b1, "USES", depSource)
 
         pkgAId = pkgA.identifier as Long
         pkgBId = pkgB.identifier as Long
@@ -91,14 +102,15 @@ class DependencyToolsOptionalToIdTest {
         xId = x.identifier as Long
         mId = m.identifier as Long
 
-        val graphService = HierarchicalGraphService().also { it.rootNode = root }
+        val model = HGModel(graph, hierarchy)
+        val graphService = HierarchicalGraphService().also { it.model = model }
         val dataHashProvider = DataHashProvider(graphService).also { it.init() }
         detail = FakeDetail()
         outgoing = OutgoingDependenciesTool(graphService, FakeNodeRefFactory(), detail, dataHashProvider)
         incoming = IncomingDependenciesTool(outgoing, detail)
     }
 
-    // ── outgoing, type level ────────────────────────────────────────────
+    // -- outgoing, type level ------------------------------------------------
 
     @Test
     fun `outgoing with to_id constrains to the target subtree`() {
@@ -115,7 +127,7 @@ class DependencyToolsOptionalToIdTest {
         assertThat(summary(result)["total"]).isEqualTo(3)
     }
 
-    // ── incoming, type level ────────────────────────────────────────────
+    // -- incoming, type level ------------------------------------------------
 
     @Test
     fun `incoming with to_id constrains to the depender subtree`() {
@@ -135,7 +147,7 @@ class DependencyToolsOptionalToIdTest {
         assertThat(pairs(result)).containsExactly(a1Id to xId)
     }
 
-    // ── by_target weighted rollup (open form only) ──────────────────────
+    // -- by_target weighted rollup (open form only) --------------------------
 
     @Test
     fun `open outgoing form adds a by_target weighted ranking`() {
@@ -162,13 +174,13 @@ class DependencyToolsOptionalToIdTest {
     fun `constrained form also emits by_target, scoped to the target subtree`() {
         val result = outgoing.outgoingDependencies(pkgAId, pkgBId, null, null, null, null)
         val byTarget = byTarget(result)
-        // Only B1 is in the target subtree; A1→B1 and A2→B1 each weigh 1 → B1 = 2.
+        // Only B1 is in the target subtree; A1->B1 and A2->B1 each weigh 1 -> B1 = 2.
         assertThat(byTarget).hasSize(1)
         assertThat(byTarget.first()["id"]).isEqualTo(b1Id)
         assertThat(byTarget.first()["weight"]).isEqualTo(2)
     }
 
-    // ── detail level requires to_id ─────────────────────────────────────
+    // -- detail level requires to_id -----------------------------------------
 
     @Test
     fun `outgoing detail without to_id is rejected`() {
@@ -198,7 +210,7 @@ class DependencyToolsOptionalToIdTest {
         assertThat(detail.lastTo).isEqualTo(b1Id)
     }
 
-    // ── validation ──────────────────────────────────────────────────────
+    // -- validation ----------------------------------------------------------
 
     @Test
     fun `member id is rejected with INVALID_NODE_KIND`() {
@@ -218,12 +230,7 @@ class DependencyToolsOptionalToIdTest {
         assertThat(errorCode(result)).isEqualTo("NODE_NOT_FOUND")
     }
 
-    // ── helpers ─────────────────────────────────────────────────────────
-
-    private fun HGNode.withKind(kind: JavaNodeKind): HGNode {
-        this.kind = kind
-        return this
-    }
+    // -- helpers -------------------------------------------------------------
 
     @Suppress("UNCHECKED_CAST")
     private fun edges(result: Map<String, Any?>): List<Map<String, Any?>> =
@@ -244,7 +251,7 @@ class DependencyToolsOptionalToIdTest {
     private fun errorCode(result: Map<String, Any?>): Any? =
         (result["error"] as? Map<String, Any?>)?.get("code")
 
-    // ── test doubles ────────────────────────────────────────────────────
+    // -- test doubles --------------------------------------------------------
 
     private class FakeDetail : IDetailDependencies {
         var lastFrom: Long? = null
@@ -268,8 +275,8 @@ class DependencyToolsOptionalToIdTest {
     }
 
     private class FakeNodeRefFactory : INodeRefFactory {
-        override fun minimalNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
-        override fun enrichedNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun minimalNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun enrichedNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
         override fun primitiveRef(name: String) = linkedMapOf<String, Any?>("name" to name)
         override fun putSlimNode(
             nodes: MutableMap<String, Any>,
@@ -278,11 +285,11 @@ class DependencyToolsOptionalToIdTest {
             nodes[id.toString()] = mapOf("id" to id)
         }
 
-        override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
+        override fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {
             nodes[node.identifier.toString()] = mapOf("id" to (node.identifier as Any))
         }
 
-        override fun countDescendantsByKind(node: HGNode, kinds: Set<*>) = 0
-        override fun countDescendants(node: HGNode) = 0L
+        override fun countDescendantsByKind(node: CoreNode, kinds: Set<*>) = 0
+        override fun countDescendants(node: CoreNode) = 0L
     }
 }

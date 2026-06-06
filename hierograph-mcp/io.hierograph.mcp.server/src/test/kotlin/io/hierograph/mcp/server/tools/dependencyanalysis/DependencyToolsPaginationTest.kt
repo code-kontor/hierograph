@@ -15,10 +15,12 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -53,20 +55,28 @@ class DependencyToolsPaginationTest {
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
         val depSource = { DefaultDependencySource(identifier = nextId++) }
 
-        val root = HierarchicalGraphFactory.createRootNode(nodeSource)
-        val pkgA = HierarchicalGraphFactory.createNode(root, root, nodeSource).withKind(JavaNodeKind.PACKAGE)
-        val pkgB = HierarchicalGraphFactory.createNode(root, root, nodeSource).withKind(JavaNodeKind.PACKAGE)
+        val graph = CoreGraphFactory.createCoreGraph()
+        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val hierarchy = HierarchyFactory.createHierarchy(graph, root)
+
+        val pkgA = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        HierarchyFactory.addChild(hierarchy, root, pkgA)
+        val pkgB = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        HierarchyFactory.addChild(hierarchy, root, pkgB)
         pkgAId = pkgA.identifier as Long
         pkgBId = pkgB.identifier as Long
 
         repeat(5) {
-            val src = HierarchicalGraphFactory.createNode(root, pkgA, nodeSource).withKind(JavaNodeKind.CLASS)
-            val tgt = HierarchicalGraphFactory.createNode(root, pkgB, nodeSource).withKind(JavaNodeKind.CLASS)
-            HierarchicalGraphFactory.createCoreDependency(src, tgt, "USES", depSource)
+            val src = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+            HierarchyFactory.addChild(hierarchy, pkgA, src)
+            val tgt = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+            HierarchyFactory.addChild(hierarchy, pkgB, tgt)
+            CoreGraphFactory.createCoreDependency(src, tgt, "USES", depSource)
             expectedPairs.add((src.identifier as Long) to (tgt.identifier as Long))
         }
 
-        val graphService = HierarchicalGraphService().also { it.rootNode = root }
+        val model = HGModel(graph, hierarchy)
+        val graphService = HierarchicalGraphService().also { it.model = model }
         val dataHashProvider = DataHashProvider(graphService).also { it.init() }
         detail = FakeDetail()
         outgoing = OutgoingDependenciesTool(graphService, FakeNodeRefFactory(), detail, dataHashProvider)
@@ -153,11 +163,6 @@ class DependencyToolsPaginationTest {
 
     // ── test doubles ────────────────────────────────────────────────────
 
-    private fun HGNode.withKind(kind: JavaNodeKind): HGNode {
-        this.kind = kind
-        return this
-    }
-
     private class FakeDetail : IDetailDependencies {
         var lastFrom: Long? = null
         var lastTo: Long? = null
@@ -175,8 +180,8 @@ class DependencyToolsPaginationTest {
     }
 
     private class FakeNodeRefFactory : INodeRefFactory {
-        override fun minimalNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
-        override fun enrichedNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun minimalNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun enrichedNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
         override fun primitiveRef(name: String) = linkedMapOf<String, Any?>("name" to name)
         override fun putSlimNode(
             nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?
@@ -184,11 +189,11 @@ class DependencyToolsPaginationTest {
             nodes[id.toString()] = mapOf("id" to id)
         }
 
-        override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
+        override fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {
             nodes[node.identifier.toString()] = mapOf("id" to (node.identifier as Any))
         }
 
-        override fun countDescendantsByKind(node: HGNode, kinds: Set<*>) = 0
-        override fun countDescendants(node: HGNode) = 0L
+        override fun countDescendantsByKind(node: CoreNode, kinds: Set<*>) = 0
+        override fun countDescendants(node: CoreNode) = 0L
     }
 }

@@ -15,10 +15,10 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.MappingProvider
 import io.hierograph.boltclient.IBoltClient
 
 interface IMappingService {
-    fun convert(mappingProvider: MappingProvider, boltClient: IBoltClient): HGRootNode
+    fun convert(mappingProvider: MappingProvider, boltClient: IBoltClient): HGModel
 }

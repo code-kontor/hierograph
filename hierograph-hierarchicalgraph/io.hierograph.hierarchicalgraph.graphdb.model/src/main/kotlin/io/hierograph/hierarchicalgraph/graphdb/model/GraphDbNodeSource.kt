@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.hierarchicalgraph.core.model.INodeSource
 import io.hierograph.boltclient.IBoltClient
 
@@ -23,7 +23,9 @@ open class GraphDbNodeSource(
     override val identifier: Any
 ) : INodeSource {
 
-    override var node: HGNode? = null
+    override var node: CoreNode? = null
+
+    var boltClient: IBoltClient? = null
 
     private var _properties: Map<String, String>? = null
     private var _labels: List<String>? = null
@@ -45,15 +47,10 @@ open class GraphDbNodeSource(
         }
 
     private fun loadNodeData() {
-        val boltClient = getBoltClient()
-        val neo4jNode = boltClient.getNode(identifier as Long)
+        val client = checkNotNull(boltClient) { "No bolt client set on GraphDbNodeSource for node $identifier." }
+        val neo4jNode = client.getNode(identifier as Long)
 
         _labels = neo4jNode.labels().toList()
         _properties = neo4jNode.asMap().entries.associate { (k, v) -> k to v.toString() }
-    }
-
-    private fun getBoltClient(): IBoltClient {
-        val rootSource = node!!.rootNode.nodeSource as GraphDbRootNodeSource
-        return checkNotNull(rootSource.boltClient) { "No bolt client set." }
     }
 }

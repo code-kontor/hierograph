@@ -15,33 +15,37 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 
 /**
- * Rebuilds an [HGRootNode] from a [GraphSnapshot]. Two linear passes:
- * nodes first (parents before children — relies on the writer's pre-order
+ * Rebuilds an [HGModel] from a [GraphSnapshot]. Two linear passes:
+ * nodes first (parents before children -- relies on the writer's pre-order
  * layout), then core dependencies.
  *
- * The derived caches on `HGNodeImpl` stay cold; they rebuild lazily on
+ * The derived caches on the hierarchy stay cold; they rebuild lazily on
  * first access after the read.
  */
 class GraphReader(private val codecs: CodecRegistry) {
 
-    fun read(snapshot: GraphSnapshot): HGRootNode {
+    fun read(snapshot: GraphSnapshot): HGModel {
         require(snapshot.schemaVersion == GraphSnapshot.SCHEMA_VERSION) {
             "Unsupported schemaVersion ${snapshot.schemaVersion}; expected ${GraphSnapshot.SCHEMA_VERSION}"
         }
 
-        val byId = HashMap<String, HGNode>(snapshot.nodes.size + 1)
+        val coreGraph = CoreGraphFactory.createCoreGraph()
+        val byId = HashMap<String, CoreNode>(snapshot.nodes.size + 1)
 
         val rootCodec = codecs.nodeCodecFor(snapshot.root.source.type)
-        val root = HierarchicalGraphFactory.createRootNode {
+        val root = CoreGraphFactory.createNode(coreGraph) {
             rootCodec.read(snapshot.root.id, snapshot.root.source.payload)
         }
         root.kind = decodeKind(snapshot.root.kind)
         byId[snapshot.root.id] = root
+
+        val hierarchy = HierarchyFactory.createHierarchy(coreGraph, root)
 
         for (rec in snapshot.nodes) {
             val parentId = rec.parentId
@@ -49,10 +53,11 @@ class GraphReader(private val codecs: CodecRegistry) {
             val parent = byId[parentId]
                 ?: throw IllegalArgumentException("Node ${rec.id} references unknown parent $parentId; nodes must be ordered parents-before-children")
             val codec = codecs.nodeCodecFor(rec.source.type)
-            val node = HierarchicalGraphFactory.createNode(root, parent) {
+            val node = CoreGraphFactory.createNode(coreGraph) {
                 codec.read(rec.id, rec.source.payload)
             }
             node.kind = decodeKind(rec.kind)
+            HierarchyFactory.addChild(hierarchy, parent, node)
             byId[rec.id] = node
         }
 
@@ -62,13 +67,13 @@ class GraphReader(private val codecs: CodecRegistry) {
             val to = byId[rec.toId]
                 ?: throw IllegalArgumentException("Dependency ${rec.id} references unknown to-node ${rec.toId}")
             val depCodec = codecs.depCodecFor(rec.source.type)
-            val dep = HierarchicalGraphFactory.createCoreDependency(from, to, rec.type) {
+            val dep = CoreGraphFactory.createCoreDependency(from, to, rec.type) {
                 depCodec.read(rec.id, rec.source.payload)
             }
             dep.weight = rec.weight
             dep.attributesBitmap = rec.attributesBitmap
         }
 
-        return root
+        return HGModel(coreGraph, hierarchy)
     }
 }

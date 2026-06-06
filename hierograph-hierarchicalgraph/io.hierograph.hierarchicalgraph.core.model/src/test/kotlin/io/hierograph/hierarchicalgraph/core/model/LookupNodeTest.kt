@@ -28,19 +28,25 @@ class LookupNodeTest {
 
     @Test
     fun `lookupNode returns correct node`() {
-        val found = g.root.lookupNode(g.a1.identifier)
+        val found = g.hierarchy.lookupNode(g.a1.identifier)
         assertThat(found).isSameAs(g.a1)
     }
 
     @Test
     fun `lookupNode returns correct leaf node`() {
-        val found = g.root.lookupNode(g.b3.identifier)
+        val found = g.hierarchy.lookupNode(g.b3.identifier)
         assertThat(found).isSameAs(g.b3)
     }
 
     @Test
     fun `lookupNode returns null for unknown identifier`() {
-        val found = g.root.lookupNode(-1L)
+        val found = g.hierarchy.lookupNode(-1L)
         assertThat(found).isNull()
+    }
+
+    @Test
+    fun `model lookupNode returns correct node`() {
+        val found = g.model.lookupNode(g.a1.identifier)
+        assertThat(found).isSameAs(g.a1)
     }
 }

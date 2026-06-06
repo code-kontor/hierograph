@@ -15,13 +15,13 @@
  */
 package io.hierograph.hierarchicalgraph.core.algorithms
 
-import io.hierograph.hierarchicalgraph.core.model.HGAggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 
 interface IDependencyStructureMatrix {
-    val orderedNodes: List<HGNode>
-    val upwardDependencies: List<HGAggregatedDependency>
-    val cycles: List<List<HGNode>>
+    val orderedNodes: List<CoreNode>
+    val upwardDependencies: List<AggregatedDependency>
+    val cycles: List<List<CoreNode>>
 
     fun isCellInCycle(i: Int, j: Int): Boolean
     fun isRowInCycle(i: Int): Boolean

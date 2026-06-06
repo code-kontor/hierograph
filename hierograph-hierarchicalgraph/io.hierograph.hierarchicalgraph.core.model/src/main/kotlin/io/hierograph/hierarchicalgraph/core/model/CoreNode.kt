@@ -15,9 +15,11 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
-interface HGAggregatedDependency {
-    val from: HGNode
-    val to: HGNode
-    val coreDependencies: List<HGCoreDependency>
-    val aggregatedWeight: Int
+interface CoreNode {
+    val identifier: Any
+    val nodeSource: INodeSource
+    var kind: Any?
+    val outgoingCoreDependencies: List<CoreDependency>
+    val incomingCoreDependencies: List<CoreDependency>
+    fun <T : Any> getNodeSource(clazz: Class<T>): T?
 }

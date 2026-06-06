@@ -15,10 +15,12 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -46,18 +48,25 @@ class AffectedByToolPaginationTest {
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
         val depSource = { DefaultDependencySource(identifier = nextId++) }
 
-        val root = HierarchicalGraphFactory.createRootNode(nodeSource)
-        val pkg = HierarchicalGraphFactory.createNode(root, root, nodeSource).withKind(JavaNodeKind.PACKAGE)
-        val target = HierarchicalGraphFactory.createNode(root, pkg, nodeSource).withKind(JavaNodeKind.CLASS)
+        val graph = CoreGraphFactory.createCoreGraph()
+        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val hierarchy = HierarchyFactory.createHierarchy(graph, root)
+
+        val pkg = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        HierarchyFactory.addChild(hierarchy, root, pkg)
+        val target = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        HierarchyFactory.addChild(hierarchy, pkg, target)
         targetId = target.identifier as Long
 
         repeat(5) {
-            val depender = HierarchicalGraphFactory.createNode(root, pkg, nodeSource).withKind(JavaNodeKind.CLASS)
-            HierarchicalGraphFactory.createCoreDependency(depender, target, "USES", depSource)
+            val depender = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+            HierarchyFactory.addChild(hierarchy, pkg, depender)
+            CoreGraphFactory.createCoreDependency(depender, target, "USES", depSource)
             dependerIds.add(depender.identifier as Long)
         }
 
-        val graphService = HierarchicalGraphService().also { it.rootNode = root }
+        val model = HGModel(graph, hierarchy)
+        val graphService = HierarchicalGraphService().also { it.model = model }
         val dataHashProvider = DataHashProvider(graphService).also { it.init() }
         tool = AffectedByTool(graphService, FakeNodeRefFactory(), dataHashProvider)
     }
@@ -121,22 +130,17 @@ class AffectedByToolPaginationTest {
         assertThat(errorCode(resp)).isEqualTo("STALE_CURSOR_QUERY")
     }
 
-    private fun HGNode.withKind(kind: JavaNodeKind): HGNode {
-        this.kind = kind
-        return this
-    }
-
     private class FakeNodeRefFactory : INodeRefFactory {
-        override fun minimalNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
-        override fun enrichedNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun minimalNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun enrichedNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
         override fun primitiveRef(name: String) = linkedMapOf<String, Any?>("name" to name)
         override fun putSlimNode(
             nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?
         ) {
         }
 
-        override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {}
-        override fun countDescendantsByKind(node: HGNode, kinds: Set<*>) = 0
-        override fun countDescendants(node: HGNode) = 0L
+        override fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {}
+        override fun countDescendantsByKind(node: CoreNode, kinds: Set<*>) = 0
+        override fun countDescendants(node: CoreNode) = 0L
     }
 }

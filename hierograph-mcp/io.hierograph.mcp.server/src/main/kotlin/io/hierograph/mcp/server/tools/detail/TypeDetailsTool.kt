@@ -78,8 +78,9 @@ class TypeDetailsTool(
         val typeKindLabels = setOf("Class", "Interface", "Enum", "Annotation", "Record")
         if (typeKindLabels.none { it in typeLabels }) {
             val actualKind = JQAssistantNodeMetadataProvider.getKindFromLabels(typeLabels)
-            val hgNode = graphService.rootNode.lookupNode(typeId)
-            val declaringType = hgNode?.parent
+            val hierarchy = graphService.model.hierarchy
+            val hgNode = graphService.model.lookupNode(typeId)
+            val declaringType = hgNode?.let { hierarchy.parentOf(it) }
 
             return mapOf(
                 "error" to mapOf(
@@ -87,7 +88,7 @@ class TypeDetailsTool(
                     "message" to "Node $typeId is a '$actualKind', not a type. " +
                             "type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation).",
                     "actual_kind" to actualKind,
-                    "declaring_type" to if (declaringType != null && declaringType != graphService.rootNode)
+                    "declaring_type" to if (declaringType != null && declaringType != hierarchy.rootNode)
                         nodeRefFactory.minimalNodeRef(declaringType) else null,
                     "recovery" to when {
                         "Method" in typeLabels -> "To inspect the method itself, use method_details(method_id: $typeId)."
@@ -103,20 +104,22 @@ class TypeDetailsTool(
         val typeFqn = record.get("typeFqn").asString("")
         val typeKind = JQAssistantNodeMetadataProvider.getKindFromLabels(typeLabels)
 
-        val hgNode = graphService.rootNode.lookupNode(typeId)
+        val hgNode = graphService.model.lookupNode(typeId)
+        val hierarchy = graphService.model.hierarchy
+        val hgParent = hgNode?.let { hierarchy.parentOf(it) }
 
         val typeRef = linkedMapOf<String, Any?>(
             "id" to typeId,
             "name" to typeName,
             "qualified_name" to typeFqn,
             "kind" to typeKind,
-            "parent_id" to hgNode?.parent?.identifier,
-            "parent_kind" to hgNode?.parent?.kind?.toString()
+            "parent_id" to hgParent?.identifier,
+            "parent_kind" to hgParent?.kind?.toString()
         )
 
         // ── parent container ───────────────────────────────────────────
-        val parentNode = hgNode?.parent
-        val parentContainer = if (parentNode != null && parentNode !== graphService.rootNode) {
+        val parentNode = hgParent
+        val parentContainer = if (parentNode != null && parentNode !== hierarchy.rootNode) {
             nodeRefFactory.minimalNodeRef(parentNode)
         } else null
 
@@ -157,9 +160,10 @@ class TypeDetailsTool(
 
         // ── member counts (from in-memory model) ───────────────────────
         val memberSummary = if (hgNode != null) {
-            val methods = hgNode.children.count { it.kind == JavaKinds.METHOD }
-            val constructors = hgNode.children.count { it.kind == JavaKinds.CONSTRUCTOR }
-            val fields = hgNode.children.count { it.kind == JavaKinds.FIELD }
+            val children = hierarchy.childrenOf(hgNode)
+            val methods = children.count { it.kind == JavaKinds.METHOD }
+            val constructors = children.count { it.kind == JavaKinds.CONSTRUCTOR }
+            val fields = children.count { it.kind == JavaKinds.FIELD }
             linkedMapOf<String, Any?>(
                 "method_count" to (methods - constructors),
                 "field_count" to fields,
@@ -175,7 +179,7 @@ class TypeDetailsTool(
 
         // ── inner types (from in-memory model) ─────────────────────────
         val innerTypes: List<LinkedHashMap<String, Any?>> = if (hgNode != null) {
-            hgNode.children
+            hierarchy.childrenOf(hgNode)
                 .filter { it.kind in JavaKinds.TYPE_KINDS }
                 .map { nodeRefFactory.minimalNodeRef(it) }
         } else emptyList()

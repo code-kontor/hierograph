@@ -29,7 +29,7 @@ import org.springframework.stereotype.Component
  * cursors they issue and check against the cursors they receive.
  *
  * Because the value is constructor-derived from [HierarchicalGraphService], Spring fully initializes
- * the graph (running its `@PostConstruct`) before this bean's [init] runs, so [graphService.rootNode]
+ * the graph (running its `@PostConstruct`) before this bean's [init] runs, so [graphService.model]
  * is populated by the time the fingerprint is computed. If the graph is ever reloaded into a new
  * snapshot, this hash must be recomputed so that cursors from the previous snapshot are recognized as
  * stale.
@@ -47,7 +47,7 @@ class DataHashProvider(
 
     @PostConstruct
     fun init() {
-        captured = DataHash.fingerprint(graphService.rootNode)
+        captured = DataHash.fingerprint(graphService.model)
         log.info("Captured data-snapshot hash: {}", captured)
     }
 

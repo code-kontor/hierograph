@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
-import io.hierograph.hierarchicalgraph.core.model.HierarchicalGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -23,14 +23,7 @@ import org.junit.jupiter.api.Test
 class GraphDbSourcesTest {
 
     @Test
-    fun `GraphDbRootNodeSource has empty properties and labels`() {
-        val source = GraphDbRootNodeSource(identifier = 1L)
-        assertThat(source.properties).isEmpty()
-        assertThat(source.labels).isEmpty()
-    }
-
-    @Test
-    fun `GraphDbRootNodeSource boltClient is initially null`() {
+    fun `GraphDbRootNodeSource has empty properties and labels by default`() {
         val source = GraphDbRootNodeSource(identifier = 1L)
         assertThat(source.boltClient).isNull()
     }
@@ -43,8 +36,8 @@ class GraphDbSourcesTest {
 
     @Test
     fun `GraphDbNodeSource can be used as INodeSource in factory`() {
-        val root = HierarchicalGraphFactory.createRootNode { GraphDbRootNodeSource(identifier = 1L) }
-        val node = HierarchicalGraphFactory.createNode(root, root) { GraphDbNodeSource(identifier = 100L) }
+        val coreGraph = CoreGraphFactory.createCoreGraph()
+        val node = CoreGraphFactory.createNode(coreGraph) { GraphDbNodeSource(identifier = 100L) }
 
         assertThat(node.identifier).isEqualTo(100L)
         assertThat(node.nodeSource).isInstanceOf(GraphDbNodeSource::class.java)
@@ -69,11 +62,11 @@ class GraphDbSourcesTest {
 
     @Test
     fun `GraphDbDependencySource can be used as IDependencySource in factory`() {
-        val root = HierarchicalGraphFactory.createRootNode { GraphDbRootNodeSource(identifier = 1L) }
-        val a = HierarchicalGraphFactory.createNode(root, root) { GraphDbNodeSource(identifier = 2L) }
-        val b = HierarchicalGraphFactory.createNode(root, root) { GraphDbNodeSource(identifier = 3L) }
+        val coreGraph = CoreGraphFactory.createCoreGraph()
+        val a = CoreGraphFactory.createNode(coreGraph) { GraphDbNodeSource(identifier = 2L) }
+        val b = CoreGraphFactory.createNode(coreGraph) { GraphDbNodeSource(identifier = 3L) }
 
-        val dep = HierarchicalGraphFactory.createCoreDependency(
+        val dep = CoreGraphFactory.createCoreDependency(
             a, b, "USES", { GraphDbDependencySource(identifier = 50L, type = "USES") }
         )
 
@@ -84,8 +77,8 @@ class GraphDbSourcesTest {
 
     @Test
     fun `GraphDbNodeSource properties access without boltClient throws`() {
-        val root = HierarchicalGraphFactory.createRootNode { GraphDbRootNodeSource(identifier = 1L) }
-        val node = HierarchicalGraphFactory.createNode(root, root) { GraphDbNodeSource(identifier = 100L) }
+        val coreGraph = CoreGraphFactory.createCoreGraph()
+        val node = CoreGraphFactory.createNode(coreGraph) { GraphDbNodeSource(identifier = 100L) }
 
         val nodeSource = node.nodeSource as GraphDbNodeSource
         assertThatThrownBy { nodeSource.properties }
@@ -95,11 +88,11 @@ class GraphDbSourcesTest {
 
     @Test
     fun `GraphDbDependencySource properties access without boltClient throws`() {
-        val root = HierarchicalGraphFactory.createRootNode { GraphDbRootNodeSource(identifier = 1L) }
-        val a = HierarchicalGraphFactory.createNode(root, root) { GraphDbNodeSource(identifier = 2L) }
-        val b = HierarchicalGraphFactory.createNode(root, root) { GraphDbNodeSource(identifier = 3L) }
+        val coreGraph = CoreGraphFactory.createCoreGraph()
+        val a = CoreGraphFactory.createNode(coreGraph) { GraphDbNodeSource(identifier = 2L) }
+        val b = CoreGraphFactory.createNode(coreGraph) { GraphDbNodeSource(identifier = 3L) }
 
-        val dep = HierarchicalGraphFactory.createCoreDependency(
+        val dep = CoreGraphFactory.createCoreDependency(
             a, b, "USES", { GraphDbDependencySource(identifier = 50L, type = "USES") }
         )
 
