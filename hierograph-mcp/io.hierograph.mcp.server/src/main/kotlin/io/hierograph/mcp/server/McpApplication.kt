@@ -47,7 +47,7 @@ class McpApplication {
 
     @Bean
     fun hierarchicalGraphProvider(graphService: HierarchicalGraphService): HierarchicalGraphProvider =
-        HierarchicalGraphProvider { graphService.rootNode }
+        HierarchicalGraphProvider { graphService.model.hierarchy }
 
     @Bean
     fun searchProvider(graphService: HierarchicalGraphService): JQAssistantSearchProvider =

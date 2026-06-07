@@ -16,7 +16,7 @@
 package io.hierograph.graphql.controller
 
 import io.hierograph.graphql.HierarchicalGraphProvider
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
@@ -24,5 +24,5 @@ import org.springframework.stereotype.Controller
 class QueryController(private val provider: HierarchicalGraphProvider) {
 
     @QueryMapping
-    fun hierarchicalGraph(): HGRootNode = provider.rootNode()
+    fun hierarchicalGraph(): Hierarchy = provider.hierarchy()
 }

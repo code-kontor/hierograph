@@ -15,23 +15,24 @@
  */
 package io.hierograph.graphql.controller
 
+import io.hierograph.graphql.HierarchicalGraphProvider
 import io.hierograph.graphql.model.DependencyPageModel
 import io.hierograph.graphql.model.FilteredDependenciesModel
 import io.hierograph.graphql.model.NodeType
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
 @Controller
-class FilteredDependenciesController {
+class FilteredDependenciesController(private val provider: HierarchicalGraphProvider) {
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun size(model: FilteredDependenciesModel): Int = model.dependencyList.size
 
     @SchemaMapping(typeName = "FilteredDependencies")
-    fun dependencies(model: FilteredDependenciesModel): List<HGCoreDependency> = model.dependencyList
+    fun dependencies(model: FilteredDependenciesModel): List<CoreDependency> = model.dependencyList
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun dependencyPage(
@@ -67,10 +68,11 @@ class FilteredDependenciesController {
         @Argument nodeType: NodeType,
         @Argument includedPredecessors: Boolean
     ): List<HGNode> {
+        val hierarchy = provider.hierarchy()
         val baseNodes = extractNodes(model.dependencyList, nodeType)
         val referenced = mutableSetOf<HGNode>()
         for (node in baseNodes) {
-            for (dep in node.accumulatedOutgoingCoreDependencies) {
+            for (dep in hierarchy.accumulatedOutgoing(node)) {
                 referenced.add(dep.to)
             }
         }
@@ -86,7 +88,7 @@ class FilteredDependenciesController {
         return referencedNodes(model, nodeType, includedPredecessors).map { it.identifier.toString() }
     }
 
-    private fun extractNodes(deps: List<HGCoreDependency>, nodeType: NodeType): Set<HGNode> {
+    private fun extractNodes(deps: List<CoreDependency>, nodeType: NodeType): Set<HGNode> {
         return when (nodeType) {
             NodeType.SOURCE -> deps.map { it.from }.toSet()
             NodeType.TARGET -> deps.map { it.to }.toSet()
@@ -94,10 +96,11 @@ class FilteredDependenciesController {
     }
 
     private fun addPredecessors(nodes: Set<HGNode>): List<HGNode> {
+        val hierarchy = provider.hierarchy()
         val result = mutableSetOf<HGNode>()
         for (node in nodes) {
             result.add(node)
-            result.addAll(node.predecessors)
+            result.addAll(hierarchy.predecessorsOf(node))
         }
         return result.toList()
     }

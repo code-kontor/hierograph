@@ -15,8 +15,14 @@
  */
 package io.hierograph.graphql
 
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
+/**
+ * Supplies the [Hierarchy] the GraphQL layer operates on. Since the "multiple hierarchies" refactor,
+ * structural navigation — parent/children/predecessors, accumulated dependencies, node lookup — lives
+ * on the [Hierarchy] rather than on the node, so the GraphQL resolvers go through the hierarchy
+ * provided here.
+ */
 fun interface HierarchicalGraphProvider {
-    fun rootNode(): HGRootNode
+    fun hierarchy(): Hierarchy
 }

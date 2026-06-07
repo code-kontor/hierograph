@@ -22,7 +22,7 @@ import io.hierograph.graphql.model.FilteredDependenciesModel
 import io.hierograph.graphql.model.NodeSelection
 import io.hierograph.graphql.model.NodeType
 import io.hierograph.graphql.model.PageInfoModel
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -37,7 +37,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     fun size(depSet: DependencySetModel): Int = depSet.dependencyList.size
 
     @SchemaMapping(typeName = "DependencySet")
-    fun dependencies(depSet: DependencySetModel): List<HGCoreDependency> = depSet.dependencyList
+    fun dependencies(depSet: DependencySetModel): List<CoreDependency> = depSet.dependencyList
 
     @SchemaMapping(typeName = "DependencySet")
     fun dependencyPage(
@@ -54,12 +54,13 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         @Argument parentNode: String,
         @Argument parentNodeType: NodeType
     ): List<HGNode> {
-        val parent = provider.rootNode().lookupNode(parentNode.toLong()) ?: return emptyList()
+        val hierarchy = provider.hierarchy()
+        val parent = hierarchy.lookupNode(parentNode.toLong()) ?: return emptyList()
         val nodeIds = when (parentNodeType) {
             NodeType.SOURCE -> depSet.dependencyList.map { it.from.identifier }.toSet()
             NodeType.TARGET -> depSet.dependencyList.map { it.to.identifier }.toSet()
         }
-        return parent.children.filter { it.identifier in nodeIds }
+        return hierarchy.childrenOf(parent).filter { it.identifier in nodeIds }
     }
 
     @SchemaMapping(typeName = "DependencySet")
@@ -77,12 +78,12 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         depSet: DependencySetModel,
         @Argument nodeSelection: List<NodeSelection>
     ): FilteredDependenciesModel {
-        val rootNode = provider.rootNode()
+        val hierarchy = provider.hierarchy()
         val sourceIds = mutableSetOf<Any>()
         val targetIds = mutableSetOf<Any>()
 
         for (selection in nodeSelection) {
-            val ids = selection.selectedNodeIds.mapNotNull { rootNode.lookupNode(it.toLong())?.identifier }
+            val ids = selection.selectedNodeIds.mapNotNull { hierarchy.lookupNode(it.toLong())?.identifier }
             when (selection.selectedNodesType) {
                 NodeType.SOURCE -> sourceIds.addAll(ids)
                 NodeType.TARGET -> targetIds.addAll(ids)
@@ -99,7 +100,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
 
     companion object {
         fun createPage(
-            deps: List<HGCoreDependency>,
+            deps: List<CoreDependency>,
             pageNumber: Int,
             pageSize: Int
         ): DependencyPageModel {

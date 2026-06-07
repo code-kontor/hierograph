@@ -39,7 +39,7 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
 
     @SchemaMapping(typeName = "NodeSet")
     fun orderedAdjacencyMatrix(nodeSet: NodeSetModel): OrderedAdjacencyMatrixModel {
-        val dsm = GraphUtils.createDependencyStructureMatrix(nodeSet.nodeList)
+        val dsm = GraphUtils.createDependencyStructureMatrix(nodeSet.nodeList, provider.hierarchy())
         val orderedNodes = dsm.orderedNodes
         val matrix = dsm.getMatrix()
 
@@ -64,14 +64,14 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
     @SchemaMapping(typeName = "NodeSet")
     fun referencedNodes(nodeSet: NodeSetModel, @Argument includePredecessors: Boolean?): NodeSetModel {
         return NodeSetModel(
-            NodeController.collectReferencedNodes(nodeSet.nodeList, includePredecessors ?: false)
+            NodeController.collectReferencedNodes(provider.hierarchy(), nodeSet.nodeList, includePredecessors ?: false)
         )
     }
 
     @SchemaMapping(typeName = "NodeSet")
     fun referencingNodes(nodeSet: NodeSetModel, @Argument includePredecessors: Boolean?): NodeSetModel {
         return NodeSetModel(
-            NodeController.collectReferencingNodes(nodeSet.nodeList, includePredecessors ?: false)
+            NodeController.collectReferencingNodes(provider.hierarchy(), nodeSet.nodeList, includePredecessors ?: false)
         )
     }
 
@@ -82,16 +82,16 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
         @Argument nodesToConsider: NodesToConsider,
         @Argument includePredecessorsInResult: Boolean?
     ): NodeSetModel {
-        val rootNode = provider.rootNode()
-        val targetSet = NodeController.expandNodes(rootNode, nodeIds, nodesToConsider)
+        val hierarchy = provider.hierarchy()
+        val targetSet = NodeController.expandNodes(hierarchy, nodeIds, nodesToConsider)
         val referenced = mutableSetOf<HGNode>()
         for (node in nodeSet.nodeList) {
-            for (dep in node.accumulatedOutgoingCoreDependencies) {
+            for (dep in hierarchy.accumulatedOutgoing(node)) {
                 if (dep.to in targetSet) referenced.add(dep.to)
             }
         }
         return NodeSetModel(
-            NodeController.withOptionalPredecessors(referenced, includePredecessorsInResult ?: false)
+            NodeController.withOptionalPredecessors(hierarchy, referenced, includePredecessorsInResult ?: false)
         )
     }
 
@@ -102,16 +102,16 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
         @Argument nodesToConsider: NodesToConsider,
         @Argument includePredecessorsInResult: Boolean?
     ): NodeSetModel {
-        val rootNode = provider.rootNode()
-        val sourceSet = NodeController.expandNodes(rootNode, nodeIds, nodesToConsider)
+        val hierarchy = provider.hierarchy()
+        val sourceSet = NodeController.expandNodes(hierarchy, nodeIds, nodesToConsider)
         val referencing = mutableSetOf<HGNode>()
         for (node in nodeSet.nodeList) {
-            for (dep in node.accumulatedIncomingCoreDependencies) {
+            for (dep in hierarchy.accumulatedIncoming(node)) {
                 if (dep.from in sourceSet) referencing.add(dep.from)
             }
         }
         return NodeSetModel(
-            NodeController.withOptionalPredecessors(referencing, includePredecessorsInResult ?: false)
+            NodeController.withOptionalPredecessors(hierarchy, referencing, includePredecessorsInResult ?: false)
         )
     }
 }

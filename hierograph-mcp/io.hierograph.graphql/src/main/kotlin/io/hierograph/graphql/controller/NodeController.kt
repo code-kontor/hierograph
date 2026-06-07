@@ -15,20 +15,25 @@
  */
 package io.hierograph.graphql.controller
 
+import io.hierograph.graphql.HierarchicalGraphProvider
 import io.hierograph.graphql.model.MapEntryModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.graphql.model.NodesToConsider
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGNodeTraverser
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+/**
+ * Resolvers for the GraphQL `Node` type. The parent object is an [HGNode]; structural navigation is
+ * resolved through the [Hierarchy] supplied by [provider], since nodes are no longer self-navigating.
+ */
 @Controller
-class NodeController {
+class NodeController(private val provider: HierarchicalGraphProvider) {
 
     @SchemaMapping(typeName = "Node")
     fun id(node: HGNode): String = node.identifier.toString()
@@ -40,25 +45,26 @@ class NodeController {
     fun type(node: HGNode): String = node.kind?.toString() ?: "Unknown"
 
     @SchemaMapping(typeName = "Node")
-    fun parent(node: HGNode): HGNode? = node.parent
+    fun parent(node: HGNode): HGNode? = provider.hierarchy().parentOf(node)
 
     @SchemaMapping(typeName = "Node")
-    fun predecessors(node: HGNode): List<HGNode> = node.predecessors
+    fun predecessors(node: HGNode): List<HGNode> = provider.hierarchy().predecessorsOf(node)
 
     @SchemaMapping(typeName = "Node")
-    fun hasChildren(node: HGNode): Boolean = node.children.isNotEmpty()
+    fun hasChildren(node: HGNode): Boolean = provider.hierarchy().childrenOf(node).isNotEmpty()
 
     @SchemaMapping(typeName = "Node")
-    fun children(node: HGNode): NodeSetModel = NodeSetModel(node.children)
+    fun children(node: HGNode): NodeSetModel = NodeSetModel(provider.hierarchy().childrenOf(node))
 
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencedNodes(
         node: HGNode,
         @Argument referencedNodeIds: List<String>
     ): NodeSetModel {
+        val hierarchy = provider.hierarchy()
         val targetIds = referencedNodeIds.map { it.toLong() }.toSet()
-        val filtered = node.children.filter { child ->
-            child.accumulatedOutgoingCoreDependencies.any { it.to.identifier in targetIds }
+        val filtered = hierarchy.childrenOf(node).filter { child ->
+            hierarchy.accumulatedOutgoing(child).any { it.to.identifier in targetIds }
         }
         return NodeSetModel(filtered)
     }
@@ -68,9 +74,10 @@ class NodeController {
         node: HGNode,
         @Argument referencingNodeIds: List<String>
     ): NodeSetModel {
+        val hierarchy = provider.hierarchy()
         val sourceIds = referencingNodeIds.map { it.toLong() }.toSet()
-        val filtered = node.children.filter { child ->
-            child.accumulatedIncomingCoreDependencies.any { it.from.identifier in sourceIds }
+        val filtered = hierarchy.childrenOf(node).filter { child ->
+            hierarchy.accumulatedIncoming(child).any { it.from.identifier in sourceIds }
         }
         return NodeSetModel(filtered)
     }
@@ -82,25 +89,29 @@ class NodeController {
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<HGCoreDependency> {
+    fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<CoreDependency> {
         val targetIds = targetNodes.map { it.toLong() }.toSet()
-        return node.accumulatedOutgoingCoreDependencies.filter { it.to.identifier in targetIds }
+        return provider.hierarchy().accumulatedOutgoing(node).filter { it.to.identifier in targetIds }
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<HGCoreDependency> {
+    fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<CoreDependency> {
         val sourceIds = sourceNodes.map { it.toLong() }.toSet()
-        return node.accumulatedIncomingCoreDependencies.filter { it.from.identifier in sourceIds }
+        return provider.hierarchy().accumulatedIncoming(node).filter { it.from.identifier in sourceIds }
     }
 
     @SchemaMapping(typeName = "Node")
     fun referencedNodes(node: HGNode, @Argument includePredecessors: Boolean?): NodeSetModel {
-        return NodeSetModel(collectReferencedNodes(listOf(node), includePredecessors ?: false))
+        return NodeSetModel(
+            collectReferencedNodes(provider.hierarchy(), listOf(node), includePredecessors ?: false)
+        )
     }
 
     @SchemaMapping(typeName = "Node")
     fun referencingNodes(node: HGNode, @Argument includePredecessors: Boolean?): NodeSetModel {
-        return NodeSetModel(collectReferencingNodes(listOf(node), includePredecessors ?: false))
+        return NodeSetModel(
+            collectReferencingNodes(provider.hierarchy(), listOf(node), includePredecessors ?: false)
+        )
     }
 
     @SchemaMapping(typeName = "Node")
@@ -110,12 +121,13 @@ class NodeController {
         @Argument nodesToConsider: NodesToConsider,
         @Argument includePredecessorsInResult: Boolean?
     ): NodeSetModel {
-        val targetSet = expandNodes(node.rootNode, nodeIds, nodesToConsider)
-        val referenced = node.accumulatedOutgoingCoreDependencies
+        val hierarchy = provider.hierarchy()
+        val targetSet = expandNodes(hierarchy, nodeIds, nodesToConsider)
+        val referenced = hierarchy.accumulatedOutgoing(node)
             .map { it.to }
             .filter { it in targetSet }
             .toSet()
-        return NodeSetModel(withOptionalPredecessors(referenced, includePredecessorsInResult ?: false))
+        return NodeSetModel(withOptionalPredecessors(hierarchy, referenced, includePredecessorsInResult ?: false))
     }
 
     @SchemaMapping(typeName = "Node")
@@ -125,60 +137,73 @@ class NodeController {
         @Argument nodesToConsider: NodesToConsider,
         @Argument includePredecessorsInResult: Boolean?
     ): NodeSetModel {
-        val sourceSet = expandNodes(node.rootNode, nodeIds, nodesToConsider)
-        val referencing = node.accumulatedIncomingCoreDependencies
+        val hierarchy = provider.hierarchy()
+        val sourceSet = expandNodes(hierarchy, nodeIds, nodesToConsider)
+        val referencing = hierarchy.accumulatedIncoming(node)
             .map { it.from }
             .filter { it in sourceSet }
             .toSet()
-        return NodeSetModel(withOptionalPredecessors(referencing, includePredecessorsInResult ?: false))
+        return NodeSetModel(withOptionalPredecessors(hierarchy, referencing, includePredecessorsInResult ?: false))
     }
 
     companion object {
-        fun collectReferencedNodes(nodes: List<HGNode>, includePredecessors: Boolean): List<HGNode> {
+        fun collectReferencedNodes(
+            hierarchy: Hierarchy,
+            nodes: List<HGNode>,
+            includePredecessors: Boolean
+        ): List<HGNode> {
             val targets = mutableSetOf<HGNode>()
             for (node in nodes) {
-                for (dep in node.accumulatedOutgoingCoreDependencies) {
+                for (dep in hierarchy.accumulatedOutgoing(node)) {
                     targets.add(dep.to)
                 }
             }
-            return withOptionalPredecessors(targets, includePredecessors)
+            return withOptionalPredecessors(hierarchy, targets, includePredecessors)
         }
 
-        fun collectReferencingNodes(nodes: List<HGNode>, includePredecessors: Boolean): List<HGNode> {
+        fun collectReferencingNodes(
+            hierarchy: Hierarchy,
+            nodes: List<HGNode>,
+            includePredecessors: Boolean
+        ): List<HGNode> {
             val sources = mutableSetOf<HGNode>()
             for (node in nodes) {
-                for (dep in node.accumulatedIncomingCoreDependencies) {
+                for (dep in hierarchy.accumulatedIncoming(node)) {
                     sources.add(dep.from)
                 }
             }
-            return withOptionalPredecessors(sources, includePredecessors)
+            return withOptionalPredecessors(hierarchy, sources, includePredecessors)
         }
 
         fun expandNodes(
-            rootNode: io.hierograph.hierarchicalgraph.core.model.HGRootNode,
+            hierarchy: Hierarchy,
             nodeIds: List<String>,
             nodesToConsider: NodesToConsider
         ): Set<HGNode> {
             val result = mutableSetOf<HGNode>()
             for (id in nodeIds) {
-                val node = rootNode.lookupNode(id.toLong()) ?: continue
+                val node = hierarchy.lookupNode(id.toLong()) ?: continue
                 result.add(node)
                 when (nodesToConsider) {
                     NodesToConsider.SELF -> {}
-                    NodesToConsider.SELF_AND_CHILDREN -> result.addAll(node.children)
+                    NodesToConsider.SELF_AND_CHILDREN -> result.addAll(hierarchy.childrenOf(node))
                     NodesToConsider.SELF_AND_SUCCESSORS ->
-                        HGNodeTraverser.traverse(node) { result.add(it) }
+                        hierarchy.traverse(node) { result.add(it) }
                 }
             }
             return result
         }
 
-        fun withOptionalPredecessors(nodes: Set<HGNode>, includePredecessors: Boolean): List<HGNode> {
+        fun withOptionalPredecessors(
+            hierarchy: Hierarchy,
+            nodes: Set<HGNode>,
+            includePredecessors: Boolean
+        ): List<HGNode> {
             if (!includePredecessors) return nodes.toList()
             val result = mutableSetOf<HGNode>()
             for (node in nodes) {
                 result.add(node)
-                result.addAll(node.predecessors)
+                result.addAll(hierarchy.predecessorsOf(node))
             }
             return result.toList()
         }

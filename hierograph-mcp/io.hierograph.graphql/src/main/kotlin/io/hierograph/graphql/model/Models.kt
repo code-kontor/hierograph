@@ -15,14 +15,14 @@
  */
 package io.hierograph.graphql.model
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 
 data class NodeSetModel(val nodeList: List<HGNode>)
 
-data class DependencySetModel(val dependencyList: List<HGCoreDependency>)
+data class DependencySetModel(val dependencyList: List<CoreDependency>)
 
-data class FilteredDependenciesModel(val dependencyList: List<HGCoreDependency>)
+data class FilteredDependenciesModel(val dependencyList: List<CoreDependency>)
 
 data class CellModel(val row: Int, val column: Int, val value: Int)
 
@@ -51,7 +51,7 @@ data class PageInfoModel(
 
 data class DependencyPageModel(
     val pageInfo: PageInfoModel,
-    val dependencies: List<HGCoreDependency>
+    val dependencies: List<CoreDependency>
 )
 
 data class NodeSelection(

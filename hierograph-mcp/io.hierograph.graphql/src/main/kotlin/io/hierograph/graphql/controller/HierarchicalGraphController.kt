@@ -17,75 +17,79 @@ package io.hierograph.graphql.controller
 
 import io.hierograph.graphql.model.DependencySetModel
 import io.hierograph.graphql.model.NodeSetModel
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.core.model.CoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGRootNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+/**
+ * Resolvers for the GraphQL `HierarchicalGraph` type, which is backed by a [Hierarchy] (the unit that
+ * now owns root, node lookup, and structural navigation).
+ */
 @Controller
 class HierarchicalGraphController {
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun identifier(rootNode: HGRootNode): String = rootNode.identifier.toString()
+    fun identifier(hierarchy: Hierarchy): String = hierarchy.rootNode.identifier.toString()
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun globalIdentifier(rootNode: HGRootNode): String =
-        rootNode.name ?: rootNode.identifier.toString()
+    fun globalIdentifier(hierarchy: Hierarchy): String =
+        hierarchy.name ?: hierarchy.rootNode.identifier.toString()
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun rootNode(rootNode: HGRootNode): HGNode = rootNode
+    fun rootNode(hierarchy: Hierarchy): HGNode = hierarchy.rootNode
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun node(rootNode: HGRootNode, @Argument id: String): HGNode? =
-        rootNode.lookupNode(id.toLong())
+    fun node(hierarchy: Hierarchy, @Argument id: String): HGNode? =
+        hierarchy.lookupNode(id.toLong())
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun nodes(rootNode: HGRootNode, @Argument ids: List<String>): NodeSetModel {
-        val resolved = ids.mapNotNull { rootNode.lookupNode(it.toLong()) }
+    fun nodes(hierarchy: Hierarchy, @Argument ids: List<String>): NodeSetModel {
+        val resolved = ids.mapNotNull { hierarchy.lookupNode(it.toLong()) }
         return NodeSetModel(resolved)
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun dependency(rootNode: HGRootNode, @Argument id: String): HGCoreDependency? {
-        return findCoreDependencyById(rootNode, id)
+    fun dependency(hierarchy: Hierarchy, @Argument id: String): CoreDependency? {
+        return findCoreDependencyById(hierarchy, id)
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun dependencies(rootNode: HGRootNode, @Argument ids: List<String>): DependencySetModel? {
+    fun dependencies(hierarchy: Hierarchy, @Argument ids: List<String>): DependencySetModel? {
         val idSet = ids.toSet()
-        val deps = collectAllCoreDependencies(rootNode).filter { coreDependencyId(it) in idSet }
+        val deps = collectAllCoreDependencies(hierarchy).filter { coreDependencyId(it) in idSet }
         return DependencySetModel(deps)
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun dependencySetForAggregatedDependency(
-        rootNode: HGRootNode,
+        hierarchy: Hierarchy,
         @Argument sourceNodeId: String,
         @Argument targetNodeId: String
     ): DependencySetModel? {
-        val sourceNode = rootNode.lookupNode(sourceNodeId.toLong()) ?: return null
-        val targetNode = rootNode.lookupNode(targetNodeId.toLong()) ?: return null
-        val aggregated = sourceNode.getOutgoingDependenciesTo(targetNode) ?: return null
+        val sourceNode = hierarchy.lookupNode(sourceNodeId.toLong()) ?: return null
+        val targetNode = hierarchy.lookupNode(targetNodeId.toLong()) ?: return null
+        val aggregated = hierarchy.getAggregatedDependency(sourceNode, targetNode) ?: return null
         return DependencySetModel(aggregated.coreDependencies)
     }
 
     companion object {
-        fun coreDependencyId(dep: HGCoreDependency): String =
+        fun coreDependencyId(dep: CoreDependency): String =
             "${dep.from.identifier}_${dep.to.identifier}_${dep.type}"
 
-        fun findCoreDependencyById(rootNode: HGRootNode, id: String): HGCoreDependency? {
-            return collectAllCoreDependencies(rootNode).firstOrNull { coreDependencyId(it) == id }
+        fun findCoreDependencyById(hierarchy: Hierarchy, id: String): CoreDependency? {
+            return collectAllCoreDependencies(hierarchy).firstOrNull { coreDependencyId(it) == id }
         }
 
-        fun collectAllCoreDependencies(rootNode: HGRootNode): List<HGCoreDependency> {
-            val deps = mutableListOf<HGCoreDependency>()
+        fun collectAllCoreDependencies(hierarchy: Hierarchy): List<CoreDependency> {
+            val deps = mutableListOf<CoreDependency>()
             fun walk(node: HGNode) {
                 deps.addAll(node.outgoingCoreDependencies)
-                for (child in node.children) walk(child)
+                for (child in hierarchy.childrenOf(node)) walk(child)
             }
-            walk(rootNode)
+            walk(hierarchy.rootNode)
             return deps
         }
     }
