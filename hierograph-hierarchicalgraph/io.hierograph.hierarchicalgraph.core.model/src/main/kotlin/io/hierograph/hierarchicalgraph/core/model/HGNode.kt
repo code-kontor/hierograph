@@ -15,12 +15,11 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
-interface CoreGraph {
-    val nodes: Collection<CoreNode>
-    fun lookupNode(identifier: Any): CoreNode?
-    fun <T : Any> registerExtension(clazz: Class<T>, extension: T)
-    fun registerExtension(key: String, extension: Any)
-    fun <T : Any> getExtension(clazz: Class<T>): T?
-    fun <T : Any> getExtension(key: String, clazz: Class<T>): T?
-    fun <T : Any> hasExtension(clazz: Class<T>): Boolean
+interface HGNode {
+    val identifier: Any
+    val nodeSource: INodeSource
+    var kind: Any?
+    val outgoingCoreDependencies: List<CoreDependency>
+    val incomingCoreDependencies: List<CoreDependency>
+    fun <T : Any> getNodeSource(clazz: Class<T>): T?
 }

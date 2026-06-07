@@ -16,8 +16,8 @@
 package io.hierograph.hierarchicalgraph.serialization
 
 import io.hierograph.hierarchicalgraph.core.model.CoreDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HGModel
@@ -140,20 +140,20 @@ class HGGraphJsonTest {
         // graphdb-flavored sources. We never touch their lazy `labels` /
         // `properties` so Neo4j is never contacted.
         var nextId = 1L
-        val coreGraph = CoreGraphFactory.createCoreGraph()
-        val root = CoreGraphFactory.createNode(coreGraph) {
+        val coreGraph = HGGraphFactory.createHGGraph()
+        val root = HGGraphFactory.createNode(coreGraph) {
             io.hierograph.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource(identifier = nextId++)
         }
         val hierarchy = HierarchyFactory.createHierarchy(coreGraph, root)
-        val a = CoreGraphFactory.createNode(coreGraph) {
+        val a = HGGraphFactory.createNode(coreGraph) {
             io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource(identifier = nextId++)
         }
         HierarchyFactory.addChild(hierarchy, root, a)
-        val b = CoreGraphFactory.createNode(coreGraph) {
+        val b = HGGraphFactory.createNode(coreGraph) {
             io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource(identifier = nextId++)
         }
         HierarchyFactory.addChild(hierarchy, root, b)
-        val dep = CoreGraphFactory.createCoreDependency(a, b, "DEPENDS_ON") {
+        val dep = HGGraphFactory.createCoreDependency(a, b, "DEPENDS_ON") {
             io.hierograph.hierarchicalgraph.graphdb.model.GraphDbDependencySource(
                 identifier = nextId++, type = "DEPENDS_ON"
             )
@@ -199,8 +199,8 @@ class HGGraphJsonTest {
 
     private class Built(
         val model: HGModel,
-        val aClass: CoreNode,
-        val bIface: CoreNode
+        val aClass: HGNode,
+        val bIface: HGNode
     )
 
     /**
@@ -219,21 +219,21 @@ class HGGraphJsonTest {
     }
 
     private class Graph {
-        val root: CoreNode
+        val root: HGNode
         val model: HGModel
-        private val coreGraph = CoreGraphFactory.createCoreGraph()
+        private val coreGraph = HGGraphFactory.createHGGraph()
         private val hierarchy: io.hierograph.hierarchicalgraph.core.model.Hierarchy
         private var nextId = 1L
         private val depSource = { DefaultDependencySource(identifier = nextId++) }
 
         init {
-            root = CoreGraphFactory.createNode(coreGraph) { DefaultNodeSource(identifier = nextId++) }
+            root = HGGraphFactory.createNode(coreGraph) { DefaultNodeSource(identifier = nextId++) }
             hierarchy = HierarchyFactory.createHierarchy(coreGraph, root)
             model = HGModel(coreGraph, hierarchy)
         }
 
-        fun add(parent: CoreNode, kind: Any?, props: Map<String, String> = emptyMap()): CoreNode {
-            val node = CoreGraphFactory.createNode(coreGraph) {
+        fun add(parent: HGNode, kind: Any?, props: Map<String, String> = emptyMap()): HGNode {
+            val node = HGGraphFactory.createNode(coreGraph) {
                 DefaultNodeSource(identifier = nextId++, properties = props.toMutableMap())
             }
             node.kind = kind
@@ -241,22 +241,22 @@ class HGGraphJsonTest {
             return node
         }
 
-        fun dep(from: CoreNode, to: CoreNode, type: String, weight: Int, bitmap: Int): CoreDependency {
-            val d = CoreGraphFactory.createCoreDependency(from, to, type, depSource)
+        fun dep(from: HGNode, to: HGNode, type: String, weight: Int, bitmap: Int): CoreDependency {
+            val d = HGGraphFactory.createCoreDependency(from, to, type, depSource)
             d.weight = weight
             d.attributesBitmap = bitmap
             return d
         }
     }
 
-    private fun allDescendants(model: HGModel): List<CoreNode> =
+    private fun allDescendants(model: HGModel): List<HGNode> =
         allDescendants(model.hierarchy, model.hierarchy.rootNode)
 
-    private fun allDescendants(hierarchy: io.hierograph.hierarchicalgraph.core.model.Hierarchy, node: CoreNode): List<CoreNode> = buildList {
+    private fun allDescendants(hierarchy: io.hierograph.hierarchicalgraph.core.model.Hierarchy, node: HGNode): List<HGNode> = buildList {
         add(node)
         for (c in hierarchy.childrenOf(node)) addAll(allDescendants(hierarchy, c))
     }
 
-    private fun lookup(model: HGModel, id: Any): CoreNode =
+    private fun lookup(model: HGModel, id: Any): HGNode =
         model.lookupNode(id) ?: error("No node with id $id in restored graph")
 }

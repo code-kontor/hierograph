@@ -16,7 +16,6 @@
 package io.hierograph.hierarchicalgraph.core.algorithms
 
 import io.hierograph.hierarchicalgraph.core.model.*
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
 
 /**
  * Test graph for algorithm tests.
@@ -38,19 +37,19 @@ import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
  */
 class AlgorithmTestGraph {
 
-    val coreGraph: CoreGraph
+    val coreGraph: HGGraph
     val hierarchy: Hierarchy
-    val nodes: List<CoreNode>  // n0..n7
+    val nodes: List<HGNode>  // n0..n7
 
-    val root: CoreNode
-    val n0: CoreNode
-    val n1: CoreNode
-    val n2: CoreNode
-    val n3: CoreNode
-    val n4: CoreNode
-    val n5: CoreNode
-    val n6: CoreNode
-    val n7: CoreNode
+    val root: HGNode
+    val n0: HGNode
+    val n1: HGNode
+    val n2: HGNode
+    val n3: HGNode
+    val n4: HGNode
+    val n5: HGNode
+    val n6: HGNode
+    val n7: HGNode
 
     private var nextId = 1L
 
@@ -58,18 +57,18 @@ class AlgorithmTestGraph {
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
         val depSource = { DefaultDependencySource(identifier = nextId++) }
 
-        val graph = CoreGraphFactory.createCoreGraph()
+        val graph = HGGraphFactory.createHGGraph()
         coreGraph = graph
 
-        root = CoreGraphFactory.createNode(graph, nodeSource)
-        n0 = CoreGraphFactory.createNode(graph, nodeSource)
-        n1 = CoreGraphFactory.createNode(graph, nodeSource)
-        n2 = CoreGraphFactory.createNode(graph, nodeSource)
-        n3 = CoreGraphFactory.createNode(graph, nodeSource)
-        n4 = CoreGraphFactory.createNode(graph, nodeSource)
-        n5 = CoreGraphFactory.createNode(graph, nodeSource)
-        n6 = CoreGraphFactory.createNode(graph, nodeSource)
-        n7 = CoreGraphFactory.createNode(graph, nodeSource)
+        root = HGGraphFactory.createNode(graph, nodeSource)
+        n0 = HGGraphFactory.createNode(graph, nodeSource)
+        n1 = HGGraphFactory.createNode(graph, nodeSource)
+        n2 = HGGraphFactory.createNode(graph, nodeSource)
+        n3 = HGGraphFactory.createNode(graph, nodeSource)
+        n4 = HGGraphFactory.createNode(graph, nodeSource)
+        n5 = HGGraphFactory.createNode(graph, nodeSource)
+        n6 = HGGraphFactory.createNode(graph, nodeSource)
+        n7 = HGGraphFactory.createNode(graph, nodeSource)
 
         val h = HierarchyFactory.createHierarchy(graph, root)
         hierarchy = h
@@ -86,15 +85,15 @@ class AlgorithmTestGraph {
         nodes = listOf(n0, n1, n2, n3, n4, n5, n6, n7)
 
         // Cycle 1: n1 -> n2 -> n3 -> n1
-        CoreGraphFactory.createCoreDependency(n1, n2, "DEPENDS_ON", depSource)
-        CoreGraphFactory.createCoreDependency(n2, n3, "DEPENDS_ON", depSource)
-        CoreGraphFactory.createCoreDependency(n3, n1, "DEPENDS_ON", depSource)
+        HGGraphFactory.createCoreDependency(n1, n2, "DEPENDS_ON", depSource)
+        HGGraphFactory.createCoreDependency(n2, n3, "DEPENDS_ON", depSource)
+        HGGraphFactory.createCoreDependency(n3, n1, "DEPENDS_ON", depSource)
 
         // Linear: n4 -> n5
-        CoreGraphFactory.createCoreDependency(n4, n5, "DEPENDS_ON", depSource)
+        HGGraphFactory.createCoreDependency(n4, n5, "DEPENDS_ON", depSource)
 
         // Cycle 2: n6 <-> n7
-        CoreGraphFactory.createCoreDependency(n6, n7, "DEPENDS_ON", depSource)
-        CoreGraphFactory.createCoreDependency(n7, n6, "DEPENDS_ON", depSource)
+        HGGraphFactory.createCoreDependency(n6, n7, "DEPENDS_ON", depSource)
+        HGGraphFactory.createCoreDependency(n7, n6, "DEPENDS_ON", depSource)
     }
 }

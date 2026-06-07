@@ -15,8 +15,8 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 
@@ -35,11 +35,11 @@ class GraphReader(private val codecs: CodecRegistry) {
             "Unsupported schemaVersion ${snapshot.schemaVersion}; expected ${GraphSnapshot.SCHEMA_VERSION}"
         }
 
-        val coreGraph = CoreGraphFactory.createCoreGraph()
-        val byId = HashMap<String, CoreNode>(snapshot.nodes.size + 1)
+        val coreGraph = HGGraphFactory.createHGGraph()
+        val byId = HashMap<String, HGNode>(snapshot.nodes.size + 1)
 
         val rootCodec = codecs.nodeCodecFor(snapshot.root.source.type)
-        val root = CoreGraphFactory.createNode(coreGraph) {
+        val root = HGGraphFactory.createNode(coreGraph) {
             rootCodec.read(snapshot.root.id, snapshot.root.source.payload)
         }
         root.kind = decodeKind(snapshot.root.kind)
@@ -53,7 +53,7 @@ class GraphReader(private val codecs: CodecRegistry) {
             val parent = byId[parentId]
                 ?: throw IllegalArgumentException("Node ${rec.id} references unknown parent $parentId; nodes must be ordered parents-before-children")
             val codec = codecs.nodeCodecFor(rec.source.type)
-            val node = CoreGraphFactory.createNode(coreGraph) {
+            val node = HGGraphFactory.createNode(coreGraph) {
                 codec.read(rec.id, rec.source.payload)
             }
             node.kind = decodeKind(rec.kind)
@@ -67,7 +67,7 @@ class GraphReader(private val codecs: CodecRegistry) {
             val to = byId[rec.toId]
                 ?: throw IllegalArgumentException("Dependency ${rec.id} references unknown to-node ${rec.toId}")
             val depCodec = codecs.depCodecFor(rec.source.type)
-            val dep = CoreGraphFactory.createCoreDependency(from, to, rec.type) {
+            val dep = HGGraphFactory.createCoreDependency(from, to, rec.type) {
                 depCodec.read(rec.id, rec.source.payload)
             }
             dep.weight = rec.weight

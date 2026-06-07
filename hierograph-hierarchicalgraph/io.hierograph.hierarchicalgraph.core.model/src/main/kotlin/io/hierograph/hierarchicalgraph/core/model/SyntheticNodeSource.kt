@@ -20,5 +20,5 @@ class SyntheticNodeSource(
     val name: String,
     val qualifiedName: String = name,
 ) : INodeSource {
-    override var node: CoreNode? = null
+    override var node: HGNode? = null
 }

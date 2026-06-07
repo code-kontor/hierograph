@@ -17,11 +17,9 @@ package io.hierograph.hierarchicalgraph.graphdb.mapping.service
 
 import io.hierograph.boltclient.IBoltClient
 import io.hierograph.hierarchicalgraph.core.model.*
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
+import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.*
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.bolt.IBoltClientAware
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbDependencySource
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource
 
 open class DefaultMappingService : IMappingService {
@@ -32,19 +30,19 @@ open class DefaultMappingService : IMappingService {
         val dependencyProvider = mappingProvider.dependencyDefinitionProvider
 
         // 1. Create core graph
-        val coreGraph = CoreGraphFactory.createCoreGraph()
+        val coreGraph = HGGraphFactory.createHGGraph()
         coreGraph.registerExtension(IBoltClient::class.java, boltClient)
 
         // 2. Create root node
         val rootNodeSource = GraphDbRootNodeSource(identifier = -1L)
         rootNodeSource.boltClient = boltClient
-        val rootNode = CoreGraphFactory.createNode(coreGraph) { rootNodeSource }
+        val rootNode = HGGraphFactory.createNode(coreGraph) { rootNodeSource }
 
         // 3. Create hierarchy
         val hierarchy = HierarchyFactory.createHierarchy(coreGraph, rootNode)
 
         // 4. Node lookup map (local, for construction only)
-        val idToNodeMap = mutableMapOf<Long, CoreNode>()
+        val idToNodeMap = mutableMapOf<Long, HGNode>()
 
         // 5. Initialize + build hierarchy from provider
         if (hierarchyProvider is IBoltClientAware) {
@@ -79,7 +77,7 @@ open class DefaultMappingService : IMappingService {
         for (depDef in dependencyProvider.dependencies) {
             val from = idToNodeMap[depDef.idStart] ?: continue
             val to = idToNodeMap[depDef.idTarget] ?: continue
-            val dep = CoreGraphFactory.createCoreDependency(from, to, depDef.type) {
+            val dep = HGGraphFactory.createCoreDependency(from, to, depDef.type) {
                 val depSource = dependencyProvider.createDependencySource(depDef)
                 depSource.boltClient = boltClient
                 depSource
@@ -100,16 +98,16 @@ open class DefaultMappingService : IMappingService {
 
     private fun getOrCreateNode(
         id: Long,
-        coreGraph: CoreGraphImpl,
+        coreGraph: HGGraphImpl,
         boltClient: IBoltClient,
-        idToNodeMap: MutableMap<Long, CoreNode>,
+        idToNodeMap: MutableMap<Long, HGNode>,
         hierarchyProvider: IHierarchyDefinitionProvider,
-    ): CoreNode {
+    ): HGNode {
         return idToNodeMap.getOrPut(id) {
             val source = hierarchyProvider.createNodeSource(id)
             // Set bolt client for lazy property loading
             source.boltClient = boltClient
-            CoreGraphFactory.createNode(coreGraph) { source }
+            HGGraphFactory.createNode(coreGraph) { source }
         }
     }
 }

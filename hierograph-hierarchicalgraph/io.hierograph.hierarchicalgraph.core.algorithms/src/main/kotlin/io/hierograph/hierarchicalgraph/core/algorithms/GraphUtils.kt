@@ -18,24 +18,24 @@ package io.hierograph.hierarchicalgraph.core.algorithms
 import io.hierograph.hierarchicalgraph.core.algorithms.impl.DependencyStructureMatrixImpl
 import io.hierograph.hierarchicalgraph.core.algorithms.impl.FastFasSorter
 import io.hierograph.hierarchicalgraph.core.algorithms.impl.Tarjan
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 object GraphUtils {
 
-    fun detectStronglyConnectedComponents(nodes: Collection<CoreNode>, hierarchy: Hierarchy): List<List<CoreNode>> {
+    fun detectStronglyConnectedComponents(nodes: Collection<HGNode>, hierarchy: Hierarchy): List<List<HGNode>> {
         return Tarjan().detectStronglyConnectedComponents(nodes, hierarchy)
     }
 
-    fun detectCycles(nodes: Collection<CoreNode>, hierarchy: Hierarchy): List<List<CoreNode>> {
+    fun detectCycles(nodes: Collection<HGNode>, hierarchy: Hierarchy): List<List<HGNode>> {
         return Tarjan().detectStronglyConnectedComponents(nodes, hierarchy).filter { it.size > 1 }
     }
 
-    fun createDependencyStructureMatrix(nodes: Collection<CoreNode>, hierarchy: Hierarchy): IDependencyStructureMatrix {
+    fun createDependencyStructureMatrix(nodes: Collection<HGNode>, hierarchy: Hierarchy): IDependencyStructureMatrix {
         return DependencyStructureMatrixImpl(nodes, hierarchy)
     }
 
-    fun computeAdjacencyMatrix(nodes: List<CoreNode>, hierarchy: Hierarchy): Array<IntArray> {
+    fun computeAdjacencyMatrix(nodes: List<HGNode>, hierarchy: Hierarchy): Array<IntArray> {
         val n = nodes.size
         return Array(n) { i ->
             IntArray(n) { j ->
@@ -45,7 +45,7 @@ object GraphUtils {
         }
     }
 
-    fun computeAdjacencyList(nodes: Collection<CoreNode>, hierarchy: Hierarchy): Array<IntArray> {
+    fun computeAdjacencyList(nodes: Collection<HGNode>, hierarchy: Hierarchy): Array<IntArray> {
         val nodeList = nodes.toList()
         val indexMap = nodeList.withIndex().associate { (i, node) -> node to i }
 

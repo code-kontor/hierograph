@@ -16,12 +16,12 @@
 package io.hierograph.hierarchicalgraph.core.model.internal
 
 import io.hierograph.hierarchicalgraph.core.model.CoreDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.IDependencySource
 
 class CoreDependencyImpl(
-    override val from: CoreNode,
-    override val to: CoreNode,
+    override val from: HGNode,
+    override val to: HGNode,
     override val type: String,
     override val dependencySource: IDependencySource,
 ) : CoreDependency {

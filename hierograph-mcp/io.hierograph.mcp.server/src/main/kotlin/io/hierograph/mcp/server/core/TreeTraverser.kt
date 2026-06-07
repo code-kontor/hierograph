@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.core
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 
@@ -35,11 +35,11 @@ import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 object TreeTraverser {
 
     fun dumpTree(
-        node: CoreNode,
+        node: HGNode,
         hierarchy: Hierarchy,
         sink: (String) -> Unit = ::println,
         indent: String = "  ",
-        nameAndFqn: (CoreNode) -> Pair<String?, String?> = ::defaultNameAndFqn
+        nameAndFqn: (HGNode) -> Pair<String?, String?> = ::defaultNameAndFqn
     ) {
         dump(node, hierarchy, depth = 0, indent = indent, sink = sink, nameAndFqn = nameAndFqn)
     }
@@ -48,21 +48,21 @@ object TreeTraverser {
      * Renders the tree rooted at [node] into a single newline-separated string.
      */
     fun dumpToString(
-        node: CoreNode,
+        node: HGNode,
         hierarchy: Hierarchy,
         indent: String = "  ",
-        nameAndFqn: (CoreNode) -> Pair<String?, String?> = ::defaultNameAndFqn
+        nameAndFqn: (HGNode) -> Pair<String?, String?> = ::defaultNameAndFqn
     ): String = buildString {
         dumpTree(node, hierarchy, sink = { appendLine(it) }, indent = indent, nameAndFqn = nameAndFqn)
     }.trimEnd('\n')
 
     private fun dump(
-        node: CoreNode,
+        node: HGNode,
         hierarchy: Hierarchy,
         depth: Int,
         indent: String,
         sink: (String) -> Unit,
-        nameAndFqn: (CoreNode) -> Pair<String?, String?>
+        nameAndFqn: (HGNode) -> Pair<String?, String?>
     ) {
         sink(formatLine(node, depth, indent, nameAndFqn(node)))
         for (child in hierarchy.childrenOf(node)) {
@@ -71,7 +71,7 @@ object TreeTraverser {
     }
 
     private fun formatLine(
-        node: CoreNode,
+        node: HGNode,
         depth: Int,
         indent: String,
         nameFqn: Pair<String?, String?>
@@ -89,7 +89,7 @@ object TreeTraverser {
         }
     }
 
-    private fun defaultNameAndFqn(node: CoreNode): Pair<String?, String?> {
+    private fun defaultNameAndFqn(node: HGNode): Pair<String?, String?> {
         val name = JQAssistantNodeMetadataProvider.getName(node).ifEmpty { null }
         val fqn = JQAssistantNodeMetadataProvider.getQualifiedName(node).ifEmpty { null }
         return name to fqn

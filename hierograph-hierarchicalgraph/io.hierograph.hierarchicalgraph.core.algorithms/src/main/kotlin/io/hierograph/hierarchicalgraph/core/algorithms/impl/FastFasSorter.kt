@@ -19,12 +19,12 @@ import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.core.algorithms.INodeSorter
 import io.hierograph.hierarchicalgraph.core.algorithms.SortResult
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 class FastFasSorter : INodeSorter {
 
-    override fun sort(nodes: List<CoreNode>, hierarchy: Hierarchy): SortResult {
+    override fun sort(nodes: List<HGNode>, hierarchy: Hierarchy): SortResult {
         val adjacencyMatrix = GraphUtils.computeAdjacencyMatrix(nodes, hierarchy)
 
         val fastFAS = FastFAS(adjacencyMatrix)
@@ -56,7 +56,7 @@ class FastFasSorter : INodeSorter {
         }
 
         return object : SortResult {
-            override val orderedNodes: List<CoreNode> = resultNodes
+            override val orderedNodes: List<HGNode> = resultNodes
             override val upwardDependencies: List<AggregatedDependency> = upwardDeps
         }
     }

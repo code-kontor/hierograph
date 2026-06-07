@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -96,7 +96,7 @@ class PairwiseDependenciesTool(
 
         // ── resolve and validate nodes ─────────────────────────────────
         val hierarchy = graphService.model.hierarchy
-        val resolvedNodes = mutableListOf<CoreNode>()
+        val resolvedNodes = mutableListOf<HGNode>()
         for (id in nodeIds) {
             val node = graphService.model.lookupNode(id)
                 ?: return nodeNotFound(id)
@@ -197,7 +197,7 @@ class PairwiseDependenciesTool(
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    private fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
+    private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)

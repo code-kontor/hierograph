@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.INodeSource
 import io.hierograph.boltclient.IBoltClient
 
@@ -23,7 +23,7 @@ open class GraphDbNodeSource(
     override val identifier: Any
 ) : INodeSource {
 
-    override var node: CoreNode? = null
+    override var node: HGNode? = null
 
     var boltClient: IBoltClient? = null
 

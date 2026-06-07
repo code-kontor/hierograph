@@ -16,8 +16,8 @@
 package io.hierograph.hierarchicalgraph.core.model
 
 interface CoreDependency {
-    val from: CoreNode
-    val to: CoreNode
+    val from: HGNode
+    val to: HGNode
     val type: String
     var weight: Int
     var attributesBitmap: Int

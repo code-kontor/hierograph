@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -76,14 +76,14 @@ class AggregatedDependenciesTool(
 
         // ── resolve and validate all nodes ─────────────────────────────
         val hierarchy = graphService.model.hierarchy
-        val sourceNodes = mutableListOf<CoreNode>()
+        val sourceNodes = mutableListOf<HGNode>()
         for (id in sourceIds) {
             val node = graphService.model.lookupNode(id) ?: return nodeNotFound(id)
             validateNodeKind(node)?.let { return it }
             sourceNodes.add(node)
         }
 
-        val targetNodes = mutableListOf<CoreNode>()
+        val targetNodes = mutableListOf<HGNode>()
         for (id in targetIds) {
             val node = graphService.model.lookupNode(id) ?: return nodeNotFound(id)
             validateNodeKind(node)?.let { return it }
@@ -143,7 +143,7 @@ class AggregatedDependenciesTool(
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    private fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
+    private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)

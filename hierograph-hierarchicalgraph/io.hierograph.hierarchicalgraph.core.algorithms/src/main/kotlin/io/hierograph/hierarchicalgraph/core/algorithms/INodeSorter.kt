@@ -16,14 +16,14 @@
 package io.hierograph.hierarchicalgraph.core.algorithms
 
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
 interface INodeSorter {
-    fun sort(nodes: List<CoreNode>, hierarchy: Hierarchy): SortResult
+    fun sort(nodes: List<HGNode>, hierarchy: Hierarchy): SortResult
 }
 
 interface SortResult {
-    val orderedNodes: List<CoreNode>
+    val orderedNodes: List<HGNode>
     val upwardDependencies: List<AggregatedDependency>
 }

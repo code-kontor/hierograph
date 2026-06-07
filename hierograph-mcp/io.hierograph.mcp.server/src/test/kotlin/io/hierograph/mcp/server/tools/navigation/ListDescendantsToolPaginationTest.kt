@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
@@ -41,14 +41,14 @@ class ListDescendantsToolPaginationTest {
     fun setup() {
         var nextId = 1L
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
-        val graph = CoreGraphFactory.createCoreGraph()
-        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val graph = HGGraphFactory.createHGGraph()
+        val root = HGGraphFactory.createNode(graph, nodeSource)
         val hierarchy = HierarchyFactory.createHierarchy(graph, root)
-        val parent = CoreGraphFactory.createNode(graph, nodeSource)
+        val parent = HGGraphFactory.createNode(graph, nodeSource)
         HierarchyFactory.addChild(hierarchy, root, parent)
         parentId = parent.identifier as Long
         repeat(5) {
-            val child = CoreGraphFactory.createNode(graph, nodeSource)
+            val child = HGGraphFactory.createNode(graph, nodeSource)
             HierarchyFactory.addChild(hierarchy, parent, child)
             childIds.add(child.identifier as Long)
         }
@@ -121,16 +121,16 @@ class ListDescendantsToolPaginationTest {
     }
 
     private class FakeNodeRefFactory : INodeRefFactory {
-        override fun minimalNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
-        override fun enrichedNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun minimalNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun enrichedNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
         override fun primitiveRef(name: String) = linkedMapOf<String, Any?>("name" to name)
         override fun putSlimNode(
             nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?
         ) {
         }
 
-        override fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {}
-        override fun countDescendantsByKind(node: CoreNode, kinds: Set<*>) = 0
-        override fun countDescendants(node: CoreNode) = 0L
+        override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {}
+        override fun countDescendantsByKind(node: HGNode, kinds: Set<*>) = 0
+        override fun countDescendants(node: HGNode) = 0L
     }
 }

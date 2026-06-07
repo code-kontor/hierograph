@@ -17,11 +17,11 @@ package io.hierograph.hierarchicalgraph.core.model.internal
 
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.core.model.CoreDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 
 class AggregatedDependencyImpl(
-    override val from: CoreNode,
-    override val to: CoreNode,
+    override val from: HGNode,
+    override val to: HGNode,
     override val coreDependencies: List<CoreDependency>,
 ) : AggregatedDependency {
     override val aggregatedWeight: Int = coreDependencies.sumOf { it.weight }

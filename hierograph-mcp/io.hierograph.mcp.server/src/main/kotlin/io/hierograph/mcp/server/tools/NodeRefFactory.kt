@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
@@ -39,7 +39,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`.
      * Used when a NodeRef appears inside a larger structure (edge endpoint, path step, etc.).
      */
-    override fun minimalNodeRef(node: CoreNode): LinkedHashMap<String, Any?> {
+    override fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
         val hierarchy = graphService.model.hierarchy
         val parent = hierarchy.parentOf(node)
         return linkedMapOf(
@@ -58,7 +58,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      * Identity plus kind-appropriate metadata. Used when the NodeRef *is* the result
      * of a browse-style operation (find_node, list_children, list_descendants, affected_by).
      */
-    override fun enrichedNodeRef(node: CoreNode): LinkedHashMap<String, Any?> {
+    override fun enrichedNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
         val ref = minimalNodeRef(node)
         val kind = node.kind
 
@@ -73,7 +73,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         return ref
     }
 
-    private fun enrichModule(ref: LinkedHashMap<String, Any?>, node: CoreNode) {
+    private fun enrichModule(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         ref["child_count"] = children.size
@@ -81,7 +81,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaKinds.METHOD))
     }
 
-    private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: CoreNode) {
+    private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         ref["child_count"] = children.size
@@ -89,7 +89,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         ref["direct_type_count"] = children.count { it.kind in JavaKinds.TYPE_KINDS }
     }
 
-    private fun enrichType(ref: LinkedHashMap<String, Any?>, node: CoreNode) {
+    private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         // TODO: modifiers, annotation_count, interface_count, is_abstract, is_generic, parent_type
@@ -102,13 +102,13 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun enrichMethod(ref: LinkedHashMap<String, Any?>, node: CoreNode) {
+    private fun enrichMethod(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         // TODO: modifiers, parameter_count, throws_count, annotation_count, is_constructor
         //       require property materialisation
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun enrichField(ref: LinkedHashMap<String, Any?>, node: CoreNode) {
+    private fun enrichField(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         // TODO: modifiers, field_type_name, annotation_count, is_constant
         //       require property materialisation
     }
@@ -130,9 +130,9 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     }
 
     /**
-     * Convenience overload that extracts display fields from a [CoreNode].
+     * Convenience overload that extracts display fields from a [HGNode].
      */
-    override fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {
+    override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
         val id = (node.identifier as? Number)?.toLong() ?: 0L
         putSlimNode(nodes, id, JQAssistantNodeMetadataProvider.getName(node), JQAssistantNodeMetadataProvider.getQualifiedName(node), JQAssistantNodeMetadataProvider.getKind(node))
     }
@@ -155,10 +155,10 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     /**
      * Counts all descendants of [node] whose kind is in [kinds].
      */
-    override fun countDescendantsByKind(node: CoreNode, kinds: Set<*>): Int {
+    override fun countDescendantsByKind(node: HGNode, kinds: Set<*>): Int {
         val hierarchy = graphService.model.hierarchy
         var count = 0
-        fun walk(n: CoreNode) {
+        fun walk(n: HGNode) {
             for (child in hierarchy.childrenOf(n)) {
                 if (child.kind in kinds) count++
                 walk(child)
@@ -171,7 +171,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     /**
      * Counts all descendants of [node] (regardless of kind).
      */
-    override fun countDescendants(node: CoreNode): Long {
+    override fun countDescendants(node: HGNode): Long {
         val hierarchy = graphService.model.hierarchy
         var count = 0L
         for (child in hierarchy.childrenOf(node)) {

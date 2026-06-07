@@ -38,8 +38,8 @@ data class GraphSnapshot(
 }
 
 /**
- * Flat record for a single `CoreNode`. [parentId] is `null` only for the root.
- * [kind] is `null` exactly when `CoreNode.kind` is `null` on the source node.
+ * Flat record for a single `HGNode`. [parentId] is `null` only for the root.
+ * [kind] is `null` exactly when `HGNode.kind` is `null` on the source node.
  */
 data class NodeRecord(
     val id: String,
@@ -63,7 +63,7 @@ data class DepRecord(
 )
 
 /**
- * Carries enough information to reconstruct `CoreNode.kind`. [type] is the FQCN
+ * Carries enough information to reconstruct `HGNode.kind`. [type] is the FQCN
  * of the kind class; [value] its string form (`Enum.name` for enums, the
  * string itself for `String` kinds).
  */

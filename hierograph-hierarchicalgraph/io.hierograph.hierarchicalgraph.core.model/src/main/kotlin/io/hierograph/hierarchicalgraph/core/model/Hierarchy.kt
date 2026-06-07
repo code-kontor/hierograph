@@ -16,37 +16,37 @@
 package io.hierograph.hierarchicalgraph.core.model
 
 interface Hierarchy {
-    val coreGraph: CoreGraph
-    val rootNode: CoreNode
+    val coreGraph: HGGraph
+    val rootNode: HGNode
     var name: String?
 
     // structure
-    fun parentOf(node: CoreNode): CoreNode?
-    fun childrenOf(node: CoreNode): List<CoreNode>
-    fun predecessorsOf(node: CoreNode): List<CoreNode>
-    fun isPredecessorOf(ancestor: CoreNode, descendant: CoreNode): Boolean
-    fun isSuccessorOf(descendant: CoreNode, ancestor: CoreNode): Boolean
+    fun parentOf(node: HGNode): HGNode?
+    fun childrenOf(node: HGNode): List<HGNode>
+    fun predecessorsOf(node: HGNode): List<HGNode>
+    fun isPredecessorOf(ancestor: HGNode, descendant: HGNode): Boolean
+    fun isSuccessorOf(descendant: HGNode, ancestor: HGNode): Boolean
 
     // accumulated dependencies (hierarchy-dependent)
-    fun accumulatedOutgoing(node: CoreNode): List<CoreDependency>
-    fun accumulatedIncoming(node: CoreNode): List<CoreDependency>
+    fun accumulatedOutgoing(node: HGNode): List<CoreDependency>
+    fun accumulatedIncoming(node: HGNode): List<CoreDependency>
 
     // aggregated dependencies (hierarchy-dependent)
-    fun getAggregatedDependency(from: CoreNode, to: CoreNode): AggregatedDependency?
-    fun getAggregatedDependencies(from: CoreNode, targets: List<CoreNode>): List<AggregatedDependency>
-    fun getAggregatedDependenciesFrom(to: CoreNode, sources: List<CoreNode>): List<AggregatedDependency>
+    fun getAggregatedDependency(from: HGNode, to: HGNode): AggregatedDependency?
+    fun getAggregatedDependencies(from: HGNode, targets: List<HGNode>): List<AggregatedDependency>
+    fun getAggregatedDependenciesFrom(to: HGNode, sources: List<HGNode>): List<AggregatedDependency>
 
     // traversal
-    fun traverse(node: CoreNode, action: (CoreNode) -> Unit)
-    fun traverse(node: CoreNode, action: (CoreNode) -> Unit, filter: (CoreNode) -> Boolean)
+    fun traverse(node: HGNode, action: (HGNode) -> Unit)
+    fun traverse(node: HGNode, action: (HGNode) -> Unit, filter: (HGNode) -> Boolean)
 
     // local nodes (scenario-only)
-    val localNodes: Collection<CoreNode>
-    fun createLocalNode(kind: Any?, nodeSourceSupplier: () -> INodeSource): CoreNode
-    fun lookupNode(identifier: Any): CoreNode?
+    val localNodes: Collection<HGNode>
+    fun createLocalNode(kind: Any?, nodeSourceSupplier: () -> INodeSource): HGNode
+    fun lookupNode(identifier: Any): HGNode?
 
     // mutation (for scenarios)
-    fun addChild(parent: CoreNode, child: CoreNode)
-    fun move(node: CoreNode, newParent: CoreNode)
+    fun addChild(parent: HGNode, child: HGNode)
+    fun move(node: HGNode, newParent: HGNode)
     fun fork(): Hierarchy
 }
