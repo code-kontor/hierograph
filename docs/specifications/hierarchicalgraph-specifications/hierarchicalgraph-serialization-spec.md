@@ -1,18 +1,20 @@
 # Hierograph Graph Serialization — Design
 
 This module (`io.hierograph.hierarchicalgraph.serialization`) provides a flat,
-ID‑keyed JSON serializer for `HGRootNode` instances using Jackson.
+ID‑keyed JSON serializer for `HGModel` instances using Jackson.
 
-The HG model has no built-in serialization: nodes hold cyclic `parent ↔ children`
-and `from/to ↔ outgoing/incoming` references, the `INodeSource` / `IDependencySource`
-SPIs are polymorphic, and several private caches on `HGNodeImpl`
-(`_predecessors`, `_accumulatedOutgoing/Incoming`, `_cachedAggregatedOutgoing/Incoming`)
+The HG model has no built-in serialization: dependencies hold cyclic
+`from/to ↔ outgoing/incoming` references, the parent/child structure is held in
+a `Hierarchy` over the shared `HGGraph`, the `INodeSource` / `IDependencySource`
+SPIs are polymorphic, and several derived caches on the hierarchy
+(predecessors, `accumulatedOutgoing/Incoming`, aggregated dependencies)
 would either bloat output or need transient exclusions. A generic object-graph
 serializer would have to be heavily configured to cope with all of this.
 
-Instead, this module projects the graph to a flat record stream — nodes by id,
+Instead, this module projects the model to a flat record stream — nodes by id,
 core dependencies referencing nodes by id — and round-trips it via
-`HierarchicalGraphFactory`. Caches are derived and rebuild lazily after load.
+`HGGraphFactory` / `HierarchyFactory`. Caches are derived and rebuild lazily
+after load.
 
 ## Public API
 
@@ -21,11 +23,11 @@ A single entry-point object, `HGGraphJson`. Everything else is in the
 
 ```kotlin
 object HGGraphJson {
-    fun write(root: HGRootNode, prettyPrint: Boolean = false): String
-    fun write(root: HGRootNode, sink: OutputStream, prettyPrint: Boolean = false)
+    fun write(model: HGModel, prettyPrint: Boolean = false): String
+    fun write(model: HGModel, sink: OutputStream, prettyPrint: Boolean = false)
 
-    fun read(json: String): HGRootNode
-    fun read(source: InputStream): HGRootNode
+    fun read(json: String): HGModel
+    fun read(source: InputStream): HGModel
 }
 ```
 
@@ -53,21 +55,21 @@ version with an `IllegalArgumentException`.
 The on-disk shape, written by Jackson via the internal data classes:
 
 ```kotlin
-internal data class GraphSnapshot(
-    val schemaVersion: Int = 1,
+data class GraphSnapshot(
+    val schemaVersion: Int = SCHEMA_VERSION,   // SCHEMA_VERSION == 1
     val root: NodeRecord,
     val nodes: List<NodeRecord>,    // every non-root node, parents before children
     val deps:  List<DepRecord>      // every core dependency, deduplicated by identity
 )
 
-internal data class NodeRecord(
+data class NodeRecord(
     val id: String,                 // String form of nodeSource.identifier
     val parentId: String?,          // null only for the root
     val kind: KindRef?,             // null when HGNode.kind is null
     val source: SourceRef
 )
 
-internal data class DepRecord(
+data class DepRecord(
     val id: String,                 // String form of dependencySource.identifier
     val fromId: String,
     val toId:   String,
@@ -77,8 +79,8 @@ internal data class DepRecord(
     val source: SourceRef
 )
 
-internal data class KindRef(val type: String, val value: String)
-internal data class SourceRef(val type: String, val payload: Map<String, String> = emptyMap())
+data class KindRef(val type: String, val value: String)
+data class SourceRef(val type: String, val payload: Map<String, String> = emptyMap())
 ```
 
 Design choices baked in:
@@ -109,16 +111,16 @@ this to round-trip `GraphDb*Source` → `Default*Source` without a Bolt client
 at read time.
 
 ```kotlin
-internal interface NodeSourceCodec<S : INodeSource> {
+interface NodeSourceCodec<S : INodeSource> {
     val typeId: String                              // written to SourceRef.type
     val sourceClass: Class<S>
     fun write(source: S): Map<String, String>
     fun read(identifier: String, payload: Map<String, String>): INodeSource   // not S
 }
 
-internal interface DepSourceCodec<S : IDependencySource> { /* mirror */ }
+interface DepSourceCodec<S : IDependencySource> { /* mirror */ }
 
-internal class CodecRegistry {
+class CodecRegistry {
     fun register(codec: NodeSourceCodec<*>): CodecRegistry
     fun register(codec: DepSourceCodec<*>): CodecRegistry
 
@@ -128,7 +130,7 @@ internal class CodecRegistry {
     fun depCodecFor(typeId: String):            DepSourceCodec<IDependencySource>
 
     companion object {
-        /** Registry preloaded with codecs for DefaultNodeSource / DefaultDependencySource. */
+        /** Registry preloaded with codecs for the default and graphdb sources. */
         fun defaults(): CodecRegistry
     }
 }
@@ -179,23 +181,31 @@ No codec registration is needed for these cases. Other kind classes raise
 
 ## Writer (internal)
 
-One pre-order traversal of the tree, one identity-dedup pass for dependencies:
+One pre-order traversal of the hierarchy tree, one identity-dedup pass for
+dependencies:
 
 ```kotlin
-internal class GraphWriter(private val codecs: CodecRegistry) {
-    fun write(root: HGRootNode): GraphSnapshot
+class GraphWriter(private val codecs: CodecRegistry) {
+    fun write(model: HGModel): GraphSnapshot
 }
 ```
+
+The writer reads the tree from `model.hierarchy`: it starts at
+`hierarchy.rootNode` and recurses through `hierarchy.childrenOf(node)`,
+emitting the root into `GraphSnapshot.root` and all other nodes into `nodes`
+in pre-order.
 
 Invariants:
 
 - **Traverse only `outgoingCoreDependencies`.** Every dependency appears in
-  exactly one `outgoing` list and one `incoming` list (by `HierarchicalGraphFactory`'s
-  construction); picking the outgoing side avoids duplicates without
-  identity-equality machinery on the wire.
-- **Never touch derived caches.** `accumulated*`, `predecessors`,
-  `getOutgoingDependenciesTo(...)` etc. are derived; touching them on the write
-  path would force pointless work and risk emitting nothing new.
+  exactly one `outgoing` list and one `incoming` list (by `HGGraphFactory`'s
+  construction); picking the outgoing side, accumulated across every visited
+  node into a `LinkedHashSet`, avoids duplicates without identity-equality
+  machinery on the wire.
+- **Never touch derived caches.** `accumulatedOutgoing/Incoming`,
+  `predecessorsOf(...)`, `getAggregatedDependency(...)` etc. on the `Hierarchy`
+  are derived; touching them on the write path would force pointless work and
+  risk emitting nothing new.
 - **`GraphDbNodeSource` materialization is the caller's responsibility.** If
   a future graphdb codec is registered, it must trigger `source.labels` /
   `source.properties` before reading them. This module ships no graphdb codec,
@@ -206,19 +216,29 @@ Invariants:
 Two passes: create nodes (parents before children), then attach dependencies.
 
 ```kotlin
-internal class GraphReader(private val codecs: CodecRegistry) {
-    fun read(snapshot: GraphSnapshot): HGRootNode
+class GraphReader(private val codecs: CodecRegistry) {
+    fun read(snapshot: GraphSnapshot): HGModel
 }
 ```
 
+The reader rebuilds the model from its parts: it creates an empty graph with
+`HGGraphFactory.createHGGraph()`, materializes the root node with
+`HGGraphFactory.createNode(graph) { ... }`, then opens a `Hierarchy` over the
+graph via `HierarchyFactory.createHierarchy(coreGraph, root)`. Each non-root
+node is created the same way and attached with
+`HierarchyFactory.addChild(hierarchy, parent, node)`. Dependencies are created
+with `HGGraphFactory.createCoreDependency(from, to, type) { ... }`. The result
+is wrapped as `HGModel(coreGraph, hierarchy)`.
+
 Invariants:
 
-- **Parents before children.** `HierarchicalGraphFactory.createNode(root, parent, ...)`
-  requires the parent to exist. The writer's pre-order traversal satisfies this
-  with one linear pass on the reader side.
-- **Caches stay cold.** The factory never populates the derived caches, so the
-  deserialized graph is in a clean state — first access to `accumulated*` etc.
-  rebuilds lazily.
+- **Parents before children.** `HierarchyFactory.addChild(hierarchy, parent, node)`
+  requires the parent to already exist in the `byId` map. The writer's pre-order
+  traversal satisfies this with one linear pass on the reader side; a non-root
+  record with a `null` or unknown `parentId` is rejected.
+- **Caches stay cold.** The factories never populate the hierarchy's derived
+  caches, so the deserialized model is in a clean state — first access to
+  `accumulatedOutgoing/Incoming` etc. rebuilds lazily.
 - **`weight` and `attributesBitmap` are `var`** on `HGCoreDependency` —
   settable post-construction; that's why they're not part of
   `createCoreDependency`'s signature.
@@ -261,10 +281,10 @@ external consumer.
 | Thing                                                | Behavior                                              |
 |------------------------------------------------------|-------------------------------------------------------|
 | Identity equality across round-trip                  | Broken; `node1 === node2` won't hold. Equality on `identifier` does. |
-| `HGRootNode` extensions (`registerExtension(...)`)   | Skipped. Runtime hooks (Spring beans, bolt clients) are caller-owned. |
-| `HGAggregatedDependency`                             | Not serialized; reader regenerates on demand from core deps. |
+| `HGGraph` extensions (`registerExtension(...)`)      | Skipped. Runtime hooks (Spring beans, bolt clients) are caller-owned. |
+| `AggregatedDependency`                               | Not serialized; the hierarchy regenerates it on demand from core deps. |
 | `GraphDbDependencySource.userObject`                 | Not serialized; runtime-only annotation.              |
-| `INodeSource.node` / `IDependencySource.dependency`  | Set automatically by `HierarchicalGraphFactory` on read. |
+| `INodeSource.node` / `IDependencySource.dependency`  | Set automatically by `HGGraphFactory` on read.        |
 
 ## Approximate cost
 

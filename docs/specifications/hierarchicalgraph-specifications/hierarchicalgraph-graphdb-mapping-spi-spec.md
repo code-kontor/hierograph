@@ -23,7 +23,7 @@ The mapping SPI defines two provider interfaces, aggregated by a single `Mapping
 Both providers follow a lifecycle: `initialize()` populates their backing data (typically
 by running Cypher queries), the data is exposed as read-only properties, and `dispose()`
 clears it. They are consumed by the mapping service (separate module) to construct an
-`HGRootNode` from a Neo4j database.
+`HGModel` — an `HGGraph` plus its `Hierarchy` of `HGNode`s — from a Neo4j database.
 
 The `bolt` subpackage provides ready-made abstract base classes that implement both
 providers on top of `IBoltClient` Cypher queries.
@@ -215,6 +215,10 @@ abstract class AbstractQueryBasedHierarchyProvider :
 1. Run every query from `toplevelNodeIdQueries()` (results are flat-mapped together).
    - Each row must return ≥ 2 columns: column 0 `id: Long`, column 1 `kindString: String`.
    - Transform to `ToplevelNodeId(id, kind = parseKind(kindString))`.
+   - **De-duplicate by id** via `.distinctBy { it.id }`. Because the top-level set is built
+     from multiple queries (and a single query may also surface the same node more than once),
+     this guarantees a node is never returned as a top-level entry twice. The first occurrence
+     of each id wins.
 2. Run every query from `parentChildNodeIdsQueries()` (results are flat-mapped together).
    - Each row must return ≥ 3 columns: column 0 `parentId: Long`, column 1 `childId: Long`,
      column 2 `kindString: String`.
