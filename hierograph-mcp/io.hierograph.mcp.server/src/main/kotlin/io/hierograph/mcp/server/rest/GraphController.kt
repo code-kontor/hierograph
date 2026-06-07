@@ -89,8 +89,14 @@ class GraphController(
     @GetMapping("/pairwise-dependencies")
     fun pairwiseDependencies(
         @RequestParam(name = "nodeIds") nodeIds: List<Long>,
-        @RequestParam(name = "direction", required = false) direction: String?
-    ): Map<String, Any?> = pairwiseDependenciesTool.pairwiseDependencies(nodeIds, direction)
+        @RequestParam(name = "direction", required = false) direction: String?,
+        @RequestParam(name = "edgeSort", required = false) edgeSort: String?,
+        @RequestParam(name = "minWeight", required = false) minWeight: Int?,
+        @RequestParam(name = "limit", required = false) limit: Int?,
+        @RequestParam(name = "cursor", required = false) cursor: String?
+    ): Map<String, Any?> = pairwiseDependenciesTool.pairwiseDependencies(
+        nodeIds, direction, edgeSort, minWeight, limit, cursor
+    )
 
     @GetMapping("/outgoing-dependencies")
     fun outgoingDependencies(
