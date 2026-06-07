@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.javaspec
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 
 /**
  * Returns the transitive supertype closure of this type node — every type reachable
@@ -27,7 +27,7 @@ import io.hierograph.hierarchicalgraph.core.model.CoreNode
  * through a cycle. Cycles and diamond inheritance are handled via a visited-set,
  * so each type appears at most once.
  */
-fun CoreNode.supertypes(includeSelf: Boolean = false): Set<CoreNode> =
+fun HGNode.supertypes(includeSelf: Boolean = false): Set<HGNode> =
     walkHierarchy(listOf(this), includeSelf, upward = true)
 
 /**
@@ -37,7 +37,7 @@ fun CoreNode.supertypes(includeSelf: Boolean = false): Set<CoreNode> =
  *
  * See [supertypes] for the semantics of [includeSelf].
  */
-fun CoreNode.subtypes(includeSelf: Boolean = false): Set<CoreNode> =
+fun HGNode.subtypes(includeSelf: Boolean = false): Set<HGNode> =
     walkHierarchy(listOf(this), includeSelf, upward = false)
 
 /**
@@ -49,19 +49,19 @@ fun CoreNode.subtypes(includeSelf: Boolean = false): Set<CoreNode> =
  * (the default) a seed appears only if it is reachable via the closure starting
  * from another seed (or via a cycle).
  */
-fun Iterable<CoreNode>.supertypes(includeSelf: Boolean = false): Set<CoreNode> =
+fun Iterable<HGNode>.supertypes(includeSelf: Boolean = false): Set<HGNode> =
     walkHierarchy(this, includeSelf, upward = true)
 
 /**
  * Returns the union of the transitive subtype closures of every node in this
  * collection. See [Iterable.supertypes] for [includeSelf] semantics.
  */
-fun Iterable<CoreNode>.subtypes(includeSelf: Boolean = false): Set<CoreNode> =
+fun Iterable<HGNode>.subtypes(includeSelf: Boolean = false): Set<HGNode> =
     walkHierarchy(this, includeSelf, upward = false)
 
-private fun walkHierarchy(seeds: Iterable<CoreNode>, includeSelf: Boolean, upward: Boolean): Set<CoreNode> {
-    val visited = LinkedHashSet<CoreNode>()
-    val stack = ArrayDeque<CoreNode>()
+private fun walkHierarchy(seeds: Iterable<HGNode>, includeSelf: Boolean, upward: Boolean): Set<HGNode> {
+    val visited = LinkedHashSet<HGNode>()
+    val stack = ArrayDeque<HGNode>()
     for (seed in seeds) {
         if (includeSelf) visited.add(seed)
         stack.addLast(seed)

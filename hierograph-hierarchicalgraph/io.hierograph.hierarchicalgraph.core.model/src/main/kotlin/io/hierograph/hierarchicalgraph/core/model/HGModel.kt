@@ -16,10 +16,10 @@
 package io.hierograph.hierarchicalgraph.core.model
 
 class HGModel(
-    val coreGraph: CoreGraph,
+    val coreGraph: HGGraph,
     val hierarchy: Hierarchy,
 ) {
-    fun lookupNode(identifier: Any): CoreNode? = hierarchy.lookupNode(identifier)
+    fun lookupNode(identifier: Any): HGNode? = hierarchy.lookupNode(identifier)
 
     fun fork(): HGModel = HGModel(coreGraph, hierarchy.fork())
 

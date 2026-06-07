@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.core
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
@@ -35,25 +35,25 @@ class TreeTraverserTest {
     //   b   (no name, no fqn)
     //   c   name="C"  (no fqn)
     //   d   (no name)  fqn="p.D"
-    private lateinit var root: CoreNode
-    private lateinit var a: CoreNode
-    private lateinit var a1: CoreNode
-    private lateinit var b: CoreNode
-    private lateinit var c: CoreNode
-    private lateinit var d: CoreNode
+    private lateinit var root: HGNode
+    private lateinit var a: HGNode
+    private lateinit var a1: HGNode
+    private lateinit var b: HGNode
+    private lateinit var c: HGNode
+    private lateinit var d: HGNode
     private lateinit var hierarchy: Hierarchy
 
-    private lateinit var names: Map<CoreNode, Pair<String?, String?>>
+    private lateinit var names: Map<HGNode, Pair<String?, String?>>
 
     @BeforeEach
     fun setup() {
-        val graph = CoreGraphFactory.createCoreGraph()
-        root = CoreGraphFactory.createNode(graph, nodeSource)
-        a = CoreGraphFactory.createNode(graph, nodeSource)
-        a1 = CoreGraphFactory.createNode(graph, nodeSource)
-        b = CoreGraphFactory.createNode(graph, nodeSource)
-        c = CoreGraphFactory.createNode(graph, nodeSource)
-        d = CoreGraphFactory.createNode(graph, nodeSource)
+        val graph = HGGraphFactory.createHGGraph()
+        root = HGGraphFactory.createNode(graph, nodeSource)
+        a = HGGraphFactory.createNode(graph, nodeSource)
+        a1 = HGGraphFactory.createNode(graph, nodeSource)
+        b = HGGraphFactory.createNode(graph, nodeSource)
+        c = HGGraphFactory.createNode(graph, nodeSource)
+        d = HGGraphFactory.createNode(graph, nodeSource)
 
         val h = HierarchyFactory.createHierarchy(graph, root)
         HierarchyFactory.addChild(h, root, a)
@@ -72,7 +72,7 @@ class TreeTraverserTest {
         )
     }
 
-    private fun lookup(node: CoreNode): Pair<String?, String?> = names[node] ?: (null to null)
+    private fun lookup(node: HGNode): Pair<String?, String?> = names[node] ?: (null to null)
 
     @Test
     fun `dumpToString renders an indented preorder tree with name and fqn`() {

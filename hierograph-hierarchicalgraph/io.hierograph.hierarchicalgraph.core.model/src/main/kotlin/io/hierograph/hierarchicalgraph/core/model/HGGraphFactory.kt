@@ -16,35 +16,35 @@
 package io.hierograph.hierarchicalgraph.core.model
 
 import io.hierograph.hierarchicalgraph.core.model.internal.CoreDependencyImpl
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreNodeImpl
+import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
+import io.hierograph.hierarchicalgraph.core.model.internal.HGNodeImpl
 
-object CoreGraphFactory {
+object HGGraphFactory {
 
-    fun createCoreGraph(): CoreGraphImpl = CoreGraphImpl()
+    fun createHGGraph(): HGGraphImpl = HGGraphImpl()
 
     fun createNode(
-        graph: CoreGraphImpl,
+        graph: HGGraphImpl,
         nodeSourceSupplier: () -> INodeSource,
-    ): CoreNode {
+    ): HGNode {
         val source = nodeSourceSupplier()
-        val node = CoreNodeImpl(nodeSource = source)
+        val node = HGNodeImpl(nodeSource = source)
         source.node = node
         graph.registerNode(node)
         return node
     }
 
     fun createCoreDependency(
-        source: CoreNode,
-        target: CoreNode,
+        source: HGNode,
+        target: HGNode,
         type: String,
         depSourceSupplier: () -> IDependencySource,
     ): CoreDependency {
         val depSource = depSourceSupplier()
         val dep = CoreDependencyImpl(from = source, to = target, type = type, dependencySource = depSource)
         depSource.dependency = dep
-        (source as CoreNodeImpl)._outgoing.add(dep)
-        (target as CoreNodeImpl)._incoming.add(dep)
+        (source as HGNodeImpl)._outgoing.add(dep)
+        (target as HGNodeImpl)._incoming.add(dep)
         return dep
     }
 }

@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -91,7 +91,7 @@ class FindDependencyPathTool(
         // We use BFS layer by layer to find all shortest paths first,
         // then progressively longer paths up to max_paths.
         data class BfsState(
-            val node: CoreNode,
+            val node: HGNode,
             val path: List<PathStep>  // steps taken to reach this node
         )
 
@@ -197,7 +197,7 @@ class FindDependencyPathTool(
 
     private data class PathStep(val from: Any, val to: Any, val weight: Int)
 
-    private fun collectTypeIds(node: CoreNode): Set<Any> {
+    private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
         if (node.kind in JavaKinds.TYPE_KINDS) ids.add(node.identifier)
@@ -209,7 +209,7 @@ class FindDependencyPathTool(
         return ids
     }
 
-    private fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
+    private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)

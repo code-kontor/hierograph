@@ -17,7 +17,7 @@ package io.hierograph.mcp.server.tools.detail
 
 import org.slf4j.LoggerFactory
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
@@ -484,7 +484,7 @@ class DetailDependenciesComponent(
     // Subtree resolution
     // =====================================================================================
 
-    private fun resolveNodeOrRoot(nodeId: Long): CoreNode? {
+    private fun resolveNodeOrRoot(nodeId: Long): HGNode? {
         val node = graphService.model.lookupNode(nodeId)
         if (node != null) return node
         val hierarchy = graphService.model.hierarchy
@@ -500,7 +500,7 @@ class DetailDependenciesComponent(
      * expands to contained type IDs. For member nodes (method, field), returns the declaring
      * type's ID plus the member's own ID and Neo4j label for Cypher anchoring.
      */
-    private fun resolveScopeInfo(node: CoreNode): ScopeInfo {
+    private fun resolveScopeInfo(node: HGNode): ScopeInfo {
         val neoLabel = neoLabelForMember(node)
         if (neoLabel != null) {
             // Member node: use declaring type (parent) for the type set
@@ -517,7 +517,7 @@ class DetailDependenciesComponent(
      * if it is a container (module, package, type). Constructors are mapped to "Method"
      * since they carry the Neo4j `Method` label.
      */
-    private fun neoLabelForMember(node: CoreNode): String? {
+    private fun neoLabelForMember(node: HGNode): String? {
         val src = node.nodeSource as? GraphDbNodeSource ?: return null
         val labels = src.labels
         return when {
@@ -527,7 +527,7 @@ class DetailDependenciesComponent(
         }
     }
 
-    private fun collectSubtreeTypeIds(node: CoreNode): List<Long> {
+    private fun collectSubtreeTypeIds(node: HGNode): List<Long> {
         val typeKinds = setOf("Class", "Interface", "Enum", "Annotation", "Record")
         val result = mutableListOf<Long>()
         collectSubtreeTypeIdsRecursive(node, typeKinds, result)
@@ -535,7 +535,7 @@ class DetailDependenciesComponent(
     }
 
     private fun collectSubtreeTypeIdsRecursive(
-        node: CoreNode, typeKinds: Set<String>,
+        node: HGNode, typeKinds: Set<String>,
         result: MutableList<Long>
     ) {
         if (JQAssistantNodeMetadataProvider.getKind(node) in typeKinds) {
@@ -557,7 +557,7 @@ class DetailDependenciesComponent(
      * `by_target_nodes` entries, and the two scope endpoints.
      */
     private fun buildNodesMap(
-        fromNode: CoreNode, toNode: CoreNode,
+        fromNode: HGNode, toNode: HGNode,
         bySourceType: List<Map<String, Any>>,
         bySourceNodes: List<Map<String, Any?>>,
         byTargetNodes: List<Map<String, Any?>>,
@@ -599,7 +599,7 @@ class DetailDependenciesComponent(
     }
 
     /** Build the empty-edges result for the early-return path. */
-    private fun emptyResult(fromNode: CoreNode, toNode: CoreNode, effectiveRel: String?): Map<String, Any?> {
+    private fun emptyResult(fromNode: HGNode, toNode: HGNode, effectiveRel: String?): Map<String, Any?> {
         val bySourceNodes = computeBySourceNodes(fromNode, toNode)
         val byTargetNodes = computeByTargetNodes(fromNode, toNode)
         val nodes = linkedMapOf<String, Any>()
@@ -634,7 +634,7 @@ class DetailDependenciesComponent(
      * single-child levels to the first level with more than one child, then computes the
      * aggregated outgoing dependency weight from each child at that level to `toNode`.
      */
-    private fun computeBySourceNodes(fromNode: CoreNode, toNode: CoreNode): List<Map<String, Any?>> {
+    private fun computeBySourceNodes(fromNode: HGNode, toNode: HGNode): List<Map<String, Any?>> {
         val hierarchy = graphService.model.hierarchy
         val children = drillDownToMultiChildLevel(fromNode)
         if (children.isEmpty()) return emptyList()
@@ -656,7 +656,7 @@ class DetailDependenciesComponent(
      * single-child levels to the first level with more than one child, then computes the
      * aggregated incoming dependency weight from `fromNode` to each child at that level.
      */
-    private fun computeByTargetNodes(fromNode: CoreNode, toNode: CoreNode): List<Map<String, Any?>> {
+    private fun computeByTargetNodes(fromNode: HGNode, toNode: HGNode): List<Map<String, Any?>> {
         val hierarchy = graphService.model.hierarchy
         val children = drillDownToMultiChildLevel(toNode)
         if (children.isEmpty()) return emptyList()
@@ -677,7 +677,7 @@ class DetailDependenciesComponent(
      * Walks down from `node` through single-child levels until a node with more than
      * one child is found, then returns that node's children.
      */
-    private fun drillDownToMultiChildLevel(node: CoreNode): List<CoreNode> {
+    private fun drillDownToMultiChildLevel(node: HGNode): List<HGNode> {
         val hierarchy = graphService.model.hierarchy
         var current = node
         while (hierarchy.childrenOf(current).size == 1) {

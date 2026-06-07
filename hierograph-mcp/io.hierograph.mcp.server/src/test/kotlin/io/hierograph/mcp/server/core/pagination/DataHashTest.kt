@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.core.pagination
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
@@ -35,13 +35,13 @@ class DataHashTest {
     private fun buildGraph(recipe: List<Int>): HGModel {
         var nextId = 1L
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
-        val graph = CoreGraphFactory.createCoreGraph()
-        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val graph = HGGraphFactory.createHGGraph()
+        val root = HGGraphFactory.createNode(graph, nodeSource)
         val hierarchy = HierarchyFactory.createHierarchy(graph, root)
-        val nodes = ArrayList<CoreNode>()
+        val nodes = ArrayList<HGNode>()
         recipe.forEachIndexed { i, parentOrdinal ->
             val parent = if (parentOrdinal < 0) root else nodes[parentOrdinal]
-            val node = CoreGraphFactory.createNode(graph, nodeSource)
+            val node = HGGraphFactory.createNode(graph, nodeSource)
             node.kind = "kind$i"
             HierarchyFactory.addChild(hierarchy, parent, node)
             nodes.add(node)

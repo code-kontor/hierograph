@@ -19,7 +19,7 @@ import io.hierograph.hierarchicalgraph.core.model.internal.HierarchyImpl
 
 object HierarchyFactory {
 
-    fun createHierarchy(coreGraph: CoreGraph, rootNode: CoreNode): HierarchyImpl {
+    fun createHierarchy(coreGraph: HGGraph, rootNode: HGNode): HierarchyImpl {
         return HierarchyImpl(
             coreGraph = coreGraph,
             rootNode = rootNode,
@@ -28,7 +28,7 @@ object HierarchyFactory {
         )
     }
 
-    fun addChild(hierarchy: Hierarchy, parent: CoreNode, child: CoreNode) {
+    fun addChild(hierarchy: Hierarchy, parent: HGNode, child: HGNode) {
         val impl = hierarchy as HierarchyImpl
         impl.parentMap[child.identifier] = parent.identifier
         impl.childrenMap

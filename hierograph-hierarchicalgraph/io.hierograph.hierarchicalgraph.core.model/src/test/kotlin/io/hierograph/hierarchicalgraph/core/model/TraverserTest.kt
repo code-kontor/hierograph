@@ -28,7 +28,7 @@ class TraverserTest {
 
     @Test
     fun `traverse visits all descendants`() {
-        val visited = mutableListOf<CoreNode>()
+        val visited = mutableListOf<HGNode>()
         g.hierarchy.traverse(g.root) { visited.add(it) }
         assertThat(visited).hasSize(6)
         assertThat(visited).contains(g.a1, g.a2, g.a3, g.b1, g.b2, g.b3)
@@ -36,7 +36,7 @@ class TraverserTest {
 
     @Test
     fun `traverse subtree`() {
-        val visited = mutableListOf<CoreNode>()
+        val visited = mutableListOf<HGNode>()
         g.hierarchy.traverse(g.a1) { visited.add(it) }
         assertThat(visited).hasSize(2)
         assertThat(visited).containsExactly(g.a2, g.a3)
@@ -46,7 +46,7 @@ class TraverserTest {
     fun `traverse with filter prunes subtrees`() {
         // filter returns true only for direct children of root (depth 1)
         // so a2, a3, b2, b3 are not visited because a1/b1's children are pruned
-        val visited = mutableListOf<CoreNode>()
+        val visited = mutableListOf<HGNode>()
         g.hierarchy.traverse(g.root, { visited.add(it) }) { node ->
             // only allow root's direct children (a1, b1) -- prune deeper
             g.hierarchy.parentOf(node) === g.root
@@ -57,7 +57,7 @@ class TraverserTest {
 
     @Test
     fun `traverse with filter that accepts all behaves like traverse`() {
-        val visited = mutableListOf<CoreNode>()
+        val visited = mutableListOf<HGNode>()
         g.hierarchy.traverse(g.root, { visited.add(it) }) { true }
         assertThat(visited).hasSize(6)
         assertThat(visited).contains(g.a1, g.a2, g.a3, g.b1, g.b2, g.b3)
@@ -65,14 +65,14 @@ class TraverserTest {
 
     @Test
     fun `traverse with filter that rejects all visits nothing`() {
-        val visited = mutableListOf<CoreNode>()
+        val visited = mutableListOf<HGNode>()
         g.hierarchy.traverse(g.root, { visited.add(it) }) { false }
         assertThat(visited).isEmpty()
     }
 
     @Test
     fun `traverse leaf node visits nothing`() {
-        val visited = mutableListOf<CoreNode>()
+        val visited = mutableListOf<HGNode>()
         g.hierarchy.traverse(g.a3) { visited.add(it) }
         assertThat(visited).isEmpty()
     }

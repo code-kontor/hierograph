@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -164,7 +164,7 @@ class OutgoingDependenciesTool(
         // matching edge is returned ("show me the dependencies of X" /
         // "what depends on X"). When provided, edges are filtered to the
         // toId subtree's types.
-        var toNode: CoreNode? = null
+        var toNode: HGNode? = null
         var otherSideTypeIds: Set<Any>? = null
         if (toId != null) {
             toNode = graphService.model.lookupNode(toId)
@@ -196,8 +196,8 @@ class OutgoingDependenciesTool(
         val anchorTypes = collectTypes(fromNode)
 
         data class TypeEdge(
-            val from: CoreNode,
-            val to: CoreNode,
+            val from: HGNode,
+            val to: HGNode,
             val weight: Int,
             val bitmap: Int
         )
@@ -322,9 +322,9 @@ class OutgoingDependenciesTool(
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    private fun collectTypes(node: CoreNode): List<CoreNode> {
+    private fun collectTypes(node: HGNode): List<HGNode> {
         val hierarchy = graphService.model.hierarchy
-        val types = mutableListOf<CoreNode>()
+        val types = mutableListOf<HGNode>()
         if (node.kind in JavaKinds.TYPE_KINDS) types.add(node)
         hierarchy.traverse(node) { n ->
             if (n.kind in JavaKinds.TYPE_KINDS) types.add(n)
@@ -332,7 +332,7 @@ class OutgoingDependenciesTool(
         return types
     }
 
-    private fun collectTypeIds(node: CoreNode): Set<Any> {
+    private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
         if (node.kind in JavaKinds.TYPE_KINDS) ids.add(node.identifier)
@@ -342,7 +342,7 @@ class OutgoingDependenciesTool(
         return ids
     }
 
-    internal fun validateNodeKind(node: CoreNode): Map<String, Any?>? {
+    internal fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
         if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)

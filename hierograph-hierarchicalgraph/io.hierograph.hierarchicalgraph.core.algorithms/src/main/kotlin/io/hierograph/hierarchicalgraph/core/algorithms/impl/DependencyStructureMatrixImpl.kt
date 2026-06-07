@@ -18,14 +18,14 @@ package io.hierograph.hierarchicalgraph.core.algorithms.impl
 import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.core.algorithms.IDependencyStructureMatrix
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
-class DependencyStructureMatrixImpl(nodes: Collection<CoreNode>, private val hierarchy: Hierarchy) : IDependencyStructureMatrix {
+class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hierarchy: Hierarchy) : IDependencyStructureMatrix {
 
-    override val orderedNodes: List<CoreNode>
+    override val orderedNodes: List<HGNode>
     override val upwardDependencies: List<AggregatedDependency>
-    override val cycles: List<List<CoreNode>>
+    override val cycles: List<List<HGNode>>
 
     init {
         val allUpward = mutableListOf<AggregatedDependency>()
@@ -42,7 +42,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<CoreNode>, private val hie
         }
 
         // 3. Build ordered node list
-        val ordered = mutableListOf<CoreNode>()
+        val ordered = mutableListOf<HGNode>()
 
         // First: single-node SCCs with no outgoing core dependencies
         for (scc in sortedSccs) {

@@ -15,22 +15,22 @@
  */
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 
 object JQAssistantNodeMetadataProvider {
 
-    fun getName(node: CoreNode): String {
+    fun getName(node: HGNode): String {
         val src = node.nodeSource as? ExtendedGraphDbNodeSource ?: return ""
         return src.name
     }
 
-    fun getQualifiedName(node: CoreNode): String {
+    fun getQualifiedName(node: HGNode): String {
         val src = node.nodeSource as? ExtendedGraphDbNodeSource ?: return ""
         return src.fqn
     }
 
-    fun getKind(node: CoreNode): String {
+    fun getKind(node: HGNode): String {
         val src = node.nodeSource as? GraphDbNodeSource ?: return "Unknown"
         return getKindFromLabels(src.labels.toList())
     }

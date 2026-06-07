@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.core.pagination.DataHashProvider
@@ -139,11 +139,11 @@ class ListDescendantsTool(
         // with the node identifier as a tiebreaker — so the result sequence is reproducible and
         // pagination cursors remain valid across calls.
         val hierarchy = graphService.model.hierarchy
-        val allFiltered = mutableListOf<CoreNode>()
+        val allFiltered = mutableListOf<HGNode>()
         val byKind = linkedMapOf<String, Int>()
         val parentCounts = linkedMapOf<Any, Int>()
 
-        fun traverse(node: CoreNode) {
+        fun traverse(node: HGNode) {
             val orderedChildren = hierarchy.childrenOf(node).sortedWith(
                 compareBy({ JQAssistantNodeMetadataProvider.getQualifiedName(it) }, { it.identifier.toString() })
             )

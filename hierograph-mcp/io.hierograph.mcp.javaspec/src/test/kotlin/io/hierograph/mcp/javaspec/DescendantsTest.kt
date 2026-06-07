@@ -15,12 +15,12 @@
  */
 package io.hierograph.mcp.javaspec
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
+import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -156,26 +156,26 @@ class DescendantsTest {
     @Test
     fun `collection variant on empty collection returns empty`() {
         val g = Tree()
-        assertThat(emptyList<CoreNode>().descendants(g.hierarchy)).isEmpty()
-        assertThat(emptyList<CoreNode>().descendants(g.hierarchy, JavaKinds.CLASS)).isEmpty()
+        assertThat(emptyList<HGNode>().descendants(g.hierarchy)).isEmpty()
+        assertThat(emptyList<HGNode>().descendants(g.hierarchy, JavaKinds.CLASS)).isEmpty()
     }
 
     // ── test fixture ───────────────────────────────────────────────────
 
     private class Tree {
-        val root: CoreNode
+        val root: HGNode
         val hierarchy: Hierarchy
-        private val graph: CoreGraphImpl = CoreGraphFactory.createCoreGraph()
+        private val graph: HGGraphImpl = HGGraphFactory.createHGGraph()
         private var nextId = 1L
         private val nodeSource = { DefaultNodeSource(identifier = nextId++) }
 
         init {
-            root = CoreGraphFactory.createNode(graph, nodeSource)
+            root = HGGraphFactory.createNode(graph, nodeSource)
             hierarchy = HierarchyFactory.createHierarchy(graph, root)
         }
 
-        fun add(parent: CoreNode, kind: JavaNodeKind?): CoreNode {
-            val node = CoreGraphFactory.createNode(graph, nodeSource)
+        fun add(parent: HGNode, kind: JavaNodeKind?): HGNode {
+            val node = HGGraphFactory.createNode(graph, nodeSource)
             HierarchyFactory.addChild(hierarchy, parent, node)
             node.kind = kind
             return node

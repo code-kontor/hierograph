@@ -1093,9 +1093,9 @@ io.hierograph.hierarchicalgraph.core.model/
     INodeSource.kt                (updated: node -> CoreNode)
     IDependencySource.kt          (updated: dependency -> CoreDependency)
     internal/
-      CoreNodeImpl.kt
+      HGNodeImpl.kt
       CoreDependencyImpl.kt
-      CoreGraphImpl.kt
+      HGGraphImpl.kt
       HierarchyImpl.kt
       AggregatedDependencyImpl.kt
     CoreGraphFactory.kt

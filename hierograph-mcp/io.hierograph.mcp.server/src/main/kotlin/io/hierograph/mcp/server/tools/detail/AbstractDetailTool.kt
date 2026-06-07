@@ -17,7 +17,7 @@ package io.hierograph.mcp.server.tools.detail
 
 import org.neo4j.driver.Record
 import org.neo4j.driver.Value
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
@@ -45,7 +45,7 @@ abstract class AbstractDetailTool(
         )
     }
 
-    protected fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {
+    protected fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
         val id = (node.identifier as? Number)?.toLong() ?: 0L
         putSlimNode(nodes, id, JQAssistantNodeMetadataProvider.getName(node), JQAssistantNodeMetadataProvider.getQualifiedName(node), JQAssistantNodeMetadataProvider.getKind(node))
     }

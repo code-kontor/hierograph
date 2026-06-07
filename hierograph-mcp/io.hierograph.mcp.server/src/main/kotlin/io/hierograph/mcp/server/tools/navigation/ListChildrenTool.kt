@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -109,7 +109,7 @@ class ListChildrenTool(
 
         // ── filter children ───────────────────────────────────────────
         val hierarchy = graphService.model.hierarchy
-        val allFiltered = mutableListOf<CoreNode>()
+        val allFiltered = mutableListOf<HGNode>()
         val byKind = linkedMapOf<String, Int>()
 
         for (child in hierarchy.childrenOf(node)) {

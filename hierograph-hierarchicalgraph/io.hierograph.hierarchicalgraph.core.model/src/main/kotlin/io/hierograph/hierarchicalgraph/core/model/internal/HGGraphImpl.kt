@@ -15,18 +15,18 @@
  */
 package io.hierograph.hierarchicalgraph.core.model.internal
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraph
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraph
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 
-class CoreGraphImpl : CoreGraph {
-    private val nodeMap: MutableMap<Any, CoreNode> = mutableMapOf()
+class HGGraphImpl : HGGraph {
+    private val nodeMap: MutableMap<Any, HGNode> = mutableMapOf()
     private val extensionRegistry: MutableMap<String, Any> = mutableMapOf()
 
-    override val nodes: Collection<CoreNode> get() = nodeMap.values
+    override val nodes: Collection<HGNode> get() = nodeMap.values
 
-    override fun lookupNode(identifier: Any): CoreNode? = nodeMap[identifier]
+    override fun lookupNode(identifier: Any): HGNode? = nodeMap[identifier]
 
-    internal fun registerNode(node: CoreNode) {
+    internal fun registerNode(node: HGNode) {
         nodeMap[node.identifier] = node
     }
 

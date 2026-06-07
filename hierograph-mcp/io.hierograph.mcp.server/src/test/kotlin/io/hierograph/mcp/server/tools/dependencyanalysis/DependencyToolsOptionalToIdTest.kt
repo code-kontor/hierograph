@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HGModel
@@ -71,28 +71,28 @@ class DependencyToolsOptionalToIdTest {
         val nodeSource = { DefaultNodeSource(identifier = nextId++) }
         val depSource = { DefaultDependencySource(identifier = nextId++) }
 
-        val graph = CoreGraphFactory.createCoreGraph()
-        val root = CoreGraphFactory.createNode(graph, nodeSource)
+        val graph = HGGraphFactory.createHGGraph()
+        val root = HGGraphFactory.createNode(graph, nodeSource)
         val hierarchy = HierarchyFactory.createHierarchy(graph, root)
 
-        val pkgA = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        val pkgA = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
         HierarchyFactory.addChild(hierarchy, root, pkgA)
-        val pkgB = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
+        val pkgB = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
         HierarchyFactory.addChild(hierarchy, root, pkgB)
-        val a1 = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        val a1 = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
         HierarchyFactory.addChild(hierarchy, pkgA, a1)
-        val a2 = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        val a2 = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
         HierarchyFactory.addChild(hierarchy, pkgA, a2)
-        val b1 = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        val b1 = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
         HierarchyFactory.addChild(hierarchy, pkgB, b1)
-        val x = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
+        val x = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.CLASS }
         HierarchyFactory.addChild(hierarchy, root, x)
-        val m = CoreGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.METHOD }
+        val m = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.METHOD }
         HierarchyFactory.addChild(hierarchy, a1, m)
 
-        CoreGraphFactory.createCoreDependency(a1, b1, "USES", depSource)
-        CoreGraphFactory.createCoreDependency(a1, x, "USES", depSource)
-        CoreGraphFactory.createCoreDependency(a2, b1, "USES", depSource)
+        HGGraphFactory.createCoreDependency(a1, b1, "USES", depSource)
+        HGGraphFactory.createCoreDependency(a1, x, "USES", depSource)
+        HGGraphFactory.createCoreDependency(a2, b1, "USES", depSource)
 
         pkgAId = pkgA.identifier as Long
         pkgBId = pkgB.identifier as Long
@@ -275,8 +275,8 @@ class DependencyToolsOptionalToIdTest {
     }
 
     private class FakeNodeRefFactory : INodeRefFactory {
-        override fun minimalNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
-        override fun enrichedNodeRef(node: CoreNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun minimalNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
+        override fun enrichedNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
         override fun primitiveRef(name: String) = linkedMapOf<String, Any?>("name" to name)
         override fun putSlimNode(
             nodes: MutableMap<String, Any>,
@@ -285,11 +285,11 @@ class DependencyToolsOptionalToIdTest {
             nodes[id.toString()] = mapOf("id" to id)
         }
 
-        override fun putSlimNode(nodes: MutableMap<String, Any>, node: CoreNode) {
+        override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
             nodes[node.identifier.toString()] = mapOf("id" to (node.identifier as Any))
         }
 
-        override fun countDescendantsByKind(node: CoreNode, kinds: Set<*>) = 0
-        override fun countDescendants(node: CoreNode) = 0L
+        override fun countDescendantsByKind(node: HGNode, kinds: Set<*>) = 0
+        override fun countDescendants(node: HGNode) = 0L
     }
 }

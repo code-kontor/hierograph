@@ -17,48 +17,48 @@ package io.hierograph.hierarchicalgraph.core.model
 
 open class HierarchyScope(val hierarchy: Hierarchy) {
 
-    val coreGraph: CoreGraph get() = hierarchy.coreGraph
+    val coreGraph: HGGraph get() = hierarchy.coreGraph
 
     // structure
-    val CoreNode.parent: CoreNode?
+    val HGNode.parent: HGNode?
         get() = hierarchy.parentOf(this)
 
-    val CoreNode.children: List<CoreNode>
+    val HGNode.children: List<HGNode>
         get() = hierarchy.childrenOf(this)
 
-    val CoreNode.predecessors: List<CoreNode>
+    val HGNode.predecessors: List<HGNode>
         get() = hierarchy.predecessorsOf(this)
 
-    val CoreNode.hasChildren: Boolean
+    val HGNode.hasChildren: Boolean
         get() = hierarchy.childrenOf(this).isNotEmpty()
 
-    fun CoreNode.isPredecessorOf(other: CoreNode): Boolean =
+    fun HGNode.isPredecessorOf(other: HGNode): Boolean =
         hierarchy.isPredecessorOf(this, other)
 
-    fun CoreNode.isSuccessorOf(other: CoreNode): Boolean =
+    fun HGNode.isSuccessorOf(other: HGNode): Boolean =
         hierarchy.isSuccessorOf(this, other)
 
     // accumulated dependencies
-    val CoreNode.accumulatedOutgoingCoreDependencies: List<CoreDependency>
+    val HGNode.accumulatedOutgoingCoreDependencies: List<CoreDependency>
         get() = hierarchy.accumulatedOutgoing(this)
 
-    val CoreNode.accumulatedIncomingCoreDependencies: List<CoreDependency>
+    val HGNode.accumulatedIncomingCoreDependencies: List<CoreDependency>
         get() = hierarchy.accumulatedIncoming(this)
 
     // aggregated dependencies
-    fun CoreNode.outgoingTo(target: CoreNode): AggregatedDependency? =
+    fun HGNode.outgoingTo(target: HGNode): AggregatedDependency? =
         hierarchy.getAggregatedDependency(this, target)
 
-    fun CoreNode.outgoingTo(targets: List<CoreNode>): List<AggregatedDependency> =
+    fun HGNode.outgoingTo(targets: List<HGNode>): List<AggregatedDependency> =
         hierarchy.getAggregatedDependencies(this, targets)
 
-    fun CoreNode.incomingFrom(source: CoreNode): AggregatedDependency? =
+    fun HGNode.incomingFrom(source: HGNode): AggregatedDependency? =
         hierarchy.getAggregatedDependency(source, this)
 
-    fun CoreNode.incomingFrom(sources: List<CoreNode>): List<AggregatedDependency> =
+    fun HGNode.incomingFrom(sources: List<HGNode>): List<AggregatedDependency> =
         hierarchy.getAggregatedDependenciesFrom(this, sources)
 
     // traversal
-    fun CoreNode.traverse(action: (CoreNode) -> Unit) =
+    fun HGNode.traverse(action: (HGNode) -> Unit) =
         hierarchy.traverse(this, action)
 }

@@ -16,12 +16,12 @@
 package io.hierograph.mcp.javaspec
 
 import io.hierograph.hierarchicalgraph.core.model.CoreDependency
-import io.hierograph.hierarchicalgraph.core.model.CoreGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreGraphImpl
+import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -330,8 +330,8 @@ class TypeHierarchyTest {
 
     @Test
     fun `supertypes on an empty collection returns empty set`() {
-        assertThat(emptyList<CoreNode>().supertypes()).isEmpty()
-        assertThat(emptyList<CoreNode>().supertypes(includeSelf = true)).isEmpty()
+        assertThat(emptyList<HGNode>().supertypes()).isEmpty()
+        assertThat(emptyList<HGNode>().supertypes(includeSelf = true)).isEmpty()
     }
 
     @Test
@@ -375,46 +375,46 @@ class TypeHierarchyTest {
 
     @Test
     fun `supertypes on a collection is a Sequence-compatible iterable`() {
-        // Verify the extension works on any Iterable<CoreNode>, not just List.
+        // Verify the extension works on any Iterable<HGNode>, not just List.
         val g = Graph()
         val a = g.type()
         val b = g.type()
         g.extends(a, b)
 
-        val seeds: Sequence<CoreNode> = sequenceOf(a)
+        val seeds: Sequence<HGNode> = sequenceOf(a)
         assertThat(seeds.asIterable().supertypes()).containsExactly(b)
     }
 
     // ── test fixture ────────────────────────────────────────────────────
 
     private class Graph {
-        val root: CoreNode
-        private val graph: CoreGraphImpl = CoreGraphFactory.createCoreGraph()
+        val root: HGNode
+        private val graph: HGGraphImpl = HGGraphFactory.createHGGraph()
         private var nextId = 1L
         private val nodeSource = { DefaultNodeSource(identifier = nextId++) }
         private val depSource = { DefaultDependencySource(identifier = nextId++) }
 
         init {
-            root = CoreGraphFactory.createNode(graph, nodeSource)
+            root = HGGraphFactory.createNode(graph, nodeSource)
             val h = HierarchyFactory.createHierarchy(graph, root)
         }
 
-        fun type(): CoreNode {
-            val node = CoreGraphFactory.createNode(graph, nodeSource)
+        fun type(): HGNode {
+            val node = HGGraphFactory.createNode(graph, nodeSource)
             return node
         }
 
-        fun extends(from: CoreNode, to: CoreNode): CoreDependency =
+        fun extends(from: HGNode, to: HGNode): CoreDependency =
             dep(from, to, JavaEdgeAttributes.IS_EXTENDS)
 
-        fun implements(from: CoreNode, to: CoreNode): CoreDependency =
+        fun implements(from: HGNode, to: HGNode): CoreDependency =
             dep(from, to, JavaEdgeAttributes.IS_IMPLEMENTS)
 
-        fun dependsOnOther(from: CoreNode, to: CoreNode): CoreDependency =
+        fun dependsOnOther(from: HGNode, to: HGNode): CoreDependency =
             dep(from, to, JavaEdgeAttributes.IS_DEPENDS_ON_OTHER)
 
-        private fun dep(from: CoreNode, to: CoreNode, attribute: Int): CoreDependency {
-            val d = CoreGraphFactory.createCoreDependency(from, to, "DEPENDS_ON", depSource)
+        private fun dep(from: HGNode, to: HGNode, attribute: Int): CoreDependency {
+            val d = HGGraphFactory.createCoreDependency(from, to, "DEPENDS_ON", depSource)
             d.attributesBitmap = JavaEdgeAttributes.set(d.attributesBitmap, attribute)
             return d
         }

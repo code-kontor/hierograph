@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
-import io.hierograph.hierarchicalgraph.core.model.CoreNode
+import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.core.pagination.DataHashProvider
@@ -48,7 +48,7 @@ class AffectedByTool(
     private data class PathStep(val from: Any, val to: Any, val weight: Int)
 
     private data class AffectedEntry(
-        val node: CoreNode,
+        val node: HGNode,
         val distance: Int,
         var sourceCount: Int,
         val via: List<PathStep>
@@ -184,7 +184,7 @@ class AffectedByTool(
         // ── BFS over type-level dependency graph ───────────────────────
         // BFS state
         val visited = mutableMapOf<Any, AffectedEntry>() // node identifier → entry
-        val queue: Queue<Pair<CoreNode, List<PathStep>>> = ArrayDeque()
+        val queue: Queue<Pair<HGNode, List<PathStep>>> = ArrayDeque()
 
         // Seed: direct neighbors of source types
         for (sourceId in sourceTypeIds) {
@@ -268,7 +268,7 @@ class AffectedByTool(
         for (entry in allResults) {
             byDistance.merge(entry.distance, 1) { a, b -> a + b }
             // Walk up to find the top-level module
-            var ancestor: CoreNode = entry.node
+            var ancestor: HGNode = entry.node
             while (hierarchy.parentOf(ancestor) != null && hierarchy.parentOf(ancestor) !== hierarchy.rootNode) {
                 ancestor = hierarchy.parentOf(ancestor)!!
             }
