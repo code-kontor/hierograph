@@ -104,7 +104,7 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
         // scanned maven projects
         "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn",
         // Virtual 'External' module
-        "MATCH (a:Virtual:Artifact) RETURN id(a) as id, '${JavaKinds.MODULE}'",
+        "MATCH (a:Virtual:Artifact) RETURN id(a) as id, '${JavaKinds.MODULE}', 'External' as name, 'External' as fqn",
     )
 
     private val parentChildNodeIdsQueries: List<String> = listOf(
@@ -126,6 +126,6 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
         "MATCH (a:Type)-[:DECLARES]->(b:Field) RETURN id(a), id(b), '${JavaKinds.FIELD}', b.signature, a.fqn + '#' + b.signature",
         "MATCH (a:Type)-[:DECLARES]->(b:Method) RETURN id(a), id(b), '${JavaKinds.METHOD}', b.signature, a.fqn + '#' + b.signature",
         //
-        "MATCH (a:Virtual:Package)-[:CONTAINS]->(b:Virtual:Type) RETURN id(a), id(b), '${JavaKinds.CLASS}', b.name, b.fqn",
+        "MATCH (a:Virtual:Package)-[:CONTAINS]->(b:Virtual:Type) RETURN id(a), id(b), 'external.type', b.name, b.fqn",
     )
 }
