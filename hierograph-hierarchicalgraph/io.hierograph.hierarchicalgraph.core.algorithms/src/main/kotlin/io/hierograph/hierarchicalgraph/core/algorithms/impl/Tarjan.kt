@@ -19,13 +19,25 @@ import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 
+/**
+ * Tarjan's strongly-connected-components algorithm, O(V + E).
+ *
+ * Stack membership is tracked with an [onStack] flag array (O(1) per lookup) and the working stack is
+ * pushed/popped at its tail (O(1)), rather than the former `List.contains` + index-0 insert/remove,
+ * which made the inner loop O(V·E) and the stack ops O(V²).
+ *
+ * The traversal is recursive, so its depth is bounded by the input node count. That is fine for the
+ * node-set sizes this runs on (the selected DSM nodes, capped well under any stack-overflow risk); it
+ * is not intended to run directly over the full type graph.
+ */
 class Tarjan {
 
     private var index = 0
-    private val stack = mutableListOf<Int>()
+    private val stack = ArrayDeque<Int>()
     private val stronglyConnectedComponents = mutableListOf<List<HGNode>>()
     private lateinit var vlowlink: IntArray
     private lateinit var vindex: IntArray
+    private lateinit var onStack: BooleanArray
     private lateinit var nodes: List<HGNode>
 
     fun detectStronglyConnectedComponents(artifacts: Collection<HGNode>, hierarchy: Hierarchy): List<List<HGNode>> {
@@ -40,6 +52,7 @@ class Tarjan {
         stack.clear()
         vlowlink = IntArray(graph.size) { -1 }
         vindex = IntArray(graph.size) { -1 }
+        onStack = BooleanArray(graph.size)
 
         for (i in graph.indices) {
             if (vindex[i] == -1) {
@@ -54,23 +67,26 @@ class Tarjan {
         vindex[v] = index
         vlowlink[v] = index
         index++
-        stack.add(0, v)
+        stack.addLast(v)
+        onStack[v] = true
 
         for (n in graph[v]) {
             if (vindex[n] == -1) {
                 tarjan(n, graph)
                 vlowlink[v] = minOf(vlowlink[v], vlowlink[n])
-            } else if (n in stack) {
+            } else if (onStack[n]) {
                 vlowlink[v] = minOf(vlowlink[v], vindex[n])
             }
         }
 
         if (vlowlink[v] == vindex[v]) {
             val component = mutableListOf<HGNode>()
-            do {
-                val n = stack.removeAt(0)
-                component.add(nodes[n])
-            } while (component.last() !== nodes[v])
+            while (true) {
+                val w = stack.removeLast()
+                onStack[w] = false
+                component.add(nodes[w])
+                if (w == v) break
+            }
             stronglyConnectedComponents.add(component)
         }
     }

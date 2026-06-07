@@ -83,4 +83,21 @@ class GraphUtilsTest {
         assertThat(adjList[4]).hasSize(1)
         assertThat(adjList[4][0]).isEqualTo(5)
     }
+
+    @Test
+    fun `computePairwiseAggregation returns one edge per coupled pair, no self-loops`() {
+        val edges = GraphUtils.computePairwiseAggregation(g.nodes, g.hierarchy)
+        // n1→n2, n2→n3, n3→n1, n4→n5, n6→n7, n7→n6
+        assertThat(edges.map { it.fromIndex to it.toIndex })
+            .containsExactlyInAnyOrder(1 to 2, 2 to 3, 3 to 1, 4 to 5, 6 to 7, 7 to 6)
+        assertThat(edges).noneMatch { it.fromIndex == it.toIndex }
+    }
+
+    @Test
+    fun `computePairwiseAggregation carries weight, type-pair count, and a contributing edge`() {
+        val edges = GraphUtils.computePairwiseAggregation(g.nodes, g.hierarchy)
+        val n1ToN2 = edges.single { it.fromIndex == 1 && it.toIndex == 2 }
+        assertThat(n1ToN2.weight).isEqualTo(1)
+        assertThat(n1ToN2.typePairCount).isEqualTo(1)
+    }
 }

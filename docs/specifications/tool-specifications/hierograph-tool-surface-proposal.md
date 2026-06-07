@@ -23,12 +23,15 @@ The two categories need different protection mechanisms:
 - Input-bounded tools use **input validation** — defensive caps against degenerate inputs (e.g., the 2500 cross-product cap on `aggregated_dependencies`), with clear errors rather than silent truncation. No limits, no cursors. The LLM already has full control.
 - Data-bounded tools use **pagination** — a `limit` parameter for the page size, a `cursor` parameter to retrieve more, and honest reporting of the true total. The LLM gets a manageable page by default and can drill further if needed.
 
+A few tools are **hybrid** — different parts of the response fall into different classes, so they combine both mechanisms. `pairwise_dependencies` is the clear case: its structural summary (cycles, SCCs, topological order, density) is `O(node_count)` and therefore input-bounded, while its edge list is `O(edges)` — bounded by how coupled the subtrees are — and therefore data-bounded. It validates the node set *and* paginates the edges (see its own section for why this replaces the old node-count cap).
+
 This split shows up consistently throughout the API:
 
 | Category | Tools | Protection |
 |---|---|---|
-| Input-bounded | `aggregated_dependencies`, `pairwise_dependencies`, `find_dependency_path`, `type_details`, `method_details`, `field_details`, `find_node`, `list_children`, `graph_overview` | Input validation |
+| Input-bounded | `aggregated_dependencies`, `find_dependency_path`, `type_details`, `method_details`, `field_details`, `find_node`, `list_children`, `graph_overview` | Input validation |
 | Data-bounded | `list_descendants`, `outgoing_dependencies`, `incoming_dependencies`, `affected_by` | Pagination (cursors) |
+| Hybrid | `pairwise_dependencies` | Input validation (summary) + pagination (edges) |
 
 The pagination protocol is specified in `hierograph-pagination.md` as a separate document; this proposal references it where relevant.
 
@@ -542,22 +545,39 @@ The directional concept (outgoing vs. incoming) is implicit in how the LLM popul
 
 ```
 pairwise_dependencies(
-    node_ids: long[],                  // required: 2-50 subtree IDs
-    direction: "outgoing" | "incoming" | "both" = "both"
+    node_ids: long[],                              // required: 2+ subtree IDs (soft cap ~1000, see below)
+    direction: "outgoing" | "incoming" | "both" = "both",
+    edge_sort: "dsm" | "weight_desc" = "dsm",      // ordering of the paginated edge list
+    min_weight: int = 1,                           // drop edges below this weight server-side
+    limit: int = 200,                              // page size for the edge list
+    cursor: string?                                // pagination cursor; omit for the first page
 )
 ```
 
-Returns the dependency matrix among the input set of subtrees. Structurally similar to `aggregated_dependencies(source_ids=node_ids, target_ids=node_ids)`, but the response is shaped for matrix consumption — better suited to the DSM-style architectural analysis question shape.
+Returns the dependency matrix among the input set of subtrees, plus server-computed structural analytics (density, cycle detection, strongly connected components, topological order). Structurally similar to `aggregated_dependencies(source_ids=node_ids, target_ids=node_ids)`, but shaped for DSM-style architectural analysis and carrying the whole-set analytics that the aggregated tools don't.
 
-Validation differs from `aggregated_dependencies`: requires ≥2 nodes, capped at 50 for matrix usability. The response includes matrix-style indexing (row/column structure) for easier visualization-tool consumption.
+**Why this tool paginates rather than capping the node count.** An earlier draft capped the input at 50 nodes "for matrix usability." That cap was on the wrong axis. The response has two parts with very different size behavior:
+
+- The **summary** (`has_cycles`, `strongly_connected_components`, `topological_order`, `density`) is `O(node_count)` — the SCCs partition the nodes and the topological order is one entry per node. It is bounded by the node set the LLM supplies.
+- The **edge list** is `O(edges)`, and real module graphs are sparse (the edge count is far below `node_count²`). It is bounded by how coupled the subtrees are, not by the input.
+
+Capping nodes throttled the cheap `O(N)` summary in order to bound the `O(E)` edge list — and worse, it made whole-system analysis impossible: cycle detection, SCCs, and a global topological order are only valid over the *complete* node set, so forcing the caller to slice a 68-module system into ≤50-node chunks hides any cycle that spans two slices and yields no global layering. No other tool computes SCC/topological order, so the cap closed off the single most valuable thing this tool produces (and pushed callers toward exactly the matrix-stitching the DSM workflow warns against).
+
+The design therefore splits the response by cost class:
+
+- The **summary is always computed over the entire node set** and returned **on the first page only**. This is the authoritative, global answer to cycle/layering/density questions — usually all the LLM needs.
+- The **edge list is paginated** via `limit` / `cursor`, following the standard pagination protocol (`hierograph-pagination.md`). `min_weight` collapses the long tail of incidental weight-1/2 edges server-side, which for sparse graphs often returns the whole matrix in a single page.
+
+**Node-set validation.** Still requires ≥2 nodes. The upper bound becomes a *soft cap* (~1000) whose only purpose is to bound the `O(N)` summary payload (the `nodes` map and `topological_order`); every realistic module- or package-level DSM is far below it. This replaces the old "max 50" behavioral cap.
 
 **Use cases:**
 
-- Design Structure Matrix (DSM) analysis
-- "Show me the coupling among these N modules"
-- Any architectural analysis where the matrix shape matters
+- Design Structure Matrix (DSM) analysis, at whole-system scale
+- "Are there any cycles among *all* these modules?" → one call, read `summary.has_cycles` / `strongly_connected_components`
+- "What's a valid layering for these modules?" → read `summary.topological_order`
+- "Show me the heaviest coupling among these N modules" → `edge_sort="weight_desc"`, stop paging once weights fall below significance
 
-When in doubt between `aggregated_dependencies` and `pairwise_dependencies`: use the former for one-directional or asymmetric queries; use the latter for symmetric matrix analysis.
+When in doubt between `aggregated_dependencies` and `pairwise_dependencies`: use the former for one-directional or asymmetric queries; use the latter for all-pairs / matrix analysis and whenever you need the cycle/SCC/topological-order analytics.
 
 #### `outgoing_dependencies` / `incoming_dependencies`
 

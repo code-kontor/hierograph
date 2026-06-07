@@ -41,20 +41,23 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
             sortResult.orderedNodes.toMutableList()
         }
 
-        // 3. Build ordered node list
+        // 3. Build ordered node list. Membership is tracked in a HashSet of identifiers so the
+        //    "already added?" check is O(1); the previous `node !in ordered` over the growing list
+        //    was O(n) per node, i.e. O(n²) overall.
         val ordered = mutableListOf<HGNode>()
+        val seen = HashSet<Any>()
 
         // First: single-node SCCs with no outgoing core dependencies
         for (scc in sortedSccs) {
             if (scc.size == 1 && scc[0].outgoingCoreDependencies.isEmpty()) {
-                ordered.add(scc[0])
+                if (seen.add(scc[0].identifier)) ordered.add(scc[0])
             }
         }
 
         // Then: all remaining nodes
         for (scc in sortedSccs) {
             for (node in scc) {
-                if (node !in ordered) {
+                if (seen.add(node.identifier)) {
                     ordered.add(node)
                 }
             }
@@ -77,19 +80,19 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
 
     override fun isRowInCycle(i: Int): Boolean = isCellInCycle(i, i)
 
-    override fun getWeight(i: Int, j: Int): Int {
-        if (i < 0 || i >= orderedNodes.size || j < 0 || j >= orderedNodes.size) return -1
-        val dep = hierarchy.getAggregatedDependency(orderedNodes[i], orderedNodes[j])
-        return dep?.aggregatedWeight ?: 0
+    /**
+     * The `n x n` weight matrix (including the subtree-internal diagonal), built once by a single linear
+     * pass and reused. Backs both [getWeight] and [getMatrix], replacing the former O(n²) of one
+     * `getAggregatedDependency` call per cell.
+     */
+    private val weightMatrix: Array<IntArray> by lazy {
+        GraphUtils.computeAdjacencyMatrix(orderedNodes, hierarchy)
     }
 
-    override fun getMatrix(): Array<IntArray> {
-        val n = orderedNodes.size
-        return Array(n) { i ->
-            IntArray(n) { j ->
-                val dep = hierarchy.getAggregatedDependency(orderedNodes[i], orderedNodes[j])
-                dep?.aggregatedWeight ?: 0
-            }
-        }
+    override fun getWeight(i: Int, j: Int): Int {
+        if (i < 0 || i >= orderedNodes.size || j < 0 || j >= orderedNodes.size) return -1
+        return weightMatrix[i][j]
     }
+
+    override fun getMatrix(): Array<IntArray> = weightMatrix
 }
