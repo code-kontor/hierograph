@@ -16,16 +16,15 @@
 package io.hierograph.hierarchicalgraph.core.algorithms.impl
 
 /**
- * Eades–Lin–Smyth greedy feedback-arc-set ordering over a weighted adjacency matrix.
+ * Eades–Lin–Smyth greedy feedback-arc-set ordering over a weighted adjacency matrix, O(n²).
  *
- * Produces the same ordering and skipped-edge set as the straightforward formulation (repeatedly: emit
- * a sink, else a source, else the vertex of maximum weighted `out − in` degree, lowest index breaking
- * ties), but in O(n²) rather than O(n³): degrees are computed once and then maintained incrementally as
- * vertices are removed, instead of being recomputed by scanning the matrix on every step. O(n²) is the
- * floor for a dense-matrix input anyway, since the matrix itself is O(n²).
+ * The ordering rule, applied repeatedly: emit a sink, else a source, else the vertex of maximum
+ * weighted `out − in` degree, with the lowest index breaking ties. Degrees are computed once and then
+ * maintained incrementally as vertices are removed. O(n²) is the floor for a dense-matrix input, since
+ * the matrix itself is O(n²).
  *
- * Weighted degree drives the max-delta choice (so the heaviest dependencies are least likely to be cut),
- * while plain edge presence drives sink/source detection — matching the previous behavior exactly.
+ * Weighted degree drives the max-delta choice (so the heaviest dependencies are least likely to be
+ * cut), while plain edge presence drives sink/source detection.
  */
 class FastFAS(private val adjacencyMatrix: Array<IntArray>) {
 

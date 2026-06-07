@@ -37,14 +37,13 @@ object GraphUtils {
 
     /**
      * The `n x n` weight matrix among [nodes], where `matrix[i][j]` is the summed weight of all
-     * dependencies from anything in subtree `i` to anything in subtree `j` (the diagonal carries the
-     * subtree-internal weight, as before).
+     * dependencies from anything in subtree `i` to anything in subtree `j`. The diagonal carries the
+     * subtree-internal weight.
      *
      * Computed by a single linear bucketing pass — one walk of each subtree's accumulated outgoing
-     * edges, each charged to the cell of the selected node that contains its target — rather than the
-     * former `O(n^2)` of one `getAggregatedDependency` call per cell. The result is identical for the
-     * disjoint-subtree inputs this is used with; nested inputs (a selected node inside another) attribute
-     * each contained node to the innermost-by-input-order selected node.
+     * edges, each charged to the cell of the selected node that contains its target. This is defined for
+     * disjoint-subtree inputs; nested inputs (a selected node inside another) attribute each contained
+     * node to the innermost-by-input-order selected node.
      */
     fun computeAdjacencyMatrix(nodes: List<HGNode>, hierarchy: Hierarchy): Array<IntArray> {
         val n = nodes.size
@@ -62,8 +61,7 @@ object GraphUtils {
     /**
      * The adjacency list among [nodes]: `result[i]` is the ascending, de-duplicated list of indices `j`
      * such that subtree `i` depends on subtree `j`. Same linear bucketing as [computeAdjacencyMatrix];
-     * a self-edge `i` appears only when subtree `i` has an internal dependency (matching the previous
-     * `getAggregatedDependency`-based behavior).
+     * a self-edge `i` appears only when subtree `i` has an internal dependency.
      */
     fun computeAdjacencyList(nodes: Collection<HGNode>, hierarchy: Hierarchy): Array<IntArray> {
         val nodeList = nodes.toList()
@@ -96,14 +94,12 @@ object GraphUtils {
     )
 
     /**
-     * Computes every non-empty off-diagonal aggregated edge among [nodes] in a single linear pass.
-     *
-     * This is the matrix-shaped counterpart to repeatedly calling `getAggregatedDependency` for each of
-     * the `n^2` cells: it walks each subtree's accumulated outgoing edges once, bucketing each edge into
-     * the `(i, j)` cell of the selected nodes that contain its endpoints, and accumulating weight, the
-     * set of contributing type pairs, and the union of attribute bitmaps. Self-loops (`i == j`) and
-     * zero-weight cells are omitted. Indices are positions in [nodes], so callers that pass an already
-     * ordered node list (e.g. a DSM's `orderedNodes`) get edges indexed in that order.
+     * Computes every non-empty off-diagonal aggregated edge among [nodes] in a single linear pass: it
+     * walks each subtree's accumulated outgoing edges once, bucketing each edge into the `(i, j)` cell of
+     * the selected nodes that contain its endpoints, and accumulating weight, the set of contributing
+     * type pairs, and the union of attribute bitmaps. Self-loops (`i == j`) and zero-weight cells are
+     * omitted. Indices are positions in [nodes], so callers that pass an already ordered node list
+     * (e.g. a DSM's `orderedNodes`) get edges indexed in that order.
      */
     fun computePairwiseAggregation(nodes: List<HGNode>, hierarchy: Hierarchy): List<AggregatedEdge> {
         val n = nodes.size

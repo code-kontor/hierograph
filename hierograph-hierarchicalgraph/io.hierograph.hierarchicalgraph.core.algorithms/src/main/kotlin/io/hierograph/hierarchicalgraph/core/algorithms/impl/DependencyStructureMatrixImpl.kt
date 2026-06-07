@@ -42,8 +42,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
         }
 
         // 3. Build ordered node list. Membership is tracked in a HashSet of identifiers so the
-        //    "already added?" check is O(1); the previous `node !in ordered` over the growing list
-        //    was O(n) per node, i.e. O(n²) overall.
+        //    "already added?" check is O(1).
         val ordered = mutableListOf<HGNode>()
         val seen = HashSet<Any>()
 
@@ -82,8 +81,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
 
     /**
      * The `n x n` weight matrix (including the subtree-internal diagonal), built once by a single linear
-     * pass and reused. Backs both [getWeight] and [getMatrix], replacing the former O(n²) of one
-     * `getAggregatedDependency` call per cell.
+     * pass and reused. Backs both [getWeight] and [getMatrix].
      */
     private val weightMatrix: Array<IntArray> by lazy {
         GraphUtils.computeAdjacencyMatrix(orderedNodes, hierarchy)

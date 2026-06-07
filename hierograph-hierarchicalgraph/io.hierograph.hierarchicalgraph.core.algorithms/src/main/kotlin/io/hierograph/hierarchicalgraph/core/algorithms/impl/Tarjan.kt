@@ -23,8 +23,7 @@ import io.hierograph.hierarchicalgraph.core.model.Hierarchy
  * Tarjan's strongly-connected-components algorithm, O(V + E).
  *
  * Stack membership is tracked with an [onStack] flag array (O(1) per lookup) and the working stack is
- * pushed/popped at its tail (O(1)), rather than the former `List.contains` + index-0 insert/remove,
- * which made the inner loop O(V·E) and the stack ops O(V²).
+ * pushed/popped at its tail (O(1)).
  *
  * The traversal is recursive, so its depth is bounded by the input node count. That is fine for the
  * node-set sizes this runs on (the selected DSM nodes, capped well under any stack-overflow risk); it

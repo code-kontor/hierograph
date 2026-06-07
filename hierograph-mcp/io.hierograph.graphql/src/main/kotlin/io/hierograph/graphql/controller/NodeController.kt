@@ -30,7 +30,8 @@ import org.springframework.stereotype.Controller
 
 /**
  * Resolvers for the GraphQL `Node` type. The parent object is an [HGNode]; structural navigation is
- * resolved through the [Hierarchy] supplied by [provider], since nodes are no longer self-navigating.
+ * resolved through the [Hierarchy] supplied by [provider], since structural navigation lives on the
+ * hierarchy, not the node.
  */
 @Controller
 class NodeController(private val provider: HierarchicalGraphProvider) {
