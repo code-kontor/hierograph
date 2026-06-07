@@ -20,6 +20,7 @@
         <module>io.hierograph.mcp.javaspec</module>
         <module>io.hierograph.mcp.jqassistant</module>
         <module>io.hierograph.mcp.server</module>
+        <module>io.hierograph.graphql</module>
     </modules>
 
 </project>

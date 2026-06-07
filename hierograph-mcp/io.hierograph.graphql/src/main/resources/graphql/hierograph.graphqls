@@ -1,0 +1,8 @@
+# The Query type
+type Query {
+    hierarchicalGraph: HierarchicalGraph
+}
+
+type HierarchicalGraph {
+
+}

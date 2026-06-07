@@ -10,42 +10,20 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>io.hierograph.mcp.server</artifactId>
+    <artifactId>io.hierograph.graphql</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-graphql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-tomcat</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jetty</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
         </dependency>
 
         <!-- hierograph -->
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.mcp.javaspec</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.boltclient</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
@@ -60,23 +38,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.service</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.serialization</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.mcp.jqassistant</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphql</artifactId>
         </dependency>
 
         <!-- kotlin -->
@@ -85,9 +47,15 @@
             <artifactId>kotlin-stdlib</artifactId>
         </dependency>
 
+        <!-- test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.graphql</groupId>
+            <artifactId>spring-graphql-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -109,13 +77,6 @@
                         <version>${kotlin.version}</version>
                     </dependency>
                 </dependencies>
-            </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <mainClass>io.hierograph.mcp.server.McpApplicationKt</mainClass>
-                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -142,8 +142,13 @@ goals — a plain `mvn clean install` builds without scanning.
 Start the embedded Neo4j server so the MCP server can connect to it:
 
 ```bash
-mvn com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server
+mvn -N com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server
 ```
+
+The `-N` (non-recursive) flag is required in multi-module projects. Without it, Maven runs the
+`server` goal on every reactor module sequentially — the server starts and stops for each module
+instead of staying open. `-N` restricts execution to the root module (where `.jqassistant.yml`
+lives), so the server starts once and blocks as expected.
 
 This starts a Neo4j Bolt endpoint at `bolt://localhost:7687`. Keep this terminal open.
 

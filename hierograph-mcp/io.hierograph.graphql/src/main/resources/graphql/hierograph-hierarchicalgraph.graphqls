@@ -1,0 +1,209 @@
+extend type HierarchicalGraph {
+
+    # Returns the identifier
+    identifier: ID!
+
+	# Returns the identifier
+    globalIdentifier: ID!
+
+    # Returns the root node
+    rootNode: Node!
+
+    # Returns the node with the given id
+    node(id: ID!): Node
+
+    # Returns the nodes with the given ids
+    nodes(ids: [ID!]!): NodeSet!
+
+    # Returns the node with the given id
+    dependency(id: ID!): Dependency
+
+    # Returns the node with the given id
+    dependencies(ids: [ID!]!): DependencySet
+
+    # Returns a dependency set based on an aggregated dependency
+    dependencySetForAggregatedDependency(sourceNodeId: ID!, targetNodeId: ID!): DependencySet
+}
+
+enum NodeType {
+    SOURCE
+    TARGET
+}
+
+enum NodesToConsider {
+    SELF,
+    SELF_AND_CHILDREN,
+    SELF_AND_SUCCESSORS
+}
+
+type NodeSet {
+
+	# contained nodes as node array
+	nodes: [Node!]!
+	
+	# the node ids as an array
+	nodeIds: [ID!]!
+	
+	# the adjacency matrix
+    orderedAdjacencyMatrix: OrderedAdjacencyMatrix!
+	
+	#
+	referencedNodes(includePredecessors: Boolean): NodeSet!
+
+	#
+	referencingNodes(includePredecessors: Boolean): NodeSet!
+
+    #
+    filterReferencedNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+
+    #
+    filterReferencingNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+}
+
+type Node {
+
+    # The symbolicName for this node
+    id: ID!
+
+    # The text label
+    text: String!
+
+    # the type of the node
+    type: String!
+
+    # The parent node
+    parent: Node
+
+    # The predecessors
+    predecessors: [Node!]!
+
+    #
+    hasChildren: Boolean!
+
+    # The children
+    children: NodeSet!
+
+    #
+    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!): NodeSet!
+
+    #
+    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!): NodeSet!
+
+    #
+    properties: [MapEntry!]!
+
+    #
+    dependenciesTo(targetNodes: [ID!]!): [Dependency!]!
+
+    #
+    dependenciesFrom(sourceNodes: [ID!]!): [Dependency!]!
+
+    #
+    referencedNodes(includePredecessors: Boolean): NodeSet!
+
+    #
+    referencingNodes(includePredecessors: Boolean): NodeSet!
+
+    #
+    filterReferencedNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+
+    #
+    filterReferencingNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+}
+
+type Dependency {
+    id: ID!
+    sourceNode: Node!
+    targetNode: Node!
+    type: String!
+    weight: Int!
+}
+
+type OrderedAdjacencyMatrix {
+    orderedNodes: [Node!]!
+    cells: [Cell!]!
+    stronglyConnectedComponents: [StronglyConnectedComponent!]!
+}
+
+type Cell {
+    row: Int!
+    column: Int!
+    value: Int!
+}
+
+type StronglyConnectedComponent {
+
+	# contained nodes as node array
+	nodes: [Node!]!
+	
+	# the node ids as an array
+	nodeIds: [ID!]!
+
+	nodePositions: [Int!]!
+}
+
+type PageInfo {
+    pageNumber: Int!
+    maxPages: Int!
+    pageSize: Int!
+    totalCount: Int!
+}
+
+type DependencyPage {
+    pageInfo: PageInfo
+    dependencies: [Dependency!]!
+}
+
+type DependencySet {
+
+    #
+    size: Int!
+
+    #
+    dependencies: [Dependency!]!
+
+    # Returns a dependency page with with the specified size
+    dependencyPage(pageNumber: Int!, pageSize: Int!): DependencyPage
+
+    # Returns a set of nodes filtered by the specified node type.
+    filteredChildren(parentNode: ID!, parentNodeType: NodeType!): [Node!]!
+
+    #
+    filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!): [String!]!
+
+    #
+    filteredDependencies(nodeSelection: [NodeSelection!]!): FilteredDependencies!
+}
+
+type FilteredDependencies {
+
+    #
+    size: Int!
+
+    #
+    dependencies: [Dependency!]!
+
+    # Returns a dependency page with with the specified size
+    dependencyPage(pageNumber: Int!, pageSize: Int!): DependencyPage
+
+    #
+    nodes(nodeType: NodeType!, includedPredecessors: Boolean!): [Node!]!
+
+    #
+    nodeIds(nodeType: NodeType!, includedPredecessors: Boolean!): [ID!]!
+
+    #
+    referencedNodes(nodeType: NodeType!, includedPredecessors: Boolean!): [Node!]!
+
+    #
+    referencedNodeIds(nodeType: NodeType!, includedPredecessors: Boolean!): [ID!]!
+}
+
+input NodeSelection {
+
+    selectedNodeIds: [ID!]!
+
+    selectedNodesType: NodeType!
+}
+
+type MapEntry { key: String!, value: String }
