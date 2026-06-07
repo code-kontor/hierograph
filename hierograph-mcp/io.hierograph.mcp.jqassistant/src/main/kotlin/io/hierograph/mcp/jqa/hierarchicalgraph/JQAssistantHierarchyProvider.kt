@@ -49,13 +49,16 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
     val nameFqnByNodeId: Map<Long, Pair<String?, String?>> get() = _nameFqnByNodeId
 
     override fun initialize() {
+        // distinctBy { it.id }: the queries can legitimately surface the same module id more than
+        // once (e.g. a Maven project that produces both a Main and a Test artifact matches the
+        // project query twice), and a node must not appear as a top-level entry more than once.
         toplevelNodeIds = toplevelNodeIdQueries.flatMap { query ->
             queryList(query) { r ->
                 val id = r[0].asLong()
                 rememberNameFqn(id, r[2], r[3])
                 ToplevelNodeId(id = id, kind = parseKind(r[1].asString()))
             }
-        }
+        }.distinctBy { it.id }
         parentChildNodeIds = parentChildNodeIdsQueries.flatMap { query ->
             queryList(query) { r ->
                 val childId = r[1].asLong()
