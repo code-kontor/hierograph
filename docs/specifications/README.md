@@ -12,10 +12,6 @@ This bundle contains the current design documentation for Hierograph (formerly C
 
 **`hierograph-pagination.md`** — The cursor protocol specification. Documents the stateless cursor design, the five error cases with recovery paths, per-tool iteration orders, and the per-tool page-size defaults calibrated to client constraints. Referenced from the tool surface proposal where cursor parameters appear.
 
-### Implementation records
-
-**`hierograph-pairwise-dependencies-and-dsm-efficiency.md`** — Records the behavior actually built for `pairwise_dependencies` (the input-bounded-summary / paginated-edges cost-class split, `edge_sort`, `min_weight`, first-page-only summary, the soft node cap that replaced the old 50-node limit) and the efficiency audit and fixes to the DSM/SCC/FAS algorithms that back it (linear adjacency construction, O(V+E) Tarjan, O(n²) FastFAS, cached weight matrix), with before/after complexity and end-to-end path analysis.
-
 ### Supporting analysis
 
 **`hierograph-response-size-limits.md`** — Analysis of Claude Code's MCP response size constraints (10K-token warning, 25K-token hard limit) and how those constraints drive Hierograph's pagination defaults. Includes per-tool calibration of default page sizes against token budgets.

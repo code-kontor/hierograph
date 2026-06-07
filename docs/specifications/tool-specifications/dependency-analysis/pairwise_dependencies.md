@@ -209,6 +209,20 @@ Nothing here is expensive in `node_count`: aggregation is linear in the edges ac
 
 No Neo4j queries. Per-page response assembly is microseconds to low milliseconds.
 
+## Performance
+
+End-to-end cost of building and serving a request, where `V` is the node-set size and `E` the number of aggregated edges among them:
+
+| Stage | Complexity |
+|---|---|
+| Aggregation build (single bucketing pass) | `O(V + E)` |
+| SCC detection (Tarjan) | `O(V + E)` |
+| Per-SCC layering (greedy feedback-arc-set) | `O(Σ sccᵢ²)` |
+| Ordering assembly | `O(V)` |
+| Edge ordering + `min_weight` filter + page slice | `O(E log E)` + `O(page)` |
+
+The only super-linear term is the per-SCC `O(sccᵢ²)` layering, confined to actual cycle clusters; for the common (mostly acyclic) case it is negligible, and a heavily entangled set is surfaced by `has_cycles` / a large SCC in the summary before any matrix is rendered. This is why the node set scales to the ~1000 soft cap on real, sparse graphs. The algorithm internals (adjacency bucketing, Tarjan SCC, the greedy FAS layering, and the cached weight matrix) are specified in `hierarchicalgraph-specifications/hierarchicalgraph-core-spec.md`.
+
 ## Pagination
 
 The edge list follows the standard pagination protocol (`hierograph-pagination.md`), with two specifics worth stating here:
