@@ -19,7 +19,7 @@ import io.hierograph.graphql.HierarchicalGraphProvider
 import io.hierograph.graphql.model.MapEntryModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.graphql.model.NodesToConsider
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
@@ -89,13 +89,13 @@ class NodeController(private val provider: HierarchicalGraphProvider) {
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<CoreDependency> {
+    fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<HGCoreDependency> {
         val targetIds = targetNodes.map { it.toLong() }.toSet()
         return provider.hierarchy().accumulatedOutgoing(node).filter { it.to.identifier in targetIds }
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<CoreDependency> {
+    fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<HGCoreDependency> {
         val sourceIds = sourceNodes.map { it.toLong() }.toSet()
         return provider.hierarchy().accumulatedIncoming(node).filter { it.from.identifier in sourceIds }
     }

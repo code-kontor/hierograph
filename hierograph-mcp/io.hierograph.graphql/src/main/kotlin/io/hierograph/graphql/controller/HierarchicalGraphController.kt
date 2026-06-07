@@ -17,7 +17,7 @@ package io.hierograph.graphql.controller
 
 import io.hierograph.graphql.model.DependencySetModel
 import io.hierograph.graphql.model.NodeSetModel
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import org.springframework.graphql.data.method.annotation.Argument
@@ -52,7 +52,7 @@ class HierarchicalGraphController {
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun dependency(hierarchy: Hierarchy, @Argument id: String): CoreDependency? {
+    fun dependency(hierarchy: Hierarchy, @Argument id: String): HGCoreDependency? {
         return findCoreDependencyById(hierarchy, id)
     }
 
@@ -76,15 +76,15 @@ class HierarchicalGraphController {
     }
 
     companion object {
-        fun coreDependencyId(dep: CoreDependency): String =
+        fun coreDependencyId(dep: HGCoreDependency): String =
             "${dep.from.identifier}_${dep.to.identifier}_${dep.type}"
 
-        fun findCoreDependencyById(hierarchy: Hierarchy, id: String): CoreDependency? {
+        fun findCoreDependencyById(hierarchy: Hierarchy, id: String): HGCoreDependency? {
             return collectAllCoreDependencies(hierarchy).firstOrNull { coreDependencyId(it) == id }
         }
 
-        fun collectAllCoreDependencies(hierarchy: Hierarchy): List<CoreDependency> {
-            val deps = mutableListOf<CoreDependency>()
+        fun collectAllCoreDependencies(hierarchy: Hierarchy): List<HGCoreDependency> {
+            val deps = mutableListOf<HGCoreDependency>()
             fun walk(node: HGNode) {
                 deps.addAll(node.outgoingCoreDependencies)
                 for (child in hierarchy.childrenOf(node)) walk(child)

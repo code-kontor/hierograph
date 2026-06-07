@@ -24,7 +24,7 @@ package io.hierograph.hierarchicalgraph.serialization.internal
  *
  * [nodes] is the set of non-root nodes in pre-order (parents before
  * children, in hierarchy child-iteration order). [deps] is every
- * `CoreDependency`, deduplicated by identity.
+ * `HGCoreDependency`, deduplicated by identity.
  */
 data class GraphSnapshot(
     val schemaVersion: Int = SCHEMA_VERSION,
@@ -49,7 +49,7 @@ data class NodeRecord(
 )
 
 /**
- * Flat record for a single `CoreDependency`. [id] is the string form of
+ * Flat record for a single `HGCoreDependency`. [id] is the string form of
  * the underlying `IDependencySource.identifier`.
  */
 data class DepRecord(

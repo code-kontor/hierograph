@@ -19,7 +19,7 @@ interface HGNode {
     val identifier: Any
     val nodeSource: INodeSource
     var kind: Any?
-    val outgoingCoreDependencies: List<CoreDependency>
-    val incomingCoreDependencies: List<CoreDependency>
+    val outgoingCoreDependencies: List<HGCoreDependency>
+    val incomingCoreDependencies: List<HGCoreDependency>
     fun <T : Any> getNodeSource(clazz: Class<T>): T?
 }

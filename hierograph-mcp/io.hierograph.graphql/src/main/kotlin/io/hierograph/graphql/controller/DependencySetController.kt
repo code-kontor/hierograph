@@ -22,7 +22,7 @@ import io.hierograph.graphql.model.FilteredDependenciesModel
 import io.hierograph.graphql.model.NodeSelection
 import io.hierograph.graphql.model.NodeType
 import io.hierograph.graphql.model.PageInfoModel
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -37,7 +37,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     fun size(depSet: DependencySetModel): Int = depSet.dependencyList.size
 
     @SchemaMapping(typeName = "DependencySet")
-    fun dependencies(depSet: DependencySetModel): List<CoreDependency> = depSet.dependencyList
+    fun dependencies(depSet: DependencySetModel): List<HGCoreDependency> = depSet.dependencyList
 
     @SchemaMapping(typeName = "DependencySet")
     fun dependencyPage(
@@ -100,7 +100,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
 
     companion object {
         fun createPage(
-            deps: List<CoreDependency>,
+            deps: List<HGCoreDependency>,
             pageNumber: Int,
             pageSize: Int
         ): DependencyPageModel {

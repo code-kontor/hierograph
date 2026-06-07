@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.core.model.internal
 
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.INodeSource
 
@@ -26,11 +26,11 @@ class HGNodeImpl(
 
     override val identifier: Any get() = nodeSource.identifier
 
-    internal val _outgoing: MutableList<CoreDependency> = mutableListOf()
-    internal val _incoming: MutableList<CoreDependency> = mutableListOf()
+    internal val _outgoing: MutableList<HGCoreDependency> = mutableListOf()
+    internal val _incoming: MutableList<HGCoreDependency> = mutableListOf()
 
-    override val outgoingCoreDependencies: List<CoreDependency> get() = _outgoing
-    override val incomingCoreDependencies: List<CoreDependency> get() = _incoming
+    override val outgoingCoreDependencies: List<HGCoreDependency> get() = _outgoing
+    override val incomingCoreDependencies: List<HGCoreDependency> get() = _incoming
 
     override fun <T : Any> getNodeSource(clazz: Class<T>): T? =
         if (clazz.isInstance(nodeSource)) clazz.cast(nodeSource) else null

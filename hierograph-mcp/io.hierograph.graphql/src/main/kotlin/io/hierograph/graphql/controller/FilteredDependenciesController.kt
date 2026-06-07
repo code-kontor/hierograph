@@ -19,7 +19,7 @@ import io.hierograph.graphql.HierarchicalGraphProvider
 import io.hierograph.graphql.model.DependencyPageModel
 import io.hierograph.graphql.model.FilteredDependenciesModel
 import io.hierograph.graphql.model.NodeType
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -32,7 +32,7 @@ class FilteredDependenciesController(private val provider: HierarchicalGraphProv
     fun size(model: FilteredDependenciesModel): Int = model.dependencyList.size
 
     @SchemaMapping(typeName = "FilteredDependencies")
-    fun dependencies(model: FilteredDependenciesModel): List<CoreDependency> = model.dependencyList
+    fun dependencies(model: FilteredDependenciesModel): List<HGCoreDependency> = model.dependencyList
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun dependencyPage(
@@ -88,7 +88,7 @@ class FilteredDependenciesController(private val provider: HierarchicalGraphProv
         return referencedNodes(model, nodeType, includedPredecessors).map { it.identifier.toString() }
     }
 
-    private fun extractNodes(deps: List<CoreDependency>, nodeType: NodeType): Set<HGNode> {
+    private fun extractNodes(deps: List<HGCoreDependency>, nodeType: NodeType): Set<HGNode> {
         return when (nodeType) {
             NodeType.SOURCE -> deps.map { it.from }.toSet()
             NodeType.TARGET -> deps.map { it.to }.toSet()

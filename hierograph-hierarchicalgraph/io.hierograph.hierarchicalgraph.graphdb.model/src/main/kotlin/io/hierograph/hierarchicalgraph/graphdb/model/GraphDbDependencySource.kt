@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.IDependencySource
 import io.hierograph.boltclient.IBoltClient
 
@@ -24,7 +24,7 @@ class GraphDbDependencySource(
     val type: String
 ) : IDependencySource {
 
-    override var dependency: CoreDependency? = null
+    override var dependency: HGCoreDependency? = null
 
     var boltClient: IBoltClient? = null
 

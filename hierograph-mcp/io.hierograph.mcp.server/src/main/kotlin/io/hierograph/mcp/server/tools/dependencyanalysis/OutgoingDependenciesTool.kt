@@ -188,7 +188,7 @@ class OutgoingDependenciesTool(
         // ── collect type-level edges ───────────────────────────────────
         // Anchor on from_id's types. For the outgoing direction walk each
         // anchor type's outgoing core dependencies; for incoming, its incoming
-        // ones. Each CoreDependency already encodes (from -> to) in
+        // ones. Each HGCoreDependency already encodes (from -> to) in
         // depender->depended-upon orientation, so the edge endpoints are
         // dep.from / dep.to in both directions. The "other" endpoint (the one
         // not on the anchor side) is matched against otherSideTypeIds when

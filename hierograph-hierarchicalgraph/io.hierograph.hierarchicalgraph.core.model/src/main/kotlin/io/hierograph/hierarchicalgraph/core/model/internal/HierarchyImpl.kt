@@ -45,8 +45,8 @@ class HierarchyImpl(
 
     // caches (cleared on structural mutation)
     private var predecessorCache: MutableMap<Any, List<HGNode>>? = null
-    private var accOutCache: MutableMap<Any, List<CoreDependency>>? = null
-    private var accInCache: MutableMap<Any, List<CoreDependency>>? = null
+    private var accOutCache: MutableMap<Any, List<HGCoreDependency>>? = null
+    private var accInCache: MutableMap<Any, List<HGCoreDependency>>? = null
     private var aggDepCache: MutableMap<Pair<Any, Any>, AggregatedDependency?>? = null
 
     // structure
@@ -80,8 +80,8 @@ class HierarchyImpl(
 
     // accumulated dependencies
 
-    override fun accumulatedOutgoing(node: HGNode): List<CoreDependency> {
-        val cache = accOutCache ?: mutableMapOf<Any, List<CoreDependency>>().also { accOutCache = it }
+    override fun accumulatedOutgoing(node: HGNode): List<HGCoreDependency> {
+        val cache = accOutCache ?: mutableMapOf<Any, List<HGCoreDependency>>().also { accOutCache = it }
         return cache.getOrPut(node.identifier) {
             buildList {
                 addAll(node.outgoingCoreDependencies)
@@ -92,8 +92,8 @@ class HierarchyImpl(
         }
     }
 
-    override fun accumulatedIncoming(node: HGNode): List<CoreDependency> {
-        val cache = accInCache ?: mutableMapOf<Any, List<CoreDependency>>().also { accInCache = it }
+    override fun accumulatedIncoming(node: HGNode): List<HGCoreDependency> {
+        val cache = accInCache ?: mutableMapOf<Any, List<HGCoreDependency>>().also { accInCache = it }
         return cache.getOrPut(node.identifier) {
             buildList {
                 addAll(node.incomingCoreDependencies)

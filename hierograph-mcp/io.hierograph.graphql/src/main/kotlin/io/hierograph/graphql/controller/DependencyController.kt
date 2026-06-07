@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphql.controller
 
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
@@ -24,18 +24,18 @@ import org.springframework.stereotype.Controller
 class DependencyController {
 
     @SchemaMapping(typeName = "Dependency")
-    fun id(dependency: CoreDependency): String =
+    fun id(dependency: HGCoreDependency): String =
         HierarchicalGraphController.coreDependencyId(dependency)
 
     @SchemaMapping(typeName = "Dependency")
-    fun sourceNode(dependency: CoreDependency): HGNode = dependency.from
+    fun sourceNode(dependency: HGCoreDependency): HGNode = dependency.from
 
     @SchemaMapping(typeName = "Dependency")
-    fun targetNode(dependency: CoreDependency): HGNode = dependency.to
+    fun targetNode(dependency: HGCoreDependency): HGNode = dependency.to
 
     @SchemaMapping(typeName = "Dependency")
-    fun type(dependency: CoreDependency): String = dependency.type
+    fun type(dependency: HGCoreDependency): String = dependency.type
 
     @SchemaMapping(typeName = "Dependency")
-    fun weight(dependency: CoreDependency): Int = dependency.weight
+    fun weight(dependency: HGCoreDependency): Int = dependency.weight
 }

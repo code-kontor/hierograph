@@ -18,6 +18,6 @@ package io.hierograph.hierarchicalgraph.core.model
 interface AggregatedDependency {
     val from: HGNode
     val to: HGNode
-    val coreDependencies: List<CoreDependency>
+    val coreDependencies: List<HGCoreDependency>
     val aggregatedWeight: Int
 }

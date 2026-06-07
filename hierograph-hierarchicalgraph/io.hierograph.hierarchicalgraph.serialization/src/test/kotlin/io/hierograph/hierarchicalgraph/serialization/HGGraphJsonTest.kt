@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.serialization
 
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
@@ -241,7 +241,7 @@ class HGGraphJsonTest {
             return node
         }
 
-        fun dep(from: HGNode, to: HGNode, type: String, weight: Int, bitmap: Int): CoreDependency {
+        fun dep(from: HGNode, to: HGNode, type: String, weight: Int, bitmap: Int): HGCoreDependency {
             val d = HGGraphFactory.createCoreDependency(from, to, type, depSource)
             d.weight = weight
             d.attributesBitmap = bitmap

@@ -28,8 +28,8 @@ interface Hierarchy {
     fun isSuccessorOf(descendant: HGNode, ancestor: HGNode): Boolean
 
     // accumulated dependencies (hierarchy-dependent)
-    fun accumulatedOutgoing(node: HGNode): List<CoreDependency>
-    fun accumulatedIncoming(node: HGNode): List<CoreDependency>
+    fun accumulatedOutgoing(node: HGNode): List<HGCoreDependency>
+    fun accumulatedIncoming(node: HGNode): List<HGCoreDependency>
 
     // aggregated dependencies (hierarchy-dependent)
     fun getAggregatedDependency(from: HGNode, to: HGNode): AggregatedDependency?

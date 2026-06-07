@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.javaspec
 
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
@@ -404,16 +404,16 @@ class TypeHierarchyTest {
             return node
         }
 
-        fun extends(from: HGNode, to: HGNode): CoreDependency =
+        fun extends(from: HGNode, to: HGNode): HGCoreDependency =
             dep(from, to, JavaEdgeAttributes.IS_EXTENDS)
 
-        fun implements(from: HGNode, to: HGNode): CoreDependency =
+        fun implements(from: HGNode, to: HGNode): HGCoreDependency =
             dep(from, to, JavaEdgeAttributes.IS_IMPLEMENTS)
 
-        fun dependsOnOther(from: HGNode, to: HGNode): CoreDependency =
+        fun dependsOnOther(from: HGNode, to: HGNode): HGCoreDependency =
             dep(from, to, JavaEdgeAttributes.IS_DEPENDS_ON_OTHER)
 
-        private fun dep(from: HGNode, to: HGNode, attribute: Int): CoreDependency {
+        private fun dep(from: HGNode, to: HGNode, attribute: Int): HGCoreDependency {
             val d = HGGraphFactory.createCoreDependency(from, to, "DEPENDS_ON", depSource)
             d.attributesBitmap = JavaEdgeAttributes.set(d.attributesBitmap, attribute)
             return d

@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.core.model
 
-import io.hierograph.hierarchicalgraph.core.model.internal.CoreDependencyImpl
+import io.hierograph.hierarchicalgraph.core.model.internal.HGCoreDependencyImpl
 import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
 import io.hierograph.hierarchicalgraph.core.model.internal.HGNodeImpl
 
@@ -39,9 +39,9 @@ object HGGraphFactory {
         target: HGNode,
         type: String,
         depSourceSupplier: () -> IDependencySource,
-    ): CoreDependency {
+    ): HGCoreDependency {
         val depSource = depSourceSupplier()
-        val dep = CoreDependencyImpl(from = source, to = target, type = type, dependencySource = depSource)
+        val dep = HGCoreDependencyImpl(from = source, to = target, type = type, dependencySource = depSource)
         depSource.dependency = dep
         (source as HGNodeImpl)._outgoing.add(dep)
         (target as HGNodeImpl)._incoming.add(dep)

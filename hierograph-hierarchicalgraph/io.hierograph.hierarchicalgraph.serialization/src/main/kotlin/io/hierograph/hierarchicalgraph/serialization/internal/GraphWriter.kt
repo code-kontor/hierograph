@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.CoreDependency
+import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
@@ -34,7 +34,7 @@ class GraphWriter(private val codecs: CodecRegistry) {
         val hierarchy = model.hierarchy
         val root = hierarchy.rootNode
         val nodes = mutableListOf<NodeRecord>()
-        val seenDeps = LinkedHashSet<CoreDependency>()
+        val seenDeps = LinkedHashSet<HGCoreDependency>()
 
         traverse(hierarchy, root, parent = null) { node, parent ->
             seenDeps.addAll(node.outgoingCoreDependencies)
@@ -65,7 +65,7 @@ class GraphWriter(private val codecs: CodecRegistry) {
         )
     }
 
-    private fun toRecord(dep: CoreDependency): DepRecord {
+    private fun toRecord(dep: HGCoreDependency): DepRecord {
         val codec = codecs.depCodecFor(dep.dependencySource)
         return DepRecord(
             id = dep.dependencySource.identifier.toString(),

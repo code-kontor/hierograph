@@ -1084,7 +1084,7 @@ Maven modules needed.
 io.hierograph.hierarchicalgraph.core.model/
   src/main/kotlin/io/hierograph/hierarchicalgraph/core/model/
     CoreNode.kt                   (interface)
-    CoreDependency.kt             (interface)
+    HGCoreDependency.kt             (interface)
     CoreGraph.kt                  (interface)
     AggregatedDependency.kt       (interface)
     Hierarchy.kt                  (interface)
@@ -1094,7 +1094,7 @@ io.hierograph.hierarchicalgraph.core.model/
     IDependencySource.kt          (updated: dependency -> CoreDependency)
     internal/
       HGNodeImpl.kt
-      CoreDependencyImpl.kt
+      HGCoreDependencyImpl.kt
       HGGraphImpl.kt
       HierarchyImpl.kt
       AggregatedDependencyImpl.kt

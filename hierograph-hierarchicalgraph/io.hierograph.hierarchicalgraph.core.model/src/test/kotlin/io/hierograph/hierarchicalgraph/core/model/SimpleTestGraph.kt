@@ -29,10 +29,10 @@ class SimpleTestGraph {
     val b2: HGNode
     val b3: HGNode
 
-    val dep_a1_b1_uses: CoreDependency
-    val dep_a1_b1_depends_on: CoreDependency
-    val dep_a2_b2_uses: CoreDependency
-    val dep_a3_b3_depends_on: CoreDependency
+    val dep_a1_b1_uses: HGCoreDependency
+    val dep_a1_b1_depends_on: HGCoreDependency
+    val dep_a2_b2_uses: HGCoreDependency
+    val dep_a3_b3_depends_on: HGCoreDependency
 
     private var nextId = 1L
 

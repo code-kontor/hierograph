@@ -39,10 +39,10 @@ open class HierarchyScope(val hierarchy: Hierarchy) {
         hierarchy.isSuccessorOf(this, other)
 
     // accumulated dependencies
-    val HGNode.accumulatedOutgoingCoreDependencies: List<CoreDependency>
+    val HGNode.accumulatedOutgoingCoreDependencies: List<HGCoreDependency>
         get() = hierarchy.accumulatedOutgoing(this)
 
-    val HGNode.accumulatedIncomingCoreDependencies: List<CoreDependency>
+    val HGNode.accumulatedIncomingCoreDependencies: List<HGCoreDependency>
         get() = hierarchy.accumulatedIncoming(this)
 
     // aggregated dependencies
