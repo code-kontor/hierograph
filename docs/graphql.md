@@ -130,6 +130,46 @@ the **Explorer** sidebar lets you build queries by clicking through the schema.
 }
 ```
 
+**Page through a dependency set:**
+
+```graphql
+{
+  hierarchicalGraph {
+    dependencySetForAggregatedDependency(sourceNodeId: "100", targetNodeId: "200") {
+      dependencyPage(pageNumber: 1, pageSize: 20) {
+        pageInfo {
+          pageNumber
+          maxPages
+          pageSize
+          totalCount
+        }
+        dependencies {
+          sourceNode { id }
+          targetNode { id }
+          weight
+        }
+      }
+    }
+  }
+}
+```
+
+**List the dependencies from one node to specific targets:**
+
+```graphql
+{
+  hierarchicalGraph {
+    node(id: "42") {
+      dependenciesTo(targetNodes: ["100", "200"]) {
+        targetNode { id text }
+        type
+        weight
+      }
+    }
+  }
+}
+```
+
 ## Using curl
 
 You can also query the endpoint directly from the command line:
@@ -142,15 +182,44 @@ curl -X POST http://localhost:8080/graphql \
 
 ## Schema overview
 
-The full schema is defined in `hierograph-mcp/io.hierograph.graphql/src/main/resources/graphql/`.
-The main types are:
+The full schema is defined in `hierograph-mcp/io.hierograph.graphql/src/main/resources/graphql/`. The
+`Query` root exposes a single field, `hierarchicalGraph`, from which everything else is reachable.
 
-- **`HierarchicalGraph`** — entry point; provides access to the root node and node/dependency
-  lookups
-- **`Node`** — a node in the hierarchical graph (module, package, class, method, etc.)
-- **`NodeSet`** — a collection of nodes with operations for adjacency matrices, referenced/
-  referencing node queries, and filtering
-- **`Dependency`** — a directed dependency between two nodes with a type and weight
-- **`DependencySet`** / **`FilteredDependencies`** — dependency collections with pagination and
-  filtering support
-- **`OrderedAdjacencyMatrix`** — a dependency structure matrix with cycle detection
+**`HierarchicalGraph`** — the entry point:
+
+| Field | Returns | Description |
+|---|---|---|
+| `identifier` | `ID!` | Identifier of the root node. |
+| `globalIdentifier` | `ID!` | The hierarchy's name, falling back to the root identifier. |
+| `rootNode` | `Node!` | The root of the tree. |
+| `node(id)` | `Node` | A single node by id. |
+| `nodes(ids)` | `NodeSet!` | A set of nodes by id. |
+| `dependency(id)` | `Dependency` | A single dependency by its `<from>_<to>_<type>` id. |
+| `dependencies(ids)` | `DependencySet` | A set of dependencies by id. |
+| `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | `DependencySet` | All core dependencies rolled up between two subtrees. |
+
+**`Node`** — a node in the hierarchical graph (module, package, class, method, …): `id`, `text`,
+`type`, `parent`, `predecessors`, `hasChildren`, `children: NodeSet!`, `properties: [MapEntry!]!`,
+`childrenFilteredByReferencedNodes` / `childrenFilteredByReferencingNodes`, `dependenciesTo` /
+`dependenciesFrom`, `referencedNodes` / `referencingNodes`, and `filterReferencedNodes` /
+`filterReferencingNodes`.
+
+**`NodeSet`** — a collection of nodes: `nodes`, `nodeIds`, `orderedAdjacencyMatrix`, `referencedNodes`
+/ `referencingNodes`, and `filterReferencedNodes` / `filterReferencingNodes`.
+
+**`Dependency`** — a directed dependency between two nodes: `id`, `sourceNode`, `targetNode`, `type`,
+`weight`.
+
+**`DependencySet`** and **`FilteredDependencies`** — dependency collections with `size`,
+`dependencies`, and `dependencyPage(pageNumber, pageSize)` (returns a `DependencyPage` carrying
+`PageInfo`). `DependencySet` adds `filteredChildren` / `filteredChildrenIds` and `filteredDependencies`;
+`FilteredDependencies` adds `nodes` / `nodeIds` / `referencedNodes` / `referencedNodeIds`.
+
+**`OrderedAdjacencyMatrix`** — a dependency structure matrix with cycle detection: `orderedNodes`,
+`cells` (each `Cell` is `row` / `column` / `value`), and `stronglyConnectedComponents` (each
+`StronglyConnectedComponent` is `nodes` / `nodeIds` / `nodePositions`).
+
+**Enums and inputs:** `NodeType` (`SOURCE`, `TARGET`); `NodesToConsider` (`SELF`,
+`SELF_AND_CHILDREN`, `SELF_AND_SUCCESSORS`), used by the `filter*` fields; the `NodeSelection` input
+(`selectedNodeIds`, `selectedNodesType`) consumed by `filteredDependencies`; and `MapEntry`, a
+`{ key, value }` pair.
