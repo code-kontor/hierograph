@@ -28,6 +28,8 @@ abstract class AbstractQueryBasedHierarchyProvider : IHierarchyDefinitionProvide
         private set
 
     override fun initialize() {
+        // distinctBy { it.id }: multiple queries (or a single query) may surface the same top-level
+        // id more than once; a node must not appear as a top-level entry twice.
         toplevelNodeIds = toplevelNodeIdQueries().flatMap { cypher ->
             queryList(cypher) { r ->
                 ToplevelNodeId(
@@ -35,7 +37,7 @@ abstract class AbstractQueryBasedHierarchyProvider : IHierarchyDefinitionProvide
                     kind = parseKind(r[1].asString()),
                 )
             }
-        }
+        }.distinctBy { it.id }
         parentChildNodeIds = parentChildNodeIdsQueries().flatMap { cypher ->
             queryList(cypher) { r ->
                 ParentChildNodeId(

@@ -53,7 +53,13 @@ open class DefaultMappingService : IMappingService {
         // 5a. Top-level nodes
         for (rn in hierarchyProvider.toplevelNodeIds) {
             val node = getOrCreateNode(rn.id, coreGraph, boltClient, idToNodeMap, hierarchyProvider)
-            HierarchyFactory.addChild(hierarchy, rootNode, node)
+            // An id must never be added to the hierarchy twice. If a provider returns the same
+            // top-level id more than once (e.g. one query row per Main/Test artifact of a module),
+            // skip the repeats so the node appears under the root exactly once. Mirrors the guard
+            // used for parent-child relationships below.
+            if (hierarchy.parentOf(node) == null) {
+                HierarchyFactory.addChild(hierarchy, rootNode, node)
+            }
             if (node.kind == null) node.kind = rn.kind
         }
 
