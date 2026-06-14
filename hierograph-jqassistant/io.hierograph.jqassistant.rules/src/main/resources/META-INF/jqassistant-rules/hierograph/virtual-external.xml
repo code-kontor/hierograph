@@ -16,16 +16,21 @@
     </group>
 
     <concept id="hierograph:VirtualExternalType">
+        <requiresConcept refId="java-classpath:ResolveType"/>
         <description>
             For every unparsed (stub) :Type referenced in the graph, create a canonical :Virtual:Type
             node keyed by fqn, and link each stub to it via :RESOLVES_TO. Primitives, JVM array
             descriptors, default-package types, java.lang.* / kotlin.* types, and the ubiquitous
             org.jetbrains.annotations.NotNull / Nullable nullability annotations are excluded.
+            Stubs that java-classpath:ResolveType has already resolved to a parsed type (one carrying
+            byteCodeVersion) are excluded as well: that type is part of the scanned classpath, so it
+            is internal — not external — even though the individual reference stub has no bytecode.
         </description>
         <cypher><![CDATA[
       MATCH (t:Type)
       WHERE NOT t:Virtual
         AND t.byteCodeVersion IS NULL
+        AND NOT EXISTS { (t)-[:RESOLVES_TO]->(r:Type) WHERE r.byteCodeVersion IS NOT NULL }
         AND NOT t.fqn IN ["byte","short","int","long","char","float","double","boolean","void"]
         AND NOT t.fqn IN ["org.jetbrains.annotations.NotNull","org.jetbrains.annotations.Nullable"]
         AND NOT t.fqn STARTS WITH "["
