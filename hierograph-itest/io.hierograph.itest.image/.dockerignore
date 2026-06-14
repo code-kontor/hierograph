@@ -1,0 +1,4 @@
+# Keep the build context minimal — only the Dockerfile and download-jars.sh are needed.
+*
+!Dockerfile
+!download-jars.sh
