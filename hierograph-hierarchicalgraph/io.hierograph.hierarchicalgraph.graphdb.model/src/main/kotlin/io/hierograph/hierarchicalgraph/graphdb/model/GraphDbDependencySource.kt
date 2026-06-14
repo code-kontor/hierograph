@@ -15,9 +15,9 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
+import io.hierograph.boltclient.IBoltClient
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.IDependencySource
-import io.hierograph.boltclient.IBoltClient
 
 class GraphDbDependencySource(
     override val identifier: Any,
@@ -30,24 +30,18 @@ class GraphDbDependencySource(
 
     var userObject: Any? = null
 
-    private var _properties: Map<String, String>? = null
+    /** Relationship properties are fetched from Neo4j once, on first access, and then cached. */
+    val properties: Map<String, String> by lazy { loadProperties() }
 
-    val properties: Map<String, String>
-        get() {
-            if (_properties == null) {
-                loadRelationshipData()
-            }
-            return _properties!!
+    fun <T : Any> getUserObject(clazz: Class<T>): T? =
+        userObject?.takeIf(clazz::isInstance)?.let(clazz::cast)
+
+    private fun loadProperties(): Map<String, String> {
+        val client = checkNotNull(boltClient) {
+            "No bolt client set on GraphDbDependencySource for dependency $identifier."
         }
-
-    fun <T : Any> getUserObject(clazz: Class<T>): T? {
-        val obj = userObject ?: return null
-        return if (clazz.isInstance(obj)) clazz.cast(obj) else null
-    }
-
-    private fun loadRelationshipData() {
-        val client = checkNotNull(boltClient) { "No bolt client set on GraphDbDependencySource for dependency $identifier." }
-        val relationship = client.getRelationship(identifier as Long)
-        _properties = relationship.asMap().entries.associate { (k, v) -> k to v.toString() }
+        return client.getRelationship(identifier as Long)
+            .asMap()
+            .mapValues { (_, value) -> value.toString() }
     }
 }

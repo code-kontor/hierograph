@@ -15,6 +15,4 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
-class GraphDbRootNodeSource(
-    identifier: Any
-) : GraphDbNodeSource(identifier = identifier)
+class GraphDbRootNodeSource(identifier: Any) : GraphDbNodeSource(identifier)

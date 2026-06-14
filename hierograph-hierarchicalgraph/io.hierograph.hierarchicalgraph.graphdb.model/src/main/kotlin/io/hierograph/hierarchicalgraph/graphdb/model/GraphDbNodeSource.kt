@@ -15,9 +15,9 @@
  */
 package io.hierograph.hierarchicalgraph.graphdb.model
 
+import io.hierograph.boltclient.IBoltClient
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.INodeSource
-import io.hierograph.boltclient.IBoltClient
 
 open class GraphDbNodeSource(
     override val identifier: Any
@@ -27,30 +27,26 @@ open class GraphDbNodeSource(
 
     var boltClient: IBoltClient? = null
 
-    private var _properties: Map<String, String>? = null
-    private var _labels: List<String>? = null
+    /** Labels and properties are fetched from Neo4j once, on first access, and then cached. */
+    private val nodeData: NodeData by lazy { loadNodeData() }
 
-    val properties: Map<String, String>
-        get() {
-            if (_properties == null) {
-                loadNodeData()
-            }
-            return _properties!!
+    val labels: List<String> get() = nodeData.labels
+
+    val properties: Map<String, String> get() = nodeData.properties
+
+    private fun loadNodeData(): NodeData {
+        val client = checkNotNull(boltClient) {
+            "No bolt client set on GraphDbNodeSource for node $identifier."
         }
-
-    val labels: List<String>
-        get() {
-            if (_labels == null) {
-                loadNodeData()
-            }
-            return _labels!!
-        }
-
-    private fun loadNodeData() {
-        val client = checkNotNull(boltClient) { "No bolt client set on GraphDbNodeSource for node $identifier." }
         val neo4jNode = client.getNode(identifier as Long)
-
-        _labels = neo4jNode.labels().toList()
-        _properties = neo4jNode.asMap().entries.associate { (k, v) -> k to v.toString() }
+        return NodeData(
+            labels = neo4jNode.labels().toList(),
+            properties = neo4jNode.asMap().mapValues { (_, value) -> value.toString() }
+        )
     }
+
+    private data class NodeData(
+        val labels: List<String>,
+        val properties: Map<String, String>
+    )
 }
