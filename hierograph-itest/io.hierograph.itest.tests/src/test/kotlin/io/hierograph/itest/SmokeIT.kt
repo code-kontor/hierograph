@@ -15,25 +15,26 @@
  */
 package io.hierograph.itest
 
-import io.hierograph.itest.support.AbstractIntegrationTest
+import io.hierograph.itest.support.AbstractSpringIntegrationTest
+import io.hierograph.mcp.server.core.HierarchicalGraphService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 
 /**
- * Placeholder integration test. Replace with real integration tests as they are added; it only
- * exists so the shared container is wired up and the `itest` profile has something to execute.
+ * Asserts that the hierarchical graph built from the served jQAssistant store has the expected
+ * shape. The Spring context (and thus the graph) is created once and shared across all
+ * integration-test classes — see [AbstractSpringIntegrationTest].
  */
-class SmokeIT : AbstractIntegrationTest() {
+class SmokeIT : AbstractSpringIntegrationTest() {
+
+    @Autowired
+    private lateinit var graphService: HierarchicalGraphService
 
     @Test
-    fun `the jqassistant server answers Bolt queries`() {
-        container.openDriver().use { driver ->
-            // Throws if the server is not actually reachable over Bolt.
-            driver.verifyConnectivity()
-            driver.session().use { session ->
-                val answer = session.run("RETURN 1 AS n").single()["n"].asInt()
-                assertThat(answer).isEqualTo(1)
-            }
-        }
+    fun `the hierarchical graph root has the expected number of children`() {
+        val hierarchy = graphService.model.hierarchy
+        val children = hierarchy.childrenOf(hierarchy.rootNode)
+        assertThat(children).hasSize(22)
     }
 }
