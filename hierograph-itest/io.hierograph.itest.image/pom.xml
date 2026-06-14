@@ -25,8 +25,84 @@
         -->
         <profile>
             <id>itest</id>
+
+            <!-- The rules plugin is baked into the image; declaring it as a
+                 dependency forces the reactor to build it before this module. -->
+            <dependencies>
+                <dependency>
+                    <groupId>io.hierograph</groupId>
+                    <artifactId>io.hierograph.jqassistant.rules</artifactId>
+                    <version>${project.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+
             <build>
                 <plugins>
+                    <!-- Stage the Docker build context under target/docker:
+                         the Dockerfile, the jar-download script and the project's
+                         root .jqassistant.yml used to scan the Spring jars. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>stage-docker-context</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/docker</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.basedir}</directory>
+                                            <includes>
+                                                <include>Dockerfile</include>
+                                                <include>download-jars.sh</include>
+                                            </includes>
+                                        </resource>
+                                        <resource>
+                                            <directory>${maven.multiModuleProjectDirectory}</directory>
+                                            <includes>
+                                                <include>.jqassistant.yml</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Copy the rule-only plugin jar into the build context. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.8.1</version>
+                        <executions>
+                            <execution>
+                                <id>stage-rules-plugin</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.jqassistant.rules</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>jar</type>
+                                            <destFileName>rules.jar</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                    <outputDirectory>${project.build.directory}/docker/plugin</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
@@ -40,9 +116,11 @@
                                 </goals>
                                 <configuration>
                                     <executable>docker</executable>
-                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <workingDirectory>${project.build.directory}/docker</workingDirectory>
                                     <arguments>
                                         <argument>build</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>RULES_VERSION=${project.version}</argument>
                                         <argument>-t</argument>
                                         <argument>${docker.image.name}</argument>
                                         <argument>.</argument>
