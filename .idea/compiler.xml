@@ -17,7 +17,7 @@
         <module name="io.hierograph.hierarchicalgraph.graphdb.model" />
         <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" />
         <module name="io.hierograph.mcp.jqassistant" />
-        <module name="io.hierograph.itest.image" />
+        <module name="io.hierograph.itest.tests" />
         <module name="io.hierograph.mcp.server" />
       </profile>
     </annotationProcessing>
@@ -38,6 +38,8 @@
       <module name="io.hierograph.hierarchicalgraph.graphdb.mapping.spi" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.graphdb.model" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.serialization" options="-parameters" />
+      <module name="io.hierograph.itest.image" options="-parameters" />
+      <module name="io.hierograph.itest.tests" options="-parameters" />
       <module name="io.hierograph.jqassistant.rules" options="-parameters" />
       <module name="io.hierograph.mcp.javaspec" options="-parameters" />
       <module name="io.hierograph.mcp.jqassistant" options="-parameters" />

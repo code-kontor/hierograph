@@ -24,8 +24,11 @@
         -->
         <profile>
             <id>itest</id>
+            <!-- Order matters: the image is built first so the Testcontainers-based
+                 tests can start it. -->
             <modules>
                 <module>io.hierograph.itest.image</module>
+                <module>io.hierograph.itest.tests</module>
             </modules>
         </profile>
     </profiles>

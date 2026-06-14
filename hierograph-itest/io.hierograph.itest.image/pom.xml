@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.hierograph</groupId>
-        <artifactId>io.hierograph</artifactId>
+        <artifactId>hierograph-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath>
+        <relativePath>../../hierograph-parent/pom.xml</relativePath>
     </parent>
 
     <artifactId>io.hierograph.itest.image</artifactId>
@@ -32,7 +32,6 @@
                 <dependency>
                     <groupId>io.hierograph</groupId>
                     <artifactId>io.hierograph.jqassistant.rules</artifactId>
-                    <version>${project.version}</version>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
@@ -45,7 +44,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-resources-plugin</artifactId>
-                        <version>3.3.1</version>
                         <executions>
                             <execution>
                                 <id>stage-docker-context</id>
@@ -79,7 +77,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-dependency-plugin</artifactId>
-                        <version>3.8.1</version>
                         <executions>
                             <execution>
                                 <id>stage-rules-plugin</id>
@@ -92,7 +89,6 @@
                                         <artifactItem>
                                             <groupId>io.hierograph</groupId>
                                             <artifactId>io.hierograph.jqassistant.rules</artifactId>
-                                            <version>${project.version}</version>
                                             <type>jar</type>
                                             <destFileName>rules.jar</destFileName>
                                         </artifactItem>
@@ -106,7 +102,6 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.5.0</version>
                         <executions>
                             <execution>
                                 <id>docker-build</id>
