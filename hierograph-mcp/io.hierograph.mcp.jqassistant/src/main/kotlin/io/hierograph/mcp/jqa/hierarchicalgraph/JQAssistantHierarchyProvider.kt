@@ -100,7 +100,7 @@ class JQAssistantHierarchyProvider : IHierarchyDefinitionProvider, AbstractBoltC
 
     private val toplevelNodeIdQueries: List<String> = listOf(
         // scanned jars directly
-        "MATCH (a:Artifact:Jar) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn",
+        "MATCH (a:Artifact:Jar) RETURN id(a) as id, '${JavaKinds.MODULE}', a.fileName as name, a.fileName as fqn",
         // scanned maven projects
         "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a) as id, '${JavaKinds.MODULE}', a.name, a.fqn",
         // Virtual 'External' module

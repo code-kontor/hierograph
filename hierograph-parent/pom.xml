@@ -120,6 +120,7 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                        <configuration/>
                     </execution>
                     <execution>
                         <id>test-compile</id>
@@ -128,8 +129,18 @@
                         </goals>
                     </execution>
                 </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-allopen</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
                     <jvmTarget>${java.version}</jvmTarget>
+                    <compilerPlugins>
+                        <plugin>spring</plugin>
+                    </compilerPlugins>
                 </configuration>
             </plugin>
             <plugin>

@@ -15,26 +15,24 @@
  */
 package io.hierograph.itest
 
-import io.hierograph.itest.support.AbstractSpringIntegrationTest
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.itest.support.AbstractHierarchicalGraphIntegrationTest
+import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
 
 /**
  * Asserts that the hierarchical graph built from the served jQAssistant store has the expected
- * shape. The Spring context (and thus the graph) is created once and shared across all
- * integration-test classes — see [AbstractSpringIntegrationTest].
+ * shape. The graph is created once and shared across all hierarchical-graph integration tests —
+ * see [AbstractHierarchicalGraphIntegrationTest].
  */
-class SmokeIT : AbstractSpringIntegrationTest() {
-
-    @Autowired
-    private lateinit var graphService: HierarchicalGraphService
+class SmokeIT : AbstractHierarchicalGraphIntegrationTest() {
 
     @Test
     fun `the hierarchical graph root has the expected number of children`() {
-        val hierarchy = graphService.model.hierarchy
+        val hierarchy = model.hierarchy
         val children = hierarchy.childrenOf(hierarchy.rootNode)
         assertThat(children).hasSize(22)
+
+        children.forEach { println(JQAssistantNodeMetadataProvider.getQualifiedName(it)) }
     }
 }

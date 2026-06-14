@@ -32,6 +32,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+            <!-- Mockito is unused here and its byte-buddy agent self-attaches at runtime,
+                 which Java 21+ warns about. Exclude it (both artifacts, since
+                 mockito-junit-jupiter pulls mockito-core back in transitively). -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.mockito</groupId>
+                    <artifactId>mockito-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.mockito</groupId>
+                    <artifactId>mockito-junit-jupiter</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>

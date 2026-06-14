@@ -15,34 +15,30 @@
  */
 package io.hierograph.itest.support
 
-import io.hierograph.mcp.server.core.HierarchicalGraphService
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 
 /**
- * Base class for Spring-based integration tests. The Spring [SpringBootTest] configuration and the
- * [DynamicPropertySource] live here so that every subclass shares an *identical* context
- * configuration. Spring's test context cache therefore creates the [ApplicationContext] (and runs
- * the graph-building [HierarchicalGraphService]) only once for the whole test run, reusing it
- * across all integration-test classes.
+ * Base for Spring-based integration tests: wires the running container's Bolt endpoint into the
+ * Spring [org.springframework.core.env.Environment]. It deliberately carries no `@SpringBootTest`
+ * itself — a subclass declares which part of the application to boot (e.g.
+ * [AbstractHierarchicalGraphIntegrationTest]).
  *
- * Only [HierarchicalGraphService] is loaded into the context; point `classes` at
- * [io.hierograph.mcp.server.McpApplication] to bring up the full application instead.
+ * Keeping the `@DynamicPropertySource` here (rather than per test class) means every subclass
+ * shares an identical context configuration, so Spring's test-context cache creates the
+ * [org.springframework.context.ApplicationContext] only once for the whole run.
  */
-@SpringBootTest(classes = [HierarchicalGraphService::class])
 abstract class AbstractSpringIntegrationTest : AbstractIntegrationTest() {
 
     companion object {
 
         @JvmStatic
         @DynamicPropertySource
-        fun springProperties(registry: DynamicPropertyRegistry) {
+        fun boltProperties(registry: DynamicPropertyRegistry) {
             // Ensure the container is up before the Spring context reads the property
             // (start() is idempotent; the shared lifecycle is owned by HierographImageExtension).
             HierographImageContainer.instance.start()
             registry.add("hierograph.bolt.uri") { HierographImageContainer.boltUri }
-            registry.add("hierograph.graph.dumpFile") { "target/hierarchical-graph.txt" }
         }
     }
 }
