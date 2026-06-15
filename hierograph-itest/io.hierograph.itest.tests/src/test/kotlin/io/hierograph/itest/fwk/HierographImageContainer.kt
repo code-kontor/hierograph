@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.itest.support
+package io.hierograph.itest.fwk
 
 import java.time.Duration
 import java.util.Properties
