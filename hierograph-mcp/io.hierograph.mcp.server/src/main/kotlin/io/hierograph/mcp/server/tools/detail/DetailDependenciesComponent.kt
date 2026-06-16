@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
+import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.pagination.DataHashProvider
@@ -528,22 +529,18 @@ class DetailDependenciesComponent(
     }
 
     private fun collectSubtreeTypeIds(node: HGNode): List<Long> {
-        val typeKinds = setOf("Class", "Interface", "Enum", "Annotation", "Record")
         val result = mutableListOf<Long>()
-        collectSubtreeTypeIdsRecursive(node, typeKinds, result)
+        collectSubtreeTypeIdsRecursive(node, result)
         return result
     }
 
-    private fun collectSubtreeTypeIdsRecursive(
-        node: HGNode, typeKinds: Set<String>,
-        result: MutableList<Long>
-    ) {
-        if (JQAssistantNodeMetadataProvider.getKind(node) in typeKinds) {
+    private fun collectSubtreeTypeIdsRecursive(node: HGNode, result: MutableList<Long>) {
+        if (node.kind in JavaKinds.TYPE_KINDS) {
             result.add(node.identifier as Long)
         }
         val hierarchy = graphService.model.hierarchy
         for (child in hierarchy.childrenOf(node)) {
-            collectSubtreeTypeIdsRecursive(child, typeKinds, result)
+            collectSubtreeTypeIdsRecursive(child, result)
         }
     }
 

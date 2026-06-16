@@ -16,7 +16,6 @@
 package io.hierograph.mcp.jqa.hierarchicalgraph
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 
 object JQAssistantNodeMetadataProvider {
 
@@ -30,10 +29,12 @@ object JQAssistantNodeMetadataProvider {
         return src.fqn
     }
 
-    fun getKind(node: HGNode): String {
-        val src = node.nodeSource as? GraphDbNodeSource ?: return "Unknown"
-        return getKindFromLabels(src.labels.toList())
-    }
+    /**
+     * Returns the node's semantic kind. Defers to the authoritative [HGNode.kind] assigned during
+     * graph construction (e.g. `java.module`, `java.class`) rather than re-deriving from the raw
+     * graph-DB labels, so this agrees with every other kind read across the tool surface.
+     */
+    fun getKind(node: HGNode): String = node.kind?.toString() ?: "Unknown"
 
     fun getKindFromLabels(labels: List<String>): String {
         for (candidate in DEFAULT_KNOWN_KINDS) {
