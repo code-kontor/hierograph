@@ -15,7 +15,6 @@
  */
 package io.hierograph.itest.hierarchicalgraph
 
-import io.hierograph.hierarchicalgraph.core.model.HierarchyScope
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.assertj.core.api.Assertions
@@ -29,12 +28,11 @@ import org.junit.jupiter.api.Test
 class SmokeIT : AbstractHierarchicalGraphIntegrationTest() {
 
     @Test
-    fun `the hierarchical graph root has the expected children`() = with(HierarchyScope(model.hierarchy)) {
+    fun `the hierarchical graph root children have the expected names`(): Unit = withHierarchyScope {
         val children = hierarchy.rootNode.children
 
         children.forEach { println(it.identifier) }
 
-        // assert the names
         val names = children.map { JQAssistantNodeMetadataProvider.getName(it) }
         Assertions.assertThat(names).containsExactlyInAnyOrder(
             "spring-r2dbc-7.0.8.jar",
@@ -60,9 +58,13 @@ class SmokeIT : AbstractHierarchicalGraphIntegrationTest() {
             "spring-expression-7.0.8.jar",
             "External Types",
         )
+    }
 
-        // assert the names
-        val fullyQualifiedNames = children.map { JQAssistantNodeMetadataProvider.getName(it) }
+    @Test
+    fun `the hierarchical graph root children have the expected fully qualified names`(): Unit = withHierarchyScope {
+        val children = hierarchy.rootNode.children
+
+        val fullyQualifiedNames = children.map { JQAssistantNodeMetadataProvider.getQualifiedName(it) }
         Assertions.assertThat(fullyQualifiedNames).containsExactlyInAnyOrder(
             "spring-r2dbc-7.0.8.jar",
             "spring-messaging-7.0.8.jar",
@@ -87,9 +89,15 @@ class SmokeIT : AbstractHierarchicalGraphIntegrationTest() {
             "spring-expression-7.0.8.jar",
             "External Types",
         )
+    }
 
-        //
+    @Test
+    fun `the hierarchical graph root children have the expected kinds`(): Unit = withHierarchyScope {
+        val children = hierarchy.rootNode.children
+
         val kinds = children.map { JQAssistantNodeMetadataProvider.getKind(it) }
-        println(kinds)
+        Assertions.assertThat(kinds)
+            .hasSize(22)
+            .containsOnly("java.module")
     }
 }
