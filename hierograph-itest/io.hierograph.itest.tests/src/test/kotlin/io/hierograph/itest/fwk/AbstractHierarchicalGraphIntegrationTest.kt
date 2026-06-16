@@ -16,6 +16,7 @@
 package io.hierograph.itest.fwk
 
 import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.HierarchyScope
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -39,6 +40,10 @@ abstract class AbstractHierarchicalGraphIntegrationTest : AbstractSpringIntegrat
     /** The hierarchical graph model built from the served jQAssistant store. */
     protected val model: HGModel
         get() = graphService.model
+
+    /** Runs [block] within a [HierarchyScope] over the built [model]'s hierarchy. */
+    protected fun <T> withHierarchyScope(block: HierarchyScope.() -> T): T =
+        with(HierarchyScope(model.hierarchy), block)
 
     companion object {
 
