@@ -21,17 +21,16 @@ import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 
 /**
- * Asserts that the hierarchical graph built from the served jQAssistant store has the expected
- * shape. The graph is created once and shared across all hierarchical-graph integration tests —
+ * Asserts that the root children (the top-level modules) of the hierarchical graph built from the
+ * served jQAssistant store have the expected names, fully qualified names, and kinds. The graph is
+ * created once and shared across all hierarchical-graph integration tests —
  * see [io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest].
  */
-class SmokeIT : AbstractHierarchicalGraphIntegrationTest() {
+class HierarchicalGraphRootChildrenIT : AbstractHierarchicalGraphIntegrationTest() {
 
     @Test
     fun `the hierarchical graph root children have the expected names`(): Unit = withHierarchyScope {
         val children = hierarchy.rootNode.children
-
-        children.forEach { println(it.identifier) }
 
         val names = children.map { JQAssistantNodeMetadataProvider.getName(it) }
         Assertions.assertThat(names).containsExactlyInAnyOrder(
