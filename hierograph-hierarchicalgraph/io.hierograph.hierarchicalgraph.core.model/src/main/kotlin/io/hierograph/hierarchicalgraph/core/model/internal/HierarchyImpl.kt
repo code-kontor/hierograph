@@ -146,6 +146,37 @@ class HierarchyImpl(
         }
     }
 
+    // descendants
+
+    override fun descendantsOf(node: HGNode, vararg kinds: Any): List<HGNode> {
+        val out = mutableListOf<HGNode>()
+        val filter = if (kinds.isEmpty()) null else kinds.toSet()
+        for (child in childrenOf(node)) {
+            collectDescendants(child, filter, out)
+        }
+        return out
+    }
+
+    override fun descendantsOf(nodes: Iterable<HGNode>, vararg kinds: Any): List<HGNode> {
+        val seen = LinkedHashSet<HGNode>()
+        val filter = if (kinds.isEmpty()) null else kinds.toSet()
+        for (seed in nodes) {
+            for (child in childrenOf(seed)) {
+                collectDescendants(child, filter, seen)
+            }
+        }
+        return seen.toList()
+    }
+
+    private fun collectDescendants(node: HGNode, filter: Set<Any>?, out: MutableCollection<HGNode>) {
+        if (filter == null || node.kind in filter) {
+            out.add(node)
+        }
+        for (child in childrenOf(node)) {
+            collectDescendants(child, filter, out)
+        }
+    }
+
     // mutation
 
     override fun addChild(parent: HGNode, child: HGNode) {

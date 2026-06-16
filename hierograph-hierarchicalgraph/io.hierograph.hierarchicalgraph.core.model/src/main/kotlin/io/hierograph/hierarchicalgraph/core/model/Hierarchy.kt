@@ -40,6 +40,24 @@ interface Hierarchy {
     fun traverse(node: HGNode, action: (HGNode) -> Unit)
     fun traverse(node: HGNode, action: (HGNode) -> Unit, filter: (HGNode) -> Boolean)
 
+    // descendants
+    /**
+     * Returns [node]'s descendants in pre-order (parent before children, left-to-right over
+     * `children`). [node] itself is NOT included. When [kinds] is non-empty the result only
+     * contains nodes whose [HGNode.kind] equals one of the supplied values; the traversal still
+     * visits the whole subtree so a filtered ancestor never prunes its filtered descendants. When
+     * [kinds] is empty no filter is applied.
+     */
+    fun descendantsOf(node: HGNode, vararg kinds: Any): List<HGNode>
+
+    /**
+     * Returns the union of the descendants of every node in [nodes] (pre-order per seed, in
+     * iteration order). The seeds themselves are NOT included. Duplicates are removed; a descendant
+     * reachable from multiple seeds appears once, at its first occurrence. See [descendantsOf] for
+     * the meaning of [kinds].
+     */
+    fun descendantsOf(nodes: Iterable<HGNode>, vararg kinds: Any): List<HGNode>
+
     // local nodes (scenario-only)
     val localNodes: Collection<HGNode>
     fun createLocalNode(kind: Any?, nodeSourceSupplier: () -> INodeSource): HGNode

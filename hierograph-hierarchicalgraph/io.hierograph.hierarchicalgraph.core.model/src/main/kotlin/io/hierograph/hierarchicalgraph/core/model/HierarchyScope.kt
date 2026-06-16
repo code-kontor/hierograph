@@ -61,4 +61,11 @@ open class HierarchyScope(val hierarchy: Hierarchy) {
     // traversal
     fun HGNode.traverse(action: (HGNode) -> Unit) =
         hierarchy.traverse(this, action)
+
+    // descendants
+    fun HGNode.descendants(vararg kinds: Any): List<HGNode> =
+        hierarchy.descendantsOf(this, *kinds)
+
+    fun Iterable<HGNode>.descendants(vararg kinds: Any): List<HGNode> =
+        hierarchy.descendantsOf(this, *kinds)
 }
