@@ -46,6 +46,8 @@ class HierarchicalGraphService {
 
     lateinit var model: HGModel
 
+    lateinit var searchIndex: NodeSearchIndex
+
     @PostConstruct
     fun init() {
         log.info("Connecting bolt client to: {}", boltUri)
@@ -63,6 +65,11 @@ class HierarchicalGraphService {
         val hierarchy = model.hierarchy
         val children = hierarchy.childrenOf(hierarchy.rootNode)
         log.info("Hierarchical graph created with {} root children in {}.", children.size, elapsed)
+
+        // Precompute the find_node search index once; the model is immutable from here on.
+        val (index, indexElapsed) = measureTimedValue { NodeSearchIndex.build(model) }
+        searchIndex = index
+        log.info("Search index built with {} entries in {}.", index.entries.size, indexElapsed)
 
         // Count nodes by kind (skip the root node itself)
         val kindCounts = mutableMapOf<Any?, Int>()

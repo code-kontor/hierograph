@@ -15,7 +15,6 @@
  */
 package io.hierograph.mcp.server
 
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantSearchProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.logging.LoggingToolCallbackProvider
 import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
@@ -48,12 +47,6 @@ class McpApplication {
     @Bean
     fun hierarchicalGraphProvider(graphService: HierarchicalGraphService): HierarchicalGraphProvider =
         HierarchicalGraphProvider { graphService.model.hierarchy }
-
-    @Bean
-    fun searchProvider(graphService: HierarchicalGraphService): JQAssistantSearchProvider =
-        JQAssistantSearchProvider(
-            graphService.boltClient,
-        )
 
     @Bean
     fun graphToolCallbackProvider(

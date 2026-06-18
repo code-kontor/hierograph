@@ -19,6 +19,8 @@ import io.hierograph.hierarchicalgraph.core.model.HGNode
 
 object JQAssistantNodeMetadataProvider {
 
+    val scannerName: String = "jqassistant"
+
     fun getName(node: HGNode): String {
         val src = node.nodeSource as? ExtendedGraphDbNodeSource ?: return ""
         return src.name
@@ -42,8 +44,6 @@ object JQAssistantNodeMetadataProvider {
         }
         return if (labels.isEmpty()) "Unknown" else labels[0]
     }
-
-    val scannerName: String = "jqassistant"
 
     private val DEFAULT_KNOWN_KINDS = listOf(
         "Class", "Interface", "Enum", "Annotation", "Record", "Package", "Artifact"

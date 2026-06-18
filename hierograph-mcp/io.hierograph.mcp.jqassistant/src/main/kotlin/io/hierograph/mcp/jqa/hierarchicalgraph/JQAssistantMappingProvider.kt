@@ -17,12 +17,25 @@ package io.hierograph.mcp.jqa.hierarchicalgraph
 
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.MappingProvider
 import io.hierograph.hierarchicalgraph.graphdb.mapping.spi.MappingProviderMetadata
+import io.hierograph.mcp.jqa.hierarchicalgraph.fwk.MappingDrivenDependencyProvider
+import io.hierograph.mcp.jqa.hierarchicalgraph.fwk.MappingDrivenHierarchyProvider
 
+/**
+ * Wires the declarative [jQAssistantMapping] to the generic mapping-driven adapters, producing the
+ * SPI [MappingProvider] consumed by the mapping service.
+ *
+ * The two sides are deliberately separate: [jQAssistantMapping] holds the jQAssistant/Java domain
+ * knowledge, the `fwk` adapters hold the SPI/bolt execution machinery, and the only adapter-specific
+ * binding here is the [ExtendedGraphDbNodeSource] factory that carries name/fqn through the graph.
+ */
 fun jQAssistantMappingProvider() = MappingProvider(
     MappingProviderMetadata(
         identifier = "io.hierograph.jqassistant.hierarchicalgraph",
         name = "Hierograph jQAssistant (hierarchical packages)"
     ),
-    JQAssistantHierarchyProvider(),
-    JQAssistantDependencyProvider()
+    MappingDrivenHierarchyProvider(
+        jQAssistantMapping.topLevelRules,
+        jQAssistantMapping.parentChildRules,
+    ) { id, name, fqn -> ExtendedGraphDbNodeSource(id, name, fqn) },
+    MappingDrivenDependencyProvider(jQAssistantMapping.dependencyRules),
 )
