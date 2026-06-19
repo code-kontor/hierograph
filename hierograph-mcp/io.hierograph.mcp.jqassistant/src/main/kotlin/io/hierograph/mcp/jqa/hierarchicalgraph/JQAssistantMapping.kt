@@ -43,7 +43,7 @@ val jQAssistantMapping = GraphDbMapping(
         // scanned maven projects
         TopLevelRule(
             JavaKinds.MODULE,
-            "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a) AS id, a.name, a.fqn",
+            "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a) AS id, a.artifactId, a.fqn",
         ),
         // Virtual 'External' module
         TopLevelRule(
@@ -61,9 +61,10 @@ val jQAssistantMapping = GraphDbMapping(
             JavaKinds.PACKAGE,
             "MATCH (a:Artifact:Virtual)-[:CONTAINS]->(b:Package) WHERE NOT (:Package)-[:CONTAINS]->(b) RETURN id(a), id(b), b.name, b.fqn",
         ),
+        // "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a), id(b), b.name, b.fqn"
         ParentChildRule(
             JavaKinds.MODULE,
-            "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main OR b:Test) RETURN id(a), id(b), b.name, b.fqn",
+            "MATCH (a:Project:File:Maven:Directory)-[CREATES]->(b:Artifact:Maven:File) WHERE a.packaging = 'jar' AND (b:Main) RETURN id(a), id(b), b.name, b.fqn",
         ),
         ParentChildRule(
             JavaKinds.PACKAGE,
