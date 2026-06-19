@@ -16,6 +16,8 @@
 package io.hierograph.itest.fwk
 
 import io.hierograph.mcp.server.McpApplication
+import io.hierograph.mcp.server.tools.navigation.FindNodeTool
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -31,6 +33,25 @@ import org.springframework.test.context.DynamicPropertySource
  */
 @SpringBootTest(classes = [McpApplication::class])
 abstract class AbstractMcpApplicationIntegrationTest : AbstractSpringIntegrationTest() {
+
+    @Autowired
+    protected lateinit var findNodeTool: FindNodeTool
+
+    /**
+     * Resolves a single node ID via the `find_node` tool, asserting that exactly the expected node
+     * (matched on qualified name and kind) is present among the matches. Lets tests target a node
+     * by name instead of hard-coding graph IDs that change across rebuilds.
+     */
+    protected fun resolveNodeId(name: String, qualifiedName: String, kind: String): Long {
+        val response = findNodeTool.findNode(name = name, kindFilter = listOf(kind))
+
+        @Suppress("UNCHECKED_CAST")
+        val results = response["results"] as List<Map<String, Any?>>
+        val match = results.singleOrNull { it["qualified_name"] == qualifiedName }
+            ?: error("Expected exactly one '$qualifiedName' ($kind) among find_node matches, got: " +
+                    results.map { it["qualified_name"] })
+        return (match["id"] as Number).toLong()
+    }
 
     companion object {
 
