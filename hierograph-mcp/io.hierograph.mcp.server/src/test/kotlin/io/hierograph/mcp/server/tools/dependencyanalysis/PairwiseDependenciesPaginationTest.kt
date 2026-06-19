@@ -110,7 +110,7 @@ class PairwiseDependenciesPaginationTest {
         val s = summary(resp)
         assertThat(s["node_count"]).isEqualTo(3)
         assertThat(s["edge_count"]).isEqualTo(3)
-        assertThat(s["returned_edge_count"]).isEqualTo(3)
+        assertThat(s["total_matching_edges"]).isEqualTo(3)
         assertThat(s["has_cycles"]).isEqualTo(false)
         assertThat(s["density"]).isEqualTo(0.5) // 3 / (3*2)
         assertThat(s).containsKey("topological_order")
@@ -166,8 +166,8 @@ class PairwiseDependenciesPaginationTest {
         assertThat(weights(resp)).containsExactly(3, 2)
 
         val s = summary(resp)
-        assertThat(s["edge_count"]).isEqualTo(3)          // unfiltered count, drives density
-        assertThat(s["returned_edge_count"]).isEqualTo(2) // post-filter total that paginates
+        assertThat(s["edge_count"]).isEqualTo(3)            // unfiltered count, drives density
+        assertThat(s["total_matching_edges"]).isEqualTo(2) // post-filter total that paginates
         assertThat(s["density"]).isEqualTo(0.5)           // unchanged by min_weight
         assertThat(resp).doesNotContainKey("next_cursor") // both fit on one page
     }

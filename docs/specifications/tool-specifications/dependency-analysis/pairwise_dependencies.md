@@ -50,7 +50,7 @@ Ordering of the paginated edge list. The summary is unaffected; only the order i
 - `"weight_desc"` — heaviest coupling first, tie-broken by `(from, to)`. Lets the LLM read the structural hotspots first and stop paging once weights fall below architectural significance.
 
 **`min_weight`** (int, optional, default `1`)
-Drops edges with `weight < min_weight` from the **edge list**, server-side, before pagination. Most DSM noise is incidental weight-1/2 edges (a stray import, a single `extends`); raising `min_weight` collapses that long tail and, for sparse graphs, often returns the whole matrix in one page. Does **not** affect the summary analytics — `has_cycles`, SCCs, `topological_order`, and `density` are always computed over the full, unfiltered edge set, so filtering for readability can never change the cycle/layering verdict. `edge_count` reports the full count; `returned_edge_count` reports the post-filter total (see *Summary fields*).
+Drops edges with `weight < min_weight` from the **edge list**, server-side, before pagination. Most DSM noise is incidental weight-1/2 edges (a stray import, a single `extends`); raising `min_weight` collapses that long tail and, for sparse graphs, often returns the whole matrix in one page. Does **not** affect the summary analytics — `has_cycles`, SCCs, `topological_order`, and `density` are always computed over the full, unfiltered edge set, so filtering for readability can never change the cycle/layering verdict. `edge_count` reports the full count; `total_matching_edges` reports the post-filter total (see *Summary fields*).
 
 **`limit`** (int, optional, default `200`)
 Page size for the edge list. Honest truncation: when more edges remain, `next_cursor` is non-null. Follows the standard pagination protocol (`hierograph-pagination.md`).
@@ -146,7 +146,7 @@ The example below is a **first page** (no `cursor` supplied), so it carries both
   "summary": {
     "node_count": 3,
     "edge_count": 3,
-    "returned_edge_count": 3,
+    "total_matching_edges": 3,
     "possible_edges": 6,
     "density": 0.5,
     "has_cycles": false,
@@ -182,7 +182,7 @@ The summary is computed over the **complete** node set and the **full, unfiltere
 
 **`edge_count`** — number of edges with non-zero weight in the full graph, *before* any `min_weight` filtering. This is the true coupling count and the basis for `density` and for how many edges pagination will stream when `min_weight` is `1`.
 
-**`returned_edge_count`** — number of edges that survive the `min_weight` filter and will therefore be paged through. Equals `edge_count` when `min_weight` is `1` (the default). The number of pages is `ceil(returned_edge_count / limit)`.
+**`total_matching_edges`** — total number of edges that survive the `min_weight` filter and will therefore be paged through, **across all pages** (not the count returned on this page). Equals `edge_count` when `min_weight` is `1` (the default). The number of pages is `ceil(total_matching_edges / limit)`; to tell whether you have everything, check for the presence of `next_cursor` rather than comparing this field to the page length.
 
 **`possible_edges`** — maximum possible directed edges (`node_count * (node_count - 1)` when excluding self-loops).
 

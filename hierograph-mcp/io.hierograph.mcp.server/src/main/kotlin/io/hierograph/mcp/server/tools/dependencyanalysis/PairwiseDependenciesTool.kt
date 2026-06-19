@@ -63,15 +63,22 @@ class PairwiseDependenciesTool(
     @Tool(
         name = "pairwise_dependencies",
         description = "[Dependency analysis] " +
-                "Return the dependency matrix among a set of subtrees — the DSM / coupling-matrix tool. " +
-                "Returns a global structural summary (density, cycle detection, strongly connected " +
-                "components, topological order) computed over the entire node set, plus a paginated edge " +
-                "list. The summary often answers the architectural question directly — check it before " +
-                "processing edges. Pass all the modules you care about in one call (the node set is " +
-                "bounded only by a generous soft cap); the edge list paginates and can be thinned with " +
-                "min_weight. Use edge_sort='weight_desc' to see the heaviest coupling first. " +
-                "For one-directional or asymmetric queries use aggregated_dependencies; for evidence of " +
-                "a specific pair use outgoing_dependencies or incoming_dependencies."
+                "Dependency matrix (DSM / coupling matrix) among a set of subtrees. Returns two things: " +
+                "(1) a small global summary — density, cycle detection, strongly connected components, " +
+                "topological order — computed over the entire node set, and (2) a paginated edge list. " +
+                "READ THE SUMMARY FIRST: it answers most architectural questions (is it acyclic? what are " +
+                "the layers? where are the cycles?) in a few hundred bytes, with no need to fetch edges at " +
+                "all. Only page through the edge list when you need specific pairwise weights. " +
+                "WARNING: the edge list can be large — a full all-modules query is often hundreds of edges " +
+                "(~200 bytes each) and can overflow the caller's context in a single page. Do NOT fetch it " +
+                "all at once. Instead: keep page_size small (default 25, stay <= 50) and walk next_cursor " +
+                "only as far as needed; raise min_weight to drop noise (a threshold like 100+ usually " +
+                "leaves a handful of edges); and use edge_sort='weight_desc' so the first small page " +
+                "already holds the strongest couplings. The node set you pass is bounded only by a " +
+                "generous soft cap, so passing many modules is fine — it is the edge OUTPUT, not the " +
+                "input, that you must bound. " +
+                "For one-directional or asymmetric queries use aggregated_dependencies; for type/method-" +
+                "level evidence behind a single pair use outgoing_dependencies or incoming_dependencies."
     )
     fun pairwiseDependencies(
         @ToolParam(description = "List of subtree IDs to analyze pairwise (2+; typically modules or packages).")
@@ -90,11 +97,17 @@ class PairwiseDependenciesTool(
         edgeSort: String?,
         @ToolParam(
             description = "Drop edges with weight below this from the edge list (server-side). " +
-                    "Default 1 = no filtering. Does not affect the summary analytics.",
+                    "Default 1 = no filtering (returns everything — large). Raise it (e.g. 50-100) " +
+                    "to keep responses small and surface only meaningful coupling. " +
+                    "Does not affect the summary analytics.",
             required = false
         )
         minWeight: Int?,
-        @ToolParam(description = "Max edges per page (1-500, default 200).", required = false)
+        @ToolParam(
+            description = "Max edges per page (1-200, default 25). Keep this small — large pages can " +
+                    "overflow the caller's context. Increase only when you know the filtered edge count is low.",
+            required = false
+        )
         limit: Int?,
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. Omit for " +
@@ -238,8 +251,8 @@ class PairwiseDependenciesTool(
 
             val summary = linkedMapOf<String, Any?>(
                 "node_count" to size,
-                "edge_count" to edgeCount,           // unfiltered count, drives density
-                "returned_edge_count" to page.total, // post-min_weight total that paginates
+                "edge_count" to edgeCount,             // unfiltered count, drives density
+                "total_matching_edges" to page.total,  // post-min_weight total that paginates (across all pages)
                 "possible_edges" to possibleEdges,
                 "density" to density,
                 "has_cycles" to hasCycles,
@@ -300,7 +313,7 @@ class PairwiseDependenciesTool(
         private val DIRECTIONS = setOf("both", "outgoing", "incoming")
         private val EDGE_SORTS = setOf("dsm", "weight_desc")
 
-        /** Pagination policy for pairwise_dependencies (~250 bytes/edge): default 200, server cap 500. */
-        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 200, maxLimit = 500)
+        /** Pagination policy for pairwise_dependencies (~250 bytes/edge): default 25, server cap 200. */
+        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 200)
     }
 }
