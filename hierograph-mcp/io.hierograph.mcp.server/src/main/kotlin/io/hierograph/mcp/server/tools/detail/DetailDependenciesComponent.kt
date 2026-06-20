@@ -370,6 +370,10 @@ class DetailDependenciesComponent(
             BranchSpec("written_by", "Field", BranchShape.REVERSE_FROM_ENTITY, "Method",
                 "<-[r:WRITES]-", "r.lineNumber"),
             // Indirect target via intermediate node(s)
+            // Type source covers class/type-level annotations (the annotated element IS the type);
+            // Method/Field sources cover member-level annotations.
+            BranchSpec("annotated_by", "Type", BranchShape.TO_TYPE, "Type",
+                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->", "null"),
             BranchSpec("annotated_by", "Method", BranchShape.TO_TYPE, "Type",
                 "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->", "src.firstLineNumber"),
             BranchSpec("annotated_by", "Field", BranchShape.TO_TYPE, "Type",
@@ -438,16 +442,24 @@ class DetailDependenciesComponent(
 
         val srcDeclarer: String
         val srcWhere: String
-        if (fromScope.memberId != null) {
+        val srcProj: String
+        if (b.srcLabel == "Type") {
+            // Type source (e.g. class-level annotations): the annotated element IS the type, so
+            // there is no DECLARES join and the declaring-type projection collapses onto src itself.
+            srcDeclarer = "(src:Type)"
+            srcWhere = "id(src) IN \$fromTypes"
+            srcProj = "id(src) AS srcTypeId, src.name AS srcTypeName, src.fqn AS srcTypeFqn, labels(src) AS srcTypeLabels"
+        } else if (fromScope.memberId != null) {
             // Member scope: anchor on the specific member, resolve declaring type for projection
             srcDeclarer = "(so:Type)-[:DECLARES]->(src:${b.srcLabel})"
             srcWhere = "id(src) = \$fromMemberId"
+            srcProj = "id(so) AS srcTypeId, so.name AS srcTypeName, so.fqn AS srcTypeFqn, labels(so) AS srcTypeLabels"
         } else {
             // Container scope: traverse inheritance from type set
             srcDeclarer = "(st:Type)-[:EXTENDS|IMPLEMENTS*0..]->(so:Type)-[:DECLARES]->(src:${b.srcLabel})"
             srcWhere = "id(st) IN \$fromTypes"
+            srcProj = "id(so) AS srcTypeId, so.name AS srcTypeName, so.fqn AS srcTypeFqn, labels(so) AS srcTypeLabels"
         }
-        val srcProj = "id(so) AS srcTypeId, so.name AS srcTypeName, so.fqn AS srcTypeFqn, labels(so) AS srcTypeLabels"
 
         // --- Target side -----------------------------------------------------------------
 

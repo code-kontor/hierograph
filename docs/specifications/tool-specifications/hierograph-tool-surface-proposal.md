@@ -373,6 +373,10 @@ These are the values accepted by the `relationship` parameter on `outgoing_depen
 
 Unlike the type-level attributes (which are *flags on a single edge*), detail-level relationships *are* the edges — each detail-level edge has exactly one relationship kind. This is correct at the detail level because the source entities are different (a method *calls* another method, but doesn't extend it; that's a different concrete relationship).
 
+**Type-originated relationships** (the source entity is a class/interface/enum/record/annotation):
+
+- `annotated_by` — type has this annotation type (class/type-level annotation)
+
 **Method-originated relationships** (the source entity is a method):
 
 - `throws` — method declares it throws this exception type
@@ -392,7 +396,7 @@ Unlike the type-level attributes (which are *flags on a single edge*), detail-le
 - `read_by` — field is read by this method
 - `written_by` — field is written by this method
 
-Note that `annotated_by` appears in both groups; the source kind (method or field) makes it unambiguous in context.
+Note that `annotated_by` appears in all three groups; the source kind (type, method, or field) makes it unambiguous in context.
 
 ### Future extensions
 

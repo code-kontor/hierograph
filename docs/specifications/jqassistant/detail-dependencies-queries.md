@@ -29,6 +29,7 @@ on both sides — the default expansion). Member-scope variants replace the
 | 11 | `annotated_by` | `Field` | `-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->` | `Type` | TO_TYPE |
 | 12 | `parameter_type` | `Method` | `-[:HAS]->(p:Parameter)-[:OF_TYPE]->` | `Type` | TO_TYPE |
 | 13 | `parameter_annotated_by` | `Method` | `-[:HAS]->(p:Parameter)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->` | `Type` | TO_TYPE |
+| 14 | `annotated_by` | `Type` | `-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->` | `Type` | TO_TYPE |
 
 ## Example queries (container scope on both sides)
 
@@ -144,6 +145,16 @@ WHERE id(st) IN $fromTypes AND id(tgt) IN $toTypes
 RETURN DISTINCT ..., 'parameter_annotated_by' AS relName, src.firstLineNumber AS lineNumber
 ```
 
+### 14. `annotated_by` (Type)
+The annotated element *is* the type, so there is no `DECLARES` join: the source
+collapses to `(src:Type)` and the declaring-type projection (`srcTypeId` / …)
+reports `src` itself. Covers class/type-level annotations.
+```cypher
+MATCH (src:Type)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(tgt:Type)
+WHERE id(src) IN $fromTypes AND id(tgt) IN $toTypes
+RETURN DISTINCT ..., 'annotated_by' AS relName, null AS lineNumber
+```
+
 ## Variants
 
 At runtime, `buildCypher` joins the applicable branches with `UNION ALL`. The set
@@ -154,6 +165,8 @@ is narrowed by:
 - **`fromScope` is a member** (Method/Field) — only branches whose `srcLabel`
   matches the member's Neo4j label are kept; the source side becomes
   `MATCH (so:Type)-[:DECLARES]->(src:<label>) WHERE id(src) = $fromMemberId`.
+  The `Type`-sourced `annotated_by` branch (`srcLabel = Type`) is dropped here,
+  since a member scope can never be a `Type` source.
 - **`toScope` is a member** — `TO_TYPE` branches are skipped; remaining branches
   whose `tgtLabel` matches the member's label render the target as
   `MATCH (tgt:<label>)<-[:DECLARES]-(to:Type) WHERE id(tgt) = $toMemberId`.
@@ -164,10 +177,13 @@ is narrowed by:
 
 ### As source
 
-No detail branch currently uses `Type` as the source label — every branch's
-`srcLabel` is `Method` or `Field`. The `Type` only appears as the *declarer* of
-the source member (the `(so:Type)-[:DECLARES]->(src:…)` join), never as the
-edge endpoint itself. Type-to-type evidence is exposed instead through the
+One detail branch uses `Type` as the source label: `annotated_by` (Type),
+which models class/type-level annotations. For it the source collapses to
+`(src:Type)` with no `DECLARES` join (the annotated element *is* the type), and
+the declaring-type projection reports `src` itself. Every other branch's
+`srcLabel` is `Method` or `Field`, where the `Type` only appears as the
+*declarer* of the source member (the `(so:Type)-[:DECLARES]->(src:…)` join).
+Type-to-type evidence beyond annotations is exposed instead through the
 *type*-level path
 (`OutgoingDependenciesTool.typeLevelDependencies`, selected via
 `detail_level="type"`), where edges carry attribute flags such as
@@ -176,21 +192,23 @@ by a named relationship kind.
 
 ### As target
 
-7 of the 13 branches have `tgtLabel = Type` (the `TO_TYPE` shape): `throws`,
+8 of the 14 branches have `tgtLabel = Type` (the `TO_TYPE` shape): `throws`,
 `returns`, `has_type`, `annotated_by` (Method), `annotated_by` (Field),
-`parameter_type`, `parameter_annotated_by`. The remaining 6 (`calls`,
-`overrides`, `reads_field`, `writes_field`, `read_by`, `written_by`) target
-`Method` or `Field`.
+`annotated_by` (Type), `parameter_type`, `parameter_annotated_by`. The
+remaining 6 (`calls`, `overrides`, `reads_field`, `writes_field`, `read_by`,
+`written_by`) target `Method` or `Field`.
 
 ## Potential Type-originated relationships (not currently modeled at detail level)
 
 Based on jQAssistant's Java schema, these are the candidate
-`relName`s that *could* be added with `srcLabel = "Type"`. The first three are
-already computed at the type level (encoded in
+`relName`s that *could* be added with `srcLabel = "Type"`. `extends` and
+`implements` are computed at the type level (encoded in
 `HGCoreDependency.attributesBitmap` as `JavaEdgeAttributes.IS_EXTENDS` /
-`IS_IMPLEMENTS` / `IS_ANNOTATED_BY`) and surfaced by `outgoing_dependencies` at
+`IS_IMPLEMENTS`) and surfaced by `outgoing_dependencies` at
 `detail_level="type"` as attribute flags on a single aggregated `Type→Type`
 edge; they have not been promoted to named detail-level branches.
+(`annotated_by` for a `Type` source *is* now a named detail branch — see
+branch 14 above — in addition to its type-level `IS_ANNOTATED_BY` attribute.)
 
 ### Type → Type
 
@@ -198,7 +216,6 @@ edge; they have not been promoted to named detail-level branches.
 |---|---|---|
 | `extends` | `(src:Type:Class)-[r:EXTENDS]->(tgt:Type:Class)` | Encoded today as `IS_EXTENDS` attribute bit at type level. |
 | `implements` | `(src:Type)-[r:IMPLEMENTS]->(tgt:Type:Interface)` | Encoded today as `IS_IMPLEMENTS` attribute bit at type level. |
-| `annotated_by` | `(src:Type)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(tgt:Type)` | Mirror of the existing `annotated_by` branches for `Method` / `Field` sources. Encoded today as `IS_ANNOTATED_BY` at type level. |
 | `permits` | `(src:Type)-[r:PERMITS]->(tgt:Type)` | Sealed types (Java 17+); only present if the project uses sealed classes/interfaces. Not captured today. |
 | `type_parameter_bound` | `(src:Type)-[:DECLARES]->(:TypeVariable)-[:HAS_UPPER_BOUND]->(:Bound)-[:OF_RAW_TYPE]->(tgt:Type)` | Generic bounds on a type's type parameters (e.g. `class Foo<T extends Bar>`). Exact edge labels vary by jQAssistant version. Not captured today. |
 | `inner_type_of` / `declares_type` | `(src:Type)-[:DECLARES]->(tgt:Type)` | Nested/inner type relationship. Arguably structural rather than a dependency. |
@@ -212,9 +229,9 @@ edge; they have not been promoted to named detail-level branches.
 
 ### Implementation note
 
-Promoting the type-sourced relationships to named detail branches would
-require relaxing the "source is always Method/Field" invariant in
-`renderBranch`. The source side currently always emits
-`(so:Type)-[:DECLARES]->(src:<member>)`; for a `Type`-sourced branch this
-would collapse to `(src:Type)` (with `so = src` for the projected
-`srcTypeId` / `srcTypeName` / `srcTypeFqn` fields).
+The `annotated_by` (Type) branch already relaxes the original "source is always
+Method/Field" invariant in `renderBranch`: when `srcLabel == "Type"` the source
+side emits `(src:Type)` instead of `(so:Type)-[:DECLARES]->(src:<member>)`, with
+`so = src` for the projected `srcTypeId` / `srcTypeName` / `srcTypeFqn` fields.
+Any further type-sourced relationships (e.g. `extends`, `implements`) would
+follow the same shape.

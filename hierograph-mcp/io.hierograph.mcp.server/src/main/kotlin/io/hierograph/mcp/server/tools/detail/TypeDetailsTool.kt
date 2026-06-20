@@ -214,9 +214,10 @@ class TypeDetailsTool(
 
     private fun buildTypeRefList(value: Value?): List<Map<String, Any?>> {
         if (value == null || value.isNull) return emptyList()
-        return value.values()
+        val raw = value.values()
             .map { it.asMap() }
             .filter { asLong(it["id"]) != null }
+        return dedupeExternalTypeMaps(raw)
             .map { m ->
                 val id = asLong(m["id"])!!
                 val name = m["name"]?.toString() ?: ""
@@ -234,16 +235,22 @@ class TypeDetailsTool(
 
     private fun buildTypeDetailsCypher(): String = """
         MATCH (t) WHERE id(t) = ${'$'}typeId
-        OPTIONAL MATCH (t)-[:EXTENDS]->(sc:Type)
         CALL {
             WITH t
-            OPTIONAL MATCH (t)-[:IMPLEMENTS]->(iface:Type)
-            RETURN collect(DISTINCT {id: id(iface), name: iface.name, fqn: iface.fqn, labels: labels(iface)}) AS interfaces
+            // A class has a single superclass, but resolution leaves both the raw stub EXTENDS edge
+            // and the canonical edge tagged resolved=true; prefer the resolved (canonical) one.
+            OPTIONAL MATCH (t)-[ext:EXTENDS]->(sc:Type)
+            RETURN sc ORDER BY CASE WHEN ext.resolved THEN 0 ELSE 1 END LIMIT 1
         }
         CALL {
             WITH t
-            OPTIONAL MATCH (t)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(at:Type)
-            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at)}) AS annotations
+            OPTIONAL MATCH (t)-[impl:IMPLEMENTS]->(iface:Type)
+            RETURN collect(DISTINCT {id: id(iface), name: iface.name, fqn: iface.fqn, labels: labels(iface), resolved: coalesce(impl.resolved, false)}) AS interfaces
+        }
+        CALL {
+            WITH t
+            OPTIONAL MATCH (t)-[:ANNOTATED_BY]->(a)-[of:OF_TYPE]->(at:Type)
+            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at), resolved: coalesce(of.resolved, false)}) AS annotations
         }
         RETURN labels(t) AS typeLabels,
                t.name AS typeName,

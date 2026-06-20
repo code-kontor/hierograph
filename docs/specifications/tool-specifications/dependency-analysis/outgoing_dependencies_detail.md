@@ -37,6 +37,7 @@ Must be `"detail"` for this spec.
 Filters to a specific detail-level relationship kind.
 
 Valid values (surfaced via `graph_overview`):
+- Type-originated: `annotated_by` (class/type-level annotations)
 - Method-originated: `throws`, `calls`, `returns`, `parameter_type`, `reads_field`, `writes_field`, `overrides`, `annotated_by`, `parameter_annotated_by`
 - Field-originated: `has_type`, `annotated_by`, `read_by`, `written_by`
 

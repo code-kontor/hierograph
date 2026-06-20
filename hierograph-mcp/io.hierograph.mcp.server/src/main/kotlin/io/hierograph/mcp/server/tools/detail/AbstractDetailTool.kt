@@ -123,4 +123,30 @@ abstract class AbstractDetailTool(
         if (value == null || value.isNull) return emptyList()
         return value.values().map { it.asMap() }
     }
+
+    /**
+     * Collapses raw+resolved duplicates that arise when a type reference is resolved: the scanner
+     * emits the raw stub edge, and a resolution concept additively adds a parallel canonical edge
+     * tagged `resolved = true`. This covers both jQAssistant's own java-classpath:Resolve (stub →
+     * real type) and hierograph's virtual-external lifts (stub → :Virtual type) for the
+     * extends / implements / depends-on / annotation relationships. The same type therefore appears
+     * twice — once via the raw edge and once via the resolved edge — with the same FQN. Keeps one
+     * entry per FQN, preferring the one reached through the `resolved` edge, so each type is reported
+     * once as its canonical node. Each map is expected to carry an `fqn` key and a boolean `resolved`
+     * key (the flag of the edge it was reached through); input order is otherwise preserved.
+     */
+    protected fun dedupeExternalTypeMaps(raw: List<Map<String, Any>>): List<Map<String, Any>> {
+        if (raw.size < 2) return raw
+        val byFqn = LinkedHashMap<String, Map<String, Any>>()
+        for (m in raw) {
+            val fqn = asString(m["fqn"])
+            val existing = byFqn[fqn]
+            if (existing == null || (isResolved(m) && !isResolved(existing))) {
+                byFqn[fqn] = m
+            }
+        }
+        return byFqn.values.toList()
+    }
+
+    private fun isResolved(m: Map<String, Any>): Boolean = m["resolved"] == true
 }

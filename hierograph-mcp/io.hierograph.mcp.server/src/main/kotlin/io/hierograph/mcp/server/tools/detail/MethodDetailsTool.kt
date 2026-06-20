@@ -180,8 +180,8 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
             OPTIONAL MATCH (p)-[:OF_TYPE]->(pt:Type)
             CALL {
                 WITH p
-                OPTIONAL MATCH (p)-[:ANNOTATED_BY]->(pa)-[:OF_TYPE]->(pat:Type)
-                RETURN collect(DISTINCT {id: id(pat), name: pat.name, fqn: pat.fqn, labels: labels(pat)}) AS pAnns
+                OPTIONAL MATCH (p)-[:ANNOTATED_BY]->(pa)-[of:OF_TYPE]->(pat:Type)
+                RETURN collect(DISTINCT {id: id(pat), name: pat.name, fqn: pat.fqn, labels: labels(pat), resolved: coalesce(of.resolved, false)}) AS pAnns
             }
             RETURN collect({
                 index: p.index,
@@ -195,13 +195,13 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
         }
         CALL {
             WITH m
-            OPTIONAL MATCH (m)-[:THROWS]->(ex:Type)
-            RETURN collect(DISTINCT {id: id(ex), name: ex.name, fqn: ex.fqn, labels: labels(ex)}) AS throwsList
+            OPTIONAL MATCH (m)-[thr:THROWS]->(ex:Type)
+            RETURN collect(DISTINCT {id: id(ex), name: ex.name, fqn: ex.fqn, labels: labels(ex), resolved: coalesce(thr.resolved, false)}) AS throwsList
         }
         CALL {
             WITH m
-            OPTIONAL MATCH (m)-[:ANNOTATED_BY]->(ma)-[:OF_TYPE]->(at:Type)
-            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at)}) AS methodAnnotations
+            OPTIONAL MATCH (m)-[:ANNOTATED_BY]->(ma)-[of:OF_TYPE]->(at:Type)
+            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at), resolved: coalesce(of.resolved, false)}) AS methodAnnotations
         }
         RETURN labels(m) AS methodLabels,
                m.name AS methodName,
@@ -268,8 +268,8 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
 
     private fun buildTypeRefList(value: Value): List<Map<String, Any?>> {
         if (value.isNull) return emptyList()
-        return value.values().mapNotNull { v ->
-            val m = v.asMap()
+        val raw = value.values().map { it.asMap() }
+        return dedupeExternalTypeMaps(raw).mapNotNull { m ->
             val id = asLong(m["id"]) ?: return@mapNotNull null
             val name = m["name"] as? String
             val fqn = m["fqn"] as? String
@@ -287,7 +287,7 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
 
     private fun buildAnnotationListFromMaps(raw: List<Map<String, Any>>?): List<Map<String, Any?>> {
         if (raw.isNullOrEmpty()) return emptyList()
-        return raw.mapNotNull { m ->
+        return dedupeExternalTypeMaps(raw).mapNotNull { m ->
             val id = asLong(m["id"]) ?: return@mapNotNull null
             val name = m["name"] as? String
             val fqn = m["fqn"] as? String

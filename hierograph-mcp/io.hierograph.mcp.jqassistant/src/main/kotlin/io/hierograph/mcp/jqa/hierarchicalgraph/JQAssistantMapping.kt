@@ -117,15 +117,24 @@ val jQAssistantMapping = GraphDbMapping(
     ),
     dependencyRules = listOf(
         DependencyRule(
+            // `is_annotated_by` is derived from jQAssistant's native two-hop annotation shape,
+            //   (t1)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(t2),
+            // which holds uniformly for internal and external annotation types: for external
+            // ones the OF_TYPE leg is lifted onto the canonical :Virtual:Type by the
+            // hierograph:VirtualExternalAnnotatedBy concept (see virtual-external.xml), so the
+            // same traversal reaches the virtual annotation type t2 that DEPENDS_ON also targets.
+            // (EXTENDS / IMPLEMENTS are native direct Type→Type edges, hence the single-hop EXISTS.)
             """
             MATCH (t1:Type)-[r:DEPENDS_ON]->(t2:Type)
+            WITH t1, t2, r,
+                 EXISTS { (t1)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(t2) } AS isAnnotatedBy
             RETURN id(t1), id(t2), id(r), type(r), r.weight,
                    EXISTS { (t1)-[:EXTENDS]->(t2) },
                    EXISTS { (t1)-[:IMPLEMENTS]->(t2) },
-                   EXISTS { (t1)-[:ANNOTATED_BY]->(t2) },
+                   isAnnotatedBy,
                    NOT EXISTS { (t1)-[:EXTENDS]->(t2) }
                        AND NOT EXISTS { (t1)-[:IMPLEMENTS]->(t2) }
-                       AND NOT EXISTS { (t1)-[:ANNOTATED_BY]->(t2) }
+                       AND NOT isAnnotatedBy
             """.trimIndent()
         ),
     ),

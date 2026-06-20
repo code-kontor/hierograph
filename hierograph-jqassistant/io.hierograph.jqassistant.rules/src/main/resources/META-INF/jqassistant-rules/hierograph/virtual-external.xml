@@ -115,17 +115,20 @@
             For every dependency that targets an external stub, (a)-[:DEPENDS_ON]->(b), where the
             stub b resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a
             parallel (a)-[:DEPENDS_ON]->(c) edge so the canonical view is reachable in a single hop.
-            The original stub edge is left untouched; the lifted edge's weight is the summed weight
-            of the underlying edges. Real source nodes are guaranteed by NOT a:Virtual, and the
-            c:Virtual:Type leg ignores :RESOLVES_TO edges that classpath:Resolve may have created
-            toward real types.
+            The lifted edge is tagged `resolved = true` — mirroring jQAssistant's own
+            java-classpath:Resolve concepts — so consumers can tell the synthesized canonical edge
+            apart from the raw stub edge (which is left untouched). Unlike the other lifts the weight
+            is not copied from a single edge but summed across all underlying stub edges, so this rule
+            keeps its aggregation rather than `SET d = properties(...)`. Real source nodes are
+            guaranteed by NOT a:Virtual, and the c:Virtual:Type leg ignores :RESOLVES_TO edges that
+            classpath:Resolve may have created toward real types.
         </description>
         <cypher><![CDATA[
       MATCH (a)-[r1:DEPENDS_ON]->(b)-[r2:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT a:Virtual
       WITH a, c, sum(coalesce(r1.weight, 1)) AS weight
       MERGE (a)-[d:DEPENDS_ON]->(c)
-        SET d.weight = weight
+        SET d.weight = weight, d.resolved = true
       RETURN count(*) AS LiftedDependencies
     ]]></cypher>
     </concept>
@@ -135,16 +138,21 @@
         <description>
             For every :EXTENDS that targets an external stub, (a)-[:EXTENDS]->(b), where the stub b
             resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a parallel
-            (a)-[:EXTENDS]->(c) edge so the canonical supertype is reachable in a single hop. The
-            original stub edge is left untouched. The lifted edge is unweighted. Real source types
-            are guaranteed by NOT a:Virtual, and the c:Virtual:Type leg ignores :RESOLVES_TO edges
+            (a)-[:EXTENDS]->(c) edge so the canonical supertype is reachable in a single hop. Following
+            jQAssistant's own java-classpath:Resolve idiom, the lifted edge copies the original edge's
+            properties and is tagged `resolved = true` so consumers can distinguish the synthesized
+            canonical edge from the raw stub edge (which is left untouched). Real source types are
+            guaranteed by NOT a:Virtual, and the c:Virtual:Type leg ignores :RESOLVES_TO edges
             classpath:Resolve may have created toward real types.
         </description>
         <cypher><![CDATA[
-      MATCH (a:Type)-[:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      MATCH (a:Type)-[extends:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT a:Virtual
-      WITH DISTINCT a, c
-      MERGE (a)-[:EXTENDS]->(c)
+      CALL {
+        WITH a, extends, c
+        MERGE (a)-[extends1:EXTENDS]->(c)
+        SET extends1 = properties(extends), extends1.resolved = true
+      } IN TRANSACTIONS
       RETURN count(*) AS LiftedExtends
     ]]></cypher>
     </concept>
@@ -155,13 +163,18 @@
             For every :IMPLEMENTS that targets an external stub, (a)-[:IMPLEMENTS]->(b), where the
             stub b resolves to a canonical :Virtual:Type c via :RESOLVES_TO, additively create a
             parallel (a)-[:IMPLEMENTS]->(c) edge so the canonical interface is reachable in a single
-            hop. The original stub edge is left untouched. The lifted edge is unweighted.
+            hop. Following jQAssistant's own java-classpath:Resolve idiom, the lifted edge copies the
+            original edge's properties and is tagged `resolved = true` so consumers can distinguish
+            the synthesized canonical edge from the raw stub edge (which is left untouched).
         </description>
         <cypher><![CDATA[
-      MATCH (a:Type)-[:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      MATCH (a:Type)-[implements:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT a:Virtual
-      WITH DISTINCT a, c
-      MERGE (a)-[:IMPLEMENTS]->(c)
+      CALL {
+        WITH a, implements, c
+        MERGE (a)-[implements1:IMPLEMENTS]->(c)
+        SET implements1 = properties(implements), implements1.resolved = true
+      } IN TRANSACTIONS
       RETURN count(*) AS LiftedImplements
     ]]></cypher>
     </concept>
@@ -170,19 +183,33 @@
         <requiresConcept refId="hierograph:VirtualExternalType"/>
         <description>
             For every element annotated by an external annotation type, reached via the scanner's
-            (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b) shape where the annotation-type stub b
-            resolves to a canonical :Virtual:Type c, additively create a collapsed
-            (x)-[:ANNOTATED_BY]->(c) edge pointing straight at the canonical annotation type. The
-            original edge to the annotation value node is left untouched. x may be a :Type, :Method,
-            :Field, or :Parameter. The lifted edge is unweighted; its target is always a :Virtual:Type,
-            never a :Value:Annotation, so it cannot re-match the pattern.
+            (x)-[:ANNOTATED_BY]->(v:Annotation)-[:OF_TYPE]->(b) shape where the annotation-type stub b
+            resolves to a canonical :Virtual:Type c, additively lift the OF_TYPE leg: create a parallel
+            (v)-[:OF_TYPE]->(c) edge from the annotation value node straight to the canonical annotation
+            type. This deliberately preserves jQAssistant's native two-hop annotation shape — an
+            element ANNOTATED_BY a :Value:Annotation, which is then OF_TYPE the annotation :Type —
+            mirroring how VirtualExternalExtends / VirtualExternalImplements / VirtualExternalTypeDependency
+            lift their respective edges onto the canonical virtual type without changing the relationship
+            shape. Unlike EXTENDS / IMPLEMENTS, which jQAssistant models as direct Type→Type edges,
+            ANNOTATED_BY always goes through the annotation value node; collapsing external annotations
+            to a one-hop (x)-[:ANNOTATED_BY]->(c) edge (as an earlier version did) is a shape the scanner
+            never produces for internal annotations, so it left external annotations modelled differently
+            from internal ones and unqueryable by the canonical OF_TYPE traversal. Following
+            jQAssistant's own java-classpath:Resolve idiom, the lifted edge copies the original edge's
+            properties and is tagged `resolved = true` so consumers can distinguish the synthesized
+            canonical edge from the raw stub edge. The original (v)-[:OF_TYPE]->(b) stub edge is left
+            untouched; x may be a :Type, :Method, :Field, or :Parameter. The lifted edge's target is
+            always a :Virtual:Type, which has no outgoing :RESOLVES_TO, so the pattern cannot re-match.
         </description>
         <cypher><![CDATA[
-      MATCH (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      MATCH (x)-[:ANNOTATED_BY]->(v:Annotation)-[ofType:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT x:Virtual
-      WITH DISTINCT x, c
-      MERGE (x)-[:ANNOTATED_BY]->(c)
-      RETURN count(*) AS LiftedAnnotations
+      CALL {
+        WITH v, ofType, c
+        MERGE (v)-[ofType1:OF_TYPE]->(c)
+        SET ofType1 = properties(ofType), ofType1.resolved = true
+      } IN TRANSACTIONS
+      RETURN count(*) AS LiftedAnnotationTypes
     ]]></cypher>
     </concept>
 

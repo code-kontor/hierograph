@@ -49,11 +49,11 @@ Concepts 6–8 mirror the structural relationships that target external stubs on
 
 - **`:EXTENDS`** (concept 6): a real class/interface whose superclass or super-interface is unparsed (e.g. a type that `extends` an `org.neo4j.driver.*` stub) gets an additional `(a)-[:EXTENDS]->(:Virtual:Type)` edge to the canonical supertype.
 - **`:IMPLEMENTS`** (concept 7): `(a:Type)-[:IMPLEMENTS]->(stub)` gets a parallel `(a)-[:IMPLEMENTS]->(:Virtual:Type)`.
-- **`:ANNOTATED_BY`** (concept 8): an external annotation type — reached via the scanner's `(x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(stub)` shape — gets a collapsed `(x)-[:ANNOTATED_BY]->(:Virtual:Type)` edge pointing straight at the canonical annotation type.
+- **`:ANNOTATED_BY`** (concept 8): an external annotation type — reached via the scanner's `(x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(stub)` shape — gets the `:OF_TYPE` leg lifted, i.e. a parallel `(:Annotation)-[:OF_TYPE]->(:Virtual:Type)` edge so the value node reaches the canonical annotation type while preserving the native two-hop shape.
 
-These lifted edges are **unweighted** (unlike the lifted `:DEPENDS_ON`, which sums stub weights), because the scanner emits `:EXTENDS`/`:IMPLEMENTS`/`:ANNOTATED_BY` as plain structural edges rather than weighted aggregates. They are purely additive — the original edges are untouched — and non-cascading, since virtual types have no outgoing `:EXTENDS`/`:IMPLEMENTS`/`:ANNOTATED_BY` for the pattern to re-match. Re-running is idempotent via `MERGE`.
+Each lifted edge is tagged **`resolved = true`** and (for `:EXTENDS`/`:IMPLEMENTS`/`:OF_TYPE`) copies the original edge's properties — following jQAssistant's own `java-classpath:Resolve` idiom, so consumers can distinguish a synthesized canonical edge from the raw stub edge. The lifted `:DEPENDS_ON` additionally sums stub weights (so it keeps its aggregation rather than copying a single edge's properties). All lifts are purely additive — the original edges are untouched — and non-cascading, since virtual types have no outgoing `:EXTENDS`/`:IMPLEMENTS`/`:DEPENDS_ON`/`:RESOLVES_TO` for the pattern to re-match. Re-running is idempotent via `MERGE`.
 
-**Note on the `:ANNOTATED_BY` shape.** The scanner points `:ANNOTATED_BY` at an intermediate `:Value:Annotation` node, which in turn carries `:OF_TYPE` to the annotation's type. The lifted edge deliberately *collapses* that indirection, pointing the annotated element straight at the canonical annotation **type** — mirroring how the lifted `:DEPENDS_ON` targets a type rather than threading through `:RESOLVES_TO`. Because the canonical target is always a `:Virtual:Type` (never a `:Value:Annotation`), queries that select the real annotation value nodes with `MATCH (x)-[:ANNOTATED_BY]->(av:Annotation)` are unaffected by the lifted edges; only queries that intentionally want the canonical annotation type match `(:Virtual:Type)`.
+**Note on the `:ANNOTATED_BY` shape.** The scanner points `:ANNOTATED_BY` at an intermediate `:Value:Annotation` node, which in turn carries `:OF_TYPE` to the annotation's type. Concept 8 deliberately **preserves** that two-hop shape, lifting only the `:OF_TYPE` leg onto the canonical `:Virtual:Type` — exactly the shape the scanner produces for *internal* annotations (`:ANNOTATED_BY → :Value:Annotation → :OF_TYPE → :Type`). So every consumer that walks `(x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(type)` — `type_details`, the type-level `is_annotated_by` classifier, the detail-level `annotated_by` branch — handles external and internal annotations uniformly. (An earlier version instead *collapsed* external annotations to a one-hop `(x)-[:ANNOTATED_BY]->(:Virtual:Type)` edge, a shape the scanner never emits for internal annotations, which is why internal class-level annotations were invisible to those two-hop consumers.)
 
 ### Flat containment from the `External` artifact
 
@@ -229,7 +229,7 @@ Lifts each dependency that targets an external stub onto the stub's canonical `:
 **Inputs**: any real node `a` with `(a)-[:DEPENDS_ON]->(b)` where the stub `b` resolves to a `:Virtual:Type` `c`.
 
 **Outputs**:
-- One `(a)-[:DEPENDS_ON]->(c:Virtual:Type)` edge per distinct `(a, c)` pair, with `weight` summed from the underlying stub edges.
+- One `(a)-[:DEPENDS_ON]->(c:Virtual:Type)` edge per distinct `(a, c)` pair, with `weight` summed from the underlying stub edges and tagged `resolved = true`.
 
 **Cypher**:
 
@@ -238,11 +238,11 @@ MATCH (a)-[r1:DEPENDS_ON]->(b)-[r2:RESOLVES_TO]->(c:Virtual:Type)
 WHERE NOT a:Virtual
 WITH a, c, sum(coalesce(r1.weight, 1)) AS weight
 MERGE (a)-[d:DEPENDS_ON]->(c)
-  SET d.weight = weight
+  SET d.weight = weight, d.resolved = true
 RETURN count(*) AS LiftedDependencies
 ```
 
-The original `(a)-[:DEPENDS_ON]->(b)` edge to the stub is left in place; this concept only *adds* a parallel edge to the canonical node. `WHERE NOT a:Virtual` follows the spec's rule that any pattern addressing real source nodes excludes `:Virtual`. Because the leg requires `c:Virtual:Type`, the concept also ignores any `:RESOLVES_TO` edges `classpath:Resolve` may have created toward real, fully-scanned types — it lifts dependencies onto virtual canonicals only. Virtual types have no outgoing `:DEPENDS_ON` or `:RESOLVES_TO`, so the lifted edge can never re-match either leg of the pattern: the concept is non-cascading. Re-running it is idempotent — the `(a, c)` grouping makes `weight` a pure function of the current graph, so `SET d.weight = weight` overwrites with the same value rather than accumulating.
+The lifted edge is tagged `resolved = true`, mirroring jQAssistant's own `java-classpath:Resolve` concepts, so consumers can distinguish the synthesized canonical edge from the raw stub edge. Unlike concepts 6–8 the weight is summed across all underlying stub edges rather than copied from one, so this rule keeps its aggregation instead of `SET d = properties(...)`. The original `(a)-[:DEPENDS_ON]->(b)` edge to the stub is left in place; this concept only *adds* a parallel edge to the canonical node. `WHERE NOT a:Virtual` follows the spec's rule that any pattern addressing real source nodes excludes `:Virtual`. Because the leg requires `c:Virtual:Type`, the concept also ignores any `:RESOLVES_TO` edges `classpath:Resolve` may have created toward real, fully-scanned types — it lifts dependencies onto virtual canonicals only. Virtual types have no outgoing `:DEPENDS_ON` or `:RESOLVES_TO`, so the lifted edge can never re-match either leg of the pattern: the concept is non-cascading. Re-running it is idempotent — the `(a, c)` grouping makes `weight` a pure function of the current graph, so `SET d.weight = weight` overwrites with the same value rather than accumulating.
 
 ### 6. `hierograph:VirtualExternalExtends`
 
@@ -253,19 +253,22 @@ Lifts each `:EXTENDS` relationship that targets an external stub onto the stub's
 **Inputs**: any real `:Type` `a` with `(a)-[:EXTENDS]->(b)` where the stub `b` resolves to a `:Virtual:Type` `c`.
 
 **Outputs**:
-- One `(a)-[:EXTENDS]->(c:Virtual:Type)` edge per distinct `(a, c)` pair (unweighted).
+- One `(a)-[:EXTENDS]->(c:Virtual:Type)` edge per distinct `(a, c)` pair, copying the original edge's properties and tagged `resolved = true`.
 
 **Cypher**:
 
 ```cypher
-MATCH (a:Type)-[:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+MATCH (a:Type)-[extends:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
 WHERE NOT a:Virtual
-WITH DISTINCT a, c
-MERGE (a)-[:EXTENDS]->(c)
+CALL {
+  WITH a, extends, c
+  MERGE (a)-[extends1:EXTENDS]->(c)
+  SET extends1 = properties(extends), extends1.resolved = true
+} IN TRANSACTIONS
 RETURN count(*) AS LiftedExtends
 ```
 
-The original `(a)-[:EXTENDS]->(b)` edge to the stub is left in place. `WITH DISTINCT a, c` collapses multiple stubs of the same FQN to one canonical edge so `MERGE` and the count stay exact. Virtual types have no outgoing `:EXTENDS`, so the lifted edge can never re-match the pattern — non-cascading and idempotent.
+This follows jQAssistant's own `java-classpath:Resolve` idiom verbatim: an additive `MERGE` per row inside `CALL { … } IN TRANSACTIONS`, copying the original edge's properties and tagging the lifted edge `resolved = true` so consumers can tell it from the raw stub edge (which is left in place). Virtual types have no outgoing `:EXTENDS`, so the lifted edge can never re-match the pattern — non-cascading and idempotent.
 
 ### 7. `hierograph:VirtualExternalImplements`
 
@@ -276,15 +279,18 @@ Lifts each `:IMPLEMENTS` relationship that targets an external stub onto the stu
 **Inputs**: any real `:Type` `a` with `(a)-[:IMPLEMENTS]->(b)` where the stub `b` resolves to a `:Virtual:Type` `c`.
 
 **Outputs**:
-- One `(a)-[:IMPLEMENTS]->(c:Virtual:Type)` edge per distinct `(a, c)` pair (unweighted).
+- One `(a)-[:IMPLEMENTS]->(c:Virtual:Type)` edge per distinct `(a, c)` pair, copying the original edge's properties and tagged `resolved = true`.
 
 **Cypher**:
 
 ```cypher
-MATCH (a:Type)-[:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+MATCH (a:Type)-[implements:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
 WHERE NOT a:Virtual
-WITH DISTINCT a, c
-MERGE (a)-[:IMPLEMENTS]->(c)
+CALL {
+  WITH a, implements, c
+  MERGE (a)-[implements1:IMPLEMENTS]->(c)
+  SET implements1 = properties(implements), implements1.resolved = true
+} IN TRANSACTIONS
 RETURN count(*) AS LiftedImplements
 ```
 
@@ -292,26 +298,29 @@ Identical in shape and guarantees to concept 6, swapping `:EXTENDS` for `:IMPLEM
 
 ### 8. `hierograph:VirtualExternalAnnotatedBy`
 
-Lifts each `:ANNOTATED_BY` whose annotation type is an external stub onto the stub's canonical `:Virtual:Type`, collapsing the scanner's `:ANNOTATED_BY → :Annotation → :OF_TYPE` indirection so the annotated element points straight at the canonical annotation type.
+Lifts the `:OF_TYPE` leg of each external annotation onto the annotation-type stub's canonical `:Virtual:Type`, so the annotation value node points straight at the canonical annotation type. This **preserves** the scanner's native two-hop annotation shape (`:ANNOTATED_BY → :Value:Annotation → :OF_TYPE → :Type`) rather than collapsing it — mirroring how concepts 5–7 lift `DEPENDS_ON` / `EXTENDS` / `IMPLEMENTS` onto the canonical virtual type without changing the relationship shape. Unlike `EXTENDS` / `IMPLEMENTS`, which jQAssistant models as direct `Type→Type` edges, `ANNOTATED_BY` always routes through the annotation value node; an earlier version of this concept collapsed external annotations to a one-hop `(x)-[:ANNOTATED_BY]->(c)` edge — a shape the scanner never produces for *internal* annotations — which left external annotations modelled differently from internal ones and unreachable by the canonical `:ANNOTATED_BY → :Annotation → :OF_TYPE` traversal (used e.g. by `type_details` and the detail-level `annotated_by` branch).
 
 **Depends on**: `hierograph:VirtualExternalType`.
 
-**Inputs**: any real node `x` with `(x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)` where the annotation-type stub `b` resolves to a `:Virtual:Type` `c`. `x` may be a `:Type`, `:Method`, `:Field`, or `:Parameter` — every annotated element the scanner produced.
+**Inputs**: any real node `x` with `(x)-[:ANNOTATED_BY]->(v:Annotation)-[:OF_TYPE]->(b)` where the annotation-type stub `b` resolves to a `:Virtual:Type` `c`. `x` may be a `:Type`, `:Method`, `:Field`, or `:Parameter` — every annotated element the scanner produced.
 
 **Outputs**:
-- One `(x)-[:ANNOTATED_BY]->(c:Virtual:Type)` edge per distinct `(x, c)` pair (unweighted).
+- One `(v:Annotation)-[:OF_TYPE]->(c:Virtual:Type)` edge per distinct `(v, c)` pair, copying the original edge's properties and tagged `resolved = true`.
 
 **Cypher**:
 
 ```cypher
-MATCH (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+MATCH (x)-[:ANNOTATED_BY]->(v:Annotation)-[ofType:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
 WHERE NOT x:Virtual
-WITH DISTINCT x, c
-MERGE (x)-[:ANNOTATED_BY]->(c)
-RETURN count(*) AS LiftedAnnotations
+CALL {
+  WITH v, ofType, c
+  MERGE (v)-[ofType1:OF_TYPE]->(c)
+  SET ofType1 = properties(ofType), ofType1.resolved = true
+} IN TRANSACTIONS
+RETURN count(*) AS LiftedAnnotationTypes
 ```
 
-The original `(x)-[:ANNOTATED_BY]->(:Annotation)` edge to the annotation value node is left in place; this concept only adds the collapsed edge to the canonical annotation type. The lifted target is a `:Virtual:Type`, never a `:Value:Annotation`, so it never re-matches the `(:Annotation)` leg — non-cascading and idempotent.
+Following the same `java-classpath:Resolve` idiom as concepts 6–7, the lifted `:OF_TYPE` edge copies the original edge's properties and is tagged `resolved = true`. The original `(v)-[:OF_TYPE]->(b)` edge to the stub annotation type is left in place. The lifted target is a `:Virtual:Type`, which has no outgoing `:RESOLVES_TO`, so the pattern never re-matches — non-cascading and idempotent.
 
 ## Rule file
 
@@ -439,7 +448,7 @@ Save as `jqassistant/virtual-external.xml` in the project root:
       WHERE NOT a:Virtual
       WITH a, c, sum(coalesce(r1.weight, 1)) AS weight
       MERGE (a)-[d:DEPENDS_ON]->(c)
-        SET d.weight = weight
+        SET d.weight = weight, d.resolved = true
       RETURN count(*) AS LiftedDependencies
     ]]></cypher>
   </concept>
@@ -455,10 +464,13 @@ Save as `jqassistant/virtual-external.xml` in the project root:
       created toward real types.
     </description>
     <cypher><![CDATA[
-      MATCH (a:Type)-[:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      MATCH (a:Type)-[extends:EXTENDS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT a:Virtual
-      WITH DISTINCT a, c
-      MERGE (a)-[:EXTENDS]->(c)
+      CALL {
+        WITH a, extends, c
+        MERGE (a)-[extends1:EXTENDS]->(c)
+        SET extends1 = properties(extends), extends1.resolved = true
+      } IN TRANSACTIONS
       RETURN count(*) AS LiftedExtends
     ]]></cypher>
   </concept>
@@ -472,10 +484,13 @@ Save as `jqassistant/virtual-external.xml` in the project root:
       stub edge is left untouched. The lifted edge is unweighted.
     </description>
     <cypher><![CDATA[
-      MATCH (a:Type)-[:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      MATCH (a:Type)-[implements:IMPLEMENTS]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT a:Virtual
-      WITH DISTINCT a, c
-      MERGE (a)-[:IMPLEMENTS]->(c)
+      CALL {
+        WITH a, implements, c
+        MERGE (a)-[implements1:IMPLEMENTS]->(c)
+        SET implements1 = properties(implements), implements1.resolved = true
+      } IN TRANSACTIONS
       RETURN count(*) AS LiftedImplements
     ]]></cypher>
   </concept>
@@ -484,19 +499,25 @@ Save as `jqassistant/virtual-external.xml` in the project root:
     <requiresConcept refId="hierograph:VirtualExternalType"/>
     <description>
       For every element annotated by an external annotation type, reached via the scanner's
-      (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b) shape where the annotation-type stub b
-      resolves to a canonical :Virtual:Type c, additively create a collapsed (x)-[:ANNOTATED_BY]->(c)
-      edge pointing straight at the canonical annotation type. The original edge to the annotation
-      value node is left untouched. x may be a :Type, :Method, :Field, or :Parameter. The lifted edge
-      is unweighted; its target is always a :Virtual:Type, never a :Value:Annotation, so it cannot
-      re-match the pattern.
+      (x)-[:ANNOTATED_BY]->(v:Annotation)-[:OF_TYPE]->(b) shape where the annotation-type stub b
+      resolves to a canonical :Virtual:Type c, additively lift the OF_TYPE leg by creating a parallel
+      (v)-[:OF_TYPE]->(c) edge from the annotation value node to the canonical annotation type. This
+      preserves jQAssistant's native two-hop annotation shape (ANNOTATED_BY to a :Value:Annotation,
+      then OF_TYPE to the annotation :Type), mirroring how the EXTENDS / IMPLEMENTS / DEPENDS_ON
+      concepts lift onto the canonical virtual type without changing the relationship shape. The
+      original (v)-[:OF_TYPE]->(b) stub edge is left untouched. x may be a :Type, :Method, :Field, or
+      :Parameter. The lifted edge is unweighted; its target is always a :Virtual:Type, which has no
+      outgoing :RESOLVES_TO, so it cannot re-match the pattern.
     </description>
     <cypher><![CDATA[
-      MATCH (x)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
+      MATCH (x)-[:ANNOTATED_BY]->(v:Annotation)-[ofType:OF_TYPE]->(b)-[:RESOLVES_TO]->(c:Virtual:Type)
       WHERE NOT x:Virtual
-      WITH DISTINCT x, c
-      MERGE (x)-[:ANNOTATED_BY]->(c)
-      RETURN count(*) AS LiftedAnnotations
+      CALL {
+        WITH v, ofType, c
+        MERGE (v)-[ofType1:OF_TYPE]->(c)
+        SET ofType1 = properties(ofType), ofType1.resolved = true
+      } IN TRANSACTIONS
+      RETURN count(*) AS LiftedAnnotationTypes
     ]]></cypher>
   </concept>
 
@@ -544,7 +565,7 @@ MATCH (:Virtual:Artifact)-[r:CONTAINS]->(:Virtual:Type) RETURN count(r) AS Artif
 MATCH (a)-[r:DEPENDS_ON]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedDependencies;
 MATCH (a)-[r:EXTENDS]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedExtends;
 MATCH (a)-[r:IMPLEMENTS]->(:Virtual:Type) WHERE NOT a:Virtual RETURN count(r) AS LiftedImplements;
-MATCH (x)-[r:ANNOTATED_BY]->(:Virtual:Type) WHERE NOT x:Virtual RETURN count(r) AS LiftedAnnotations;
+MATCH (:Annotation)-[r:OF_TYPE]->(:Virtual:Type) RETURN count(r) AS LiftedAnnotationTypes;
 ```
 
 Sanity-check a known external type, e.g.:

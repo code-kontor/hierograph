@@ -122,7 +122,7 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
             typeNameForResponse = "unknown"
         }
 
-        val rawAnnotations = collectMaps(record.get("annotations"))
+        val rawAnnotations = dedupeExternalTypeMaps(collectMaps(record.get("annotations")))
         val annotations = mutableListOf<Map<String, Any?>>()
         val annotationDisplay = linkedMapOf<Long, Array<String>>()
         for (a in rawAnnotations) {
@@ -184,8 +184,8 @@ class FieldDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailT
         OPTIONAL MATCH (f)-[:OF_TYPE]->(ft:Type)
         CALL {
             WITH f
-            OPTIONAL MATCH (f)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(at:Type)
-            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at)}) AS annotations
+            OPTIONAL MATCH (f)-[:ANNOTATED_BY]->(a)-[of:OF_TYPE]->(at:Type)
+            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at), resolved: coalesce(of.resolved, false)}) AS annotations
         }
         CALL {
             WITH f
