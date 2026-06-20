@@ -172,11 +172,11 @@ class AffectedByTool(
 
         // ── collect source subtree type IDs ────────────────────────────
         val sourceTypeIds = mutableSetOf<Any>()
-        if (node.kind in JavaKinds.TYPE_KINDS) {
+        if (JavaKinds.isTypeKind(node.kind)) {
             sourceTypeIds.add(node.identifier)
         }
         hierarchy.traverse(node) { n ->
-            if (n.kind in JavaKinds.TYPE_KINDS) {
+            if (JavaKinds.isTypeKind(n.kind)) {
                 sourceTypeIds.add(n.identifier)
             }
         }

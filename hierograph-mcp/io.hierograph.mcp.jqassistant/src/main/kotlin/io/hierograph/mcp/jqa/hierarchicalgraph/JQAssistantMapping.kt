@@ -111,7 +111,7 @@ val jQAssistantMapping = GraphDbMapping(
         ),
         //
         ParentChildRule(
-            "external.type",
+            JavaKinds.EXTERNAL_TYPE,
             "MATCH (a:Virtual:Package)-[:CONTAINS]->(b:Virtual:Type) RETURN id(a), id(b), b.name, b.fqn",
         ),
     ),

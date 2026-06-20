@@ -200,9 +200,9 @@ class FindDependencyPathTool(
     private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
-        if (node.kind in JavaKinds.TYPE_KINDS) ids.add(node.identifier)
+        if (JavaKinds.isTypeKind(node.kind)) ids.add(node.identifier)
         hierarchy.traverse(node) { n ->
-            if (n.kind in JavaKinds.TYPE_KINDS) {
+            if (JavaKinds.isTypeKind(n.kind)) {
                 ids.add(n.identifier)
             }
         }

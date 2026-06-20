@@ -45,6 +45,24 @@ object JavaKinds {
     @JvmField
     val TYPE_KINDS: Set<JavaNodeKind> = setOf(CLASS, INTERFACE, ENUM, RECORD, ANNOTATION)
 
+    /**
+     * The kind assigned to external (virtual) type nodes — types referenced but not part of the
+     * scanned classpath (e.g. library annotations/classes lifted onto a canonical `:Virtual:Type`).
+     * Unlike the internal [TYPE_KINDS] this is a plain string, not a [JavaNodeKind] enum value,
+     * because external types carry no parsed metadata.
+     */
+    const val EXTERNAL_TYPE = "external.type"
+
+    /**
+     * True if [kind] denotes a type-level node for dependency-analysis purposes, i.e. an internal
+     * Java type ([TYPE_KINDS]) **or** an [EXTERNAL_TYPE] stub. External types are first-class
+     * dependency endpoints (a class can depend on / be annotated by a library type), so the subtree
+     * type-collection that anchors type-level and detail-level dependency queries must include them —
+     * otherwise edges to/from external types are silently dropped.
+     */
+    @JvmStatic
+    fun isTypeKind(kind: Any?): Boolean = kind in TYPE_KINDS || kind == EXTERNAL_TYPE
+
     /** All member-level node kinds. */
     @JvmField
     val MEMBER_KINDS: Set<JavaNodeKind> = setOf(METHOD, FIELD)

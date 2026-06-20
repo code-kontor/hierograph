@@ -559,7 +559,7 @@ class DetailDependenciesComponent(
     }
 
     private fun collectSubtreeTypeIdsRecursive(node: HGNode, result: MutableList<Long>) {
-        if (node.kind in JavaKinds.TYPE_KINDS) {
+        if (JavaKinds.isTypeKind(node.kind)) {
             result.add(node.identifier as Long)
         }
         val hierarchy = graphService.model.hierarchy
