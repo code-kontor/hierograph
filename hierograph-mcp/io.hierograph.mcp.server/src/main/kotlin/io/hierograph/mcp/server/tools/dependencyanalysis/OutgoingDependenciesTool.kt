@@ -54,13 +54,20 @@ class OutgoingDependenciesTool(
                 "detail_level='type' (default) returns type-to-type edges from the in-memory model (fast). " +
                 "detail_level='detail' returns method/field-level edges with source locations (slower). " +
                 "The 'relationship' filter is only valid at detail level. " +
-                "Summaries (by_attribute/by_relationship, by_source_type) give the shape without " +
-                "needing to process all edges. " +
+                "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
+                "over the ENTIRE result set, independent of page size — they give the shape without " +
+                "processing all edges. " +
+                "WARNING: on a hub node a full page of type-level edges can be hundreds of KB and " +
+                "overflow the caller's context. If you only need the ranking or attribute breakdown " +
+                "(the common case, especially when to_id is omitted), pass limit=1 and read the " +
+                "summary — do NOT page through edges you won't use. " +
                 "Direction: this tool shows what the source uses of the target. " +
                 "For the reverse, use incoming_dependencies. " +
                 "At type level, to_id is optional: omit it to return ALL outgoing dependencies of " +
                 "from_id (every type-level edge to anywhere in the graph) — answering 'show me the " +
-                "dependencies of X'. The summary always includes 'by_target': the depended-upon " +
+                "dependencies of X'. That question is almost always answered by the by_target / " +
+                "by_source_type summary, not by the edge list — request a minimal page (limit=1). " +
+                "The summary always includes 'by_target': the depended-upon " +
                 "types ranked by summed weight over the full result set (whole graph when to_id is " +
                 "omitted, within the to_id subtree otherwise). to_id is required at detail level."
     )
@@ -84,7 +91,9 @@ class OutgoingDependenciesTool(
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 400 / 250.",
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 400 / 250. " +
+                    "On a hub node even 100 type-level edges can exceed ~50 KB — pass limit=1 when you " +
+                    "only need the summary (by_target / by_source_type / by_attribute).",
             required = false
         )
         limit: Int?,
@@ -92,8 +101,9 @@ class OutgoingDependenciesTool(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
                     "When continuing, keep the other parameters identical to the original call. " +
-                    "If the result set is larger than you need, prefer narrowing the query " +
-                    "(a smaller subtree, or detail-level relationship filter) over paginating through all of it.",
+                    "If the result set is larger than you need, prefer the full-set summary (limit=1) or " +
+                    "narrowing the query (a smaller subtree, or detail-level relationship filter) over " +
+                    "paginating through all of it.",
             required = false
         )
         cursor: String?
@@ -372,9 +382,9 @@ class OutgoingDependenciesTool(
 
     companion object {
         /** Type-level pagination for outgoing_dependencies (~350 bytes/edge): default 100, cap 400. */
-        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 400)
+        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 400, bytesPerItem = 350)
 
         /** Detail-level pagination for outgoing_dependencies (~550 bytes/edge): default 80, cap 250. */
-        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 250)
+        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 250, bytesPerItem = 550)
     }
 }

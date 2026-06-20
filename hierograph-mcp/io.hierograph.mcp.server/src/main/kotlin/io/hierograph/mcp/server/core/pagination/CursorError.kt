@@ -16,13 +16,15 @@
 package io.hierograph.mcp.server.core.pagination
 
 /**
- * The ways a cursor can be rejected, each carrying the data needed to render the structured error
- * response specified for pagination. Every case maps to one error `code` and includes an explicit
- * `recovery` path so the caller never has to guess what went wrong or what to do next.
+ * The ways a paginated request can be rejected, each carrying the data needed to render the
+ * structured error response specified for pagination. Every case maps to one error `code` and
+ * includes an explicit `recovery` path so the caller never has to guess what went wrong or what to
+ * do next.
  *
  * [INVALID_CURSOR_FORMAT] is produced when [CursorCodec.decode] fails ([CursorFormatException]); the
- * remaining cases are produced by [CursorValidator] when a structurally valid cursor is not usable in
- * the current context.
+ * cursor-validity cases are produced by [CursorValidator] when a structurally valid cursor is not
+ * usable in the current context; [ResultTooLarge] is produced by [Paginator] when the resolved page
+ * would overflow the caller's context.
  *
  * Each case renders via [toResponse] to the `{"error": { ... }}` map the tools return.
  */
@@ -109,6 +111,36 @@ sealed class CursorError {
             "message" to "The underlying graph data has changed since this cursor was issued. " +
                     "The cursor's position is no longer valid.",
             "recovery" to "Reissue your original query (without the cursor) to get results from the current data."
+        )
+    }
+
+    /**
+     * The resolved page's estimated wire size exceeds [Paginator.RESPONSE_BYTE_BUDGET] and would
+     * overflow the caller's context. Not a cursor fault — the requested (or default) page is simply
+     * too big for the node's edge/result density.
+     */
+    data class ResultTooLarge(
+        val tool: String,
+        val returned: Int,
+        val estimatedBytes: Long,
+        val budgetBytes: Int,
+        val suggestedLimit: Int
+    ) : CursorError() {
+        override val code = "RESULT_TOO_LARGE"
+        override fun errorBody() = linkedMapOf<String, Any?>(
+            "code" to code,
+            "message" to "This page (~$estimatedBytes bytes for $returned items) exceeds the " +
+                    "$budgetBytes-byte response budget and would overflow the caller's context.",
+            "returned" to returned,
+            "estimated_bytes" to estimatedBytes,
+            "budget_bytes" to budgetBytes,
+            "suggested_limit" to suggestedLimit,
+            "recovery" to "If you only need the ranking or breakdown, re-query with limit=1 and read " +
+                    "the summary — these tools compute their summaries (e.g. by_target, by_source_type, " +
+                    "by_kind) over the FULL result set, independent of page size, so a 1-item page still " +
+                    "carries the complete answer. If you genuinely need the edges, lower the page size " +
+                    "(e.g. limit=$suggestedLimit) and walk next_cursor. Prefer either over dumping the " +
+                    "result to a file and slicing it."
         )
     }
 

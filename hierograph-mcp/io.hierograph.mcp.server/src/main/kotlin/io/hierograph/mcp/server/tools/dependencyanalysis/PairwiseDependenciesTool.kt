@@ -314,6 +314,6 @@ class PairwiseDependenciesTool(
         private val EDGE_SORTS = setOf("dsm", "weight_desc")
 
         /** Pagination policy for pairwise_dependencies (~250 bytes/edge): default 25, server cap 200. */
-        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 200)
+        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 200, bytesPerItem = 250)
     }
 }

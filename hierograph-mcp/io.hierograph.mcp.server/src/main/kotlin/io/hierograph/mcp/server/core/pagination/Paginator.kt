@@ -22,11 +22,15 @@ package io.hierograph.mcp.server.core.pagination
  * @property tool the paginated tool's name, e.g. `"list_descendants"`.
  * @property defaultLimit the page size used when the caller supplies no `limit`.
  * @property maxLimit the server-side cap; a caller-supplied `limit` is clamped to `1..maxLimit`.
+ * @property bytesPerItem rough wire-size estimate for one result item, used by [Paginator] to reject
+ *   a page that would overflow the caller's context before the harness truncates it
+ *   ([Paginator.RESPONSE_BYTE_BUDGET]).
  */
 data class PaginationSpec(
     val tool: String,
     val defaultLimit: Int,
-    val maxLimit: Int
+    val maxLimit: Int,
+    val bytesPerItem: Int
 )
 
 /**
@@ -69,6 +73,17 @@ sealed interface PageResult<out T> {
  * when [Page.nextCursor] is non-null.
  */
 object Paginator {
+
+    /**
+     * Soft ceiling on a single page's estimated wire size. A page whose `returned * bytesPerItem`
+     * exceeds this is rejected with [CursorError.ResultTooLarge] rather than handed back to overflow
+     * the caller's context — at which point the harness would truncate it and offer generic
+     * "save-to-file and slice" advice. Kept well under that truncation point so a maxed-out page on a
+     * dense node fails fast with a domain-specific recovery (use `limit=1` + the full-set summary, or
+     * a smaller page) instead. A single item (`limit=1`) is always allowed through, so the
+     * summary-only escape hatch can never itself be blocked.
+     */
+    const val RESPONSE_BYTE_BUDGET = 50_000
 
     /**
      * Resolves a page of [allItems].
@@ -115,6 +130,25 @@ object Paginator {
 
         val items = allItems.subList(start, end).toList()
         val returned = items.size
+
+        // ── response-size guard ───────────────────────────────────────────
+        // Reject an oversized page up front (but never a single item, so limit=1 always succeeds and
+        // the full-set summary stays reachable). suggestedLimit is the largest page that fits the
+        // budget, and is strictly smaller than `returned` whenever this fires.
+        val estimatedBytes = returned.toLong() * spec.bytesPerItem
+        if (returned > 1 && estimatedBytes > RESPONSE_BYTE_BUDGET) {
+            val suggestedLimit = (RESPONSE_BYTE_BUDGET / spec.bytesPerItem).coerceAtLeast(1)
+            return PageResult.Failed(
+                CursorError.ResultTooLarge(
+                    tool = spec.tool,
+                    returned = returned,
+                    estimatedBytes = estimatedBytes,
+                    budgetBytes = RESPONSE_BYTE_BUDGET,
+                    suggestedLimit = suggestedLimit
+                )
+            )
+        }
+
         val hasMore = end < total
 
         val nextCursor = if (hasMore) {

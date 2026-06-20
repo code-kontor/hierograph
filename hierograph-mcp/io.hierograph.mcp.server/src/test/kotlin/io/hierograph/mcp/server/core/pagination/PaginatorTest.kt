@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 
 class PaginatorTest {
 
-    private val spec = PaginationSpec(tool = "list_descendants", defaultLimit = 4, maxLimit = 10)
+    private val spec = PaginationSpec(tool = "list_descendants", defaultLimit = 4, maxLimit = 10, bytesPerItem = 250)
     private val qh = "query-hash"
     private val dh = "data-hash"
 
@@ -111,6 +111,42 @@ class PaginatorTest {
         val second = page(Paginator.paginate(items(20), spec, qh, dh, first.nextCursor, limit = 10))
         assertThat(second.items.first()).isEqualTo(4)
         assertThat(second.returned).isEqualTo(10)
+    }
+
+    // ── response-size guard ─────────────────────────────────────────────────
+
+    // 10_000 bytes/item against the 50_000 budget => a page of 6+ items overflows; the largest
+    // page that fits (the suggested limit) is 5.
+    private val heavySpec = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 50, bytesPerItem = 10_000)
+
+    @Test
+    fun `a page over the byte budget is rejected with ResultTooLarge`() {
+        val result = Paginator.paginate(items(100), heavySpec, qh, dh, cursor = null, limit = 6)
+
+        assertThat(result).isInstanceOf(PageResult.Failed::class.java)
+        val error = (result as PageResult.Failed).error
+        assertThat(error).isInstanceOf(CursorError.ResultTooLarge::class.java)
+        error as CursorError.ResultTooLarge
+        assertThat(error.code).isEqualTo("RESULT_TOO_LARGE")
+        assertThat(error.returned).isEqualTo(6)
+        assertThat(error.estimatedBytes).isEqualTo(60_000L)
+        assertThat(error.budgetBytes).isEqualTo(Paginator.RESPONSE_BYTE_BUDGET)
+        assertThat(error.suggestedLimit).isEqualTo(5)
+    }
+
+    @Test
+    fun `the suggested limit yields a page that fits the budget`() {
+        val p = page(Paginator.paginate(items(100), heavySpec, qh, dh, null, limit = 5))
+        assertThat(p.returned).isEqualTo(5) // 5 * 10_000 == 50_000, at the budget, not over
+    }
+
+    @Test
+    fun `a single item is never rejected even when one item exceeds the budget`() {
+        // limit=1 is the summary escape hatch — it must always come back, even for a huge item.
+        val hugeSpec = heavySpec.copy(bytesPerItem = Paginator.RESPONSE_BYTE_BUDGET + 1)
+        val p = page(Paginator.paginate(items(100), hugeSpec, qh, dh, null, limit = 1))
+        assertThat(p.returned).isEqualTo(1)
+        assertThat(p.nextCursor).isNotNull()
     }
 
     @Test

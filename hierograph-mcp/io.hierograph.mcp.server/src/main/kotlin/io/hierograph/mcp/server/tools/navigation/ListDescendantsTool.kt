@@ -250,7 +250,7 @@ class ListDescendantsTool(
 
     companion object {
         /** Pagination policy for list_descendants (~250 bytes/item): default 150, server cap 500. */
-        private val PAGINATION = PaginationSpec(tool = "list_descendants", defaultLimit = 150, maxLimit = 500)
+        private val PAGINATION = PaginationSpec(tool = "list_descendants", defaultLimit = 150, maxLimit = 500, bytesPerItem = 250)
 
         private fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V> {
             val map = LinkedHashMap<K, V>()

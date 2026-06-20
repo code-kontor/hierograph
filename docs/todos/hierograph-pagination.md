@@ -282,7 +282,25 @@ The data hash in the cursor doesn't match the current data snapshot. The underly
 }
 ```
 
-In every error case, the recovery path is "restart pagination from a fresh call." The cursor mechanism doesn't try to recover from errors silently or partially — explicit failure with clear recovery is safer than guessing.
+### `RESULT_TOO_LARGE`
+
+Not a cursor fault. The resolved page's estimated wire size (`returned × bytes-per-item`) exceeds the server's response budget and would overflow the caller's context. Raised *before* the response is returned, so the harness never has to truncate it and offer generic "save-to-file and slice" advice. A single item (`limit=1`) is always allowed through, so the summary-only escape hatch can never itself be blocked.
+
+```json
+{
+  "error": {
+    "code": "RESULT_TOO_LARGE",
+    "message": "This page (~60000 bytes for 6 items) exceeds the 50000-byte response budget and would overflow the caller's context.",
+    "returned": 6,
+    "estimated_bytes": 60000,
+    "budget_bytes": 50000,
+    "suggested_limit": 5,
+    "recovery": "If you only need the ranking or breakdown, re-query with limit=1 and read the summary — these tools compute their summaries (e.g. by_target, by_source_type, by_kind) over the FULL result set, independent of page size, so a 1-item page still carries the complete answer. If you genuinely need the edges, lower the page size (e.g. limit=5) and walk next_cursor. Prefer either over dumping the result to a file and slicing it."
+  }
+}
+```
+
+For the cursor errors above, the recovery path is "restart pagination from a fresh call." The cursor mechanism doesn't try to recover from errors silently or partially — explicit failure with clear recovery is safer than guessing. `RESULT_TOO_LARGE` is the exception: its recovery is to shrink the page (or drop to the full-set summary with `limit=1`), not to restart.
 
 ## Server implementation notes
 

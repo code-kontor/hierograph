@@ -176,6 +176,8 @@ The `summary.by_kind` and `summary.by_parent` fields support the narrowing strat
 
 **Invalid cursor:** structured error per the cursor protocol (see pagination specification). Possible codes: `INVALID_CURSOR_FORMAT`, `STALE_CURSOR_VERSION`, `WRONG_TOOL_CURSOR`, `STALE_CURSOR_QUERY`, `STALE_CURSOR_DATA`.
 
+**Result too large:** `RESULT_TOO_LARGE` when the requested page's estimated wire size exceeds the server response budget (it would overflow the caller's context). The error carries `suggested_limit`; re-query with `limit=1` to read the full-set summary, or with a smaller page. See pagination specification.
+
 **Leaf node (method or field):** returns empty results with `total: 0`. Not an error.
 
 ## Architecture

@@ -335,6 +335,6 @@ class AffectedByTool(
 
     companion object {
         /** Pagination policy for affected_by (~450 bytes/item): default 100, server cap 350. */
-        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 350)
+        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 350, bytesPerItem = 450)
     }
 }
