@@ -80,9 +80,18 @@ open class DefaultMappingService : IMappingService {
         }
         dependencyProvider.initialize()
 
+        // The containment hierarchy is authoritative: a dependency may only exist between nodes that
+        // are actually part of the hierarchy, i.e. reachable from the root. Endpoints can be present
+        // in idToNodeMap yet never attached under the root — e.g. test types that were created while
+        // resolving package→type relationships but whose package subtree is never linked to a module.
+        // Keeping their edges would leave dangling dependencies pointing at nodes absent from the
+        // hierarchy, inflating type-level dependency results with excluded nodes. Prune them here.
+        val hierarchyNodeIds: Set<Any> = hierarchy.descendantsOf(rootNode).mapTo(HashSet()) { it.identifier }
+
         for (depDef in dependencyProvider.dependencies) {
             val from = idToNodeMap[depDef.idStart] ?: continue
             val to = idToNodeMap[depDef.idTarget] ?: continue
+            if (from.identifier !in hierarchyNodeIds || to.identifier !in hierarchyNodeIds) continue
             val dep = HGGraphFactory.createCoreDependency(from, to, depDef.type) {
                 val depSource = dependencyProvider.createDependencySource(depDef)
                 depSource.boltClient = boltClient
