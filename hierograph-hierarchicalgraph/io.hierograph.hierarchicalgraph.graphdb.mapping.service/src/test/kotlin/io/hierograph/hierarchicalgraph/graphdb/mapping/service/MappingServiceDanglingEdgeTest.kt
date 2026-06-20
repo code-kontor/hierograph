@@ -80,9 +80,12 @@ class MappingServiceDanglingEdgeTest {
         // The only surviving edge is the one between hierarchy-resident nodes.
         assertThat(includedType.outgoingCoreDependencies).hasSize(1)
         assertThat(includedType.incomingCoreDependencies).hasSize(1)
-        // The orphaned node never participates in any edge.
-        assertThat(model.coreGraph.lookupNode(99L)?.outgoingCoreDependencies ?: emptyList()).isEmpty()
-        assertThat(model.coreGraph.lookupNode(99L)?.incomingCoreDependencies ?: emptyList()).isEmpty()
+        // The orphaned node is pruned from the core graph entirely (coreGraph.nodes == hierarchy
+        // tree), so it can neither be looked up nor participate in any edge.
+        assertThat(model.coreGraph.lookupNode(99L)).isNull()
+        assertThat(model.coreGraph.lookupNode(98L)).isNull()
+        assertThat(model.coreGraph.nodes.map { it.identifier })
+            .containsExactlyInAnyOrder(model.hierarchy.rootNode.identifier, 10L, 20L, 30L)
     }
 
     // ── test doubles ────────────────────────────────────────────────────

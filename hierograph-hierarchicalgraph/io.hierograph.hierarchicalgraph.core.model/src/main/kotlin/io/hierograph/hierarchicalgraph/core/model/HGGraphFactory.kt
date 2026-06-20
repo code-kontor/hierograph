@@ -34,6 +34,16 @@ object HGGraphFactory {
         return node
     }
 
+    /**
+     * Removes [node] from [graph]'s node index. Used during construction to prune nodes that were
+     * created while resolving parent-child rows but never attached to the hierarchy root, so the
+     * core graph's node set equals the hierarchy tree's. Callers must ensure the node has no
+     * dependencies (a pruned node should never be an edge endpoint).
+     */
+    fun removeNode(graph: HGGraphImpl, node: HGNode) {
+        graph.unregisterNode(node.identifier)
+    }
+
     fun createCoreDependency(
         source: HGNode,
         target: HGNode,

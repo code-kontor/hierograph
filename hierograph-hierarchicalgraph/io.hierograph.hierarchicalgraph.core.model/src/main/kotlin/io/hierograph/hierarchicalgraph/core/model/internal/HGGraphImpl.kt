@@ -30,6 +30,10 @@ class HGGraphImpl : HGGraph {
         nodeMap[node.identifier] = node
     }
 
+    internal fun unregisterNode(identifier: Any) {
+        nodeMap.remove(identifier)
+    }
+
     override fun <T : Any> registerExtension(clazz: Class<T>, extension: T) {
         extensionRegistry[clazz.name] = extension
     }

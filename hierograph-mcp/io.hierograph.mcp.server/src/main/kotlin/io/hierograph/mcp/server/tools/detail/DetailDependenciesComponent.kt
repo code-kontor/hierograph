@@ -139,6 +139,18 @@ class DetailDependenciesComponent(
             val tgtTypeId = record.get("tgtTypeId").asLong()
             val lineNumber = record.get("lineNumber").asLong(-1)
 
+            // The containment hierarchy is authoritative. The Cypher expands scopes through
+            // EXTENDS|IMPLEMENTS inside Neo4j, so a record's endpoint type can be one that was
+            // excluded from the hierarchy (e.g. a supertype reached by inheritance). Drop such
+            // edges so the detail layer agrees with the hierarchy and never surfaces a node that
+            // find_node / list_descendants cannot navigate to. lookupNode is authoritative because
+            // DefaultMappingService prunes the core graph to the hierarchy tree.
+            if (graphService.model.lookupNode(srcTypeId) == null ||
+                graphService.model.lookupNode(tgtTypeId) == null
+            ) {
+                continue
+            }
+
             // Stash display fields for the nodes map (first-write-wins via putIfAbsent).
             nodeDisplay.putIfAbsent(
                 srcId, arrayOf(

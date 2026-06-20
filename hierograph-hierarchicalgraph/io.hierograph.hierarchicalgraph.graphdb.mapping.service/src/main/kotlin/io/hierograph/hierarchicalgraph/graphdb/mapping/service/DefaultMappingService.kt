@@ -74,24 +74,34 @@ open class DefaultMappingService : IMappingService {
             if (child.kind == null) child.kind = pcn.childKind
         }
 
+        // 5c. Prune orphaned nodes so the model's node set equals the hierarchy tree.
+        // getOrCreateNode materializes a core-graph node for every id referenced by a parent-child
+        // row, before it is known whether that id ends up attached to the root. Nodes whose subtree
+        // never links to a module (e.g. excluded test types reached via a package→type row whose
+        // package is never linked to a module) are created but remain unreachable from the root.
+        // Removing them here restores the invariant
+        //     coreGraph.nodes == { rootNode } ∪ hierarchy.descendantsOf(rootNode)
+        // which makes lookupNode an authoritative membership test for every downstream layer and
+        // means dangling dependencies cannot form: an orphaned id is simply absent from idToNodeMap
+        // when the dependency loop below resolves its endpoints.
+        val reachableIds: Set<Any> = buildSet {
+            add(rootNode.identifier)
+            for (n in hierarchy.descendantsOf(rootNode)) add(n.identifier)
+        }
+        for (node in coreGraph.nodes.filter { it.identifier !in reachableIds }) {
+            HGGraphFactory.removeNode(coreGraph, node)
+            idToNodeMap.remove(node.identifier)
+        }
+
         // 6. Build dependencies
         if (dependencyProvider is IBoltClientAware) {
             dependencyProvider.boltClient = boltClient
         }
         dependencyProvider.initialize()
 
-        // The containment hierarchy is authoritative: a dependency may only exist between nodes that
-        // are actually part of the hierarchy, i.e. reachable from the root. Endpoints can be present
-        // in idToNodeMap yet never attached under the root — e.g. test types that were created while
-        // resolving package→type relationships but whose package subtree is never linked to a module.
-        // Keeping their edges would leave dangling dependencies pointing at nodes absent from the
-        // hierarchy, inflating type-level dependency results with excluded nodes. Prune them here.
-        val hierarchyNodeIds: Set<Any> = hierarchy.descendantsOf(rootNode).mapTo(HashSet()) { it.identifier }
-
         for (depDef in dependencyProvider.dependencies) {
             val from = idToNodeMap[depDef.idStart] ?: continue
             val to = idToNodeMap[depDef.idTarget] ?: continue
-            if (from.identifier !in hierarchyNodeIds || to.identifier !in hierarchyNodeIds) continue
             val dep = HGGraphFactory.createCoreDependency(from, to, depDef.type) {
                 val depSource = dependencyProvider.createDependencySource(depDef)
                 depSource.boltClient = boltClient
