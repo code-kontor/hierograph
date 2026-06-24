@@ -384,16 +384,21 @@ class DetailDependenciesComponent(
             // Indirect target via intermediate node(s)
             // Type source covers class/type-level annotations (the annotated element IS the type);
             // Method/Field sources cover member-level annotations.
+            // The trailing `(ot)-[:RESOLVES_TO*0..1]->(tgt)` hop makes the annotation TYPE match the
+            // canonical target whether OF_TYPE already points at it (internal types, or external types
+            // once hierograph:VirtualExternalAnnotatedBy has lifted the OF_TYPE leg) or only at the raw
+            // stub that RESOLVES_TO it — so external-annotation evidence resolves even on stores
+            // analysed with rules predating that lift. (0 hops = direct, 1 hop = via the stub.)
             BranchSpec("annotated_by", "Type", BranchShape.TO_TYPE, "Type",
-                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->", "null"),
+                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(ot)-[:RESOLVES_TO*0..1]->", "null"),
             BranchSpec("annotated_by", "Method", BranchShape.TO_TYPE, "Type",
-                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->", "src.firstLineNumber"),
+                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(ot)-[:RESOLVES_TO*0..1]->", "src.firstLineNumber"),
             BranchSpec("annotated_by", "Field", BranchShape.TO_TYPE, "Type",
-                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->", "null"),
+                "-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(ot)-[:RESOLVES_TO*0..1]->", "null"),
             BranchSpec("parameter_type", "Method", BranchShape.TO_TYPE, "Type",
                 "-[:HAS]->(p:Parameter)-[:OF_TYPE]->", "src.firstLineNumber"),
             BranchSpec("parameter_annotated_by", "Method", BranchShape.TO_TYPE, "Type",
-                "-[:HAS]->(p:Parameter)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->", "src.firstLineNumber")
+                "-[:HAS]->(p:Parameter)-[:ANNOTATED_BY]->(a)-[:OF_TYPE]->(ot)-[:RESOLVES_TO*0..1]->", "src.firstLineNumber")
         )
 
         /** Distinct Hierograph relationship kinds -- derived from [BRANCHES] for validation. */
