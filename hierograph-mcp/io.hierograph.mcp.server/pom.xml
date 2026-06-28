@@ -115,9 +115,109 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>io.hierograph.mcp.server.McpApplicationKt</mainClass>
+                    <!-- Attach the runnable fat jar under the `exec` classifier so the
+                         plain thin jar stays the module's main artifact. Downstream
+                         modules (e.g. io.hierograph.itest.tests) must compile against the
+                         server's classes, which a repackaged fat jar hides under
+                         BOOT-INF/classes. The runnable jar is target/*-exec.jar. -->
+                    <classifier>exec</classifier>
                 </configuration>
+                <!-- Repackage the thin jar into a self-contained, runnable
+                     Spring Boot jar so `java -jar` and the Docker image work. -->
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            The Docker image is opt-in: it is not part of the default build and
+            requires a running Docker daemon. Activate with `-Pdocker`
+            (e.g. `mvn -Pdocker package`) to build the Hierograph MCP server image.
+
+            This uses a Dockerfile driven by the docker CLI (same pattern as
+            hierograph-itest/io.hierograph.itest.image), rather than Spring Boot's
+            build-image goal: the buildpack platform bundled with Spring Boot pins
+            Docker API v1.24, which Docker Engine 29+ rejects ("client version 1.24
+            is too old"). The docker CLI negotiates a supported API version.
+        -->
+        <profile>
+            <id>docker</id>
+            <properties>
+                <docker.image.name>${project.artifactId}:${project.version}</docker.image.name>
+            </properties>
+            <build>
+                <plugins>
+                    <!-- Stage the Docker build context under target/docker: the
+                         Dockerfile and the repackaged Spring Boot jar. Bound to
+                         `package` after spring-boot:repackage (declared in the main
+                         build, so it runs first). -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>stage-docker-context</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/docker</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.basedir}</directory>
+                                            <includes>
+                                                <include>Dockerfile</include>
+                                            </includes>
+                                        </resource>
+                                        <resource>
+                                            <directory>${project.build.directory}</directory>
+                                            <includes>
+                                                <include>${project.build.finalName}-exec.jar</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>docker-build</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>docker</executable>
+                                    <workingDirectory>${project.build.directory}/docker</workingDirectory>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>JAR_FILE=${project.build.finalName}-exec.jar</argument>
+                                        <argument>-t</argument>
+                                        <argument>${docker.image.name}</argument>
+                                        <argument>.</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

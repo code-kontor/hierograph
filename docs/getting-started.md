@@ -156,6 +156,8 @@ You can also browse the raw graph data at `http://localhost:7474` using Neo4j's 
 
 ## Step 5: Start the Hierograph MCP server
 
+### Option A: Run with Maven (default)
+
 In a new terminal, start the Hierograph MCP server (Spring Boot application):
 
 ```bash
@@ -170,6 +172,39 @@ spring.ai.mcp.server.name=hierograph-graph
 spring.ai.mcp.server.protocol=STREAMABLE
 hierograph.bolt.uri=bolt://localhost:7687
 ```
+
+### Option B: Run as a Docker container
+
+Alternatively, run the MCP server from its Docker image. Build the image once (see
+[BUILD.md](../BUILD.md#building-the-docker-image)):
+
+```bash
+mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker package -DskipTests
+```
+
+Then run it, exposing the HTTP port and pointing it at the jQAssistant Bolt store:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e HIEROGRAPH_BOLT_URI=bolt://host.docker.internal:7687 \
+  io.hierograph.mcp.server:0.1.0-SNAPSHOT
+```
+
+The store from [Step 4](#step-4-start-the-jqassistant-server) runs on your **host**, but inside the
+container `localhost` resolves to the container itself — not the host. Use the special hostname
+`host.docker.internal`, which Docker resolves to the host machine, so the container can reach the
+Bolt endpoint:
+
+- **Docker Desktop (macOS / Windows):** `host.docker.internal` works out of the box.
+- **Linux (plain Docker engine):** it is not automatic — add it explicitly with
+  `--add-host=host.docker.internal:host-gateway`, or use `--network host` (Linux-only; `localhost`
+  then *is* the host and `-p` is ignored).
+- **Fallback (any platform):** use the host's LAN IP, e.g. `bolt://192.168.1.10:7687`.
+
+> **Bind the store to a reachable interface.** By default the jQAssistant server in Step 4 listens
+> only on loopback, so it will refuse connections arriving via `host.docker.internal`. Start it
+> bound to all interfaces by adding `-Djqassistant.store.embedded.listen-address=0.0.0.0` to the
+> Step 4 command.
 
 ## Step 6: Register the MCP server with your client
 

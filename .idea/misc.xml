@@ -10,6 +10,7 @@
     <option name="enabledProfiles">
       <list>
         <option value="itest" />
+        <option value="docker" />
       </list>
     </option>
   </component>
