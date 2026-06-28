@@ -49,27 +49,27 @@
 
     <properties>
         <java.version>21</java.version>
-        <kotlin.version>2.1.21</kotlin.version>
+        <kotlin.version>2.4.0</kotlin.version>
 
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-        <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
-        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
-        <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
-        <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
+        <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.5.6</maven-failsafe-plugin.version>
+        <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
+        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
+        <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
 
         <jqassistant.version>2.9.1</jqassistant.version>
         <neo4j-java-driver.version>5.28.13</neo4j-java-driver.version>
         <spring-boot.version>3.3.4</spring-boot.version>
         <spring-ai.version>1.1.6</spring-ai.version>
-        <assertj.version>3.26.3</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
         <junit-jupiter.version>5.11.2</junit-jupiter.version>
         <testcontainers.version>1.21.4</testcontainers.version>
-        <slf4j.version>2.0.17</slf4j.version>
+        <slf4j.version>2.0.18</slf4j.version>
     </properties>
 
     <build>
