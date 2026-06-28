@@ -67,8 +67,8 @@
         <spring-boot.version>3.3.4</spring-boot.version>
         <spring-ai.version>1.1.6</spring-ai.version>
         <assertj.version>3.27.7</assertj.version>
-        <junit-jupiter.version>5.11.2</junit-jupiter.version>
-        <testcontainers.version>1.21.4</testcontainers.version>
+        <junit-jupiter.version>6.1.1</junit-jupiter.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
         <slf4j.version>2.0.18</slf4j.version>
     </properties>
 
@@ -189,8 +189,17 @@ limitations under the License.]]></inlineHeader>
             <!-- ==================== -->
             <!-- BOM imports          -->
             <!-- ==================== -->
-            <!-- Must precede spring-boot-dependencies: Spring Boot's BOM pins an older
-                 Testcontainers (and thus docker-java) version, and the first import wins. -->
+            <!-- Must precede spring-boot-dependencies: Spring Boot's BOM pins older
+                 Testcontainers (and thus docker-java) and JUnit versions, and the first
+                 import wins. The JUnit BOM keeps junit-platform aligned with junit-jupiter
+                 at 6.x (Spring Boot's BOM would otherwise pull an incompatible platform). -->
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
@@ -239,11 +248,7 @@ limitations under the License.]]></inlineHeader>
             <!-- ==================== -->
             <!-- Test                 -->
             <!-- ==================== -->
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter</artifactId>
-                <version>${junit-jupiter.version}</version>
-            </dependency>
+            <!-- junit-jupiter version is managed by the junit-bom import above. -->
             <dependency>
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
