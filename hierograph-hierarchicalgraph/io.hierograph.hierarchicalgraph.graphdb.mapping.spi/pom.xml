@@ -13,6 +13,7 @@
 
     <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph Hierarchical Graph GraphDB Mapping SPI</name>
 
     <dependencies>
         <dependency>

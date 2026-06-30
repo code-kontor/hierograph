@@ -12,6 +12,7 @@
 
     <artifactId>io.hierograph.graphql</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph GraphQL</name>
 
     <dependencies>
         <dependency>

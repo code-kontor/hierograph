@@ -13,6 +13,7 @@
 
     <artifactId>io.hierograph.hierarchicalgraph.core.algorithms</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph Hierarchical Graph Core Algorithms</name>
 
     <dependencies>
         <dependency>

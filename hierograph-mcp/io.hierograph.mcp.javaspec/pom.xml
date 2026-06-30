@@ -12,6 +12,7 @@
 
     <artifactId>io.hierograph.mcp.javaspec</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph MCP Java Spec</name>
 
     <dependencies>
         <dependency>

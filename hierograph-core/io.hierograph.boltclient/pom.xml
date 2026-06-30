@@ -13,6 +13,7 @@
 
     <artifactId>io.hierograph.boltclient</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph Bolt Client</name>
 
     <dependencies>
         <dependency>

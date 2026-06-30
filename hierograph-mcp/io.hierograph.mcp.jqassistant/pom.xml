@@ -12,6 +12,7 @@
 
     <artifactId>io.hierograph.mcp.jqassistant</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph MCP jQAssistant</name>
 
     <dependencies>
         <dependency>

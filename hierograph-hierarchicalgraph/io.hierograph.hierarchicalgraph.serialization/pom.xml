@@ -13,6 +13,7 @@
 
     <artifactId>io.hierograph.hierarchicalgraph.serialization</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph Hierarchical Graph Serialization</name>
 
     <dependencies>
         <dependency>

@@ -369,6 +369,17 @@ limitations under the License.]]></inlineHeader>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>3.2.7</version>
+                        <configuration>
+                            <!-- GnuPG 2.1+ (here 2.5.x) ignores the passphrase
+                                 supplied via gpg.passphrase unless loopback
+                                 pinentry is used; without this the agent is
+                                 consulted and signing fails with "bad
+                                 passphrase" even when the passphrase is correct. -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -392,6 +403,14 @@ limitations under the License.]]></inlineHeader>
                             <!-- false = upload to a staged deployment you review and
                                  click "Publish" on in the portal. Set true to auto-release. -->
                             <autoPublish>false</autoPublish>
+                            <!-- Keep the MCP server application out of Central. It is
+                                 shipped as a Docker image, not a library. maven.deploy.skip
+                                 alone does NOT work here: this plugin replaces the deploy
+                                 lifecycle and ignores it, so it must be excluded explicitly.
+                                 Entries are matched by artifactId only. -->
+                            <excludeArtifacts>
+                                <excludeArtifact>io.hierograph.mcp.server</excludeArtifact>
+                            </excludeArtifacts>
                         </configuration>
                     </plugin>
                 </plugins>

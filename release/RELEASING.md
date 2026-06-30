@@ -156,9 +156,12 @@ mvn -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker deploy -Ddocker.push.sk
 This builds `ghcr.io/code-kontor/hierograph-mcp-server:<version>` and pushes it. Override
 `-Ddocker.registry=...` / `-Ddocker.image.shortname=...` to retarget.
 
-> **Single-arch.** This builds for your host architecture only. For multi-arch (amd64 + arm64)
-> pulls, use a `docker buildx --platform linux/amd64,linux/arm64 --push` build instead — the current
-> profile uses plain `docker build`.
+> **Multi-arch.** The push builds a multi-arch image (`linux/amd64,linux/arm64`) with
+> `docker buildx` and pushes the manifest list in one step — override with
+> `-Ddocker.platforms=...`. It needs a `docker-container` buildx builder (created on demand as
+> `hierograph-builder`) and, on Linux, QEMU/binfmt registered once via the `tonistiigi/binfmt`
+> image (already present on Docker Desktop). A plain `-Pdocker package` (no push) still does a
+> local host-arch `docker build` for testing.
 
 ### 4. Tag and bump to the next development version
 

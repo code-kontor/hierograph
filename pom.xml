@@ -20,6 +20,14 @@
         <module>hierograph-jqassistant</module>
     </modules>
 
+    <properties>
+        <!-- This is a build aggregator (reactor) only; it has no parent, so the
+             release profile / central-publishing never applies to it. Without
+             this, the default maven-deploy-plugin runs at deploy time and fails
+             with "repository element was not specified ... distributionManagement". -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <profiles>
         <!--
             The integration tests are opt-in: they are not part of the default build.

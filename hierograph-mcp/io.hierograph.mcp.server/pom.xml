@@ -12,6 +12,7 @@
 
     <artifactId>io.hierograph.mcp.server</artifactId>
     <packaging>jar</packaging>
+    <name>Hierograph MCP Server</name>
 
     <properties>
         <!-- The server is an application (fat jar), shipped as a Docker image rather
@@ -168,6 +169,15 @@
                      Flip with `-Ddocker.push.skip=false` (run `docker login ghcr.io`
                      first). The push is bound to the `deploy` phase. -->
                 <docker.push.skip>true</docker.push.skip>
+                <!-- The push path builds a multi-arch image with `docker buildx`
+                     and pushes the manifest list in one step (multi-arch images
+                     cannot be kept in the local image store, so build+push are
+                     combined). Override -Ddocker.platforms to retarget. -->
+                <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
+                <!-- Multi-platform builds need a `docker-container` buildx builder
+                     (the default `docker` driver can't do multi-arch); a dedicated
+                     named builder is created on demand and reused across runs. -->
+                <docker.buildx.builder>hierograph-builder</docker.buildx.builder>
             </properties>
             <build>
                 <plugins>
@@ -230,12 +240,40 @@
                                 </configuration>
                             </execution>
 
-                            <!-- Push the built image to the registry. Opt-in via
+                            <!-- Ensure a multi-arch-capable buildx builder exists
+                                 (idempotent: inspect, else create). Uses the
+                                 docker-container driver, which the default `docker`
+                                 driver cannot substitute for multi-platform builds.
+                                 On Linux, cross-arch emulation also needs QEMU/binfmt
+                                 registered once via the tonistiigi/binfmt image
+                                 (pre-installed on Docker Desktop). Opt-in with the
+                                 push, bound to deploy. -->
+                            <execution>
+                                <id>docker-buildx-builder</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${docker.push.skip}</skip>
+                                    <executable>sh</executable>
+                                    <arguments>
+                                        <argument>-c</argument>
+                                        <argument>docker buildx inspect "$1" &gt;/dev/null 2&gt;&amp;1 || docker buildx create --name "$1" --driver docker-container --bootstrap</argument>
+                                        <argument>sh</argument>
+                                        <argument>${docker.buildx.builder}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Build the multi-arch image and push the manifest list
+                                 in one step (multi-arch can't be loaded into the local
+                                 image store, so build+push are combined). Opt-in via
                                  -Ddocker.push.skip=false; bound to `deploy` so a plain
                                  `-Pdocker package` never pushes. Requires a prior
                                  `docker login` to the target registry. -->
                             <execution>
-                                <id>docker-push</id>
+                                <id>docker-buildx-push</id>
                                 <phase>deploy</phase>
                                 <goals>
                                     <goal>exec</goal>
@@ -243,9 +281,20 @@
                                 <configuration>
                                     <skip>${docker.push.skip}</skip>
                                     <executable>docker</executable>
+                                    <workingDirectory>${project.build.directory}/docker</workingDirectory>
                                     <arguments>
-                                        <argument>push</argument>
+                                        <argument>buildx</argument>
+                                        <argument>build</argument>
+                                        <argument>--builder</argument>
+                                        <argument>${docker.buildx.builder}</argument>
+                                        <argument>--platform</argument>
+                                        <argument>${docker.platforms}</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>JAR_FILE=${project.build.finalName}-exec.jar</argument>
+                                        <argument>-t</argument>
                                         <argument>${docker.image.name}</argument>
+                                        <argument>--push</argument>
+                                        <argument>.</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
