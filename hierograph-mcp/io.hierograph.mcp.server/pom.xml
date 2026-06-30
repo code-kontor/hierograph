@@ -7,11 +7,17 @@
     <parent>
         <groupId>io.hierograph</groupId>
         <artifactId>hierograph-mcp</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
     </parent>
 
     <artifactId>io.hierograph.mcp.server</artifactId>
     <packaging>jar</packaging>
+
+    <properties>
+        <!-- The server is an application (fat jar), shipped as a Docker image rather
+             than a Maven Central library. Keep it out of `-Prelease deploy`. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -152,7 +158,16 @@
         <profile>
             <id>docker</id>
             <properties>
-                <docker.image.name>${project.artifactId}:${project.version}</docker.image.name>
+                <!-- Image coordinates. Defaults publish to GitHub Container Registry
+                     under the code-kontor org; override -Ddocker.registry or
+                     -Ddocker.image.shortname to retarget. -->
+                <docker.registry>ghcr.io/code-kontor</docker.registry>
+                <docker.image.shortname>hierograph-mcp-server</docker.image.shortname>
+                <docker.image.name>${docker.registry}/${docker.image.shortname}:${project.version}</docker.image.name>
+                <!-- Push is opt-in: a plain `-Pdocker package` only builds locally.
+                     Flip with `-Ddocker.push.skip=false` (run `docker login ghcr.io`
+                     first). The push is bound to the `deploy` phase. -->
+                <docker.push.skip>true</docker.push.skip>
             </properties>
             <build>
                 <plugins>
@@ -211,6 +226,26 @@
                                         <argument>-t</argument>
                                         <argument>${docker.image.name}</argument>
                                         <argument>.</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Push the built image to the registry. Opt-in via
+                                 -Ddocker.push.skip=false; bound to `deploy` so a plain
+                                 `-Pdocker package` never pushes. Requires a prior
+                                 `docker login` to the target registry. -->
+                            <execution>
+                                <id>docker-push</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${docker.push.skip}</skip>
+                                    <executable>docker</executable>
+                                    <arguments>
+                                        <argument>push</argument>
+                                        <argument>${docker.image.name}</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

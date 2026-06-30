@@ -22,14 +22,14 @@ mvn -o -Pitest -pl hierograph-itest/io.hierograph.itest.image package
 This builds the `io.hierograph.jqassistant.rules` plugin, stages the Docker build
 context under `target/docker` (Dockerfile, jar-download script, the root
 `.jqassistant.yml` and the rules jar), then runs `docker build` and tags the image
-`io.hierograph.itest.image:0.1.0-SNAPSHOT`.
+`io.hierograph.itest.image:0.1.0`.
 
 A plain `docker build` must run against that staged context (the Dockerfile pulls
 in the rules jar and `.jqassistant.yml`, which only exist there after staging):
 
 ```bash
 mvn -o -Pitest -pl hierograph-itest/io.hierograph.itest.image prepare-package
-docker build -t io.hierograph.itest.image:0.1.0-SNAPSHOT \
+docker build -t io.hierograph.itest.image:0.1.0 \
   hierograph-itest/io.hierograph.itest.image/target/docker
 ```
 
@@ -44,7 +44,7 @@ Run detached, publishing the Neo4j browser (`7474`) and Bolt (`7687`) ports:
 ```bash
 docker run -d --name hierograph-itest \
   -p 7474:7474 -p 7687:7687 \
-  io.hierograph.itest.image:0.1.0-SNAPSHOT
+  io.hierograph.itest.image:0.1.0
 ```
 
 The server binds to `0.0.0.0` inside the container, so the published ports are

@@ -48,3 +48,6 @@ out/
 /hierograph-itest/io.hierograph.itest.image/jars/spring-webflux-7.0.8.jar
 /hierograph-itest/io.hierograph.itest.image/jars/spring-webmvc-7.0.8.jar
 /hierograph-itest/io.hierograph.itest.image/jars/spring-websocket-7.0.8.jar
+
+# Local Maven settings template with real Proton Pass ids (never commit)
+/release/settings.xml.template.local

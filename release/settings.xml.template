@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  settings.xml.template — source for ~/.m2/settings.xml.
+
+  Secrets are NOT stored here. The pass://... placeholders are Proton
+  Pass secret references, resolved by `pass-cli inject` (see
+  setup-m2-settings.sh).
+
+  Reference format:  pass://VAULT/ITEM[/FIELD]
+    - VAULT  : the vault name or share id  (run: pass-cli vault list)
+    - ITEM   : the item name or id         (run: pass-cli item list for the vault)
+    - FIELD  : the field to read           (e.g. Username, Password, or a custom
+               hidden field name; omit to read the item's default secret)
+
+  The VAULT / CENTRAL_ITEM / GPG_ITEM placeholders below are generic on purpose
+  (real vault ids are not committed). Replace them with your own — ideally in a
+  local, git-ignored copy rather than editing this template in place.
+
+  Based on the Maven default settings.xml, enhanced for Hierograph releases
+  (see RELEASING.md):
+    * <server id="central"> — Central Publisher Portal token
+    * gpg-sign profile       — passphrase for the maven-gpg-plugin
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <!-- Local repository (default: ${user.home}/.m2/repository) -->
+  <!-- <localRepository>/path/to/local/repo</localRepository> -->
+
+  <!-- Whether Maven should attempt to interact with the user for input. -->
+  <interactiveMode>true</interactiveMode>
+
+  <!-- Whether Maven should use the plugin-registry.xml to manage plugin versions. -->
+  <usePluginRegistry>false</usePluginRegistry>
+
+  <!-- Whether Maven should operate in offline mode full-time. -->
+  <offline>false</offline>
+
+  <pluginGroups>
+    <!-- e.g. <pluginGroup>org.mortbay.jetty</pluginGroup> -->
+  </pluginGroups>
+
+  <proxies>
+    <!-- e.g.
+    <proxy>
+      <id>optional</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>proxy.somewhere.com</host>
+      <port>8080</port>
+      <nonProxyHosts>local.net|some.host.com</nonProxyHosts>
+    </proxy>
+    -->
+  </proxies>
+
+  <servers>
+    <!-- Central Publisher Portal token (server id expected by the POM). -->
+    <server>
+      <id>central</id>
+      <username>{{ pass://VAULT/CENTRAL_ITEM/Username }}</username>
+      <password>{{ pass://VAULT/CENTRAL_ITEM/Password }}</password>
+    </server>
+  </servers>
+
+  <mirrors>
+    <!-- e.g.
+    <mirror>
+      <id>mirrorId</id>
+      <mirrorOf>repositoryId</mirrorOf>
+      <name>Human Readable Name for this Mirror.</name>
+      <url>http://my.repository.com/repo/path</url>
+    </mirror>
+    -->
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>gpg-sign</id>
+      <properties>
+        <gpg.passphrase>{{ pass://VAULT/GPG_ITEM/Passphrase }}</gpg.passphrase>
+      </properties>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>gpg-sign</activeProfile>
+  </activeProfiles>
+</settings>

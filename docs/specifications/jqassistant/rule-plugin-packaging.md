@@ -157,7 +157,7 @@ jqassistant:
       version: 2.9.1
     - group-id: io.hierograph
       artifact-id: io.hierograph.jqassistant.rules
-      version: 0.1.0-SNAPSHOT
+      version: 0.1.0
   analyze:
     groups:
       - hierograph:virtual-external
@@ -199,7 +199,7 @@ A successful run shows the plugin in the scan list and applies every concept:
 
 ```
 Scanning for jQAssistant plugins...
-Hierograph jQAssistant Rules 0.1.0-SNAPSHOT [io.hierograph.jqassistant.rules]
+Hierograph jQAssistant Rules 0.1.0 [io.hierograph.jqassistant.rules]
 ...
 Executing group 'hierograph:virtual-external'
 Applying concept 'hierograph:VirtualExternalType' with severity: 'MINOR'.

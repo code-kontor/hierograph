@@ -6,7 +6,7 @@
 
     <groupId>io.hierograph</groupId>
     <artifactId>hierograph-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
 
     <name>Hierograph Parent</name>
@@ -35,17 +35,6 @@
         <developerConnection>scm:git:ssh://github.com:code-kontor/io.hierograph.git</developerConnection>
         <url>https://github.com/code-kontor/io.hierograph</url>
     </scm>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
 
     <properties>
         <java.version>21</java.version>
@@ -328,6 +317,87 @@ limitations under the License.]]></inlineHeader>
     </dependencyManagement>
 
     <profiles>
+        <!--
+            Maven Central release is opt-in: it is not part of the default build.
+            Activate with `-Prelease` (e.g. `mvn -Prelease deploy`) to attach the
+            -sources/-javadoc jars, GPG-sign every artifact, and upload to the
+            Central Publisher Portal. A non-SNAPSHOT version is required.
+
+            Credentials live outside the POM: ~/.m2/settings.xml must hold a
+            <server> with <id>central</id> (your Portal user token) and a published
+            GPG key (passphrase via gpg-agent or -Dgpg.passphrase=...).
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- -sources.jar (required by Central) -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- -javadoc.jar (required by Central). Dokka because this is
+                         Kotlin; maven-javadoc-plugin would produce an empty jar from
+                         .kt sources. -->
+                    <plugin>
+                        <groupId>org.jetbrains.dokka</groupId>
+                        <artifactId>dokka-maven-plugin</artifactId>
+                        <version>2.0.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadoc</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>javadocJar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- GPG-sign every artifact (.jar, -sources, -javadoc, .pom) -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.7</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Uploads to the Central Publisher Portal; replaces
+                         nexus-staging and the old distributionManagement deploy. -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.8.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- false = upload to a staged deployment you review and
+                                 click "Publish" on in the portal. Set true to auto-release. -->
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!--
             jQAssistant scan/analyze is opt-in: it is not part of the default build.
             Activate with `-Pjqassistant` (e.g. `mvn -Pjqassistant verify`) to run it.

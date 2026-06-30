@@ -16,7 +16,7 @@ This guide covers Maven-based projects. For a deeper look at how the pieces fit 
 - The Hierograph jQAssistant rules artifact (`io.hierograph:io.hierograph.jqassistant.rules`)
   available in your local Maven repository. The `.jqassistant.yml` in [Step 2.2](#22-create-jqassistantyml)
   references this plugin, and the scan fails to resolve it otherwise. It is currently published only
-  as `0.1.0-SNAPSHOT`, so build and install it from the Hierograph checkout first:
+  as `0.1.0`, so build and install it from the Hierograph checkout first:
   ```bash
   git clone https://github.com/code-kontor/io.hierograph.git
   cd io.hierograph
@@ -96,7 +96,7 @@ jqassistant:
       version: 2.9.1
     - group-id: io.hierograph
       artifact-id: io.hierograph.jqassistant.rules
-      version: 0.1.0-SNAPSHOT
+      version: 0.1.0
   analyze:
     groups:
       - hierograph:virtual-external
@@ -187,7 +187,7 @@ Then run it, exposing the HTTP port and pointing it at the jQAssistant Bolt stor
 ```bash
 docker run --rm -p 8080:8080 \
   -e HIEROGRAPH_BOLT_URI=bolt://host.docker.internal:7687 \
-  io.hierograph.mcp.server:0.1.0-SNAPSHOT
+  io.hierograph.mcp.server:0.1.0
 ```
 
 The store from [Step 4](#step-4-start-the-jqassistant-server) runs on your **host**, but inside the
