@@ -14,7 +14,7 @@
     <artifactId>hierograph-itest</artifactId>
     <packaging>pom</packaging>
 
-    <name>Hierograph Integratin Tests</name>
+    <name>Hierograph Integration Test Aggregator</name>
     <description>Hierograph integration test implementation.</description>
 
     <profiles>

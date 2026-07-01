@@ -10,6 +10,7 @@
         <relativePath>../../hierograph-parent/pom.xml</relativePath>
     </parent>
 
+    <name>Hierograph Integration Test Example Image</name>
     <artifactId>io.hierograph.itest.image</artifactId>
     <packaging>pom</packaging>
 
