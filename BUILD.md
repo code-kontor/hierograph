@@ -96,17 +96,17 @@ mvn -o -Pjqassistant verify
 After a successful build, the runnable server jar is at:
 
 ```
-hierograph-mcp/io.hierograph.mcp.server/target/io.hierograph.mcp.server-0.1.0-exec.jar
+hierograph-mcp/io.hierograph.mcp.server/target/io.hierograph.mcp.server-0.2.0-SNAPSHOT-exec.jar
 ```
 
 Run it with:
 
 ```bash
-java -jar hierograph-mcp/io.hierograph.mcp.server/target/io.hierograph.mcp.server-0.1.0-exec.jar
+java -jar hierograph-mcp/io.hierograph.mcp.server/target/io.hierograph.mcp.server-0.2.0-SNAPSHOT-exec.jar
 ```
 
 > The repackaged (self-contained) jar carries the `exec` classifier so the plain
-> `io.hierograph.mcp.server-0.1.0.jar` remains the module's main artifact —
+> `io.hierograph.mcp.server-0.2.0-SNAPSHOT.jar` remains the module's main artifact —
 > downstream modules (e.g. the integration tests) compile against the server's classes,
 > which a Spring Boot fat jar hides under `BOOT-INF/classes`.
 
@@ -138,7 +138,7 @@ mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker package -DskipTests
 This produces the image:
 
 ```
-ghcr.io/code-kontor/hierograph-mcp-server:0.1.0
+ghcr.io/code-kontor/hierograph-mcp-server:0.2.0-SNAPSHOT
 ```
 
 The image is built from the `Dockerfile` next to the server module (`eclipse-temurin:21-jre` over the
@@ -153,7 +153,7 @@ The server listens on port `8080` and connects to a jQAssistant/Neo4j store over
 ```bash
 docker run --rm -p 8080:8080 \
   -e HIEROGRAPH_BOLT_URI=bolt://host.docker.internal:7687 \
-  ghcr.io/code-kontor/hierograph-mcp-server:0.1.0
+  ghcr.io/code-kontor/hierograph-mcp-server:0.2.0-SNAPSHOT
 ```
 
 (`host.docker.internal` reaches a store running on the host; use the appropriate hostname when the

@@ -10,7 +10,7 @@ jqassistant:
       version: 2.9.1
     - group-id: io.hierograph
       artifact-id: io.hierograph.jqassistant.rules
-      version: 0.1.0
+      version: 0.2.0-SNAPSHOT
   analyze:
     groups:
       - hierograph:virtual-external

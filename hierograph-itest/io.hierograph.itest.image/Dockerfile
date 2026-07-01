@@ -20,7 +20,7 @@ FROM jqassistant AS builder
 ARG SPRING_VERSION=7.0.8
 ARG RULES_GROUP=io.hierograph
 ARG RULES_ARTIFACT=io.hierograph.jqassistant.rules
-ARG RULES_VERSION=0.1.0
+ARG RULES_VERSION=0.2.0-SNAPSHOT
 
 # Download Spring Framework jars from Maven Central
 COPY download-jars.sh /usr/local/bin/download-jars.sh
