@@ -187,7 +187,7 @@ Then run it, exposing the HTTP port and pointing it at the jQAssistant Bolt stor
 ```bash
 docker run --rm -p 8080:8080 \
   -e HIEROGRAPH_BOLT_URI=bolt://host.docker.internal:7687 \
-  io.hierograph.mcp.server:0.1.0
+  ghcr.io/code-kontor/hierograph-mcp-server:0.1.0
 ```
 
 The store from [Step 4](#step-4-start-the-jqassistant-server) runs on your **host**, but inside the
