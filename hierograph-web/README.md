@@ -22,6 +22,8 @@ pnpm dev        # dev server on http://localhost:3080
 | Script                | What it does                                               |
 | --------------------- | ---------------------------------------------------------- |
 | `pnpm dev`            | Start the Vite dev server (port 3080)                      |
+| `pnpm codegen`        | Run GraphQL Code Generator (client preset) once            |
+| `pnpm codegen:watch`  | Run GraphQL Code Generator in watch mode                   |
 | `pnpm build`          | Type-check (`tsc`) and create a production build (`dist/`) |
 | `pnpm preview`        | Serve the production build locally                         |
 | `pnpm lint`           | Run ESLint                                                 |
@@ -29,6 +31,22 @@ pnpm dev        # dev server on http://localhost:3080
 | `pnpm check:ts`       | Type-check only                                            |
 | `pnpm check:lint`     | ESLint only (no fix)                                       |
 | `pnpm check:prettier` | Prettier check only (no write)                             |
+
+## GraphQL
+
+The app talks to the hierograph GraphQL API via the relative path `/graphql`.
+The Vite dev server proxies `/graphql` to the MCP server — default target
+`http://localhost:8080`, override with `VITE_GRAPHQL_PROXY_TARGET` (e.g. in
+`.env.local`).
+
+Typed documents are generated with GraphQL Code Generator (`client-preset`)
+from the SDL files in
+`../hierograph-mcp/io.hierograph.graphql/src/main/resources/graphql/` into
+`src/generated/graphql/` (committed — do not edit by hand). After adding or changing a
+`graphql()` document, run `pnpm codegen` (or keep `pnpm codegen:watch`
+running). Note: the schema is pre-processed in `codegen.ts` (empty type
+bodies are stripped for graphql-js); schema changes require a codegen re-run
+or watch restart.
 
 ## UI components
 

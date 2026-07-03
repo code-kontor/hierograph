@@ -1,3 +1,4 @@
+import { RootNodeCard } from "@/components/RootNodeCard";
 import { Button } from "@/components/ui/button";
 
 export default function App() {
@@ -8,6 +9,7 @@ export default function App() {
         Frontend scaffold — Vite, React, Tailwind CSS, shadcn/ui
       </p>
       <Button>Get started</Button>
+      <RootNodeCard />
     </main>
   );
 }
