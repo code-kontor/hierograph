@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { DependencyMatrix } from "@/components/dsm/DependencyMatrix";
 import { HierarchyTree } from "@/components/hierarchy/HierarchyTree";
 import { NodeDetails } from "@/components/hierarchy/NodeDetails";
 import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
@@ -21,9 +22,7 @@ function DependenciesView() {
         }
         topRight={
           <Pane title="Dependency Overview">
-            <p className="text-muted-foreground text-sm">
-              TODO: Dependency Overview
-            </p>
+            <DependencyMatrix />
           </Pane>
         }
         bottom={

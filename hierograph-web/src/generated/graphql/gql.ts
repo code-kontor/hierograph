@@ -14,11 +14,13 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  query NodeAdjacencyMatrix($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          orderedAdjacencyMatrix {\n            orderedNodes {\n              id\n              text\n              type\n            }\n            cells {\n              row\n              column\n              value\n            }\n            stronglyConnectedComponents {\n              nodePositions\n            }\n          }\n        }\n      }\n    }\n  }\n": typeof types.NodeAdjacencyMatrixDocument,
     "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n        hasChildren\n      }\n    }\n  }\n": typeof types.RootNodeDocument,
     "\n  query NodeChildren($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          nodes {\n            id\n            text\n            type\n            hasChildren\n          }\n        }\n      }\n    }\n  }\n": typeof types.NodeChildrenDocument,
     "\n  query NodeDetail($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        text\n        type\n        properties {\n          key\n          value\n        }\n      }\n    }\n  }\n": typeof types.NodeDetailDocument,
 };
 const documents: Documents = {
+    "\n  query NodeAdjacencyMatrix($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          orderedAdjacencyMatrix {\n            orderedNodes {\n              id\n              text\n              type\n            }\n            cells {\n              row\n              column\n              value\n            }\n            stronglyConnectedComponents {\n              nodePositions\n            }\n          }\n        }\n      }\n    }\n  }\n": types.NodeAdjacencyMatrixDocument,
     "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n        hasChildren\n      }\n    }\n  }\n": types.RootNodeDocument,
     "\n  query NodeChildren($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          nodes {\n            id\n            text\n            type\n            hasChildren\n          }\n        }\n      }\n    }\n  }\n": types.NodeChildrenDocument,
     "\n  query NodeDetail($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        text\n        type\n        properties {\n          key\n          value\n        }\n      }\n    }\n  }\n": types.NodeDetailDocument,
@@ -38,6 +40,10 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query NodeAdjacencyMatrix($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          orderedAdjacencyMatrix {\n            orderedNodes {\n              id\n              text\n              type\n            }\n            cells {\n              row\n              column\n              value\n            }\n            stronglyConnectedComponents {\n              nodePositions\n            }\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query NodeAdjacencyMatrix($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          orderedAdjacencyMatrix {\n            orderedNodes {\n              id\n              text\n              type\n            }\n            cells {\n              row\n              column\n              value\n            }\n            stronglyConnectedComponents {\n              nodePositions\n            }\n          }\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
