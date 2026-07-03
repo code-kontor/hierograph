@@ -24,7 +24,6 @@ pnpm dev        # dev server on http://localhost:3080
 | `pnpm dev`            | Start the Vite dev server (port 3080)                      |
 | `pnpm build`          | Type-check (`tsc`) and create a production build (`dist/`) |
 | `pnpm preview`        | Serve the production build locally                         |
-| `pnpm test`           | Run tests with Vitest (jsdom, Testing Library)             |
 | `pnpm lint`           | Run ESLint                                                 |
 | `pnpm check`          | Prettier write + ESLint fix + type-check (modifies files)  |
 | `pnpm check:ts`       | Type-check only                                            |

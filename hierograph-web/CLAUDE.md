@@ -37,15 +37,6 @@ Achtung: verändert Dateien (Auto-Fix).
 - `check:prettier`: prüft nur Formatierungsfehler (Prettier)
 - `check:lint`: prüft nur Linting-Regeln (ESLint)
 
-## Testing
-
-Vitest mit einem Projekt `unit` (konfiguriert in `vite.config.ts` unter
-`test.projects`): jsdom, `@testing-library/react`, jest-dom-Matcher
-(registriert via `src/test-setup.ts`), Dateimuster `*.test.ts(x)`.
-
-- `pnpm test` — im interaktiven Terminal Watch-Mode; ohne TTY / mit `CI` läuft
-  Vitest einmalig durch. Einmaliger Lauf explizit: `pnpm exec vitest run`.
-
 ## Wichtige Patterns: TanStack Query
 
 (Gilt ab der GraphQL-Anbindung — TanStack Query ist Teil des entschiedenen
