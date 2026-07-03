@@ -1,9 +1,9 @@
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
 import { GraphQLClient } from "graphql-request";
 
-// graphql-request v7 gibt den Endpoint an `new URL(...)` — ein relativer Pfad
-// wie "/graphql" ist ohne Basis keine gültige URL. Deshalb hier gegen den
-// aktuellen Origin auflösen; der Pfad bleibt relativ gemeint (Dev-Proxy).
+// graphql-request v7 passes the endpoint to `new URL(...)` — a relative path
+// like "/graphql" is not a valid URL without a base. So resolve it against the
+// current origin here; the path stays relative in intent (dev proxy).
 const graphqlClient = new GraphQLClient(
   new URL("/graphql", window.location.origin).toString(),
 );
