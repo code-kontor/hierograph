@@ -77,3 +77,4 @@ out/
 .claude/skills/hierograph-bootstrap
 .claude/skills/hierograph-rescan
 .claude/skills/layered-dependency-graph
+hierograph-mcp/io.hierograph.mcp.server/hierarchical-graph.txt
