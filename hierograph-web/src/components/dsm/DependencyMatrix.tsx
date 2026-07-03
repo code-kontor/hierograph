@@ -1,15 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { dsmQueryOptions } from "@/queries/dsm";
+import type { NodeAdjacencyMatrixQuery } from "@/generated/graphql/graphql";
+import { dsmQueryOptions, nodesDsmQueryOptions } from "@/queries/dsm";
 
 import { useSelection } from "../hierarchy/SelectionContext";
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 
-export function DependencyMatrix() {
-  const { focusedId } = useSelection();
+type MatrixData = NonNullable<
+  NonNullable<NodeAdjacencyMatrixQuery["hierarchicalGraph"]>["node"]
+>["children"]["orderedAdjacencyMatrix"];
 
-  if (focusedId == null) {
+export function DependencyMatrix() {
+  const { selectedIds } = useSelection();
+
+  if (selectedIds.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
         Select a node to view its dependency matrix.
@@ -17,10 +22,18 @@ export function DependencyMatrix() {
     );
   }
 
-  return <DependencyMatrixInner id={focusedId} />;
+  if (selectedIds.length === 1) {
+    return <SingleNodeMatrix id={selectedIds[0]} />;
+  }
+
+  return <MultiNodeMatrix ids={selectedIds} />;
 }
 
-type DependencyMatrixInnerProps = { id: string };
+type SingleNodeMatrixProps = { id: string };
+
+type MultiNodeMatrixProps = { ids: string[] };
+
+type MatrixViewProps = { matrix: MatrixData | undefined };
 
 type DependencyStatusLineProps = { selection: DsmCellSelection | undefined };
 
@@ -34,14 +47,8 @@ function DependencyStatusLine({ selection }: DependencyStatusLineProps) {
   );
 }
 
-function DependencyMatrixInner({ id }: DependencyMatrixInnerProps) {
+function SingleNodeMatrix({ id }: SingleNodeMatrixProps) {
   const { data, isPending, isError } = useQuery(dsmQueryOptions(id));
-  const [hovered, setHovered] = useState<DsmCellSelection | undefined>(
-    undefined,
-  );
-  const [selectedCell, setSelectedCell] = useState<
-    DsmCellSelection | undefined
-  >(undefined);
 
   if (isPending) {
     return (
@@ -60,6 +67,40 @@ function DependencyMatrixInner({ id }: DependencyMatrixInnerProps) {
   }
 
   const matrix = data.hierarchicalGraph?.node?.children?.orderedAdjacencyMatrix;
+  return <MatrixView matrix={matrix} />;
+}
+
+function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
+  const { data, isPending, isError } = useQuery(nodesDsmQueryOptions(ids));
+
+  if (isPending) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Loading dependency matrix…
+      </p>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="text-destructive text-sm">
+        Could not load dependency matrix.
+      </p>
+    );
+  }
+
+  const matrix = data.hierarchicalGraph?.nodes?.orderedAdjacencyMatrix;
+  return <MatrixView matrix={matrix} />;
+}
+
+function MatrixView({ matrix }: MatrixViewProps) {
+  const [hovered, setHovered] = useState<DsmCellSelection | undefined>(
+    undefined,
+  );
+  const [selectedCell, setSelectedCell] = useState<
+    DsmCellSelection | undefined
+  >(undefined);
+
   const orderedNodes = matrix?.orderedNodes ?? [];
 
   if (orderedNodes.length === 0) {

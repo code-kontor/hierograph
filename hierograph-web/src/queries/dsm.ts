@@ -38,3 +38,37 @@ export function dsmQueryOptions(id: string) {
     },
   });
 }
+
+const nodesDsmQuery = graphql(`
+  query NodesAdjacencyMatrix($ids: [ID!]!) {
+    hierarchicalGraph {
+      nodes(ids: $ids) {
+        orderedAdjacencyMatrix {
+          orderedNodes {
+            id
+            text
+            type
+          }
+          cells {
+            row
+            column
+            value
+          }
+          stronglyConnectedComponents {
+            nodePositions
+          }
+        }
+      }
+    }
+  }
+`);
+
+export function nodesDsmQueryOptions(ids: string[]) {
+  const sortedIds = [...ids].sort();
+  return queryOptions({
+    queryKey: ["hierarchicalGraph", "nodes", sortedIds, "dsm"],
+    async queryFn() {
+      return execute(nodesDsmQuery, { ids: sortedIds });
+    },
+  });
+}
