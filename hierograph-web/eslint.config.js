@@ -15,6 +15,7 @@ export default defineConfig([
     "eslint.config.js",
     "prettier.config.js",
     "src/generated/graphql",
+    "src/routeTree.gen.ts",
   ]),
   {
     files: ["**/*.{ts,tsx}"],

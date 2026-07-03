@@ -2,3 +2,4 @@ dist
 coverage
 pnpm-lock.yaml
 src/generated/graphql
+src/routeTree.gen.ts
