@@ -76,3 +76,20 @@ onSuccess: (_data, _vars, _result, context) => {
   ]);
 };
 ```
+
+## GraphQL
+
+- Endpoint: fest relativ `/graphql` (Dev-Proxy auf den MCP-Server, Ziel per
+  `VITE_GRAPHQL_PROXY_TARGET` übersteuerbar — siehe `vite.config.ts`).
+- GraphQL-Dokumente inline mit `graphql()` aus `@/generated/graphql` schreiben;
+  keine separaten `.graphql`-Dateien.
+- Query-Module unter `src/queries/`: Dokument + `queryOptions`-Factory im
+  selben Modul; Komponenten importieren nur die Factory
+  (`useQuery(rootNodeQueryOptions())`). Variablen als Factory-Parameter, sie
+  gehören in den `queryKey`. Requests über `execute()` aus
+  `src/lib/graphql-client.ts`.
+- Generierter Code liegt in `src/generated/graphql/` (committed; von ESLint/Prettier
+  ausgenommen, von tsc geprüft) — **nie von Hand editieren**. Nach jedem
+  neuen/geänderten Dokument: erst `pnpm codegen`, dann Typecheck
+  (`pnpm codegen:watch` für laufende Arbeit; Schema-Änderungen erfordern
+  einen Watch-Neustart).

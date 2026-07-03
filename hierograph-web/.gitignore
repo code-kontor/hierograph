@@ -2,3 +2,5 @@ node_modules
 dist
 coverage
 tsconfig.tsbuildinfo
+.env.local
+.env.*.local

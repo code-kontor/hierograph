@@ -10,7 +10,12 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "eslint.config.js", "prettier.config.js"]),
+  globalIgnores([
+    "dist",
+    "eslint.config.js",
+    "prettier.config.js",
+    "src/generated/graphql",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
