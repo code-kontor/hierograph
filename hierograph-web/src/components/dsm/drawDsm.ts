@@ -61,6 +61,7 @@ function drawVerticalBar(
   sccNodePositions: number[],
   markerSizes: DsmMarkerSizes,
   mark: boolean,
+  formatLabel: (text: string) => string,
 ): void {
   ctx.save();
 
@@ -128,7 +129,7 @@ function drawVerticalBar(
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(
-    labels[y].text,
+    formatLabel(labels[y].text),
     (BOX_SIZE - 18) / 2,
     horizontalSideMarkerHeight + verticalSliceSize(y) + BOX_SIZE / 2,
   );
@@ -143,6 +144,7 @@ function drawHorizontalBar(
   sccNodePositions: number[],
   markerSizes: DsmMarkerSizes,
   mark: boolean,
+  formatLabel: (text: string) => string,
 ): void {
   ctx.save();
 
@@ -211,7 +213,7 @@ function drawHorizontalBar(
   ctx.font = FONT;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(labels[x].text, 0, 0);
+  ctx.fillText(formatLabel(labels[x].text), 0, 0);
 
   ctx.restore();
 }
@@ -375,6 +377,7 @@ export function drawDsmOverlay(
   canvas: HTMLCanvasElement,
   { labels, sccs, hover, selected }: DsmOverlayInput,
   markerSizes: DsmMarkerSizes,
+  formatLabel: (text: string) => string,
 ): void {
   const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
   canvas.width = width;
@@ -392,7 +395,15 @@ export function drawDsmOverlay(
     const sccNodePositions = sccs.flatMap((s) => s.nodePositions);
     markCell(ctx, hover.x, hover.y, false, markerSizes, sccs);
     markCell(ctx, hover.y, hover.x, false, markerSizes, sccs);
-    drawVerticalBar(hover.y, ctx, labels, sccNodePositions, markerSizes, true);
+    drawVerticalBar(
+      hover.y,
+      ctx,
+      labels,
+      sccNodePositions,
+      markerSizes,
+      true,
+      formatLabel,
+    );
     drawHorizontalBar(
       hover.x,
       ctx,
@@ -400,6 +411,7 @@ export function drawDsmOverlay(
       sccNodePositions,
       markerSizes,
       true,
+      formatLabel,
     );
   }
 
@@ -412,6 +424,7 @@ export function drawDsm(
   canvas: HTMLCanvasElement,
   { labels, cells, sccs }: DsmData,
   markerSizes: DsmMarkerSizes,
+  formatLabel: (text: string) => string,
 ): void {
   const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
 
@@ -428,10 +441,26 @@ export function drawDsm(
   const sccNodePositions = sccs.flatMap((s) => s.nodePositions);
 
   for (let i = 0; i < labels.length; i++) {
-    drawHorizontalBar(i, ctx, labels, sccNodePositions, markerSizes, false);
+    drawHorizontalBar(
+      i,
+      ctx,
+      labels,
+      sccNodePositions,
+      markerSizes,
+      false,
+      formatLabel,
+    );
   }
   for (let i = 0; i < labels.length; i++) {
-    drawVerticalBar(i, ctx, labels, sccNodePositions, markerSizes, false);
+    drawVerticalBar(
+      i,
+      ctx,
+      labels,
+      sccNodePositions,
+      markerSizes,
+      false,
+      formatLabel,
+    );
   }
   drawMatrix(ctx, labels, cells, sccs, markerSizes);
 }

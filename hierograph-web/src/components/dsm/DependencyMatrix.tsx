@@ -1,11 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { twMerge } from "tailwind-merge";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { NodeAdjacencyMatrixQuery } from "@/generated/graphql/graphql";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { dsmQueryOptions, nodesDsmQueryOptions } from "@/queries/dsm";
 
 import { useSelection } from "../hierarchy/SelectionContext";
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
+import {
+  LABEL_FORMAT_OPTIONS,
+  LABEL_FORMAT_STORAGE_KEY,
+  type LabelFormat,
+} from "./labelFormat";
 
 type MatrixData = NonNullable<
   NonNullable<NodeAdjacencyMatrixQuery["hierarchicalGraph"]>["node"]
@@ -35,15 +49,50 @@ type MultiNodeMatrixProps = { ids: string[] };
 
 type MatrixViewProps = { matrix: MatrixData | undefined };
 
-type DependencyStatusLineProps = { selection: DsmCellSelection | undefined };
+type DependencyFromToProps = { selection: DsmCellSelection | undefined };
 
-function DependencyStatusLine({ selection }: DependencyStatusLineProps) {
+function DependencyFromTo({ selection }: DependencyFromToProps) {
   return (
-    <p className="text-muted-foreground px-1 py-1 text-sm">
-      {selection
-        ? `${selection.sourceLabel.text} → ${selection.targetLabel.text} · weight ${selection.value}`
-        : "Hover or select a cell to inspect a dependency."}
-    </p>
+    <div className="text-muted-foreground min-w-0 flex-1 text-sm">
+      <div className="flex min-w-0">
+        <span className="shrink-0">From:&nbsp;</span>
+        <span className={twMerge("min-w-0 truncate")}>
+          {selection?.sourceLabel.text ?? "—"}
+        </span>
+      </div>
+      <div className="flex min-w-0">
+        <span className="shrink-0">To:&nbsp;</span>
+        <span className={twMerge("min-w-0 truncate")}>
+          {selection?.targetLabel.text ?? "—"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+type LabelFormatSelectProps = {
+  value: LabelFormat;
+  onChange: (value: LabelFormat) => void;
+};
+
+function LabelFormatSelect({ value, onChange }: LabelFormatSelectProps) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-44 shrink-0">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={LABEL_FORMAT_OPTIONS[0].value}>
+          {LABEL_FORMAT_OPTIONS[0].label}
+        </SelectItem>
+        <SelectItem value={LABEL_FORMAT_OPTIONS[1].value}>
+          {LABEL_FORMAT_OPTIONS[1].label}
+        </SelectItem>
+        <SelectItem value={LABEL_FORMAT_OPTIONS[2].value}>
+          {LABEL_FORMAT_OPTIONS[2].label}
+        </SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -100,6 +149,15 @@ function MatrixView({ matrix }: MatrixViewProps) {
   const [selectedCell, setSelectedCell] = useState<
     DsmCellSelection | undefined
   >(undefined);
+  const [storedFormat, setLabelFormat] = useLocalStorage<string>(
+    LABEL_FORMAT_STORAGE_KEY,
+    "full",
+  );
+  const labelFormat: LabelFormat = LABEL_FORMAT_OPTIONS.some(
+    (o) => o.value === storedFormat,
+  )
+    ? (storedFormat as LabelFormat)
+    : "full";
 
   const orderedNodes = matrix?.orderedNodes ?? [];
 
@@ -117,12 +175,16 @@ function MatrixView({ matrix }: MatrixViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <DependencyStatusLine selection={display} />
+      <div className="flex items-start gap-2 px-1 py-1">
+        <DependencyFromTo selection={display} />
+        <LabelFormatSelect value={labelFormat} onChange={setLabelFormat} />
+      </div>
       <div className="overflow-auto">
         <DsmCanvas
           labels={orderedNodes}
           cells={cells}
           sccs={sccs}
+          labelFormat={labelFormat}
           onHoverCell={setHovered}
           onSelectCell={setSelectedCell}
         />
