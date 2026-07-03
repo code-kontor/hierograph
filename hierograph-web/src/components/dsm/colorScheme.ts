@@ -14,3 +14,9 @@ export const getCycleSideMarkerSeparatorColor = () => "#C37D64";
 export const getSideMarkerBackgroundColor = () => "#FFF3D3";
 export const getSideMarkerTextColor = () => "#000000";
 export const getSideMarkerSeparatorColor = () => "#DEC585";
+
+export const getSideMarkerMarkedColor = () => "#DEC585";
+export const getCycleSideMarkerMarkedColor = () => "#C37D64";
+export const getMatrixMarkedCellColor = () => "#DEC585";
+export const getCycleMatrixMarkedCellColor = () => "#B85E3D";
+export const getSelectedCellColor = () => "#000000";
