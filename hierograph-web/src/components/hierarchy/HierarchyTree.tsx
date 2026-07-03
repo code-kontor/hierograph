@@ -58,9 +58,9 @@ function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
   const queryClient = useQueryClient();
   const { setSelectedIds, setFocusedId } = useSelection();
 
-  // Item-Datencache: headless-tree fragt `getItem(id)` synchron-artig; die
-  // vollständigen NodeData landen hier, sobald der Elternknoten geladen wurde.
-  // Root wird vorgeseedet — sonst gäbe es einen Miss beim ersten Render.
+  // Item data cache: headless-tree queries `getItem(id)` in a synchronous-ish
+  // way; the full NodeData lands here once the parent node has been loaded.
+  // Root is pre-seeded — otherwise there would be a miss on the first render.
   const itemData = useRef<Map<string, NodeData>>(
     new Map([[rootNode.id, rootNode]]),
   );
@@ -71,8 +71,9 @@ function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
     rootItemId: rootNode.id,
     getItemName: (item) => item.getItemData().text,
     isItemFolder: (item) => item.getItemData().hasChildren,
-    // Solange getItem(id) async lädt, gäbe getItemData() sonst null zurück
-    // (asyncDataLoaderFeature) — dieser Platzhalter überbrückt den Lade-Tick.
+    // While getItem(id) loads asynchronously, getItemData() would otherwise
+    // return null (asyncDataLoaderFeature) — this placeholder bridges the
+    // loading tick.
     createLoadingItemData: () => ({
       id: "",
       text: "Loading…",
@@ -106,8 +107,9 @@ function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
     features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
   });
 
-  // Selektions-Output: Tree spiegelt die Selektion in den Context (Design-Intent:
-  // Tree ist controlled gegen selectedIds, spätere Eingangs-Markierung fällt ab).
+  // Selection output: the tree mirrors the selection into the context (design
+  // intent: the tree is controlled against selectedIds, later inbound marking
+  // is dropped).
   useEffect(() => {
     setSelectedIds(state.selectedItems ?? []);
   }, [state.selectedItems, setSelectedIds]);

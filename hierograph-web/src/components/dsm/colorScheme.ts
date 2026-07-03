@@ -1,6 +1,6 @@
-// TODO: Theme-Tokens / Dark-Mode (Tailwind v4 / shadcn CSS-Variablen) sind
-// ein benannter Nachzieh-Punkt — bewusst NICHT Teil von #0006. Diese feste
-// Hex-Palette (slizaa Light) wird später durch tokenbasierte Farben ersetzt.
+// TODO: theme tokens / dark mode (Tailwind v4 / shadcn CSS variables) are a
+// named follow-up — deliberately NOT part of #0006. This fixed hex palette
+// (slizaa Light) will later be replaced by token-based colors.
 
 export const getMatrixBackgroundColor = () => "#FFF3D3";
 export const getMatrixDiagonalColor = () => "#FFEAB2";

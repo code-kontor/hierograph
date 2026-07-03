@@ -1,52 +1,60 @@
 # hierograph-web
 
-React + Vite + TypeScript (strict) + Tailwind CSS v4 + shadcn/ui. Alle Befehle
-aus diesem Verzeichnis (`hierograph-web/`) heraus ausführen. Package Manager:
-pnpm (via Corepack, `packageManager`-Feld in `package.json`).
+React + Vite + TypeScript (strict) + Tailwind CSS v4 + shadcn/ui. Run all
+commands from this directory (`hierograph-web/`). Package manager: pnpm (via
+Corepack, `packageManager` field in `package.json`).
 
-shadcn/ui-Komponenten liegen in `src/components/ui/` (generiert via
+shadcn/ui components live in `src/components/ui/` (generated via
 `pnpm dlx shadcn@latest add <component>`).
+
+## Language & commit policy
+
+- **Everything in `hierograph-web` is written in English** — code comments,
+  identifiers, commit messages, and documentation (including this CLAUDE.md and
+  the README). No German in this subproject.
+- **Never add a `Co-Authored-By` trailer to commits** touching
+  `hierograph-web` (nor any other trailer attributing the change to an AI).
+  Commits stay single-line subject only.
 
 ## Code Style
 
-- Als Props für React-Komponenten immer ein Objekt mit eigenem benannten Typ
-  verwenden, nie einen Inline-Typ
-  - EIGENER TYP: `type MyComponentProps = { label: string }; function MyComponent({label}: MyComponentProps) { /* ... */ }`
-  - NICHT: `function MyComponent({label}: {label: string}) { /* ... */ }`
-- Für Typ-Deklarationen `type` statt `interface` verwenden
-- Kein `void` vor einem Funktionsaufruf
-  - NICHT: `void queryClient.invalidateQueries({ queryKey: ["posts"] });`
-- Statt zusammengesetzter CSS-Klassennamen mit Template Strings `twMerge`
-  verwenden
-  - NICHT: ``className={`btn-submit ${isSuccess ? "success" : ""}`}``
-  - MIT TWMERGE: `className={twMerge("btn-submit", isSuccess && "success")}`
-- Kein inline-Array mit `.map()` in JSX — Komponenten explizit ausschreiben
-  statt dynamisch erzeugen
-  - NICHT: `{(['a', 'b'] as const).map(x => <Item key={x} value={x} />)}`
-  - STATTDESSEN: `<Item value="a" /><Item value="b" />`
+- For React component props always use an object with its own named type, never
+  an inline type
+  - OWN TYPE: `type MyComponentProps = { label: string }; function MyComponent({label}: MyComponentProps) { /* ... */ }`
+  - NOT: `function MyComponent({label}: {label: string}) { /* ... */ }`
+- Use `type` instead of `interface` for type declarations
+- No `void` in front of a function call
+  - NOT: `void queryClient.invalidateQueries({ queryKey: ["posts"] });`
+- Instead of composing CSS class names with template strings, use `twMerge`
+  - NOT: ``className={`btn-submit ${isSuccess ? "success" : ""}`}``
+  - WITH TWMERGE: `className={twMerge("btn-submit", isSuccess && "success")}`
+- No inline array with `.map()` in JSX — write components out explicitly
+  instead of generating them dynamically
+  - NOT: `{(['a', 'b'] as const).map(x => <Item key={x} value={x} />)}`
+  - INSTEAD: `<Item value="a" /><Item value="b" />`
 
-## Überprüfen vom Code und Code Style
+## Checking code and code style
 
-**Nach dem Erzeugen und Ändern von Code:** `pnpm check` ausführen — formatiert
-mit Prettier, fixt ESLint-Probleme und prüft anschließend Typ-Fehler (tsc).
-Achtung: verändert Dateien (Auto-Fix).
+**After creating or changing code:** run `pnpm check` — it formats with
+Prettier, fixes ESLint problems, and then checks for type errors (tsc). Note:
+it modifies files (auto-fix).
 
-**Verfügbare Einzel-Skripte (nur prüfend, ohne Auto-Fix):**
+**Available single scripts (check-only, no auto-fix):**
 
-- `check:ts`: prüft nur Typ-Fehler (tsc)
-- `check:prettier`: prüft nur Formatierungsfehler (Prettier)
-- `check:lint`: prüft nur Linting-Regeln (ESLint)
+- `check:ts`: checks type errors only (tsc)
+- `check:prettier`: checks formatting only (Prettier)
+- `check:lint`: checks linting rules only (ESLint)
 
-## Wichtige Patterns: TanStack Query
+## Important patterns: TanStack Query
 
-(Gilt ab der GraphQL-Anbindung — TanStack Query ist Teil des entschiedenen
-Stacks.)
+(Applies from the GraphQL integration onward — TanStack Query is part of the
+decided stack.)
 
-`queryFn` in `queryOptions` als **Methode** schreiben, nicht als
-Pfeil-Funktion-Property:
+Write `queryFn` in `queryOptions` as a **method**, not as an arrow-function
+property:
 
 ```ts
-// ✅ richtig
+// ✅ correct
 queryOptions({
   queryKey: ["posts", "list"],
   async queryFn() {
@@ -54,7 +62,7 @@ queryOptions({
   },
 });
 
-// ❌ falsch
+// ❌ wrong
 queryOptions({
   queryKey: ["posts", "list"],
   queryFn: async () => {
@@ -63,10 +71,10 @@ queryOptions({
 });
 ```
 
-In `onSuccess` von `useMutation` den Query Client über den Context
-(4. Methodenparameter) holen, nicht über `useQueryClient`. Das Promise von
-`invalidateQueries` aus `onSuccess` zurückgeben; bei mehreren Aufrufen die
-Promises mit `Promise.all` zusammenfassen:
+In `onSuccess` of `useMutation`, get the query client from the context (4th
+method parameter), not via `useQueryClient`. Return the promise of
+`invalidateQueries` from `onSuccess`; when calling it multiple times, combine
+the promises with `Promise.all`:
 
 ```ts
 onSuccess: (_data, _vars, _result, context) => {
@@ -79,31 +87,29 @@ onSuccess: (_data, _vars, _result, context) => {
 
 ## GraphQL
 
-- Endpoint: fest relativ `/graphql` (Dev-Proxy auf den MCP-Server, Ziel per
-  `VITE_GRAPHQL_PROXY_TARGET` übersteuerbar — siehe `vite.config.ts`).
-- GraphQL-Dokumente inline mit `graphql()` aus `@/generated/graphql` schreiben;
-  keine separaten `.graphql`-Dateien.
-- Query-Module unter `src/queries/`: Dokument + `queryOptions`-Factory im
-  selben Modul; Komponenten importieren nur die Factory
-  (`useQuery(rootNodeQueryOptions())`). Variablen als Factory-Parameter, sie
-  gehören in den `queryKey`. Requests über `execute()` aus
+- Endpoint: fixed relative `/graphql` (dev proxy to the MCP server, target
+  overridable via `VITE_GRAPHQL_PROXY_TARGET` — see `vite.config.ts`).
+- Write GraphQL documents inline with `graphql()` from `@/generated/graphql`;
+  no separate `.graphql` files.
+- Query modules under `src/queries/`: document + `queryOptions` factory in the
+  same module; components import only the factory
+  (`useQuery(rootNodeQueryOptions())`). Variables as factory parameters — they
+  belong in the `queryKey`. Requests go through `execute()` from
   `src/lib/graphql-client.ts`.
-- Generierter Code liegt in `src/generated/graphql/` (committed; von ESLint/Prettier
-  ausgenommen, von tsc geprüft) — **nie von Hand editieren**. Nach jedem
-  neuen/geänderten Dokument: erst `pnpm codegen`, dann Typecheck
-  (`pnpm codegen:watch` für laufende Arbeit; Schema-Änderungen erfordern
-  einen Watch-Neustart).
+- Generated code lives in `src/generated/graphql/` (committed; excluded from
+  ESLint/Prettier, checked by tsc) — **never edit by hand**. After each
+  new/changed document: first `pnpm codegen`, then typecheck
+  (`pnpm codegen:watch` for ongoing work; schema changes require a watch
+  restart).
 
 ## Routing (TanStack Router, file-based)
 
-- Der generierte Route-Tree `src/routeTree.gen.ts` wird **nie** von Hand
-  erstellt oder editiert (committed; von ESLint/Prettier ausgenommen, von tsc
-  geprüft).
-- Neue Routen als **leere** Dateien unter `src/routes/` anlegen, dann den
-  Generator ausführen — `tsr generate` schreibt Boilerplate (`createFileRoute`)
-  nur in leere Dateien. Anschließend die Datei mit dem eigentlichen Inhalt
-  füllen. `__root.tsx` ist der Sonderfall (`createRootRoute`).
-- Nach **jedem** Anlegen, Umbenennen oder Löschen von Route-Dateien den
-  Generator ausführen: `pnpm routes:generate` (führt `tsr generate` aus). Der
-  Vite-Devserver läuft nicht zwingend, daher ist dieser Schritt Pflicht — vor
-  dem Typecheck.
+- The generated route tree `src/routeTree.gen.ts` is **never** created or edited
+  by hand (committed; excluded from ESLint/Prettier, checked by tsc).
+- Create new routes as **empty** files under `src/routes/`, then run the
+  generator — `tsr generate` writes boilerplate (`createFileRoute`) only into
+  empty files. Afterwards fill the file with the actual content. `__root.tsx`
+  is the special case (`createRootRoute`).
+- After **every** creation, rename, or deletion of route files, run the
+  generator: `pnpm routes:generate` (runs `tsr generate`). The Vite dev server
+  is not necessarily running, so this step is mandatory — before the typecheck.
