@@ -93,3 +93,17 @@ onSuccess: (_data, _vars, _result, context) => {
   neuen/geänderten Dokument: erst `pnpm codegen`, dann Typecheck
   (`pnpm codegen:watch` für laufende Arbeit; Schema-Änderungen erfordern
   einen Watch-Neustart).
+
+## Routing (TanStack Router, file-based)
+
+- Der generierte Route-Tree `src/routeTree.gen.ts` wird **nie** von Hand
+  erstellt oder editiert (committed; von ESLint/Prettier ausgenommen, von tsc
+  geprüft).
+- Neue Routen als **leere** Dateien unter `src/routes/` anlegen, dann den
+  Generator ausführen — `tsr generate` schreibt Boilerplate (`createFileRoute`)
+  nur in leere Dateien. Anschließend die Datei mit dem eigentlichen Inhalt
+  füllen. `__root.tsx` ist der Sonderfall (`createRootRoute`).
+- Nach **jedem** Anlegen, Umbenennen oder Löschen von Route-Dateien den
+  Generator ausführen: `pnpm routes:generate` (führt `tsr generate` aus). Der
+  Vite-Devserver läuft nicht zwingend, daher ist dieser Schritt Pflicht — vor
+  dem Typecheck.
