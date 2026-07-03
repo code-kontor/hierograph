@@ -8,7 +8,7 @@ import {
 import { useTree } from "@headless-tree/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 
 import type { RootNodeQuery } from "@/generated/graphql/graphql";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import {
   rootNodeQueryOptions,
 } from "@/queries/hierarchical-graph";
 
+import { getNodeIcon } from "./nodeIcon";
 import { useSelection } from "./SelectionContext";
 
 type NodeData = NonNullable<
@@ -55,7 +56,7 @@ type HierarchyTreeInnerProps = {
 
 function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
   const queryClient = useQueryClient();
-  const { setSelectedIds } = useSelection();
+  const { setSelectedIds, setFocusedId } = useSelection();
 
   // Item-Datencache: headless-tree fragt `getItem(id)` synchron-artig; die
   // vollständigen NodeData landen hier, sobald der Elternknoten geladen wurde.
@@ -111,6 +112,10 @@ function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
     setSelectedIds(state.selectedItems ?? []);
   }, [state.selectedItems, setSelectedIds]);
 
+  useEffect(() => {
+    setFocusedId(state.focusedItem ?? null);
+  }, [state.focusedItem, setFocusedId]);
+
   return (
     <div {...tree.getContainerProps("Hierarchy")} className="text-sm">
       {tree.getItems().map((item) => (
@@ -154,6 +159,9 @@ function TreeRow({ item }: TreeRowProps) {
           )
         ) : null}
       </span>
+      {createElement(getNodeIcon(item.getItemData().type), {
+        className: "text-muted-foreground h-4 w-4 shrink-0",
+      })}
       <span>{item.getItemName()}</span>
     </div>
   );
