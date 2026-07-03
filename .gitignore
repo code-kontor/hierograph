@@ -51,3 +51,4 @@ out/
 
 # Local Maven settings template with real Proton Pass ids (never commit)
 /release/settings.xml.template.local
+hierograph-mcp/io.hierograph.mcp.server/hierarchical-graph.txt
