@@ -51,3 +51,28 @@ export function nodeChildrenQueryOptions(id: string) {
     },
   });
 }
+
+const nodeDetailQuery = graphql(`
+  query NodeDetail($id: ID!) {
+    hierarchicalGraph {
+      node(id: $id) {
+        id
+        text
+        type
+        properties {
+          key
+          value
+        }
+      }
+    }
+  }
+`);
+
+export function nodeDetailQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: ["hierarchicalGraph", "node", id, "detail"],
+    async queryFn() {
+      return execute(nodeDetailQuery, { id });
+    },
+  });
+}

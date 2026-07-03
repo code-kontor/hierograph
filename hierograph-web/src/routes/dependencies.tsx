@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { HierarchyTree } from "@/components/hierarchy/HierarchyTree";
-import {
-  SelectionProvider,
-  useSelection,
-} from "@/components/hierarchy/SelectionContext";
+import { NodeDetails } from "@/components/hierarchy/NodeDetails";
+import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
 import { Pane } from "@/components/layout/Pane";
 import { TwoOneSplitLayout } from "@/components/layout/TwoOneSplitLayout";
 
@@ -30,33 +28,10 @@ function DependenciesView() {
         }
         bottom={
           <Pane title="Dependencies Details">
-            <SelectionSummary />
+            <NodeDetails />
           </Pane>
         }
       />
     </SelectionProvider>
-  );
-}
-
-function SelectionSummary() {
-  const { selectedIds } = useSelection();
-
-  if (selectedIds.length === 0) {
-    return <p className="text-muted-foreground text-sm">Nothing selected.</p>;
-  }
-
-  return (
-    <div className="text-sm">
-      <p className="text-muted-foreground mb-2">
-        Selected: {selectedIds.length}
-      </p>
-      <ul className="space-y-0.5">
-        {selectedIds.map((id) => (
-          <li key={id} className="font-mono text-xs">
-            {id}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

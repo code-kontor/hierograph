@@ -9,6 +9,8 @@ import {
 type SelectionContextValue = {
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
+  focusedId: string | null;
+  setFocusedId: (id: string | null) => void;
 };
 
 const SelectionContext = createContext<SelectionContextValue | null>(null);
@@ -19,7 +21,11 @@ type SelectionProviderProps = {
 
 export function SelectionProvider({ children }: SelectionProviderProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const value = useMemo(() => ({ selectedIds, setSelectedIds }), [selectedIds]);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const value = useMemo(
+    () => ({ selectedIds, setSelectedIds, focusedId, setFocusedId }),
+    [selectedIds, focusedId],
+  );
   return (
     <SelectionContext.Provider value={value}>
       {children}
