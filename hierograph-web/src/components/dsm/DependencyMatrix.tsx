@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { dsmQueryOptions } from "@/queries/dsm";
 
 import { useSelection } from "../hierarchy/SelectionContext";
-import { DsmCanvas } from "./DsmCanvas";
+import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 
 export function DependencyMatrix() {
   const { focusedId } = useSelection();
@@ -21,8 +22,26 @@ export function DependencyMatrix() {
 
 type DependencyMatrixInnerProps = { id: string };
 
+type DependencyStatusLineProps = { selection: DsmCellSelection | undefined };
+
+function DependencyStatusLine({ selection }: DependencyStatusLineProps) {
+  return (
+    <p className="text-muted-foreground px-1 py-1 text-sm">
+      {selection
+        ? `${selection.sourceLabel.text} → ${selection.targetLabel.text} · weight ${selection.value}`
+        : "Hover or select a cell to inspect a dependency."}
+    </p>
+  );
+}
+
 function DependencyMatrixInner({ id }: DependencyMatrixInnerProps) {
   const { data, isPending, isError } = useQuery(dsmQueryOptions(id));
+  const [hovered, setHovered] = useState<DsmCellSelection | undefined>(
+    undefined,
+  );
+  const [selectedCell, setSelectedCell] = useState<
+    DsmCellSelection | undefined
+  >(undefined);
 
   if (isPending) {
     return (
@@ -53,10 +72,20 @@ function DependencyMatrixInner({ id }: DependencyMatrixInnerProps) {
 
   const cells = matrix?.cells ?? [];
   const sccs = matrix?.stronglyConnectedComponents ?? [];
+  const display = hovered ?? selectedCell;
 
   return (
-    <div className="overflow-auto">
-      <DsmCanvas labels={orderedNodes} cells={cells} sccs={sccs} />
+    <div className="flex h-full flex-col">
+      <DependencyStatusLine selection={display} />
+      <div className="overflow-auto">
+        <DsmCanvas
+          labels={orderedNodes}
+          cells={cells}
+          sccs={sccs}
+          onHoverCell={setHovered}
+          onSelectCell={setSelectedCell}
+        />
+      </div>
     </div>
   );
 }
