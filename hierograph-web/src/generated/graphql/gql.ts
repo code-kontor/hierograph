@@ -14,10 +14,12 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n      }\n    }\n  }\n": typeof types.RootNodeDocument,
+    "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n        hasChildren\n      }\n    }\n  }\n": typeof types.RootNodeDocument,
+    "\n  query NodeChildren($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          nodes {\n            id\n            text\n            type\n            hasChildren\n          }\n        }\n      }\n    }\n  }\n": typeof types.NodeChildrenDocument,
 };
 const documents: Documents = {
-    "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n      }\n    }\n  }\n": types.RootNodeDocument,
+    "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n        hasChildren\n      }\n    }\n  }\n": types.RootNodeDocument,
+    "\n  query NodeChildren($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          nodes {\n            id\n            text\n            type\n            hasChildren\n          }\n        }\n      }\n    }\n  }\n": types.NodeChildrenDocument,
 };
 
 /**
@@ -37,7 +39,11 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n      }\n    }\n  }\n"): (typeof documents)["\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n        hasChildren\n      }\n    }\n  }\n"): (typeof documents)["\n  query RootNode {\n    hierarchicalGraph {\n      rootNode {\n        id\n        text\n        type\n        hasChildren\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query NodeChildren($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          nodes {\n            id\n            text\n            type\n            hasChildren\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query NodeChildren($id: ID!) {\n    hierarchicalGraph {\n      node(id: $id) {\n        id\n        children {\n          nodes {\n            id\n            text\n            type\n            hasChildren\n          }\n        }\n      }\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
