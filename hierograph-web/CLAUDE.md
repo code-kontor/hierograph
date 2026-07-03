@@ -15,6 +15,11 @@ shadcn/ui components live in `src/components/ui/` (generated via
 - **Never add a `Co-Authored-By` trailer to commits** touching
   `hierograph-web` (nor any other trailer attributing the change to an AI).
   Commits stay single-line subject only.
+- **Write as if the app is being built fresh, never as a migration.** From the
+  hierograph project's point of view it does not matter that this code
+  originates from an earlier application. Commit messages, comments, and docs
+  must not mention porting/migration or the predecessor project (e.g. slizaa) —
+  describe the code on its own terms.
 
 ## Code Style
 

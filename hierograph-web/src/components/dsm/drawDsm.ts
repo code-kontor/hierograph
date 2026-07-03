@@ -6,7 +6,7 @@ const SEP_SIZE = 4;
 const TEXT_CLIP_PADDING = 5;
 const BOX_SIZE = 35;
 const VERTICAL_SIDE_MARKER_WIDTH = 150;
-// The slizaa default of 10 is too short for readable rotated labels;
+// A narrow width (e.g. 10) is too short for readable rotated labels;
 // 150 gives enough room without clipping.
 const HORIZONTAL_SIDE_MARKER_HEIGHT = 150;
 
