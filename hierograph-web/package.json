@@ -7,7 +7,6 @@
     "dev": "vite dev",
     "build": "rm -f tsconfig.tsbuildinfo && tsc -b --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest",
     "lint": "eslint",
     "check": "rm -f tsconfig.tsbuildinfo && prettier --write . && eslint --fix && tsc -b --noEmit",
     "check:lint": "eslint",
@@ -28,9 +27,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.19.19",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
@@ -41,12 +37,10 @@
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.6.0",
-    "jsdom": "^28.1.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0",
-    "vite": "^8.0.14",
-    "vitest": "^4.1.8"
+    "vite": "^8.0.14"
   }
 }
