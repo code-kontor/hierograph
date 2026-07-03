@@ -17,5 +17,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [tailwindcss(), viteReact()],
+    optimizeDeps: {
+      include: ["tslib"],
+    },
   };
 });

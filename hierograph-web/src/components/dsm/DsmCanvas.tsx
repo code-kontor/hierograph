@@ -9,6 +9,8 @@ import {
   type DsmMarkerSizes,
   SEP_SIZE,
 } from "./drawDsm";
+import { DsmTooltip } from "./DsmTooltip";
+import { formatLabel, type LabelFormat } from "./labelFormat";
 
 export type DsmCellSelection = {
   sourceNodeId: string;
@@ -22,6 +24,7 @@ type DsmCanvasProps = {
   labels: { id: string; text: string }[];
   cells: { row: number; column: number; value: number }[];
   sccs: { nodePositions: number[] }[];
+  labelFormat: LabelFormat;
   onHoverCell?: (selection: DsmCellSelection | undefined) => void;
   onSelectCell?: (selection: DsmCellSelection | undefined) => void;
 };
@@ -32,6 +35,7 @@ export function DsmCanvas({
   labels,
   cells,
   sccs,
+  labelFormat,
   onHoverCell,
   onSelectCell,
 }: DsmCanvasProps) {
@@ -48,9 +52,20 @@ export function DsmCanvas({
     null,
   );
 
+  const [tooltip, setTooltip] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
   const mouseDownRef = useRef(false);
   const verticalResizeRef = useRef(false);
   const horizontalResizeRef = useRef(false);
+
+  const format = useMemo(
+    () => (text: string) => formatLabel(text, labelFormat),
+    [labelFormat],
+  );
 
   const matrixElements = useMemo(() => {
     const elements: { row: number; column: number; value: number }[][] = [];
@@ -95,9 +110,14 @@ export function DsmCanvas({
   // Base canvas draw
   useEffect(() => {
     if (baseCanvasRef.current) {
-      drawDsm(baseCanvasRef.current, { labels, cells, sccs }, markerSizes);
+      drawDsm(
+        baseCanvasRef.current,
+        { labels, cells, sccs },
+        markerSizes,
+        format,
+      );
     }
-  }, [labels, cells, sccs, markerSizes]);
+  }, [labels, cells, sccs, markerSizes, format]);
 
   // Overlay canvas draw
   useEffect(() => {
@@ -106,9 +126,10 @@ export function DsmCanvas({
         overlayCanvasRef.current,
         { labels, sccs, hover, selected },
         markerSizes,
+        format,
       );
     }
-  }, [labels, sccs, hover, selected, markerSizes]);
+  }, [labels, sccs, hover, selected, markerSizes, format]);
 
   // ResizeObserver safeguard
   useEffect(() => {
@@ -117,19 +138,25 @@ export function DsmCanvas({
 
     const observer = new ResizeObserver(() => {
       if (baseCanvasRef.current) {
-        drawDsm(baseCanvasRef.current, { labels, cells, sccs }, markerSizes);
+        drawDsm(
+          baseCanvasRef.current,
+          { labels, cells, sccs },
+          markerSizes,
+          format,
+        );
       }
       if (overlayCanvasRef.current) {
         drawDsmOverlay(
           overlayCanvasRef.current,
           { labels, sccs, hover, selected },
           markerSizes,
+          format,
         );
       }
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [labels, cells, sccs, markerSizes, hover, selected]);
+  }, [labels, cells, sccs, markerSizes, hover, selected, format]);
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -192,6 +219,45 @@ export function DsmCanvas({
             setHover(next);
             onHoverCell?.(buildSelection(x, y));
           }
+
+          if (!mouseDownRef.current) {
+            const inVerticalBand =
+              offsetX < markerSizes.verticalSideMarkerWidth &&
+              offsetY >= markerSizes.horizontalSideMarkerHeight;
+            const inHorizontalBand =
+              offsetY < markerSizes.horizontalSideMarkerHeight &&
+              offsetX >= markerSizes.verticalSideMarkerWidth;
+
+            if (inVerticalBand) {
+              const rowIndex = Math.floor(
+                (offsetY - markerSizes.horizontalSideMarkerHeight) / BOX_SIZE,
+              );
+              if (rowIndex >= 0 && rowIndex < labels.length) {
+                setTooltip({
+                  text: labels[rowIndex].text,
+                  x: offsetX,
+                  y: offsetY,
+                });
+              } else {
+                setTooltip(null);
+              }
+            } else if (inHorizontalBand) {
+              const colIndex = Math.floor(
+                (offsetX - markerSizes.verticalSideMarkerWidth) / BOX_SIZE,
+              );
+              if (colIndex >= 0 && colIndex < labels.length) {
+                setTooltip({
+                  text: labels[colIndex].text,
+                  x: offsetX,
+                  y: offsetY,
+                });
+              } else {
+                setTooltip(null);
+              }
+            } else {
+              setTooltip(null);
+            }
+          }
         }}
         onMouseUp={(e) => {
           mouseDownRef.current = false;
@@ -208,9 +274,13 @@ export function DsmCanvas({
         onMouseLeave={() => {
           mouseDownRef.current = false;
           setHover(null);
+          setTooltip(null);
           onHoverCell?.(undefined);
         }}
       />
+      {tooltip && (
+        <DsmTooltip text={tooltip.text} x={tooltip.x} y={tooltip.y} />
+      )}
     </div>
   );
 }
