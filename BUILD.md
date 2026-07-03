@@ -35,6 +35,10 @@ configuration lives in `hierograph-parent`.
 The runnable artifact is the Spring Boot MCP server in
 `hierograph-mcp/io.hierograph.mcp.server` (main class `io.hierograph.mcp.server.McpApplicationKt`).
 
+Besides the Maven reactor, the repository contains **`hierograph-web/`** — the
+web frontend, a standalone npm/pnpm project (Vite/React). It is intentionally
+**not** part of the Maven build; see `hierograph-web/README.md`.
+
 ## Standard build
 
 Build and install all default modules into your local Maven repository (`~/.m2`):
