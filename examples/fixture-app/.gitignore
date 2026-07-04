@@ -1,0 +1,3 @@
+/fixture-db/
+# The rel/target Java package conflicts with Maven's target/ gitignore rule; un-ignore it.
+!src/main/java/org/hg/fixture/basic/rel/target/
