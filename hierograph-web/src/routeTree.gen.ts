@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from "./routes/__root";
 import { Route as XrefRouteImport } from "./routes/xref";
 import { Route as DependenciesRouteImport } from "./routes/dependencies";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as DevPrimitivesRouteImport } from "./routes/dev.primitives";
 
 const XrefRoute = XrefRouteImport.update({
   id: "/xref",
@@ -28,35 +29,44 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any);
+const DevPrimitivesRoute = DevPrimitivesRouteImport.update({
+  id: "/dev/primitives",
+  path: "/dev/primitives",
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/dependencies": typeof DependenciesRoute;
   "/xref": typeof XrefRoute;
+  "/dev/primitives": typeof DevPrimitivesRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
   "/dependencies": typeof DependenciesRoute;
   "/xref": typeof XrefRoute;
+  "/dev/primitives": typeof DevPrimitivesRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
   "/dependencies": typeof DependenciesRoute;
   "/xref": typeof XrefRoute;
+  "/dev/primitives": typeof DevPrimitivesRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/dependencies" | "/xref";
+  fullPaths: "/" | "/dependencies" | "/xref" | "/dev/primitives";
   fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/dependencies" | "/xref";
-  id: "__root__" | "/" | "/dependencies" | "/xref";
+  to: "/" | "/dependencies" | "/xref" | "/dev/primitives";
+  id: "__root__" | "/" | "/dependencies" | "/xref" | "/dev/primitives";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   DependenciesRoute: typeof DependenciesRoute;
   XrefRoute: typeof XrefRoute;
+  DevPrimitivesRoute: typeof DevPrimitivesRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -82,6 +92,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/dev/primitives": {
+      id: "/dev/primitives";
+      path: "/dev/primitives";
+      fullPath: "/dev/primitives";
+      preLoaderRoute: typeof DevPrimitivesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DependenciesRoute: DependenciesRoute,
   XrefRoute: XrefRoute,
+  DevPrimitivesRoute: DevPrimitivesRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,3 +1,4 @@
+// Stock/pre-redesign shadcn Button — token-based since #0024 but unused in the app. Restyle to the 4-variant component spec (Primary/Secondary/Ghost/Destructive) on first real use.
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
