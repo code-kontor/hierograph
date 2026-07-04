@@ -150,12 +150,16 @@
   --color-panel-header: var(--hg-panel-header);
   --color-zebra: var(--hg-zebra);
   --color-border-strong: var(--hg-border-strong);
+  --color-fg: var(--hg-fg);
+  --color-fg-muted: var(--hg-fg-muted);
+  --color-fg-subtle: var(--hg-fg-subtle);
   --color-guide: var(--hg-guide);
   --color-accent-hover: var(--hg-accent-hover);
   --color-state-hover: var(--hg-state-hover);
   --color-state-selected-bg: var(--hg-state-selected-bg);
   --color-state-selected-fg: var(--hg-state-selected-fg);
   --color-state-selected-bar: var(--hg-state-selected-bar);
+  --color-state-focus-ring: var(--hg-state-focus-ring);
   --color-state-marked-bg: var(--hg-state-marked-bg);
   --color-state-marked-fg: var(--hg-state-marked-fg);
   --color-state-marked-bar: var(--hg-state-marked-bar);
