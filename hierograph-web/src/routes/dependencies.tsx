@@ -43,11 +43,7 @@ function DependenciesView() {
           </Pane>
         }
         topRight={<DependencyMatrix />}
-        bottom={
-          <Pane title="Dependencies Details">
-            <DependencyDetailsPane />
-          </Pane>
-        }
+        bottom={<DependencyDetailsPane />}
       />
     </SelectionProvider>
   );
