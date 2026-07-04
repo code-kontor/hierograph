@@ -1,29 +1,44 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { CrossReferenceView } from "@/components/cross-reference/CrossReferenceView";
+import { DependencyDetailsPane } from "@/components/dependency-details/DependencyDetailsPane";
+import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
+import { useTreeSettings } from "@/components/hierarchy/useTreeSettings";
 import { OneOneSplitLayout } from "@/components/layout/OneOneSplitLayout";
-import { Pane } from "@/components/layout/Pane";
 
 export const Route = createFileRoute("/xref")({
   component: XrefView,
 });
 
-function XrefView() {
+function XrefInner() {
+  const {
+    settings,
+    setShowIndentGuides,
+    setAutoExpandSingleChildren,
+    setPreserveSelectionOnCollapse,
+    setLabelFormat,
+  } = useTreeSettings();
+
   return (
     <OneOneSplitLayout
       top={
-        <Pane title="Cross-Reference View">
-          <p className="text-muted-foreground text-sm">
-            TODO: Cross-Reference View
-          </p>
-        </Pane>
+        <CrossReferenceView
+          settings={settings}
+          setShowIndentGuides={setShowIndentGuides}
+          setAutoExpandSingleChildren={setAutoExpandSingleChildren}
+          setPreserveSelectionOnCollapse={setPreserveSelectionOnCollapse}
+          setLabelFormat={setLabelFormat}
+        />
       }
-      bottom={
-        <Pane title="Dependencies Details">
-          <p className="text-muted-foreground text-sm">
-            TODO: Dependencies Details
-          </p>
-        </Pane>
-      }
+      bottom={<DependencyDetailsPane />}
     />
+  );
+}
+
+function XrefView() {
+  return (
+    <SelectionProvider>
+      <XrefInner />
+    </SelectionProvider>
   );
 }
