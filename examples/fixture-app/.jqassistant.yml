@@ -1,0 +1,24 @@
+jqassistant:
+  store:
+    uri: file:fixture-db
+  plugins:
+    - group-id: com.buschmais.jqassistant.plugin
+      artifact-id: java
+      version: 2.9.1
+    - group-id: com.buschmais.jqassistant.plugin
+      artifact-id: common
+      version: 2.9.1
+    - group-id: io.hierograph
+      artifact-id: io.hierograph.jqassistant.rules
+      version: 0.2.0-SNAPSHOT
+  analyze:
+    groups:
+      - hierograph:virtual-external
+    concepts:
+      - java-classpath:Resolve
+      - java:TypeAssignableFrom
+      - java:MethodOverrides
+      - java:MemberInheritedFrom
+      - java:VirtualInvokes
+  scan:
+    reset: true
