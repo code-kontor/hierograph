@@ -20,6 +20,8 @@
     "fixtures:record": "node scripts/record-fixtures.ts"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@headless-tree/core": "^1.7.0",
     "@headless-tree/react": "^1.7.0",
