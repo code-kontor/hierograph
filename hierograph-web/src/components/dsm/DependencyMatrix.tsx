@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import {
@@ -26,7 +26,11 @@ type MatrixData = NonNullable<
 >["children"]["orderedAdjacencyMatrix"];
 
 export function DependencyMatrix() {
-  const { selectedIds } = useSelection();
+  const { selectedIds, setCellSelection } = useSelection();
+
+  useEffect(() => {
+    setCellSelection(null);
+  }, [selectedIds, setCellSelection]);
 
   if (selectedIds.length === 0) {
     return (
@@ -143,12 +147,24 @@ function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
 }
 
 function MatrixView({ matrix }: MatrixViewProps) {
+  const { setCellSelection } = useSelection();
   const [hovered, setHovered] = useState<DsmCellSelection | undefined>(
     undefined,
   );
   const [selectedCell, setSelectedCell] = useState<
     DsmCellSelection | undefined
   >(undefined);
+
+  function handleSelectCell(sel: DsmCellSelection | undefined) {
+    setSelectedCell(sel);
+    // API convention is opposite to DSM: DSM source (row/depender) = API target,
+    // DSM target (column/provider) = API source.
+    setCellSelection(
+      sel
+        ? { sourceNodeId: sel.targetNodeId, targetNodeId: sel.sourceNodeId }
+        : null,
+    );
+  }
   const [storedFormat, setLabelFormat] = useLocalStorage<string>(
     LABEL_FORMAT_STORAGE_KEY,
     "full",
@@ -186,7 +202,7 @@ function MatrixView({ matrix }: MatrixViewProps) {
           sccs={sccs}
           labelFormat={labelFormat}
           onHoverCell={setHovered}
-          onSelectCell={setSelectedCell}
+          onSelectCell={handleSelectCell}
         />
       </div>
     </div>
