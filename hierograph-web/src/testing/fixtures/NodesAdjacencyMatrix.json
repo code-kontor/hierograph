@@ -1,0 +1,1087 @@
+{
+  "operation": "NodesAdjacencyMatrix",
+  "entries": [
+    {
+      "variables": {
+        "ids": [
+          "0",
+          "359"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "0",
+                  "text": "io.hierograph.examples:fixture-app:1.0.0",
+                  "type": "java.module"
+                },
+                {
+                  "id": "359",
+                  "text": "External Types",
+                  "type": "java.module"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "value": 15
+                },
+                {
+                  "row": 0,
+                  "column": 1,
+                  "value": 4
+                }
+              ],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "100",
+          "146",
+          "7",
+          "72",
+          "87"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "87",
+                  "text": "org.hg.fixture.basic.cycle",
+                  "type": "java.package"
+                },
+                {
+                  "id": "72",
+                  "text": "org.hg.fixture.basic.jdk",
+                  "type": "java.package"
+                },
+                {
+                  "id": "7",
+                  "text": "org.hg.fixture.basic.core",
+                  "type": "java.package"
+                },
+                {
+                  "id": "146",
+                  "text": "org.hg.fixture.basic.isolated",
+                  "type": "java.package"
+                },
+                {
+                  "id": "100",
+                  "text": "org.hg.fixture.basic.rel",
+                  "type": "java.package"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "value": 3
+                },
+                {
+                  "row": 2,
+                  "column": 2,
+                  "value": 3
+                },
+                {
+                  "row": 4,
+                  "column": 4,
+                  "value": 9
+                }
+              ],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "101",
+          "127"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "127",
+                  "text": "org.hg.fixture.basic.rel.source",
+                  "type": "java.package"
+                },
+                {
+                  "id": "101",
+                  "text": "org.hg.fixture.basic.rel.target",
+                  "type": "java.package"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 1,
+                  "value": 9
+                }
+              ],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "102",
+          "104",
+          "117",
+          "120",
+          "122",
+          "125"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "125",
+                  "text": "org.hg.fixture.basic.rel.target.TargetA",
+                  "type": "java.class"
+                },
+                {
+                  "id": "122",
+                  "text": "org.hg.fixture.basic.rel.target.TargetB",
+                  "type": "java.class"
+                },
+                {
+                  "id": "120",
+                  "text": "org.hg.fixture.basic.rel.target.TargetContract",
+                  "type": "java.interface"
+                },
+                {
+                  "id": "117",
+                  "text": "org.hg.fixture.basic.rel.target.ValueHolder",
+                  "type": "java.class"
+                },
+                {
+                  "id": "104",
+                  "text": "org.hg.fixture.basic.rel.target.TargetMarker",
+                  "type": "java.annotation"
+                },
+                {
+                  "id": "102",
+                  "text": "org.hg.fixture.basic.rel.target.BaseClass",
+                  "type": "java.class"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "118",
+          "119"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "119",
+                  "text": "org.hg.fixture.basic.rel.target.ValueHolder#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "118",
+                  "text": "org.hg.fixture.basic.rel.target.ValueHolder#int value",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "12",
+          "15",
+          "33",
+          "43",
+          "47",
+          "49",
+          "51",
+          "54",
+          "8"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "8",
+                  "text": "org.hg.fixture.basic.core.Outer$Inner",
+                  "type": "java.class"
+                },
+                {
+                  "id": "12",
+                  "text": "org.hg.fixture.basic.core.Outer",
+                  "type": "java.class"
+                },
+                {
+                  "id": "54",
+                  "text": "org.hg.fixture.basic.core.Color",
+                  "type": "java.enum"
+                },
+                {
+                  "id": "51",
+                  "text": "org.hg.fixture.basic.core.PackagePrivateHolder",
+                  "type": "java.class"
+                },
+                {
+                  "id": "47",
+                  "text": "org.hg.fixture.basic.core.Contract",
+                  "type": "java.interface"
+                },
+                {
+                  "id": "43",
+                  "text": "org.hg.fixture.basic.core.AbstractBase",
+                  "type": "java.class"
+                },
+                {
+                  "id": "33",
+                  "text": "org.hg.fixture.basic.core.PlainClass",
+                  "type": "java.class"
+                },
+                {
+                  "id": "15",
+                  "text": "org.hg.fixture.basic.core.Pair",
+                  "type": "java.record"
+                },
+                {
+                  "id": "49",
+                  "text": "org.hg.fixture.basic.core.Outer$StaticNested",
+                  "type": "java.class"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 1,
+                  "value": 1
+                },
+                {
+                  "row": 1,
+                  "column": 0,
+                  "value": 1
+                },
+                {
+                  "row": 1,
+                  "column": 8,
+                  "value": 1
+                }
+              ],
+              "stronglyConnectedComponents": [
+                {
+                  "nodePositions": [
+                    0,
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "123",
+          "124"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "124",
+                  "text": "org.hg.fixture.basic.rel.target.TargetB#void ping()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "123",
+                  "text": "org.hg.fixture.basic.rel.target.TargetB#void <init>()",
+                  "type": "java.method"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "128",
+          "131",
+          "134",
+          "136",
+          "139",
+          "143"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "143",
+                  "text": "org.hg.fixture.basic.rel.source.FieldTypeRef",
+                  "type": "java.class"
+                },
+                {
+                  "id": "139",
+                  "text": "org.hg.fixture.basic.rel.source.FieldAccessor",
+                  "type": "java.class"
+                },
+                {
+                  "id": "136",
+                  "text": "org.hg.fixture.basic.rel.source.AnnotatedType",
+                  "type": "java.class"
+                },
+                {
+                  "id": "134",
+                  "text": "org.hg.fixture.basic.rel.source.SubClass",
+                  "type": "java.class"
+                },
+                {
+                  "id": "131",
+                  "text": "org.hg.fixture.basic.rel.source.MethodInvoker",
+                  "type": "java.class"
+                },
+                {
+                  "id": "128",
+                  "text": "org.hg.fixture.basic.rel.source.ContractImpl",
+                  "type": "java.class"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "129",
+          "130"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "130",
+                  "text": "org.hg.fixture.basic.rel.source.ContractImpl#void run()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "129",
+                  "text": "org.hg.fixture.basic.rel.source.ContractImpl#void <init>()",
+                  "type": "java.method"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "132",
+          "133"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "133",
+                  "text": "org.hg.fixture.basic.rel.source.MethodInvoker#void invoke()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "132",
+                  "text": "org.hg.fixture.basic.rel.source.MethodInvoker#void <init>()",
+                  "type": "java.method"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "140",
+          "141"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "141",
+                  "text": "org.hg.fixture.basic.rel.source.FieldAccessor#int readAndWrite(org.hg.fixture.basic.rel.target.ValueHolder)",
+                  "type": "java.method"
+                },
+                {
+                  "id": "140",
+                  "text": "org.hg.fixture.basic.rel.source.FieldAccessor#void <init>()",
+                  "type": "java.method"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "144",
+          "145"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "145",
+                  "text": "org.hg.fixture.basic.rel.source.FieldTypeRef#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "144",
+                  "text": "org.hg.fixture.basic.rel.source.FieldTypeRef#org.hg.fixture.basic.rel.target.TargetA ref",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "18",
+          "20",
+          "21",
+          "25",
+          "27",
+          "28",
+          "31",
+          "32"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "32",
+                  "text": "org.hg.fixture.basic.core.Pair#int second()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "31",
+                  "text": "org.hg.fixture.basic.core.Pair#int first()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "28",
+                  "text": "org.hg.fixture.basic.core.Pair#boolean equals(java.lang.Object)",
+                  "type": "java.method"
+                },
+                {
+                  "id": "27",
+                  "text": "org.hg.fixture.basic.core.Pair#int hashCode()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "25",
+                  "text": "org.hg.fixture.basic.core.Pair#java.lang.String toString()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "21",
+                  "text": "org.hg.fixture.basic.core.Pair#void <init>(int,int)",
+                  "type": "java.method"
+                },
+                {
+                  "id": "20",
+                  "text": "org.hg.fixture.basic.core.Pair#int second",
+                  "type": "java.field"
+                },
+                {
+                  "id": "18",
+                  "text": "org.hg.fixture.basic.core.Pair#int first",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "34",
+          "35",
+          "36",
+          "37",
+          "38",
+          "39",
+          "40",
+          "41",
+          "42"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "42",
+                  "text": "org.hg.fixture.basic.core.PlainClass#void privateMethod()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "41",
+                  "text": "org.hg.fixture.basic.core.PlainClass#void packagePrivateMethod()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "40",
+                  "text": "org.hg.fixture.basic.core.PlainClass#void protectedMethod()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "39",
+                  "text": "org.hg.fixture.basic.core.PlainClass#void publicMethod()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "38",
+                  "text": "org.hg.fixture.basic.core.PlainClass#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "37",
+                  "text": "org.hg.fixture.basic.core.PlainClass#int privateField",
+                  "type": "java.field"
+                },
+                {
+                  "id": "36",
+                  "text": "org.hg.fixture.basic.core.PlainClass#int packagePrivateField",
+                  "type": "java.field"
+                },
+                {
+                  "id": "35",
+                  "text": "org.hg.fixture.basic.core.PlainClass#int protectedField",
+                  "type": "java.field"
+                },
+                {
+                  "id": "34",
+                  "text": "org.hg.fixture.basic.core.PlainClass#int publicField",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "347",
+          "348"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "348",
+                  "text": "java.util.TimerTask",
+                  "type": "external.type"
+                },
+                {
+                  "id": "347",
+                  "text": "java.util.List",
+                  "type": "external.type"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "350",
+          "351"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "351",
+                  "text": "java.util",
+                  "type": "java.package"
+                },
+                {
+                  "id": "350",
+                  "text": "java.io",
+                  "type": "java.package"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "44",
+          "45",
+          "46"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "46",
+                  "text": "org.hg.fixture.basic.core.AbstractBase#void helper()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "45",
+                  "text": "org.hg.fixture.basic.core.AbstractBase#void template()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "44",
+                  "text": "org.hg.fixture.basic.core.AbstractBase#void <init>()",
+                  "type": "java.method"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "58",
+          "59",
+          "60",
+          "61",
+          "62",
+          "63",
+          "64",
+          "67",
+          "70",
+          "71"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "71",
+                  "text": "org.hg.fixture.basic.core.Color#void <clinit>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "70",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color[] $values()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "67",
+                  "text": "org.hg.fixture.basic.core.Color#void <init>(java.lang.String,int)",
+                  "type": "java.method"
+                },
+                {
+                  "id": "64",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color valueOf(java.lang.String)",
+                  "type": "java.method"
+                },
+                {
+                  "id": "63",
+                  "text": "org.hg.fixture.basic.core.Color#java.lang.Object clone()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "62",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color[] values()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "61",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color[] $VALUES",
+                  "type": "java.field"
+                },
+                {
+                  "id": "60",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color BLUE",
+                  "type": "java.field"
+                },
+                {
+                  "id": "59",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color GREEN",
+                  "type": "java.field"
+                },
+                {
+                  "id": "58",
+                  "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color RED",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "73",
+          "76",
+          "81"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "81",
+                  "text": "org.hg.fixture.basic.jdk.JdkFieldRef",
+                  "type": "java.class"
+                },
+                {
+                  "id": "76",
+                  "text": "org.hg.fixture.basic.jdk.JdkExtends",
+                  "type": "java.class"
+                },
+                {
+                  "id": "73",
+                  "text": "org.hg.fixture.basic.jdk.JdkImplements",
+                  "type": "java.class"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "78",
+          "80"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "80",
+                  "text": "org.hg.fixture.basic.jdk.JdkExtends#void run()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "78",
+                  "text": "org.hg.fixture.basic.jdk.JdkExtends#void <init>()",
+                  "type": "java.method"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "82",
+          "86"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "86",
+                  "text": "org.hg.fixture.basic.jdk.JdkFieldRef#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "82",
+                  "text": "org.hg.fixture.basic.jdk.JdkFieldRef#java.util.List items",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "88",
+          "93",
+          "97"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "97",
+                  "text": "org.hg.fixture.basic.cycle.alpha",
+                  "type": "java.package"
+                },
+                {
+                  "id": "88",
+                  "text": "org.hg.fixture.basic.cycle.beta",
+                  "type": "java.package"
+                },
+                {
+                  "id": "93",
+                  "text": "org.hg.fixture.basic.cycle.gamma",
+                  "type": "java.package"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 1,
+                  "value": 1
+                },
+                {
+                  "row": 1,
+                  "column": 2,
+                  "value": 1
+                },
+                {
+                  "row": 2,
+                  "column": 0,
+                  "value": 1
+                }
+              ],
+              "stronglyConnectedComponents": [
+                {
+                  "nodePositions": [
+                    0,
+                    1,
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "90",
+          "92"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "92",
+                  "text": "org.hg.fixture.basic.cycle.beta.CycleB#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "90",
+                  "text": "org.hg.fixture.basic.cycle.beta.CycleB#org.hg.fixture.basic.cycle.gamma.CycleC next",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "94",
+          "96"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "96",
+                  "text": "org.hg.fixture.basic.cycle.gamma.CycleC#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "94",
+                  "text": "org.hg.fixture.basic.cycle.gamma.CycleC#org.hg.fixture.basic.cycle.alpha.CycleA next",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "ids": [
+          "98",
+          "99"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "99",
+                  "text": "org.hg.fixture.basic.cycle.alpha.CycleA#void <init>()",
+                  "type": "java.method"
+                },
+                {
+                  "id": "98",
+                  "text": "org.hg.fixture.basic.cycle.alpha.CycleA#org.hg.fixture.basic.cycle.beta.CycleB next",
+                  "type": "java.field"
+                }
+              ],
+              "cells": [],
+              "stronglyConnectedComponents": []
+            }
+          }
+        }
+      }
+    }
+  ]
+}

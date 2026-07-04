@@ -4,3 +4,7 @@ coverage
 tsconfig.tsbuildinfo
 .env.local
 .env.*.local
+
+# Vitest browser-mode transient artifacts (failure screenshots, attachments)
+.vitest-attachments
+__screenshots__

@@ -14,7 +14,10 @@
     "check": "rm -f tsconfig.tsbuildinfo && prettier --write . && eslint --fix && tsc -b --noEmit",
     "check:lint": "eslint",
     "check:prettier": "prettier --check .",
-    "check:ts": "tsc -b --noEmit"
+    "check:ts": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fixtures:record": "node scripts/record-fixtures.ts"
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.2.0",
@@ -48,16 +51,27 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/browser": "^4.1.9",
+    "@vitest/browser-playwright": "^4.1.9",
     "eslint": "^9.39.4",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.6.0",
+    "msw": "^2.14.6",
+    "playwright": "^1.61.1",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0",
-    "vite": "^8.0.14"
+    "vite": "^8.0.14",
+    "vitest": "^4.1.9",
+    "vitest-browser-react": "^2.2.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "src/testing/public"
+    ]
   }
 }

@@ -1,0 +1,18 @@
+{
+  "operation": "RootNode",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "-1",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true
+          }
+        }
+      }
+    }
+  ]
+}

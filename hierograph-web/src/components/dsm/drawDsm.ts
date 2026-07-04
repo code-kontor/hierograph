@@ -1,20 +1,23 @@
 import * as colors from "./colorScheme";
 import { setupCanvas } from "./dpiFixer";
+import {
+  BOX_SIZE,
+  type DsmMarkerSizes,
+  isCellInCycle,
+  isLabelInCycle,
+  SEP_SIZE,
+} from "./dsmModel";
+
+export type { DsmMarkerSizes };
+export {
+  BOX_SIZE,
+  DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT,
+  DEFAULT_VERTICAL_SIDE_MARKER_WIDTH,
+  SEP_SIZE,
+} from "./dsmModel";
 
 const FONT = "12px Arial";
 const TEXT_CLIP_PADDING = 5;
-
-export const BOX_SIZE = 35;
-export const SEP_SIZE = 4;
-export const DEFAULT_VERTICAL_SIDE_MARKER_WIDTH = 150;
-// A narrow width (e.g. 10) is too short for readable rotated labels;
-// 150 gives enough room without clipping.
-export const DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT = 150;
-
-export type DsmMarkerSizes = {
-  verticalSideMarkerWidth: number;
-  horizontalSideMarkerHeight: number;
-};
 
 type Label = { id: string; text: string };
 type Cell = { row: number; column: number; value: number };
@@ -42,16 +45,6 @@ function horizontalSliceSize(n: number): number {
 
 function verticalSliceSize(n: number): number {
   return BOX_SIZE * n;
-}
-
-function isLabelInCycle(index: number, sccNodePositions: number[]): boolean {
-  return sccNodePositions.includes(index);
-}
-
-function isCellInCycle(x: number, y: number, sccs: Scc[]): boolean {
-  return sccs.some(
-    (scc) => scc.nodePositions.includes(x) && scc.nodePositions.includes(y),
-  );
 }
 
 function drawVerticalBar(
