@@ -1,7 +1,7 @@
-export const BOX_SIZE = 35;
+export const BOX_SIZE = 36;
 export const SEP_SIZE = 4;
 export const DEFAULT_VERTICAL_SIDE_MARKER_WIDTH = 150;
-export const DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT = 150;
+export const DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT = 108;
 
 export type DsmMarkerSizes = {
   verticalSideMarkerWidth: number;

@@ -42,11 +42,7 @@ function DependenciesView() {
             <HierarchyTree settings={settings} />
           </Pane>
         }
-        topRight={
-          <Pane title="Dependency Overview">
-            <DependencyMatrix />
-          </Pane>
-        }
+        topRight={<DependencyMatrix />}
         bottom={
           <Pane title="Dependencies Details">
             <DependencyDetailsPane />

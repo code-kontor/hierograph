@@ -1,9 +1,8 @@
-import * as colors from "./colorScheme";
+import { type DsmColors, resolveDsmColors } from "./colorScheme";
 import { setupCanvas } from "./dpiFixer";
 import {
   BOX_SIZE,
   type DsmMarkerSizes,
-  isCellInCycle,
   isLabelInCycle,
   SEP_SIZE,
 } from "./dsmModel";
@@ -16,7 +15,7 @@ export {
   SEP_SIZE,
 } from "./dsmModel";
 
-const FONT = "12px Arial";
+const FONT = '12px "IBM Plex Mono", ui-monospace, monospace';
 const TEXT_CLIP_PADDING = 5;
 
 type Label = { id: string; text: string };
@@ -55,20 +54,15 @@ function drawVerticalBar(
   markerSizes: DsmMarkerSizes,
   mark: boolean,
   formatLabel: (text: string) => string,
+  colors: DsmColors,
 ): void {
   ctx.save();
 
   const { verticalSideMarkerWidth, horizontalSideMarkerHeight } = markerSizes;
   const inCycle = isLabelInCycle(y, sccNodePositions);
 
-  // step 1: fill rect
-  ctx.fillStyle = mark
-    ? inCycle
-      ? colors.getCycleSideMarkerMarkedColor()
-      : colors.getSideMarkerMarkedColor()
-    : inCycle
-      ? colors.getCycleSideMarkerColor()
-      : colors.getSideMarkerBackgroundColor();
+  // fill rect
+  ctx.fillStyle = mark ? colors.marker : inCycle ? colors.cycle : colors.empty;
   ctx.fillRect(
     0,
     horizontalSideMarkerHeight + verticalSliceSize(y),
@@ -76,10 +70,8 @@ function drawVerticalBar(
     verticalSliceSize(y + 1) - verticalSliceSize(y),
   );
 
-  // step 2: separators
-  ctx.strokeStyle = inCycle
-    ? colors.getCycleSideMarkerSeparatorColor()
-    : colors.getSideMarkerSeparatorColor();
+  // separators
+  ctx.strokeStyle = colors.grid;
   ctx.beginPath();
   ctx.moveTo(0, horizontalSideMarkerHeight + verticalSliceSize(y));
   ctx.lineTo(
@@ -116,13 +108,14 @@ function drawVerticalBar(
   );
   ctx.clip();
 
-  // step 3: text (no icons)
-  ctx.fillStyle = colors.getSideMarkerTextColor();
+  // text
+  ctx.fillStyle = colors.label;
   ctx.font = FONT;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
+  const maxWidth = verticalSideMarkerWidth - (SEP_SIZE + TEXT_CLIP_PADDING);
   ctx.fillText(
-    formatLabel(labels[y].text),
+    fitLabel(ctx, formatLabel(labels[y].text), maxWidth),
     (BOX_SIZE - 18) / 2,
     horizontalSideMarkerHeight + verticalSliceSize(y) + BOX_SIZE / 2,
   );
@@ -138,20 +131,15 @@ function drawHorizontalBar(
   markerSizes: DsmMarkerSizes,
   mark: boolean,
   formatLabel: (text: string) => string,
+  colors: DsmColors,
 ): void {
   ctx.save();
 
   const { verticalSideMarkerWidth, horizontalSideMarkerHeight } = markerSizes;
   const inCycle = isLabelInCycle(x, sccNodePositions);
 
-  // step 1: fill rect
-  ctx.fillStyle = mark
-    ? inCycle
-      ? colors.getCycleSideMarkerMarkedColor()
-      : colors.getSideMarkerMarkedColor()
-    : inCycle
-      ? colors.getCycleSideMarkerColor()
-      : colors.getSideMarkerBackgroundColor();
+  // fill rect
+  ctx.fillStyle = mark ? colors.marker : inCycle ? colors.cycle : colors.empty;
   ctx.fillRect(
     verticalSideMarkerWidth + horizontalSliceSize(x),
     0,
@@ -159,10 +147,8 @@ function drawHorizontalBar(
     horizontalSideMarkerHeight - SEP_SIZE,
   );
 
-  // step 2: separators
-  ctx.strokeStyle = inCycle
-    ? colors.getCycleSideMarkerSeparatorColor()
-    : colors.getSideMarkerSeparatorColor();
+  // separators
+  ctx.strokeStyle = colors.grid;
   ctx.beginPath();
   ctx.moveTo(verticalSideMarkerWidth + horizontalSliceSize(x), 0);
   ctx.lineTo(
@@ -196,19 +182,39 @@ function drawHorizontalBar(
   );
   ctx.clip();
 
-  // step 4: rotated text (no icons)
+  // rotated text
   ctx.translate(
     verticalSideMarkerWidth + horizontalSliceSize(x) + BOX_SIZE / 2,
     10,
   );
   ctx.rotate(Math.PI / 2);
-  ctx.fillStyle = colors.getSideMarkerTextColor();
+  ctx.fillStyle = colors.label;
   ctx.font = FONT;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(formatLabel(labels[x].text), 0, 0);
+  const maxWidth = horizontalSideMarkerHeight - (SEP_SIZE + TEXT_CLIP_PADDING);
+  ctx.fillText(fitLabel(ctx, formatLabel(labels[x].text), maxWidth), 0, 0);
 
   ctx.restore();
+}
+
+function fitLabel(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (ctx.measureText(text.slice(0, mid) + "…").width <= maxWidth) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return text.slice(0, lo) + "…";
 }
 
 function drawMatrix(
@@ -217,11 +223,12 @@ function drawMatrix(
   cells: Cell[],
   sccs: Scc[],
   markerSizes: DsmMarkerSizes,
+  colors: DsmColors,
 ): void {
   const { verticalSideMarkerWidth, horizontalSideMarkerHeight } = markerSizes;
 
-  // background
-  ctx.fillStyle = colors.getMatrixBackgroundColor();
+  // background (all non-cycle cells start neutral)
+  ctx.fillStyle = colors.empty;
   ctx.fillRect(
     verticalSideMarkerWidth,
     horizontalSideMarkerHeight,
@@ -229,8 +236,8 @@ function drawMatrix(
     verticalSliceSize(labels.length),
   );
 
-  // diagonal
-  ctx.fillStyle = colors.getMatrixDiagonalColor();
+  // diagonal (self/inert)
+  ctx.fillStyle = colors.diagonal;
   for (let index = 0; index < labels.length; index++) {
     ctx.fillRect(
       verticalSideMarkerWidth + horizontalSliceSize(index),
@@ -240,32 +247,26 @@ function drawMatrix(
     );
   }
 
-  // strongly connected components
-  ctx.fillStyle = colors.getCycleSideMarkerColor();
-  sccs.forEach((cycle) => {
-    const { nodePositions } = cycle;
-    ctx.fillRect(
-      verticalSideMarkerWidth + horizontalSliceSize(nodePositions[0]),
-      horizontalSideMarkerHeight + verticalSliceSize(nodePositions[0]),
-      horizontalSliceSize(nodePositions.length),
-      verticalSliceSize(nodePositions.length),
-    );
-
-    ctx.fillStyle = colors.getCycleMatrixDiagonalColor();
-    for (const position of nodePositions) {
-      ctx.fillRect(
-        verticalSideMarkerWidth + horizontalSliceSize(position),
-        horizontalSideMarkerHeight + verticalSliceSize(position),
-        horizontalSliceSize(position + 1) - horizontalSliceSize(position),
-        verticalSliceSize(position + 1) - verticalSliceSize(position),
-      );
+  // cycle cells: each pair (col=i, row=j) with i !== j in the same SCC
+  ctx.fillStyle = colors.cycle;
+  for (const scc of sccs) {
+    const { nodePositions } = scc;
+    for (const i of nodePositions) {
+      for (const j of nodePositions) {
+        if (i !== j) {
+          ctx.fillRect(
+            verticalSideMarkerWidth + horizontalSliceSize(i),
+            horizontalSideMarkerHeight + verticalSliceSize(j),
+            BOX_SIZE,
+            BOX_SIZE,
+          );
+        }
+      }
     }
-    // reset for next scc
-    ctx.fillStyle = colors.getCycleSideMarkerColor();
-  });
+  }
 
-  // cell text — row=X (horizontal), column=Y (vertical)
-  ctx.fillStyle = colors.getMatrixTextColor();
+  // cell numbers (drawn after fills so they appear on top)
+  ctx.fillStyle = colors.label;
   ctx.font = FONT;
   cells.forEach((cell) => {
     if (cell.row !== cell.column && cell.value) {
@@ -281,8 +282,8 @@ function drawMatrix(
     }
   });
 
-  // separator lines
-  ctx.strokeStyle = colors.getMatrixSeparatorColor();
+  // grid separators
+  ctx.strokeStyle = colors.grid;
   ctx.beginPath();
   for (let index = 0; index <= labels.length; index++) {
     ctx.moveTo(
@@ -304,52 +305,18 @@ function drawMatrix(
     );
   }
   ctx.stroke();
-
-  // SCC separator lines
-  ctx.strokeStyle = colors.getCycleSideMarkerSeparatorColor();
-  ctx.beginPath();
-  sccs.forEach((cycle) => {
-    const { nodePositions } = cycle;
-    for (let index = 1; index < nodePositions.length; index++) {
-      ctx.moveTo(
-        verticalSideMarkerWidth + horizontalSliceSize(nodePositions[index]),
-        horizontalSideMarkerHeight + verticalSliceSize(nodePositions[0]),
-      );
-      ctx.lineTo(
-        verticalSideMarkerWidth + horizontalSliceSize(nodePositions[index]),
-        horizontalSideMarkerHeight +
-          verticalSliceSize(nodePositions[nodePositions.length - 1] + 1),
-      );
-
-      ctx.moveTo(
-        verticalSideMarkerWidth + horizontalSliceSize(nodePositions[0]),
-        horizontalSideMarkerHeight + verticalSliceSize(nodePositions[index]),
-      );
-      ctx.lineTo(
-        verticalSideMarkerWidth +
-          horizontalSliceSize(nodePositions[nodePositions.length - 1] + 1),
-        horizontalSideMarkerHeight + verticalSliceSize(nodePositions[index]),
-      );
-    }
-    ctx.stroke();
-  });
 }
 
 function markCell(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  selected: boolean,
   markerSizes: DsmMarkerSizes,
-  sccs: Scc[],
+  colors: DsmColors,
 ): void {
   ctx.save();
-  ctx.strokeStyle = selected
-    ? colors.getSelectedCellColor()
-    : isCellInCycle(x, y, sccs)
-      ? colors.getCycleMatrixMarkedCellColor()
-      : colors.getMatrixMarkedCellColor();
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = colors.outline;
+  ctx.lineWidth = 2;
   ctx.strokeRect(
     markerSizes.verticalSideMarkerWidth + BOX_SIZE * x + 1,
     markerSizes.horizontalSideMarkerHeight + BOX_SIZE * y + 1,
@@ -384,10 +351,12 @@ export function drawDsmOverlay(
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  const colors = resolveDsmColors();
+
   if (hover) {
     const sccNodePositions = sccs.flatMap((s) => s.nodePositions);
-    markCell(ctx, hover.x, hover.y, false, markerSizes, sccs);
-    markCell(ctx, hover.y, hover.x, false, markerSizes, sccs);
+    markCell(ctx, hover.x, hover.y, markerSizes, colors);
+    markCell(ctx, hover.y, hover.x, markerSizes, colors);
     drawVerticalBar(
       hover.y,
       ctx,
@@ -396,6 +365,7 @@ export function drawDsmOverlay(
       markerSizes,
       true,
       formatLabel,
+      colors,
     );
     drawHorizontalBar(
       hover.x,
@@ -405,11 +375,12 @@ export function drawDsmOverlay(
       markerSizes,
       true,
       formatLabel,
+      colors,
     );
   }
 
   if (selected) {
-    markCell(ctx, selected.x, selected.y, true, markerSizes, sccs);
+    markCell(ctx, selected.x, selected.y, markerSizes, colors);
   }
 }
 
@@ -427,10 +398,10 @@ export function drawDsm(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  // Reset accumulated scale before re-applying HiDPI fix
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   setupCanvas(canvas, ctx);
 
+  const colors = resolveDsmColors();
   const sccNodePositions = sccs.flatMap((s) => s.nodePositions);
 
   for (let i = 0; i < labels.length; i++) {
@@ -442,6 +413,7 @@ export function drawDsm(
       markerSizes,
       false,
       formatLabel,
+      colors,
     );
   }
   for (let i = 0; i < labels.length; i++) {
@@ -453,7 +425,8 @@ export function drawDsm(
       markerSizes,
       false,
       formatLabel,
+      colors,
     );
   }
-  drawMatrix(ctx, labels, cells, sccs, markerSizes);
+  drawMatrix(ctx, labels, cells, sccs, markerSizes, colors);
 }

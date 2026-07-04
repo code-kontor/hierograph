@@ -58,6 +58,7 @@ export function DsmCanvas({
   const mouseDownRef = useRef(false);
   const verticalResizeRef = useRef(false);
   const horizontalResizeRef = useRef(false);
+  const tooltipTimerRef = useRef<number | null>(null);
 
   const format = useMemo(
     () => (text: string) => formatLabel(text, labelFormat),
@@ -65,6 +66,15 @@ export function DsmCanvas({
   );
 
   const matrixElements = useMemo(() => buildMatrixElements(cells), [cells]);
+
+  // Tooltip timer cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current !== null) {
+        window.clearTimeout(tooltipTimerRef.current);
+      }
+    };
+  }, []);
 
   // Base canvas draw
   useEffect(() => {
@@ -198,12 +208,21 @@ export function DsmCanvas({
                 (offsetY - markerSizes.horizontalSideMarkerHeight) / BOX_SIZE,
               );
               if (rowIndex >= 0 && rowIndex < labels.length) {
-                setTooltip({
-                  text: labels[rowIndex].text,
-                  x: offsetX,
-                  y: offsetY,
-                });
+                if (tooltipTimerRef.current !== null) {
+                  window.clearTimeout(tooltipTimerRef.current);
+                }
+                tooltipTimerRef.current = window.setTimeout(() => {
+                  setTooltip({
+                    text: labels[rowIndex].text,
+                    x: offsetX,
+                    y: offsetY,
+                  });
+                }, 300);
               } else {
+                if (tooltipTimerRef.current !== null) {
+                  window.clearTimeout(tooltipTimerRef.current);
+                  tooltipTimerRef.current = null;
+                }
                 setTooltip(null);
               }
             } else if (inHorizontalBand) {
@@ -211,15 +230,28 @@ export function DsmCanvas({
                 (offsetX - markerSizes.verticalSideMarkerWidth) / BOX_SIZE,
               );
               if (colIndex >= 0 && colIndex < labels.length) {
-                setTooltip({
-                  text: labels[colIndex].text,
-                  x: offsetX,
-                  y: offsetY,
-                });
+                if (tooltipTimerRef.current !== null) {
+                  window.clearTimeout(tooltipTimerRef.current);
+                }
+                tooltipTimerRef.current = window.setTimeout(() => {
+                  setTooltip({
+                    text: labels[colIndex].text,
+                    x: offsetX,
+                    y: offsetY,
+                  });
+                }, 300);
               } else {
+                if (tooltipTimerRef.current !== null) {
+                  window.clearTimeout(tooltipTimerRef.current);
+                  tooltipTimerRef.current = null;
+                }
                 setTooltip(null);
               }
             } else {
+              if (tooltipTimerRef.current !== null) {
+                window.clearTimeout(tooltipTimerRef.current);
+                tooltipTimerRef.current = null;
+              }
               setTooltip(null);
             }
           }
@@ -241,6 +273,10 @@ export function DsmCanvas({
         onMouseLeave={() => {
           mouseDownRef.current = false;
           setHover(null);
+          if (tooltipTimerRef.current !== null) {
+            window.clearTimeout(tooltipTimerRef.current);
+            tooltipTimerRef.current = null;
+          }
           setTooltip(null);
           onHoverCell?.(undefined);
         }}
