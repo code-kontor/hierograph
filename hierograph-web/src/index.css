@@ -84,26 +84,22 @@
   --hg-status-error-bg: oklch(0.958 0.03 27); /* #ffeae6 */
 
   /* ---- DSM matrix (canvas reads these as concrete values) ---- */
-  --hg-dsm-empty: oklch(1 0 0); /* #ffffff  no-dependency cell */
+  --hg-dsm-empty: oklch(
+    0.978 0.003 260
+  ); /* #f6f8fa  neutral cell — all non-cycle cells */
   --hg-dsm-grid: oklch(0.9 0.005 260); /* #dcdee1  cell borders */
   --hg-dsm-diagonal: oklch(
     0.928 0.003 260
   ); /* #e6e7e9  self/diagonal (inert) */
-  --hg-dsm-dep: oklch(
-    0.875 0.062 256
-  ); /* #bcd8ff  dependency cell (single, weight-agnostic) */
   --hg-dsm-cycle: oklch(
     0.735 0.12 40
-  ); /* #e98e6e  cell in a strongly-connected cycle */
+  ); /* #e98e6e  cell in a strongly-connected cycle (the only colored cell type) */
   --hg-dsm-marker: oklch(
     0.895 0.072 84
   ); /* #f3d9a6  hovered row/column header band */
-  --hg-dsm-line: oklch(
-    0.966 0.028 84
-  ); /* #fdf3df  faint tint on hovered row/col cells */
   --hg-dsm-outline: oklch(
-    0.45 0.17 256
-  ); /* #0050b0  selected-cell outline (solid) / transpose (dashed) */
+    0.53 0.013 260
+  ); /* #676c74  hovered cell + transpose + selected cell — 2px solid muted-gray */
   --hg-dsm-label: oklch(
     0.3 0.01 260
   ); /* #2b2e33  matrix labels + cell numbers */
@@ -174,10 +170,8 @@
   --color-dsm-empty: var(--hg-dsm-empty);
   --color-dsm-grid: var(--hg-dsm-grid);
   --color-dsm-diagonal: var(--hg-dsm-diagonal);
-  --color-dsm-dep: var(--hg-dsm-dep);
   --color-dsm-cycle: var(--hg-dsm-cycle);
   --color-dsm-marker: var(--hg-dsm-marker);
-  --color-dsm-line: var(--hg-dsm-line);
   --color-dsm-outline: var(--hg-dsm-outline);
   --color-dsm-label: var(--hg-dsm-label);
 

@@ -1,22 +1,23 @@
-// TODO: theme tokens / dark mode (Tailwind v4 / shadcn CSS variables) are a
-// named follow-up — deliberately NOT part of #0006. This fixed light hex
-// palette will later be replaced by token-based colors.
+export type DsmColors = {
+  empty: string;
+  grid: string;
+  diagonal: string;
+  cycle: string;
+  marker: string;
+  outline: string;
+  label: string;
+};
 
-export const getMatrixBackgroundColor = () => "#FFF3D3";
-export const getMatrixDiagonalColor = () => "#FFEAB2";
-export const getMatrixTextColor = () => "#000000";
-export const getMatrixSeparatorColor = () => "#DEC585";
-
-export const getCycleSideMarkerColor = () => "#E79E83";
-export const getCycleMatrixDiagonalColor = () => "#E79476";
-export const getCycleSideMarkerSeparatorColor = () => "#C37D64";
-
-export const getSideMarkerBackgroundColor = () => "#FFF3D3";
-export const getSideMarkerTextColor = () => "#000000";
-export const getSideMarkerSeparatorColor = () => "#DEC585";
-
-export const getSideMarkerMarkedColor = () => "#DEC585";
-export const getCycleSideMarkerMarkedColor = () => "#C37D64";
-export const getMatrixMarkedCellColor = () => "#DEC585";
-export const getCycleMatrixMarkedCellColor = () => "#B85E3D";
-export const getSelectedCellColor = () => "#000000";
+export function resolveDsmColors(): DsmColors {
+  const style = getComputedStyle(document.documentElement);
+  const get = (token: string) => style.getPropertyValue(token).trim();
+  return {
+    empty: get("--hg-dsm-empty"),
+    grid: get("--hg-dsm-grid"),
+    diagonal: get("--hg-dsm-diagonal"),
+    cycle: get("--hg-dsm-cycle"),
+    marker: get("--hg-dsm-marker"),
+    outline: get("--hg-dsm-outline"),
+    label: get("--hg-dsm-label"),
+  };
+}

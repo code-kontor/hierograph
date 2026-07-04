@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { twMerge } from "tailwind-merge";
 
+import { Pane } from "@/components/layout/Pane";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGhostTrigger,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
+import { Message } from "@/components/ui/message";
 import type { NodeAdjacencyMatrixQuery } from "@/generated/graphql/graphql";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { dsmQueryOptions, nodesDsmQueryOptions } from "@/queries/dsm";
@@ -34,9 +36,11 @@ export function DependencyMatrix() {
 
   if (selectedIds.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Select a node to view its dependency matrix.
-      </p>
+      <Pane title="Dependency Overview">
+        <Message variant="empty">
+          Select a package node to view its dependency matrix.
+        </Message>
+      </Pane>
     );
   }
 
@@ -57,16 +61,16 @@ type DependencyFromToProps = { selection: DsmCellSelection | undefined };
 
 function DependencyFromTo({ selection }: DependencyFromToProps) {
   return (
-    <div className="text-muted-foreground min-w-0 flex-1 text-sm">
+    <div className="min-w-0 flex-1 font-mono text-[12px] leading-tight">
       <div className="flex min-w-0">
-        <span className="shrink-0">From:&nbsp;</span>
-        <span className={twMerge("min-w-0 truncate")}>
+        <span className="text-fg-subtle shrink-0">From:&nbsp;</span>
+        <span className="text-fg min-w-0 truncate">
           {selection?.sourceLabel.text ?? "—"}
         </span>
       </div>
       <div className="flex min-w-0">
-        <span className="shrink-0">To:&nbsp;</span>
-        <span className={twMerge("min-w-0 truncate")}>
+        <span className="text-fg-subtle shrink-0">To:&nbsp;</span>
+        <span className="text-fg min-w-0 truncate">
           {selection?.targetLabel.text ?? "—"}
         </span>
       </div>
@@ -74,29 +78,64 @@ function DependencyFromTo({ selection }: DependencyFromToProps) {
   );
 }
 
-type LabelFormatSelectProps = {
+type DsmLabelFormatMenuProps = {
   value: LabelFormat;
   onChange: (value: LabelFormat) => void;
 };
 
-function LabelFormatSelect({ value, onChange }: LabelFormatSelectProps) {
+function DsmLabelFormatMenu({ value, onChange }: DsmLabelFormatMenuProps) {
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-44 shrink-0">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={LABEL_FORMAT_OPTIONS[0].value}>
-          {LABEL_FORMAT_OPTIONS[0].label}
-        </SelectItem>
-        <SelectItem value={LABEL_FORMAT_OPTIONS[1].value}>
-          {LABEL_FORMAT_OPTIONS[1].label}
-        </SelectItem>
-        <SelectItem value={LABEL_FORMAT_OPTIONS[2].value}>
-          {LABEL_FORMAT_OPTIONS[2].label}
-        </SelectItem>
-      </SelectContent>
-    </Select>
+    <DropdownMenu>
+      <DropdownMenuGhostTrigger title="Label format" />
+      <DropdownMenuContent>
+        <DropdownMenuLabel>Label format</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={value}
+          onValueChange={(v) => onChange(v as LabelFormat)}
+        >
+          <DropdownMenuRadioItem
+            value={LABEL_FORMAT_OPTIONS[0].value}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {LABEL_FORMAT_OPTIONS[0].label}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value={LABEL_FORMAT_OPTIONS[1].value}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {LABEL_FORMAT_OPTIONS[1].label}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value={LABEL_FORMAT_OPTIONS[2].value}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {LABEL_FORMAT_OPTIONS[2].label}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function DsmLegend() {
+  return (
+    <div className="text-muted-foreground border-border flex flex-wrap items-center gap-3 border-t px-3 py-2 font-mono text-[11px]">
+      <div className="flex items-center gap-1.5">
+        <span className="border-dsm-grid bg-dsm-empty inline-flex size-4 shrink-0 items-center justify-center rounded-sm border text-[9px]">
+          n
+        </span>
+        <span>dependency</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="bg-dsm-cycle inline-block size-4 shrink-0 rounded-sm" />
+        <span>cycle</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="border-dsm-outline inline-block size-4 shrink-0 rounded-sm border-2" />
+        <span>hovered / selected</span>
+      </div>
+      <span className="ml-auto">click a cell → details</span>
+    </div>
   );
 }
 
@@ -105,17 +144,17 @@ function SingleNodeMatrix({ id }: SingleNodeMatrixProps) {
 
   if (isPending) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Loading dependency matrix…
-      </p>
+      <Pane title="Dependency Overview">
+        <Message variant="loading">Loading dependency matrix…</Message>
+      </Pane>
     );
   }
 
   if (isError) {
     return (
-      <p className="text-destructive text-sm">
-        Could not load dependency matrix.
-      </p>
+      <Pane title="Dependency Overview">
+        <Message variant="error">Could not load dependency matrix.</Message>
+      </Pane>
     );
   }
 
@@ -128,17 +167,17 @@ function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
 
   if (isPending) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Loading dependency matrix…
-      </p>
+      <Pane title="Dependency Overview">
+        <Message variant="loading">Loading dependency matrix…</Message>
+      </Pane>
     );
   }
 
   if (isError) {
     return (
-      <p className="text-destructive text-sm">
-        Could not load dependency matrix.
-      </p>
+      <Pane title="Dependency Overview">
+        <Message variant="error">Could not load dependency matrix.</Message>
+      </Pane>
     );
   }
 
@@ -165,23 +204,24 @@ function MatrixView({ matrix }: MatrixViewProps) {
         : null,
     );
   }
+
   const [storedFormat, setLabelFormat] = useLocalStorage<string>(
     LABEL_FORMAT_STORAGE_KEY,
-    "full",
+    "last-segment",
   );
   const labelFormat: LabelFormat = LABEL_FORMAT_OPTIONS.some(
     (o) => o.value === storedFormat,
   )
     ? (storedFormat as LabelFormat)
-    : "full";
+    : "last-segment";
 
   const orderedNodes = matrix?.orderedNodes ?? [];
 
   if (orderedNodes.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        No dependencies to display.
-      </p>
+      <Pane title="Dependency Overview">
+        <Message variant="empty">No dependencies to display.</Message>
+      </Pane>
     );
   }
 
@@ -190,12 +230,17 @@ function MatrixView({ matrix }: MatrixViewProps) {
   const display = hovered ?? selectedCell;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-start gap-2 px-1 py-1">
-        <DependencyFromTo selection={display} />
-        <LabelFormatSelect value={labelFormat} onChange={setLabelFormat} />
-      </div>
-      <div className="overflow-auto">
+    <Pane
+      title="Dependency Overview"
+      toolbar={
+        <div className="flex items-center gap-2">
+          <DependencyFromTo selection={display} />
+          <DsmLabelFormatMenu value={labelFormat} onChange={setLabelFormat} />
+        </div>
+      }
+      bodyClassName="p-0 flex flex-col overflow-hidden"
+    >
+      <div className="min-h-0 flex-1 overflow-auto">
         <DsmCanvas
           labels={orderedNodes}
           cells={cells}
@@ -205,6 +250,7 @@ function MatrixView({ matrix }: MatrixViewProps) {
           onSelectCell={handleSelectCell}
         />
       </div>
-    </div>
+      <DsmLegend />
+    </Pane>
   );
 }
