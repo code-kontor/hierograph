@@ -20,25 +20,25 @@ export function TwoOneSplitLayout({
   return (
     <ResizablePanelGroup
       direction="vertical"
-      autoSaveId="dependencies-2-1"
+      autoSaveId="dependencies-2-1-v2"
       className="h-full"
     >
-      <ResizablePanel defaultSize={55} minSize={20}>
+      <ResizablePanel defaultSize={60} minSize={20}>
         <ResizablePanelGroup
           direction="horizontal"
-          autoSaveId="dependencies-2-1-top"
+          autoSaveId="dependencies-2-1-top-v2"
         >
-          <ResizablePanel defaultSize={50} minSize={15}>
+          <ResizablePanel defaultSize={33} minSize={15}>
             {topLeft}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={50} minSize={15}>
+          <ResizablePanel defaultSize={67} minSize={15}>
             {topRight}
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={45} minSize={15}>
+      <ResizablePanel defaultSize={40} minSize={15}>
         {bottom}
       </ResizablePanel>
     </ResizablePanelGroup>
