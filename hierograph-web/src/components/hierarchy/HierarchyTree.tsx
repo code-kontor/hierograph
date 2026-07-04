@@ -1,26 +1,16 @@
-import {
-  asyncDataLoaderFeature,
-  hotkeysCoreFeature,
-  type ItemInstance,
-  selectionFeature,
-  type TreeState,
-} from "@headless-tree/core";
-import { useTree } from "@headless-tree/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Loader2 } from "lucide-react";
-import { createElement, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 
+import { AsyncTree, type TreeNodeData } from "@/components/tree/AsyncTree";
 import type { RootNodeQuery } from "@/generated/graphql/graphql";
-import { cn } from "@/lib/utils";
 import {
   nodeChildrenQueryOptions,
   rootNodeQueryOptions,
 } from "@/queries/hierarchical-graph";
 
-import { getNodeIcon } from "./nodeIcon";
 import { useSelection } from "./SelectionContext";
 
-type NodeData = NonNullable<
+type RootNode = NonNullable<
   NonNullable<RootNodeQuery["hierarchicalGraph"]>["rootNode"]
 >;
 
@@ -51,120 +41,30 @@ export function HierarchyTree() {
 }
 
 type HierarchyTreeInnerProps = {
-  rootNode: NodeData;
+  rootNode: RootNode;
 };
 
 function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
   const queryClient = useQueryClient();
   const { setSelectedIds, setFocusedId } = useSelection();
 
-  // Item data cache: headless-tree queries `getItem(id)` in a synchronous-ish
-  // way; the full NodeData lands here once the parent node has been loaded.
-  // Root is pre-seeded — otherwise there would be a miss on the first render.
-  const itemData = useRef<Map<string, NodeData>>(
-    new Map([[rootNode.id, rootNode]]),
-  );
-
-  const [state, setState] = useState<Partial<TreeState<NodeData>>>({});
-
-  const tree = useTree<NodeData>({
-    rootItemId: rootNode.id,
-    getItemName: (item) => item.getItemData().text,
-    isItemFolder: (item) => item.getItemData().hasChildren,
-    // While getItem(id) loads asynchronously, getItemData() would otherwise
-    // return null (asyncDataLoaderFeature) — this placeholder bridges the
-    // loading tick.
-    createLoadingItemData: () => ({
-      id: "",
-      text: "Loading…",
-      type: "",
-      hasChildren: false,
-    }),
-    state,
-    setState,
-    dataLoader: {
-      async getItem(id: string) {
-        return (
-          itemData.current.get(id) ?? {
-            id,
-            text: id,
-            type: "",
-            hasChildren: false,
-          }
-        );
-      },
-      async getChildren(id: string) {
-        const result = await queryClient.ensureQueryData(
-          nodeChildrenQueryOptions(id),
-        );
-        const nodes = result.hierarchicalGraph?.node?.children.nodes ?? [];
-        for (const n of nodes) {
-          itemData.current.set(n.id, n);
-        }
-        return nodes.map((n) => n.id);
-      },
+  const loadChildren = useCallback(
+    async (id: string): Promise<TreeNodeData[]> => {
+      const result = await queryClient.ensureQueryData(
+        nodeChildrenQueryOptions(id),
+      );
+      return result.hierarchicalGraph?.node?.children.nodes ?? [];
     },
-    features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
-  });
-
-  // Selection output: the tree mirrors the selection into the context (design
-  // intent: the tree is controlled against selectedIds, later inbound marking
-  // is dropped).
-  useEffect(() => {
-    setSelectedIds(state.selectedItems ?? []);
-  }, [state.selectedItems, setSelectedIds]);
-
-  useEffect(() => {
-    setFocusedId(state.focusedItem ?? null);
-  }, [state.focusedItem, setFocusedId]);
-
-  return (
-    <div {...tree.getContainerProps("Hierarchy")} className="text-sm">
-      {tree.getItems().map((item) => (
-        <TreeRow key={item.getId()} item={item} />
-      ))}
-    </div>
+    [queryClient],
   );
-}
-
-type TreeRowProps = {
-  item: ItemInstance<NodeData>;
-};
-
-function TreeRow({ item }: TreeRowProps) {
-  const level = item.getItemMeta().level;
-  const isFolder = item.isFolder();
-  const isLoading = item.isLoading();
-  const isExpanded = item.isExpanded();
-  const isSelected = item.isSelected();
 
   return (
-    <div
-      {...item.getProps()}
-      style={{ paddingLeft: level * 16 }}
-      className={cn(
-        "hover:bg-accent flex cursor-pointer items-center gap-1 rounded px-2 py-1",
-        isSelected && "bg-accent",
-      )}
-    >
-      <span className="flex h-4 w-4 items-center justify-center">
-        {isFolder ? (
-          isLoading ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <ChevronRight
-              className={cn(
-                "h-3 w-3 transition-transform",
-                isExpanded && "rotate-90",
-              )}
-            />
-          )
-        ) : null}
-      </span>
-      {createElement(getNodeIcon(item.getItemData().type), {
-        className: "text-muted-foreground h-4 w-4 shrink-0",
-      })}
-      <span>{item.getItemName()}</span>
-    </div>
+    <AsyncTree
+      rootNode={rootNode}
+      loadChildren={loadChildren}
+      onSelectedIdsChange={setSelectedIds}
+      onFocusedIdChange={setFocusedId}
+      label="Hierarchy"
+    />
   );
 }

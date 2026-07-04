@@ -6,11 +6,18 @@ import {
   useState,
 } from "react";
 
+type CellSelection = {
+  sourceNodeId: string;
+  targetNodeId: string;
+};
+
 type SelectionContextValue = {
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
   focusedId: string | null;
   setFocusedId: (id: string | null) => void;
+  cellSelection: CellSelection | null;
+  setCellSelection: (sel: CellSelection | null) => void;
 };
 
 const SelectionContext = createContext<SelectionContextValue | null>(null);
@@ -22,9 +29,19 @@ type SelectionProviderProps = {
 export function SelectionProvider({ children }: SelectionProviderProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [cellSelection, setCellSelection] = useState<CellSelection | null>(
+    null,
+  );
   const value = useMemo(
-    () => ({ selectedIds, setSelectedIds, focusedId, setFocusedId }),
-    [selectedIds, focusedId],
+    () => ({
+      selectedIds,
+      setSelectedIds,
+      focusedId,
+      setFocusedId,
+      cellSelection,
+      setCellSelection,
+    }),
+    [selectedIds, focusedId, cellSelection],
   );
   return (
     <SelectionContext.Provider value={value}>

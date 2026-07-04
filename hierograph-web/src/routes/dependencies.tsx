@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { DependencyDetailsPane } from "@/components/dependency-details/DependencyDetailsPane";
 import { DependencyMatrix } from "@/components/dsm/DependencyMatrix";
 import { HierarchyTree } from "@/components/hierarchy/HierarchyTree";
-import { NodeDetails } from "@/components/hierarchy/NodeDetails";
 import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
 import { Pane } from "@/components/layout/Pane";
 import { TwoOneSplitLayout } from "@/components/layout/TwoOneSplitLayout";
@@ -27,7 +27,7 @@ function DependenciesView() {
         }
         bottom={
           <Pane title="Dependencies Details">
-            <NodeDetails />
+            <DependencyDetailsPane />
           </Pane>
         }
       />
