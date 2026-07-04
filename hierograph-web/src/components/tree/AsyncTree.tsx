@@ -7,10 +7,19 @@ import {
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
 import { ChevronRight, Loader2 } from "lucide-react";
-import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { getNodeIcon } from "@/components/hierarchy/nodeIcon";
+import { formatTreeLabel } from "@/components/hierarchy/treeLabelFormat";
+import type { TreeSettings } from "@/components/hierarchy/useTreeSettings";
 import { cn } from "@/lib/utils";
 
 export type TreeNodeData = {
@@ -24,10 +33,10 @@ export type AsyncTreeProps = {
   rootNode: TreeNodeData;
   loadChildren: (parentId: string) => Promise<TreeNodeData[]>;
   onSelectedIdsChange: (ids: string[]) => void;
-  onFocusedIdChange?: (id: string | null) => void;
+  onFocusedIdChange?: (id: string | null, name: string | null) => void;
   markedIds?: string[];
   label: string;
-  showIndentGuides?: boolean;
+  settings: TreeSettings;
 };
 
 export function AsyncTree({
@@ -37,7 +46,7 @@ export function AsyncTree({
   onFocusedIdChange,
   markedIds,
   label,
-  showIndentGuides = true,
+  settings,
 }: AsyncTreeProps) {
   const markedSet = useMemo(() => new Set(markedIds ?? []), [markedIds]);
 
@@ -46,6 +55,118 @@ export function AsyncTree({
   );
 
   const [state, setState] = useState<Partial<TreeState<TreeNodeData>>>({});
+
+  const setFocusedItem = useCallback((id: string | null) => {
+    setState((prev) => ({ ...prev, focusedItem: id ?? undefined }));
+  }, []);
+
+  // Collapse the item and prune expanded descendants. Optionally removes
+  // descendant selections when preserveSelectionOnCollapse is off.
+  const collapseWithPrune = useCallback(
+    (item: ItemInstance<TreeNodeData>) => {
+      const nodeId = item.getId();
+      const nodeLevel = item.getItemMeta().level;
+      const allItems = tree.getItems();
+      const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
+
+      const descendantIds = new Set<string>();
+      for (let i = nodeIndex + 1; i < allItems.length; i++) {
+        if (allItems[i].getItemMeta().level <= nodeLevel) break;
+        descendantIds.add(allItems[i].getId());
+      }
+
+      setState((prev) => {
+        const nextExpanded = (prev.expandedItems ?? []).filter(
+          (id) => id !== nodeId && !descendantIds.has(id),
+        );
+
+        if (settings.preserveSelectionOnCollapse) {
+          return { ...prev, expandedItems: nextExpanded };
+        }
+
+        const nextSelected = (prev.selectedItems ?? []).filter(
+          (id) => !descendantIds.has(id),
+        );
+        const nextFocused =
+          prev.focusedItem != null && descendantIds.has(prev.focusedItem)
+            ? nodeId
+            : prev.focusedItem;
+
+        return {
+          ...prev,
+          expandedItems: nextExpanded,
+          selectedItems: nextSelected,
+          focusedItem: nextFocused,
+        };
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.preserveSelectionOnCollapse],
+  );
+
+  // Expand the item. When autoExpandSingleChildren is on, chains through
+  // single-child folders until a node with ≥2 children or a non-folder is reached.
+  // Module nodes (java.module) do not chain further.
+  const expandWithAutoExpand = useCallback(
+    async (item: ItemInstance<TreeNodeData>) => {
+      const startId = item.getId();
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [...(prev.expandedItems ?? []), startId],
+      }));
+
+      if (!settings.autoExpandSingleChildren) return;
+
+      let currentId = startId;
+      for (;;) {
+        const children = await loadChildren(currentId);
+        if (
+          children.length !== 1 ||
+          !children[0].hasChildren ||
+          children[0].type === "java.module"
+        ) {
+          break;
+        }
+        const childId = children[0].id;
+        setState((prev) => ({
+          ...prev,
+          expandedItems: [...(prev.expandedItems ?? []), childId],
+        }));
+        currentId = childId;
+      }
+    },
+    [settings.autoExpandSingleChildren, loadChildren],
+  );
+
+  const handleChevronClick = useCallback(
+    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (item.isExpanded()) {
+        collapseWithPrune(item);
+      } else {
+        expandWithAutoExpand(item).catch(console.error);
+      }
+    },
+    [collapseWithPrune, expandWithAutoExpand],
+  );
+
+  const handleRowClick = useCallback(
+    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
+      const id = item.getId();
+      if (e.shiftKey) {
+        item.selectUpTo(e.ctrlKey || e.metaKey);
+        setFocusedItem(id);
+      } else if (e.metaKey || e.ctrlKey) {
+        item.toggleSelect();
+        setFocusedItem(id);
+      } else {
+        tree.setSelectedItems([id]);
+        setFocusedItem(id);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setFocusedItem],
+  );
 
   const tree = useTree<TreeNodeData>({
     rootItemId: rootNode.id,
@@ -79,6 +200,34 @@ export function AsyncTree({
       },
     },
     features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
+    hotkeys: {
+      collapseOrUp: {
+        hotkey: "ArrowLeft",
+        canRepeat: true,
+        handler: (_e, t) => {
+          const focused = t.getFocusedItem();
+          if (focused.isExpanded() && focused.isFolder()) {
+            collapseWithPrune(focused);
+          } else if (focused.getItemMeta().level !== 0) {
+            focused.getParent()?.setFocused();
+            t.updateDomFocus();
+          }
+        },
+      },
+      expandOrDown: {
+        hotkey: "ArrowRight",
+        canRepeat: true,
+        handler: (_e, t) => {
+          const focused = t.getFocusedItem();
+          if (focused.isFolder() && !focused.isExpanded()) {
+            expandWithAutoExpand(focused).catch(console.error);
+          } else {
+            t.focusNextItem();
+            t.updateDomFocus();
+          }
+        },
+      },
+    },
   });
 
   useEffect(() => {
@@ -86,7 +235,12 @@ export function AsyncTree({
   }, [state.selectedItems, onSelectedIdsChange]);
 
   useEffect(() => {
-    onFocusedIdChange?.(state.focusedItem ?? null);
+    const id = state.focusedItem ?? null;
+    const name =
+      id != null
+        ? (itemData.current.get(id)?.text.split(".").pop() ?? null)
+        : null;
+    onFocusedIdChange?.(id, name);
   }, [state.focusedItem, onFocusedIdChange]);
 
   return (
@@ -97,7 +251,9 @@ export function AsyncTree({
           item={item}
           isMarked={markedSet.has(item.getId())}
           focusedItemId={state.focusedItem ?? null}
-          showIndentGuides={showIndentGuides}
+          settings={settings}
+          onRowClick={handleRowClick}
+          onChevronClick={handleChevronClick}
         />
       ))}
     </div>
@@ -108,7 +264,12 @@ type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
   isMarked: boolean;
   focusedItemId: string | null;
-  showIndentGuides: boolean;
+  settings: TreeSettings;
+  onRowClick: (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => void;
+  onChevronClick: (
+    item: ItemInstance<TreeNodeData>,
+    e: React.MouseEvent,
+  ) => void;
 };
 
 type TooltipPos = { x: number; y: number };
@@ -143,7 +304,9 @@ function TreeRow({
   item,
   isMarked,
   focusedItemId,
-  showIndentGuides,
+  settings,
+  onRowClick,
+  onChevronClick,
 }: TreeRowProps) {
   const level = item.getItemMeta().level;
   const isFolder = item.isFolder();
@@ -172,6 +335,11 @@ function TreeRow({
   const nodeData = item.getItemData();
   const fullFqn = nodeData.text;
   const shortName = fullFqn.split(".").pop() ?? fullFqn;
+  const displayLabel = formatTreeLabel(
+    fullFqn,
+    nodeData.type,
+    settings.labelFormat,
+  );
 
   return (
     <div
@@ -185,6 +353,7 @@ function TreeRow({
         !isSelected && !isMarked && isHovered && "bg-state-hover",
         isFocused && "ring-state-focus-ring ring-2 ring-inset",
       )}
+      onClick={(e) => onRowClick(item, e)}
       onMouseEnter={(e) => {
         setIsHovered(true);
         pointerRef.current = { x: e.clientX, y: e.clientY };
@@ -218,12 +387,15 @@ function TreeRow({
         className="h-full shrink-0"
         style={{
           width: level * 16,
-          backgroundImage: showIndentGuides
+          backgroundImage: settings.showIndentGuides
             ? "repeating-linear-gradient(90deg, var(--hg-guide) 0 1px, transparent 1px 16px)"
             : undefined,
         }}
       />
-      <span className="flex size-4 shrink-0 items-center justify-center">
+      <span
+        className="flex size-4 shrink-0 cursor-pointer items-center justify-center"
+        onClick={(e) => isFolder && onChevronClick(item, e)}
+      >
         {isFolder ? (
           isLoading ? (
             <Loader2
@@ -244,7 +416,7 @@ function TreeRow({
         className: cn("size-[15px] shrink-0", iconColorClass),
       })}
       <span className="min-w-0 flex-1 truncate text-[13px]">
-        {item.getItemName()}
+        {displayLabel}
       </span>
       {tooltipPos !== null && (
         <RowTooltip

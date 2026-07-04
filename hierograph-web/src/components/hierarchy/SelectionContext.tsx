@@ -16,6 +16,8 @@ type SelectionContextValue = {
   setSelectedIds: (ids: string[]) => void;
   focusedId: string | null;
   setFocusedId: (id: string | null) => void;
+  focusedName: string | null;
+  setFocusedName: (name: string | null) => void;
   cellSelection: CellSelection | null;
   setCellSelection: (sel: CellSelection | null) => void;
 };
@@ -29,6 +31,7 @@ type SelectionProviderProps = {
 export function SelectionProvider({ children }: SelectionProviderProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [focusedName, setFocusedName] = useState<string | null>(null);
   const [cellSelection, setCellSelection] = useState<CellSelection | null>(
     null,
   );
@@ -38,10 +41,12 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
       setSelectedIds,
       focusedId,
       setFocusedId,
+      focusedName,
+      setFocusedName,
       cellSelection,
       setCellSelection,
     }),
-    [selectedIds, focusedId, cellSelection],
+    [selectedIds, focusedId, focusedName, cellSelection],
   );
   return (
     <SelectionContext.Provider value={value}>

@@ -9,12 +9,18 @@ import {
 } from "@/queries/hierarchical-graph";
 
 import { useSelection } from "./SelectionContext";
+import { TreeFooter } from "./TreeFooter";
+import type { TreeSettings } from "./useTreeSettings";
 
 type RootNode = NonNullable<
   NonNullable<RootNodeQuery["hierarchicalGraph"]>["rootNode"]
 >;
 
-export function HierarchyTree() {
+type HierarchyTreeProps = {
+  settings: TreeSettings;
+};
+
+export function HierarchyTree({ settings }: HierarchyTreeProps) {
   const { data, isPending, isError, error } = useQuery(rootNodeQueryOptions());
 
   if (isPending) {
@@ -37,16 +43,22 @@ export function HierarchyTree() {
     );
   }
 
-  return <HierarchyTreeInner rootNode={data.hierarchicalGraph.rootNode} />;
+  return (
+    <HierarchyTreeInner
+      rootNode={data.hierarchicalGraph.rootNode}
+      settings={settings}
+    />
+  );
 }
 
 type HierarchyTreeInnerProps = {
   rootNode: RootNode;
+  settings: TreeSettings;
 };
 
-function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
+function HierarchyTreeInner({ rootNode, settings }: HierarchyTreeInnerProps) {
   const queryClient = useQueryClient();
-  const { setSelectedIds, setFocusedId } = useSelection();
+  const { setSelectedIds, setFocusedId, setFocusedName } = useSelection();
 
   const loadChildren = useCallback(
     async (id: string): Promise<TreeNodeData[]> => {
@@ -58,13 +70,27 @@ function HierarchyTreeInner({ rootNode }: HierarchyTreeInnerProps) {
     [queryClient],
   );
 
+  const handleFocusedIdChange = useCallback(
+    (id: string | null, name: string | null) => {
+      setFocusedId(id);
+      setFocusedName(name);
+    },
+    [setFocusedId, setFocusedName],
+  );
+
   return (
-    <AsyncTree
-      rootNode={rootNode}
-      loadChildren={loadChildren}
-      onSelectedIdsChange={setSelectedIds}
-      onFocusedIdChange={setFocusedId}
-      label="Hierarchy"
-    />
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1 overflow-auto p-3">
+        <AsyncTree
+          rootNode={rootNode}
+          loadChildren={loadChildren}
+          onSelectedIdsChange={setSelectedIds}
+          onFocusedIdChange={handleFocusedIdChange}
+          label="Hierarchy"
+          settings={settings}
+        />
+      </div>
+      <TreeFooter />
+    </div>
   );
 }
