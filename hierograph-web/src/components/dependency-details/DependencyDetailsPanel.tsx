@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
+import { DEFAULT_TREE_SETTINGS } from "@/components/hierarchy/useTreeSettings";
 import { AsyncTree } from "@/components/tree/AsyncTree";
 import {
   filteredChildrenQueryOptions,
@@ -121,6 +122,7 @@ export function DependencyDetailsPanel({
           onSelectedIdsChange={setSelectedSourceIds}
           markedIds={markedSourceIds}
           label="DependencySourceTree"
+          settings={DEFAULT_TREE_SETTINGS}
         />
       </div>
       <div className="min-w-0 overflow-auto">
@@ -130,6 +132,7 @@ export function DependencyDetailsPanel({
           onSelectedIdsChange={setSelectedTargetIds}
           markedIds={markedTargetIds}
           label="DependencyTargetTree"
+          settings={DEFAULT_TREE_SETTINGS}
         />
       </div>
     </div>
