@@ -3,3 +3,5 @@ coverage
 pnpm-lock.yaml
 src/generated/graphql
 src/routeTree.gen.ts
+src/testing/fixtures
+src/testing/public/mockServiceWorker.js

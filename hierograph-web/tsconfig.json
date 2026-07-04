@@ -1,11 +1,18 @@
 {
-  "include": ["src", "vite.config.ts", "codegen.ts"],
+  "include": [
+    "src",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "codegen.ts",
+    "scripts"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client", "node"],
+    "types": ["vite/client", "node", "@vitest/browser/matchers"],
+    "resolveJsonModule": true,
     "paths": {
       "@/*": ["./src/*"]
     },

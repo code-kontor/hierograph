@@ -1,0 +1,301 @@
+{
+  "operation": "FilteredDependencies",
+  "entries": [
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 3,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "346",
+                "350",
+                "356",
+                "359",
+                "-1",
+                "347",
+                "351",
+                "348"
+              ],
+              "markedTargetIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "12",
+        "targetNodeId": "49",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 1,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "8",
+                "7",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1",
+                "49"
+              ],
+              "markedTargetIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "12",
+        "targetNodeId": "8",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 1,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "8",
+                "7",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1",
+                "49"
+              ],
+              "markedTargetIds": [
+                "12",
+                "7",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "127",
+        "targetNodeId": "101",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 6,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "125",
+                "101",
+                "100",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1",
+                "117",
+                "102",
+                "122",
+                "120",
+                "104"
+              ],
+              "markedTargetIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "8",
+        "targetNodeId": "12",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 1,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "12",
+                "7",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ],
+              "markedTargetIds": [
+                "8",
+                "7",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1",
+                "49"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "88",
+        "targetNodeId": "93",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 1,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "91",
+                "93",
+                "87",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ],
+              "markedTargetIds": [
+                "95",
+                "97",
+                "87",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "93",
+        "targetNodeId": "97",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 1,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "95",
+                "97",
+                "87",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ],
+              "markedTargetIds": [
+                "89",
+                "88",
+                "87",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "97",
+        "targetNodeId": "88",
+        "selectedSourceIds": [],
+        "selectedTargetIds": []
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "size": 1,
+            "filteredDependencies": {
+              "markedSourceIds": [
+                "89",
+                "88",
+                "87",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ],
+              "markedTargetIds": [
+                "91",
+                "93",
+                "87",
+                "6",
+                "5",
+                "4",
+                "3",
+                "1",
+                "0",
+                "-1"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -16,6 +16,7 @@ export default defineConfig([
     "prettier.config.js",
     "src/generated/graphql",
     "src/routeTree.gen.ts",
+    "src/testing/public",
   ]),
   {
     files: ["**/*.{ts,tsx}"],

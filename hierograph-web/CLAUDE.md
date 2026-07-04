@@ -107,6 +107,18 @@ onSuccess: (_data, _vars, _result, context) => {
   (`pnpm codegen:watch` for ongoing work; schema changes require a watch
   restart).
 
+## Testing
+
+- Run tests: `pnpm test` (Vitest browser mode, headless Chromium via Playwright)
+- Watch mode: `pnpm test:watch`
+- Strategy and constraints: `docs/testing-strategy.md`
+- Fixtures are recorded JSON files in `src/testing/fixtures/` — re-record with
+  `pnpm fixtures:record` when the GraphQL schema or fixture-app data changes.
+  Never edit fixture files by hand.
+- Use `renderWithQueryClient` from `@/testing/render` for any component that
+  needs `QueryClient`. MSW intercepts all GraphQL requests automatically.
+- `src/testing/public/mockServiceWorker.js` is generated — never edit.
+
 ## Routing (TanStack Router, file-based)
 
 - The generated route tree `src/routeTree.gen.ts` is **never** created or edited
