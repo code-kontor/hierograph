@@ -91,6 +91,45 @@ const filteredDependenciesQuery = graphql(`
   }
 `);
 
+const dependencyEdgesQuery = graphql(`
+  query DependencyEdges($sourceNodeId: ID!, $targetNodeId: ID!) {
+    hierarchicalGraph {
+      dependencySetForAggregatedDependency(
+        sourceNodeId: $sourceNodeId
+        targetNodeId: $targetNodeId
+      ) {
+        size
+        dependencies {
+          id
+          type
+          sourceNode {
+            id
+            text
+            type
+          }
+          targetNode {
+            id
+            text
+            type
+          }
+        }
+      }
+    }
+  }
+`);
+
+export function dependencyEdgesQueryOptions(
+  sourceNodeId: string,
+  targetNodeId: string,
+) {
+  return queryOptions({
+    queryKey: ["dependencySet", sourceNodeId, targetNodeId, "edges"],
+    async queryFn() {
+      return execute(dependencyEdgesQuery, { sourceNodeId, targetNodeId });
+    },
+  });
+}
+
 export function filteredDependenciesQueryOptions(
   sourceNodeId: string,
   targetNodeId: string,

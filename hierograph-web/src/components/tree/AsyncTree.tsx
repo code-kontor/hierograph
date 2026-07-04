@@ -35,6 +35,7 @@ export type AsyncTreeProps = {
   onSelectedIdsChange: (ids: string[]) => void;
   onFocusedIdChange?: (id: string | null, name: string | null) => void;
   markedIds?: string[];
+  markedBadge?: boolean;
   label: string;
   settings: TreeSettings;
 };
@@ -45,6 +46,7 @@ export function AsyncTree({
   onSelectedIdsChange,
   onFocusedIdChange,
   markedIds,
+  markedBadge = false,
   label,
   settings,
 }: AsyncTreeProps) {
@@ -250,6 +252,7 @@ export function AsyncTree({
           key={item.getId()}
           item={item}
           isMarked={markedSet.has(item.getId())}
+          markedBadge={markedBadge}
           focusedItemId={state.focusedItem ?? null}
           settings={settings}
           onRowClick={handleRowClick}
@@ -263,6 +266,7 @@ export function AsyncTree({
 type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
   isMarked: boolean;
+  markedBadge: boolean;
   focusedItemId: string | null;
   settings: TreeSettings;
   onRowClick: (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => void;
@@ -303,6 +307,7 @@ function RowTooltip({ pos, shortName, type, fullFqn }: RowTooltipProps) {
 function TreeRow({
   item,
   isMarked,
+  markedBadge,
   focusedItemId,
   settings,
   onRowClick,
@@ -418,6 +423,11 @@ function TreeRow({
       <span className="min-w-0 flex-1 truncate text-[13px]">
         {displayLabel}
       </span>
+      {markedBadge && isMarked && !isSelected && (
+        <span className="text-state-marked-fg ml-auto pr-2 font-mono text-[10px] opacity-85">
+          ◆ marked
+        </span>
+      )}
       {tooltipPos !== null && (
         <RowTooltip
           pos={tooltipPos}

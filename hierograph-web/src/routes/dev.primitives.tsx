@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -171,6 +172,24 @@ function RouteComponent() {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-muted-foreground font-mono text-[11px] uppercase">
+          Tabs
+        </h2>
+        <div className="border-border bg-panel-header h-[34px] rounded border">
+          <Tabs defaultValue="props">
+            <TabsList>
+              <TabsTrigger value="props">Node Details</TabsTrigger>
+              <TabsTrigger value="table">Dependencies</TabsTrigger>
+              <TabsTrigger value="trees">Cross-marked trees</TabsTrigger>
+            </TabsList>
+            <TabsContent value="props">Node Details content.</TabsContent>
+            <TabsContent value="table">Dependencies content.</TabsContent>
+            <TabsContent value="trees">Cross-marked trees content.</TabsContent>
+          </Tabs>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">

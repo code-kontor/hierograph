@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 
 import { DEFAULT_TREE_SETTINGS } from "@/components/hierarchy/useTreeSettings";
 import { AsyncTree } from "@/components/tree/AsyncTree";
+import { Message } from "@/components/ui/message";
 import {
   filteredChildrenQueryOptions,
   filteredDependenciesQueryOptions,
@@ -88,9 +89,9 @@ export function DependencyDetailsPanel({
 
   if (sourceRootPending || targetRootPending) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Loading dependency details…
-      </p>
+      <div className="p-4">
+        <Message variant="loading" title="Loading dependency details" />
+      </div>
     );
   }
 
@@ -99,41 +100,57 @@ export function DependencyDetailsPanel({
 
   if (!sourceRoot || !targetRoot) {
     return (
-      <p className="text-destructive text-sm">
-        Could not load dependency nodes.
-      </p>
+      <div className="p-4">
+        <Message variant="error" title="Could not load dependency nodes" />
+      </div>
     );
   }
 
   if (filteredData && (!depSet || size === 0)) {
     return (
-      <p className="text-muted-foreground text-sm">
-        No dependencies for this cell.
-      </p>
+      <div className="p-4">
+        <Message variant="empty" title="No dependencies">
+          No dependencies for this cell.
+        </Message>
+      </div>
     );
   }
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-hidden">
-      <div className="min-w-0 overflow-auto">
-        <AsyncTree
-          rootNode={sourceRoot}
-          loadChildren={loadSourceChildren}
-          onSelectedIdsChange={setSelectedSourceIds}
-          markedIds={markedSourceIds}
-          label="DependencySourceTree"
-          settings={DEFAULT_TREE_SETTINGS}
-        />
+    <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
+      <div className="border-border min-w-0 overflow-auto border-r">
+        <div className="border-border text-fg-subtle border-b px-[14px] py-2 font-mono text-[11px]">
+          Source · <span className="text-fg-muted">{sourceRoot.text}</span> —
+          click a type to mark its counterparts
+        </div>
+        <div className="p-1.5">
+          <AsyncTree
+            rootNode={sourceRoot}
+            loadChildren={loadSourceChildren}
+            onSelectedIdsChange={setSelectedSourceIds}
+            markedIds={markedSourceIds}
+            label="DependencySourceTree"
+            settings={DEFAULT_TREE_SETTINGS}
+          />
+        </div>
       </div>
       <div className="min-w-0 overflow-auto">
-        <AsyncTree
-          rootNode={targetRoot}
-          loadChildren={loadTargetChildren}
-          onSelectedIdsChange={setSelectedTargetIds}
-          markedIds={markedTargetIds}
-          label="DependencyTargetTree"
-          settings={DEFAULT_TREE_SETTINGS}
-        />
+        <div className="border-border text-fg-subtle border-b px-[14px] py-2 font-mono text-[11px]">
+          Target · <span className="text-fg-muted">{targetRoot.text}</span> —{" "}
+          <span className="text-state-marked-fg">marked</span> = referenced by
+          the source selection
+        </div>
+        <div className="p-1.5">
+          <AsyncTree
+            rootNode={targetRoot}
+            loadChildren={loadTargetChildren}
+            onSelectedIdsChange={setSelectedTargetIds}
+            markedIds={markedTargetIds}
+            markedBadge
+            label="DependencyTargetTree"
+            settings={DEFAULT_TREE_SETTINGS}
+          />
+        </div>
       </div>
     </div>
   );
