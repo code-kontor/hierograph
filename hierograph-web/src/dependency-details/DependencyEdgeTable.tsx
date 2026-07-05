@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { Button } from "@/design-system/ui/button";
 import { Message } from "@/design-system/ui/message";
 import {
   Table,
@@ -12,6 +13,8 @@ import {
 } from "@/design-system/ui/table";
 
 import { dependencyEdgesQueryOptions } from "./queries";
+
+const DEFAULT_PAGE_SIZE = 50;
 
 type DependencyEdgeTableProps = {
   sourceNodeId: string;
@@ -29,6 +32,14 @@ type DependencyEdgeRowProps = {
   row: EdgeRow;
   isSelected: boolean;
   onClick: () => void;
+};
+
+type EdgePaginationProps = {
+  pageNumber: number;
+  maxPages: number;
+  totalCount: number;
+  onPrev: () => void;
+  onNext: () => void;
 };
 
 function DependencyEdgeRow({
@@ -49,17 +60,60 @@ function DependencyEdgeRow({
   );
 }
 
+function EdgePagination({
+  pageNumber,
+  maxPages,
+  totalCount,
+  onPrev,
+  onNext,
+}: EdgePaginationProps) {
+  return (
+    <div className="text-fg-muted flex items-center justify-between px-4 py-2 text-sm">
+      <span>{totalCount} dependencies</span>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pageNumber <= 1}
+          onClick={onPrev}
+        >
+          Previous
+        </Button>
+        <span>
+          Page {pageNumber} of {maxPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pageNumber >= maxPages}
+          onClick={onNext}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function DependencyEdgeTable({
   sourceNodeId,
   targetNodeId,
 }: DependencyEdgeTableProps) {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
 
   const {
     data: edgesData,
     isPending: edgesPending,
     isError: edgesError,
-  } = useQuery(dependencyEdgesQueryOptions(sourceNodeId, targetNodeId));
+  } = useQuery(
+    dependencyEdgesQueryOptions(
+      sourceNodeId,
+      targetNodeId,
+      pageNumber,
+      DEFAULT_PAGE_SIZE,
+    ),
+  );
 
   if (edgesPending) {
     return (
@@ -77,9 +131,11 @@ export function DependencyEdgeTable({
     );
   }
 
-  const depSet =
-    edgesData?.hierarchicalGraph?.dependencySetForAggregatedDependency;
-  const dependencies = depSet?.dependencies ?? [];
+  const page =
+    edgesData?.hierarchicalGraph?.dependencySetForAggregatedDependency
+      ?.dependencyPage;
+  const dependencies = page?.dependencies ?? [];
+  const pageInfo = page?.pageInfo;
 
   if (dependencies.length === 0) {
     return (
@@ -99,26 +155,39 @@ export function DependencyEdgeTable({
   }));
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[38%]">From type</TableHead>
-          <TableHead className="w-[24%]">Usage</TableHead>
-          <TableHead className="w-[38%]">To type</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <DependencyEdgeRow
-            key={row.id}
-            row={row}
-            isSelected={selectedRowId === row.id}
-            onClick={() =>
-              setSelectedRowId(selectedRowId === row.id ? null : row.id)
-            }
-          />
-        ))}
-      </TableBody>
-    </Table>
+    <div className="flex h-full min-h-0 flex-col">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[38%]">From type</TableHead>
+            <TableHead className="w-[24%]">Usage</TableHead>
+            <TableHead className="w-[38%]">To type</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <DependencyEdgeRow
+              key={row.id}
+              row={row}
+              isSelected={selectedRowId === row.id}
+              onClick={() =>
+                setSelectedRowId(selectedRowId === row.id ? null : row.id)
+              }
+            />
+          ))}
+        </TableBody>
+      </Table>
+      {pageInfo ? (
+        <EdgePagination
+          pageNumber={pageInfo.pageNumber}
+          maxPages={pageInfo.maxPages}
+          totalCount={pageInfo.totalCount}
+          onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
+          onNext={() =>
+            setPageNumber((p) => Math.min(pageInfo.maxPages, p + 1))
+          }
+        />
+      ) : null}
+    </div>
   );
 }
