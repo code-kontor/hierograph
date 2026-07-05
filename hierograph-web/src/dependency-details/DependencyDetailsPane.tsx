@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { NodeDetails } from "@/dependency-details/NodeDetails";
 import { Pane } from "@/design-system/layout/Pane";
 import { Message } from "@/design-system/ui/message";
 import {
@@ -13,12 +12,14 @@ import { useSelection } from "@/selection/SelectionContext";
 
 import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
+import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
+import { NodeDetailsWidget } from "./NodeDetailsWidget";
 
-type ActiveTab = "props" | "table" | "trees";
+type ActiveTab = "usages" | "locations";
 
 export function DependencyDetailsPane() {
   const { cellSelection } = useSelection();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("props");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("usages");
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
@@ -41,47 +42,47 @@ export function DependencyDetailsPane() {
               Dependencies Details
             </div>
             <TabsList>
-              <TabsTrigger value="props">Node Details</TabsTrigger>
-              <TabsTrigger value="table">Dependencies</TabsTrigger>
-              <TabsTrigger value="trees">Cross-marked trees</TabsTrigger>
+              <TabsTrigger value="usages">Usages</TabsTrigger>
+              <TabsTrigger value="locations">Locations</TabsTrigger>
             </TabsList>
           </>
         }
+        subHeader={
+          cellKey && cellSelection ? (
+            <DependencyInspectorHeader
+              sourceNodeId={cellSelection.sourceNodeId}
+              targetNodeId={cellSelection.targetNodeId}
+            />
+          ) : undefined
+        }
         bodyClassName="p-0"
       >
-        <TabsContent value="props" forceMount>
-          <NodeDetails />
-        </TabsContent>
-        <TabsContent value="table" forceMount>
-          {cellKey && cellSelection ? (
-            <DependencyEdgeTable
-              key={cellKey}
-              sourceNodeId={cellSelection.sourceNodeId}
-              targetNodeId={cellSelection.targetNodeId}
-            />
-          ) : (
-            <div className="p-4">
-              <Message variant="empty" title="No cell selected">
-                Pick a dependency cell in the matrix.
-              </Message>
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="trees" forceMount>
-          {cellKey && cellSelection ? (
-            <DependencyDetailsPanel
-              key={cellKey}
-              sourceNodeId={cellSelection.sourceNodeId}
-              targetNodeId={cellSelection.targetNodeId}
-            />
-          ) : (
-            <div className="p-4">
-              <Message variant="empty" title="No cell selected">
-                Pick a dependency cell in the matrix.
-              </Message>
-            </div>
-          )}
-        </TabsContent>
+        {cellKey && cellSelection ? (
+          <>
+            <TabsContent value="usages" forceMount>
+              <DependencyEdgeTable
+                key={cellKey}
+                sourceNodeId={cellSelection.sourceNodeId}
+                targetNodeId={cellSelection.targetNodeId}
+              />
+            </TabsContent>
+            <TabsContent value="locations" forceMount>
+              <DependencyDetailsPanel
+                key={cellKey}
+                sourceNodeId={cellSelection.sourceNodeId}
+                targetNodeId={cellSelection.targetNodeId}
+              />
+            </TabsContent>
+          </>
+        ) : (
+          <div className="p-4">
+            <Message variant="empty" title="No cell selected">
+              Pick a dependency cell in the matrix to inspect its usages and
+              locations.
+            </Message>
+          </div>
+        )}
+        {import.meta.env.DEV && <NodeDetailsWidget />}
       </Pane>
     </Tabs>
   );

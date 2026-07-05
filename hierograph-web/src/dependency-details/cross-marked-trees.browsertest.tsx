@@ -38,7 +38,7 @@ function SelectCellButton() {
 }
 
 describe("Cross-marked trees tab", () => {
-  // The sibling force-mounted "Dependencies" tab also fires its DependencyEdges
+  // The sibling force-mounted "Usages" tab also fires its DependencyEdges
   // query (no fixture); stub it so it isn't an unhandled request.
   beforeEach(() => {
     worker.use(
@@ -78,7 +78,7 @@ describe("Cross-marked trees tab", () => {
     );
 
     await userEvent.click(page.getByText("select-cell"));
-    await userEvent.click(page.getByText("Cross-marked trees"));
+    await userEvent.click(page.getByText("Locations"));
 
     const sourceRow = page.getByText(
       "org.hg.fixture.basic.rel.source.SubClass",
@@ -88,7 +88,7 @@ describe("Cross-marked trees tab", () => {
 
     // The panel that holds the DependencyDetailsPane (the Tabs root's parent).
     const tabsRoot = screen
-      .getByText("Cross-marked trees")
+      .getByText("Locations")
       .element()
       .closest("[data-slot='tabs']") as HTMLElement;
     const panel = tabsRoot.parentElement as HTMLElement;
