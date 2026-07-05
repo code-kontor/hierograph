@@ -224,6 +224,7 @@ function drawMatrix(
   sccs: Scc[],
   markerSizes: DsmMarkerSizes,
   colors: DsmColors,
+  showDiagonal: boolean,
 ): void {
   const { verticalSideMarkerWidth, horizontalSideMarkerHeight } = markerSizes;
 
@@ -269,7 +270,7 @@ function drawMatrix(
   ctx.fillStyle = colors.label;
   ctx.font = FONT;
   cells.forEach((cell) => {
-    if (cell.row !== cell.column && cell.value) {
+    if (cell.value && (cell.row !== cell.column || showDiagonal)) {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
@@ -389,6 +390,7 @@ export function drawDsm(
   { labels, cells, sccs }: DsmData,
   markerSizes: DsmMarkerSizes,
   formatLabel: (text: string) => string,
+  showDiagonal: boolean,
 ): void {
   const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
 
@@ -428,5 +430,5 @@ export function drawDsm(
       colors,
     );
   }
-  drawMatrix(ctx, labels, cells, sccs, markerSizes, colors);
+  drawMatrix(ctx, labels, cells, sccs, markerSizes, colors, showDiagonal);
 }

@@ -56,11 +56,11 @@ export function buildCellSelection(
 ): DsmCellSelection | undefined {
   if (x === undefined || y === undefined) return undefined;
   return {
-    sourceNodeId: labels[y].id,
-    targetNodeId: labels[x].id,
+    sourceNodeId: labels[x].id,
+    targetNodeId: labels[y].id,
     value: matrixElements[y]?.[x]?.value ?? 0,
-    sourceLabel: { id: labels[y].id, text: labels[y].text },
-    targetLabel: { id: labels[x].id, text: labels[x].text },
+    sourceLabel: { id: labels[x].id, text: labels[x].text },
+    targetLabel: { id: labels[y].id, text: labels[y].text },
   };
 }
 

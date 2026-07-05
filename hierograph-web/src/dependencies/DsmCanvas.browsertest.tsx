@@ -58,6 +58,7 @@ describe("DsmCanvas — canvas click delivers correct cell selection", () => {
         cells={matrix!.cells}
         sccs={matrix!.stronglyConnectedComponents}
         labelFormat="full"
+        showDiagonal={true}
         onSelectCell={onSelectCell}
       />,
     );
@@ -77,8 +78,56 @@ describe("DsmCanvas — canvas click delivers correct cell selection", () => {
     expect(onSelectCell).toHaveBeenCalledOnce();
     const sel = onSelectCell.mock.calls[0][0];
     expect(sel?.value).toBe(9);
-    // buildCellSelection: source=labels[y=column], target=labels[x=row]
-    expect(sel?.sourceNodeId).toBe(labels[cell.column].id);
-    expect(sel?.targetNodeId).toBe(labels[cell.row].id);
+    // source=labels[x=row], target=labels[y=column]
+    expect(sel?.sourceNodeId).toBe(labels[cell.row].id);
+    expect(sel?.targetNodeId).toBe(labels[cell.column].id);
+  });
+
+  it("fires onSelectCell with sourceNodeId===targetNodeId for a diagonal cell click", async () => {
+    // The basic parent matrix contains rel at position 1 with diagonal value 9 (internal coupling)
+    const matrix = findMatrixByText("org.hg.fixture.basic.rel");
+    expect(matrix).toBeDefined();
+
+    const diagCell = matrix!.cells.find(
+      (c) => c.row === c.column && c.value > 0,
+    );
+    expect(diagCell).toBeDefined();
+
+    const labels = matrix!.orderedNodes.map((n) => ({
+      id: n.id,
+      text: n.text,
+    }));
+
+    const onSelectCell = vi.fn();
+    const screen = await renderWithQueryClient(
+      <DsmCanvas
+        labels={labels}
+        cells={matrix!.cells}
+        sccs={matrix!.stronglyConnectedComponents}
+        labelFormat="full"
+        showDiagonal={true}
+        onSelectCell={onSelectCell}
+      />,
+    );
+
+    const canvas = screen.getByTestId("dsm-overlay-canvas");
+
+    const clickX =
+      DEFAULT_VERTICAL_SIDE_MARKER_WIDTH +
+      BOX_SIZE * diagCell!.row +
+      BOX_SIZE / 2;
+    const clickY =
+      DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT +
+      BOX_SIZE * diagCell!.column +
+      BOX_SIZE / 2;
+
+    await userEvent.click(canvas, { position: { x: clickX, y: clickY } });
+
+    expect(onSelectCell).toHaveBeenCalledOnce();
+    const sel = onSelectCell.mock.calls[0][0];
+    expect(sel?.value).toBe(diagCell!.value);
+    // diagonal: source and target are the same node
+    expect(sel?.sourceNodeId).toBe(sel?.targetNodeId);
+    expect(sel?.sourceNodeId).toBe(labels[diagCell!.row].id);
   });
 });
