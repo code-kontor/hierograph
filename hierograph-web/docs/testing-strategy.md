@@ -11,22 +11,50 @@
 
 | Concern              | Tool                                                   |
 | -------------------- | ------------------------------------------------------ |
-| Test runner          | Vitest 4 (browser mode)                                |
-| Browser              | Playwright provider, headless Chromium                 |
+| Test runner          | Vitest 4, configured in `vite.config.ts` (`test`)      |
+| Browser              | Playwright provider, Chromium (headless by default)    |
 | React rendering      | `vitest-browser-react`                                 |
 | Request interception | MSW 2 (`setupWorker`, `graphql.*`)                     |
 | Fixture data         | Recorded JSON files from the deterministic fixture-app |
+
+## Test Projects
+
+Tests are split into two Vitest projects (`test.projects` in `vite.config.ts`),
+selected by filename:
+
+| Project   | Files                    | Environment                               | For                                                   |
+| --------- | ------------------------ | ----------------------------------------- | ----------------------------------------------------- |
+| `unit`    | `*.test.{ts,tsx}`        | `node`                                    | Browser-independent code (logic, algorithms) — no DOM |
+| `browser` | `*.browsertest.{ts,tsx}` | Vitest browser mode (Playwright/Chromium) | Components, rendering, MSW-backed integration         |
+
+- `pnpm test` — run everything once (headless).
+- `pnpm test:watch` — watch mode, both projects.
+- `pnpm test:unit` / `pnpm test:browser` — a single project in watch mode.
+- `pnpm test:headed` — browser tests with a **visible** browser window
+  (`HG_HEADED=true`). Browser tests are headless by default so CI, the sandbox,
+  and other display-less environments work without extra flags.
+- `pnpm test:browser:update` — update `toMatchScreenshot` baselines (`-u`).
+
+### Screenshot artifacts
+
+`toMatchScreenshot` baselines live in `__screenshots__/` next to the test file
+and are committed (reference data). Failure screenshots are redirected to a
+throwaway `__artifacts__/` folder (via `screenshotDirectory` +
+`resolveScreenshotPath` in the browser project), so the two never mix.
+`__artifacts__` and `.vitest-attachments` are gitignored; `__screenshots__` is
+not. There are currently no `toMatchScreenshot` assertions — the separation is
+in place for when visual baselines are added.
 
 ## Test Structure
 
 ```
 src/
   components/dsm/
-    dsmModel.test.ts        pure-function unit tests (DSM model logic)
-    DsmCanvas.test.tsx      canvas-click → onSelectCell callback test
+    dsmModel.test.ts             pure-function unit tests (DSM model logic)
+    DsmCanvas.browsertest.tsx    canvas-click → onSelectCell callback test
   testing/
     integration/
-      dependency-filtering.test.tsx  DependencyDetailsPanel filter correctness
+      dependency-filtering.browsertest.tsx  DependencyDetailsPanel filter correctness
     fixtures/               recorded GraphQL fixture JSONs (do not edit by hand)
     msw/
       handlers.ts           MSW graphql.query handlers backed by fixture JSONs
@@ -48,10 +76,12 @@ cd hierograph/hierograph-web
 pnpm fixtures:record
 ```
 
-The script (`scripts/record-fixtures.ts`) runs a BFS over the hierarchy and
-records every operation + variable combination into
-`src/testing/fixtures/<OperationName>.json`. Entries are deterministic
-(sorted keys, sorted by variables); re-recording produces bit-identical output.
+The script (`src/testing/fixtures/record-fixtures.ts`, co-located with the
+recorded data) runs a BFS over the hierarchy and records every operation +
+variable combination into `src/testing/fixtures/<OperationName>.json`. Entries
+are deterministic (sorted keys, sorted by variables); re-recording produces
+bit-identical output. The mechanism is documented in full in
+`src/testing/fixtures/README.md`.
 
 ## DSM Axis Convention
 
@@ -71,8 +101,10 @@ Both the axis convention and the flip are documented in `dsmModel.test.ts`.
 
 ## Adding New Tests
 
-1. **Pure logic** → add to `dsmModel.test.ts` or a sibling `*.test.ts`.
-2. **Component with GraphQL** → use `renderWithQueryClient` from
+1. **Pure logic** (browser-independent) → add a `*.test.ts` (runs in the `unit`
+   project, `node` environment). No DOM available.
+2. **Component with GraphQL** → add a `*.browsertest.tsx` (runs in the `browser`
+   project) and use `renderWithQueryClient` from
    `@/testing/render`. MSW intercepts all requests automatically (setup in
    `src/testing/setup.ts`). If the component needs data not yet in the
    fixtures, re-record.
@@ -86,7 +118,7 @@ Both the axis convention and the flip are documented in `dsmModel.test.ts`.
   children, not the root label.
 - **Canvas coordinate system**: headless Chromium uses `devicePixelRatio=1`, so
   CSS pixels equal physical pixels and `setupCanvas` (which scales by DPR) is a
-  no-op. Click coordinates in `DsmCanvas.test.tsx` are CSS pixel values.
+  no-op. Click coordinates in `DsmCanvas.browsertest.tsx` are CSS pixel values.
 - **optimizeDeps**: `@headless-tree/react` and several other packages must be
-  listed in `vitest.config.ts → optimizeDeps.include` to avoid duplicate React
-  instances in the Vite dev-server bundle.
+  listed in the browser project's `optimizeDeps.include` (in `vite.config.ts`)
+  to avoid duplicate React instances in the Vite dev-server bundle.
