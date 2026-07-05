@@ -83,6 +83,24 @@ are deterministic (sorted keys, sorted by variables); re-recording produces
 bit-identical output. The mechanism is documented in full in
 `src/testing/fixtures/README.md`.
 
+### Recording in a session
+
+Re-recording is a normal in-session task — it does **not** need an external
+environment, and "no backend available" is not a reason to skip a fixture or a
+browser test. Sessions run in an isolated sandbox (no port mapping to the host),
+so a backend on `localhost:8080` is private to the session and safe to start.
+Bring the fixture-app backend up (jqAssistant store server + MCP GraphQL server —
+see the fixture-app loop in the workspace `CLAUDE.md`) and run
+`pnpm fixtures:record`. Never hand-write fixture JSON as a substitute.
+
+If a test needs data the fixture-app does not yet produce, **grow the
+fixture-app** (`hierograph/examples/fixture-app/`) rather than editing fixtures.
+Add the new case in a **new package** so existing packages — and therefore the
+existing recorded fixtures — stay untouched: recording is deterministic, so
+unchanged data re-records byte-identically and only the new operations/variables
+show up in the diff. After extending the fixture-app, re-scan it (see the
+fixture-app loop) and re-record.
+
 ## DSM Axis Convention
 
 `cell.row` is **horizontal (X)** and `cell.column` is **vertical (Y)** — the
