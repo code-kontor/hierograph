@@ -61,7 +61,7 @@ type DependencyFromToProps = { selection: DsmCellSelection | undefined };
 
 function DependencyFromTo({ selection }: DependencyFromToProps) {
   return (
-    <div className="min-w-0 flex-1 font-mono text-[12px] leading-tight">
+    <div className="flex flex-col gap-[2px] font-mono text-[12px] leading-tight">
       <div className="flex min-w-0">
         <span className="text-fg-subtle shrink-0">From:&nbsp;</span>
         <span className="text-fg min-w-0 truncate">
@@ -233,11 +233,9 @@ function MatrixView({ matrix }: MatrixViewProps) {
     <Pane
       title="Dependency Overview"
       toolbar={
-        <div className="flex items-center gap-2">
-          <DependencyFromTo selection={display} />
-          <DsmLabelFormatMenu value={labelFormat} onChange={setLabelFormat} />
-        </div>
+        <DsmLabelFormatMenu value={labelFormat} onChange={setLabelFormat} />
       }
+      subHeader={<DependencyFromTo selection={display} />}
       bodyClassName="p-0 flex flex-col overflow-hidden"
     >
       <div className="min-h-0 flex-1 overflow-auto">

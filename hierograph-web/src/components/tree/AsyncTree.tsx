@@ -15,9 +15,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 
 import { getNodeIcon } from "@/components/hierarchy/nodeIcon";
+import { NodeInfoTooltip } from "@/components/hierarchy/NodeInfoTooltip";
 import { formatTreeLabel } from "@/components/hierarchy/treeLabelFormat";
 import type { TreeSettings } from "@/components/hierarchy/useTreeSettings";
 import { cn } from "@/lib/utils";
@@ -107,8 +107,9 @@ export function AsyncTree({
   );
 
   // Expand the item. When autoExpandSingleChildren is on, chains through
-  // single-child folders until a node with ≥2 children or a non-folder is reached.
-  // Module nodes (java.module) do not chain further.
+  // single-child folders until a node with ≥2 children or a non-folder is
+  // reached. Chaining crosses module boundaries (e.g. project -> jar module ->
+  // root package) so a deeply nested single-child path opens in one action.
   const expandWithAutoExpand = useCallback(
     async (item: ItemInstance<TreeNodeData>) => {
       const startId = item.getId();
@@ -120,21 +121,26 @@ export function AsyncTree({
       if (!settings.autoExpandSingleChildren) return;
 
       let currentId = startId;
+      const chained: string[] = [];
       for (;;) {
         const children = await loadChildren(currentId);
-        if (
-          children.length !== 1 ||
-          !children[0].hasChildren ||
-          children[0].type === "java.module"
-        ) {
+        // Register loaded data so the tree can render the chained nodes without
+        // waiting on its own separate child-loading pass.
+        for (const child of children) {
+          itemData.current.set(child.id, child);
+        }
+        if (children.length !== 1 || !children[0].hasChildren) {
           break;
         }
         const childId = children[0].id;
+        chained.push(childId);
+        currentId = childId;
+      }
+      if (chained.length > 0) {
         setState((prev) => ({
           ...prev,
-          expandedItems: [...(prev.expandedItems ?? []), childId],
+          expandedItems: [...(prev.expandedItems ?? []), ...chained],
         }));
-        currentId = childId;
       }
     },
     [settings.autoExpandSingleChildren, loadChildren],
@@ -278,32 +284,6 @@ type TreeRowProps = {
 
 type TooltipPos = { x: number; y: number };
 
-type RowTooltipProps = {
-  pos: TooltipPos;
-  shortName: string;
-  type: string;
-  fullFqn: string;
-};
-
-function RowTooltip({ pos, shortName, type, fullFqn }: RowTooltipProps) {
-  const left = Math.min(pos.x, window.innerWidth - 320 - 8);
-  const top = Math.min(pos.y, window.innerHeight - 8 - 96);
-
-  return createPortal(
-    <div
-      className="border-border-strong bg-popover pointer-events-none z-50 max-w-[320px] rounded-lg border px-[11px] py-2 shadow-[var(--hg-shadow)]"
-      style={{ position: "fixed", left, top }}
-    >
-      <p className="text-fg font-mono text-[12.5px] font-semibold">
-        {shortName}
-      </p>
-      <p className="text-fg-subtle font-mono text-[11px]">{type}</p>
-      <p className="text-fg-muted font-mono text-[11px] break-all">{fullFqn}</p>
-    </div>,
-    document.body,
-  );
-}
-
 function TreeRow({
   item,
   isMarked,
@@ -359,6 +339,11 @@ function TreeRow({
         isFocused && "ring-state-focus-ring ring-2 ring-inset",
       )}
       onClick={(e) => onRowClick(item, e)}
+      // Any press within the row (row body, chevron, or icon) hides the tooltip.
+      onMouseDown={() => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setTooltipPos(null);
+      }}
       onMouseEnter={(e) => {
         setIsHovered(true);
         pointerRef.current = { x: e.clientX, y: e.clientY };
@@ -429,11 +414,12 @@ function TreeRow({
         </span>
       )}
       {tooltipPos !== null && (
-        <RowTooltip
-          pos={tooltipPos}
+        <NodeInfoTooltip
+          x={tooltipPos.x}
+          y={tooltipPos.y}
           shortName={shortName}
           type={nodeData.type}
-          fullFqn={fullFqn}
+          fullName={fullFqn}
         />
       )}
     </div>

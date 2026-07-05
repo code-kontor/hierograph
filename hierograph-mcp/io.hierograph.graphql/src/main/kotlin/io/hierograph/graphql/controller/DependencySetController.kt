@@ -56,11 +56,21 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     ): List<HGNode> {
         val hierarchy = provider.hierarchy()
         val parent = hierarchy.lookupNode(parentNode.toLong()) ?: return emptyList()
-        val nodeIds = when (parentNodeType) {
-            NodeType.SOURCE -> depSet.dependencyList.map { it.from.identifier }.toSet()
-            NodeType.TARGET -> depSet.dependencyList.map { it.to.identifier }.toSet()
+        val endpoints = when (parentNodeType) {
+            NodeType.SOURCE -> depSet.dependencyList.map { it.from }
+            NodeType.TARGET -> depSet.dependencyList.map { it.to }
         }
-        return hierarchy.childrenOf(parent).filter { it.identifier in nodeIds }
+        // A child is relevant if it is a dependency endpoint itself or an ancestor
+        // of one. Including the ancestors keeps the intermediate packages/modules
+        // on the path down to the endpoints, so the tree can be navigated from a
+        // module or nested package (not just from the endpoints' direct parent).
+        val relevantIds = endpoints.flatMapTo(mutableSetOf()) { endpoint ->
+            buildList {
+                add(endpoint.identifier)
+                hierarchy.predecessorsOf(endpoint).forEach { add(it.identifier) }
+            }
+        }
+        return hierarchy.childrenOf(parent).filter { it.identifier in relevantIds }
     }
 
     @SchemaMapping(typeName = "DependencySet")
