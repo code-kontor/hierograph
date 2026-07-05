@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CrossReferenceView } from "@/components/cross-reference/CrossReferenceView";
-import { DependencyDetailsPane } from "@/components/dependency-details/DependencyDetailsPane";
-import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
-import { OneOneSplitLayout } from "@/components/layout/OneOneSplitLayout";
-import { useTreeSettings } from "@/components/tree/useTreeSettings";
+import { CrossReferenceView } from "@/cross-reference/CrossReferenceView";
+import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
+import { OneOneSplitLayout } from "@/design-system/layout/OneOneSplitLayout";
+import { SelectionProvider } from "@/selection/SelectionContext";
+import { useTreeSettings } from "@/tree/useTreeSettings";
 
 export const Route = createFileRoute("/xref")({
   component: XrefView,

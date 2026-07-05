@@ -3,16 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
-import { Pane } from "@/components/layout/Pane";
-import { Button } from "@/components/ui/button";
-import { Message } from "@/components/ui/message";
+import { Pane } from "@/design-system/layout/Pane";
+import { Button } from "@/design-system/ui/button";
+import { Message } from "@/design-system/ui/message";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/design-system/ui/select";
 import {
   Table,
   TableBody,
@@ -20,14 +20,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@/design-system/ui/table";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/design-system/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/design-system/ui/tooltip";
 
 export const Route = createFileRoute("/dev/primitives")({
   component: RouteComponent,

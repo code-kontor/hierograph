@@ -21,10 +21,10 @@ function loadSchema(): string {
 
 const config: CodegenConfig = {
   schema: loadSchema(),
-  documents: ["src/**/*.{ts,tsx}", "!src/generated/graphql/**"],
+  documents: ["src/**/*.{ts,tsx}", "!src/graphql/generated/**"],
   ignoreNoDocuments: true,
   generates: {
-    "./src/generated/graphql/": {
+    "./src/graphql/generated/": {
       preset: "client",
       config: {
         useTypeImports: true,

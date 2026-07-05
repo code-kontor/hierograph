@@ -1,7 +1,7 @@
 dist
 coverage
 pnpm-lock.yaml
-src/generated/graphql
+src/graphql/generated
 src/routeTree.gen.ts
 src/testing/fixtures
 src/testing/public/mockServiceWorker.js

@@ -4,7 +4,7 @@ React + Vite + TypeScript (strict) + Tailwind CSS v4 + shadcn/ui. Run all
 commands from this directory (`hierograph-web/`). Package manager: pnpm (via
 Corepack, `packageManager` field in `package.json`).
 
-shadcn/ui components live in `src/components/ui/` (generated via
+shadcn/ui components live in `src/design-system/ui/` (generated via
 `pnpm dlx shadcn@latest add <component>`).
 
 ## Language & commit policy
@@ -94,14 +94,14 @@ onSuccess: (_data, _vars, _result, context) => {
 
 - Endpoint: fixed relative `/graphql` (dev proxy to the MCP server, target
   overridable via `VITE_GRAPHQL_PROXY_TARGET` — see `vite.config.ts`).
-- Write GraphQL documents inline with `graphql()` from `@/generated/graphql`;
+- Write GraphQL documents inline with `graphql()` from `@/graphql/generated`;
   no separate `.graphql` files.
 - Query modules under `src/queries/`: document + `queryOptions` factory in the
   same module; components import only the factory
   (`useQuery(rootNodeQueryOptions())`). Variables as factory parameters — they
   belong in the `queryKey`. Requests go through `execute()` from
-  `src/lib/graphql-client.ts`.
-- Generated code lives in `src/generated/graphql/` (committed; excluded from
+  `src/graphql/client.ts`.
+- Generated code lives in `src/graphql/generated/` (committed; excluded from
   ESLint/Prettier, checked by tsc) — **never edit by hand**. After each
   new/changed document: first `pnpm codegen`, then typecheck
   (`pnpm codegen:watch` for ongoing work; schema changes require a watch
