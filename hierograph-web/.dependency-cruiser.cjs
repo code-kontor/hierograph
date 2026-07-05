@@ -26,9 +26,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    // Exclude generated code, test files (they import across vertical boundaries by design)
-    exclude:
-      "^src/(graphql/generated|routeTree\\.gen)|\\.(?:test|browsertest)\\.[tj]sx?$",
+    // Exclude generated code (never authored/reviewed by hand)
+    exclude: "^src/(graphql/generated|routeTree\\.gen)",
     tsConfig: { fileName: "tsconfig.json" },
   },
 };
