@@ -143,6 +143,51 @@ async function recordDependencyData(
     "TARGET",
     filteredChildrenVisited,
   );
+
+  // Cover the marking-with-selection path: record one FilteredDependencies
+  // entry per direct child of the source and target roots, simulating a single
+  // node being clicked in each tree. Both re-requests hit the FilteredChildren
+  // cache populated above, so no extra round-trips are made.
+  await recordDirectChildSelections(
+    sourceNodeId,
+    targetNodeId,
+    sourceNodeId,
+    "SOURCE",
+  );
+  await recordDirectChildSelections(
+    sourceNodeId,
+    targetNodeId,
+    targetNodeId,
+    "TARGET",
+  );
+}
+
+async function recordDirectChildSelections(
+  sourceNodeId: string,
+  targetNodeId: string,
+  parentNode: string,
+  parentNodeType: "SOURCE" | "TARGET",
+): Promise<void> {
+  const result = await record<FilteredChildrenQuery>(
+    "FilteredChildren",
+    FilteredChildrenDocument,
+    { sourceNodeId, targetNodeId, parentNode, parentNodeType },
+  );
+  const children =
+    result?.hierarchicalGraph?.dependencySetForAggregatedDependency
+      ?.filteredChildren ?? [];
+  for (const child of children) {
+    await record<FilteredDependenciesQuery>(
+      "FilteredDependencies",
+      FilteredDependenciesDocument,
+      {
+        sourceNodeId,
+        targetNodeId,
+        selectedSourceIds: parentNodeType === "SOURCE" ? [child.id] : [],
+        selectedTargetIds: parentNodeType === "TARGET" ? [child.id] : [],
+      },
+    );
+  }
 }
 
 async function run(): Promise<void> {

@@ -77,14 +77,8 @@ const filteredDependenciesQuery = graphql(`
             { selectedNodeIds: $selectedTargetIds, selectedNodesType: TARGET }
           ]
         ) {
-          markedSourceIds: referencedNodeIds(
-            nodeType: SOURCE
-            includedPredecessors: true
-          )
-          markedTargetIds: referencedNodeIds(
-            nodeType: TARGET
-            includedPredecessors: true
-          )
+          markedSourceIds: nodeIds(nodeType: SOURCE, includedPredecessors: true)
+          markedTargetIds: nodeIds(nodeType: TARGET, includedPredecessors: true)
         }
       }
     }
