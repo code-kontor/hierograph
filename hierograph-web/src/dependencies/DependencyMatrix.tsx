@@ -19,6 +19,7 @@ import type { NodeAdjacencyMatrixQuery } from "@/graphql/generated/graphql";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
+import { DsmCopyButton } from "./DsmCopyButton";
 import {
   CELL_SIZE_DEFAULT,
   CELL_SIZE_STORAGE_KEY,
@@ -31,6 +32,7 @@ import {
 } from "./dsmLabelSettings";
 import { DsmZoomControls } from "./DsmZoomControls";
 import { dsmQueryOptions, nodesDsmQueryOptions } from "./queries";
+import { type DsmSubject } from "./serializeDsm";
 
 type MatrixData = NonNullable<
   NonNullable<NodeAdjacencyMatrixQuery["hierarchicalGraph"]>["node"]
@@ -63,10 +65,6 @@ export function DependencyMatrix() {
 type SingleNodeMatrixProps = { id: string };
 
 type MultiNodeMatrixProps = { ids: string[] };
-
-type DsmSubject =
-  | { kind: "single"; name: string; nodeType?: string }
-  | { kind: "multi"; count: number };
 
 type MatrixViewProps = { matrix: MatrixData | undefined; subject: DsmSubject };
 
@@ -240,7 +238,11 @@ function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
   return (
     <MatrixView
       matrix={matrix}
-      subject={{ kind: "multi", count: ids.length }}
+      subject={{
+        kind: "multi",
+        count: ids.length,
+        nodes: data.hierarchicalGraph?.nodes?.nodes ?? [],
+      }}
     />
   );
 }
@@ -311,6 +313,9 @@ function MatrixView({ matrix, subject }: MatrixViewProps) {
             onFitToWindowChange={setFitToWindow}
             cellSize={cellSize}
             onCellSizeChange={setCellSize}
+          />
+          <DsmCopyButton
+            input={{ subject, labels: orderedNodes, cells, sccs, showDiagonal }}
           />
           <DsmOptionsMenu
             labelFormat={labelFormat}
