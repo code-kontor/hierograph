@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { DependencyDetailsPanel } from "@/dependency-details/DependencyDetailsPanel";
 import { renderWithQueryClient } from "@/testing/render";
@@ -66,5 +66,66 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
     for (const text of EXPECTED_TARGET_CHILDREN) {
       await expect.element(page.getByText(text, { exact: true })).toBeVisible();
     }
+  });
+
+  // SubClass extends BaseClass; clicking SubClass in the Source tree must mark
+  // BaseClass in the Target tree, which renders the "◆ marked" badge.
+  it("marks the referenced target type when a source type is selected", async () => {
+    await renderWithQueryClient(
+      <DependencyDetailsPanel
+        sourceNodeId={SOURCE_ID}
+        targetNodeId={TARGET_ID}
+      />,
+    );
+
+    const subClassRow = page.getByText(
+      "org.hg.fixture.basic.rel.source.SubClass",
+      { exact: true },
+    );
+    await expect.element(subClassRow).toBeVisible();
+    await userEvent.click(subClassRow);
+
+    await expect
+      .poll(
+        () =>
+          page
+            .getByText("org.hg.fixture.basic.rel.target.BaseClass", {
+              exact: true,
+            })
+            .element()
+            .closest("div")?.textContent,
+      )
+      .toContain("◆ marked");
+  });
+
+  // Reverse direction: clicking BaseClass in the Target tree must mark the
+  // referencing SubClass in the Source tree. The Source tree has no badge, so
+  // assert the marked styling class on the SubClass row instead.
+  it("marks the referencing source type when a target type is selected", async () => {
+    await renderWithQueryClient(
+      <DependencyDetailsPanel
+        sourceNodeId={SOURCE_ID}
+        targetNodeId={TARGET_ID}
+      />,
+    );
+
+    const baseClassRow = page.getByText(
+      "org.hg.fixture.basic.rel.target.BaseClass",
+      { exact: true },
+    );
+    await expect.element(baseClassRow).toBeVisible();
+    await userEvent.click(baseClassRow);
+
+    await expect
+      .poll(
+        () =>
+          page
+            .getByText("org.hg.fixture.basic.rel.source.SubClass", {
+              exact: true,
+            })
+            .element()
+            .closest("div")?.className,
+      )
+      .toContain("text-state-marked-fg");
   });
 });
