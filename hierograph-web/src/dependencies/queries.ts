@@ -9,6 +9,7 @@ const dsmQuery = graphql(`
       node(id: $id) {
         id
         text
+        type
         children {
           orderedAdjacencyMatrix {
             orderedNodes {

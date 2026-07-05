@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { Message } from "@/design-system/ui/message";
+import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 import { nodeBasicsQueryOptions } from "@/graph/queries";
 import { AsyncTree } from "@/tree/AsyncTree";
 import { DEFAULT_TREE_SETTINGS } from "@/tree/useTreeSettings";
@@ -14,11 +15,13 @@ import {
 export type DependencyDetailsPanelProps = {
   sourceNodeId: string;
   targetNodeId: string;
+  labelFormat: NodeLabelFormat;
 };
 
 export function DependencyDetailsPanel({
   sourceNodeId,
   targetNodeId,
+  labelFormat,
 }: DependencyDetailsPanelProps) {
   const queryClient = useQueryClient();
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
@@ -121,8 +124,11 @@ export function DependencyDetailsPanel({
     <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
       <div className="border-border min-w-0 overflow-auto border-r">
         <div className="border-border text-fg-subtle border-b px-[14px] py-2 font-mono text-[11px]">
-          Source · <span className="text-fg-muted">{sourceRoot.text}</span> —
-          click a type to mark its counterparts
+          Source ·{" "}
+          <span className="text-fg-muted">
+            {formatNodeLabel(sourceRoot.text, labelFormat, sourceRoot.type)}
+          </span>{" "}
+          — click a type to mark its counterparts
         </div>
         <div className="p-1.5">
           <AsyncTree
@@ -131,14 +137,17 @@ export function DependencyDetailsPanel({
             onSelectedIdsChange={setSelectedSourceIds}
             markedIds={markedSourceIds}
             label="DependencySourceTree"
-            settings={DEFAULT_TREE_SETTINGS}
+            settings={{ ...DEFAULT_TREE_SETTINGS, labelFormat }}
           />
         </div>
       </div>
       <div className="min-w-0 overflow-auto">
         <div className="border-border text-fg-subtle border-b px-[14px] py-2 font-mono text-[11px]">
-          Target · <span className="text-fg-muted">{targetRoot.text}</span> —{" "}
-          <span className="text-state-marked-fg">marked</span> = referenced by
+          Target ·{" "}
+          <span className="text-fg-muted">
+            {formatNodeLabel(targetRoot.text, labelFormat, targetRoot.type)}
+          </span>{" "}
+          — <span className="text-state-marked-fg">marked</span> = referenced by
           the source selection
         </div>
         <div className="p-1.5">
@@ -149,7 +158,7 @@ export function DependencyDetailsPanel({
             markedIds={markedTargetIds}
             markedBadge
             label="DependencyTargetTree"
-            settings={DEFAULT_TREE_SETTINGS}
+            settings={{ ...DEFAULT_TREE_SETTINGS, labelFormat }}
           />
         </div>
       </div>

@@ -33,6 +33,7 @@ export function NodeInfoTooltip({
         {shortName}
       </p>
       <p className="text-fg-subtle font-mono text-[11px]">{type}</p>
+      {/* Intentionally shows the full node text — not subject to the label-format setting (#47). */}
       <p className="text-fg-muted font-mono text-[11px] break-all">
         {fullName}
       </p>

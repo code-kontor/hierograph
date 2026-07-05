@@ -60,7 +60,8 @@ type SingleNodeMatrixProps = { id: string };
 type MultiNodeMatrixProps = { ids: string[] };
 
 type DsmSubject =
-  { kind: "single"; name: string } | { kind: "multi"; count: number };
+  | { kind: "single"; name: string; nodeType?: string }
+  | { kind: "multi"; count: number };
 
 type MatrixViewProps = { matrix: MatrixData | undefined; subject: DsmSubject };
 
@@ -74,7 +75,7 @@ type DsmSubjectHeaderProps = {
 function DsmSubjectHeader({ subject, labelFormat }: DsmSubjectHeaderProps) {
   const text =
     subject.kind === "single"
-      ? `Internals of ${formatNodeLabel(subject.name, labelFormat)}`
+      ? `Internals of ${formatNodeLabel(subject.name, labelFormat, subject.nodeType)}`
       : `${subject.count} selected nodes`;
   return (
     <div className="text-fg min-w-0 truncate font-mono text-[12px] leading-tight">
@@ -205,6 +206,7 @@ function SingleNodeMatrix({ id }: SingleNodeMatrixProps) {
       subject={{
         kind: "single",
         name: data.hierarchicalGraph?.node?.text ?? "",
+        nodeType: data.hierarchicalGraph?.node?.type,
       }}
     />
   );

@@ -62,12 +62,18 @@ export function TreeSettingsMenu({
             Full names
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
+            value="last-segment"
+            onSelect={(e) => e.preventDefault()}
+          >
+            Own name
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
             value="abbreviated"
             onSelect={(e) => e.preventDefault()}
           >
-            <span className="flex-1">Shortened</span>
+            <span className="flex-1">Abbreviated</span>
             <span className="text-fg-subtle font-mono text-[11px]">
-              n.d.p.owner
+              o.h.f.b.Name
             </span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
