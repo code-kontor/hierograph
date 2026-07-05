@@ -10,8 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/design-system/ui/table";
-import { dependencyEdgesQueryOptions } from "@/queries/dependencies";
-import { nodeBasicsQueryOptions } from "@/queries/hierarchical-graph";
+import { nodeBasicsQueryOptions } from "@/graph/queries";
+
+import { dependencyEdgesQueryOptions } from "./queries";
 
 type DependencyEdgeTableProps = {
   sourceNodeId: string;

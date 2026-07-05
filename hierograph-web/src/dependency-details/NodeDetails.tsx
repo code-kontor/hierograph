@@ -3,7 +3,7 @@ import { createElement } from "react";
 
 import { Message } from "@/design-system/ui/message";
 import { getNodeIcon } from "@/graph/nodeIcon";
-import { nodeDetailQueryOptions } from "@/queries/hierarchical-graph";
+import { nodeDetailQueryOptions } from "@/graph/queries";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { NodePropertyRow } from "./NodePropertyRow";
