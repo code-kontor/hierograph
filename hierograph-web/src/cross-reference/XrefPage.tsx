@@ -1,7 +1,7 @@
-import { DependencyDetailsPane } from "@/dependency-details";
+import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
 import { OneOneSplitLayout } from "@/design-system/layout/OneOneSplitLayout";
-import { SelectionProvider } from "@/selection";
-import { useTreeSettings } from "@/tree";
+import { SelectionProvider } from "@/selection/SelectionContext";
+import { useTreeSettings } from "@/tree/useTreeSettings";
 
 import { CrossReferenceView } from "./CrossReferenceView";
 

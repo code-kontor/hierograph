@@ -1,4 +1,4 @@
-import type { NodeLabelFormat } from "@/graph";
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
 
 export const LABEL_FORMAT_OPTIONS: { value: NodeLabelFormat; label: string }[] =
   [

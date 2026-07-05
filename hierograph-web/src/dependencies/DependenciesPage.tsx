@@ -1,9 +1,10 @@
-import { DependencyDetailsPane } from "@/dependency-details";
+import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
 import { Pane } from "@/design-system/layout/Pane";
 import { TwoOneSplitLayout } from "@/design-system/layout/TwoOneSplitLayout";
-import { HierarchyTree } from "@/hierarchy";
-import { SelectionProvider } from "@/selection";
-import { TreeSettingsMenu, useTreeSettings } from "@/tree";
+import { HierarchyTree } from "@/hierarchy/HierarchyTree";
+import { SelectionProvider } from "@/selection/SelectionContext";
+import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
+import { useTreeSettings } from "@/tree/useTreeSettings";
 
 import { DependencyMatrix } from "./DependencyMatrix";
 

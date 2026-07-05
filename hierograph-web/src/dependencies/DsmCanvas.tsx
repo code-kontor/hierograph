@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  formatNodeLabel,
-  NodeInfoTooltip,
-  type NodeLabelFormat,
-} from "@/graph";
+import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
+import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 
 import { drawDsm, drawDsmOverlay } from "./drawDsm";
 import {

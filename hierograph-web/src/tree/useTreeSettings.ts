@@ -1,5 +1,5 @@
 import { useLocalStorage } from "@/design-system/useLocalStorage";
-import type { NodeLabelFormat } from "@/graph";
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
 
 function normalizeTreeLabelFormat(value: string): NodeLabelFormat {
   return value === "shortened" || value === "abbreviated"

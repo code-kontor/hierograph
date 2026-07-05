@@ -7,6 +7,33 @@ Corepack, `packageManager` field in `package.json`).
 shadcn/ui components live in `src/design-system/ui/` (generated via
 `pnpm dlx shadcn@latest add <component>`).
 
+## Architecture: verticals & import boundaries
+
+Code is organised into feature _verticals_ as top-level folders under `src/`:
+`dependencies`, `cross-reference`, `dependency-details`, `hierarchy`,
+`selection`, `tree`, `graph`, plus the platform layers `design-system`,
+`graphql`, `testing`, and the `routes` wiring.
+
+- **Cross-vertical imports may target only a vertical's public files.** Each
+  vertical's public files, and which vertical may import which, are declared in
+  `eslint.config.js` (`boundaries/dependencies`). Importing any other file of a
+  vertical from outside it is forbidden. The full dependency table is in
+  `docs/architecture.md`.
+- **There are no re-export barrel `index.ts` files.** Import public files by
+  their direct path (`@/<vertical>/<File>`). Intra-vertical imports are always
+  direct file paths. (The only `index.ts` is the generated
+  `graphql/generated/index.ts` — never hand-edit it.)
+- **Extending the surface is deliberate:** to make a file importable from other
+  verticals, add it to that vertical's allow-list in `eslint.config.js`. To add
+  a new dependency _edge_ between verticals, update the table in both
+  `eslint.config.js` and `docs/architecture.md`.
+- **Never loosen, disable, reorder, or add exceptions to the `boundaries` /
+  `dependency-cruiser` rules to make `pnpm check` pass.** A failing architecture
+  check means the _code_ is wrong — wrong import direction, a deep import into a
+  vertical's internals, or a misplaced file. Fix the code. Widen a rule only when
+  the new dependency is genuinely intended, and update `docs/architecture.md` in
+  the same change.
+
 ## Language & commit policy
 
 - **Everything in `hierograph-web` is written in English** — code comments,

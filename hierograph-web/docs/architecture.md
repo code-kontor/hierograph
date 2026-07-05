@@ -86,8 +86,11 @@ workbench-state restoration. `zod` will not be introduced until that task.
 
 Verticals (`dependencies`, `cross-reference`, `dependency-details`,
 `hierarchy`, `selection`, `tree`, `graph`) are entered only through their
-`index.ts`. The platform layers (`design-system`, `graphql`, `testing`) expose
-their files directly (shadcn convention / generated client).
+**declared public files** — the explicit per-vertical allow-lists in
+`eslint.config.js` (`boundaries/dependencies`). Cross-vertical imports use
+direct paths (`@/<vertical>/<File>`); there are no re-export barrel `index.ts`
+files. The platform layers (`design-system`, `graphql`, `testing`) expose their
+files directly (shadcn convention / generated client).
 
 ## Tooling
 

@@ -17,7 +17,9 @@ import {
 } from "react";
 
 import { cn } from "@/design-system/cn";
-import { formatNodeLabel, getNodeIcon, NodeInfoTooltip } from "@/graph";
+import { getNodeIcon } from "@/graph/nodeIcon";
+import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
+import { formatNodeLabel } from "@/graph/nodeLabel";
 
 import type { TreeSettings } from "./useTreeSettings";
 
