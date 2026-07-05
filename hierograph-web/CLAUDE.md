@@ -150,6 +150,10 @@ onSuccess: (_data, _vars, _result, context) => {
 - Fixtures are recorded JSON files in `src/testing/fixtures/` — re-record with
   `pnpm fixtures:record` when the GraphQL schema or fixture-app data changes.
   Never edit fixture files by hand.
+- **Node ids are not stable** — they shift on every fixture-app change. Tests
+  must reference nodes by fqn via `resolveNodeId` (`@/testing/nodeLookup`), never
+  hard-code ids, so adding/removing fixtures needs only a re-record, not test
+  edits. See `src/testing/fixtures/README.md` ("Node ids are not stable").
 - Use `renderWithQueryClient` from `@/testing/render` for any component that
   needs `QueryClient`. MSW intercepts all GraphQL requests automatically.
 - `src/testing/public/mockServiceWorker.js` is generated — never edit.

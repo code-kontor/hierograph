@@ -70,6 +70,31 @@ before writing. Re-recording against the unchanged fixture-app yields a
 byte-identical diff — so a non-empty diff means the schema or the fixture-app
 data actually changed.
 
+## Node ids are not stable — reference nodes by fqn
+
+Node ids are assigned by the jQAssistant scan and **shift whenever the
+fixture-app grows or shrinks**: adding or removing a class renumbers unrelated
+nodes across the whole graph. So a re-record produces a large diff (every id
+moved) even though the logical structure is unchanged — that is expected and
+fine, because these files are generated.
+
+What must **not** depend on ids is the **test sources**. A test that hard-codes
+an id (`sourceNodeId="127"`) breaks on the next fixture change; a test that
+resolves the id by **fully-qualified name** does not. Use the helper:
+
+```ts
+import { resolveNodeId } from "@/testing/nodeLookup";
+
+const SOURCE_ID = resolveNodeId("org.hg.fixture.basic.rel.source");
+```
+
+It walks the recorded `RootNode` + `NodeChildren` fixtures to map a stable fqn
+to its current id. With this, **adding or deleting fixture-app classes only
+requires a re-record — never a test edit.** Likewise, assert on **fqn / tree
+shape computed from the fixtures**, not on ids or on a hard-coded branch point
+(see `AutoExpand.browsertest.tsx` for an example that computes the first
+branching package from the recorded tree).
+
 ## When to re-record
 
 Re-record when **either** side of the recorded contract changes:
