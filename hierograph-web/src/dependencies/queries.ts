@@ -45,6 +45,11 @@ const nodesDsmQuery = graphql(`
   query NodesAdjacencyMatrix($ids: [ID!]!) {
     hierarchicalGraph {
       nodes(ids: $ids) {
+        nodes {
+          id
+          text
+          type
+        }
         orderedAdjacencyMatrix {
           orderedNodes {
             id
