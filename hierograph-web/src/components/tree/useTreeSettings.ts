@@ -1,6 +1,5 @@
+import { type TreeLabelFormat } from "@/graph/treeLabelFormat";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-
-import { type TreeLabelFormat } from "./treeLabelFormat";
 
 export type TreeSettings = {
   showIndentGuides: boolean;

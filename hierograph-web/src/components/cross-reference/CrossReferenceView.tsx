@@ -2,13 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { useSelection } from "@/components/hierarchy/SelectionContext";
-import { TreeSettingsMenu } from "@/components/hierarchy/TreeSettingsMenu";
+import { Pane } from "@/components/layout/Pane";
+import { AsyncTree } from "@/components/tree/AsyncTree";
+import { TreeSettingsMenu } from "@/components/tree/TreeSettingsMenu";
 import type {
   TreeSettings,
   TreeSettingsControls,
-} from "@/components/hierarchy/useTreeSettings";
-import { Pane } from "@/components/layout/Pane";
-import { AsyncTree } from "@/components/tree/AsyncTree";
+} from "@/components/tree/useTreeSettings";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/ui/message";
 import {

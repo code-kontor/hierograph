@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { NodeInfoTooltip } from "@/components/hierarchy/NodeInfoTooltip";
+import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
 
 import { drawDsm, drawDsmOverlay } from "./drawDsm";
 import {

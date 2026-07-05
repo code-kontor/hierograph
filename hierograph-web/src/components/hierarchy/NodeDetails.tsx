@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createElement } from "react";
 
 import { Message } from "@/components/ui/message";
+import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/queries/hierarchical-graph";
 
-import { getNodeIcon } from "./nodeIcon";
 import { NodePropertyRow } from "./NodePropertyRow";
 import { useSelection } from "./SelectionContext";
 

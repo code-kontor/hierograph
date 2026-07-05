@@ -4,10 +4,10 @@ import { DependencyDetailsPane } from "@/components/dependency-details/Dependenc
 import { DependencyMatrix } from "@/components/dsm/DependencyMatrix";
 import { HierarchyTree } from "@/components/hierarchy/HierarchyTree";
 import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
-import { TreeSettingsMenu } from "@/components/hierarchy/TreeSettingsMenu";
-import { useTreeSettings } from "@/components/hierarchy/useTreeSettings";
 import { Pane } from "@/components/layout/Pane";
 import { TwoOneSplitLayout } from "@/components/layout/TwoOneSplitLayout";
+import { TreeSettingsMenu } from "@/components/tree/TreeSettingsMenu";
+import { useTreeSettings } from "@/components/tree/useTreeSettings";
 
 export const Route = createFileRoute("/dependencies")({
   component: DependenciesView,

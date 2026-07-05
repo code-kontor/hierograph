@@ -16,11 +16,12 @@ import {
   useState,
 } from "react";
 
-import { getNodeIcon } from "@/components/hierarchy/nodeIcon";
-import { NodeInfoTooltip } from "@/components/hierarchy/NodeInfoTooltip";
-import { formatTreeLabel } from "@/components/hierarchy/treeLabelFormat";
-import type { TreeSettings } from "@/components/hierarchy/useTreeSettings";
+import { getNodeIcon } from "@/graph/nodeIcon";
+import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
+import { formatTreeLabel } from "@/graph/treeLabelFormat";
 import { cn } from "@/lib/utils";
+
+import type { TreeSettings } from "./useTreeSettings";
 
 export type TreeNodeData = {
   id: string;
