@@ -92,25 +92,37 @@ const filteredDependenciesQuery = graphql(`
 `);
 
 const dependencyEdgesQuery = graphql(`
-  query DependencyEdges($sourceNodeId: ID!, $targetNodeId: ID!) {
+  query DependencyEdges(
+    $sourceNodeId: ID!
+    $targetNodeId: ID!
+    $pageNumber: Int!
+    $pageSize: Int!
+  ) {
     hierarchicalGraph {
       dependencySetForAggregatedDependency(
         sourceNodeId: $sourceNodeId
         targetNodeId: $targetNodeId
       ) {
-        size
-        dependencies {
-          id
-          type
-          sourceNode {
-            id
-            text
-            type
+        dependencyPage(pageNumber: $pageNumber, pageSize: $pageSize) {
+          pageInfo {
+            pageNumber
+            maxPages
+            pageSize
+            totalCount
           }
-          targetNode {
+          dependencies {
             id
-            text
             type
+            sourceNode {
+              id
+              text
+              type
+            }
+            targetNode {
+              id
+              text
+              type
+            }
           }
         }
       }
@@ -121,11 +133,25 @@ const dependencyEdgesQuery = graphql(`
 export function dependencyEdgesQueryOptions(
   sourceNodeId: string,
   targetNodeId: string,
+  pageNumber: number,
+  pageSize: number,
 ) {
   return queryOptions({
-    queryKey: ["dependencySet", sourceNodeId, targetNodeId, "edges"],
+    queryKey: [
+      "dependencySet",
+      sourceNodeId,
+      targetNodeId,
+      "edges",
+      pageNumber,
+      pageSize,
+    ],
     async queryFn() {
-      return execute(dependencyEdgesQuery, { sourceNodeId, targetNodeId });
+      return execute(dependencyEdgesQuery, {
+        sourceNodeId,
+        targetNodeId,
+        pageNumber,
+        pageSize,
+      });
     },
   });
 }
