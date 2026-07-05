@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import { AsyncTree, type TreeNodeData } from "@/components/tree/AsyncTree";
+import type { TreeSettings } from "@/components/tree/useTreeSettings";
 import type { RootNodeQuery } from "@/generated/graphql/graphql";
 import {
   nodeChildrenQueryOptions,
@@ -10,7 +11,6 @@ import {
 
 import { useSelection } from "./SelectionContext";
 import { TreeFooter } from "./TreeFooter";
-import type { TreeSettings } from "./useTreeSettings";
 
 type RootNode = NonNullable<
   NonNullable<RootNodeQuery["hierarchicalGraph"]>["rootNode"]
