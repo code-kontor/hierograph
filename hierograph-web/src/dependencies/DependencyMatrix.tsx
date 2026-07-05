@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { Pane } from "@/design-system/layout/Pane";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGhostTrigger,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
 } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
-import type { NodeLabelFormat } from "@/graph/nodeLabel";
+import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 import type { NodeAdjacencyMatrixQuery } from "@/graphql/generated/graphql";
 import { useSelection } from "@/selection/SelectionContext";
 
@@ -20,6 +22,8 @@ import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 import {
   LABEL_FORMAT_OPTIONS,
   LABEL_FORMAT_STORAGE_KEY,
+  SHOW_DIAGONAL_DEFAULT,
+  SHOW_DIAGONAL_STORAGE_KEY,
 } from "./dsmLabelSettings";
 import { dsmQueryOptions, nodesDsmQueryOptions } from "./queries";
 
@@ -55,9 +59,29 @@ type SingleNodeMatrixProps = { id: string };
 
 type MultiNodeMatrixProps = { ids: string[] };
 
-type MatrixViewProps = { matrix: MatrixData | undefined };
+type DsmSubject =
+  { kind: "single"; name: string } | { kind: "multi"; count: number };
+
+type MatrixViewProps = { matrix: MatrixData | undefined; subject: DsmSubject };
 
 type DependencyFromToProps = { selection: DsmCellSelection | undefined };
+
+type DsmSubjectHeaderProps = {
+  subject: DsmSubject;
+  labelFormat: NodeLabelFormat;
+};
+
+function DsmSubjectHeader({ subject, labelFormat }: DsmSubjectHeaderProps) {
+  const text =
+    subject.kind === "single"
+      ? `Internals of ${formatNodeLabel(subject.name, labelFormat)}`
+      : `${subject.count} selected nodes`;
+  return (
+    <div className="text-fg min-w-0 truncate font-mono text-[12px] leading-tight">
+      {text}
+    </div>
+  );
+}
 
 function DependencyFromTo({ selection }: DependencyFromToProps) {
   return (
@@ -78,20 +102,36 @@ function DependencyFromTo({ selection }: DependencyFromToProps) {
   );
 }
 
-type DsmLabelFormatMenuProps = {
-  value: NodeLabelFormat;
-  onChange: (value: NodeLabelFormat) => void;
+type DsmOptionsMenuProps = {
+  labelFormat: NodeLabelFormat;
+  onLabelFormatChange: (value: NodeLabelFormat) => void;
+  showDiagonal: boolean;
+  onShowDiagonalChange: (value: boolean) => void;
 };
 
-function DsmLabelFormatMenu({ value, onChange }: DsmLabelFormatMenuProps) {
+function DsmOptionsMenu({
+  labelFormat,
+  onLabelFormatChange,
+  showDiagonal,
+  onShowDiagonalChange,
+}: DsmOptionsMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuGhostTrigger title="Label format" />
+      <DropdownMenuGhostTrigger title="DSM options" />
       <DropdownMenuContent>
+        <DropdownMenuLabel>Options</DropdownMenuLabel>
+        <DropdownMenuCheckboxItem
+          checked={showDiagonal}
+          onCheckedChange={onShowDiagonalChange}
+          onSelect={(e) => e.preventDefault()}
+        >
+          Show diagonal
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>Label format</DropdownMenuLabel>
         <DropdownMenuRadioGroup
-          value={value}
-          onValueChange={(v) => onChange(v as NodeLabelFormat)}
+          value={labelFormat}
+          onValueChange={(v) => onLabelFormatChange(v as NodeLabelFormat)}
         >
           <DropdownMenuRadioItem
             value={LABEL_FORMAT_OPTIONS[0].value}
@@ -159,7 +199,15 @@ function SingleNodeMatrix({ id }: SingleNodeMatrixProps) {
   }
 
   const matrix = data.hierarchicalGraph?.node?.children?.orderedAdjacencyMatrix;
-  return <MatrixView matrix={matrix} />;
+  return (
+    <MatrixView
+      matrix={matrix}
+      subject={{
+        kind: "single",
+        name: data.hierarchicalGraph?.node?.text ?? "",
+      }}
+    />
+  );
 }
 
 function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
@@ -182,10 +230,15 @@ function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
   }
 
   const matrix = data.hierarchicalGraph?.nodes?.orderedAdjacencyMatrix;
-  return <MatrixView matrix={matrix} />;
+  return (
+    <MatrixView
+      matrix={matrix}
+      subject={{ kind: "multi", count: ids.length }}
+    />
+  );
 }
 
-function MatrixView({ matrix }: MatrixViewProps) {
+function MatrixView({ matrix, subject }: MatrixViewProps) {
   const { setCellSelection } = useSelection();
   const [hovered, setHovered] = useState<DsmCellSelection | undefined>(
     undefined,
@@ -196,11 +249,9 @@ function MatrixView({ matrix }: MatrixViewProps) {
 
   function handleSelectCell(sel: DsmCellSelection | undefined) {
     setSelectedCell(sel);
-    // API convention is opposite to DSM: DSM source (row/depender) = API target,
-    // DSM target (column/provider) = API source.
     setCellSelection(
       sel
-        ? { sourceNodeId: sel.targetNodeId, targetNodeId: sel.sourceNodeId }
+        ? { sourceNodeId: sel.sourceNodeId, targetNodeId: sel.targetNodeId }
         : null,
     );
   }
@@ -214,6 +265,11 @@ function MatrixView({ matrix }: MatrixViewProps) {
   )
     ? (storedFormat as NodeLabelFormat)
     : "last-segment";
+
+  const [showDiagonal, setShowDiagonal] = useLocalStorage<boolean>(
+    SHOW_DIAGONAL_STORAGE_KEY,
+    SHOW_DIAGONAL_DEFAULT,
+  );
 
   const orderedNodes = matrix?.orderedNodes ?? [];
 
@@ -233,9 +289,19 @@ function MatrixView({ matrix }: MatrixViewProps) {
     <Pane
       title="Dependency Overview"
       toolbar={
-        <DsmLabelFormatMenu value={labelFormat} onChange={setLabelFormat} />
+        <DsmOptionsMenu
+          labelFormat={labelFormat}
+          onLabelFormatChange={setLabelFormat}
+          showDiagonal={showDiagonal}
+          onShowDiagonalChange={setShowDiagonal}
+        />
       }
-      subHeader={<DependencyFromTo selection={display} />}
+      subHeader={
+        <div className="flex flex-col gap-1">
+          <DsmSubjectHeader subject={subject} labelFormat={labelFormat} />
+          <DependencyFromTo selection={display} />
+        </div>
+      }
       bodyClassName="p-0 flex flex-col overflow-hidden"
     >
       <div className="min-h-0 flex-1 overflow-auto">
@@ -244,6 +310,7 @@ function MatrixView({ matrix }: MatrixViewProps) {
           cells={cells}
           sccs={sccs}
           labelFormat={labelFormat}
+          showDiagonal={showDiagonal}
           onHoverCell={setHovered}
           onSelectCell={handleSelectCell}
         />

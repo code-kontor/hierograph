@@ -8,3 +8,6 @@ export const LABEL_FORMAT_OPTIONS: { value: NodeLabelFormat; label: string }[] =
   ];
 
 export const LABEL_FORMAT_STORAGE_KEY = "dsm.labelFormat";
+
+export const SHOW_DIAGONAL_STORAGE_KEY = "dsm.showDiagonal";
+export const SHOW_DIAGONAL_DEFAULT = true;

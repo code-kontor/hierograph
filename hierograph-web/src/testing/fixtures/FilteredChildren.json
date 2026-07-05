@@ -11,7 +11,36 @@
       "data": {
         "hierarchicalGraph": {
           "dependencySetForAggregatedDependency": {
-            "filteredChildren": []
+            "filteredChildren": [
+              {
+                "id": "1",
+                "text": "io.hierograph.examples:fixture-app:jar:1.0.0",
+                "type": "java.module",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "1",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "3",
+                "text": "org",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
           }
         }
       }
@@ -334,7 +363,151 @@
       "variables": {
         "sourceNodeId": "0",
         "targetNodeId": "359",
+        "parentNode": "3",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "4",
+                "text": "org.hg",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "350",
+        "parentNodeType": "TARGET"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "346",
+                "text": "java.io.Serializable",
+                "type": "external.type",
+                "hasChildren": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "351",
+        "parentNodeType": "TARGET"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "347",
+                "text": "java.util.List",
+                "type": "external.type",
+                "hasChildren": false
+              },
+              {
+                "id": "348",
+                "text": "java.util.TimerTask",
+                "type": "external.type",
+                "hasChildren": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "356",
+        "parentNodeType": "TARGET"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "350",
+                "text": "java.io",
+                "type": "java.package",
+                "hasChildren": true
+              },
+              {
+                "id": "351",
+                "text": "java.util",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
         "parentNode": "359",
+        "parentNodeType": "TARGET"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "356",
+                "text": "java",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "4",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "5",
+                "text": "org.hg.fixture",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "12",
+        "targetNodeId": "49",
+        "parentNode": "49",
         "parentNodeType": "TARGET"
       },
       "data": {
@@ -347,10 +520,103 @@
     },
     {
       "variables": {
-        "sourceNodeId": "12",
-        "targetNodeId": "49",
-        "parentNode": "49",
-        "parentNodeType": "TARGET"
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "5",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "6",
+                "text": "org.hg.fixture.basic",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "6",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "72",
+                "text": "org.hg.fixture.basic.jdk",
+                "type": "java.package",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "72",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": [
+              {
+                "id": "81",
+                "text": "org.hg.fixture.basic.jdk.JdkFieldRef",
+                "type": "java.class",
+                "hasChildren": true
+              },
+              {
+                "id": "76",
+                "text": "org.hg.fixture.basic.jdk.JdkExtends",
+                "type": "java.class",
+                "hasChildren": true
+              },
+              {
+                "id": "73",
+                "text": "org.hg.fixture.basic.jdk.JdkImplements",
+                "type": "java.class",
+                "hasChildren": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "73",
+        "parentNodeType": "SOURCE"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": []
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "76",
+        "parentNodeType": "SOURCE"
       },
       "data": {
         "hierarchicalGraph": {
@@ -381,6 +647,21 @@
         "targetNodeId": "8",
         "parentNode": "8",
         "parentNodeType": "TARGET"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "dependencySetForAggregatedDependency": {
+            "filteredChildren": []
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "sourceNodeId": "0",
+        "targetNodeId": "359",
+        "parentNode": "81",
+        "parentNodeType": "SOURCE"
       },
       "data": {
         "hierarchicalGraph": {

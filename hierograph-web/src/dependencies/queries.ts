@@ -8,6 +8,7 @@ const dsmQuery = graphql(`
     hierarchicalGraph {
       node(id: $id) {
         id
+        text
         children {
           orderedAdjacencyMatrix {
             orderedNodes {

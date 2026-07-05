@@ -74,17 +74,17 @@ describe("computeCellPosition", () => {
 
 describe("buildCellSelection", () => {
   // In the DSM data model: cell.row is horizontal (X), cell.column is vertical (Y).
-  // buildCellSelection(x, y) → source=labels[y]=labels[column], target=labels[x]=labels[row].
+  // buildCellSelection(x, y) → source=labels[x]=labels[row], target=labels[y]=labels[column].
   // For { row: 0, column: 1, value: 5 }: stored at elements[1][0], accessed via x=0, y=1.
   it("returns correct selection for a valid cell", () => {
     const matrix = buildMatrixElements(CELLS_3X3);
     const sel = buildCellSelection(0, 1, LABELS_3, matrix);
     expect(sel).toEqual({
-      sourceNodeId: "b",
-      targetNodeId: "a",
+      sourceNodeId: "a",
+      targetNodeId: "b",
       value: 5,
-      sourceLabel: { id: "b", text: "beta" },
-      targetLabel: { id: "a", text: "alpha" },
+      sourceLabel: { id: "a", text: "alpha" },
+      targetLabel: { id: "b", text: "beta" },
     });
   });
 

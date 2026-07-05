@@ -38,6 +38,7 @@ type DsmCanvasProps = {
   cells: { row: number; column: number; value: number }[];
   sccs: { nodePositions: number[] }[];
   labelFormat: NodeLabelFormat;
+  showDiagonal: boolean;
   onHoverCell?: (selection: DsmCellSelection | undefined) => void;
   onSelectCell?: (selection: DsmCellSelection | undefined) => void;
 };
@@ -49,6 +50,7 @@ export function DsmCanvas({
   cells,
   sccs,
   labelFormat,
+  showDiagonal,
   onHoverCell,
   onSelectCell,
 }: DsmCanvasProps) {
@@ -102,9 +104,10 @@ export function DsmCanvas({
         { labels, cells, sccs },
         markerSizes,
         format,
+        showDiagonal,
       );
     }
-  }, [labels, cells, sccs, markerSizes, format]);
+  }, [labels, cells, sccs, markerSizes, format, showDiagonal]);
 
   // Overlay canvas draw
   useEffect(() => {
@@ -130,6 +133,7 @@ export function DsmCanvas({
           { labels, cells, sccs },
           markerSizes,
           format,
+          showDiagonal,
         );
       }
       if (overlayCanvasRef.current) {
@@ -143,7 +147,7 @@ export function DsmCanvas({
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [labels, cells, sccs, markerSizes, hover, selected, format]);
+  }, [labels, cells, sccs, markerSizes, hover, selected, format, showDiagonal]);
 
   return (
     <div ref={containerRef} className="relative inline-block">
