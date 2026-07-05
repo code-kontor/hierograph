@@ -8,7 +8,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
 } from "@/design-system/ui/dropdown-menu";
-import type { NodeLabelFormat } from "@/graph";
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
 
 import type { TreeSettings, TreeSettingsControls } from "./useTreeSettings";
 

@@ -12,9 +12,9 @@ import {
 } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
-import type { NodeLabelFormat } from "@/graph";
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
 import type { NodeAdjacencyMatrixQuery } from "@/graphql/generated/graphql";
-import { useSelection } from "@/selection";
+import { useSelection } from "@/selection/SelectionContext";
 
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 import {

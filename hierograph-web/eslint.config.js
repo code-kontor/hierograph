@@ -96,56 +96,130 @@ export default defineConfig([
                 ],
               },
             },
-            // routes → verticals via index.ts, design-system
+            // routes → verticals via public files, design-system
             {
               from: { type: "routes" },
               allow: {
                 to: [
-                  { type: "dependencies", internalPath: "index.ts" },
-                  { type: "cross-reference", internalPath: "index.ts" },
-                  { type: "dependency-details", internalPath: "index.ts" },
-                  { type: "hierarchy", internalPath: "index.ts" },
-                  { type: "selection", internalPath: "index.ts" },
-                  { type: "tree", internalPath: "index.ts" },
-                  { type: "graph", internalPath: "index.ts" },
+                  {
+                    type: "dependencies",
+                    internalPath: [
+                      "DependenciesPage.tsx",
+                      "DependencyMatrix.tsx",
+                    ],
+                  },
+                  {
+                    type: "cross-reference",
+                    internalPath: ["CrossReferenceView.tsx", "XrefPage.tsx"],
+                  },
+                  {
+                    type: "dependency-details",
+                    internalPath: [
+                      "DependencyDetailsPane.tsx",
+                      "DependencyDetailsPanel.tsx",
+                    ],
+                  },
+                  { type: "hierarchy", internalPath: ["HierarchyTree.tsx"] },
+                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
+                  {
+                    type: "tree",
+                    internalPath: [
+                      "AsyncTree.tsx",
+                      "TreeSettingsMenu.tsx",
+                      "useTreeSettings.ts",
+                    ],
+                  },
+                  {
+                    type: "graph",
+                    internalPath: [
+                      "queries.ts",
+                      "nodeIcon.ts",
+                      "NodeInfoTooltip.tsx",
+                      "nodeLabel.ts",
+                    ],
+                  },
                   { type: "design-system" },
                 ],
               },
             },
-            // screen verticals → shared panes + shared verticals via index.ts, design-system, graphql
+            // screen verticals → shared panes + shared verticals via public files, design-system, graphql
             {
               from: { type: ["dependencies", "cross-reference"] },
               allow: {
                 to: [
-                  { type: "hierarchy", internalPath: "index.ts" },
-                  { type: "dependency-details", internalPath: "index.ts" },
-                  { type: "selection", internalPath: "index.ts" },
-                  { type: "tree", internalPath: "index.ts" },
-                  { type: "graph", internalPath: "index.ts" },
+                  { type: "hierarchy", internalPath: ["HierarchyTree.tsx"] },
+                  {
+                    type: "dependency-details",
+                    internalPath: [
+                      "DependencyDetailsPane.tsx",
+                      "DependencyDetailsPanel.tsx",
+                    ],
+                  },
+                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
+                  {
+                    type: "tree",
+                    internalPath: [
+                      "AsyncTree.tsx",
+                      "TreeSettingsMenu.tsx",
+                      "useTreeSettings.ts",
+                    ],
+                  },
+                  {
+                    type: "graph",
+                    internalPath: [
+                      "queries.ts",
+                      "nodeIcon.ts",
+                      "NodeInfoTooltip.tsx",
+                      "nodeLabel.ts",
+                    ],
+                  },
                   { type: "design-system" },
                   { type: "graphql" },
                 ],
               },
             },
-            // shared panes → shared verticals via index.ts, design-system, graphql
+            // shared panes → shared verticals via public files, design-system, graphql
             {
               from: { type: ["dependency-details", "hierarchy"] },
               allow: {
                 to: [
-                  { type: "selection", internalPath: "index.ts" },
-                  { type: "tree", internalPath: "index.ts" },
-                  { type: "graph", internalPath: "index.ts" },
+                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
+                  {
+                    type: "tree",
+                    internalPath: [
+                      "AsyncTree.tsx",
+                      "TreeSettingsMenu.tsx",
+                      "useTreeSettings.ts",
+                    ],
+                  },
+                  {
+                    type: "graph",
+                    internalPath: [
+                      "queries.ts",
+                      "nodeIcon.ts",
+                      "NodeInfoTooltip.tsx",
+                      "nodeLabel.ts",
+                    ],
+                  },
                   { type: "design-system" },
                   { type: "graphql" },
                 ],
               },
             },
-            // tree → graph via index.ts, design-system
+            // tree → graph via public files, design-system
             {
               from: { type: "tree" },
               allow: {
                 to: [
-                  { type: "graph", internalPath: "index.ts" },
+                  {
+                    type: "graph",
+                    internalPath: [
+                      "queries.ts",
+                      "nodeIcon.ts",
+                      "NodeInfoTooltip.tsx",
+                      "nodeLabel.ts",
+                    ],
+                  },
                   { type: "design-system" },
                 ],
               },
