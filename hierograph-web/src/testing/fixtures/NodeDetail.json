@@ -3,12 +3,180 @@
   "entries": [
     {
       "variables": {
-        "id": "0"
+        "id": "24"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "0",
+            "id": "24",
+            "text": "java.io.PrintStream",
+            "type": "external.type",
+            "properties": [
+              {
+                "key": "name",
+                "value": "PrintStream"
+              },
+              {
+                "key": "fqn",
+                "value": "java.io.PrintStream"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "25"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "25",
+            "text": "java.io.Serializable",
+            "type": "external.type",
+            "properties": [
+              {
+                "key": "name",
+                "value": "Serializable"
+              },
+              {
+                "key": "fqn",
+                "value": "java.io.Serializable"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "26"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "26",
+            "text": "java.util.List",
+            "type": "external.type",
+            "properties": [
+              {
+                "key": "name",
+                "value": "List"
+              },
+              {
+                "key": "fqn",
+                "value": "java.util.List"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "27"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "27",
+            "text": "java.util.TimerTask",
+            "type": "external.type",
+            "properties": [
+              {
+                "key": "name",
+                "value": "TimerTask"
+              },
+              {
+                "key": "fqn",
+                "value": "java.util.TimerTask"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "29"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "29",
+            "text": "java.io",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "io"
+              },
+              {
+                "key": "fqn",
+                "value": "java.io"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "30"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "30",
+            "text": "java.util",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "util"
+              },
+              {
+                "key": "fqn",
+                "value": "java.util"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "35"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "35",
+            "text": "java",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "java"
+              },
+              {
+                "key": "fqn",
+                "value": "java"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "360"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "360",
             "text": "io.hierograph.examples:fixture-app:1.0.0",
             "type": "java.module",
             "properties": [
@@ -47,12 +215,12 @@
     },
     {
       "variables": {
-        "id": "1"
+        "id": "361"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "1",
+            "id": "361",
             "text": "io.hierograph.examples:fixture-app:jar:1.0.0",
             "type": "java.module",
             "properties": [
@@ -87,12 +255,196 @@
     },
     {
       "variables": {
-        "id": "10"
+        "id": "363"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "10",
+            "id": "363",
+            "text": "org",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "org"
+              },
+              {
+                "key": "fqn",
+                "value": "org"
+              },
+              {
+                "key": "fileName",
+                "value": "/org"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "364"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "364",
+            "text": "org.hg",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "hg"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "365"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "365",
+            "text": "org.hg.fixture",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "fixture"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "366"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "366",
+            "text": "org.hg.fixture.basic",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "basic"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "367"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "367",
+            "text": "org.hg.fixture.basic.core",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "core"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/core"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.core"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "368"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "368",
+            "text": "org.hg.fixture.basic.core.Outer$Inner",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "Outer.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/core/Outer$Inner.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.core.Outer$Inner"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "Outer$Inner"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "370"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "370",
             "text": "org.hg.fixture.basic.core.Outer$Inner#void <init>(org.hg.fixture.basic.core.Outer)",
             "type": "java.method",
             "properties": [
@@ -131,324 +483,12 @@
     },
     {
       "variables": {
-        "id": "100"
+        "id": "372"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "100",
-            "text": "org.hg.fixture.basic.rel",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "rel"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "101"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "101",
-            "text": "org.hg.fixture.basic.rel.target",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "target"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "102"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "102",
-            "text": "org.hg.fixture.basic.rel.target.BaseClass",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "BaseClass.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target/BaseClass.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target.BaseClass"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "BaseClass"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "103"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "103",
-            "text": "org.hg.fixture.basic.rel.target.BaseClass#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "104"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "104",
-            "text": "org.hg.fixture.basic.rel.target.TargetMarker",
-            "type": "java.annotation",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "TargetMarker.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target/TargetMarker.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target.TargetMarker"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "TargetMarker"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "117"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "117",
-            "text": "org.hg.fixture.basic.rel.target.ValueHolder",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "ValueHolder.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target/ValueHolder.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target.ValueHolder"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "ValueHolder"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "118"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "118",
-            "text": "org.hg.fixture.basic.rel.target.ValueHolder#int value",
-            "type": "java.field",
-            "properties": [
-              {
-                "key": "name",
-                "value": "value"
-              },
-              {
-                "key": "volatile",
-                "value": "false"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "int value"
-              },
-              {
-                "key": "transient",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "119"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "119",
-            "text": "org.hg.fixture.basic.rel.target.ValueHolder#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "12"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "12",
+            "id": "372",
             "text": "org.hg.fixture.basic.core.Outer",
             "type": "java.class",
             "properties": [
@@ -487,1156 +527,12 @@
     },
     {
       "variables": {
-        "id": "120"
+        "id": "375"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "120",
-            "text": "org.hg.fixture.basic.rel.target.TargetContract",
-            "type": "java.interface",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "TargetContract.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target/TargetContract.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target.TargetContract"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "TargetContract"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "121"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "121",
-            "text": "org.hg.fixture.basic.rel.target.TargetContract#void run()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "name",
-                "value": "run"
-              },
-              {
-                "key": "abstract",
-                "value": "true"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void run()"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "0"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "122"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "122",
-            "text": "org.hg.fixture.basic.rel.target.TargetB",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "TargetB.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target/TargetB.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target.TargetB"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "TargetB"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "123"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "123",
-            "text": "org.hg.fixture.basic.rel.target.TargetB#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "124"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "124",
-            "text": "org.hg.fixture.basic.rel.target.TargetB#void ping()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "static",
-                "value": "true"
-              },
-              {
-                "key": "firstLineNumber",
-                "value": "4"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void ping()"
-              },
-              {
-                "key": "name",
-                "value": "ping"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "4"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "125"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "125",
-            "text": "org.hg.fixture.basic.rel.target.TargetA",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "TargetA.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/target/TargetA.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.target.TargetA"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "TargetA"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "126"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "126",
-            "text": "org.hg.fixture.basic.rel.target.TargetA#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "127"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "127",
-            "text": "org.hg.fixture.basic.rel.source",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "source"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "128"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "128",
-            "text": "org.hg.fixture.basic.rel.source.ContractImpl",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "ContractImpl.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source/ContractImpl.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source.ContractImpl"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "ContractImpl"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "129"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "129",
-            "text": "org.hg.fixture.basic.rel.source.ContractImpl#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "130"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "130",
-            "text": "org.hg.fixture.basic.rel.source.ContractImpl#void run()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "7"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void run()"
-              },
-              {
-                "key": "name",
-                "value": "run"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "7"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "131"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "131",
-            "text": "org.hg.fixture.basic.rel.source.MethodInvoker",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "MethodInvoker.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source/MethodInvoker.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source.MethodInvoker"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "MethodInvoker"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "132"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "132",
-            "text": "org.hg.fixture.basic.rel.source.MethodInvoker#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "133"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "133",
-            "text": "org.hg.fixture.basic.rel.source.MethodInvoker#void invoke()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "7"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void invoke()"
-              },
-              {
-                "key": "name",
-                "value": "invoke"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "8"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "2"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "134"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "134",
-            "text": "org.hg.fixture.basic.rel.source.SubClass",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "SubClass.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source/SubClass.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source.SubClass"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "SubClass"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "135"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "135",
-            "text": "org.hg.fixture.basic.rel.source.SubClass#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "136"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "136",
-            "text": "org.hg.fixture.basic.rel.source.AnnotatedType",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "AnnotatedType.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source/AnnotatedType.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source.AnnotatedType"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "AnnotatedType"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "138"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "138",
-            "text": "org.hg.fixture.basic.rel.source.AnnotatedType#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "6"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "6"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "139"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "139",
-            "text": "org.hg.fixture.basic.rel.source.FieldAccessor",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "FieldAccessor.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source/FieldAccessor.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source.FieldAccessor"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "FieldAccessor"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "140"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "140",
-            "text": "org.hg.fixture.basic.rel.source.FieldAccessor#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "141"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "141",
-            "text": "org.hg.fixture.basic.rel.source.FieldAccessor#int readAndWrite(org.hg.fixture.basic.rel.target.ValueHolder)",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "7"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "int readAndWrite(org.hg.fixture.basic.rel.target.ValueHolder)"
-              },
-              {
-                "key": "name",
-                "value": "readAndWrite"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "8"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "2"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "143"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "143",
-            "text": "org.hg.fixture.basic.rel.source.FieldTypeRef",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "FieldTypeRef.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/rel/source/FieldTypeRef.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.rel.source.FieldTypeRef"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "FieldTypeRef"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "144"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "144",
-            "text": "org.hg.fixture.basic.rel.source.FieldTypeRef#org.hg.fixture.basic.rel.target.TargetA ref",
-            "type": "java.field",
-            "properties": [
-              {
-                "key": "name",
-                "value": "ref"
-              },
-              {
-                "key": "volatile",
-                "value": "false"
-              },
-              {
-                "key": "visibility",
-                "value": "private"
-              },
-              {
-                "key": "signature",
-                "value": "org.hg.fixture.basic.rel.target.TargetA ref"
-              },
-              {
-                "key": "transient",
-                "value": "false"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "145"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "145",
-            "text": "org.hg.fixture.basic.rel.source.FieldTypeRef#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "5"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "146"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "146",
-            "text": "org.hg.fixture.basic.isolated",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "isolated"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/isolated"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.isolated"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "147"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "147",
-            "text": "org.hg.fixture.basic.isolated.Island",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "Island.java"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.isolated.Island"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/isolated/Island.class"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "Island"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "148"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "148",
-            "text": "org.hg.fixture.basic.isolated.Island#void <init>()",
-            "type": "java.method",
-            "properties": [
-              {
-                "key": "firstLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "signature",
-                "value": "void <init>()"
-              },
-              {
-                "key": "name",
-                "value": "<init>"
-              },
-              {
-                "key": "lastLineNumber",
-                "value": "3"
-              },
-              {
-                "key": "effectiveLineCount",
-                "value": "1"
-              },
-              {
-                "key": "cyclomaticComplexity",
-                "value": "1"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "15"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "15",
+            "id": "375",
             "text": "org.hg.fixture.basic.core.Pair",
             "type": "java.record",
             "properties": [
@@ -1683,12 +579,12 @@
     },
     {
       "variables": {
-        "id": "18"
+        "id": "378"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "18",
+            "id": "378",
             "text": "org.hg.fixture.basic.core.Pair#int first",
             "type": "java.field",
             "properties": [
@@ -1723,12 +619,32 @@
     },
     {
       "variables": {
-        "id": "20"
+        "id": "38"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "20",
+            "id": "38",
+            "text": "External Types",
+            "type": "java.module",
+            "properties": [
+              {
+                "key": "name",
+                "value": "External"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "380"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "380",
             "text": "org.hg.fixture.basic.core.Pair#int second",
             "type": "java.field",
             "properties": [
@@ -1763,12 +679,12 @@
     },
     {
       "variables": {
-        "id": "21"
+        "id": "381"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "21",
+            "id": "381",
             "text": "org.hg.fixture.basic.core.Pair#void <init>(int,int)",
             "type": "java.method",
             "properties": [
@@ -1807,12 +723,12 @@
     },
     {
       "variables": {
-        "id": "25"
+        "id": "385"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "25",
+            "id": "385",
             "text": "org.hg.fixture.basic.core.Pair#java.lang.String toString()",
             "type": "java.method",
             "properties": [
@@ -1855,12 +771,12 @@
     },
     {
       "variables": {
-        "id": "27"
+        "id": "387"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "27",
+            "id": "387",
             "text": "org.hg.fixture.basic.core.Pair#int hashCode()",
             "type": "java.method",
             "properties": [
@@ -1903,12 +819,12 @@
     },
     {
       "variables": {
-        "id": "28"
+        "id": "388"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "28",
+            "id": "388",
             "text": "org.hg.fixture.basic.core.Pair#boolean equals(java.lang.Object)",
             "type": "java.method",
             "properties": [
@@ -1951,40 +867,12 @@
     },
     {
       "variables": {
-        "id": "3"
+        "id": "391"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "3",
-            "text": "org",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "org"
-              },
-              {
-                "key": "fqn",
-                "value": "org"
-              },
-              {
-                "key": "fileName",
-                "value": "/org"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "31"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "31",
+            "id": "391",
             "text": "org.hg.fixture.basic.core.Pair#int first()",
             "type": "java.method",
             "properties": [
@@ -2023,12 +911,12 @@
     },
     {
       "variables": {
-        "id": "32"
+        "id": "392"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "32",
+            "id": "392",
             "text": "org.hg.fixture.basic.core.Pair#int second()",
             "type": "java.method",
             "properties": [
@@ -2067,12 +955,12 @@
     },
     {
       "variables": {
-        "id": "33"
+        "id": "393"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "33",
+            "id": "393",
             "text": "org.hg.fixture.basic.core.PlainClass",
             "type": "java.class",
             "properties": [
@@ -2111,12 +999,12 @@
     },
     {
       "variables": {
-        "id": "34"
+        "id": "394"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "34",
+            "id": "394",
             "text": "org.hg.fixture.basic.core.PlainClass#int publicField",
             "type": "java.field",
             "properties": [
@@ -2147,84 +1035,12 @@
     },
     {
       "variables": {
-        "id": "346"
+        "id": "395"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "346",
-            "text": "java.io.Serializable",
-            "type": "external.type",
-            "properties": [
-              {
-                "key": "name",
-                "value": "Serializable"
-              },
-              {
-                "key": "fqn",
-                "value": "java.io.Serializable"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "347"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "347",
-            "text": "java.util.List",
-            "type": "external.type",
-            "properties": [
-              {
-                "key": "name",
-                "value": "List"
-              },
-              {
-                "key": "fqn",
-                "value": "java.util.List"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "348"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "348",
-            "text": "java.util.TimerTask",
-            "type": "external.type",
-            "properties": [
-              {
-                "key": "name",
-                "value": "TimerTask"
-              },
-              {
-                "key": "fqn",
-                "value": "java.util.TimerTask"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "35"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "35",
+            "id": "395",
             "text": "org.hg.fixture.basic.core.PlainClass#int protectedField",
             "type": "java.field",
             "properties": [
@@ -2255,104 +1071,12 @@
     },
     {
       "variables": {
-        "id": "350"
+        "id": "396"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "350",
-            "text": "java.io",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "io"
-              },
-              {
-                "key": "fqn",
-                "value": "java.io"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "351"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "351",
-            "text": "java.util",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "util"
-              },
-              {
-                "key": "fqn",
-                "value": "java.util"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "356"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "356",
-            "text": "java",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "java"
-              },
-              {
-                "key": "fqn",
-                "value": "java"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "359"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "359",
-            "text": "External Types",
-            "type": "java.module",
-            "properties": [
-              {
-                "key": "name",
-                "value": "External"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "36"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "36",
+            "id": "396",
             "text": "org.hg.fixture.basic.core.PlainClass#int packagePrivateField",
             "type": "java.field",
             "properties": [
@@ -2383,12 +1107,12 @@
     },
     {
       "variables": {
-        "id": "37"
+        "id": "397"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "37",
+            "id": "397",
             "text": "org.hg.fixture.basic.core.PlainClass#int privateField",
             "type": "java.field",
             "properties": [
@@ -2419,12 +1143,12 @@
     },
     {
       "variables": {
-        "id": "38"
+        "id": "398"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "38",
+            "id": "398",
             "text": "org.hg.fixture.basic.core.PlainClass#void <init>()",
             "type": "java.method",
             "properties": [
@@ -2463,12 +1187,12 @@
     },
     {
       "variables": {
-        "id": "39"
+        "id": "399"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "39",
+            "id": "399",
             "text": "org.hg.fixture.basic.core.PlainClass#void publicMethod()",
             "type": "java.method",
             "properties": [
@@ -2507,40 +1231,12 @@
     },
     {
       "variables": {
-        "id": "4"
+        "id": "400"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "4",
-            "text": "org.hg",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "hg"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "40"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "40",
+            "id": "400",
             "text": "org.hg.fixture.basic.core.PlainClass#void protectedMethod()",
             "type": "java.method",
             "properties": [
@@ -2579,12 +1275,12 @@
     },
     {
       "variables": {
-        "id": "41"
+        "id": "401"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "41",
+            "id": "401",
             "text": "org.hg.fixture.basic.core.PlainClass#void packagePrivateMethod()",
             "type": "java.method",
             "properties": [
@@ -2623,12 +1319,12 @@
     },
     {
       "variables": {
-        "id": "42"
+        "id": "402"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "42",
+            "id": "402",
             "text": "org.hg.fixture.basic.core.PlainClass#void privateMethod()",
             "type": "java.method",
             "properties": [
@@ -2667,12 +1363,12 @@
     },
     {
       "variables": {
-        "id": "43"
+        "id": "403"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "43",
+            "id": "403",
             "text": "org.hg.fixture.basic.core.AbstractBase",
             "type": "java.class",
             "properties": [
@@ -2715,12 +1411,12 @@
     },
     {
       "variables": {
-        "id": "44"
+        "id": "404"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "44",
+            "id": "404",
             "text": "org.hg.fixture.basic.core.AbstractBase#void <init>()",
             "type": "java.method",
             "properties": [
@@ -2759,12 +1455,12 @@
     },
     {
       "variables": {
-        "id": "45"
+        "id": "405"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "45",
+            "id": "405",
             "text": "org.hg.fixture.basic.core.AbstractBase#void template()",
             "type": "java.method",
             "properties": [
@@ -2795,12 +1491,12 @@
     },
     {
       "variables": {
-        "id": "46"
+        "id": "406"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "46",
+            "id": "406",
             "text": "org.hg.fixture.basic.core.AbstractBase#void helper()",
             "type": "java.method",
             "properties": [
@@ -2839,12 +1535,12 @@
     },
     {
       "variables": {
-        "id": "47"
+        "id": "407"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "47",
+            "id": "407",
             "text": "org.hg.fixture.basic.core.Contract",
             "type": "java.interface",
             "properties": [
@@ -2883,12 +1579,12 @@
     },
     {
       "variables": {
-        "id": "48"
+        "id": "408"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "48",
+            "id": "408",
             "text": "org.hg.fixture.basic.core.Contract#void execute()",
             "type": "java.method",
             "properties": [
@@ -2919,12 +1615,12 @@
     },
     {
       "variables": {
-        "id": "49"
+        "id": "409"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "49",
+            "id": "409",
             "text": "org.hg.fixture.basic.core.Outer$StaticNested",
             "type": "java.class",
             "properties": [
@@ -2963,40 +1659,12 @@
     },
     {
       "variables": {
-        "id": "5"
+        "id": "410"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "5",
-            "text": "org.hg.fixture",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "fixture"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "50"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "50",
+            "id": "410",
             "text": "org.hg.fixture.basic.core.Outer$StaticNested#void <init>()",
             "type": "java.method",
             "properties": [
@@ -3035,12 +1703,12 @@
     },
     {
       "variables": {
-        "id": "51"
+        "id": "411"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "51",
+            "id": "411",
             "text": "org.hg.fixture.basic.core.PackagePrivateHolder",
             "type": "java.class",
             "properties": [
@@ -3079,12 +1747,12 @@
     },
     {
       "variables": {
-        "id": "52"
+        "id": "412"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "52",
+            "id": "412",
             "text": "org.hg.fixture.basic.core.PackagePrivateHolder#void <init>()",
             "type": "java.method",
             "properties": [
@@ -3123,12 +1791,12 @@
     },
     {
       "variables": {
-        "id": "53"
+        "id": "413"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "53",
+            "id": "413",
             "text": "org.hg.fixture.basic.core.Outer#void <init>()",
             "type": "java.method",
             "properties": [
@@ -3167,12 +1835,12 @@
     },
     {
       "variables": {
-        "id": "54"
+        "id": "414"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "54",
+            "id": "414",
             "text": "org.hg.fixture.basic.core.Color",
             "type": "java.enum",
             "properties": [
@@ -3215,12 +1883,12 @@
     },
     {
       "variables": {
-        "id": "58"
+        "id": "418"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "58",
+            "id": "418",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color RED",
             "type": "java.field",
             "properties": [
@@ -3259,12 +1927,12 @@
     },
     {
       "variables": {
-        "id": "59"
+        "id": "419"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "59",
+            "id": "419",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color GREEN",
             "type": "java.field",
             "properties": [
@@ -3303,40 +1971,12 @@
     },
     {
       "variables": {
-        "id": "6"
+        "id": "420"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "6",
-            "text": "org.hg.fixture.basic",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "basic"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "60"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "60",
+            "id": "420",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color BLUE",
             "type": "java.field",
             "properties": [
@@ -3375,12 +2015,12 @@
     },
     {
       "variables": {
-        "id": "61"
+        "id": "421"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "61",
+            "id": "421",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color[] $VALUES",
             "type": "java.field",
             "properties": [
@@ -3423,12 +2063,12 @@
     },
     {
       "variables": {
-        "id": "62"
+        "id": "422"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "62",
+            "id": "422",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color[] values()",
             "type": "java.method",
             "properties": [
@@ -3471,12 +2111,12 @@
     },
     {
       "variables": {
-        "id": "63"
+        "id": "423"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "63",
+            "id": "423",
             "text": "org.hg.fixture.basic.core.Color#java.lang.Object clone()",
             "type": "java.method",
             "properties": [
@@ -3491,12 +2131,12 @@
     },
     {
       "variables": {
-        "id": "64"
+        "id": "424"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "64",
+            "id": "424",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color valueOf(java.lang.String)",
             "type": "java.method",
             "properties": [
@@ -3539,12 +2179,12 @@
     },
     {
       "variables": {
-        "id": "67"
+        "id": "427"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "67",
+            "id": "427",
             "text": "org.hg.fixture.basic.core.Color#void <init>(java.lang.String,int)",
             "type": "java.method",
             "properties": [
@@ -3583,40 +2223,12 @@
     },
     {
       "variables": {
-        "id": "7"
+        "id": "430"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "7",
-            "text": "org.hg.fixture.basic.core",
-            "type": "java.package",
-            "properties": [
-              {
-                "key": "name",
-                "value": "core"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/core"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.core"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "70"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "70",
+            "id": "430",
             "text": "org.hg.fixture.basic.core.Color#org.hg.fixture.basic.core.Color[] $values()",
             "type": "java.method",
             "properties": [
@@ -3663,12 +2275,12 @@
     },
     {
       "variables": {
-        "id": "71"
+        "id": "431"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "71",
+            "id": "431",
             "text": "org.hg.fixture.basic.core.Color#void <clinit>()",
             "type": "java.method",
             "properties": [
@@ -3711,12 +2323,12 @@
     },
     {
       "variables": {
-        "id": "72"
+        "id": "432"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "72",
+            "id": "432",
             "text": "org.hg.fixture.basic.jdk",
             "type": "java.package",
             "properties": [
@@ -3739,12 +2351,12 @@
     },
     {
       "variables": {
-        "id": "73"
+        "id": "433"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "73",
+            "id": "433",
             "text": "org.hg.fixture.basic.jdk.JdkImplements",
             "type": "java.class",
             "properties": [
@@ -3783,12 +2395,12 @@
     },
     {
       "variables": {
-        "id": "75"
+        "id": "435"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "75",
+            "id": "435",
             "text": "org.hg.fixture.basic.jdk.JdkImplements#void <init>()",
             "type": "java.method",
             "properties": [
@@ -3827,12 +2439,12 @@
     },
     {
       "variables": {
-        "id": "76"
+        "id": "436"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "76",
+            "id": "436",
             "text": "org.hg.fixture.basic.jdk.JdkExtends",
             "type": "java.class",
             "properties": [
@@ -3871,12 +2483,12 @@
     },
     {
       "variables": {
-        "id": "78"
+        "id": "438"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "78",
+            "id": "438",
             "text": "org.hg.fixture.basic.jdk.JdkExtends#void <init>()",
             "type": "java.method",
             "properties": [
@@ -3915,56 +2527,12 @@
     },
     {
       "variables": {
-        "id": "8"
+        "id": "440"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "8",
-            "text": "org.hg.fixture.basic.core.Outer$Inner",
-            "type": "java.class",
-            "properties": [
-              {
-                "key": "valid",
-                "value": "true"
-              },
-              {
-                "key": "sourceFileName",
-                "value": "Outer.java"
-              },
-              {
-                "key": "fileName",
-                "value": "/org/hg/fixture/basic/core/Outer$Inner.class"
-              },
-              {
-                "key": "fqn",
-                "value": "org.hg.fixture.basic.core.Outer$Inner"
-              },
-              {
-                "key": "visibility",
-                "value": "public"
-              },
-              {
-                "key": "name",
-                "value": "Outer$Inner"
-              },
-              {
-                "key": "byteCodeVersion",
-                "value": "65"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "id": "80"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "80",
+            "id": "440",
             "text": "org.hg.fixture.basic.jdk.JdkExtends#void run()",
             "type": "java.method",
             "properties": [
@@ -4003,12 +2571,12 @@
     },
     {
       "variables": {
-        "id": "81"
+        "id": "441"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "81",
+            "id": "441",
             "text": "org.hg.fixture.basic.jdk.JdkFieldRef",
             "type": "java.class",
             "properties": [
@@ -4047,12 +2615,12 @@
     },
     {
       "variables": {
-        "id": "82"
+        "id": "442"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "82",
+            "id": "442",
             "text": "org.hg.fixture.basic.jdk.JdkFieldRef#java.util.List items",
             "type": "java.field",
             "properties": [
@@ -4083,12 +2651,12 @@
     },
     {
       "variables": {
-        "id": "86"
+        "id": "446"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "86",
+            "id": "446",
             "text": "org.hg.fixture.basic.jdk.JdkFieldRef#void <init>()",
             "type": "java.method",
             "properties": [
@@ -4127,12 +2695,12 @@
     },
     {
       "variables": {
-        "id": "87"
+        "id": "447"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "87",
+            "id": "447",
             "text": "org.hg.fixture.basic.cycle",
             "type": "java.package",
             "properties": [
@@ -4155,12 +2723,12 @@
     },
     {
       "variables": {
-        "id": "88"
+        "id": "448"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "88",
+            "id": "448",
             "text": "org.hg.fixture.basic.cycle.beta",
             "type": "java.package",
             "properties": [
@@ -4183,12 +2751,12 @@
     },
     {
       "variables": {
-        "id": "89"
+        "id": "449"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "89",
+            "id": "449",
             "text": "org.hg.fixture.basic.cycle.beta.CycleB",
             "type": "java.class",
             "properties": [
@@ -4227,12 +2795,12 @@
     },
     {
       "variables": {
-        "id": "90"
+        "id": "450"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "90",
+            "id": "450",
             "text": "org.hg.fixture.basic.cycle.beta.CycleB#org.hg.fixture.basic.cycle.gamma.CycleC next",
             "type": "java.field",
             "properties": [
@@ -4263,12 +2831,12 @@
     },
     {
       "variables": {
-        "id": "91"
+        "id": "451"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "91",
+            "id": "451",
             "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
             "type": "java.class",
             "properties": [
@@ -4307,12 +2875,12 @@
     },
     {
       "variables": {
-        "id": "92"
+        "id": "452"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "92",
+            "id": "452",
             "text": "org.hg.fixture.basic.cycle.beta.CycleB#void <init>()",
             "type": "java.method",
             "properties": [
@@ -4351,12 +2919,12 @@
     },
     {
       "variables": {
-        "id": "93"
+        "id": "453"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "93",
+            "id": "453",
             "text": "org.hg.fixture.basic.cycle.gamma",
             "type": "java.package",
             "properties": [
@@ -4379,12 +2947,12 @@
     },
     {
       "variables": {
-        "id": "94"
+        "id": "454"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "94",
+            "id": "454",
             "text": "org.hg.fixture.basic.cycle.gamma.CycleC#org.hg.fixture.basic.cycle.alpha.CycleA next",
             "type": "java.field",
             "properties": [
@@ -4415,12 +2983,12 @@
     },
     {
       "variables": {
-        "id": "95"
+        "id": "455"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "95",
+            "id": "455",
             "text": "org.hg.fixture.basic.cycle.alpha.CycleA",
             "type": "java.class",
             "properties": [
@@ -4459,12 +3027,12 @@
     },
     {
       "variables": {
-        "id": "96"
+        "id": "456"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "96",
+            "id": "456",
             "text": "org.hg.fixture.basic.cycle.gamma.CycleC#void <init>()",
             "type": "java.method",
             "properties": [
@@ -4503,12 +3071,12 @@
     },
     {
       "variables": {
-        "id": "97"
+        "id": "457"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "97",
+            "id": "457",
             "text": "org.hg.fixture.basic.cycle.alpha",
             "type": "java.package",
             "properties": [
@@ -4531,12 +3099,12 @@
     },
     {
       "variables": {
-        "id": "98"
+        "id": "458"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "98",
+            "id": "458",
             "text": "org.hg.fixture.basic.cycle.alpha.CycleA#org.hg.fixture.basic.cycle.beta.CycleB next",
             "type": "java.field",
             "properties": [
@@ -4567,12 +3135,12 @@
     },
     {
       "variables": {
-        "id": "99"
+        "id": "459"
       },
       "data": {
         "hierarchicalGraph": {
           "node": {
-            "id": "99",
+            "id": "459",
             "text": "org.hg.fixture.basic.cycle.alpha.CycleA#void <init>()",
             "type": "java.method",
             "properties": [
@@ -4603,6 +3171,4210 @@
               {
                 "key": "cyclomaticComplexity",
                 "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "460"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "460",
+            "text": "org.hg.fixture.basic.rel",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "rel"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "461"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "461",
+            "text": "org.hg.fixture.basic.rel.target",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "target"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "462"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "462",
+            "text": "org.hg.fixture.basic.rel.target.BaseClass",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "BaseClass.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target/BaseClass.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target.BaseClass"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "BaseClass"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "463"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "463",
+            "text": "org.hg.fixture.basic.rel.target.BaseClass#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "464"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "464",
+            "text": "org.hg.fixture.basic.rel.target.TargetMarker",
+            "type": "java.annotation",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "TargetMarker.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target/TargetMarker.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target.TargetMarker"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "TargetMarker"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "477"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "477",
+            "text": "org.hg.fixture.basic.rel.target.ValueHolder",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "ValueHolder.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target/ValueHolder.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target.ValueHolder"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "ValueHolder"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "478"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "478",
+            "text": "org.hg.fixture.basic.rel.target.ValueHolder#int value",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "value"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "int value"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "479"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "479",
+            "text": "org.hg.fixture.basic.rel.target.ValueHolder#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "480"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "480",
+            "text": "org.hg.fixture.basic.rel.target.TargetContract",
+            "type": "java.interface",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "TargetContract.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target/TargetContract.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target.TargetContract"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "TargetContract"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "481"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "481",
+            "text": "org.hg.fixture.basic.rel.target.TargetContract#void run()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "name",
+                "value": "run"
+              },
+              {
+                "key": "abstract",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void run()"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "0"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "482"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "482",
+            "text": "org.hg.fixture.basic.rel.target.TargetB",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "TargetB.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target/TargetB.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target.TargetB"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "TargetB"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "483"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "483",
+            "text": "org.hg.fixture.basic.rel.target.TargetB#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "484"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "484",
+            "text": "org.hg.fixture.basic.rel.target.TargetB#void ping()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "firstLineNumber",
+                "value": "4"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void ping()"
+              },
+              {
+                "key": "name",
+                "value": "ping"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "4"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "485"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "485",
+            "text": "org.hg.fixture.basic.rel.target.TargetA",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "TargetA.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/target/TargetA.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.target.TargetA"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "TargetA"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "486"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "486",
+            "text": "org.hg.fixture.basic.rel.target.TargetA#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "487"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "487",
+            "text": "org.hg.fixture.basic.rel.source",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "source"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "488"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "488",
+            "text": "org.hg.fixture.basic.rel.source.ContractImpl",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "ContractImpl.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source/ContractImpl.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source.ContractImpl"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "ContractImpl"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "489"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "489",
+            "text": "org.hg.fixture.basic.rel.source.ContractImpl#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "490"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "490",
+            "text": "org.hg.fixture.basic.rel.source.ContractImpl#void run()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void run()"
+              },
+              {
+                "key": "name",
+                "value": "run"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "491"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "491",
+            "text": "org.hg.fixture.basic.rel.source.MethodInvoker",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "MethodInvoker.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source/MethodInvoker.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source.MethodInvoker"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "MethodInvoker"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "492"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "492",
+            "text": "org.hg.fixture.basic.rel.source.MethodInvoker#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "493"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "493",
+            "text": "org.hg.fixture.basic.rel.source.MethodInvoker#void invoke()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void invoke()"
+              },
+              {
+                "key": "name",
+                "value": "invoke"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "8"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "494"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "494",
+            "text": "org.hg.fixture.basic.rel.source.SubClass",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "SubClass.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source/SubClass.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source.SubClass"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "SubClass"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "495"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "495",
+            "text": "org.hg.fixture.basic.rel.source.SubClass#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "496"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "496",
+            "text": "org.hg.fixture.basic.rel.source.AnnotatedType",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "AnnotatedType.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source/AnnotatedType.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source.AnnotatedType"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "AnnotatedType"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "498"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "498",
+            "text": "org.hg.fixture.basic.rel.source.AnnotatedType#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "499"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "499",
+            "text": "org.hg.fixture.basic.rel.source.FieldAccessor",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "FieldAccessor.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source/FieldAccessor.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source.FieldAccessor"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "FieldAccessor"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "500"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "500",
+            "text": "org.hg.fixture.basic.rel.source.FieldAccessor#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "501"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "501",
+            "text": "org.hg.fixture.basic.rel.source.FieldAccessor#int readAndWrite(org.hg.fixture.basic.rel.target.ValueHolder)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "int readAndWrite(org.hg.fixture.basic.rel.target.ValueHolder)"
+              },
+              {
+                "key": "name",
+                "value": "readAndWrite"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "8"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "503"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "503",
+            "text": "org.hg.fixture.basic.rel.source.FieldTypeRef",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "FieldTypeRef.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/rel/source/FieldTypeRef.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.rel.source.FieldTypeRef"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "FieldTypeRef"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "504"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "504",
+            "text": "org.hg.fixture.basic.rel.source.FieldTypeRef#org.hg.fixture.basic.rel.target.TargetA ref",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "ref"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.basic.rel.target.TargetA ref"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "505"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "505",
+            "text": "org.hg.fixture.basic.rel.source.FieldTypeRef#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "5"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "506"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "506",
+            "text": "org.hg.fixture.basic.isolated",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "isolated"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/isolated"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.isolated"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "507"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "507",
+            "text": "org.hg.fixture.basic.isolated.Island",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "Island.java"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.basic.isolated.Island"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/basic/isolated/Island.class"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "Island"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "508"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "508",
+            "text": "org.hg.fixture.basic.isolated.Island#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "3"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "509"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "509",
+            "text": "org.hg.fixture.locations",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "locations"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "510"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "510",
+            "text": "org.hg.fixture.locations.app",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "app"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "511"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "511",
+            "text": "org.hg.fixture.locations.app.web",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "web"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/web"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.web"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "512"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "512",
+            "text": "org.hg.fixture.locations.app.web.ReportController",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "ReportController.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/web/ReportController.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.web.ReportController"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "ReportController"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "513"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "513",
+            "text": "org.hg.fixture.locations.lib.audit.Auditable",
+            "type": "java.annotation",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "Auditable.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/audit/Auditable.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.audit.Auditable"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "Auditable"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "515"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "515",
+            "text": "org.hg.fixture.locations.app.web.ReportController#org.hg.fixture.locations.lib.report.ReportFormat format",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "format"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat format"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "516"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "516",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat",
+            "type": "java.enum",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "ReportFormat.java"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/report/ReportFormat.class"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "ReportFormat"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "517"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "517",
+            "text": "org.hg.fixture.locations.app.web.ReportController#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "15"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "518"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "518",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat PDF",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat PDF"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              },
+              {
+                "key": "name",
+                "value": "PDF"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "519"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "519",
+            "text": "org.hg.fixture.locations.app.web.ReportController#java.lang.String render(org.hg.fixture.locations.lib.order.Order)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "18"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "java.lang.String render(org.hg.fixture.locations.lib.order.Order)"
+              },
+              {
+                "key": "name",
+                "value": "render"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "18"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "520"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "520",
+            "text": "org.hg.fixture.locations.lib.order.Order",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "Order.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/order/Order.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.order.Order"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "Order"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "523"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "523",
+            "text": "org.hg.fixture.locations.lib.order.Order#long getId()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "12"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "long getId()"
+              },
+              {
+                "key": "name",
+                "value": "getId"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "12"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "524"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "524",
+            "text": "org.hg.fixture.locations.app.web.OrderController",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "OrderController.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/web/OrderController.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.web.OrderController"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "OrderController"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "525"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "525",
+            "text": "org.hg.fixture.locations.app.web.OrderController#org.hg.fixture.locations.lib.order.OrderService service",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "service"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.order.OrderService service"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "526"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "526",
+            "text": "org.hg.fixture.locations.lib.order.OrderService",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "OrderService.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/order/OrderService.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.order.OrderService"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "OrderService"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "527"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "527",
+            "text": "org.hg.fixture.locations.app.web.OrderController#org.hg.fixture.locations.lib.order.Order currentOrder",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "currentOrder"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.order.Order currentOrder"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "528"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "528",
+            "text": "org.hg.fixture.locations.app.web.OrderController#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "11"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "529"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "529",
+            "text": "org.hg.fixture.locations.lib.order.OrderService#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "10"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "10"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "530"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "530",
+            "text": "org.hg.fixture.locations.app.web.OrderController#org.hg.fixture.locations.lib.order.Order create(org.hg.fixture.locations.lib.customer.Customer)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "17"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.order.Order create(org.hg.fixture.locations.lib.customer.Customer)"
+              },
+              {
+                "key": "name",
+                "value": "create"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "20"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "4"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "531"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "531",
+            "text": "org.hg.fixture.locations.lib.customer.Customer",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "Customer.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/customer/Customer.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.customer.Customer"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "Customer"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "533"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "533",
+            "text": "org.hg.fixture.locations.lib.order.Order#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "534"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "534",
+            "text": "org.hg.fixture.locations.lib.order.OrderService#void submit(org.hg.fixture.locations.lib.order.Order)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "14"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void submit(org.hg.fixture.locations.lib.order.Order)"
+              },
+              {
+                "key": "name",
+                "value": "submit"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "14"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "535"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "535",
+            "text": "org.hg.fixture.locations.app.web.CustomerController",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "CustomerController.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/web/CustomerController.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.web.CustomerController"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "CustomerController"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "536"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "536",
+            "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
+            "type": "java.interface",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "CustomerApi.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/customer/CustomerApi.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.customer.CustomerApi"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "CustomerApi"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "537"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "537",
+            "text": "org.hg.fixture.locations.app.web.CustomerController#org.hg.fixture.locations.lib.customer.CustomerRepository repository",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "repository"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.customer.CustomerRepository repository"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "538"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "538",
+            "text": "org.hg.fixture.locations.lib.customer.CustomerRepository",
+            "type": "java.interface",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "CustomerRepository.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/customer/CustomerRepository.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.customer.CustomerRepository"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "CustomerRepository"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "539"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "539",
+            "text": "org.hg.fixture.locations.app.web.CustomerController#void <init>(org.hg.fixture.locations.lib.customer.CustomerRepository)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "16"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>(org.hg.fixture.locations.lib.customer.CustomerRepository)"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "18"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "3"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "541"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "541",
+            "text": "org.hg.fixture.locations.app.web.CustomerController#org.hg.fixture.locations.lib.customer.Customer findById(long)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "22"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.customer.Customer findById(long)"
+              },
+              {
+                "key": "name",
+                "value": "findById"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "22"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "544"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "544",
+            "text": "org.hg.fixture.locations.lib.customer.CustomerRepository#org.hg.fixture.locations.lib.customer.Customer load(long)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "name",
+                "value": "load"
+              },
+              {
+                "key": "abstract",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.customer.Customer load(long)"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "0"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "545"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "545",
+            "text": "org.hg.fixture.locations.app.support",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "support"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/support"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.support"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "546"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "546",
+            "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "LoggingHelper.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/support/LoggingHelper.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.support.LoggingHelper"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "LoggingHelper"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "547"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "547",
+            "text": "org.hg.fixture.locations.app.support.LoggingHelper#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "9"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "9"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "548"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "548",
+            "text": "org.hg.fixture.locations.app.support.LoggingHelper#void log(java.lang.String)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "12"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void log(java.lang.String)"
+              },
+              {
+                "key": "name",
+                "value": "log"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "554"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "554",
+            "text": "org.hg.fixture.locations.app.batch",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "batch"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/batch"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.batch"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "555"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "555",
+            "text": "org.hg.fixture.locations.app.batch.nightly",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "nightly"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/batch/nightly"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.batch.nightly"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "556"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "556",
+            "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "NightlyReportJob.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/app/batch/nightly/NightlyReportJob.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "NightlyReportJob"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "557"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "557",
+            "text": "org.hg.fixture.locations.lib.report.AbstractReport",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "AbstractReport.java"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.report.AbstractReport"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/report/AbstractReport.class"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "AbstractReport"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              },
+              {
+                "key": "abstract",
+                "value": "true"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "558"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "558",
+            "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#org.hg.fixture.locations.lib.order.Order order",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "order"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.order.Order order"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "559"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "559",
+            "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#org.hg.fixture.locations.lib.customer.Customer customer",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "customer"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.customer.Customer customer"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "560"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "560",
+            "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "561"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "561",
+            "text": "org.hg.fixture.locations.lib.report.AbstractReport#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "562"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "562",
+            "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#void addLine(org.hg.fixture.locations.lib.order.detail.OrderLine)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "19"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void addLine(org.hg.fixture.locations.lib.order.detail.OrderLine)"
+              },
+              {
+                "key": "name",
+                "value": "addLine"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "20"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "563"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "563",
+            "text": "org.hg.fixture.locations.lib.order.detail.OrderLine",
+            "type": "java.class",
+            "properties": [
+              {
+                "key": "valid",
+                "value": "true"
+              },
+              {
+                "key": "sourceFileName",
+                "value": "OrderLine.java"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/order/detail/OrderLine.class"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.order.detail.OrderLine"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "name",
+                "value": "OrderLine"
+              },
+              {
+                "key": "byteCodeVersion",
+                "value": "65"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "565"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "565",
+            "text": "org.hg.fixture.locations.lib.order.detail.OrderLine#int getAmount()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "int getAmount()"
+              },
+              {
+                "key": "name",
+                "value": "getAmount"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "13"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "566"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "566",
+            "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#void record(int)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "signature",
+                "value": "void record(int)"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "567"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "567",
+            "text": "org.hg.fixture.locations.lib",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "lib"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "568"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "568",
+            "text": "org.hg.fixture.locations.lib.order",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "order"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/order"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.order"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "569"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "569",
+            "text": "org.hg.fixture.locations.lib.order.Order#long id",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "id"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "long id"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "571"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "571",
+            "text": "org.hg.fixture.locations.lib.order.OrderService#org.hg.fixture.locations.lib.order.detail.OrderLine lineFor(org.hg.fixture.locations.lib.order.Order)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "17"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.order.detail.OrderLine lineFor(org.hg.fixture.locations.lib.order.Order)"
+              },
+              {
+                "key": "name",
+                "value": "lineFor"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "17"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "573"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "573",
+            "text": "org.hg.fixture.locations.lib.order.detail.OrderLine#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "8"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "8"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "574"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "574",
+            "text": "org.hg.fixture.locations.lib.order.detail",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "detail"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/order/detail"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.order.detail"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "575"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "575",
+            "text": "org.hg.fixture.locations.lib.order.detail.OrderLine#int amount",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "amount"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "int amount"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "576"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "576",
+            "text": "org.hg.fixture.locations.lib.audit",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "audit"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/audit"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.audit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "582"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "582",
+            "text": "org.hg.fixture.locations.lib.report",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "report"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/report"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.report"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "583"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "583",
+            "text": "org.hg.fixture.locations.lib.report.AbstractReport#void record(int)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "11"
+              },
+              {
+                "key": "visibility",
+                "value": "protected"
+              },
+              {
+                "key": "signature",
+                "value": "void record(int)"
+              },
+              {
+                "key": "name",
+                "value": "record"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "11"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "587"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "587",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat HTML",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat HTML"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              },
+              {
+                "key": "name",
+                "value": "HTML"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "588"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "588",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat CSV",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat CSV"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              },
+              {
+                "key": "name",
+                "value": "CSV"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "589"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "589",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat[] $VALUES",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "synthetic",
+                "value": "true"
+              },
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat[] $VALUES"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              },
+              {
+                "key": "name",
+                "value": "$VALUES"
+              },
+              {
+                "key": "final",
+                "value": "true"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "590"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "590",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat[] values()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat[] values()"
+              },
+              {
+                "key": "name",
+                "value": "values"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "591"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "591",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#java.lang.Object clone()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "signature",
+                "value": "java.lang.Object clone()"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "592"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "592",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat valueOf(java.lang.String)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat valueOf(java.lang.String)"
+              },
+              {
+                "key": "name",
+                "value": "valueOf"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "594"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "594",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#void <init>(java.lang.String,int)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>(java.lang.String,int)"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "596"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "596",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat[] $values()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "synthetic",
+                "value": "true"
+              },
+              {
+                "key": "firstLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.report.ReportFormat[] $values()"
+              },
+              {
+                "key": "name",
+                "value": "$values"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "597"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "597",
+            "text": "org.hg.fixture.locations.lib.report.ReportFormat#void <clinit>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "static",
+                "value": "true"
+              },
+              {
+                "key": "firstLineNumber",
+                "value": "6"
+              },
+              {
+                "key": "visibility",
+                "value": "default"
+              },
+              {
+                "key": "signature",
+                "value": "void <clinit>()"
+              },
+              {
+                "key": "name",
+                "value": "<clinit>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "2"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "598"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "598",
+            "text": "org.hg.fixture.locations.lib.customer",
+            "type": "java.package",
+            "properties": [
+              {
+                "key": "name",
+                "value": "customer"
+              },
+              {
+                "key": "fileName",
+                "value": "/org/hg/fixture/locations/lib/customer"
+              },
+              {
+                "key": "fqn",
+                "value": "org.hg.fixture.locations.lib.customer"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "599"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "599",
+            "text": "org.hg.fixture.locations.lib.customer.Customer#java.lang.String name",
+            "type": "java.field",
+            "properties": [
+              {
+                "key": "name",
+                "value": "name"
+              },
+              {
+                "key": "volatile",
+                "value": "false"
+              },
+              {
+                "key": "visibility",
+                "value": "private"
+              },
+              {
+                "key": "signature",
+                "value": "java.lang.String name"
+              },
+              {
+                "key": "transient",
+                "value": "false"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "600"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "600",
+            "text": "org.hg.fixture.locations.lib.customer.Customer#void <init>()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "void <init>()"
+              },
+              {
+                "key": "name",
+                "value": "<init>"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "7"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "601"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "601",
+            "text": "org.hg.fixture.locations.lib.customer.Customer#java.lang.String getName()",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "firstLineNumber",
+                "value": "12"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "java.lang.String getName()"
+              },
+              {
+                "key": "name",
+                "value": "getName"
+              },
+              {
+                "key": "lastLineNumber",
+                "value": "12"
+              },
+              {
+                "key": "effectiveLineCount",
+                "value": "1"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "id": "603"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "603",
+            "text": "org.hg.fixture.locations.lib.customer.CustomerApi#org.hg.fixture.locations.lib.customer.Customer findById(long)",
+            "type": "java.method",
+            "properties": [
+              {
+                "key": "name",
+                "value": "findById"
+              },
+              {
+                "key": "abstract",
+                "value": "true"
+              },
+              {
+                "key": "visibility",
+                "value": "public"
+              },
+              {
+                "key": "signature",
+                "value": "org.hg.fixture.locations.lib.customer.Customer findById(long)"
+              },
+              {
+                "key": "cyclomaticComplexity",
+                "value": "0"
               }
             ]
           }

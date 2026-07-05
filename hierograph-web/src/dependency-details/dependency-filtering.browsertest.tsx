@@ -2,24 +2,21 @@ import { describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { DependencyDetailsPanel } from "@/dependency-details/DependencyDetailsPanel";
+import { resolveNodeId } from "@/testing/nodeLookup";
 import { renderWithQueryClient } from "@/testing/render";
 
-// Fixture-based IDs: rel.source=127, rel.target=101 (from NodeAdjacencyMatrix for parent id=100)
-// handleSelectCell flips axes: cellSelection.sourceNodeId = DSM targetNodeId = rel.source (127)
-//                              cellSelection.targetNodeId = DSM sourceNodeId = rel.target (101)
-// DependencyDetailsPanel receives: sourceNodeId="127" (rel.source), targetNodeId="101" (rel.target)
-//
-// Fallback approach: render DependencyDetailsPanel directly with fixture IDs,
-// since the 7-level tree navigation required to reach org.hg.fixture.basic.rel is
-// too fragile for a browser-mode integration test (root node has empty text).
-// The DSM-click chain is covered by DsmCanvas.test.tsx.
+// Renders DependencyDetailsPanel directly for the rel.source -> rel.target cell.
+// Node ids are resolved from the recorded fixtures by fqn (see resolveNodeId):
+// they shift whenever the fixture-app grows/shrinks, so hard-coding them would
+// make this test break on every re-record. The full DSM-click chain that
+// produces such a cell selection is covered by DsmCanvas.test.tsx.
 //
 // Note: headless-tree (asyncDataLoaderFeature) treats rootItemId as a hidden root
 // and only renders its children via getItems(), so we assert children, not the root label.
 // Children are auto-loaded on first render — no explicit expand click needed.
 
-const SOURCE_ID = "127"; // org.hg.fixture.basic.rel.source
-const TARGET_ID = "101"; // org.hg.fixture.basic.rel.target
+const SOURCE_ID = resolveNodeId("org.hg.fixture.basic.rel.source");
+const TARGET_ID = resolveNodeId("org.hg.fixture.basic.rel.target");
 
 // Expected filtered source children (from FilteredChildren fixture, parentNode=127, SOURCE)
 const EXPECTED_SOURCE_CHILDREN = [

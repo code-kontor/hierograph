@@ -12,7 +12,13 @@ import {
 } from "@/design-system/ui/resizable";
 import { SelectionProvider, useSelection } from "@/selection/SelectionContext";
 import { worker } from "@/testing/msw/worker";
+import { resolveNodeId } from "@/testing/nodeLookup";
 import { renderWithQueryClient } from "@/testing/render";
+
+// Node ids shift whenever the fixture-app grows/shrinks; resolve them by fqn
+// from the recorded fixtures instead of hard-coding (see resolveNodeId).
+const SOURCE_ID = resolveNodeId("org.hg.fixture.basic.rel.source");
+const TARGET_ID = resolveNodeId("org.hg.fixture.basic.rel.target");
 
 // Regression for the "Cross-marked trees" tab showing only its header with the
 // tree rows clipped away. Reproduces the real nesting faithfully — a vertical
@@ -29,7 +35,7 @@ function SelectCellButton() {
   return (
     <button
       onClick={() =>
-        setCellSelection({ sourceNodeId: "127", targetNodeId: "101" })
+        setCellSelection({ sourceNodeId: SOURCE_ID, targetNodeId: TARGET_ID })
       }
     >
       select-cell
