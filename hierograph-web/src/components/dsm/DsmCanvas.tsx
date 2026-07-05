@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { NodeInfoTooltip } from "@/components/hierarchy/NodeInfoTooltip";
+
 import { drawDsm, drawDsmOverlay } from "./drawDsm";
 import {
   BOX_SIZE,
@@ -12,13 +14,27 @@ import {
   type DsmMarkerSizes,
   SEP_SIZE,
 } from "./dsmModel";
-import { DsmTooltip } from "./DsmTooltip";
 import { formatLabel, type LabelFormat } from "./labelFormat";
 
 export type { DsmCellSelection };
 
+// Row / column side markers are graph nodes; show the same hover card as the tree.
+function buildLabelTooltip(
+  label: { text: string; type?: string },
+  x: number,
+  y: number,
+) {
+  return {
+    shortName: label.text.split(".").pop() ?? label.text,
+    type: label.type ?? "java.package",
+    fullName: label.text,
+    x,
+    y,
+  };
+}
+
 type DsmCanvasProps = {
-  labels: { id: string; text: string }[];
+  labels: { id: string; text: string; type?: string }[];
   cells: { row: number; column: number; value: number }[];
   sccs: { nodePositions: number[] }[];
   labelFormat: LabelFormat;
@@ -50,7 +66,9 @@ export function DsmCanvas({
   );
 
   const [tooltip, setTooltip] = useState<{
-    text: string;
+    shortName: string;
+    type: string;
+    fullName: string;
     x: number;
     y: number;
   } | null>(null);
@@ -140,6 +158,9 @@ export function DsmCanvas({
         onMouseMove={(e) => {
           const offsetX = e.nativeEvent.offsetX;
           const offsetY = e.nativeEvent.offsetY;
+          // Viewport coords for the (fixed-positioned, portalled) hover card.
+          const clientX = e.clientX + 18;
+          const clientY = e.clientY + 20;
 
           if (
             mouseDownRef.current &&
@@ -212,11 +233,9 @@ export function DsmCanvas({
                   window.clearTimeout(tooltipTimerRef.current);
                 }
                 tooltipTimerRef.current = window.setTimeout(() => {
-                  setTooltip({
-                    text: labels[rowIndex].text,
-                    x: offsetX,
-                    y: offsetY,
-                  });
+                  setTooltip(
+                    buildLabelTooltip(labels[rowIndex], clientX, clientY),
+                  );
                 }, 300);
               } else {
                 if (tooltipTimerRef.current !== null) {
@@ -234,11 +253,9 @@ export function DsmCanvas({
                   window.clearTimeout(tooltipTimerRef.current);
                 }
                 tooltipTimerRef.current = window.setTimeout(() => {
-                  setTooltip({
-                    text: labels[colIndex].text,
-                    x: offsetX,
-                    y: offsetY,
-                  });
+                  setTooltip(
+                    buildLabelTooltip(labels[colIndex], clientX, clientY),
+                  );
                 }, 300);
               } else {
                 if (tooltipTimerRef.current !== null) {
@@ -282,7 +299,13 @@ export function DsmCanvas({
         }}
       />
       {tooltip && (
-        <DsmTooltip text={tooltip.text} x={tooltip.x} y={tooltip.y} />
+        <NodeInfoTooltip
+          x={tooltip.x}
+          y={tooltip.y}
+          shortName={tooltip.shortName}
+          type={tooltip.type}
+          fullName={tooltip.fullName}
+        />
       )}
     </div>
   );

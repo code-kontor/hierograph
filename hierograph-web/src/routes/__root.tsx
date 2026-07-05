@@ -54,7 +54,7 @@ function RootLayout() {
           {location.pathname}
         </div>
       </header>
-      <main className="min-h-0 flex-1">
+      <main className="min-h-0 flex-1 p-3">
         <Outlet />
       </main>
     </div>

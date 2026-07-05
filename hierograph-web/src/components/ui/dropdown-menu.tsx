@@ -90,7 +90,7 @@ function DropdownMenuCheckboxItem({
     >
       <span className="flex w-[15px] shrink-0 items-center justify-center">
         <DropdownMenuPrimitive.ItemIndicator>
-          <CheckIcon className="text-accent size-[14px]" />
+          <CheckIcon className="size-[14px] text-[var(--hg-accent)]" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -129,7 +129,7 @@ function DropdownMenuRadioItem({
     >
       <span className="flex w-[15px] shrink-0 items-center justify-center">
         <DropdownMenuPrimitive.ItemIndicator>
-          <CheckIcon className="text-accent size-[14px]" />
+          <CheckIcon className="size-[14px] text-[var(--hg-accent)]" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}

@@ -5,7 +5,7 @@ type NodePropertyRowProps = {
 
 export function NodePropertyRow({ propertyKey, value }: NodePropertyRowProps) {
   return (
-    <div className="border-border grid grid-cols-[auto_minmax(0,1fr)] border-b last:border-b-0">
+    <div className="border-border grid grid-cols-[132px_minmax(0,1fr)] border-b last:border-b-0">
       <div className="border-border bg-panel-header text-fg-muted border-r px-3 py-1.5 font-mono text-xs">
         {propertyKey}
       </div>

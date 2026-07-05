@@ -6,6 +6,7 @@ type PaneProps = {
   title: string;
   toolbar?: ReactNode;
   titleBar?: ReactNode;
+  subHeader?: ReactNode;
   children: ReactNode;
   bodyClassName?: string;
 };
@@ -14,6 +15,7 @@ export function Pane({
   title,
   toolbar,
   titleBar,
+  subHeader,
   children,
   bodyClassName,
 }: PaneProps) {
@@ -29,6 +31,11 @@ export function Pane({
             {title}
           </div>
           {toolbar && <div className="flex items-center gap-1">{toolbar}</div>}
+        </div>
+      )}
+      {subHeader && (
+        <div className="border-border shrink-0 border-b px-[14px] py-[9px]">
+          {subHeader}
         </div>
       )}
       <div className={cn("min-h-0 flex-1 overflow-auto p-3", bodyClassName)}>

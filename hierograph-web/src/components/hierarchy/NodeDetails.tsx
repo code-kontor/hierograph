@@ -71,7 +71,7 @@ function NodeDetailsInner({ id }: NodeDetailsInnerProps) {
         </span>
       </div>
       {orderedRows.length > 0 ? (
-        <div className="border-border max-w-[640px] overflow-hidden rounded-[7px] border">
+        <div className="border-border overflow-hidden rounded-[7px] border">
           {orderedRows.map((entry) => (
             <NodePropertyRow
               key={entry.key}

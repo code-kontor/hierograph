@@ -14,25 +14,20 @@ type ActiveTab = "props" | "table" | "trees";
 export function DependencyDetailsPane() {
   const { cellSelection } = useSelection();
   const [activeTab, setActiveTab] = useState<ActiveTab>("props");
-  const [prevCellKey, setPrevCellKey] = useState<string | null>(null);
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
     : null;
 
-  // Auto-switch to "table" when a new cell is selected.
-  // "Storing information from previous renders" pattern (React docs).
-  // Guard cellKey !== null: tree navigation sets cellSelection to null, which
-  // must not trigger a tab switch.
-  if (cellKey !== prevCellKey) {
-    setPrevCellKey(cellKey);
-    if (cellKey !== null) {
-      setActiveTab("table");
-    }
-  }
+  // Selecting a matrix cell only updates the shown data — it must never change
+  // the active tab. The tab changes only when the user clicks a tab title.
 
   return (
-    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ActiveTab)}>
+    <Tabs
+      value={activeTab}
+      onValueChange={(v) => setActiveTab(v as ActiveTab)}
+      className="h-full min-h-0"
+    >
       <Pane
         title="Dependencies Details"
         titleBar={
