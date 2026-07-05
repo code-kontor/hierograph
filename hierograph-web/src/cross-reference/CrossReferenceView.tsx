@@ -10,17 +10,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/design-system/ui/tooltip";
-import {
-  nodeChildrenQueryOptions,
-  rootNodeQueryOptions,
-} from "@/graph/queries";
-import { useSelection } from "@/selection/SelectionContext";
-import { AsyncTree } from "@/tree/AsyncTree";
-import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
-import type {
-  TreeSettings,
-  TreeSettingsControls,
-} from "@/tree/useTreeSettings";
+import { nodeChildrenQueryOptions, rootNodeQueryOptions } from "@/graph";
+import { useSelection } from "@/selection";
+import type { TreeSettings, TreeSettingsControls } from "@/tree";
+import { AsyncTree, TreeSettingsMenu } from "@/tree";
 
 import {
   crossReferenceCenterMarkedByLeftQueryOptions,

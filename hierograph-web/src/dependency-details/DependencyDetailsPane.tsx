@@ -9,7 +9,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/design-system/ui/tabs";
-import { useSelection } from "@/selection/SelectionContext";
+import { useSelection } from "@/selection";
 
 import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";

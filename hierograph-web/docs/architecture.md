@@ -24,17 +24,17 @@ lower-triangular.
 
 ## Allowed Dependency Direction (DAG)
 
-| From                                                                    | May import                                                                                                  |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| app (`main.tsx`, `routeTree.gen.ts`)                                    | `routes`, `graphql`, `design-system`                                                                        |
-| `routes`                                                                | `dependencies`, `cross-reference`, `dependency-details`, `hierarchy`, `selection`, `graph`, `design-system` |
-| `dependencies` / `cross-reference` / `dependency-details` / `hierarchy` | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                    |
-| `tree`                                                                  | `graph`, `design-system`                                                                                    |
-| `graph`                                                                 | `graphql`, `design-system`                                                                                  |
-| `selection`                                                             | (nothing internal)                                                                                          |
-| `design-system`                                                         | (nothing internal — only itself)                                                                            |
-| `graphql`                                                               | (nothing internal)                                                                                          |
-| `test` / `testing`                                                      | anything                                                                                                    |
+| From                                                                    | May import                                                                                                          |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| app (`main.tsx`, `routeTree.gen.ts`)                                    | `routes`, `graphql`, `design-system`                                                                                |
+| `routes`                                                                | `dependencies`, `cross-reference`, `dependency-details`, `hierarchy`, `selection`, `tree`, `graph`, `design-system` |
+| `dependencies` / `cross-reference` / `dependency-details` / `hierarchy` | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                            |
+| `tree`                                                                  | `graph`, `design-system`                                                                                            |
+| `graph`                                                                 | `graphql`, `design-system`                                                                                          |
+| `selection`                                                             | (nothing internal)                                                                                                  |
+| `design-system`                                                         | (nothing internal — only itself)                                                                                    |
+| `graphql`                                                               | (nothing internal)                                                                                                  |
+| `test` / `testing`                                                      | anything                                                                                                            |
 
 ## Public-API Rule
 

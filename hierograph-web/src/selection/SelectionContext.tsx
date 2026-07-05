@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 
-type CellSelection = {
+export type CellSelection = {
   sourceNodeId: string;
   targetNodeId: string;
 };

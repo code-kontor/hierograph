@@ -46,6 +46,9 @@ export default defineConfig([
     files: ["src/**/*.{ts,tsx}"],
     plugins: { boundaries },
     settings: {
+      "import/resolver": {
+        typescript: { project: "./tsconfig.json" },
+      },
       "boundaries/include": ["src/**/*"],
       "boundaries/ignore": ["src/assets/**/*"],
       "boundaries/elements": [
@@ -73,61 +76,89 @@ export default defineConfig([
       ],
     },
     rules: {
-      "boundaries/no-unknown-files": "warn",
-      "boundaries/element-types": [
-        "warn",
+      "boundaries/no-unknown-files": "error",
+      "boundaries/dependencies": [
+        "error",
         {
           default: "disallow",
           message:
             "${file.type} must not import ${dependency.type} (dependency rules: docs/architecture.md)",
           rules: [
-            { from: "app", allow: ["routes", "graphql", "design-system"] },
+            // app → app (main.tsx imports routeTree.gen.ts), routes, graphql, design-system
             {
-              from: "routes",
-              allow: [
-                "dependencies",
-                "cross-reference",
-                "dependency-details",
-                "hierarchy",
-                "selection",
-                "graph",
-                "design-system",
-              ],
+              from: { type: "app" },
+              allow: {
+                to: [
+                  { type: "app" },
+                  { type: "routes" },
+                  { type: "graphql" },
+                  { type: "design-system" },
+                ],
+              },
             },
+            // routes → verticals via index.ts, design-system
             {
-              from: [
-                "dependencies",
-                "cross-reference",
-                "dependency-details",
-                "hierarchy",
-              ],
-              allow: ["selection", "tree", "graph", "design-system", "graphql"],
+              from: { type: "routes" },
+              allow: {
+                to: [
+                  { type: "dependencies", internalPath: "index.ts" },
+                  { type: "cross-reference", internalPath: "index.ts" },
+                  { type: "dependency-details", internalPath: "index.ts" },
+                  { type: "hierarchy", internalPath: "index.ts" },
+                  { type: "selection", internalPath: "index.ts" },
+                  { type: "tree", internalPath: "index.ts" },
+                  { type: "graph", internalPath: "index.ts" },
+                  { type: "design-system" },
+                ],
+              },
             },
-            { from: "tree", allow: ["graph", "design-system"] },
-            { from: "graph", allow: ["graphql", "design-system"] },
-            { from: ["design-system"], allow: ["design-system"] },
-            { from: ["test", "testing"], allow: ["*"] },
-          ],
-        },
-      ],
-      "boundaries/entry-point": [
-        "warn",
-        {
-          default: "disallow",
-          rules: [
+            // feature verticals → shared verticals via index.ts, design-system, graphql
             {
-              target: [
-                "dependencies",
-                "cross-reference",
-                "dependency-details",
-                "hierarchy",
-                "selection",
-                "tree",
-                "graph",
-              ],
-              allow: "index.ts",
+              from: {
+                type: [
+                  "dependencies",
+                  "cross-reference",
+                  "dependency-details",
+                  "hierarchy",
+                ],
+              },
+              allow: {
+                to: [
+                  { type: "selection", internalPath: "index.ts" },
+                  { type: "tree", internalPath: "index.ts" },
+                  { type: "graph", internalPath: "index.ts" },
+                  { type: "design-system" },
+                  { type: "graphql" },
+                ],
+              },
             },
-            { target: ["design-system", "graphql", "testing"], allow: "**" },
+            // tree → graph via index.ts, design-system
+            {
+              from: { type: "tree" },
+              allow: {
+                to: [
+                  { type: "graph", internalPath: "index.ts" },
+                  { type: "design-system" },
+                ],
+              },
+            },
+            // graph → graphql, design-system
+            {
+              from: { type: "graph" },
+              allow: {
+                to: [{ type: "graphql" }, { type: "design-system" }],
+              },
+            },
+            // design-system → design-system
+            {
+              from: { type: "design-system" },
+              allow: { to: { type: "design-system" } },
+            },
+            // test/testing → anything
+            {
+              from: { type: ["test", "testing"] },
+              allow: { to: { type: "*" } },
+            },
           ],
         },
       ],

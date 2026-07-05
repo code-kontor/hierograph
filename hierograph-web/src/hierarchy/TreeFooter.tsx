@@ -1,4 +1,4 @@
-import { useSelection } from "@/selection/SelectionContext";
+import { useSelection } from "@/selection";
 
 export function TreeFooter() {
   const { selectedIds, focusedName } = useSelection();
