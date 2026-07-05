@@ -66,6 +66,10 @@ export function DsmCanvas({
   const [selected, setSelected] = useState<{ x: number; y: number } | null>(
     null,
   );
+  const [headerHover, setHeaderHover] = useState<{
+    axis: "row" | "col";
+    index: number;
+  } | null>(null);
 
   const [tooltip, setTooltip] = useState<{
     shortName: string;
@@ -115,12 +119,12 @@ export function DsmCanvas({
     if (overlayCanvasRef.current) {
       drawDsmOverlay(
         overlayCanvasRef.current,
-        { labels, sccs, hover, selected },
+        { labels, sccs, hover, headerHover, selected },
         markerSizes,
         format,
       );
     }
-  }, [labels, sccs, hover, selected, markerSizes, format]);
+  }, [labels, sccs, hover, headerHover, selected, markerSizes, format]);
 
   // ResizeObserver safeguard
   useEffect(() => {
@@ -140,7 +144,7 @@ export function DsmCanvas({
       if (overlayCanvasRef.current) {
         drawDsmOverlay(
           overlayCanvasRef.current,
-          { labels, sccs, hover, selected },
+          { labels, sccs, hover, headerHover, selected },
           markerSizes,
           format,
         );
@@ -148,7 +152,17 @@ export function DsmCanvas({
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [labels, cells, sccs, markerSizes, hover, selected, format, showDiagonal]);
+  }, [
+    labels,
+    cells,
+    sccs,
+    markerSizes,
+    hover,
+    headerHover,
+    selected,
+    format,
+    showDiagonal,
+  ]);
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -234,6 +248,7 @@ export function DsmCanvas({
                 (offsetY - markerSizes.horizontalSideMarkerHeight) / BOX_SIZE,
               );
               if (rowIndex >= 0 && rowIndex < labels.length) {
+                setHeaderHover({ axis: "row", index: rowIndex });
                 if (tooltipTimerRef.current !== null) {
                   window.clearTimeout(tooltipTimerRef.current);
                 }
@@ -243,6 +258,7 @@ export function DsmCanvas({
                   );
                 }, 300);
               } else {
+                setHeaderHover(null);
                 if (tooltipTimerRef.current !== null) {
                   window.clearTimeout(tooltipTimerRef.current);
                   tooltipTimerRef.current = null;
@@ -254,6 +270,7 @@ export function DsmCanvas({
                 (offsetX - markerSizes.verticalSideMarkerWidth) / BOX_SIZE,
               );
               if (colIndex >= 0 && colIndex < labels.length) {
+                setHeaderHover({ axis: "col", index: colIndex });
                 if (tooltipTimerRef.current !== null) {
                   window.clearTimeout(tooltipTimerRef.current);
                 }
@@ -263,6 +280,7 @@ export function DsmCanvas({
                   );
                 }, 300);
               } else {
+                setHeaderHover(null);
                 if (tooltipTimerRef.current !== null) {
                   window.clearTimeout(tooltipTimerRef.current);
                   tooltipTimerRef.current = null;
@@ -270,6 +288,7 @@ export function DsmCanvas({
                 setTooltip(null);
               }
             } else {
+              setHeaderHover(null);
               if (tooltipTimerRef.current !== null) {
                 window.clearTimeout(tooltipTimerRef.current);
                 tooltipTimerRef.current = null;
@@ -295,6 +314,7 @@ export function DsmCanvas({
         onMouseLeave={() => {
           mouseDownRef.current = false;
           setHover(null);
+          setHeaderHover(null);
           if (tooltipTimerRef.current !== null) {
             window.clearTimeout(tooltipTimerRef.current);
             tooltipTimerRef.current = null;

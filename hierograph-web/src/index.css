@@ -96,7 +96,10 @@
   ); /* #e98e6e  cell in a strongly-connected cycle (the only colored cell type) */
   --hg-dsm-marker: oklch(
     0.895 0.072 84
-  ); /* #f3d9a6  hovered row/column header band */
+  ); /* #f3d9a6  SELECTED row/column header (louder amber; persists while hovering elsewhere) */
+  --hg-dsm-marker-hover: oklch(
+    0.966 0.028 84
+  ); /* #faf2de  HOVERED row/column header (quieter amber; transient — must stay distinct from --hg-dsm-marker) */
   --hg-dsm-outline: oklch(
     0.53 0.013 260
   ); /* #676c74  hovered cell + transpose + selected cell — 2px solid muted-gray */
@@ -175,6 +178,7 @@
   --color-dsm-diagonal: var(--hg-dsm-diagonal);
   --color-dsm-cycle: var(--hg-dsm-cycle);
   --color-dsm-marker: var(--hg-dsm-marker);
+  --color-dsm-marker-hover: var(--hg-dsm-marker-hover);
   --color-dsm-outline: var(--hg-dsm-outline);
   --color-dsm-label: var(--hg-dsm-label);
 

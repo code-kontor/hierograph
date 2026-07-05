@@ -55,6 +55,7 @@ function drawVerticalBar(
   mark: boolean,
   formatLabel: (text: string, type?: string) => string,
   colors: DsmColors,
+  markColor: string,
 ): void {
   ctx.save();
 
@@ -62,7 +63,7 @@ function drawVerticalBar(
   const inCycle = isLabelInCycle(y, sccNodePositions);
 
   // fill rect
-  ctx.fillStyle = mark ? colors.marker : inCycle ? colors.cycle : colors.empty;
+  ctx.fillStyle = mark ? markColor : inCycle ? colors.cycle : colors.empty;
   ctx.fillRect(
     0,
     horizontalSideMarkerHeight + verticalSliceSize(y),
@@ -132,6 +133,7 @@ function drawHorizontalBar(
   mark: boolean,
   formatLabel: (text: string, type?: string) => string,
   colors: DsmColors,
+  markColor: string,
 ): void {
   ctx.save();
 
@@ -139,7 +141,7 @@ function drawHorizontalBar(
   const inCycle = isLabelInCycle(x, sccNodePositions);
 
   // fill rect
-  ctx.fillStyle = mark ? colors.marker : inCycle ? colors.cycle : colors.empty;
+  ctx.fillStyle = mark ? markColor : inCycle ? colors.cycle : colors.empty;
   ctx.fillRect(
     verticalSideMarkerWidth + horizontalSliceSize(x),
     0,
@@ -335,12 +337,13 @@ type DsmOverlayInput = {
   labels: Label[];
   sccs: Scc[];
   hover: { x: number; y: number } | null;
+  headerHover: { axis: "row" | "col"; index: number } | null;
   selected: { x: number; y: number } | null;
 };
 
 export function drawDsmOverlay(
   canvas: HTMLCanvasElement,
-  { labels, sccs, hover, selected }: DsmOverlayInput,
+  { labels, sccs, hover, headerHover, selected }: DsmOverlayInput,
   markerSizes: DsmMarkerSizes,
   formatLabel: (text: string, type?: string) => string,
 ): void {
@@ -357,9 +360,10 @@ export function drawDsmOverlay(
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const colors = resolveDsmColors();
+  const sccNodePositions = sccs.flatMap((s) => s.nodePositions);
 
+  // 1) Body-cell hover: quiet amber on BOTH axis headers + grey cell/transpose outline
   if (hover) {
-    const sccNodePositions = sccs.flatMap((s) => s.nodePositions);
     markCell(ctx, hover.x, hover.y, markerSizes, colors);
     markCell(ctx, hover.y, hover.x, markerSizes, colors);
     drawVerticalBar(
@@ -371,6 +375,7 @@ export function drawDsmOverlay(
       true,
       formatLabel,
       colors,
+      colors.markerHover,
     );
     drawHorizontalBar(
       hover.x,
@@ -381,10 +386,63 @@ export function drawDsmOverlay(
       true,
       formatLabel,
       colors,
+      colors.markerHover,
     );
   }
 
+  // 2) Header-cell hover: quiet amber on the ONE hovered title band (no cell outline)
+  if (headerHover) {
+    if (headerHover.axis === "row") {
+      drawVerticalBar(
+        headerHover.index,
+        ctx,
+        labels,
+        sccNodePositions,
+        markerSizes,
+        true,
+        formatLabel,
+        colors,
+        colors.markerHover,
+      );
+    } else {
+      drawHorizontalBar(
+        headerHover.index,
+        ctx,
+        labels,
+        sccNodePositions,
+        markerSizes,
+        true,
+        formatLabel,
+        colors,
+        colors.markerHover,
+      );
+    }
+  }
+
+  // 3) Selection LAST: louder amber wins any overlap with hover
   if (selected) {
+    drawVerticalBar(
+      selected.y,
+      ctx,
+      labels,
+      sccNodePositions,
+      markerSizes,
+      true,
+      formatLabel,
+      colors,
+      colors.marker,
+    );
+    drawHorizontalBar(
+      selected.x,
+      ctx,
+      labels,
+      sccNodePositions,
+      markerSizes,
+      true,
+      formatLabel,
+      colors,
+      colors.marker,
+    );
     markCell(ctx, selected.x, selected.y, markerSizes, colors);
   }
 }
@@ -420,6 +478,7 @@ export function drawDsm(
       false,
       formatLabel,
       colors,
+      colors.marker,
     );
   }
   for (let i = 0; i < labels.length; i++) {
@@ -432,6 +491,7 @@ export function drawDsm(
       false,
       formatLabel,
       colors,
+      colors.marker,
     );
   }
   drawMatrix(ctx, labels, cells, sccs, markerSizes, colors, showDiagonal);

@@ -4,6 +4,7 @@ export type DsmColors = {
   diagonal: string;
   cycle: string;
   marker: string;
+  markerHover: string;
   outline: string;
   label: string;
 };
@@ -17,6 +18,7 @@ export function resolveDsmColors(): DsmColors {
     diagonal: get("--hg-dsm-diagonal"),
     cycle: get("--hg-dsm-cycle"),
     marker: get("--hg-dsm-marker"),
+    markerHover: get("--hg-dsm-marker-hover"),
     outline: get("--hg-dsm-outline"),
     label: get("--hg-dsm-label"),
   };
