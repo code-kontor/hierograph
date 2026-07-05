@@ -39,6 +39,7 @@ export type AsyncTreeProps = {
   markedBadge?: boolean;
   label: string;
   settings: TreeSettings;
+  autoExpandRootChainOnLoad?: boolean;
 };
 
 export function AsyncTree({
@@ -50,6 +51,7 @@ export function AsyncTree({
   markedBadge = false,
   label,
   settings,
+  autoExpandRootChainOnLoad = false,
 }: AsyncTreeProps) {
   const markedSet = useMemo(() => new Set(markedIds ?? []), [markedIds]);
 
@@ -147,6 +149,37 @@ export function AsyncTree({
     [settings.autoExpandSingleChildren, loadChildren],
   );
 
+  // Drill from the (hidden) root through single-child folders on initial load,
+  // opening the tree down to the first real branch. Mirrors the chaining loop
+  // in expandWithAutoExpand, but starts at rootNode.id and never pushes the
+  // root itself into expandedItems (it is the hidden container item, rootItemId),
+  // and runs regardless of settings.autoExpandSingleChildren — this is the
+  // "first moment" orientation, not the interactive expand.
+  const autoExpandRootChain = useCallback(async () => {
+    let currentId = rootNode.id;
+    const chained: string[] = [];
+    for (;;) {
+      const children = await loadChildren(currentId);
+      // Register loaded data so the tree can render the chained nodes without
+      // waiting on its own separate child-loading pass.
+      for (const child of children) {
+        itemData.current.set(child.id, child);
+      }
+      if (children.length !== 1 || !children[0].hasChildren) {
+        break;
+      }
+      const childId = children[0].id;
+      chained.push(childId);
+      currentId = childId;
+    }
+    if (chained.length > 0) {
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [...(prev.expandedItems ?? []), ...chained],
+      }));
+    }
+  }, [loadChildren, rootNode.id]);
+
   const handleChevronClick = useCallback(
     (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -238,6 +271,15 @@ export function AsyncTree({
       },
     },
   });
+
+  const didAutoExpandRootRef = useRef(false);
+  useEffect(() => {
+    if (!autoExpandRootChainOnLoad || didAutoExpandRootRef.current) return;
+    // Guard against React StrictMode's double effect invocation in dev: the ref
+    // survives the mount→unmount→mount cycle, so the drill starts exactly once.
+    didAutoExpandRootRef.current = true;
+    autoExpandRootChain().catch(console.error);
+  }, [autoExpandRootChainOnLoad, autoExpandRootChain]);
 
   useEffect(() => {
     onSelectedIdsChange(state.selectedItems ?? []);
