@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/design-system/ui/table";
-import { nodeBasicsQueryOptions } from "@/graph/queries";
 
 import { dependencyEdgesQueryOptions } from "./queries";
 
@@ -61,14 +60,8 @@ export function DependencyEdgeTable({
     isPending: edgesPending,
     isError: edgesError,
   } = useQuery(dependencyEdgesQueryOptions(sourceNodeId, targetNodeId));
-  const { data: sourceRootData, isPending: sourcePending } = useQuery(
-    nodeBasicsQueryOptions(sourceNodeId),
-  );
-  const { data: targetRootData, isPending: targetPending } = useQuery(
-    nodeBasicsQueryOptions(targetNodeId),
-  );
 
-  if (edgesPending || sourcePending || targetPending) {
+  if (edgesPending) {
     return (
       <div className="p-4">
         <Message variant="loading" title="Loading dependencies" />
@@ -87,8 +80,6 @@ export function DependencyEdgeTable({
   const depSet =
     edgesData?.hierarchicalGraph?.dependencySetForAggregatedDependency;
   const dependencies = depSet?.dependencies ?? [];
-  const depFrom = sourceRootData?.hierarchicalGraph?.node?.text ?? sourceNodeId;
-  const depTo = targetRootData?.hierarchicalGraph?.node?.text ?? targetNodeId;
 
   if (dependencies.length === 0) {
     return (
@@ -108,39 +99,26 @@ export function DependencyEdgeTable({
   }));
 
   return (
-    <div>
-      <div className="border-border flex items-center gap-2 border-b px-4 py-[9px] font-mono text-[12px]">
-        <span className="text-fg-subtle">From</span>
-        <span className="text-fg">{depFrom}</span>
-        <span className="text-fg-subtle">→</span>
-        <span className="text-fg-subtle">To</span>
-        <span className="text-fg">{depTo}</span>
-        <span className="text-border-strong">·</span>
-        <span className="text-fg-subtle">
-          {dependencies.length} type dependencies
-        </span>
-      </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[38%]">From type</TableHead>
-            <TableHead className="w-[24%]">Usage</TableHead>
-            <TableHead className="w-[38%]">To type</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <DependencyEdgeRow
-              key={row.id}
-              row={row}
-              isSelected={selectedRowId === row.id}
-              onClick={() =>
-                setSelectedRowId(selectedRowId === row.id ? null : row.id)
-              }
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-[38%]">From type</TableHead>
+          <TableHead className="w-[24%]">Usage</TableHead>
+          <TableHead className="w-[38%]">To type</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => (
+          <DependencyEdgeRow
+            key={row.id}
+            row={row}
+            isSelected={selectedRowId === row.id}
+            onClick={() =>
+              setSelectedRowId(selectedRowId === row.id ? null : row.id)
+            }
+          />
+        ))}
+      </TableBody>
+    </Table>
   );
 }
