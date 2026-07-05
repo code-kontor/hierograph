@@ -112,16 +112,24 @@ export default defineConfig([
                 ],
               },
             },
-            // feature verticals → shared verticals via index.ts, design-system, graphql
+            // screen verticals → shared panes + shared verticals via index.ts, design-system, graphql
             {
-              from: {
-                type: [
-                  "dependencies",
-                  "cross-reference",
-                  "dependency-details",
-                  "hierarchy",
+              from: { type: ["dependencies", "cross-reference"] },
+              allow: {
+                to: [
+                  { type: "hierarchy", internalPath: "index.ts" },
+                  { type: "dependency-details", internalPath: "index.ts" },
+                  { type: "selection", internalPath: "index.ts" },
+                  { type: "tree", internalPath: "index.ts" },
+                  { type: "graph", internalPath: "index.ts" },
+                  { type: "design-system" },
+                  { type: "graphql" },
                 ],
               },
+            },
+            // shared panes → shared verticals via index.ts, design-system, graphql
+            {
+              from: { type: ["dependency-details", "hierarchy"] },
               allow: {
                 to: [
                   { type: "selection", internalPath: "index.ts" },

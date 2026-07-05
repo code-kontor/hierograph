@@ -1,5 +1,6 @@
+import type { QueryClient } from "@tanstack/react-query";
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   Link,
   Outlet,
   useLocation,
@@ -7,9 +8,11 @@ import {
 
 import lupeUrl from "@/assets/hierograph-lupe.svg";
 
-export const Route = createRootRoute({
-  component: RootLayout,
-});
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+  {
+    component: RootLayout,
+  },
+);
 
 function RootLayout() {
   const location = useLocation();
