@@ -109,8 +109,20 @@ onSuccess: (_data, _vars, _result, context) => {
 
 ## Testing
 
-- Run tests: `pnpm test` (Vitest browser mode, headless Chromium via Playwright)
-- Watch mode: `pnpm test:watch`
+- Test config lives in `vite.config.ts` (`test.projects`) — there is no separate
+  `vitest.config.ts`. Two projects, selected by filename:
+  - `unit` — `*.test.{ts,tsx}`, `node` environment, browser-independent code
+    only (logic, algorithms); no DOM.
+  - `browser` — `*.browsertest.{ts,tsx}`, Vitest browser mode (Playwright/
+    Chromium), for components and MSW-backed integration tests.
+- Run tests: `pnpm test` (both projects once, headless).
+- Watch mode: `pnpm test:watch`; single project: `pnpm test:unit` /
+  `pnpm test:browser`.
+- Browser tests are **headless by default** (CI/sandbox have no display). For a
+  visible browser window run `pnpm test:headed` (sets `HG_HEADED=true`).
+- `toMatchScreenshot` baselines go to `__screenshots__/` (committed); failure
+  screenshots go to `__artifacts__/` (gitignored). Update baselines with
+  `pnpm test:browser:update`.
 - Strategy and constraints: `docs/testing-strategy.md`
 - Fixtures are recorded JSON files in `src/testing/fixtures/` — re-record with
   `pnpm fixtures:record` when the GraphQL schema or fixture-app data changes.

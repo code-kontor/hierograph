@@ -17,7 +17,11 @@
     "check:ts": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fixtures:record": "node scripts/record-fixtures.ts"
+    "test:unit": "vitest --project unit",
+    "test:browser": "vitest --project browser",
+    "test:browser:update": "vitest run --project browser -u",
+    "test:headed": "HG_HEADED=true vitest",
+    "fixtures:record": "node src/testing/fixtures/record-fixtures.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

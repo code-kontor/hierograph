@@ -12,7 +12,7 @@ import type {
   NodeDetailQuery,
   NodesAdjacencyMatrixQuery,
   RootNodeQuery,
-} from "../src/generated/graphql/graphql.ts";
+} from "../../generated/graphql/graphql.ts";
 import {
   FilteredChildrenDocument,
   FilteredDependenciesDocument,
@@ -22,11 +22,13 @@ import {
   NodeDetailDocument,
   NodesAdjacencyMatrixDocument,
   RootNodeDocument,
-} from "../src/generated/graphql/graphql.ts";
+} from "../../generated/graphql/graphql.ts";
 
 const GRAPHQL_URL =
   process.env.HIEROGRAPH_GRAPHQL_URL ?? "http://localhost:8080/graphql";
-const FIXTURES_DIR = resolve(import.meta.dirname, "../src/testing/fixtures");
+// This script lives in the fixtures directory, so the recorded JSON files are
+// written next to it.
+const FIXTURES_DIR = import.meta.dirname;
 
 const client = new GraphQLClient(GRAPHQL_URL);
 

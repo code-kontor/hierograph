@@ -5,6 +5,7 @@ tsconfig.tsbuildinfo
 .env.local
 .env.*.local
 
-# Vitest browser-mode transient artifacts (failure screenshots, attachments)
+# Vitest browser-mode transient artifacts (failure screenshots, attachments).
+# toMatchScreenshot baselines live in __screenshots__ and are committed.
 .vitest-attachments
-__screenshots__
+__artifacts__
