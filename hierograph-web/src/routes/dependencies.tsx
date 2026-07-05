@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { DependencyDetailsPane } from "@/components/dependency-details/DependencyDetailsPane";
-import { DependencyMatrix } from "@/components/dsm/DependencyMatrix";
-import { HierarchyTree } from "@/components/hierarchy/HierarchyTree";
-import { SelectionProvider } from "@/components/hierarchy/SelectionContext";
-import { Pane } from "@/components/layout/Pane";
-import { TwoOneSplitLayout } from "@/components/layout/TwoOneSplitLayout";
-import { TreeSettingsMenu } from "@/components/tree/TreeSettingsMenu";
-import { useTreeSettings } from "@/components/tree/useTreeSettings";
+import { DependencyMatrix } from "@/dependencies/DependencyMatrix";
+import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
+import { Pane } from "@/design-system/layout/Pane";
+import { TwoOneSplitLayout } from "@/design-system/layout/TwoOneSplitLayout";
+import { HierarchyTree } from "@/hierarchy/HierarchyTree";
+import { SelectionProvider } from "@/selection/SelectionContext";
+import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
+import { useTreeSettings } from "@/tree/useTreeSettings";
 
 export const Route = createFileRoute("/dependencies")({
   component: DependenciesView,

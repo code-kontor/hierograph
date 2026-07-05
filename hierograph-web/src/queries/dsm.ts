@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { graphql } from "@/generated/graphql";
-import { execute } from "@/lib/graphql-client";
+import { execute } from "@/graphql/client";
+import { graphql } from "@/graphql/generated";
 
 const dsmQuery = graphql(`
   query NodeAdjacencyMatrix($id: ID!) {

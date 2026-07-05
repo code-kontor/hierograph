@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { page } from "vitest/browser";
 
-import { DependencyDetailsPanel } from "@/components/dependency-details/DependencyDetailsPanel";
+import { DependencyDetailsPanel } from "@/dependency-details/DependencyDetailsPanel";
 import { renderWithQueryClient } from "@/testing/render";
 
 // Fixture-based IDs: rel.source=127, rel.target=101 (from NodeAdjacencyMatrix for parent id=100)

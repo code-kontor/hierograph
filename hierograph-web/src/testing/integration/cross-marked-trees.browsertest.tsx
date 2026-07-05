@@ -4,16 +4,13 @@ import { graphql, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import { DependencyDetailsPane } from "@/components/dependency-details/DependencyDetailsPane";
-import {
-  SelectionProvider,
-  useSelection,
-} from "@/components/hierarchy/SelectionContext";
+import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@/components/ui/resizable";
+} from "@/design-system/ui/resizable";
+import { SelectionProvider, useSelection } from "@/selection/SelectionContext";
 import { worker } from "@/testing/msw/worker";
 import { renderWithQueryClient } from "@/testing/render";
 

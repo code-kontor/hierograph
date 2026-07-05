@@ -12,7 +12,7 @@ import type {
   NodeDetailQuery,
   NodesAdjacencyMatrixQuery,
   RootNodeQuery,
-} from "../../generated/graphql/graphql.ts";
+} from "../../graphql/generated/graphql.ts";
 import {
   FilteredChildrenDocument,
   FilteredDependenciesDocument,
@@ -22,7 +22,7 @@ import {
   NodeDetailDocument,
   NodesAdjacencyMatrixDocument,
   RootNodeDocument,
-} from "../../generated/graphql/graphql.ts";
+} from "../../graphql/generated/graphql.ts";
 
 const GRAPHQL_URL =
   process.env.HIEROGRAPH_GRAPHQL_URL ?? "http://localhost:8080/graphql";
