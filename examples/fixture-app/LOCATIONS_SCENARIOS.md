@@ -34,6 +34,16 @@ shown relative to the tenant root `org.hg.fixture.locations`.
    - `row=1 (lib), col=1 (lib), value=7` — lib's internal coupling (diagonal),
      a bonus deeper cell (see §7). `app` diagonal and `lib → app` are both 0.
 
+   > **Diagonal cells are hidden by default.** The table above shows the raw
+   > matrix as the API returns it (`orderedAdjacencyMatrix` fills the diagonal
+   > with each subtree's internal weight). The DSM UI, however, only renders a
+   > diagonal cell (`row === column`) when the **"Show diagonal"** option is
+   > enabled — otherwise it is blanked out of the grid, the copied text export,
+   > and the `Dependencies:` count. So with the default (**Show diagonal: off**)
+   > you see **only `app → lib: 25`** and a dependency count of **1**; the
+   > `lib → lib: 7` diagonal appears only after turning "Show diagonal" on. This
+   > is a rendering toggle, not missing data.
+
 2. Click the `(app → lib)` cell. The Locations tab renders the two filtered
    trees (§4) and cross-marking is driven by clicking type nodes (§5).
 
@@ -203,6 +213,26 @@ lib
 
 ## 5. Cross-marking scenarios
 
+**Precondition for every scenario in this section — the DSM cell to select
+first:** in the DSM of `org.hg.fixture.locations`, click the cell
+
+| From (row = Source) | To (column = Target) | value |
+|---------------------|----------------------|-------|
+| `org.hg.fixture.locations.app` | `org.hg.fixture.locations.lib` | 25 |
+
+This opens the Locations tab with the **Source tree = `app`** (left) and the
+**Target tree = `lib`** (right). Every row below then differs only in which
+*type node* you click inside those trees:
+
+- **§5a** — click a node in the **Source** (left / `app`) tree → the listed
+  **Target** (`lib`) nodes light up.
+- **§5b** — click a node in the **Target** (right / `lib`) tree → the listed
+  **Source** (`app`) nodes light up.
+- **§5c** — multi-select several nodes in the **Source** tree.
+
+(The From/To cell stays `app → lib` throughout §5; only §7 uses a different
+cell — the `lib` diagonal.)
+
 Selecting node(s) in one tree calls `filteredDependencies`, which returns
 `markedSourceIds` / `markedTargetIds` **including predecessors** — so every
 ancestor package of a marked type is marked too (its path lights up). The
@@ -298,6 +328,16 @@ subtree its own non-zero cell (aggregate `lib → lib` weight = **7**). Useful f
 testing the Locations tab on a **diagonal** cell (Source subtree == Target
 subtree, both rooted at `lib.order` / `lib`), where a node can appear on both
 sides.
+
+> **All of lib's internal coupling sits on the diagonal.** In the lib-level DSM
+> (children `lib.order`, `lib.customer`, `lib.report`, `lib.audit`) every
+> internal edge stays inside a single child — `OrderService → Order` /
+> `→ OrderLine` within `lib.order`, `CustomerApi`/`CustomerRepository → Customer`
+> within `lib.customer` — so there are **no off-diagonal cells**, only the
+> `lib.order` and `lib.customer` self-cells (summing to 7). With the default
+> **Show diagonal: off** this DSM therefore renders as empty (`Dependencies: 0`);
+> you must enable **"Show diagonal"** to see the cells and select them — see the
+> note in §0.
 
 ---
 
