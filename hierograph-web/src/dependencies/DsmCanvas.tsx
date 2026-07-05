@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { NodeInfoTooltip } from "@/graph";
+import {
+  formatNodeLabel,
+  NodeInfoTooltip,
+  type NodeLabelFormat,
+} from "@/graph";
 
 import { drawDsm, drawDsmOverlay } from "./drawDsm";
 import {
@@ -14,7 +18,6 @@ import {
   type DsmMarkerSizes,
   SEP_SIZE,
 } from "./dsmModel";
-import { formatLabel, type LabelFormat } from "./labelFormat";
 
 export type { DsmCellSelection };
 
@@ -37,7 +40,7 @@ type DsmCanvasProps = {
   labels: { id: string; text: string; type?: string }[];
   cells: { row: number; column: number; value: number }[];
   sccs: { nodePositions: number[] }[];
-  labelFormat: LabelFormat;
+  labelFormat: NodeLabelFormat;
   onHoverCell?: (selection: DsmCellSelection | undefined) => void;
   onSelectCell?: (selection: DsmCellSelection | undefined) => void;
 };
@@ -79,7 +82,7 @@ export function DsmCanvas({
   const tooltipTimerRef = useRef<number | null>(null);
 
   const format = useMemo(
-    () => (text: string) => formatLabel(text, labelFormat),
+    () => (text: string) => formatNodeLabel(text, labelFormat),
     [labelFormat],
   );
 

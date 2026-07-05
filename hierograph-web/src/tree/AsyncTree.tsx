@@ -17,7 +17,7 @@ import {
 } from "react";
 
 import { cn } from "@/design-system/cn";
-import { formatTreeLabel, getNodeIcon, NodeInfoTooltip } from "@/graph";
+import { formatNodeLabel, getNodeIcon, NodeInfoTooltip } from "@/graph";
 
 import type { TreeSettings } from "./useTreeSettings";
 
@@ -319,10 +319,10 @@ function TreeRow({
   const nodeData = item.getItemData();
   const fullFqn = nodeData.text;
   const shortName = fullFqn.split(".").pop() ?? fullFqn;
-  const displayLabel = formatTreeLabel(
+  const displayLabel = formatNodeLabel(
     fullFqn,
-    nodeData.type,
     settings.labelFormat,
+    nodeData.type,
   );
 
   return (

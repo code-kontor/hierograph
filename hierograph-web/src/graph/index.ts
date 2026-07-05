@@ -6,5 +6,5 @@ export {
 } from "./queries";
 export { getNodeIcon } from "./nodeIcon";
 export { NodeInfoTooltip } from "./NodeInfoTooltip";
-export { formatTreeLabel } from "./treeLabelFormat";
-export type { TreeLabelFormat } from "./treeLabelFormat";
+export { formatNodeLabel } from "./nodeLabel";
+export type { NodeLabelFormat } from "./nodeLabel";
