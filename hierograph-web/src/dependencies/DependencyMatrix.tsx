@@ -12,6 +12,7 @@ import {
 } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
+import type { NodeLabelFormat } from "@/graph";
 import type { NodeAdjacencyMatrixQuery } from "@/graphql/generated/graphql";
 import { useSelection } from "@/selection";
 
@@ -19,8 +20,7 @@ import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 import {
   LABEL_FORMAT_OPTIONS,
   LABEL_FORMAT_STORAGE_KEY,
-  type LabelFormat,
-} from "./labelFormat";
+} from "./dsmLabelSettings";
 import { dsmQueryOptions, nodesDsmQueryOptions } from "./queries";
 
 type MatrixData = NonNullable<
@@ -79,8 +79,8 @@ function DependencyFromTo({ selection }: DependencyFromToProps) {
 }
 
 type DsmLabelFormatMenuProps = {
-  value: LabelFormat;
-  onChange: (value: LabelFormat) => void;
+  value: NodeLabelFormat;
+  onChange: (value: NodeLabelFormat) => void;
 };
 
 function DsmLabelFormatMenu({ value, onChange }: DsmLabelFormatMenuProps) {
@@ -91,7 +91,7 @@ function DsmLabelFormatMenu({ value, onChange }: DsmLabelFormatMenuProps) {
         <DropdownMenuLabel>Label format</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={value}
-          onValueChange={(v) => onChange(v as LabelFormat)}
+          onValueChange={(v) => onChange(v as NodeLabelFormat)}
         >
           <DropdownMenuRadioItem
             value={LABEL_FORMAT_OPTIONS[0].value}
@@ -209,10 +209,10 @@ function MatrixView({ matrix }: MatrixViewProps) {
     LABEL_FORMAT_STORAGE_KEY,
     "last-segment",
   );
-  const labelFormat: LabelFormat = LABEL_FORMAT_OPTIONS.some(
+  const labelFormat: NodeLabelFormat = LABEL_FORMAT_OPTIONS.some(
     (o) => o.value === storedFormat,
   )
-    ? (storedFormat as LabelFormat)
+    ? (storedFormat as NodeLabelFormat)
     : "last-segment";
 
   const orderedNodes = matrix?.orderedNodes ?? [];

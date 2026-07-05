@@ -1,18 +1,24 @@
 import { useLocalStorage } from "@/design-system/useLocalStorage";
-import type { TreeLabelFormat } from "@/graph";
+import type { NodeLabelFormat } from "@/graph";
+
+function normalizeTreeLabelFormat(value: string): NodeLabelFormat {
+  return value === "shortened" || value === "abbreviated"
+    ? "abbreviated"
+    : "full";
+}
 
 export type TreeSettings = {
   showIndentGuides: boolean;
   autoExpandSingleChildren: boolean;
   preserveSelectionOnCollapse: boolean;
-  labelFormat: TreeLabelFormat;
+  labelFormat: NodeLabelFormat;
 };
 
 export type TreeSettingsControls = {
   setShowIndentGuides: (v: boolean) => void;
   setAutoExpandSingleChildren: (v: boolean) => void;
   setPreserveSelectionOnCollapse: (v: boolean) => void;
-  setLabelFormat: (v: TreeLabelFormat) => void;
+  setLabelFormat: (v: NodeLabelFormat) => void;
 };
 
 export type UseTreeSettingsResult = {
@@ -35,10 +41,11 @@ export function useTreeSettings(): UseTreeSettingsResult {
     useLocalStorage<boolean>("tree.autoExpandSingleChildren", false);
   const [preserveSelectionOnCollapse, setPreserveSelectionOnCollapse] =
     useLocalStorage<boolean>("tree.preserveSelectionOnCollapse", false);
-  const [labelFormat, setLabelFormat] = useLocalStorage<TreeLabelFormat>(
+  const [storedLabelFormat, setLabelFormat] = useLocalStorage<string>(
     "tree.labelFormat",
     "full",
   );
+  const labelFormat = normalizeTreeLabelFormat(storedLabelFormat);
 
   return {
     settings: {

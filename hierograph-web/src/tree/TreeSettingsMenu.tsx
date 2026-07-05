@@ -8,6 +8,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
 } from "@/design-system/ui/dropdown-menu";
+import type { NodeLabelFormat } from "@/graph";
 
 import type { TreeSettings, TreeSettingsControls } from "./useTreeSettings";
 
@@ -52,7 +53,7 @@ export function TreeSettingsMenu({
         <DropdownMenuLabel>Label format</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={labelFormat}
-          onValueChange={(v) => setLabelFormat(v as "full" | "shortened")}
+          onValueChange={(v) => setLabelFormat(v as NodeLabelFormat)}
         >
           <DropdownMenuRadioItem
             value="full"
@@ -61,7 +62,7 @@ export function TreeSettingsMenu({
             Full names
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
-            value="shortened"
+            value="abbreviated"
             onSelect={(e) => e.preventDefault()}
           >
             <span className="flex-1">Shortened</span>
