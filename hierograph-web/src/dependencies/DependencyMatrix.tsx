@@ -13,7 +13,6 @@ import {
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import type { NodeAdjacencyMatrixQuery } from "@/graphql/generated/graphql";
-import { dsmQueryOptions, nodesDsmQueryOptions } from "@/queries/dsm";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
@@ -22,6 +21,7 @@ import {
   LABEL_FORMAT_STORAGE_KEY,
   type LabelFormat,
 } from "./labelFormat";
+import { dsmQueryOptions, nodesDsmQueryOptions } from "./queries";
 
 type MatrixData = NonNullable<
   NonNullable<NodeAdjacencyMatrixQuery["hierarchicalGraph"]>["node"]

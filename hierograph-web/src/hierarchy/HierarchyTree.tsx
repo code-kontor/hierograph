@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
-import type { RootNodeQuery } from "@/graphql/generated/graphql";
 import {
   nodeChildrenQueryOptions,
   rootNodeQueryOptions,
-} from "@/queries/hierarchical-graph";
+} from "@/graph/queries";
+import type { RootNodeQuery } from "@/graphql/generated/graphql";
 import { useSelection } from "@/selection/SelectionContext";
 import { AsyncTree, type TreeNodeData } from "@/tree/AsyncTree";
 import type { TreeSettings } from "@/tree/useTreeSettings";

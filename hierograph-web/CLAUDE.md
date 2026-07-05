@@ -96,11 +96,7 @@ onSuccess: (_data, _vars, _result, context) => {
   overridable via `VITE_GRAPHQL_PROXY_TARGET` — see `vite.config.ts`).
 - Write GraphQL documents inline with `graphql()` from `@/graphql/generated`;
   no separate `.graphql` files.
-- Query modules under `src/queries/`: document + `queryOptions` factory in the
-  same module; components import only the factory
-  (`useQuery(rootNodeQueryOptions())`). Variables as factory parameters — they
-  belong in the `queryKey`. Requests go through `execute()` from
-  `src/graphql/client.ts`.
+- Query colocation: each vertical owns its `queries.ts` (document + `queryOptions` factory colocated with its consumers); shared node queries live in `graph/queries.ts`. Components import only the factory (`useQuery(rootNodeQueryOptions())`). Variables as factory parameters — they belong in the `queryKey`. Requests go through `execute()` from `src/graphql/client.ts`.
 - Generated code lives in `src/graphql/generated/` (committed; excluded from
   ESLint/Prettier, checked by tsc) — **never edit by hand**. After each
   new/changed document: first `pnpm codegen`, then typecheck

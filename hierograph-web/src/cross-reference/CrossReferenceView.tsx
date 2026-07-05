@@ -11,15 +11,9 @@ import {
   TooltipTrigger,
 } from "@/design-system/ui/tooltip";
 import {
-  crossReferenceCenterMarkedByLeftQueryOptions,
-  crossReferenceCenterMarkedByRightQueryOptions,
-  crossReferenceLeftChildrenQueryOptions,
-  crossReferenceRightChildrenQueryOptions,
-} from "@/queries/cross-reference";
-import {
   nodeChildrenQueryOptions,
   rootNodeQueryOptions,
-} from "@/queries/hierarchical-graph";
+} from "@/graph/queries";
 import { useSelection } from "@/selection/SelectionContext";
 import { AsyncTree } from "@/tree/AsyncTree";
 import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
@@ -27,6 +21,13 @@ import type {
   TreeSettings,
   TreeSettingsControls,
 } from "@/tree/useTreeSettings";
+
+import {
+  crossReferenceCenterMarkedByLeftQueryOptions,
+  crossReferenceCenterMarkedByRightQueryOptions,
+  crossReferenceLeftChildrenQueryOptions,
+  crossReferenceRightChildrenQueryOptions,
+} from "./queries";
 
 export type CrossReferenceViewProps = {
   settings: TreeSettings;
