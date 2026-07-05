@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/design-system/ui/table";
+import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 
 import { dependencyEdgesQueryOptions } from "./queries";
 
@@ -19,6 +20,7 @@ const DEFAULT_PAGE_SIZE = 50;
 type DependencyEdgeTableProps = {
   sourceNodeId: string;
   targetNodeId: string;
+  labelFormat: NodeLabelFormat;
 };
 
 type EdgeRow = {
@@ -98,6 +100,7 @@ function EdgePagination({
 export function DependencyEdgeTable({
   sourceNodeId,
   targetNodeId,
+  labelFormat,
 }: DependencyEdgeTableProps) {
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -149,9 +152,17 @@ export function DependencyEdgeTable({
 
   const rows: EdgeRow[] = dependencies.map((dep) => ({
     id: dep.id,
-    fromText: dep.sourceNode.text,
+    fromText: formatNodeLabel(
+      dep.sourceNode.text,
+      labelFormat,
+      dep.sourceNode.type,
+    ),
     usageType: dep.type,
-    toText: dep.targetNode.text,
+    toText: formatNodeLabel(
+      dep.targetNode.text,
+      labelFormat,
+      dep.targetNode.type,
+    ),
   }));
 
   return (

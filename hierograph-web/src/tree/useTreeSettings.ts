@@ -2,6 +2,9 @@ import { useLocalStorage } from "@/design-system/useLocalStorage";
 import type { NodeLabelFormat } from "@/graph/nodeLabel";
 
 function normalizeTreeLabelFormat(value: string): NodeLabelFormat {
+  if (value === "last-segment") {
+    return "last-segment";
+  }
   return value === "shortened" || value === "abbreviated"
     ? "abbreviated"
     : "full";

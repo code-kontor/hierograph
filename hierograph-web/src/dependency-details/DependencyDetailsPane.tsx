@@ -1,6 +1,14 @@
 import { useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGhostTrigger,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import {
   Tabs,
@@ -8,8 +16,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/design-system/ui/tabs";
+import { useLocalStorage } from "@/design-system/useLocalStorage";
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
 import { useSelection } from "@/selection/SelectionContext";
 
+import {
+  LABEL_FORMAT_STORAGE_KEY,
+  normalizeLabelFormat,
+} from "./dependencyDetailsLabelSettings";
 import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
@@ -17,9 +31,56 @@ import { NodeDetailsWidget } from "./NodeDetailsWidget";
 
 type ActiveTab = "usages" | "locations";
 
+type LabelFormatMenuProps = {
+  labelFormat: NodeLabelFormat;
+  onLabelFormatChange: (value: NodeLabelFormat) => void;
+};
+
+function LabelFormatMenu({
+  labelFormat,
+  onLabelFormatChange,
+}: LabelFormatMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuGhostTrigger title="Label format" />
+      <DropdownMenuContent>
+        <DropdownMenuLabel>Label format</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={labelFormat}
+          onValueChange={(v) => onLabelFormatChange(v as NodeLabelFormat)}
+        >
+          <DropdownMenuRadioItem
+            value="full"
+            onSelect={(e) => e.preventDefault()}
+          >
+            Full
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="last-segment"
+            onSelect={(e) => e.preventDefault()}
+          >
+            Own name
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="abbreviated"
+            onSelect={(e) => e.preventDefault()}
+          >
+            Abbreviated qualifier
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function DependencyDetailsPane() {
   const { cellSelection } = useSelection();
   const [activeTab, setActiveTab] = useState<ActiveTab>("usages");
+  const [storedLabelFormat, setLabelFormat] = useLocalStorage<string>(
+    LABEL_FORMAT_STORAGE_KEY,
+    "full",
+  );
+  const labelFormat = normalizeLabelFormat(storedLabelFormat);
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
@@ -45,6 +106,10 @@ export function DependencyDetailsPane() {
               <TabsTrigger value="usages">Usages</TabsTrigger>
               <TabsTrigger value="locations">Locations</TabsTrigger>
             </TabsList>
+            <LabelFormatMenu
+              labelFormat={labelFormat}
+              onLabelFormatChange={setLabelFormat}
+            />
           </>
         }
         subHeader={
@@ -52,6 +117,7 @@ export function DependencyDetailsPane() {
             <DependencyInspectorHeader
               sourceNodeId={cellSelection.sourceNodeId}
               targetNodeId={cellSelection.targetNodeId}
+              labelFormat={labelFormat}
             />
           ) : undefined
         }
@@ -64,6 +130,7 @@ export function DependencyDetailsPane() {
                 key={cellKey}
                 sourceNodeId={cellSelection.sourceNodeId}
                 targetNodeId={cellSelection.targetNodeId}
+                labelFormat={labelFormat}
               />
             </TabsContent>
             <TabsContent value="locations" forceMount>
@@ -71,6 +138,7 @@ export function DependencyDetailsPane() {
                 key={cellKey}
                 sourceNodeId={cellSelection.sourceNodeId}
                 targetNodeId={cellSelection.targetNodeId}
+                labelFormat={labelFormat}
               />
             </TabsContent>
           </>

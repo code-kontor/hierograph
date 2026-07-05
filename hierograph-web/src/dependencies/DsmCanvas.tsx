@@ -81,7 +81,8 @@ export function DsmCanvas({
   const tooltipTimerRef = useRef<number | null>(null);
 
   const format = useMemo(
-    () => (text: string) => formatNodeLabel(text, labelFormat),
+    () => (text: string, type?: string) =>
+      formatNodeLabel(text, labelFormat, type),
     [labelFormat],
   );
 

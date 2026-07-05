@@ -67,6 +67,7 @@ function NodeDetailsWidgetInner({ id }: NodeDetailsWidgetInnerProps) {
         {createElement(getNodeIcon(node.type), {
           className: "h-[15px] w-[15px] shrink-0 text-fg-subtle",
         })}
+        {/* Intentionally shows the full node text — not subject to the label-format setting (#47). */}
         <span className="text-fg min-w-0 flex-1 overflow-hidden font-mono text-[14px] font-semibold text-ellipsis whitespace-nowrap">
           {node.text}
         </span>

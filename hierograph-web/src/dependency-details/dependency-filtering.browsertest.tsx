@@ -47,6 +47,7 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
       <DependencyDetailsPanel
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
+        labelFormat="full"
       />,
     );
 
@@ -60,6 +61,7 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
       <DependencyDetailsPanel
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
+        labelFormat="full"
       />,
     );
 
@@ -75,6 +77,7 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
       <DependencyDetailsPanel
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
+        labelFormat="full"
       />,
     );
 
@@ -106,6 +109,7 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
       <DependencyDetailsPanel
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
+        labelFormat="full"
       />,
     );
 

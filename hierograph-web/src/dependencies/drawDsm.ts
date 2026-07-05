@@ -18,7 +18,7 @@ export {
 const FONT = '12px "IBM Plex Mono", ui-monospace, monospace';
 const TEXT_CLIP_PADDING = 5;
 
-type Label = { id: string; text: string };
+type Label = { id: string; text: string; type?: string };
 type Cell = { row: number; column: number; value: number };
 type Scc = { nodePositions: number[] };
 
@@ -53,7 +53,7 @@ function drawVerticalBar(
   sccNodePositions: number[],
   markerSizes: DsmMarkerSizes,
   mark: boolean,
-  formatLabel: (text: string) => string,
+  formatLabel: (text: string, type?: string) => string,
   colors: DsmColors,
 ): void {
   ctx.save();
@@ -115,7 +115,7 @@ function drawVerticalBar(
   ctx.textBaseline = "middle";
   const maxWidth = verticalSideMarkerWidth - (SEP_SIZE + TEXT_CLIP_PADDING);
   ctx.fillText(
-    fitLabel(ctx, formatLabel(labels[y].text), maxWidth),
+    fitLabel(ctx, formatLabel(labels[y].text, labels[y].type), maxWidth),
     (BOX_SIZE - 18) / 2,
     horizontalSideMarkerHeight + verticalSliceSize(y) + BOX_SIZE / 2,
   );
@@ -130,7 +130,7 @@ function drawHorizontalBar(
   sccNodePositions: number[],
   markerSizes: DsmMarkerSizes,
   mark: boolean,
-  formatLabel: (text: string) => string,
+  formatLabel: (text: string, type?: string) => string,
   colors: DsmColors,
 ): void {
   ctx.save();
@@ -193,7 +193,11 @@ function drawHorizontalBar(
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const maxWidth = horizontalSideMarkerHeight - (SEP_SIZE + TEXT_CLIP_PADDING);
-  ctx.fillText(fitLabel(ctx, formatLabel(labels[x].text), maxWidth), 0, 0);
+  ctx.fillText(
+    fitLabel(ctx, formatLabel(labels[x].text, labels[x].type), maxWidth),
+    0,
+    0,
+  );
 
   ctx.restore();
 }
@@ -338,7 +342,7 @@ export function drawDsmOverlay(
   canvas: HTMLCanvasElement,
   { labels, sccs, hover, selected }: DsmOverlayInput,
   markerSizes: DsmMarkerSizes,
-  formatLabel: (text: string) => string,
+  formatLabel: (text: string, type?: string) => string,
 ): void {
   const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
   canvas.width = width;
@@ -389,7 +393,7 @@ export function drawDsm(
   canvas: HTMLCanvasElement,
   { labels, cells, sccs }: DsmData,
   markerSizes: DsmMarkerSizes,
-  formatLabel: (text: string) => string,
+  formatLabel: (text: string, type?: string) => string,
   showDiagonal: boolean,
 ): void {
   const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
