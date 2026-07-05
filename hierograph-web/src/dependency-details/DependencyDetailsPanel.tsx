@@ -20,6 +20,7 @@ import {
   filteredChildrenQueryOptions,
   filteredDependenciesQueryOptions,
 } from "./queries";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 export type DependencyDetailsPanelProps = {
   sourceNodeId: string;
@@ -35,6 +36,11 @@ export function DependencyDetailsPanel({
   const queryClient = useQueryClient();
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
+  const [hoverTarget, setHoverTarget] = useState<{
+    side: "source" | "target";
+    id: string;
+  } | null>(null);
+  const debouncedHover = useDebouncedValue(hoverTarget, 200);
   const [autoExpandSingleChildren, setAutoExpandSingleChildren] =
     useLocalStorage<boolean>(AUTO_EXPAND_STORAGE_KEY, false);
   const sourceTreeRef = useRef<AsyncTreeHandle>(null);
@@ -67,6 +73,32 @@ export function DependencyDetailsPanel({
   const markedTargetIds = hasSelection
     ? (depSet?.filteredDependencies?.markedTargetIds ?? [])
     : [];
+
+  const hoverSourceIds =
+    debouncedHover?.side === "source" ? [debouncedHover.id] : [];
+  const hoverTargetIds =
+    debouncedHover?.side === "target" ? [debouncedHover.id] : [];
+
+  const { data: hoverData } = useQuery({
+    ...filteredDependenciesQueryOptions(
+      sourceNodeId,
+      targetNodeId,
+      hoverSourceIds,
+      hoverTargetIds,
+    ),
+    enabled: debouncedHover != null,
+  });
+
+  const hoverDepSet =
+    hoverData?.hierarchicalGraph?.dependencySetForAggregatedDependency;
+  const hoverActive =
+    debouncedHover != null && !!hoverDepSet?.filteredDependencies;
+  const displaySourceIds = hoverActive
+    ? (hoverDepSet?.filteredDependencies?.markedSourceIds ?? [])
+    : markedSourceIds;
+  const displayTargetIds = hoverActive
+    ? (hoverDepSet?.filteredDependencies?.markedTargetIds ?? [])
+    : markedTargetIds;
 
   const loadSourceChildren = useCallback(
     async (parentId: string) => {
@@ -162,7 +194,10 @@ export function DependencyDetailsPanel({
               rootNode={sourceRoot}
               loadChildren={loadSourceChildren}
               onSelectedIdsChange={setSelectedSourceIds}
-              markedIds={markedSourceIds}
+              onHoveredIdChange={(id) =>
+                setHoverTarget(id ? { side: "source", id } : null)
+              }
+              markedIds={displaySourceIds}
               label="DependencySourceTree"
               settings={{
                 ...DEFAULT_TREE_SETTINGS,
@@ -193,7 +228,10 @@ export function DependencyDetailsPanel({
               rootNode={targetRoot}
               loadChildren={loadTargetChildren}
               onSelectedIdsChange={setSelectedTargetIds}
-              markedIds={markedTargetIds}
+              onHoveredIdChange={(id) =>
+                setHoverTarget(id ? { side: "target", id } : null)
+              }
+              markedIds={displayTargetIds}
               markedBadge
               label="DependencyTargetTree"
               settings={{

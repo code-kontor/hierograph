@@ -37,6 +37,7 @@ export type AsyncTreeProps = {
   loadChildren: (parentId: string) => Promise<TreeNodeData[]>;
   onSelectedIdsChange: (ids: string[]) => void;
   onFocusedIdChange?: (id: string | null, name: string | null) => void;
+  onHoveredIdChange?: (id: string | undefined) => void;
   markedIds?: string[];
   markedBadge?: boolean;
   label: string;
@@ -56,6 +57,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       loadChildren,
       onSelectedIdsChange,
       onFocusedIdChange,
+      onHoveredIdChange,
       markedIds,
       markedBadge = false,
       label,
@@ -359,6 +361,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             settings={settings}
             onRowClick={handleRowClick}
             onChevronClick={handleChevronClick}
+            onHoveredIdChange={onHoveredIdChange}
           />
         ))}
       </div>
@@ -377,6 +380,7 @@ type TreeRowProps = {
     item: ItemInstance<TreeNodeData>,
     e: React.MouseEvent,
   ) => void;
+  onHoveredIdChange?: (id: string | undefined) => void;
 };
 
 type TooltipPos = { x: number; y: number };
@@ -389,6 +393,7 @@ function TreeRow({
   settings,
   onRowClick,
   onChevronClick,
+  onHoveredIdChange,
 }: TreeRowProps) {
   const level = item.getItemMeta().level;
   const isFolder = item.isFolder();
@@ -450,6 +455,7 @@ function TreeRow({
             y: pointerRef.current.y + 20,
           });
         }, 480);
+        onHoveredIdChange?.(item.getId());
       }}
       onMouseMove={(e) => {
         if (tooltipPos === null) {
@@ -460,6 +466,7 @@ function TreeRow({
         setIsHovered(false);
         if (timerRef.current) clearTimeout(timerRef.current);
         setTooltipPos(null);
+        onHoveredIdChange?.(undefined);
       }}
     >
       {(isSelected || (!isSelected && isMarked)) && (
