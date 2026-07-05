@@ -20,11 +20,16 @@ import { useSelection } from "@/selection/SelectionContext";
 
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 import {
+  CELL_SIZE_DEFAULT,
+  CELL_SIZE_STORAGE_KEY,
+  FIT_TO_WINDOW_DEFAULT,
+  FIT_TO_WINDOW_STORAGE_KEY,
   LABEL_FORMAT_OPTIONS,
   LABEL_FORMAT_STORAGE_KEY,
   SHOW_DIAGONAL_DEFAULT,
   SHOW_DIAGONAL_STORAGE_KEY,
 } from "./dsmLabelSettings";
+import { DsmZoomControls } from "./DsmZoomControls";
 import { dsmQueryOptions, nodesDsmQueryOptions } from "./queries";
 
 type MatrixData = NonNullable<
@@ -273,6 +278,15 @@ function MatrixView({ matrix, subject }: MatrixViewProps) {
     SHOW_DIAGONAL_DEFAULT,
   );
 
+  const [fitToWindow, setFitToWindow] = useLocalStorage<boolean>(
+    FIT_TO_WINDOW_STORAGE_KEY,
+    FIT_TO_WINDOW_DEFAULT,
+  );
+  const [cellSize, setCellSize] = useLocalStorage<number>(
+    CELL_SIZE_STORAGE_KEY,
+    CELL_SIZE_DEFAULT,
+  );
+
   const orderedNodes = matrix?.orderedNodes ?? [];
 
   if (orderedNodes.length === 0) {
@@ -291,12 +305,20 @@ function MatrixView({ matrix, subject }: MatrixViewProps) {
     <Pane
       title="Dependency Overview"
       toolbar={
-        <DsmOptionsMenu
-          labelFormat={labelFormat}
-          onLabelFormatChange={setLabelFormat}
-          showDiagonal={showDiagonal}
-          onShowDiagonalChange={setShowDiagonal}
-        />
+        <>
+          <DsmZoomControls
+            fitToWindow={fitToWindow}
+            onFitToWindowChange={setFitToWindow}
+            cellSize={cellSize}
+            onCellSizeChange={setCellSize}
+          />
+          <DsmOptionsMenu
+            labelFormat={labelFormat}
+            onLabelFormatChange={setLabelFormat}
+            showDiagonal={showDiagonal}
+            onShowDiagonalChange={setShowDiagonal}
+          />
+        </>
       }
       subHeader={
         <div className="flex flex-col gap-1">
@@ -315,6 +337,8 @@ function MatrixView({ matrix, subject }: MatrixViewProps) {
           showDiagonal={showDiagonal}
           onHoverCell={setHovered}
           onSelectCell={handleSelectCell}
+          fitToWindow={fitToWindow}
+          cellSize={cellSize}
         />
       </div>
       <DsmLegend />

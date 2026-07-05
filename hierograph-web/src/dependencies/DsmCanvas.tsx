@@ -13,6 +13,8 @@ import {
   DEFAULT_VERTICAL_SIDE_MARKER_WIDTH,
   type DsmCellSelection,
   type DsmMarkerSizes,
+  MAX_BOX_SIZE,
+  MIN_BOX_SIZE,
   SEP_SIZE,
 } from "./dsmModel";
 
@@ -41,6 +43,8 @@ type DsmCanvasProps = {
   showDiagonal: boolean;
   onHoverCell?: (selection: DsmCellSelection | undefined) => void;
   onSelectCell?: (selection: DsmCellSelection | undefined) => void;
+  fitToWindow?: boolean;
+  cellSize?: number;
 };
 
 const MIN_SIDE_MARKER = 24;
@@ -53,6 +57,8 @@ export function DsmCanvas({
   showDiagonal,
   onHoverCell,
   onSelectCell,
+  fitToWindow = false,
+  cellSize = BOX_SIZE,
 }: DsmCanvasProps) {
   const baseCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -62,6 +68,10 @@ export function DsmCanvas({
     verticalSideMarkerWidth: DEFAULT_VERTICAL_SIDE_MARKER_WIDTH,
     horizontalSideMarkerHeight: DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT,
   });
+  const [availableSize, setAvailableSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [selected, setSelected] = useState<{ x: number; y: number } | null>(
     null,
@@ -92,6 +102,18 @@ export function DsmCanvas({
 
   const matrixElements = useMemo(() => buildMatrixElements(cells), [cells]);
 
+  const boxSize = useMemo(() => {
+    if (!fitToWindow || availableSize === null || labels.length === 0) {
+      return Math.min(Math.max(cellSize, MIN_BOX_SIZE), MAX_BOX_SIZE);
+    }
+    const n = labels.length;
+    const availW = availableSize.width - markerSizes.verticalSideMarkerWidth;
+    const availH =
+      availableSize.height - markerSizes.horizontalSideMarkerHeight;
+    const fit = Math.floor(Math.min(availW / n, availH / n));
+    return Math.min(Math.max(fit, MIN_BOX_SIZE), MAX_BOX_SIZE);
+  }, [fitToWindow, cellSize, availableSize, labels.length, markerSizes]);
+
   // Tooltip timer cleanup on unmount
   useEffect(() => {
     return () => {
@@ -110,9 +132,10 @@ export function DsmCanvas({
         markerSizes,
         format,
         showDiagonal,
+        boxSize,
       );
     }
-  }, [labels, cells, sccs, markerSizes, format, showDiagonal]);
+  }, [labels, cells, sccs, markerSizes, format, showDiagonal, boxSize]);
 
   // Overlay canvas draw
   useEffect(() => {
@@ -122,47 +145,37 @@ export function DsmCanvas({
         { labels, sccs, hover, headerHover, selected },
         markerSizes,
         format,
+        boxSize,
       );
     }
-  }, [labels, sccs, hover, headerHover, selected, markerSizes, format]);
-
-  // ResizeObserver safeguard
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(() => {
-      if (baseCanvasRef.current) {
-        drawDsm(
-          baseCanvasRef.current,
-          { labels, cells, sccs },
-          markerSizes,
-          format,
-          showDiagonal,
-        );
-      }
-      if (overlayCanvasRef.current) {
-        drawDsmOverlay(
-          overlayCanvasRef.current,
-          { labels, sccs, hover, headerHover, selected },
-          markerSizes,
-          format,
-        );
-      }
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
   }, [
     labels,
-    cells,
     sccs,
-    markerSizes,
     hover,
     headerHover,
     selected,
+    markerSizes,
     format,
-    showDiagonal,
+    boxSize,
   ]);
+
+  // Measure the outer scroll container so "fit to window" can compute a box size.
+  useEffect(() => {
+    const container = containerRef.current?.parentElement;
+    if (!container) return;
+
+    const measure = () => {
+      setAvailableSize({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
+    };
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -224,6 +237,7 @@ export function DsmCanvas({
             offsetY,
             markerSizes,
             labels.length,
+            boxSize,
           );
           const changed =
             x !== hover?.x ||
@@ -245,7 +259,7 @@ export function DsmCanvas({
 
             if (inVerticalBand) {
               const rowIndex = Math.floor(
-                (offsetY - markerSizes.horizontalSideMarkerHeight) / BOX_SIZE,
+                (offsetY - markerSizes.horizontalSideMarkerHeight) / boxSize,
               );
               if (rowIndex >= 0 && rowIndex < labels.length) {
                 setHeaderHover({ axis: "row", index: rowIndex });
@@ -267,7 +281,7 @@ export function DsmCanvas({
               }
             } else if (inHorizontalBand) {
               const colIndex = Math.floor(
-                (offsetX - markerSizes.verticalSideMarkerWidth) / BOX_SIZE,
+                (offsetX - markerSizes.verticalSideMarkerWidth) / boxSize,
               );
               if (colIndex >= 0 && colIndex < labels.length) {
                 setHeaderHover({ axis: "col", index: colIndex });
@@ -305,6 +319,7 @@ export function DsmCanvas({
               e.nativeEvent.offsetY,
               markerSizes,
               labels.length,
+              boxSize,
             );
             const next = x !== undefined && y !== undefined ? { x, y } : null;
             setSelected(next);
