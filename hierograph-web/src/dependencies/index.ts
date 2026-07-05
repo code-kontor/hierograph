@@ -1,0 +1,1 @@
+export { DependencyMatrix } from "./DependencyMatrix";

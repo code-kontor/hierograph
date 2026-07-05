@@ -13,7 +13,7 @@ import {
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import type { NodeAdjacencyMatrixQuery } from "@/graphql/generated/graphql";
-import { useSelection } from "@/selection/SelectionContext";
+import { useSelection } from "@/selection";
 
 import { DsmCanvas, type DsmCellSelection } from "./DsmCanvas";
 import {

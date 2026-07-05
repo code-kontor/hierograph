@@ -2,9 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { Message } from "@/design-system/ui/message";
-import { nodeBasicsQueryOptions } from "@/graph/queries";
-import { AsyncTree } from "@/tree/AsyncTree";
-import { DEFAULT_TREE_SETTINGS } from "@/tree/useTreeSettings";
+import { nodeBasicsQueryOptions } from "@/graph";
+import { AsyncTree, DEFAULT_TREE_SETTINGS } from "@/tree";
 
 import {
   filteredChildrenQueryOptions,

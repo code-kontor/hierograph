@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/design-system/ui/table";
-import { nodeBasicsQueryOptions } from "@/graph/queries";
+import { nodeBasicsQueryOptions } from "@/graph";
 
 import { dependencyEdgesQueryOptions } from "./queries";
 
