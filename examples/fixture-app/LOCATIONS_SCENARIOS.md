@@ -127,7 +127,7 @@ rules (`is_extends` / `is_implements` / `is_annotated_by` / else
 
 | source type | target type | construction | flag |
 |-------------|-------------|--------------|------|
-| app.web.OrderController | lib.order.Order | local var + field + return type + `getId()` | is_depends_on_other |
+| app.web.OrderController | lib.order.Order | local var + field + return type + `new` | is_depends_on_other |
 | app.web.OrderController | lib.order.OrderService | field + `new` + `submit()` | is_depends_on_other |
 | app.web.OrderController | lib.customer.Customer | method parameter | is_depends_on_other |
 | app.web.CustomerController | lib.customer.CustomerApi | `implements CustomerApi` | **is_implements** |
