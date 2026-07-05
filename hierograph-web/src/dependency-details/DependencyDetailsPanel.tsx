@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { Button } from "@/design-system/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -11,7 +12,7 @@ import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 import { nodeBasicsQueryOptions } from "@/graph/queries";
-import { AsyncTree } from "@/tree/AsyncTree";
+import { AsyncTree, type AsyncTreeHandle } from "@/tree/AsyncTree";
 import { DEFAULT_TREE_SETTINGS } from "@/tree/useTreeSettings";
 
 import { AUTO_EXPAND_STORAGE_KEY } from "./dependencyDetailsLabelSettings";
@@ -36,6 +37,8 @@ export function DependencyDetailsPanel({
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [autoExpandSingleChildren, setAutoExpandSingleChildren] =
     useLocalStorage<boolean>(AUTO_EXPAND_STORAGE_KEY, false);
+  const sourceTreeRef = useRef<AsyncTreeHandle>(null);
+  const targetTreeRef = useRef<AsyncTreeHandle>(null);
 
   const { data: sourceRootData, isPending: sourceRootPending } = useQuery(
     nodeBasicsQueryOptions(sourceNodeId),
@@ -140,15 +143,22 @@ export function DependencyDetailsPanel({
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
         <div className="border-border min-w-0 overflow-auto border-r">
-          <div className="border-border text-fg-subtle border-b px-[14px] py-2 font-mono text-[11px]">
-            Source ·{" "}
-            <span className="text-fg-muted">
-              {formatNodeLabel(sourceRoot.text, labelFormat, sourceRoot.type)}
-            </span>{" "}
-            — click a type to mark its counterparts
+          <div className="border-border text-fg-subtle flex items-center justify-between gap-2 border-b px-[14px] py-2 font-mono text-[11px]">
+            <span className="min-w-0 truncate">
+              Source ·{" "}
+              <span className="text-fg-muted">
+                {formatNodeLabel(sourceRoot.text, labelFormat, sourceRoot.type)}
+              </span>{" "}
+              — click a type to mark its counterparts
+            </span>
+            <RevealMarkedButton
+              onReveal={() => targetTreeRef.current?.revealMarked()}
+              disabled={markedTargetIds.length === 0}
+            />
           </div>
           <div className="p-1.5">
             <AsyncTree
+              ref={sourceTreeRef}
               rootNode={sourceRoot}
               loadChildren={loadSourceChildren}
               onSelectedIdsChange={setSelectedSourceIds}
@@ -163,16 +173,23 @@ export function DependencyDetailsPanel({
           </div>
         </div>
         <div className="min-w-0 overflow-auto">
-          <div className="border-border text-fg-subtle border-b px-[14px] py-2 font-mono text-[11px]">
-            Target ·{" "}
-            <span className="text-fg-muted">
-              {formatNodeLabel(targetRoot.text, labelFormat, targetRoot.type)}
-            </span>{" "}
-            — <span className="text-state-marked-fg">marked</span> = referenced
-            by the source selection
+          <div className="border-border text-fg-subtle flex items-center justify-between gap-2 border-b px-[14px] py-2 font-mono text-[11px]">
+            <span className="min-w-0 truncate">
+              Target ·{" "}
+              <span className="text-fg-muted">
+                {formatNodeLabel(targetRoot.text, labelFormat, targetRoot.type)}
+              </span>{" "}
+              — <span className="text-state-marked-fg">marked</span> =
+              referenced by the source selection
+            </span>
+            <RevealMarkedButton
+              onReveal={() => sourceTreeRef.current?.revealMarked()}
+              disabled={markedSourceIds.length === 0}
+            />
           </div>
           <div className="p-1.5">
             <AsyncTree
+              ref={targetTreeRef}
               rootNode={targetRoot}
               loadChildren={loadTargetChildren}
               onSelectedIdsChange={setSelectedTargetIds}
@@ -189,6 +206,25 @@ export function DependencyDetailsPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+type RevealMarkedButtonProps = {
+  onReveal: () => void;
+  disabled: boolean;
+};
+
+function RevealMarkedButton({ onReveal, disabled }: RevealMarkedButtonProps) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={disabled}
+      onClick={onReveal}
+      title="Reveal marked rows in the other column"
+    >
+      Reveal marked
+    </Button>
   );
 }
 

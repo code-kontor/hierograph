@@ -9,8 +9,10 @@ import { useTree } from "@headless-tree/react";
 import { ChevronRight, Loader2 } from "lucide-react";
 import {
   createElement,
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -42,88 +44,130 @@ export type AsyncTreeProps = {
   autoExpandRootChainOnLoad?: boolean;
 };
 
-export function AsyncTree({
-  rootNode,
-  loadChildren,
-  onSelectedIdsChange,
-  onFocusedIdChange,
-  markedIds,
-  markedBadge = false,
-  label,
-  settings,
-  autoExpandRootChainOnLoad = false,
-}: AsyncTreeProps) {
-  const markedSet = useMemo(() => new Set(markedIds ?? []), [markedIds]);
+export type AsyncTreeHandle = {
+  // Expand every marked ancestor folder so all marked rows become visible.
+  revealMarked: () => void;
+};
 
-  const itemData = useRef<Map<string, TreeNodeData>>(
-    new Map([[rootNode.id, rootNode]]),
-  );
+export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
+  function AsyncTree(
+    {
+      rootNode,
+      loadChildren,
+      onSelectedIdsChange,
+      onFocusedIdChange,
+      markedIds,
+      markedBadge = false,
+      label,
+      settings,
+      autoExpandRootChainOnLoad = false,
+    },
+    ref,
+  ) {
+    const markedSet = useMemo(() => new Set(markedIds ?? []), [markedIds]);
 
-  const [state, setState] = useState<Partial<TreeState<TreeNodeData>>>({});
+    const itemData = useRef<Map<string, TreeNodeData>>(
+      new Map([[rootNode.id, rootNode]]),
+    );
 
-  const setFocusedItem = useCallback((id: string | null) => {
-    setState((prev) => ({ ...prev, focusedItem: id ?? undefined }));
-  }, []);
+    const [state, setState] = useState<Partial<TreeState<TreeNodeData>>>({});
 
-  // Collapse the item and prune expanded descendants. Optionally removes
-  // descendant selections when preserveSelectionOnCollapse is off.
-  const collapseWithPrune = useCallback(
-    (item: ItemInstance<TreeNodeData>) => {
-      const nodeId = item.getId();
-      const nodeLevel = item.getItemMeta().level;
-      const allItems = tree.getItems();
-      const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
+    const setFocusedItem = useCallback((id: string | null) => {
+      setState((prev) => ({ ...prev, focusedItem: id ?? undefined }));
+    }, []);
 
-      const descendantIds = new Set<string>();
-      for (let i = nodeIndex + 1; i < allItems.length; i++) {
-        if (allItems[i].getItemMeta().level <= nodeLevel) break;
-        descendantIds.add(allItems[i].getId());
-      }
+    // Collapse the item and prune expanded descendants. Optionally removes
+    // descendant selections when preserveSelectionOnCollapse is off.
+    const collapseWithPrune = useCallback(
+      (item: ItemInstance<TreeNodeData>) => {
+        const nodeId = item.getId();
+        const nodeLevel = item.getItemMeta().level;
+        const allItems = tree.getItems();
+        const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
 
-      setState((prev) => {
-        const nextExpanded = (prev.expandedItems ?? []).filter(
-          (id) => id !== nodeId && !descendantIds.has(id),
-        );
-
-        if (settings.preserveSelectionOnCollapse) {
-          return { ...prev, expandedItems: nextExpanded };
+        const descendantIds = new Set<string>();
+        for (let i = nodeIndex + 1; i < allItems.length; i++) {
+          if (allItems[i].getItemMeta().level <= nodeLevel) break;
+          descendantIds.add(allItems[i].getId());
         }
 
-        const nextSelected = (prev.selectedItems ?? []).filter(
-          (id) => !descendantIds.has(id),
-        );
-        const nextFocused =
-          prev.focusedItem != null && descendantIds.has(prev.focusedItem)
-            ? nodeId
-            : prev.focusedItem;
+        setState((prev) => {
+          const nextExpanded = (prev.expandedItems ?? []).filter(
+            (id) => id !== nodeId && !descendantIds.has(id),
+          );
 
-        return {
+          if (settings.preserveSelectionOnCollapse) {
+            return { ...prev, expandedItems: nextExpanded };
+          }
+
+          const nextSelected = (prev.selectedItems ?? []).filter(
+            (id) => !descendantIds.has(id),
+          );
+          const nextFocused =
+            prev.focusedItem != null && descendantIds.has(prev.focusedItem)
+              ? nodeId
+              : prev.focusedItem;
+
+          return {
+            ...prev,
+            expandedItems: nextExpanded,
+            selectedItems: nextSelected,
+            focusedItem: nextFocused,
+          };
+        });
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [settings.preserveSelectionOnCollapse],
+    );
+
+    // Expand the item. When autoExpandSingleChildren is on, chains through
+    // single-child folders until a node with ≥2 children or a non-folder is
+    // reached. Chaining crosses module boundaries (e.g. project -> jar module ->
+    // root package) so a deeply nested single-child path opens in one action.
+    const expandWithAutoExpand = useCallback(
+      async (item: ItemInstance<TreeNodeData>) => {
+        const startId = item.getId();
+        setState((prev) => ({
           ...prev,
-          expandedItems: nextExpanded,
-          selectedItems: nextSelected,
-          focusedItem: nextFocused,
-        };
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.preserveSelectionOnCollapse],
-  );
+          expandedItems: [...(prev.expandedItems ?? []), startId],
+        }));
 
-  // Expand the item. When autoExpandSingleChildren is on, chains through
-  // single-child folders until a node with ≥2 children or a non-folder is
-  // reached. Chaining crosses module boundaries (e.g. project -> jar module ->
-  // root package) so a deeply nested single-child path opens in one action.
-  const expandWithAutoExpand = useCallback(
-    async (item: ItemInstance<TreeNodeData>) => {
-      const startId = item.getId();
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [...(prev.expandedItems ?? []), startId],
-      }));
+        if (!settings.autoExpandSingleChildren) return;
 
-      if (!settings.autoExpandSingleChildren) return;
+        let currentId = startId;
+        const chained: string[] = [];
+        for (;;) {
+          const children = await loadChildren(currentId);
+          // Register loaded data so the tree can render the chained nodes without
+          // waiting on its own separate child-loading pass.
+          for (const child of children) {
+            itemData.current.set(child.id, child);
+          }
+          if (children.length !== 1 || !children[0].hasChildren) {
+            break;
+          }
+          const childId = children[0].id;
+          chained.push(childId);
+          currentId = childId;
+        }
+        if (chained.length > 0) {
+          setState((prev) => ({
+            ...prev,
+            expandedItems: [...(prev.expandedItems ?? []), ...chained],
+          }));
+        }
+      },
+      [settings.autoExpandSingleChildren, loadChildren],
+    );
 
-      let currentId = startId;
+    // Drill from the (hidden) root through single-child folders on initial load,
+    // opening the tree down to the first real branch. Mirrors the chaining loop
+    // in expandWithAutoExpand, but starts at rootNode.id and never pushes the
+    // root itself into expandedItems (it is the hidden container item, rootItemId),
+    // and runs regardless of settings.autoExpandSingleChildren — this is the
+    // "first moment" orientation, not the interactive expand.
+    const autoExpandRootChain = useCallback(async () => {
+      let currentId = rootNode.id;
       const chained: string[] = [];
       for (;;) {
         const children = await loadChildren(currentId);
@@ -145,172 +189,182 @@ export function AsyncTree({
           expandedItems: [...(prev.expandedItems ?? []), ...chained],
         }));
       }
-    },
-    [settings.autoExpandSingleChildren, loadChildren],
-  );
+    }, [loadChildren, rootNode.id]);
 
-  // Drill from the (hidden) root through single-child folders on initial load,
-  // opening the tree down to the first real branch. Mirrors the chaining loop
-  // in expandWithAutoExpand, but starts at rootNode.id and never pushes the
-  // root itself into expandedItems (it is the hidden container item, rootItemId),
-  // and runs regardless of settings.autoExpandSingleChildren — this is the
-  // "first moment" orientation, not the interactive expand.
-  const autoExpandRootChain = useCallback(async () => {
-    let currentId = rootNode.id;
-    const chained: string[] = [];
-    for (;;) {
-      const children = await loadChildren(currentId);
-      // Register loaded data so the tree can render the chained nodes without
-      // waiting on its own separate child-loading pass.
-      for (const child of children) {
-        itemData.current.set(child.id, child);
-      }
-      if (children.length !== 1 || !children[0].hasChildren) {
-        break;
-      }
-      const childId = children[0].id;
-      chained.push(childId);
-      currentId = childId;
-    }
-    if (chained.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [...(prev.expandedItems ?? []), ...chained],
-      }));
-    }
-  }, [loadChildren, rootNode.id]);
-
-  const handleChevronClick = useCallback(
-    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (item.isExpanded()) {
-        collapseWithPrune(item);
-      } else {
-        expandWithAutoExpand(item).catch(console.error);
-      }
-    },
-    [collapseWithPrune, expandWithAutoExpand],
-  );
-
-  const handleRowClick = useCallback(
-    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
-      const id = item.getId();
-      if (e.shiftKey) {
-        item.selectUpTo(e.ctrlKey || e.metaKey);
-        setFocusedItem(id);
-      } else if (e.metaKey || e.ctrlKey) {
-        item.toggleSelect();
-        setFocusedItem(id);
-      } else {
-        tree.setSelectedItems([id]);
-        setFocusedItem(id);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setFocusedItem],
-  );
-
-  const tree = useTree<TreeNodeData>({
-    rootItemId: rootNode.id,
-    getItemName: (item) => item.getItemData().text,
-    isItemFolder: (item) => item.getItemData().hasChildren,
-    createLoadingItemData: () => ({
-      id: "",
-      text: "Loading…",
-      type: "",
-      hasChildren: false,
-    }),
-    state,
-    setState,
-    dataLoader: {
-      async getItem(id: string) {
-        return (
-          itemData.current.get(id) ?? {
-            id,
-            text: id,
-            type: "",
-            hasChildren: false,
-          }
-        );
-      },
-      async getChildren(id: string) {
-        const nodes = await loadChildren(id);
-        for (const n of nodes) {
-          itemData.current.set(n.id, n);
+    const revealMarked = useCallback(async () => {
+      if (markedSet.size === 0) return;
+      const toExpand: string[] = [];
+      // Root is the hidden container item (rootItemId) and is never pushed into
+      // expandedItems — start by loading its children, then descend level by level
+      // so each next level's node ids materialize before we expand into them.
+      const queue: string[] = [rootNode.id];
+      while (queue.length > 0) {
+        const parentId = queue.shift() as string;
+        const children = await loadChildren(parentId);
+        for (const child of children) {
+          itemData.current.set(child.id, child);
         }
-        return nodes.map((n) => n.id);
-      },
-    },
-    features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
-    hotkeys: {
-      collapseOrUp: {
-        hotkey: "ArrowLeft",
-        canRepeat: true,
-        handler: (_e, t) => {
-          const focused = t.getFocusedItem();
-          if (focused.isExpanded() && focused.isFolder()) {
-            collapseWithPrune(focused);
-          } else if (focused.getItemMeta().level !== 0) {
-            focused.getParent()?.setFocused();
-            t.updateDomFocus();
+        for (const child of children) {
+          // Only marked *folders* go into expandedItems; a marked leaf just needs
+          // its ancestors open to become visible (it has no children to expand).
+          if (markedSet.has(child.id) && child.hasChildren) {
+            toExpand.push(child.id);
+            queue.push(child.id);
           }
+        }
+      }
+      if (toExpand.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          expandedItems: [
+            ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
+          ],
+        }));
+      }
+    }, [markedSet, loadChildren, rootNode.id]);
+
+    const handleChevronClick = useCallback(
+      (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (item.isExpanded()) {
+          collapseWithPrune(item);
+        } else {
+          expandWithAutoExpand(item).catch(console.error);
+        }
+      },
+      [collapseWithPrune, expandWithAutoExpand],
+    );
+
+    const handleRowClick = useCallback(
+      (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
+        const id = item.getId();
+        if (e.shiftKey) {
+          item.selectUpTo(e.ctrlKey || e.metaKey);
+          setFocusedItem(id);
+        } else if (e.metaKey || e.ctrlKey) {
+          item.toggleSelect();
+          setFocusedItem(id);
+        } else {
+          tree.setSelectedItems([id]);
+          setFocusedItem(id);
+        }
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [setFocusedItem],
+    );
+
+    const tree = useTree<TreeNodeData>({
+      rootItemId: rootNode.id,
+      getItemName: (item) => item.getItemData().text,
+      isItemFolder: (item) => item.getItemData().hasChildren,
+      createLoadingItemData: () => ({
+        id: "",
+        text: "Loading…",
+        type: "",
+        hasChildren: false,
+      }),
+      state,
+      setState,
+      dataLoader: {
+        async getItem(id: string) {
+          return (
+            itemData.current.get(id) ?? {
+              id,
+              text: id,
+              type: "",
+              hasChildren: false,
+            }
+          );
+        },
+        async getChildren(id: string) {
+          const nodes = await loadChildren(id);
+          for (const n of nodes) {
+            itemData.current.set(n.id, n);
+          }
+          return nodes.map((n) => n.id);
         },
       },
-      expandOrDown: {
-        hotkey: "ArrowRight",
-        canRepeat: true,
-        handler: (_e, t) => {
-          const focused = t.getFocusedItem();
-          if (focused.isFolder() && !focused.isExpanded()) {
-            expandWithAutoExpand(focused).catch(console.error);
-          } else {
-            t.focusNextItem();
-            t.updateDomFocus();
-          }
+      features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
+      hotkeys: {
+        collapseOrUp: {
+          hotkey: "ArrowLeft",
+          canRepeat: true,
+          handler: (_e, t) => {
+            const focused = t.getFocusedItem();
+            if (focused.isExpanded() && focused.isFolder()) {
+              collapseWithPrune(focused);
+            } else if (focused.getItemMeta().level !== 0) {
+              focused.getParent()?.setFocused();
+              t.updateDomFocus();
+            }
+          },
+        },
+        expandOrDown: {
+          hotkey: "ArrowRight",
+          canRepeat: true,
+          handler: (_e, t) => {
+            const focused = t.getFocusedItem();
+            if (focused.isFolder() && !focused.isExpanded()) {
+              expandWithAutoExpand(focused).catch(console.error);
+            } else {
+              t.focusNextItem();
+              t.updateDomFocus();
+            }
+          },
         },
       },
-    },
-  });
+    });
 
-  const didAutoExpandRootRef = useRef(false);
-  useEffect(() => {
-    if (!autoExpandRootChainOnLoad || didAutoExpandRootRef.current) return;
-    // Guard against React StrictMode's double effect invocation in dev: the ref
-    // survives the mount→unmount→mount cycle, so the drill starts exactly once.
-    didAutoExpandRootRef.current = true;
-    autoExpandRootChain().catch(console.error);
-  }, [autoExpandRootChainOnLoad, autoExpandRootChain]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        revealMarked() {
+          revealMarked().catch(console.error);
+        },
+      }),
+      [revealMarked],
+    );
 
-  useEffect(() => {
-    onSelectedIdsChange(state.selectedItems ?? []);
-  }, [state.selectedItems, onSelectedIdsChange]);
+    const didAutoExpandRootRef = useRef(false);
+    useEffect(() => {
+      if (!autoExpandRootChainOnLoad || didAutoExpandRootRef.current) return;
+      // Guard against React StrictMode's double effect invocation in dev: the ref
+      // survives the mount→unmount→mount cycle, so the drill starts exactly once.
+      didAutoExpandRootRef.current = true;
+      autoExpandRootChain().catch(console.error);
+    }, [autoExpandRootChainOnLoad, autoExpandRootChain]);
 
-  useEffect(() => {
-    const id = state.focusedItem ?? null;
-    const name =
-      id != null
-        ? (itemData.current.get(id)?.text.split(".").pop() ?? null)
-        : null;
-    onFocusedIdChange?.(id, name);
-  }, [state.focusedItem, onFocusedIdChange]);
+    useEffect(() => {
+      onSelectedIdsChange(state.selectedItems ?? []);
+    }, [state.selectedItems, onSelectedIdsChange]);
 
-  return (
-    <div {...tree.getContainerProps(label)}>
-      {tree.getItems().map((item) => (
-        <TreeRow
-          key={item.getId()}
-          item={item}
-          isMarked={markedSet.has(item.getId())}
-          markedBadge={markedBadge}
-          focusedItemId={state.focusedItem ?? null}
-          settings={settings}
-          onRowClick={handleRowClick}
-          onChevronClick={handleChevronClick}
-        />
-      ))}
-    </div>
-  );
-}
+    useEffect(() => {
+      const id = state.focusedItem ?? null;
+      const name =
+        id != null
+          ? (itemData.current.get(id)?.text.split(".").pop() ?? null)
+          : null;
+      onFocusedIdChange?.(id, name);
+    }, [state.focusedItem, onFocusedIdChange]);
+
+    return (
+      <div {...tree.getContainerProps(label)}>
+        {tree.getItems().map((item) => (
+          <TreeRow
+            key={item.getId()}
+            item={item}
+            isMarked={markedSet.has(item.getId())}
+            markedBadge={markedBadge}
+            focusedItemId={state.focusedItem ?? null}
+            settings={settings}
+            onRowClick={handleRowClick}
+            onChevronClick={handleChevronClick}
+          />
+        ))}
+      </div>
+    );
+  },
+);
 
 type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
