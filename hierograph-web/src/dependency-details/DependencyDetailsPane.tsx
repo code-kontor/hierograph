@@ -98,7 +98,7 @@ export function DependencyDetailsPane() {
       <Pane
         title="Dependencies Details"
         titleBar={
-          <>
+          <div className="flex flex-1 items-stretch">
             <div className="text-fg-muted border-border flex items-center border-r px-[14px] font-mono text-[11px] font-semibold tracking-[0.06em] uppercase">
               Dependencies Details
             </div>
@@ -106,11 +106,13 @@ export function DependencyDetailsPane() {
               <TabsTrigger value="usages">Usages</TabsTrigger>
               <TabsTrigger value="locations">Locations</TabsTrigger>
             </TabsList>
-            <LabelFormatMenu
-              labelFormat={labelFormat}
-              onLabelFormatChange={setLabelFormat}
-            />
-          </>
+            <div className="ml-auto flex items-center pr-3">
+              <LabelFormatMenu
+                labelFormat={labelFormat}
+                onLabelFormatChange={setLabelFormat}
+              />
+            </div>
+          </div>
         }
         subHeader={
           cellKey && cellSelection ? (
