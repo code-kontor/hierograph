@@ -1,4 +1,6 @@
 export const BOX_SIZE = 36;
+export const MIN_BOX_SIZE = 20;
+export const MAX_BOX_SIZE = 72;
 export const SEP_SIZE = 4;
 export const DEFAULT_VERTICAL_SIDE_MARKER_WIDTH = 150;
 export const DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT = 108;
@@ -36,12 +38,13 @@ export function computeCellPosition(
   offsetY: number,
   markerSizes: DsmMarkerSizes,
   labelCount: number,
+  boxSize: number,
 ): { x: number | undefined; y: number | undefined } {
   let x: number | undefined = Math.floor(
-    (offsetX - markerSizes.verticalSideMarkerWidth) / BOX_SIZE,
+    (offsetX - markerSizes.verticalSideMarkerWidth) / boxSize,
   );
   let y: number | undefined = Math.floor(
-    (offsetY - markerSizes.horizontalSideMarkerHeight) / BOX_SIZE,
+    (offsetY - markerSizes.horizontalSideMarkerHeight) / boxSize,
   );
   if (x < 0 || x >= labelCount) x = undefined;
   if (y < 0 || y >= labelCount) y = undefined;

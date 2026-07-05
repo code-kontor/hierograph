@@ -1,11 +1,6 @@
 import { type DsmColors, resolveDsmColors } from "./colorScheme";
 import { setupCanvas } from "./dpiFixer";
-import {
-  BOX_SIZE,
-  type DsmMarkerSizes,
-  isLabelInCycle,
-  SEP_SIZE,
-} from "./dsmModel";
+import { type DsmMarkerSizes, isLabelInCycle, SEP_SIZE } from "./dsmModel";
 
 export type { DsmMarkerSizes };
 export {
@@ -31,19 +26,20 @@ export type DsmData = {
 export function computeDsmCanvasSize(
   itemCount: number,
   markerSizes: DsmMarkerSizes,
+  boxSize: number,
 ) {
   return {
-    width: BOX_SIZE * itemCount + markerSizes.verticalSideMarkerWidth + 2,
-    height: BOX_SIZE * itemCount + markerSizes.horizontalSideMarkerHeight + 2,
+    width: boxSize * itemCount + markerSizes.verticalSideMarkerWidth + 2,
+    height: boxSize * itemCount + markerSizes.horizontalSideMarkerHeight + 2,
   };
 }
 
-function horizontalSliceSize(n: number): number {
-  return BOX_SIZE * n;
+function horizontalSliceSize(n: number, boxSize: number): number {
+  return boxSize * n;
 }
 
-function verticalSliceSize(n: number): number {
-  return BOX_SIZE * n;
+function verticalSliceSize(n: number, boxSize: number): number {
+  return boxSize * n;
 }
 
 function drawVerticalBar(
@@ -56,6 +52,7 @@ function drawVerticalBar(
   formatLabel: (text: string, type?: string) => string,
   colors: DsmColors,
   markColor: string,
+  boxSize: number,
 ): void {
   ctx.save();
 
@@ -66,35 +63,35 @@ function drawVerticalBar(
   ctx.fillStyle = mark ? markColor : inCycle ? colors.cycle : colors.empty;
   ctx.fillRect(
     0,
-    horizontalSideMarkerHeight + verticalSliceSize(y),
+    horizontalSideMarkerHeight + verticalSliceSize(y, boxSize),
     verticalSideMarkerWidth - SEP_SIZE,
-    verticalSliceSize(y + 1) - verticalSliceSize(y),
+    verticalSliceSize(y + 1, boxSize) - verticalSliceSize(y, boxSize),
   );
 
   // separators
   ctx.strokeStyle = colors.grid;
   ctx.beginPath();
-  ctx.moveTo(0, horizontalSideMarkerHeight + verticalSliceSize(y));
+  ctx.moveTo(0, horizontalSideMarkerHeight + verticalSliceSize(y, boxSize));
   ctx.lineTo(
     verticalSideMarkerWidth - SEP_SIZE,
-    horizontalSideMarkerHeight + verticalSliceSize(y),
+    horizontalSideMarkerHeight + verticalSliceSize(y, boxSize),
   );
   ctx.moveTo(
     verticalSideMarkerWidth - SEP_SIZE,
-    horizontalSideMarkerHeight + verticalSliceSize(y),
+    horizontalSideMarkerHeight + verticalSliceSize(y, boxSize),
   );
   ctx.lineTo(
     verticalSideMarkerWidth - SEP_SIZE,
-    horizontalSideMarkerHeight + verticalSliceSize(y + 1),
+    horizontalSideMarkerHeight + verticalSliceSize(y + 1, boxSize),
   );
   if (y === labels.length - 1) {
     ctx.moveTo(
       0,
-      horizontalSideMarkerHeight + verticalSliceSize(labels.length),
+      horizontalSideMarkerHeight + verticalSliceSize(labels.length, boxSize),
     );
     ctx.lineTo(
       verticalSideMarkerWidth - SEP_SIZE,
-      horizontalSideMarkerHeight + verticalSliceSize(labels.length),
+      horizontalSideMarkerHeight + verticalSliceSize(labels.length, boxSize),
     );
   }
   ctx.stroke();
@@ -103,9 +100,9 @@ function drawVerticalBar(
   ctx.beginPath();
   ctx.rect(
     0,
-    horizontalSideMarkerHeight + verticalSliceSize(y),
+    horizontalSideMarkerHeight + verticalSliceSize(y, boxSize),
     verticalSideMarkerWidth - (SEP_SIZE + TEXT_CLIP_PADDING),
-    verticalSliceSize(y + 1) - verticalSliceSize(y),
+    verticalSliceSize(y + 1, boxSize) - verticalSliceSize(y, boxSize),
   );
   ctx.clip();
 
@@ -117,8 +114,8 @@ function drawVerticalBar(
   const maxWidth = verticalSideMarkerWidth - (SEP_SIZE + TEXT_CLIP_PADDING);
   ctx.fillText(
     fitLabel(ctx, formatLabel(labels[y].text, labels[y].type), maxWidth),
-    (BOX_SIZE - 18) / 2,
-    horizontalSideMarkerHeight + verticalSliceSize(y) + BOX_SIZE / 2,
+    (boxSize - 18) / 2,
+    horizontalSideMarkerHeight + verticalSliceSize(y, boxSize) + boxSize / 2,
   );
 
   ctx.restore();
@@ -134,6 +131,7 @@ function drawHorizontalBar(
   formatLabel: (text: string, type?: string) => string,
   colors: DsmColors,
   markColor: string,
+  boxSize: number,
 ): void {
   ctx.save();
 
@@ -143,32 +141,35 @@ function drawHorizontalBar(
   // fill rect
   ctx.fillStyle = mark ? markColor : inCycle ? colors.cycle : colors.empty;
   ctx.fillRect(
-    verticalSideMarkerWidth + horizontalSliceSize(x),
+    verticalSideMarkerWidth + horizontalSliceSize(x, boxSize),
     0,
-    horizontalSliceSize(x + 1) - horizontalSliceSize(x),
+    horizontalSliceSize(x + 1, boxSize) - horizontalSliceSize(x, boxSize),
     horizontalSideMarkerHeight - SEP_SIZE,
   );
 
   // separators
   ctx.strokeStyle = colors.grid;
   ctx.beginPath();
-  ctx.moveTo(verticalSideMarkerWidth + horizontalSliceSize(x), 0);
+  ctx.moveTo(verticalSideMarkerWidth + horizontalSliceSize(x, boxSize), 0);
   ctx.lineTo(
-    verticalSideMarkerWidth + horizontalSliceSize(x),
+    verticalSideMarkerWidth + horizontalSliceSize(x, boxSize),
     horizontalSideMarkerHeight - SEP_SIZE,
   );
   ctx.moveTo(
-    verticalSideMarkerWidth + horizontalSliceSize(x),
+    verticalSideMarkerWidth + horizontalSliceSize(x, boxSize),
     horizontalSideMarkerHeight - SEP_SIZE,
   );
   ctx.lineTo(
-    verticalSideMarkerWidth + horizontalSliceSize(x + 1),
+    verticalSideMarkerWidth + horizontalSliceSize(x + 1, boxSize),
     horizontalSideMarkerHeight - SEP_SIZE,
   );
   if (x === labels.length - 1) {
-    ctx.moveTo(verticalSideMarkerWidth + horizontalSliceSize(labels.length), 0);
+    ctx.moveTo(
+      verticalSideMarkerWidth + horizontalSliceSize(labels.length, boxSize),
+      0,
+    );
     ctx.lineTo(
-      verticalSideMarkerWidth + horizontalSliceSize(labels.length),
+      verticalSideMarkerWidth + horizontalSliceSize(labels.length, boxSize),
       horizontalSideMarkerHeight - SEP_SIZE,
     );
   }
@@ -177,16 +178,16 @@ function drawHorizontalBar(
   // clip before text
   ctx.beginPath();
   ctx.rect(
-    verticalSideMarkerWidth + horizontalSliceSize(x),
+    verticalSideMarkerWidth + horizontalSliceSize(x, boxSize),
     0,
-    horizontalSliceSize(x + 1) - horizontalSliceSize(x),
+    horizontalSliceSize(x + 1, boxSize) - horizontalSliceSize(x, boxSize),
     horizontalSideMarkerHeight - (SEP_SIZE + TEXT_CLIP_PADDING),
   );
   ctx.clip();
 
   // rotated text
   ctx.translate(
-    verticalSideMarkerWidth + horizontalSliceSize(x) + BOX_SIZE / 2,
+    verticalSideMarkerWidth + horizontalSliceSize(x, boxSize) + boxSize / 2,
     10,
   );
   ctx.rotate(Math.PI / 2);
@@ -231,6 +232,7 @@ function drawMatrix(
   markerSizes: DsmMarkerSizes,
   colors: DsmColors,
   showDiagonal: boolean,
+  boxSize: number,
 ): void {
   const { verticalSideMarkerWidth, horizontalSideMarkerHeight } = markerSizes;
 
@@ -239,18 +241,19 @@ function drawMatrix(
   ctx.fillRect(
     verticalSideMarkerWidth,
     horizontalSideMarkerHeight,
-    horizontalSliceSize(labels.length),
-    verticalSliceSize(labels.length),
+    horizontalSliceSize(labels.length, boxSize),
+    verticalSliceSize(labels.length, boxSize),
   );
 
   // diagonal (self/inert)
   ctx.fillStyle = colors.diagonal;
   for (let index = 0; index < labels.length; index++) {
     ctx.fillRect(
-      verticalSideMarkerWidth + horizontalSliceSize(index),
-      horizontalSideMarkerHeight + verticalSliceSize(index),
-      horizontalSliceSize(index + 1) - horizontalSliceSize(index),
-      verticalSliceSize(index + 1) - verticalSliceSize(index),
+      verticalSideMarkerWidth + horizontalSliceSize(index, boxSize),
+      horizontalSideMarkerHeight + verticalSliceSize(index, boxSize),
+      horizontalSliceSize(index + 1, boxSize) -
+        horizontalSliceSize(index, boxSize),
+      verticalSliceSize(index + 1, boxSize) - verticalSliceSize(index, boxSize),
     );
   }
 
@@ -262,10 +265,10 @@ function drawMatrix(
       for (const j of nodePositions) {
         if (i !== j) {
           ctx.fillRect(
-            verticalSideMarkerWidth + horizontalSliceSize(i),
-            horizontalSideMarkerHeight + verticalSliceSize(j),
-            BOX_SIZE,
-            BOX_SIZE,
+            verticalSideMarkerWidth + horizontalSliceSize(i, boxSize),
+            horizontalSideMarkerHeight + verticalSliceSize(j, boxSize),
+            boxSize,
+            boxSize,
           );
         }
       }
@@ -281,10 +284,12 @@ function drawMatrix(
       ctx.textBaseline = "middle";
       ctx.fillText(
         String(cell.value),
-        verticalSideMarkerWidth + horizontalSliceSize(cell.row) + BOX_SIZE / 2,
+        verticalSideMarkerWidth +
+          horizontalSliceSize(cell.row, boxSize) +
+          boxSize / 2,
         horizontalSideMarkerHeight +
-          verticalSliceSize(cell.column) +
-          BOX_SIZE / 2,
+          verticalSliceSize(cell.column, boxSize) +
+          boxSize / 2,
       );
     }
   });
@@ -295,20 +300,20 @@ function drawMatrix(
   for (let index = 0; index <= labels.length; index++) {
     ctx.moveTo(
       verticalSideMarkerWidth,
-      horizontalSideMarkerHeight + verticalSliceSize(index),
+      horizontalSideMarkerHeight + verticalSliceSize(index, boxSize),
     );
     ctx.lineTo(
-      verticalSideMarkerWidth + BOX_SIZE * labels.length,
-      horizontalSideMarkerHeight + verticalSliceSize(index),
+      verticalSideMarkerWidth + boxSize * labels.length,
+      horizontalSideMarkerHeight + verticalSliceSize(index, boxSize),
     );
 
     ctx.moveTo(
-      verticalSideMarkerWidth + horizontalSliceSize(index),
+      verticalSideMarkerWidth + horizontalSliceSize(index, boxSize),
       horizontalSideMarkerHeight,
     );
     ctx.lineTo(
-      verticalSideMarkerWidth + horizontalSliceSize(index),
-      horizontalSideMarkerHeight + BOX_SIZE * labels.length,
+      verticalSideMarkerWidth + horizontalSliceSize(index, boxSize),
+      horizontalSideMarkerHeight + boxSize * labels.length,
     );
   }
   ctx.stroke();
@@ -320,15 +325,16 @@ function markCell(
   y: number,
   markerSizes: DsmMarkerSizes,
   colors: DsmColors,
+  boxSize: number,
 ): void {
   ctx.save();
   ctx.strokeStyle = colors.outline;
   ctx.lineWidth = 2;
   ctx.strokeRect(
-    markerSizes.verticalSideMarkerWidth + BOX_SIZE * x + 1,
-    markerSizes.horizontalSideMarkerHeight + BOX_SIZE * y + 1,
-    BOX_SIZE - 2,
-    BOX_SIZE - 2,
+    markerSizes.verticalSideMarkerWidth + boxSize * x + 1,
+    markerSizes.horizontalSideMarkerHeight + boxSize * y + 1,
+    boxSize - 2,
+    boxSize - 2,
   );
   ctx.restore();
 }
@@ -346,8 +352,13 @@ export function drawDsmOverlay(
   { labels, sccs, hover, headerHover, selected }: DsmOverlayInput,
   markerSizes: DsmMarkerSizes,
   formatLabel: (text: string, type?: string) => string,
+  boxSize: number,
 ): void {
-  const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
+  const { width, height } = computeDsmCanvasSize(
+    labels.length,
+    markerSizes,
+    boxSize,
+  );
   canvas.width = width;
   canvas.height = height;
 
@@ -364,8 +375,8 @@ export function drawDsmOverlay(
 
   // 1) Body-cell hover: quiet amber on BOTH axis headers + grey cell/transpose outline
   if (hover) {
-    markCell(ctx, hover.x, hover.y, markerSizes, colors);
-    markCell(ctx, hover.y, hover.x, markerSizes, colors);
+    markCell(ctx, hover.x, hover.y, markerSizes, colors, boxSize);
+    markCell(ctx, hover.y, hover.x, markerSizes, colors, boxSize);
     drawVerticalBar(
       hover.y,
       ctx,
@@ -376,6 +387,7 @@ export function drawDsmOverlay(
       formatLabel,
       colors,
       colors.markerHover,
+      boxSize,
     );
     drawHorizontalBar(
       hover.x,
@@ -387,6 +399,7 @@ export function drawDsmOverlay(
       formatLabel,
       colors,
       colors.markerHover,
+      boxSize,
     );
   }
 
@@ -403,6 +416,7 @@ export function drawDsmOverlay(
         formatLabel,
         colors,
         colors.markerHover,
+        boxSize,
       );
     } else {
       drawHorizontalBar(
@@ -415,6 +429,7 @@ export function drawDsmOverlay(
         formatLabel,
         colors,
         colors.markerHover,
+        boxSize,
       );
     }
   }
@@ -431,6 +446,7 @@ export function drawDsmOverlay(
       formatLabel,
       colors,
       colors.marker,
+      boxSize,
     );
     drawHorizontalBar(
       selected.x,
@@ -442,8 +458,9 @@ export function drawDsmOverlay(
       formatLabel,
       colors,
       colors.marker,
+      boxSize,
     );
-    markCell(ctx, selected.x, selected.y, markerSizes, colors);
+    markCell(ctx, selected.x, selected.y, markerSizes, colors, boxSize);
   }
 }
 
@@ -453,8 +470,13 @@ export function drawDsm(
   markerSizes: DsmMarkerSizes,
   formatLabel: (text: string, type?: string) => string,
   showDiagonal: boolean,
+  boxSize: number,
 ): void {
-  const { width, height } = computeDsmCanvasSize(labels.length, markerSizes);
+  const { width, height } = computeDsmCanvasSize(
+    labels.length,
+    markerSizes,
+    boxSize,
+  );
 
   canvas.width = width;
   canvas.height = height;
@@ -479,6 +501,7 @@ export function drawDsm(
       formatLabel,
       colors,
       colors.marker,
+      boxSize,
     );
   }
   for (let i = 0; i < labels.length; i++) {
@@ -492,7 +515,17 @@ export function drawDsm(
       formatLabel,
       colors,
       colors.marker,
+      boxSize,
     );
   }
-  drawMatrix(ctx, labels, cells, sccs, markerSizes, colors, showDiagonal);
+  drawMatrix(
+    ctx,
+    labels,
+    cells,
+    sccs,
+    markerSizes,
+    colors,
+    showDiagonal,
+    boxSize,
+  );
 }

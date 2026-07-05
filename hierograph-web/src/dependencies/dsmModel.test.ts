@@ -46,28 +46,28 @@ describe("computeCellPosition", () => {
   it("returns correct grid coords for a cell inside the matrix", () => {
     const x = DEFAULT_VERTICAL_SIDE_MARKER_WIDTH + BOX_SIZE * 1 + 5;
     const y = DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT + BOX_SIZE * 2 + 5;
-    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3);
+    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3, BOX_SIZE);
     expect(result).toEqual({ x: 1, y: 2 });
   });
 
   it("returns undefined x when offsetX is in the side marker area", () => {
     const x = DEFAULT_VERTICAL_SIDE_MARKER_WIDTH - 1;
     const y = DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT + BOX_SIZE * 0 + 5;
-    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3);
+    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3, BOX_SIZE);
     expect(result.x).toBeUndefined();
   });
 
   it("returns undefined y when offsetY is in the top marker area", () => {
     const x = DEFAULT_VERTICAL_SIDE_MARKER_WIDTH + BOX_SIZE * 0 + 5;
     const y = DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT - 1;
-    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3);
+    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3, BOX_SIZE);
     expect(result.y).toBeUndefined();
   });
 
   it("returns undefined x when offsetX is out of range (beyond last column)", () => {
     const x = DEFAULT_VERTICAL_SIDE_MARKER_WIDTH + BOX_SIZE * 3 + 5;
     const y = DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT + BOX_SIZE * 0 + 5;
-    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3);
+    const result = computeCellPosition(x, y, DEFAULT_MARKER_SIZES, 3, BOX_SIZE);
     expect(result.x).toBeUndefined();
   });
 });
