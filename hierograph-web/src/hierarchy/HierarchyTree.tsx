@@ -88,6 +88,7 @@ function HierarchyTreeInner({ rootNode, settings }: HierarchyTreeInnerProps) {
           onFocusedIdChange={handleFocusedIdChange}
           label="Hierarchy"
           settings={settings}
+          autoExpandRootChainOnLoad
         />
       </div>
       <TreeFooter />
