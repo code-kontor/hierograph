@@ -43,6 +43,7 @@ export type AsyncTreeProps = {
     type: string | null,
   ) => void;
   onHoveredIdChange?: (id: string | undefined) => void;
+  onPromoteToSubject?: (nodeData: TreeNodeData) => void;
   markedIds?: string[];
   label: string;
   settings: TreeSettings;
@@ -73,6 +74,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       onSelectedIdsChange,
       onFocusedIdChange,
       onHoveredIdChange,
+      onPromoteToSubject,
       markedIds,
       label,
       settings,
@@ -461,6 +463,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             onRowClick={handleRowClick}
             onChevronClick={handleChevronClick}
             onHoveredIdChange={onHoveredIdChange}
+            onPromoteToSubject={onPromoteToSubject}
           />
         ))}
       </div>
@@ -479,6 +482,7 @@ type TreeRowProps = {
     e: React.MouseEvent,
   ) => void;
   onHoveredIdChange?: (id: string | undefined) => void;
+  onPromoteToSubject?: (nodeData: TreeNodeData) => void;
 };
 
 type TooltipPos = { x: number; y: number };
@@ -491,6 +495,7 @@ function TreeRow({
   onRowClick,
   onChevronClick,
   onHoveredIdChange,
+  onPromoteToSubject,
 }: TreeRowProps) {
   const level = item.getItemMeta().level;
   const isFolder = item.isFolder();
@@ -618,6 +623,22 @@ function TreeRow({
         >
           {nodeData.weight}
         </span>
+      )}
+      {onPromoteToSubject != null && (
+        <button
+          type="button"
+          aria-label="Set as subject"
+          className={cn(
+            "shrink-0 rounded px-1 text-[11px]",
+            isSelected ? "text-state-selected-fg" : "text-fg-subtle",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPromoteToSubject(nodeData);
+          }}
+        >
+          →
+        </button>
       )}
       {tooltipPos !== null && (
         <NodeInfoTooltip
