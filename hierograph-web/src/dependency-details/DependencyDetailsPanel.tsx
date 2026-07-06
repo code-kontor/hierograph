@@ -1,12 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { ListTree } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { twMerge } from "tailwind-merge";
 
-import { Button } from "@/design-system/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGhostTrigger,
+  ghostIconTriggerClassName,
 } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
@@ -15,7 +17,10 @@ import { nodeBasicsQueryOptions } from "@/graph/queries";
 import { AsyncTree, type AsyncTreeHandle } from "@/tree/AsyncTree";
 import { DEFAULT_TREE_SETTINGS } from "@/tree/useTreeSettings";
 
-import { AUTO_EXPAND_STORAGE_KEY } from "./dependencyDetailsLabelSettings";
+import {
+  AUTO_EXPAND_STORAGE_KEY,
+  AUTO_REVEAL_STORAGE_KEY,
+} from "./dependencyDetailsLabelSettings";
 import {
   filteredChildrenQueryOptions,
   filteredDependenciesQueryOptions,
@@ -43,6 +48,8 @@ export function DependencyDetailsPanel({
   const debouncedHover = useDebouncedValue(hoverTarget, 200);
   const [autoExpandSingleChildren, setAutoExpandSingleChildren] =
     useLocalStorage<boolean>(AUTO_EXPAND_STORAGE_KEY, false);
+  const [autoRevealCounterparts, setAutoRevealCounterparts] =
+    useLocalStorage<boolean>(AUTO_REVEAL_STORAGE_KEY, false);
   const sourceTreeRef = useRef<AsyncTreeHandle>(null);
   const targetTreeRef = useRef<AsyncTreeHandle>(null);
 
@@ -73,6 +80,26 @@ export function DependencyDetailsPanel({
   const markedTargetIds = hasSelection
     ? (depSet?.filteredDependencies?.markedTargetIds ?? [])
     : [];
+
+  // With auto-reveal on, a selection on one side expands the *other* tree so its
+  // marked counterparts become visible without an extra click. Keyed on the
+  // marked-id sets (not the hover preview) so it reacts to deliberate selection
+  // changes only — the tree never jumps while hovering. revealMarked just opens
+  // the ancestor folders of already-marked rows, so re-running it is idempotent.
+  const markedSourceKey = markedSourceIds.join(",");
+  const markedTargetKey = markedTargetIds.join(",");
+  useEffect(() => {
+    if (autoRevealCounterparts && markedTargetIds.length > 0) {
+      targetTreeRef.current?.revealMarked();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRevealCounterparts, markedTargetKey]);
+  useEffect(() => {
+    if (autoRevealCounterparts && markedSourceIds.length > 0) {
+      sourceTreeRef.current?.revealMarked();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRevealCounterparts, markedSourceKey]);
 
   const hoverSourceIds =
     debouncedHover?.side === "source" ? [debouncedHover.id] : [];
@@ -167,7 +194,19 @@ export function DependencyDetailsPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border flex items-center justify-end border-b px-1.5 py-1">
+      <div className="border-border flex items-center justify-end gap-1 border-b px-1.5 py-1">
+        <button
+          type="button"
+          aria-pressed={autoRevealCounterparts}
+          title="Auto-reveal counterparts"
+          onClick={() => setAutoRevealCounterparts(!autoRevealCounterparts)}
+          className={twMerge(
+            ghostIconTriggerClassName,
+            autoRevealCounterparts && "bg-state-hover text-fg",
+          )}
+        >
+          <ListTree className="size-4" />
+        </button>
         <AutoExpandMenu
           autoExpandSingleChildren={autoExpandSingleChildren}
           setAutoExpandSingleChildren={setAutoExpandSingleChildren}
@@ -175,7 +214,7 @@ export function DependencyDetailsPanel({
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
         <div className="border-border min-w-0 overflow-auto border-r">
-          <div className="border-border text-fg-subtle flex items-center justify-between gap-2 border-b px-[14px] py-2 font-mono text-[11px]">
+          <div className="border-border text-fg-subtle flex items-center border-b px-[14px] py-2 font-mono text-[11px]">
             <span className="min-w-0 truncate">
               Source ·{" "}
               <span className="text-fg-muted">
@@ -183,10 +222,6 @@ export function DependencyDetailsPanel({
               </span>{" "}
               — click a type to mark its counterparts
             </span>
-            <RevealMarkedButton
-              onReveal={() => targetTreeRef.current?.revealMarked()}
-              disabled={markedTargetIds.length === 0}
-            />
           </div>
           <div className="p-1.5">
             <AsyncTree
@@ -208,7 +243,7 @@ export function DependencyDetailsPanel({
           </div>
         </div>
         <div className="min-w-0 overflow-auto">
-          <div className="border-border text-fg-subtle flex items-center justify-between gap-2 border-b px-[14px] py-2 font-mono text-[11px]">
+          <div className="border-border text-fg-subtle flex items-center border-b px-[14px] py-2 font-mono text-[11px]">
             <span className="min-w-0 truncate">
               Target ·{" "}
               <span className="text-fg-muted">
@@ -217,10 +252,6 @@ export function DependencyDetailsPanel({
               — <span className="text-state-marked-fg">marked</span> =
               referenced by the source selection
             </span>
-            <RevealMarkedButton
-              onReveal={() => sourceTreeRef.current?.revealMarked()}
-              disabled={markedSourceIds.length === 0}
-            />
           </div>
           <div className="p-1.5">
             <AsyncTree
@@ -244,25 +275,6 @@ export function DependencyDetailsPanel({
         </div>
       </div>
     </div>
-  );
-}
-
-type RevealMarkedButtonProps = {
-  onReveal: () => void;
-  disabled: boolean;
-};
-
-function RevealMarkedButton({ onReveal, disabled }: RevealMarkedButtonProps) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      disabled={disabled}
-      onClick={onReveal}
-      title="Reveal marked rows in the other column"
-    >
-      Reveal marked
-    </Button>
   );
 }
 
