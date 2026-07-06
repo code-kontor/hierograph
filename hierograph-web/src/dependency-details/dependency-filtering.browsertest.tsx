@@ -45,6 +45,10 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
         labelFormat="full"
+        autoExpandSingleChildren={false}
+        autoRevealCounterparts={false}
+        highlightOnHover={false}
+        filterCounterparts={false}
       />,
     );
 
@@ -59,6 +63,10 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
         labelFormat="full"
+        autoExpandSingleChildren={false}
+        autoRevealCounterparts={false}
+        highlightOnHover={false}
+        filterCounterparts={false}
       />,
     );
 
@@ -75,6 +83,10 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
         labelFormat="full"
+        autoExpandSingleChildren={false}
+        autoRevealCounterparts={false}
+        highlightOnHover={false}
+        filterCounterparts={false}
       />,
     );
 
@@ -107,6 +119,10 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
         sourceNodeId={SOURCE_ID}
         targetNodeId={TARGET_ID}
         labelFormat="full"
+        autoExpandSingleChildren={false}
+        autoRevealCounterparts={false}
+        highlightOnHover={false}
+        filterCounterparts={false}
       />,
     );
 

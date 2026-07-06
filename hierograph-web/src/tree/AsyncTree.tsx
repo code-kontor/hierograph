@@ -43,6 +43,7 @@ export type AsyncTreeProps = {
   label: string;
   settings: TreeSettings;
   autoExpandRootChainOnLoad?: boolean;
+  filterIds?: string[];
 };
 
 export type AsyncTreeHandle = {
@@ -63,10 +64,33 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       label,
       settings,
       autoExpandRootChainOnLoad = false,
+      filterIds,
     },
     ref,
   ) {
     const markedSet = useMemo(() => new Set(markedIds ?? []), [markedIds]);
+
+    // Content-keyed so a new-but-equal filterIds array does not churn the
+    // loader identity (and thus the tree's memoized callbacks) on every render.
+    const filterKey = filterIds ? filterIds.join(",") : null;
+    const filterSet = useMemo(
+      () => (filterIds ? new Set(filterIds) : null),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [filterKey],
+    );
+
+    // Filter mode: marks are full paths (leaf + all ancestors), so keeping only
+    // children present in filterSet retains exactly the hit paths and drops
+    // non-hit siblings. Used everywhere loadChildren would otherwise be called.
+    const effectiveLoadChildren = useCallback(
+      async (parentId: string) => {
+        const children = await loadChildren(parentId);
+        return filterSet
+          ? children.filter((c) => filterSet.has(c.id))
+          : children;
+      },
+      [loadChildren, filterSet],
+    );
 
     const itemData = useRef<Map<string, TreeNodeData>>(
       new Map([[rootNode.id, rootNode]]),
@@ -139,7 +163,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
         let currentId = startId;
         const chained: string[] = [];
         for (;;) {
-          const children = await loadChildren(currentId);
+          const children = await effectiveLoadChildren(currentId);
           // Register loaded data so the tree can render the chained nodes without
           // waiting on its own separate child-loading pass.
           for (const child of children) {
@@ -159,7 +183,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           }));
         }
       },
-      [settings.autoExpandSingleChildren, loadChildren],
+      [settings.autoExpandSingleChildren, effectiveLoadChildren],
     );
 
     // Drill from the (hidden) root through single-child folders on initial load,
@@ -172,7 +196,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       let currentId = rootNode.id;
       const chained: string[] = [];
       for (;;) {
-        const children = await loadChildren(currentId);
+        const children = await effectiveLoadChildren(currentId);
         // Register loaded data so the tree can render the chained nodes without
         // waiting on its own separate child-loading pass.
         for (const child of children) {
@@ -191,7 +215,36 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           expandedItems: [...(prev.expandedItems ?? []), ...chained],
         }));
       }
-    }, [loadChildren, rootNode.id]);
+    }, [effectiveLoadChildren, rootNode.id]);
+
+    // Filter-mode init: expand every surviving folder (all survivors are hit
+    // paths, so all should open). Mirrors revealMarked's BFS but is unconditional
+    // on the survivors rather than gated on markedSet.
+    const expandAllFiltered = useCallback(async () => {
+      const toExpand: string[] = [];
+      const queue: string[] = [rootNode.id];
+      while (queue.length > 0) {
+        const parentId = queue.shift() as string;
+        const children = await effectiveLoadChildren(parentId);
+        for (const child of children) {
+          itemData.current.set(child.id, child);
+        }
+        for (const child of children) {
+          if (child.hasChildren) {
+            toExpand.push(child.id);
+            queue.push(child.id);
+          }
+        }
+      }
+      if (toExpand.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          expandedItems: [
+            ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
+          ],
+        }));
+      }
+    }, [effectiveLoadChildren, rootNode.id]);
 
     const revealMarked = useCallback(async () => {
       if (markedSet.size === 0) return;
@@ -202,7 +255,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       const queue: string[] = [rootNode.id];
       while (queue.length > 0) {
         const parentId = queue.shift() as string;
-        const children = await loadChildren(parentId);
+        const children = await effectiveLoadChildren(parentId);
         for (const child of children) {
           itemData.current.set(child.id, child);
         }
@@ -223,7 +276,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           ],
         }));
       }
-    }, [markedSet, loadChildren, rootNode.id]);
+    }, [markedSet, effectiveLoadChildren, rootNode.id]);
 
     const handleChevronClick = useCallback(
       (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
@@ -279,7 +332,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           );
         },
         async getChildren(id: string) {
-          const nodes = await loadChildren(id);
+          const nodes = await effectiveLoadChildren(id);
           for (const n of nodes) {
             itemData.current.set(n.id, n);
           }
@@ -329,12 +382,27 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
 
     const didAutoExpandRootRef = useRef(false);
     useEffect(() => {
-      if (!autoExpandRootChainOnLoad || didAutoExpandRootRef.current) return;
+      if (didAutoExpandRootRef.current) return;
+      // Filter mode expands every surviving folder; otherwise, when requested,
+      // drill the root single-child chain. Toggling filter on/off is driven by a
+      // consumer-side key remount, so the ref resets with the fresh mount and the
+      // correct branch runs once.
+      const drill = filterSet
+        ? expandAllFiltered
+        : autoExpandRootChainOnLoad
+          ? autoExpandRootChain
+          : null;
+      if (!drill) return;
       // Guard against React StrictMode's double effect invocation in dev: the ref
       // survives the mount→unmount→mount cycle, so the drill starts exactly once.
       didAutoExpandRootRef.current = true;
-      autoExpandRootChain().catch(console.error);
-    }, [autoExpandRootChainOnLoad, autoExpandRootChain]);
+      drill().catch(console.error);
+    }, [
+      filterSet,
+      autoExpandRootChainOnLoad,
+      expandAllFiltered,
+      autoExpandRootChain,
+    ]);
 
     useEffect(() => {
       onSelectedIdsChange(state.selectedItems ?? []);

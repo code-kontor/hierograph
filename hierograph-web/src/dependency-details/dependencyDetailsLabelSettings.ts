@@ -15,6 +15,12 @@ export const AUTO_EXPAND_STORAGE_KEY =
 export const AUTO_REVEAL_STORAGE_KEY =
   "dependencyDetails.autoRevealCounterparts";
 
+export const HIGHLIGHT_ON_HOVER_STORAGE_KEY =
+  "dependencyDetails.highlightOnHover";
+
+export const FILTER_COUNTERPARTS_STORAGE_KEY =
+  "dependencyDetails.filterCounterparts";
+
 export function normalizeLabelFormat(value: string): NodeLabelFormat {
   return LABEL_FORMAT_OPTIONS.some((o) => o.value === value)
     ? (value as NodeLabelFormat)

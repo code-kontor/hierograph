@@ -8,10 +8,16 @@ import { worker } from "@/testing/msw/worker";
 import { resolveNodeId } from "@/testing/nodeLookup";
 import { renderWithQueryClient } from "@/testing/render";
 
+// The locations.app -> locations.lib cell has real package nesting on both
+// sides. Both trees must auto-drill to their first branching level on load, so
+// content is visible without any top-level click.
+//
 // Node ids shift whenever the fixture-app grows/shrinks; resolve them by fqn
 // from the recorded fixtures instead of hard-coding (see resolveNodeId).
-const SOURCE_ID = resolveNodeId("org.hg.fixture.basic.rel.source");
-const TARGET_ID = resolveNodeId("org.hg.fixture.basic.rel.target");
+const SOURCE_ID = resolveNodeId("org.hg.fixture.locations.app");
+const TARGET_ID = resolveNodeId("org.hg.fixture.locations.lib");
+const APP_WEB = "org.hg.fixture.locations.app.web";
+const LIB_ORDER = "org.hg.fixture.locations.lib.order";
 
 function SelectCellButton() {
   const { setCellSelection } = useSelection();
@@ -26,7 +32,7 @@ function SelectCellButton() {
   );
 }
 
-describe("Hover counterpart marking", () => {
+describe("Initial auto-expand (both sides)", () => {
   // The sibling force-mounted "Usages" tab also fires its DependencyEdges
   // query (no fixture); stub it so it isn't an unhandled request.
   beforeEach(() => {
@@ -46,7 +52,7 @@ describe("Hover counterpart marking", () => {
     );
   });
 
-  it("only previews on hover once 'Highlight on hover' is enabled", async () => {
+  it("shows initial content on both trees without a top-level click", async () => {
     await renderWithQueryClient(
       <SelectionProvider>
         <SelectCellButton />
@@ -55,36 +61,14 @@ describe("Hover counterpart marking", () => {
     );
 
     await userEvent.click(page.getByText("select-cell"));
-    await userEvent.click(page.getByText("Locations"));
+    await userEvent.click(page.getByRole("tab", { name: "Locations" }));
 
-    const sourceRow = page.getByText(
-      "org.hg.fixture.basic.rel.source.SubClass",
-      { exact: true },
-    );
-    await expect.element(sourceRow).toBeVisible();
-
-    const markedBadge = () => page.getByText("◆ marked");
-
-    // Default is off: hovering must not trigger the debounced marking query, so
-    // the badge never appears. Wait well past the ~200ms debounce, then assert.
-    await userEvent.hover(sourceRow);
-    await new Promise((r) => setTimeout(r, 400));
-    await expect.element(markedBadge()).not.toBeInTheDocument();
-    await userEvent.unhover(sourceRow);
-
-    // Enable "Highlight on hover" via the Options menu checkbox.
-    await userEvent.click(page.getByRole("button", { name: "Options" }));
-    await userEvent.click(
-      page.getByRole("menuitemcheckbox", { name: "Highlight on hover" }),
-    );
-    // Close the menu so it does not overlay the tree rows.
-    await userEvent.keyboard("{Escape}");
-
-    // Now hovering previews the counterpart marking (debounced ~200ms).
-    await userEvent.hover(sourceRow);
-    await expect.element(markedBadge()).toBeVisible();
-
-    await userEvent.unhover(sourceRow);
-    await expect.element(markedBadge()).not.toBeInTheDocument();
+    // No expand interaction: both trees drill to their first branch on load.
+    await expect
+      .element(page.getByText(APP_WEB, { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByText(LIB_ORDER, { exact: true }))
+      .toBeVisible();
   });
 });

@@ -1,13 +1,17 @@
+import { ListFilter } from "lucide-react";
 import { useState } from "react";
+import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGhostTrigger,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  ghostIconTriggerClassName,
 } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import {
@@ -21,6 +25,10 @@ import type { NodeLabelFormat } from "@/graph/nodeLabel";
 import { useSelection } from "@/selection/SelectionContext";
 
 import {
+  AUTO_EXPAND_STORAGE_KEY,
+  AUTO_REVEAL_STORAGE_KEY,
+  FILTER_COUNTERPARTS_STORAGE_KEY,
+  HIGHLIGHT_ON_HOVER_STORAGE_KEY,
   LABEL_FORMAT_STORAGE_KEY,
   normalizeLabelFormat,
 } from "./dependencyDetailsLabelSettings";
@@ -73,6 +81,71 @@ function LabelFormatMenu({
   );
 }
 
+type LocationsControlsProps = {
+  filterCounterparts: boolean;
+  setFilterCounterparts: (value: boolean) => void;
+  autoRevealCounterparts: boolean;
+  setAutoRevealCounterparts: (value: boolean) => void;
+  autoExpandSingleChildren: boolean;
+  setAutoExpandSingleChildren: (value: boolean) => void;
+  highlightOnHover: boolean;
+  setHighlightOnHover: (value: boolean) => void;
+};
+
+function LocationsControls({
+  filterCounterparts,
+  setFilterCounterparts,
+  autoRevealCounterparts,
+  setAutoRevealCounterparts,
+  autoExpandSingleChildren,
+  setAutoExpandSingleChildren,
+  highlightOnHover,
+  setHighlightOnHover,
+}: LocationsControlsProps) {
+  return (
+    <div className="ml-auto flex items-center gap-1">
+      <button
+        type="button"
+        aria-pressed={filterCounterparts}
+        title="Filter counterparts"
+        onClick={() => setFilterCounterparts(!filterCounterparts)}
+        className={twMerge(
+          ghostIconTriggerClassName,
+          filterCounterparts && "bg-state-hover text-fg",
+        )}
+      >
+        <ListFilter className="size-4" />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuGhostTrigger title="Options" />
+        <DropdownMenuContent>
+          <DropdownMenuCheckboxItem
+            checked={autoRevealCounterparts}
+            onCheckedChange={setAutoRevealCounterparts}
+            onSelect={(e) => e.preventDefault()}
+          >
+            Auto-reveal counterparts
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={autoExpandSingleChildren}
+            onCheckedChange={setAutoExpandSingleChildren}
+            onSelect={(e) => e.preventDefault()}
+          >
+            Auto-expand single children
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={highlightOnHover}
+            onCheckedChange={setHighlightOnHover}
+            onSelect={(e) => e.preventDefault()}
+          >
+            Highlight on hover
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 export function DependencyDetailsPane() {
   const { cellSelection } = useSelection();
   const [activeTab, setActiveTab] = useState<ActiveTab>("usages");
@@ -81,6 +154,21 @@ export function DependencyDetailsPane() {
     "full",
   );
   const labelFormat = normalizeLabelFormat(storedLabelFormat);
+
+  // The Locations options live here (not in the per-cell-remounted Panel) so
+  // they persist across cell selections and can drive the shared subHeader.
+  const [autoExpandSingleChildren, setAutoExpandSingleChildren] =
+    useLocalStorage<boolean>(AUTO_EXPAND_STORAGE_KEY, false);
+  const [autoRevealCounterparts, setAutoRevealCounterparts] =
+    useLocalStorage<boolean>(AUTO_REVEAL_STORAGE_KEY, false);
+  const [highlightOnHover, setHighlightOnHover] = useLocalStorage<boolean>(
+    HIGHLIGHT_ON_HOVER_STORAGE_KEY,
+    false,
+  );
+  const [filterCounterparts, setFilterCounterparts] = useLocalStorage<boolean>(
+    FILTER_COUNTERPARTS_STORAGE_KEY,
+    false,
+  );
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
@@ -116,11 +204,25 @@ export function DependencyDetailsPane() {
         }
         subHeader={
           cellKey && cellSelection ? (
-            <DependencyInspectorHeader
-              sourceNodeId={cellSelection.sourceNodeId}
-              targetNodeId={cellSelection.targetNodeId}
-              labelFormat={labelFormat}
-            />
+            <div className="flex items-center gap-2">
+              <DependencyInspectorHeader
+                sourceNodeId={cellSelection.sourceNodeId}
+                targetNodeId={cellSelection.targetNodeId}
+                labelFormat={labelFormat}
+              />
+              {activeTab === "locations" && (
+                <LocationsControls
+                  filterCounterparts={filterCounterparts}
+                  setFilterCounterparts={setFilterCounterparts}
+                  autoRevealCounterparts={autoRevealCounterparts}
+                  setAutoRevealCounterparts={setAutoRevealCounterparts}
+                  autoExpandSingleChildren={autoExpandSingleChildren}
+                  setAutoExpandSingleChildren={setAutoExpandSingleChildren}
+                  highlightOnHover={highlightOnHover}
+                  setHighlightOnHover={setHighlightOnHover}
+                />
+              )}
+            </div>
           ) : undefined
         }
         bodyClassName="p-0"
@@ -141,6 +243,10 @@ export function DependencyDetailsPane() {
                 sourceNodeId={cellSelection.sourceNodeId}
                 targetNodeId={cellSelection.targetNodeId}
                 labelFormat={labelFormat}
+                autoExpandSingleChildren={autoExpandSingleChildren}
+                autoRevealCounterparts={autoRevealCounterparts}
+                highlightOnHover={highlightOnHover}
+                filterCounterparts={filterCounterparts}
               />
             </TabsContent>
           </>
