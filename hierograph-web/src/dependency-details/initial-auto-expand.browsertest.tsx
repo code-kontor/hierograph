@@ -64,11 +64,21 @@ describe("Initial auto-expand (both sides)", () => {
     await userEvent.click(page.getByRole("tab", { name: "Locations" }));
 
     // No expand interaction: both trees drill to their first branch on load.
+    // Scope to the Locations trees: Trace is force-mounted and renders the
+    // same fqn text.
     await expect
-      .element(page.getByText(APP_WEB, { exact: true }))
+      .element(
+        page.getByLabelText("DependencySourceTree").getByText(APP_WEB, {
+          exact: true,
+        }),
+      )
       .toBeVisible();
     await expect
-      .element(page.getByText(LIB_ORDER, { exact: true }))
+      .element(
+        page.getByLabelText("DependencyTargetTree").getByText(LIB_ORDER, {
+          exact: true,
+        }),
+      )
       .toBeVisible();
   });
 });

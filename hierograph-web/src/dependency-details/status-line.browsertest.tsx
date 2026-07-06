@@ -69,8 +69,13 @@ describe("Locations status line", () => {
       .toHaveTextContent(/Showing all \d+ dependencies\./);
     await expect.element(status()).toHaveTextContent(/Select a node/);
 
-    // Select the `batch` container on the source side.
-    await userEvent.click(page.getByText(BATCH, { exact: true }));
+    // Select the `batch` container on the source side. Scope to the
+    // Locations tree: Trace is force-mounted and renders the same fqn text.
+    await userEvent.click(
+      page.getByLabelText("DependencySourceTree").getByText(BATCH, {
+        exact: true,
+      }),
+    );
     await expect.element(status()).toHaveTextContent(/→ \d+ types? in/);
     await expect.element(status()).toHaveTextContent(/marked on the right/);
 

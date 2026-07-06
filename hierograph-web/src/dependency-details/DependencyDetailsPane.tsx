@@ -1,5 +1,5 @@
-import { ListFilter } from "lucide-react";
-import { useState } from "react";
+import { Filter, ListFilter } from "lucide-react";
+import { type RefObject, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -31,11 +31,14 @@ import {
   HIGHLIGHT_ON_HOVER_STORAGE_KEY,
   LABEL_FORMAT_STORAGE_KEY,
   normalizeLabelFormat,
+  normalizeTraceViewMode,
+  TRACE_VIEW_MODE_STORAGE_KEY,
 } from "./dependencyDetailsLabelSettings";
 import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
 import { NodeDetailsWidget } from "./NodeDetailsWidget";
+import type { TraceViewMode } from "./serializeTrace";
 import {
   TabHelpButton,
   TRACE_HELP_LABEL,
@@ -43,7 +46,8 @@ import {
   USAGES_HELP_LABEL,
   UsagesHelpContent,
 } from "./TabHelp";
-import { TracePanel } from "./TracePanel";
+import { TraceCopyButton } from "./TraceCopyButton";
+import { TracePanel, type TracePanelHandle } from "./TracePanel";
 
 type ActiveTab = "usages" | "locations" | "trace";
 
@@ -154,6 +158,42 @@ function LocationsControls({
   );
 }
 
+type TraceControlsProps = {
+  viewMode: TraceViewMode;
+  setViewMode: (value: TraceViewMode) => void;
+  traceRef: RefObject<TracePanelHandle | null>;
+};
+
+function TraceControls({
+  viewMode,
+  setViewMode,
+  traceRef,
+}: TraceControlsProps) {
+  return (
+    <div className="ml-auto flex items-center gap-1">
+      <button
+        type="button"
+        aria-pressed={viewMode === "hits-only"}
+        title="Show hits only"
+        onClick={() =>
+          setViewMode(viewMode === "hits-only" ? "in-context" : "hits-only")
+        }
+        className={twMerge(
+          ghostIconTriggerClassName,
+          viewMode === "hits-only" && "bg-state-hover text-fg",
+        )}
+      >
+        <Filter className="size-4" />
+      </button>
+      {import.meta.env.DEV && (
+        <TraceCopyButton
+          buildInput={() => traceRef.current?.buildSerializeInput() ?? null}
+        />
+      )}
+    </div>
+  );
+}
+
 export function DependencyDetailsPane() {
   const { cellSelection } = useSelection();
   const [activeTab, setActiveTab] = useState<ActiveTab>("usages");
@@ -177,6 +217,17 @@ export function DependencyDetailsPane() {
     FILTER_COUNTERPARTS_STORAGE_KEY,
     false,
   );
+
+  // Persisted here (not in the per-cell-remounted TracePanel) so "hits only"
+  // survives both a cell change (key={cellKey} remount) and a tab switch
+  // (forceMount keeps the panel mounted, but its own state would still reset).
+  const [storedViewMode, setStoredViewMode] = useLocalStorage<string>(
+    TRACE_VIEW_MODE_STORAGE_KEY,
+    "in-context",
+  );
+  const viewMode = normalizeTraceViewMode(storedViewMode);
+  const setViewMode = (value: TraceViewMode) => setStoredViewMode(value);
+  const traceRef = useRef<TracePanelHandle>(null);
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
@@ -241,6 +292,13 @@ export function DependencyDetailsPane() {
                   setHighlightOnHover={setHighlightOnHover}
                 />
               )}
+              {activeTab === "trace" && (
+                <TraceControls
+                  viewMode={viewMode}
+                  setViewMode={setViewMode}
+                  traceRef={traceRef}
+                />
+              )}
             </div>
           ) : undefined
         }
@@ -272,13 +330,19 @@ export function DependencyDetailsPane() {
                 filterCounterparts={filterCounterparts}
               />
             </TabsContent>
-            <TabsContent value="trace" className="flex min-h-0 flex-1 flex-col">
+            <TabsContent
+              value="trace"
+              forceMount
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <TracePanel
                 key={cellKey}
+                ref={traceRef}
                 sourceNodeId={cellSelection.sourceNodeId}
                 targetNodeId={cellSelection.targetNodeId}
                 labelFormat={labelFormat}
                 autoExpandSingleChildren={autoExpandSingleChildren}
+                viewMode={viewMode}
               />
             </TabsContent>
           </>

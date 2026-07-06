@@ -20,6 +20,11 @@ const SUB_CLASS = "org.hg.fixture.basic.rel.source.SubClass";
 const BASE_CLASS = "org.hg.fixture.basic.rel.target.BaseClass";
 const TARGET_A = "org.hg.fixture.basic.rel.target.TargetA";
 
+// A second, distinct cell (used to trigger a TracePanel remount via
+// key={cellKey} without re-selecting the same cell).
+const SOURCE_ID_2 = resolveNodeId("org.hg.fixture.locations.app");
+const TARGET_ID_2 = resolveNodeId("org.hg.fixture.locations.lib");
+
 function SelectCellButton() {
   const { setCellSelection } = useSelection();
   return (
@@ -33,15 +38,32 @@ function SelectCellButton() {
   );
 }
 
+function SelectOtherCellButton() {
+  const { setCellSelection } = useSelection();
+  return (
+    <button
+      onClick={() =>
+        setCellSelection({
+          sourceNodeId: SOURCE_ID_2,
+          targetNodeId: TARGET_ID_2,
+        })
+      }
+    >
+      select-cell-2
+    </button>
+  );
+}
+
 async function renderTraceTab() {
   await renderWithQueryClient(
     <SelectionProvider>
       <SelectCellButton />
+      <SelectOtherCellButton />
       <DependencyDetailsPane />
     </SelectionProvider>,
   );
 
-  await userEvent.click(page.getByText("select-cell"));
+  await userEvent.click(page.getByText("select-cell", { exact: true }));
   await userEvent.click(page.getByRole("tab", { name: "Trace" }));
 }
 
@@ -68,6 +90,7 @@ describe("Trace tab", () => {
   // query (no fixture); stub it so it isn't an unhandled request. The
   // force-mounted "Locations" tab reuses the same fixtures as Trace.
   beforeEach(() => {
+    localStorage.clear();
     worker.use(
       graphql.query("DependencyEdges", () =>
         HttpResponse.json({
@@ -144,13 +167,42 @@ describe("Trace tab", () => {
     await userEvent.click(sourceRow(SUB_CLASS));
     await expect.element(targetRow(TARGET_A)).toBeVisible();
 
-    await userEvent.click(page.getByRole("button", { name: "In context" }));
+    const toggle = page.getByRole("button", { name: "Show hits only" });
 
+    await userEvent.click(toggle);
     await expect.element(targetRow(TARGET_A)).not.toBeInTheDocument();
     await expect.element(targetRow(BASE_CLASS)).toBeVisible();
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
 
-    await userEvent.click(page.getByRole("button", { name: "Hits only" }));
-
+    await userEvent.click(toggle);
     await expect.element(targetRow(TARGET_A)).toBeVisible();
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps hits-only view mode across tab switches", async () => {
+    await renderTraceTab();
+
+    await userEvent.click(sourceRow(SUB_CLASS));
+    await userEvent.click(page.getByRole("button", { name: "Show hits only" }));
+
+    await userEvent.click(page.getByRole("tab", { name: "Usages" }));
+    await userEvent.click(page.getByRole("tab", { name: "Trace" }));
+
+    await expect
+      .element(page.getByRole("button", { name: "Show hits only" }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps hits-only view mode across cell selection changes", async () => {
+    await renderTraceTab();
+
+    await userEvent.click(sourceRow(SUB_CLASS));
+    await userEvent.click(page.getByRole("button", { name: "Show hits only" }));
+
+    await userEvent.click(page.getByText("select-cell-2"));
+
+    await expect
+      .element(page.getByRole("button", { name: "Show hits only" }))
+      .toHaveAttribute("aria-pressed", "true");
   });
 });

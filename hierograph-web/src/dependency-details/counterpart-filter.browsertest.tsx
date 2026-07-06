@@ -68,15 +68,20 @@ describe("Counterpart filter", () => {
     await userEvent.click(page.getByText("select-cell"));
     await userEvent.click(page.getByRole("tab", { name: "Locations" }));
 
+    // Scope to the Locations trees: Trace is force-mounted and renders the
+    // same fqn text.
+    const sourceTree = page.getByLabelText("DependencySourceTree");
+    const targetTree = page.getByLabelText("DependencyTargetTree");
+
     // `batch` is a first-level source package (auto-loaded).
-    const batchRow = page.getByText(BATCH, { exact: true });
+    const batchRow = sourceTree.getByText(BATCH, { exact: true });
     await expect.element(batchRow).toBeVisible();
 
     // Selecting the container marks the whole subtree's counterparts. With the
     // filter off the full target tree is shown, so lib.audit is still visible.
     await userEvent.click(batchRow);
     await expect
-      .element(page.getByText(LIB_AUDIT, { exact: true }))
+      .element(targetTree.getByText(LIB_AUDIT, { exact: true }))
       .toBeVisible();
 
     // Turn on the counterpart filter.
@@ -88,32 +93,34 @@ describe("Counterpart filter", () => {
     // out, lib.order stays and auto-expands down to the hit OrderLine, while the
     // non-referenced OrderService leaf under the same parent is filtered out.
     await expect
-      .element(page.getByText(LIB_AUDIT, { exact: true }))
+      .element(targetTree.getByText(LIB_AUDIT, { exact: true }))
       .not.toBeInTheDocument();
     await expect
-      .element(page.getByText(LIB_ORDER, { exact: true }))
+      .element(targetTree.getByText(LIB_ORDER, { exact: true }))
       .toBeVisible();
     await expect
-      .element(page.getByText(LIB_ORDER_LINE, { exact: true }))
+      .element(targetTree.getByText(LIB_ORDER_LINE, { exact: true }))
       .toBeVisible();
     await expect
-      .element(page.getByText(LIB_ORDER_SERVICE, { exact: true }))
+      .element(targetTree.getByText(LIB_ORDER_SERVICE, { exact: true }))
       .not.toBeInTheDocument();
 
     // The filtered (target) side shows only matches, so its rows must not carry
     // the redundant amber marked highlight.
     expect(
-      page.getByText(LIB_ORDER, { exact: true }).element().closest("div")
+      targetTree.getByText(LIB_ORDER, { exact: true }).element().closest("div")
         ?.className ?? "",
     ).not.toContain("text-state-marked-fg");
     expect(
-      page.getByText(LIB_ORDER_LINE, { exact: true }).element().closest("div")
-        ?.className ?? "",
+      targetTree
+        .getByText(LIB_ORDER_LINE, { exact: true })
+        .element()
+        .closest("div")?.className ?? "",
     ).not.toContain("text-state-marked-fg");
 
     // Counter-check: the selecting (source) side keeps its selection highlight.
     expect(
-      page.getByText(BATCH, { exact: true }).element().closest("div")
+      sourceTree.getByText(BATCH, { exact: true }).element().closest("div")
         ?.className ?? "",
     ).toContain("text-state-selected-fg");
 
@@ -122,7 +129,7 @@ describe("Counterpart filter", () => {
       page.getByRole("button", { name: "Filter counterparts" }),
     );
     await expect
-      .element(page.getByText(LIB_AUDIT, { exact: true }))
+      .element(targetTree.getByText(LIB_AUDIT, { exact: true }))
       .toBeVisible();
   });
 });

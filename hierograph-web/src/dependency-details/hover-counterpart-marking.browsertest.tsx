@@ -57,10 +57,11 @@ describe("Hover counterpart marking", () => {
     await userEvent.click(page.getByText("select-cell"));
     await userEvent.click(page.getByText("Locations"));
 
-    const sourceRow = page.getByText(
-      "org.hg.fixture.basic.rel.source.SubClass",
-      { exact: true },
-    );
+    // Scope to the Locations trees: Trace is force-mounted and renders the
+    // same fqn text.
+    const sourceRow = page
+      .getByLabelText("DependencySourceTree")
+      .getByText("org.hg.fixture.basic.rel.source.SubClass", { exact: true });
     await expect.element(sourceRow).toBeVisible();
 
     // Hovering SubClass in the source tree previews the marking of its
@@ -68,7 +69,10 @@ describe("Hover counterpart marking", () => {
     // highlight class on the BaseClass row.
     const targetMarkedClassName = () =>
       page
-        .getByText("org.hg.fixture.basic.rel.target.BaseClass", { exact: true })
+        .getByLabelText("DependencyTargetTree")
+        .getByText("org.hg.fixture.basic.rel.target.BaseClass", {
+          exact: true,
+        })
         .element()
         .closest("div")?.className ?? "";
 
