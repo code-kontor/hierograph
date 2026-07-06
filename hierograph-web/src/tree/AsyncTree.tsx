@@ -30,6 +30,7 @@ export type TreeNodeData = {
   text: string;
   type: string;
   hasChildren: boolean;
+  weight?: number;
 };
 
 export type AsyncTreeProps = {
@@ -608,6 +609,16 @@ function TreeRow({
       <span className="min-w-0 flex-1 truncate text-[13px]">
         {displayLabel}
       </span>
+      {nodeData.weight != null && (
+        <span
+          className={cn(
+            "shrink-0 rounded px-1 font-mono text-[10px] tabular-nums",
+            isSelected ? "text-state-selected-fg" : "text-fg-subtle",
+          )}
+        >
+          {nodeData.weight}
+        </span>
+      )}
       {tooltipPos !== null && (
         <NodeInfoTooltip
           x={tooltipPos.x}

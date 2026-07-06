@@ -1,7 +1,7 @@
+import { CrossReferencesView } from "@/cross-references/CrossReferencesView";
 import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
 import { Pane } from "@/design-system/layout/Pane";
 import { TwoOneSplitLayout } from "@/design-system/layout/TwoOneSplitLayout";
-import { Message } from "@/design-system/ui/message";
 import { HierarchyTree } from "@/hierarchy/HierarchyTree";
 import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
 import { useTreeSettings } from "@/tree/useTreeSettings";
@@ -34,16 +34,7 @@ export function CrossReferencesPage() {
           <HierarchyTree settings={settings} />
         </Pane>
       }
-      topRight={
-        <Pane
-          title="Cross References"
-          bodyClassName="flex items-center justify-center"
-        >
-          <Message variant="empty" title="Cross References">
-            Cross-reference analysis coming soon.
-          </Message>
-        </Pane>
-      }
+      topRight={<CrossReferencesView settings={settings} />}
       bottom={<DependencyDetailsPane />}
     />
   );
