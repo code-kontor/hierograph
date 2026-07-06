@@ -79,6 +79,14 @@ const filteredDependenciesQuery = graphql(`
         ) {
           markedSourceIds: nodeIds(nodeType: SOURCE, includedPredecessors: true)
           markedTargetIds: nodeIds(nodeType: TARGET, includedPredecessors: true)
+          markedSourceLeafIds: nodeIds(
+            nodeType: SOURCE
+            includedPredecessors: false
+          )
+          markedTargetLeafIds: nodeIds(
+            nodeType: TARGET
+            includedPredecessors: false
+          )
         }
       }
     }

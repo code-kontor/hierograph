@@ -46,7 +46,7 @@ describe("Hover counterpart marking", () => {
     );
   });
 
-  it("shows a marking preview on hover and reverts it on mouse leave", async () => {
+  it("only previews on hover once 'Highlight on hover' is enabled", async () => {
     await renderWithQueryClient(
       <SelectionProvider>
         <SelectCellButton />
@@ -65,16 +65,26 @@ describe("Hover counterpart marking", () => {
 
     const markedBadge = () => page.getByText("◆ marked");
 
-    await expect.element(markedBadge()).not.toBeInTheDocument();
-
+    // Default is off: hovering must not trigger the debounced marking query, so
+    // the badge never appears. Wait well past the ~200ms debounce, then assert.
     await userEvent.hover(sourceRow);
+    await new Promise((r) => setTimeout(r, 400));
+    await expect.element(markedBadge()).not.toBeInTheDocument();
+    await userEvent.unhover(sourceRow);
 
-    // The hover marking query is debounced (~200ms), so poll for the badge
-    // instead of asserting immediately.
+    // Enable "Highlight on hover" via the Options menu checkbox.
+    await userEvent.click(page.getByRole("button", { name: "Options" }));
+    await userEvent.click(
+      page.getByRole("menuitemcheckbox", { name: "Highlight on hover" }),
+    );
+    // Close the menu so it does not overlay the tree rows.
+    await userEvent.keyboard("{Escape}");
+
+    // Now hovering previews the counterpart marking (debounced ~200ms).
+    await userEvent.hover(sourceRow);
     await expect.element(markedBadge()).toBeVisible();
 
     await userEvent.unhover(sourceRow);
-
     await expect.element(markedBadge()).not.toBeInTheDocument();
   });
 });

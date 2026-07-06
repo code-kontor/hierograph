@@ -78,9 +78,10 @@ describe("Auto-reveal counterparts", () => {
       .element(page.getByText(NESTED_TARGET, { exact: true }))
       .not.toBeInTheDocument();
 
-    // Turn on "Auto-reveal counterparts" via the toolbar toggle button.
+    // Turn on "Auto-reveal counterparts" via the Options menu checkbox.
+    await userEvent.click(page.getByRole("button", { name: "Options" }));
     await userEvent.click(
-      page.getByRole("button", { name: "Auto-reveal counterparts" }),
+      page.getByRole("menuitemcheckbox", { name: "Auto-reveal counterparts" }),
     );
 
     // The target tree now auto-expands down to the marked counterpart.
