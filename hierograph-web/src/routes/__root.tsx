@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 
 import lupeUrl from "@/assets/hierograph-lupe.svg";
+import { SelectionProvider } from "@/selection/SelectionContext";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
@@ -40,6 +41,18 @@ function RootLayout() {
             Dependencies
           </Link>
           <Link
+            to="/cross-references"
+            className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
+            activeProps={{
+              className: "text-primary font-semibold",
+            }}
+            inactiveProps={{
+              className: "after:hidden",
+            }}
+          >
+            Cross References
+          </Link>
+          <Link
             to="/xref"
             className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
             activeProps={{
@@ -49,7 +62,7 @@ function RootLayout() {
               className: "after:hidden",
             }}
           >
-            Cross-Reference
+            Cross-Reference (Prototype)
           </Link>
         </nav>
         <div className="flex-1" />
@@ -58,7 +71,9 @@ function RootLayout() {
         </div>
       </header>
       <main className="min-h-0 flex-1 p-3">
-        <Outlet />
+        <SelectionProvider>
+          <Outlet />
+        </SelectionProvider>
       </main>
     </div>
   );

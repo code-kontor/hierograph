@@ -11,6 +11,7 @@ lower-triangular.
 | Vertical             | Scope                                                     |
 | -------------------- | --------------------------------------------------------- |
 | `dependencies`       | DSM screen (`/dependencies`)                              |
+| `cross-references`   | Cross References screen (`/cross-references`)             |
 | `cross-reference`    | cross-reference screen                                    |
 | `dependency-details` | shared inspector pane                                     |
 | `hierarchy`          | hierarchy tree browser                                    |
@@ -24,18 +25,18 @@ lower-triangular.
 
 ## Allowed Dependency Direction (DAG)
 
-| From                                              | May import                                                                                                          |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| app (`main.tsx`, `routeTree.gen.ts`)              | `routes`, `graphql`, `design-system`                                                                                |
-| `routes`                                          | `dependencies`, `cross-reference`, `dependency-details`, `hierarchy`, `selection`, `tree`, `graph`, `design-system` |
-| `dependencies` / `cross-reference` (screens)      | `hierarchy`, `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql`                         |
-| `dependency-details` / `hierarchy` (shared panes) | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                            |
-| `tree`                                            | `graph`, `design-system`                                                                                            |
-| `graph`                                           | `graphql`, `design-system`                                                                                          |
-| `selection`                                       | (nothing internal)                                                                                                  |
-| `design-system`                                   | (nothing internal — only itself)                                                                                    |
-| `graphql`                                         | (nothing internal)                                                                                                  |
-| `test` / `testing`                                | anything                                                                                                            |
+| From                                                              | May import                                                                                                                              |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| app (`main.tsx`, `routeTree.gen.ts`)                              | `routes`, `graphql`, `design-system`                                                                                                    |
+| `routes`                                                          | `dependencies`, `cross-references`, `cross-reference`, `dependency-details`, `hierarchy`, `selection`, `tree`, `graph`, `design-system` |
+| `dependencies` / `cross-reference` / `cross-references` (screens) | `hierarchy`, `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql`                                             |
+| `dependency-details` / `hierarchy` (shared panes)                 | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                                                |
+| `tree`                                                            | `graph`, `design-system`                                                                                                                |
+| `graph`                                                           | `graphql`, `design-system`                                                                                                              |
+| `selection`                                                       | (nothing internal)                                                                                                                      |
+| `design-system`                                                   | (nothing internal — only itself)                                                                                                        |
+| `graphql`                                                         | (nothing internal)                                                                                                                      |
+| `test` / `testing`                                                | anything                                                                                                                                |
 
 The `dependencies` and `cross-reference` verticals are _screen verticals_ —
 each owns a top-level screen and composes the shared panes (`hierarchy`,
@@ -84,13 +85,16 @@ workbench-state restoration. `zod` will not be introduced until that task.
 
 ## Public-API Rule
 
-Verticals (`dependencies`, `cross-reference`, `dependency-details`,
+Verticals (`dependencies`, `cross-references`, `cross-reference`, `dependency-details`,
 `hierarchy`, `selection`, `tree`, `graph`) are entered only through their
 **declared public files** — the explicit per-vertical allow-lists in
 `eslint.config.js` (`boundaries/dependencies`). Cross-vertical imports use
 direct paths (`@/<vertical>/<File>`); there are no re-export barrel `index.ts`
-files. The platform layers (`design-system`, `graphql`, `testing`) expose their
-files directly (shadcn convention / generated client).
+files. Public file per vertical: `dependencies` → `DependenciesPage.tsx`,
+`cross-references` → `CrossReferencesPage.tsx`, `cross-reference` →
+`CrossReferenceView.tsx` / `XrefPage.tsx`. The platform layers (`design-system`,
+`graphql`, `testing`) expose their files directly (shadcn convention / generated
+client).
 
 ## Tooling
 
