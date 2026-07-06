@@ -63,13 +63,21 @@ describe("Hover counterpart marking", () => {
     );
     await expect.element(sourceRow).toBeVisible();
 
-    const markedBadge = () => page.getByText("◆ marked");
+    // Hovering SubClass in the source tree previews the marking of its
+    // counterpart BaseClass in the target tree — signalled by the amber marked
+    // highlight class on the BaseClass row.
+    const targetMarkedClassName = () =>
+      page
+        .getByText("org.hg.fixture.basic.rel.target.BaseClass", { exact: true })
+        .element()
+        .closest("div")?.className ?? "";
 
     // Default is off: hovering must not trigger the debounced marking query, so
-    // the badge never appears. Wait well past the ~200ms debounce, then assert.
+    // the highlight never appears. Wait well past the ~200ms debounce, then
+    // assert.
     await userEvent.hover(sourceRow);
     await new Promise((r) => setTimeout(r, 400));
-    await expect.element(markedBadge()).not.toBeInTheDocument();
+    expect(targetMarkedClassName()).not.toContain("text-state-marked-fg");
     await userEvent.unhover(sourceRow);
 
     // Enable "Highlight on hover" via the Options menu checkbox.
@@ -82,9 +90,11 @@ describe("Hover counterpart marking", () => {
 
     // Now hovering previews the counterpart marking (debounced ~200ms).
     await userEvent.hover(sourceRow);
-    await expect.element(markedBadge()).toBeVisible();
+    await expect.poll(targetMarkedClassName).toContain("text-state-marked-fg");
 
     await userEvent.unhover(sourceRow);
-    await expect.element(markedBadge()).not.toBeInTheDocument();
+    await expect
+      .poll(targetMarkedClassName)
+      .not.toContain("text-state-marked-fg");
   });
 });

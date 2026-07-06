@@ -100,6 +100,23 @@ describe("Counterpart filter", () => {
       .element(page.getByText(LIB_ORDER_SERVICE, { exact: true }))
       .not.toBeInTheDocument();
 
+    // The filtered (target) side shows only matches, so its rows must not carry
+    // the redundant amber marked highlight.
+    expect(
+      page.getByText(LIB_ORDER, { exact: true }).element().closest("div")
+        ?.className ?? "",
+    ).not.toContain("text-state-marked-fg");
+    expect(
+      page.getByText(LIB_ORDER_LINE, { exact: true }).element().closest("div")
+        ?.className ?? "",
+    ).not.toContain("text-state-marked-fg");
+
+    // Counter-check: the selecting (source) side keeps its selection highlight.
+    expect(
+      page.getByText(BATCH, { exact: true }).element().closest("div")
+        ?.className ?? "",
+    ).toContain("text-state-selected-fg");
+
     // Toggle the filter off — the full tree is restored.
     await userEvent.click(
       page.getByRole("button", { name: "Filter counterparts" }),

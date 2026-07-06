@@ -310,7 +310,6 @@ export function CrossReferenceView({
                 onSelectedIdsChange={handleCenterSelectedIdsChange}
                 onFocusedIdChange={handleCenterFocusedIdChange}
                 markedIds={markedCenterIds}
-                markedBadge
                 label="XrefCenter"
                 settings={settings}
               />

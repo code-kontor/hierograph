@@ -81,5 +81,10 @@ describe("Locations status line", () => {
     await expect
       .element(status())
       .toHaveTextContent(/right side filtered to matches/);
+
+    // The status line is pinned as a fixed single row below the tree and stays
+    // visible regardless of how many rows the tree holds.
+    await expect.element(status()).toBeVisible();
+    expect(status().element().className).toContain("shrink-0");
   });
 });

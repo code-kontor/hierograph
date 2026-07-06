@@ -225,7 +225,7 @@ export function DependencyDetailsPane() {
             </div>
           ) : undefined
         }
-        bodyClassName="p-0"
+        bodyClassName="flex flex-col p-0"
       >
         {cellKey && cellSelection ? (
           <>
@@ -237,7 +237,11 @@ export function DependencyDetailsPane() {
                 labelFormat={labelFormat}
               />
             </TabsContent>
-            <TabsContent value="locations" forceMount>
+            <TabsContent
+              value="locations"
+              forceMount
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <DependencyDetailsPanel
                 key={cellKey}
                 sourceNodeId={cellSelection.sourceNodeId}
