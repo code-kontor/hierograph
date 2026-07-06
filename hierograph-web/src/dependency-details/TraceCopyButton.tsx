@@ -11,8 +11,9 @@ import {
 
 // Takes a factory instead of a plain input: the row snapshots come from
 // AsyncTree refs, which must only be read on interaction (a click handler),
-// never during render (see the AsyncTree refs in TracePanel).
-type TraceCopyButtonProps = { buildInput: () => SerializeTraceInput };
+// never during render (see the AsyncTree refs in TracePanel). `null` means
+// the panel ref is not attached yet — the click is a no-op in that case.
+type TraceCopyButtonProps = { buildInput: () => SerializeTraceInput | null };
 
 type CopyStatus = "idle" | "copied" | "error";
 
@@ -31,8 +32,10 @@ export function TraceCopyButton({ buildInput }: TraceCopyButtonProps) {
   }, []);
 
   async function handleClick() {
+    const input = buildInput();
+    if (!input) return;
     clearTimeout(resetTimerRef.current);
-    const text = serializeTraceForClipboard(buildInput());
+    const text = serializeTraceForClipboard(input);
     try {
       if (!navigator.clipboard) {
         throw new Error("Clipboard API not available");

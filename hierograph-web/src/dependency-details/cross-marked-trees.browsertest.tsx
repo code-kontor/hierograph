@@ -86,10 +86,11 @@ describe("Cross-marked trees tab", () => {
     await userEvent.click(page.getByText("select-cell"));
     await userEvent.click(page.getByText("Locations"));
 
-    const sourceRow = page.getByText(
-      "org.hg.fixture.basic.rel.source.SubClass",
-      { exact: true },
-    );
+    // Scope to the Locations tree: Trace is force-mounted and renders the
+    // same fqn text.
+    const sourceRow = page
+      .getByLabelText("DependencySourceTree")
+      .getByText("org.hg.fixture.basic.rel.source.SubClass", { exact: true });
     await expect.element(sourceRow).toBeVisible();
 
     // The panel that holds the DependencyDetailsPane (the Tabs root's parent).

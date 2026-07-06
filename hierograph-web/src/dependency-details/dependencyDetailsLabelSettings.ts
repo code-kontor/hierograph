@@ -1,5 +1,7 @@
 import type { NodeLabelFormat } from "@/graph/nodeLabel";
 
+import type { TraceViewMode } from "./serializeTrace";
+
 export const LABEL_FORMAT_OPTIONS: { value: NodeLabelFormat; label: string }[] =
   [
     { value: "full", label: "Full" },
@@ -21,8 +23,14 @@ export const HIGHLIGHT_ON_HOVER_STORAGE_KEY =
 export const FILTER_COUNTERPARTS_STORAGE_KEY =
   "dependencyDetails.filterCounterparts";
 
+export const TRACE_VIEW_MODE_STORAGE_KEY = "dependencyDetails.traceViewMode";
+
 export function normalizeLabelFormat(value: string): NodeLabelFormat {
   return LABEL_FORMAT_OPTIONS.some((o) => o.value === value)
     ? (value as NodeLabelFormat)
     : "full";
+}
+
+export function normalizeTraceViewMode(value: string): TraceViewMode {
+  return value === "hits-only" ? "hits-only" : "in-context";
 }

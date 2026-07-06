@@ -67,16 +67,22 @@ describe("Auto-reveal counterparts", () => {
 
     // Select the `web` package on the source side. This is a container node
     // (not a leaf class), so the whole subtree below it counts as selected.
-    const webRow = page.getByText(WEB_PACKAGE, { exact: true });
+    // Scope to the Locations tree: Trace is force-mounted and renders the
+    // same fqn text.
+    const webRow = page
+      .getByLabelText("DependencySourceTree")
+      .getByText(WEB_PACKAGE, { exact: true });
     await expect.element(webRow).toBeVisible();
     await userEvent.click(webRow);
+
+    const nestedTargetRow = page
+      .getByLabelText("DependencyTargetTree")
+      .getByText(NESTED_TARGET, { exact: true });
 
     // Marking is now active, but with the option off the target tree does not
     // open on its own: the nested OrderService stays inside the collapsed
     // lib.order package and never enters the DOM.
-    await expect
-      .element(page.getByText(NESTED_TARGET, { exact: true }))
-      .not.toBeInTheDocument();
+    await expect.element(nestedTargetRow).not.toBeInTheDocument();
 
     // Turn on "Auto-reveal counterparts" via the Options menu checkbox.
     await userEvent.click(page.getByRole("button", { name: "Options" }));
@@ -85,8 +91,6 @@ describe("Auto-reveal counterparts", () => {
     );
 
     // The target tree now auto-expands down to the marked counterpart.
-    await expect
-      .element(page.getByText(NESTED_TARGET, { exact: true }))
-      .toBeVisible();
+    await expect.element(nestedTargetRow).toBeVisible();
   });
 });
