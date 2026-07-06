@@ -40,6 +40,17 @@ function headerText(
   return `${rootLabel} — click a type to trace its counterparts`;
 }
 
+function headerTitle(
+  isCounterpart: boolean,
+  driverLabel: string | null,
+): string | undefined {
+  return isCounterpart && driverLabel
+    ? `Types on this side that are connected to ${driverLabel} through the traced dependency.`
+    : undefined;
+}
+
+type TraceStatus = { summary: string; detail: string; title: string };
+
 function buildStatusText(params: {
   driver: Driver;
   driverLabel: string | null;
@@ -47,7 +58,7 @@ function buildStatusText(params: {
   sourceRootLabel: string;
   targetRootLabel: string;
   viewMode: TraceViewMode;
-}): string {
+}): TraceStatus {
   const {
     driver,
     driverLabel,
@@ -58,17 +69,36 @@ function buildStatusText(params: {
   } = params;
 
   if (!driver) {
-    return "Select a type to trace its counterparts.";
+    return {
+      summary: "No type selected.",
+      detail: " Select a type to trace its counterparts.",
+      title:
+        "Select a type on either side to trace which counterparts it connects to.",
+    };
   }
 
   const label = driverLabel ?? `${driver.ids.length} nodes`;
-  const suffix = viewMode === "hits-only" ? " · hits only" : "";
+  const detail = viewMode === "hits-only" ? " · hits only" : "";
   const n = counterpartLeafCount;
   const noun = n === 1 ? "type" : "types";
+  const hitsOnlyNote =
+    viewMode === "hits-only"
+      ? " Showing only matching types (tree pruned to hits)."
+      : "";
 
-  return driver.side === "source"
-    ? `${label} → ${n} ${noun} in ${targetRootLabel}${suffix}`
-    : `${label} ← ${n} ${noun} in ${sourceRootLabel}${suffix}`;
+  if (driver.side === "source") {
+    return {
+      summary: `${label} → ${n} ${noun} in ${targetRootLabel}`,
+      detail,
+      title: `${label} depends on ${n} ${noun} in ${targetRootLabel}.${hitsOnlyNote}`,
+    };
+  }
+
+  return {
+    summary: `${label} ← ${n} ${noun} in ${sourceRootLabel}`,
+    detail,
+    title: `${n} ${noun} in ${sourceRootLabel} depend on ${label}.${hitsOnlyNote}`,
+  };
 }
 
 export function TracePanel({
@@ -290,7 +320,7 @@ export function TracePanel({
     targetRoot.type,
   );
 
-  const statusText = buildStatusText({
+  const traceStatus = buildStatusText({
     driver,
     driverLabel,
     counterpartLeafCount,
@@ -313,7 +343,7 @@ export function TracePanel({
     },
     markedCounterpartIds: counterpartMarks,
     viewMode,
-    statusText,
+    statusText: `${traceStatus.summary}${traceStatus.detail}`,
   });
 
   return (
@@ -342,7 +372,10 @@ export function TracePanel({
       <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
         <div className="border-border relative min-w-0 overflow-auto border-r">
           <div className="border-border text-fg-subtle flex items-center border-b px-[14px] py-2 font-mono text-[11px]">
-            <span className="min-w-0 truncate">
+            <span
+              className="min-w-0 truncate"
+              title={headerTitle(sourceIsCounterpart, driverLabel)}
+            >
               {headerText(sourceIsCounterpart, driverLabel, sourceRootLabel)}
             </span>
           </div>
@@ -378,7 +411,10 @@ export function TracePanel({
         </div>
         <div className="min-w-0 overflow-auto">
           <div className="border-border text-fg-subtle flex items-center border-b px-[14px] py-2 font-mono text-[11px]">
-            <span className="min-w-0 truncate">
+            <span
+              className="min-w-0 truncate"
+              title={headerTitle(targetIsCounterpart, driverLabel)}
+            >
               {headerText(targetIsCounterpart, driverLabel, targetRootLabel)}
             </span>
           </div>
@@ -403,21 +439,22 @@ export function TracePanel({
           </div>
         </div>
       </div>
-      <TraceStatusLine statusText={statusText} />
+      <TraceStatusLine status={traceStatus} />
     </div>
   );
 }
 
-type TraceStatusLineProps = { statusText: string };
+type TraceStatusLineProps = { status: TraceStatus };
 
-function TraceStatusLine({ statusText }: TraceStatusLineProps) {
+function TraceStatusLine({ status }: TraceStatusLineProps) {
   return (
     <div
       data-testid="trace-status"
       className="border-border text-fg-subtle flex shrink-0 items-center border-t px-3 py-1 font-mono text-[11px]"
     >
-      <span className="min-w-0 truncate" title={statusText}>
-        {statusText}
+      <span className="min-w-0 truncate" title={status.title}>
+        <span className="text-fg-muted font-medium">{status.summary}</span>
+        <span className="text-fg-subtle">{status.detail}</span>
       </span>
     </div>
   );
