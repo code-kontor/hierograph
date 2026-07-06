@@ -23,6 +23,26 @@ function familyOf(nodeType?: string): NodeTypeFamily {
   return familyByNodeType[nodeType] ?? "unknown";
 }
 
+// Human-readable prefix word for a node type, used to introduce a node in
+// status text (e.g. "Type Foo references ..."). Empty string for unknown
+// families so callers can omit the prefix.
+export function nodeTypePrefix(nodeType?: string): string {
+  switch (familyOf(nodeType)) {
+    case "package":
+      return "Package";
+    case "type":
+      return "Type";
+    case "external-type":
+      return "External type";
+    case "member":
+      return "Member";
+    case "module":
+      return "Module";
+    case "unknown":
+      return "";
+  }
+}
+
 function formatFqn(text: string, format: NodeLabelFormat): string {
   if (format === "full") {
     return text;

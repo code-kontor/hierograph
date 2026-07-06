@@ -143,10 +143,10 @@ describe("Paths tab", () => {
       "text-state-selected-fg",
     );
 
-    await expect.element(page.getByText(/Counterparts of/)).toBeVisible();
+    await expect.element(page.getByText(/Dependencies of/)).toBeVisible();
     await expect
       .element(page.getByTestId("trace-status"))
-      .toHaveTextContent("→");
+      .toHaveTextContent("references");
     const statusSummary = page
       .getByTestId("trace-status")
       .element()
@@ -154,7 +154,7 @@ describe("Paths tab", () => {
     expect(statusSummary?.className).toContain("font-medium");
     expect(
       page.getByTestId("trace-status").element().querySelector("span")?.title,
-    ).toMatch(/depends on/);
+    ).toMatch(/references/);
   });
 
   it("is exclusive: driving from the target side clears the source selection", async () => {
@@ -162,12 +162,15 @@ describe("Paths tab", () => {
 
     await userEvent.click(sourceRow(SUB_CLASS));
     await expect.element(targetRow(BASE_CLASS)).toBeVisible();
+    // The NodeDetailsWidget floats over the viewport after a click and can
+    // block subsequent tree clicks; dismiss it first.
+    await userEvent.keyboard("{Escape}");
 
     await userEvent.click(targetRow(BASE_CLASS));
 
     await expect
       .element(page.getByTestId("trace-status"))
-      .toHaveTextContent("←");
+      .toHaveTextContent("referenced by");
     // The source side is now the counterpart: marked, but no longer the
     // (blue) selected row — the previous driver selection was cleared. The
     // marked-counterpart query is async; poll rather than assert once.

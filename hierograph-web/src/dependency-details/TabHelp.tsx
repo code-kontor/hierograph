@@ -50,10 +50,11 @@ export function TraceHelpContent() {
   return (
     <p>
       Paths lets you click a type on one side to make it the driver
-      (highlighted); its counterparts on the other side are marked and revealed.
-      There is exactly one driver at a time — selecting on one side clears the
-      other. Toggle <em>In context ↔ hits only</em> to switch between the full
-      surrounding tree and just the matched types.
+      (highlighted); the dependencies or dependents it connects to on the other
+      side are marked and revealed. There is exactly one driver at a time —
+      selecting on one side clears the other. Toggle{" "}
+      <em>In context ↔ hits only</em> to switch between the full surrounding
+      tree and just the matched types.
     </p>
   );
 }
