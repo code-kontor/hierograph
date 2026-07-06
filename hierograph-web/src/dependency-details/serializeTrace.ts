@@ -28,7 +28,7 @@ function buildDriverLine(driver: SerializeTraceInput["driver"]): string {
 
 function buildCounterpartsSection(markedCounterpartIds: string[]): string[] {
   return [
-    "## Marked counterparts",
+    "## Marked types",
     "",
     ...(markedCounterpartIds.length === 0
       ? ["_(none)_"]

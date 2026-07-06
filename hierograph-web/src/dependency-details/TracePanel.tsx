@@ -8,9 +8,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { twMerge } from "tailwind-merge";
 
 import { Message } from "@/design-system/ui/message";
-import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
+import {
+  formatNodeLabel,
+  type NodeLabelFormat,
+  nodeTypePrefix,
+} from "@/graph/nodeLabel";
 import { nodeBasicsQueryOptions } from "@/graph/queries";
 import { AsyncTree, type AsyncTreeHandle } from "@/tree/AsyncTree";
 import { DEFAULT_TREE_SETTINGS } from "@/tree/useTreeSettings";
@@ -50,13 +55,16 @@ type Driver = { side: TraceSide; ids: string[] } | null;
 
 function headerText(
   isCounterpart: boolean,
+  driverSide: TraceSide | null,
   driverLabel: string | null,
   rootLabel: string,
 ): string {
   if (isCounterpart && driverLabel) {
-    return `Counterparts of ${driverLabel}`;
+    return driverSide === "source"
+      ? `Dependencies of ${driverLabel}`
+      : `Dependents of ${driverLabel}`;
   }
-  return `${rootLabel} — click a type to trace its counterparts`;
+  return `${rootLabel} — click a type to trace its dependencies`;
 }
 
 function headerTitle(
@@ -64,7 +72,7 @@ function headerTitle(
   driverLabel: string | null,
 ): string | undefined {
   return isCounterpart && driverLabel
-    ? `Types on this side that are connected to ${driverLabel} through the traced dependency.`
+    ? `Types on this side connected to ${driverLabel} through the traced dependency.`
     : undefined;
 }
 
@@ -73,6 +81,7 @@ type TraceStatus = { summary: string; detail: string; title: string };
 function buildStatusText(params: {
   driver: Driver;
   driverLabel: string | null;
+  driverType: string | null;
   counterpartLeafCount: number;
   sourceRootLabel: string;
   targetRootLabel: string;
@@ -81,6 +90,7 @@ function buildStatusText(params: {
   const {
     driver,
     driverLabel,
+    driverType,
     counterpartLeafCount,
     sourceRootLabel,
     targetRootLabel,
@@ -90,13 +100,12 @@ function buildStatusText(params: {
   if (!driver) {
     return {
       summary: "No type selected.",
-      detail: " Select a type to trace its counterparts.",
-      title:
-        "Select a type on either side to trace which counterparts it connects to.",
+      detail: " Select a type to trace its dependencies.",
+      title: "Select a type on either side to see the types it connects to.",
     };
   }
 
-  const label = driverLabel ?? `${driver.ids.length} nodes`;
+  const multi = driver.ids.length > 1;
   const detail = viewMode === "hits-only" ? " · hits only" : "";
   const n = counterpartLeafCount;
   const noun = n === 1 ? "type" : "types";
@@ -105,18 +114,26 @@ function buildStatusText(params: {
       ? " Showing only matching types (tree pruned to hits)."
       : "";
 
+  // Single select: introduce the driver with its type family; multi select:
+  // "N nodes" (driverLabel) with no prefix.
+  const prefix = multi ? "" : nodeTypePrefix(driverType ?? undefined);
+  const subject = multi
+    ? (driverLabel ?? `${driver.ids.length} nodes`)
+    : `${prefix ? `${prefix} ` : ""}${driverLabel ?? `${driver.ids.length} nodes`}`;
+
   if (driver.side === "source") {
+    const verb = multi ? "referencing" : "references";
     return {
-      summary: `${label} → ${n} ${noun} in ${targetRootLabel}`,
+      summary: `${subject} ${verb} ${n} ${noun} in ${targetRootLabel}`,
       detail,
-      title: `${label} depends on ${n} ${noun} in ${targetRootLabel}.${hitsOnlyNote}`,
+      title: `${subject} ${verb} ${n} ${noun} in ${targetRootLabel}.${hitsOnlyNote}`,
     };
   }
 
   return {
-    summary: `${label} ← ${n} ${noun} in ${sourceRootLabel}`,
+    summary: `${subject} referenced by ${n} ${noun} in ${sourceRootLabel}`,
     detail,
-    title: `${n} ${noun} in ${sourceRootLabel} depend on ${label}.${hitsOnlyNote}`,
+    title: `${subject} referenced by ${n} ${noun} in ${sourceRootLabel}.${hitsOnlyNote}`,
   };
 }
 
@@ -137,10 +154,12 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
     const [sourceFocus, setSourceFocus] = useState<{
       id: string;
       name: string;
+      type: string | null;
     } | null>(null);
     const [targetFocus, setTargetFocus] = useState<{
       id: string;
       name: string;
+      type: string | null;
     } | null>(null);
     const sourceTreeRef = useRef<AsyncTreeHandle>(null);
     const targetTreeRef = useRef<AsyncTreeHandle>(null);
@@ -228,19 +247,21 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
     // Stable identities: an inline arrow would re-fire the AsyncTree focus effect
     // (and any effect depending on this callback) on every render and loop.
     const handleSourceFocus = useCallback(
-      (id: string | null, name: string | null) =>
-        setSourceFocus(id ? { id, name: name ?? "" } : null),
+      (id: string | null, name: string | null, type: string | null) =>
+        setSourceFocus(id ? { id, name: name ?? "", type } : null),
       [],
     );
     const handleTargetFocus = useCallback(
-      (id: string | null, name: string | null) =>
-        setTargetFocus(id ? { id, name: name ?? "" } : null),
+      (id: string | null, name: string | null, type: string | null) =>
+        setTargetFocus(id ? { id, name: name ?? "", type } : null),
       [],
     );
 
     const driverLabel = driver
-      ? ((driver.side === "source" ? sourceFocus?.name : targetFocus?.name) ??
-        `${driver.ids.length} nodes`)
+      ? driver.ids.length > 1
+        ? `${driver.ids.length} nodes`
+        : ((driver.side === "source" ? sourceFocus?.name : targetFocus?.name) ??
+          `${driver.ids.length} nodes`)
       : null;
 
     // "In context": counterparts marked in the full tree, and revealed. "Hits
@@ -337,9 +358,17 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
       ? formatNodeLabel(targetRoot.text, labelFormat, targetRoot.type)
       : "";
 
+    const driverType =
+      driver?.side === "source"
+        ? (sourceFocus?.type ?? null)
+        : driver?.side === "target"
+          ? (targetFocus?.type ?? null)
+          : null;
+
     const traceStatus = buildStatusText({
       driver,
       driverLabel,
+      driverType,
       counterpartLeafCount,
       sourceRootLabel,
       targetRootLabel,
@@ -413,7 +442,7 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
     }
 
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
           <div className="border-border relative min-w-0 overflow-auto border-r">
             <div className="border-border text-fg-subtle flex items-center border-b px-[14px] py-2 font-mono text-[11px]">
@@ -421,19 +450,14 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
                 className="min-w-0 truncate"
                 title={headerTitle(sourceIsCounterpart, driverLabel)}
               >
-                {headerText(sourceIsCounterpart, driverLabel, sourceRootLabel)}
+                {headerText(
+                  sourceIsCounterpart,
+                  driver?.side ?? null,
+                  driverLabel,
+                  sourceRootLabel,
+                )}
               </span>
             </div>
-            {driver?.side === "source" && (
-              <div className="border-border bg-panel pointer-events-none absolute top-1.5 -right-2.5 z-10 flex size-5 items-center justify-center rounded-full border">
-                <ArrowRight className="text-fg-subtle size-3" />
-              </div>
-            )}
-            {driver?.side === "target" && (
-              <div className="border-border bg-panel pointer-events-none absolute top-1.5 -right-2.5 z-10 flex size-5 items-center justify-center rounded-full border">
-                <ArrowLeft className="text-fg-subtle size-3" />
-              </div>
-            )}
             <div className="p-1.5">
               <AsyncTree
                 key={sourceKey}
@@ -460,7 +484,12 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
                 className="min-w-0 truncate"
                 title={headerTitle(targetIsCounterpart, driverLabel)}
               >
-                {headerText(targetIsCounterpart, driverLabel, targetRootLabel)}
+                {headerText(
+                  targetIsCounterpart,
+                  driver?.side ?? null,
+                  driverLabel,
+                  targetRootLabel,
+                )}
               </span>
             </div>
             <div className="p-1.5">
@@ -484,11 +513,28 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
             </div>
           </div>
         </div>
+        {driver && <DirectionBadge key={driver.side} side={driver.side} />}
         <TraceStatusLine status={traceStatus} />
       </div>
     );
   },
 );
+
+type DirectionBadgeProps = { side: TraceSide };
+
+function DirectionBadge({ side }: DirectionBadgeProps) {
+  const Icon = side === "source" ? ArrowRight : ArrowLeft;
+  return (
+    <div
+      className={twMerge(
+        "border-border bg-panel pointer-events-none absolute top-1.5 left-1/2 z-10 flex size-5 -translate-x-1/2 items-center justify-center rounded-full border",
+        "motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:spin-in-180 motion-safe:duration-200",
+      )}
+    >
+      <Icon className="text-fg-subtle size-3" />
+    </div>
+  );
+}
 
 type TraceStatusLineProps = { status: TraceStatus };
 

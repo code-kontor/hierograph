@@ -21,7 +21,7 @@ const baseInput: SerializeTraceInput = {
   },
   markedCounterpartIds: ["t1"],
   viewMode: "in-context",
-  statusText: "SubClass → 1 type in com.example.target",
+  statusText: "Type SubClass references 1 type in com.example.target",
 };
 
 describe("serializeTraceForClipboard", () => {
@@ -32,9 +32,11 @@ describe("serializeTraceForClipboard", () => {
     expect(text).toContain("To: com.example.target");
     expect(text).toContain("Driver: SubClass (source)");
     expect(text).toContain("View: in-context");
-    expect(text).toContain("## Marked counterparts");
+    expect(text).toContain("## Marked types");
     expect(text).toContain("- t1");
-    expect(text).toContain("Status: SubClass → 1 type in com.example.target");
+    expect(text).toContain(
+      "Status: Type SubClass references 1 type in com.example.target",
+    );
   });
 
   it("renders a (none) driver and empty counterparts when nothing is selected", () => {
@@ -42,11 +44,11 @@ describe("serializeTraceForClipboard", () => {
       ...baseInput,
       driver: null,
       markedCounterpartIds: [],
-      statusText: "Select a type to trace its counterparts.",
+      statusText: "Select a type to trace its dependencies.",
     });
 
     expect(text).toContain("Driver: (none)");
-    expect(text).toContain("## Marked counterparts\n\n_(none)_");
+    expect(text).toContain("## Marked types\n\n_(none)_");
   });
 
   it("lists visible source and target rows", () => {

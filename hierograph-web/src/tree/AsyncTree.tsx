@@ -36,7 +36,11 @@ export type AsyncTreeProps = {
   rootNode: TreeNodeData;
   loadChildren: (parentId: string) => Promise<TreeNodeData[]>;
   onSelectedIdsChange: (ids: string[]) => void;
-  onFocusedIdChange?: (id: string | null, name: string | null) => void;
+  onFocusedIdChange?: (
+    id: string | null,
+    name: string | null,
+    type: string | null,
+  ) => void;
   onHoveredIdChange?: (id: string | undefined) => void;
   markedIds?: string[];
   label: string;
@@ -438,11 +442,10 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
 
     useEffect(() => {
       const id = state.focusedItem ?? null;
-      const name =
-        id != null
-          ? (itemData.current.get(id)?.text.split(".").pop() ?? null)
-          : null;
-      onFocusedIdChange?.(id, name);
+      const data = id != null ? itemData.current.get(id) : undefined;
+      const name = data?.text.split(".").pop() ?? null;
+      const type = data?.type ?? null;
+      onFocusedIdChange?.(id, name, type);
     }, [state.focusedItem, onFocusedIdChange]);
 
     return (
