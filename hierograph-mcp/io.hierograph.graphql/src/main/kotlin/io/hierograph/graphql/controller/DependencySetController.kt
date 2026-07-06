@@ -24,6 +24,7 @@ import io.hierograph.graphql.model.NodeType
 import io.hierograph.graphql.model.PageInfoModel
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
@@ -101,11 +102,24 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         }
 
         val filtered = depSet.dependencyList.filter { dep ->
-            (sourceIds.isEmpty() || dep.from.identifier in sourceIds) &&
-                (targetIds.isEmpty() || dep.to.identifier in targetIds)
+            (sourceIds.isEmpty() || matchesSelection(hierarchy, dep.from, sourceIds)) &&
+                (targetIds.isEmpty() || matchesSelection(hierarchy, dep.to, targetIds))
         }
 
         return FilteredDependenciesModel(filtered)
+    }
+
+    // A dependency endpoint matches the selection when it is a selected node
+    // itself or a descendant of one. Dependencies are leaf-level edges (class to
+    // class), so selecting an intermediate package or module must match every
+    // edge whose endpoint sits below it; otherwise the container id would match
+    // no edge and the selection would come back empty. Mirrors the endpoint-or-
+    // ancestor logic used by filteredChildren.
+    private fun matchesSelection(hierarchy: Hierarchy, endpoint: HGNode, selectedIds: Set<Any>): Boolean {
+        if (endpoint.identifier in selectedIds) {
+            return true
+        }
+        return hierarchy.predecessorsOf(endpoint).any { it.identifier in selectedIds }
     }
 
     companion object {
