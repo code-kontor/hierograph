@@ -36,6 +36,13 @@ import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
 import { NodeDetailsWidget } from "./NodeDetailsWidget";
+import {
+  TabHelpButton,
+  TRACE_HELP_LABEL,
+  TraceHelpContent,
+  USAGES_HELP_LABEL,
+  UsagesHelpContent,
+} from "./TabHelp";
 import { TracePanel } from "./TracePanel";
 
 type ActiveTab = "usages" | "locations" | "trace";
@@ -197,6 +204,16 @@ export function DependencyDetailsPane() {
               <TabsTrigger value="trace">Trace</TabsTrigger>
             </TabsList>
             <div className="ml-auto flex items-center pr-3">
+              {activeTab === "usages" && (
+                <TabHelpButton label={USAGES_HELP_LABEL}>
+                  <UsagesHelpContent />
+                </TabHelpButton>
+              )}
+              {activeTab === "trace" && (
+                <TabHelpButton label={TRACE_HELP_LABEL}>
+                  <TraceHelpContent />
+                </TabHelpButton>
+              )}
               <LabelFormatMenu
                 labelFormat={labelFormat}
                 onLabelFormatChange={setLabelFormat}
