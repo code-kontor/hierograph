@@ -262,7 +262,9 @@ export function DependencyDetailsPanel({
                   ? (id) => setHoverTarget(id ? { side: "source", id } : null)
                   : undefined
               }
-              markedIds={displaySourceIds}
+              // On the filtered side only matches are shown, so the amber row
+              // highlight is redundant — suppress it there.
+              markedIds={sourceFilterActive ? [] : displaySourceIds}
               label="DependencySourceTree"
               autoExpandRootChainOnLoad
               filterIds={sourceFilterActive ? markedSourceIds : undefined}
@@ -298,8 +300,7 @@ export function DependencyDetailsPanel({
                   ? (id) => setHoverTarget(id ? { side: "target", id } : null)
                   : undefined
               }
-              markedIds={displayTargetIds}
-              markedBadge
+              markedIds={targetFilterActive ? [] : displayTargetIds}
               label="DependencyTargetTree"
               autoExpandRootChainOnLoad
               filterIds={targetFilterActive ? markedTargetIds : undefined}
@@ -403,7 +404,7 @@ function StatusLine({
   return (
     <div
       data-testid="locations-status"
-      className="border-border text-fg-subtle flex items-center border-t px-3 py-1 font-mono text-[11px]"
+      className="border-border text-fg-subtle flex shrink-0 items-center border-t px-3 py-1 font-mono text-[11px]"
     >
       <span className="min-w-0 truncate" title={`${summary}${detail}`}>
         <span className="text-fg-muted font-medium">{summary}</span>

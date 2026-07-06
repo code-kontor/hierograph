@@ -76,7 +76,7 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
   });
 
   // SubClass extends BaseClass; clicking SubClass in the Source tree must mark
-  // BaseClass in the Target tree, which renders the "◆ marked" badge.
+  // BaseClass in the Target tree, which renders the amber marked highlight.
   it("marks the referenced target type when a source type is selected", async () => {
     await renderWithQueryClient(
       <DependencyDetailsPanel
@@ -105,9 +105,9 @@ describe("DependencyDetailsPanel — filter correctness (rel.source → rel.targ
               exact: true,
             })
             .element()
-            .closest("div")?.textContent,
+            .closest("div")?.className,
       )
-      .toContain("◆ marked");
+      .toContain("text-state-marked-fg");
   });
 
   // Reverse direction: clicking BaseClass in the Target tree must mark the
