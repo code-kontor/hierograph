@@ -49,7 +49,7 @@ export function serializeTraceForClipboard(input: SerializeTraceInput): string {
   } = input;
 
   const lines: string[] = [
-    "# Trace",
+    "# Paths",
     "",
     `From: ${from.label}`,
     `To: ${to.label}`,

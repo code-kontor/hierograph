@@ -14,15 +14,6 @@ export const LABEL_FORMAT_STORAGE_KEY = "dependencyDetails.labelFormat";
 export const AUTO_EXPAND_STORAGE_KEY =
   "dependencyDetails.autoExpandSingleChildren";
 
-export const AUTO_REVEAL_STORAGE_KEY =
-  "dependencyDetails.autoRevealCounterparts";
-
-export const HIGHLIGHT_ON_HOVER_STORAGE_KEY =
-  "dependencyDetails.highlightOnHover";
-
-export const FILTER_COUNTERPARTS_STORAGE_KEY =
-  "dependencyDetails.filterCounterparts";
-
 export const TRACE_VIEW_MODE_STORAGE_KEY = "dependencyDetails.traceViewMode";
 
 export function normalizeLabelFormat(value: string): NodeLabelFormat {

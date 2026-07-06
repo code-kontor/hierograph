@@ -13,8 +13,7 @@ type TabHelpButtonProps = {
   children: ReactNode;
 };
 
-// Non-modal help popover shown above the active tab. Extend by adding a new
-// description constant plus another conditional instance (see Locations, later).
+// Non-modal help popover shown above the active tab.
 export function TabHelpButton({ label, children }: TabHelpButtonProps) {
   return (
     <Popover>
@@ -34,7 +33,7 @@ export function TabHelpButton({ label, children }: TabHelpButtonProps) {
 }
 
 export const USAGES_HELP_LABEL = "About the Usages tab";
-export const TRACE_HELP_LABEL = "About the Trace tab";
+export const TRACE_HELP_LABEL = "About the Paths tab";
 
 export function UsagesHelpContent() {
   return (
@@ -50,7 +49,7 @@ export function UsagesHelpContent() {
 export function TraceHelpContent() {
   return (
     <p>
-      Trace lets you click a type on one side to make it the driver
+      Paths lets you click a type on one side to make it the driver
       (highlighted); its counterparts on the other side are marked and revealed.
       There is exactly one driver at a time — selecting on one side clears the
       other. Toggle <em>In context ↔ hits only</em> to switch between the full
