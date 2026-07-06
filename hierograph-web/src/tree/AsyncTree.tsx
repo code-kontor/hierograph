@@ -48,6 +48,11 @@ export type AsyncTreeProps = {
 export type AsyncTreeHandle = {
   // Expand every marked ancestor folder so all marked rows become visible.
   revealMarked: () => void;
+  // Clear this tree's selection from the outside (e.g. an exclusive-driver
+  // model on another tree taking over).
+  clearSelection: () => void;
+  // Currently rendered rows (in display order), for dev/debug serialization.
+  getVisibleNodes: () => { id: string; text: string; type: string }[];
 };
 
 export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
@@ -374,8 +379,20 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
         revealMarked() {
           revealMarked().catch(console.error);
         },
+        clearSelection() {
+          tree.setSelectedItems([]);
+        },
+        getVisibleNodes() {
+          return tree
+            .getItems()
+            .filter((item) => item.getId() !== rootNode.id)
+            .map((item) => {
+              const data = item.getItemData();
+              return { id: data.id, text: data.text, type: data.type };
+            });
+        },
       }),
-      [revealMarked],
+      [revealMarked, tree, rootNode.id],
     );
 
     const didAutoExpandRootRef = useRef(false);

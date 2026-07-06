@@ -36,8 +36,9 @@ import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
 import { NodeDetailsWidget } from "./NodeDetailsWidget";
+import { TracePanel } from "./TracePanel";
 
-type ActiveTab = "usages" | "locations";
+type ActiveTab = "usages" | "locations" | "trace";
 
 type LabelFormatMenuProps = {
   labelFormat: NodeLabelFormat;
@@ -193,6 +194,7 @@ export function DependencyDetailsPane() {
             <TabsList>
               <TabsTrigger value="usages">Usages</TabsTrigger>
               <TabsTrigger value="locations">Locations</TabsTrigger>
+              <TabsTrigger value="trace">Trace</TabsTrigger>
             </TabsList>
             <div className="ml-auto flex items-center pr-3">
               <LabelFormatMenu
@@ -251,6 +253,15 @@ export function DependencyDetailsPane() {
                 autoRevealCounterparts={autoRevealCounterparts}
                 highlightOnHover={highlightOnHover}
                 filterCounterparts={filterCounterparts}
+              />
+            </TabsContent>
+            <TabsContent value="trace" className="flex min-h-0 flex-1 flex-col">
+              <TracePanel
+                key={cellKey}
+                sourceNodeId={cellSelection.sourceNodeId}
+                targetNodeId={cellSelection.targetNodeId}
+                labelFormat={labelFormat}
+                autoExpandSingleChildren={autoExpandSingleChildren}
               />
             </TabsContent>
           </>
