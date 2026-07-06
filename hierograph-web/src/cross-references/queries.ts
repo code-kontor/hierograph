@@ -4,16 +4,16 @@ import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
 const crossReferencesUsedByQuery = graphql(`
-  query CrossReferencesUsedBy($parentNode: ID!, $subjectId: ID!) {
+  query CrossReferencesUsedBy($parentNode: ID!, $subjectIds: [ID!]!) {
     hierarchicalGraph {
       node(id: $parentNode) {
-        childrenFilteredByReferencedNodes(referencedNodeIds: [$subjectId]) {
+        childrenFilteredByReferencedNodes(referencedNodeIds: $subjectIds) {
           nodes {
             id
             text
             type
             hasChildren
-            dependenciesTo(targetNodes: [$subjectId]) {
+            dependenciesTo(targetNodes: $subjectIds) {
               weight
             }
           }
@@ -25,30 +25,31 @@ const crossReferencesUsedByQuery = graphql(`
 
 export function crossReferencesUsedByQueryOptions(
   parentNodeId: string,
-  subjectId: string,
+  subjectIds: string[],
 ) {
+  const subjectKey = [...subjectIds].sort().join(",");
   return queryOptions({
-    queryKey: ["crossReferences", "usedBy", parentNodeId, subjectId],
+    queryKey: ["crossReferences", "usedBy", parentNodeId, subjectKey],
     async queryFn() {
       return execute(crossReferencesUsedByQuery, {
         parentNode: parentNodeId,
-        subjectId,
+        subjectIds,
       });
     },
   });
 }
 
 const crossReferencesUsesQuery = graphql(`
-  query CrossReferencesUses($parentNode: ID!, $subjectId: ID!) {
+  query CrossReferencesUses($parentNode: ID!, $subjectIds: [ID!]!) {
     hierarchicalGraph {
       node(id: $parentNode) {
-        childrenFilteredByReferencingNodes(referencingNodeIds: [$subjectId]) {
+        childrenFilteredByReferencingNodes(referencingNodeIds: $subjectIds) {
           nodes {
             id
             text
             type
             hasChildren
-            dependenciesFrom(sourceNodes: [$subjectId]) {
+            dependenciesFrom(sourceNodes: $subjectIds) {
               weight
             }
           }
@@ -60,15 +61,40 @@ const crossReferencesUsesQuery = graphql(`
 
 export function crossReferencesUsesQueryOptions(
   parentNodeId: string,
-  subjectId: string,
+  subjectIds: string[],
 ) {
+  const subjectKey = [...subjectIds].sort().join(",");
   return queryOptions({
-    queryKey: ["crossReferences", "uses", parentNodeId, subjectId],
+    queryKey: ["crossReferences", "uses", parentNodeId, subjectKey],
     async queryFn() {
       return execute(crossReferencesUsesQuery, {
         parentNode: parentNodeId,
-        subjectId,
+        subjectIds,
       });
+    },
+  });
+}
+
+const crossReferencesNodePredecessorsQuery = graphql(`
+  query CrossReferencesNodePredecessors($id: ID!) {
+    hierarchicalGraph {
+      node(id: $id) {
+        id
+        predecessors {
+          id
+        }
+      }
+    }
+  }
+`);
+
+export function crossReferencesNodePredecessorsQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: ["crossReferences", "predecessors", id],
+    // Predecessor relationships are structural and don't change mid-session.
+    staleTime: Infinity,
+    async queryFn() {
+      return execute(crossReferencesNodePredecessorsQuery, { id });
     },
   });
 }

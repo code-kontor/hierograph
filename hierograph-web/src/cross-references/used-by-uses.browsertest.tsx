@@ -81,6 +81,15 @@ beforeEach(() => {
         },
       }),
     ),
+    graphql.query("CrossReferencesNodePredecessors", ({ variables }) =>
+      HttpResponse.json({
+        data: {
+          hierarchicalGraph: {
+            node: { id: (variables as { id: string }).id, predecessors: [] },
+          },
+        },
+      }),
+    ),
   );
 });
 
