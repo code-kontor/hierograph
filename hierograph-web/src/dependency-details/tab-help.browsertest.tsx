@@ -42,14 +42,14 @@ describe("tab help overlay", () => {
       .not.toBeInTheDocument();
   });
 
-  it("shows the Trace help on the Trace tab", async () => {
+  it("shows the Paths help on the Paths tab", async () => {
     await renderPane();
 
-    await userEvent.click(page.getByRole("tab", { name: "Trace" }));
-    const trigger = page.getByRole("button", { name: "About the Trace tab" });
+    await userEvent.click(page.getByRole("tab", { name: "Paths" }));
+    const trigger = page.getByRole("button", { name: "About the Paths tab" });
     await userEvent.click(trigger);
     await expect
-      .element(page.getByText("Trace lets you click a type", { exact: false }))
+      .element(page.getByText("Paths lets you click a type", { exact: false }))
       .toBeVisible();
   });
 });

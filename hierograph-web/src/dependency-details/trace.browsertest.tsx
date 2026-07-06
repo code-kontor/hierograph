@@ -20,7 +20,7 @@ const SUB_CLASS = "org.hg.fixture.basic.rel.source.SubClass";
 const BASE_CLASS = "org.hg.fixture.basic.rel.target.BaseClass";
 const TARGET_A = "org.hg.fixture.basic.rel.target.TargetA";
 
-// A second, distinct cell (used to trigger a TracePanel remount via
+// A second, distinct cell (used to trigger a PathsPanel remount via
 // key={cellKey} without re-selecting the same cell). This locations.app→lib
 // cell has real intermediate folders on both sides, so it exercises deep
 // expand/collapse and the hits-only counterpart reveal.
@@ -60,7 +60,7 @@ function SelectOtherCellButton() {
   );
 }
 
-async function renderTraceTab() {
+async function renderPathsTab() {
   await renderWithQueryClient(
     <SelectionProvider>
       <SelectCellButton />
@@ -70,12 +70,12 @@ async function renderTraceTab() {
   );
 
   await userEvent.click(page.getByText("select-cell", { exact: true }));
-  await userEvent.click(page.getByRole("tab", { name: "Trace" }));
+  await userEvent.click(page.getByRole("tab", { name: "Paths" }));
 }
 
 // The deep locations.app→lib cell, used for expand/collapse and hits-only
 // reveal assertions on genuinely nested folders.
-async function renderTraceTabDeepCell() {
+async function renderPathsTabDeepCell() {
   await renderWithQueryClient(
     <SelectionProvider>
       <SelectCellButton />
@@ -85,16 +85,13 @@ async function renderTraceTabDeepCell() {
   );
 
   await userEvent.click(page.getByText("select-cell-2"));
-  await userEvent.click(page.getByRole("tab", { name: "Trace" }));
+  await userEvent.click(page.getByRole("tab", { name: "Paths" }));
 
   // The dev-only NodeDetailsWidget floats over the narrow test viewport and can
   // overlap deep tree rows; dismiss it (Escape) so clicks land on the tree.
   await userEvent.keyboard("{Escape}");
 }
 
-// The force-mounted "Locations" tab renders the very same fqn text in its own
-// tree, so plain page-wide text queries are ambiguous once Trace is active —
-// scope to Trace's own tree containers (AsyncTree's `label` prop).
 function sourceRow(text: string) {
   return page
     .getByLabelText("TraceSourceTree")
@@ -110,10 +107,9 @@ function rowClassName(row: ReturnType<typeof sourceRow>): string {
   return row.element().closest("div")?.className ?? "";
 }
 
-describe("Trace tab", () => {
+describe("Paths tab", () => {
   // The sibling force-mounted "Usages" tab also fires its DependencyEdges
-  // query (no fixture); stub it so it isn't an unhandled request. The
-  // force-mounted "Locations" tab reuses the same fixtures as Trace.
+  // query (no fixture); stub it so it isn't an unhandled request.
   beforeEach(() => {
     localStorage.clear();
     worker.use(
@@ -133,7 +129,7 @@ describe("Trace tab", () => {
   });
 
   it("marks the counterpart on click and shows the source→target direction", async () => {
-    await renderTraceTab();
+    await renderPathsTab();
 
     await expect.element(sourceRow(SUB_CLASS)).toBeVisible();
     await userEvent.click(sourceRow(SUB_CLASS));
@@ -162,7 +158,7 @@ describe("Trace tab", () => {
   });
 
   it("is exclusive: driving from the target side clears the source selection", async () => {
-    await renderTraceTab();
+    await renderPathsTab();
 
     await userEvent.click(sourceRow(SUB_CLASS));
     await expect.element(targetRow(BASE_CLASS)).toBeVisible();
@@ -187,7 +183,7 @@ describe("Trace tab", () => {
   });
 
   it("the single view toggle switches between in-context and hits-only", async () => {
-    await renderTraceTab();
+    await renderPathsTab();
 
     await userEvent.click(sourceRow(SUB_CLASS));
     await expect.element(targetRow(TARGET_A)).toBeVisible();
@@ -205,13 +201,13 @@ describe("Trace tab", () => {
   });
 
   it("keeps hits-only view mode across tab switches", async () => {
-    await renderTraceTab();
+    await renderPathsTab();
 
     await userEvent.click(sourceRow(SUB_CLASS));
     await userEvent.click(page.getByRole("button", { name: "Show hits only" }));
 
     await userEvent.click(page.getByRole("tab", { name: "Usages" }));
-    await userEvent.click(page.getByRole("tab", { name: "Trace" }));
+    await userEvent.click(page.getByRole("tab", { name: "Paths" }));
 
     await expect
       .element(page.getByRole("button", { name: "Show hits only" }))
@@ -219,7 +215,7 @@ describe("Trace tab", () => {
   });
 
   it("keeps hits-only view mode across cell selection changes", async () => {
-    await renderTraceTab();
+    await renderPathsTab();
 
     await userEvent.click(sourceRow(SUB_CLASS));
     await userEvent.click(page.getByRole("button", { name: "Show hits only" }));
@@ -232,7 +228,7 @@ describe("Trace tab", () => {
   });
 
   it("clear selection drops the driver and both selections", async () => {
-    await renderTraceTab();
+    await renderPathsTab();
 
     const clear = page.getByRole("button", { name: "Clear selection" });
     await expect.element(clear).toBeDisabled(); // nothing selected yet
@@ -251,7 +247,7 @@ describe("Trace tab", () => {
   });
 
   it("expand all / collapse all act on both trees", async () => {
-    await renderTraceTabDeepCell();
+    await renderPathsTabDeepCell();
 
     await userEvent.click(page.getByRole("button", { name: "Expand all" }));
     await expect.element(targetRow(DEEP_COUNTERPART)).toBeVisible();
@@ -261,7 +257,7 @@ describe("Trace tab", () => {
   });
 
   it("hits-only reveals a deeply nested counterpart", async () => {
-    await renderTraceTabDeepCell();
+    await renderPathsTabDeepCell();
 
     // Enable hits-only BEFORE selecting a driver, so selecting drives the async
     // marks → key-remount path that must still leave the counterpart expanded.

@@ -1,17 +1,10 @@
-import {
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Filter,
-  ListFilter,
-  X,
-} from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Filter, X } from "lucide-react";
 import { type RefObject, useCallback, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGhostTrigger,
   DropdownMenuLabel,
@@ -32,15 +25,11 @@ import { useSelection } from "@/selection/SelectionContext";
 
 import {
   AUTO_EXPAND_STORAGE_KEY,
-  AUTO_REVEAL_STORAGE_KEY,
-  FILTER_COUNTERPARTS_STORAGE_KEY,
-  HIGHLIGHT_ON_HOVER_STORAGE_KEY,
   LABEL_FORMAT_STORAGE_KEY,
   normalizeLabelFormat,
   normalizeTraceViewMode,
   TRACE_VIEW_MODE_STORAGE_KEY,
 } from "./dependencyDetailsLabelSettings";
-import { DependencyDetailsPanel } from "./DependencyDetailsPanel";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
 import { NodeDetailsWidget } from "./NodeDetailsWidget";
@@ -55,7 +44,7 @@ import {
 import { TraceCopyButton } from "./TraceCopyButton";
 import { TracePanel, type TracePanelHandle } from "./TracePanel";
 
-type ActiveTab = "usages" | "locations" | "trace";
+type ActiveTab = "usages" | "paths";
 
 type LabelFormatMenuProps = {
   labelFormat: NodeLabelFormat;
@@ -96,71 +85,6 @@ function LabelFormatMenu({
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-type LocationsControlsProps = {
-  filterCounterparts: boolean;
-  setFilterCounterparts: (value: boolean) => void;
-  autoRevealCounterparts: boolean;
-  setAutoRevealCounterparts: (value: boolean) => void;
-  autoExpandSingleChildren: boolean;
-  setAutoExpandSingleChildren: (value: boolean) => void;
-  highlightOnHover: boolean;
-  setHighlightOnHover: (value: boolean) => void;
-};
-
-function LocationsControls({
-  filterCounterparts,
-  setFilterCounterparts,
-  autoRevealCounterparts,
-  setAutoRevealCounterparts,
-  autoExpandSingleChildren,
-  setAutoExpandSingleChildren,
-  highlightOnHover,
-  setHighlightOnHover,
-}: LocationsControlsProps) {
-  return (
-    <div className="ml-auto flex items-center gap-1">
-      <button
-        type="button"
-        aria-pressed={filterCounterparts}
-        title="Filter counterparts"
-        onClick={() => setFilterCounterparts(!filterCounterparts)}
-        className={twMerge(
-          ghostIconTriggerClassName,
-          filterCounterparts && "bg-state-hover text-fg",
-        )}
-      >
-        <ListFilter className="size-4" />
-      </button>
-      <DropdownMenu>
-        <DropdownMenuGhostTrigger title="Options" />
-        <DropdownMenuContent>
-          <DropdownMenuCheckboxItem
-            checked={autoRevealCounterparts}
-            onCheckedChange={setAutoRevealCounterparts}
-            onSelect={(e) => e.preventDefault()}
-          >
-            Auto-reveal counterparts
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={autoExpandSingleChildren}
-            onCheckedChange={setAutoExpandSingleChildren}
-            onSelect={(e) => e.preventDefault()}
-          >
-            Auto-expand single children
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={highlightOnHover}
-            onCheckedChange={setHighlightOnHover}
-            onSelect={(e) => e.preventDefault()}
-          >
-            Highlight on hover
-          </DropdownMenuCheckboxItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
   );
 }
 
@@ -239,18 +163,8 @@ export function DependencyDetailsPane() {
   );
   const labelFormat = normalizeLabelFormat(storedLabelFormat);
 
-  // The Locations options live here (not in the per-cell-remounted Panel) so
-  // they persist across cell selections and can drive the shared subHeader.
-  const [autoExpandSingleChildren, setAutoExpandSingleChildren] =
-    useLocalStorage<boolean>(AUTO_EXPAND_STORAGE_KEY, false);
-  const [autoRevealCounterparts, setAutoRevealCounterparts] =
-    useLocalStorage<boolean>(AUTO_REVEAL_STORAGE_KEY, false);
-  const [highlightOnHover, setHighlightOnHover] = useLocalStorage<boolean>(
-    HIGHLIGHT_ON_HOVER_STORAGE_KEY,
-    false,
-  );
-  const [filterCounterparts, setFilterCounterparts] = useLocalStorage<boolean>(
-    FILTER_COUNTERPARTS_STORAGE_KEY,
+  const [autoExpandSingleChildren] = useLocalStorage<boolean>(
+    AUTO_EXPAND_STORAGE_KEY,
     false,
   );
 
@@ -295,8 +209,7 @@ export function DependencyDetailsPane() {
             </div>
             <TabsList>
               <TabsTrigger value="usages">Usages</TabsTrigger>
-              <TabsTrigger value="locations">Locations</TabsTrigger>
-              <TabsTrigger value="trace">Trace</TabsTrigger>
+              <TabsTrigger value="paths">Paths</TabsTrigger>
             </TabsList>
             <div className="ml-auto flex items-center pr-3">
               {activeTab === "usages" && (
@@ -304,7 +217,7 @@ export function DependencyDetailsPane() {
                   <UsagesHelpContent />
                 </TabHelpButton>
               )}
-              {activeTab === "trace" && (
+              {activeTab === "paths" && (
                 <TabHelpButton label={TRACE_HELP_LABEL}>
                   <TraceHelpContent />
                 </TabHelpButton>
@@ -324,19 +237,7 @@ export function DependencyDetailsPane() {
                 targetNodeId={cellSelection.targetNodeId}
                 labelFormat={labelFormat}
               />
-              {activeTab === "locations" && (
-                <LocationsControls
-                  filterCounterparts={filterCounterparts}
-                  setFilterCounterparts={setFilterCounterparts}
-                  autoRevealCounterparts={autoRevealCounterparts}
-                  setAutoRevealCounterparts={setAutoRevealCounterparts}
-                  autoExpandSingleChildren={autoExpandSingleChildren}
-                  setAutoExpandSingleChildren={setAutoExpandSingleChildren}
-                  highlightOnHover={highlightOnHover}
-                  setHighlightOnHover={setHighlightOnHover}
-                />
-              )}
-              {activeTab === "trace" && (
+              {activeTab === "paths" && (
                 <TraceControls
                   viewMode={viewMode}
                   setViewMode={setViewMode}
@@ -360,23 +261,7 @@ export function DependencyDetailsPane() {
               />
             </TabsContent>
             <TabsContent
-              value="locations"
-              forceMount
-              className="flex min-h-0 flex-1 flex-col"
-            >
-              <DependencyDetailsPanel
-                key={cellKey}
-                sourceNodeId={cellSelection.sourceNodeId}
-                targetNodeId={cellSelection.targetNodeId}
-                labelFormat={labelFormat}
-                autoExpandSingleChildren={autoExpandSingleChildren}
-                autoRevealCounterparts={autoRevealCounterparts}
-                highlightOnHover={highlightOnHover}
-                filterCounterparts={filterCounterparts}
-              />
-            </TabsContent>
-            <TabsContent
-              value="trace"
+              value="paths"
               forceMount
               className="flex min-h-0 flex-1 flex-col"
             >
@@ -396,7 +281,7 @@ export function DependencyDetailsPane() {
           <div className="p-4">
             <Message variant="empty" title="No cell selected">
               Pick a dependency cell in the matrix to inspect its usages and
-              locations.
+              paths.
             </Message>
           </div>
         )}
