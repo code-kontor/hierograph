@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as XrefRouteImport } from "./routes/xref";
 import { Route as DependenciesRouteImport } from "./routes/dependencies";
+import { Route as CrossReferencesRouteImport } from "./routes/cross-references";
 import { Route as IndexRouteImport } from "./routes/index";
 import { Route as DevPrimitivesRouteImport } from "./routes/dev.primitives";
 
@@ -22,6 +23,11 @@ const XrefRoute = XrefRouteImport.update({
 const DependenciesRoute = DependenciesRouteImport.update({
   id: "/dependencies",
   path: "/dependencies",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const CrossReferencesRoute = CrossReferencesRouteImport.update({
+  id: "/cross-references",
+  path: "/cross-references",
   getParentRoute: () => rootRouteImport,
 } as any);
 const IndexRoute = IndexRouteImport.update({
@@ -37,12 +43,14 @@ const DevPrimitivesRoute = DevPrimitivesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
+  "/cross-references": typeof CrossReferencesRoute;
   "/dependencies": typeof DependenciesRoute;
   "/xref": typeof XrefRoute;
   "/dev/primitives": typeof DevPrimitivesRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/cross-references": typeof CrossReferencesRoute;
   "/dependencies": typeof DependenciesRoute;
   "/xref": typeof XrefRoute;
   "/dev/primitives": typeof DevPrimitivesRoute;
@@ -50,20 +58,29 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
+  "/cross-references": typeof CrossReferencesRoute;
   "/dependencies": typeof DependenciesRoute;
   "/xref": typeof XrefRoute;
   "/dev/primitives": typeof DevPrimitivesRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/dependencies" | "/xref" | "/dev/primitives";
+  fullPaths:
+    "/" | "/cross-references" | "/dependencies" | "/xref" | "/dev/primitives";
   fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/dependencies" | "/xref" | "/dev/primitives";
-  id: "__root__" | "/" | "/dependencies" | "/xref" | "/dev/primitives";
+  to: "/" | "/cross-references" | "/dependencies" | "/xref" | "/dev/primitives";
+  id:
+    | "__root__"
+    | "/"
+    | "/cross-references"
+    | "/dependencies"
+    | "/xref"
+    | "/dev/primitives";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
+  CrossReferencesRoute: typeof CrossReferencesRoute;
   DependenciesRoute: typeof DependenciesRoute;
   XrefRoute: typeof XrefRoute;
   DevPrimitivesRoute: typeof DevPrimitivesRoute;
@@ -85,6 +102,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DependenciesRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    "/cross-references": {
+      id: "/cross-references";
+      path: "/cross-references";
+      fullPath: "/cross-references";
+      preLoaderRoute: typeof CrossReferencesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     "/": {
       id: "/";
       path: "/";
@@ -104,6 +128,7 @@ declare module "@tanstack/react-router" {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CrossReferencesRoute: CrossReferencesRoute,
   DependenciesRoute: DependenciesRoute,
   XrefRoute: XrefRoute,
   DevPrimitivesRoute: DevPrimitivesRoute,
