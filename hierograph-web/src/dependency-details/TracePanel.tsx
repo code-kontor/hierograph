@@ -31,10 +31,19 @@ export type TracePanelProps = {
   labelFormat: NodeLabelFormat;
   autoExpandSingleChildren: boolean;
   viewMode: TraceViewMode;
+  // Reports whether a driver selection currently exists, so the pane can
+  // enable/disable the Clear Selection control. Refs are not reactive, hence a
+  // callback prop (consistent with onSelectedIdsChange).
+  onSelectionChange?: (hasSelection: boolean) => void;
 };
 
 export type TracePanelHandle = {
   buildSerializeInput: () => SerializeTraceInput;
+  // Drop the driver and clear both trees' selections.
+  clearSelection: () => void;
+  // Expand/collapse both trees (source + target).
+  expandAll: () => void;
+  collapseAll: () => void;
 };
 
 type Driver = { side: TraceSide; ids: string[] } | null;
@@ -119,6 +128,7 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
       labelFormat,
       autoExpandSingleChildren,
       viewMode,
+      onSelectionChange,
     },
     ref,
   ) {
@@ -209,6 +219,12 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
         sourceTreeRef.current?.clearSelection();
     }, [driver?.side, driverIdsKey]);
 
+    // Report driver presence upward so the pane can enable/disable the Clear
+    // Selection control. Refs are not reactive, hence a callback prop.
+    useEffect(() => {
+      onSelectionChange?.(driver != null);
+    }, [driver, onSelectionChange]);
+
     // Stable identities: an inline arrow would re-fire the AsyncTree focus effect
     // (and any effect depending on this callback) on every render and loop.
     const handleSourceFocus = useCallback(
@@ -252,10 +268,21 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
         ? `filter:${counterpartMarksKey}`
         : "full";
 
+    // Reveal the counterpart hits after the (possibly key-remounted) tree is in
+    // place. In-context reveals the marked ancestors; hits-only prunes to just
+    // the survivors, so expandAll opens exactly the hit paths. Gated on
+    // counterpartMarksKey so it re-fires when the marks populate and the filter
+    // side remounts — the internal mount-effect expand is redundant but this
+    // imperative call is the reliable trigger (both are idempotent via Set dedupe).
     useEffect(() => {
-      if (viewMode !== "in-context" || counterpartMarks.length === 0) return;
-      if (sourceIsCounterpart) sourceTreeRef.current?.revealMarked();
-      else if (targetIsCounterpart) targetTreeRef.current?.revealMarked();
+      if (counterpartMarks.length === 0) return;
+      if (viewMode === "in-context") {
+        if (sourceIsCounterpart) sourceTreeRef.current?.revealMarked();
+        else if (targetIsCounterpart) targetTreeRef.current?.revealMarked();
+      } else {
+        if (sourceIsCounterpart) sourceTreeRef.current?.expandAll();
+        else if (targetIsCounterpart) targetTreeRef.current?.expandAll();
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       viewMode,
@@ -336,9 +363,28 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
       statusText: `${traceStatus.summary}${traceStatus.detail}`,
     });
 
-    useImperativeHandle(ref, () => ({ buildSerializeInput }), [
-      buildSerializeInput,
-    ]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        buildSerializeInput,
+        clearSelection() {
+          // Drop the driver AND actively clear both trees — do not rely on the
+          // exclusivity effect, which only clears the passive side.
+          setDriver(null);
+          sourceTreeRef.current?.clearSelection();
+          targetTreeRef.current?.clearSelection();
+        },
+        expandAll() {
+          sourceTreeRef.current?.expandAll();
+          targetTreeRef.current?.expandAll();
+        },
+        collapseAll() {
+          sourceTreeRef.current?.collapseAll();
+          targetTreeRef.current?.collapseAll();
+        },
+      }),
+      [buildSerializeInput, setDriver],
+    );
 
     if (sourceRootPending || targetRootPending) {
       return (
