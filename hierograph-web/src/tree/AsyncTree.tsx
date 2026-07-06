@@ -48,6 +48,11 @@ export type AsyncTreeProps = {
 export type AsyncTreeHandle = {
   // Expand every marked ancestor folder so all marked rows become visible.
   revealMarked: () => void;
+  // Expand every folder in the tree (unbounded BFS). In filter mode only the
+  // surviving hit paths exist, so this expands exactly those.
+  expandAll: () => void;
+  // Collapse the whole tree back to the root level.
+  collapseAll: () => void;
   // Clear this tree's selection from the outside (e.g. an exclusive-driver
   // model on another tree taking over).
   clearSelection: () => void;
@@ -220,10 +225,12 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       }
     }, [effectiveLoadChildren, rootNode.id]);
 
-    // Filter-mode init: expand every surviving folder (all survivors are hit
-    // paths, so all should open). Mirrors revealMarked's BFS but is unconditional
-    // on the survivors rather than gated on markedSet.
-    const expandAllFiltered = useCallback(async () => {
+    // Expand every folder in the tree via unbounded BFS. Filter-agnostic: it
+    // drills through effectiveLoadChildren, so in filter mode only the surviving
+    // hit paths exist and it opens exactly those, while unfiltered it opens the
+    // whole tree. Unbounded: loads each level's children; consistent with
+    // revealMarked. A node/depth guardrail for very large trees is a follow-up.
+    const expandAllFolders = useCallback(async () => {
       const toExpand: string[] = [];
       const queue: string[] = [rootNode.id];
       while (queue.length > 0) {
@@ -379,6 +386,12 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
         revealMarked() {
           revealMarked().catch(console.error);
         },
+        expandAll() {
+          expandAllFolders().catch(console.error);
+        },
+        collapseAll() {
+          setState((prev) => ({ ...prev, expandedItems: [] }));
+        },
         clearSelection() {
           tree.setSelectedItems([]);
         },
@@ -392,7 +405,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             });
         },
       }),
-      [revealMarked, tree, rootNode.id],
+      [revealMarked, expandAllFolders, tree, rootNode.id],
     );
 
     const didAutoExpandRootRef = useRef(false);
@@ -403,7 +416,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       // consumer-side key remount, so the ref resets with the fresh mount and the
       // correct branch runs once.
       const drill = filterSet
-        ? expandAllFiltered
+        ? expandAllFolders
         : autoExpandRootChainOnLoad
           ? autoExpandRootChain
           : null;
@@ -415,7 +428,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
     }, [
       filterSet,
       autoExpandRootChainOnLoad,
-      expandAllFiltered,
+      expandAllFolders,
       autoExpandRootChain,
     ]);
 

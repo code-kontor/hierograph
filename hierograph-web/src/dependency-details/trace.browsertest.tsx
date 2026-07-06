@@ -21,9 +21,15 @@ const BASE_CLASS = "org.hg.fixture.basic.rel.target.BaseClass";
 const TARGET_A = "org.hg.fixture.basic.rel.target.TargetA";
 
 // A second, distinct cell (used to trigger a TracePanel remount via
-// key={cellKey} without re-selecting the same cell).
+// key={cellKey} without re-selecting the same cell). This locations.app→lib
+// cell has real intermediate folders on both sides, so it exercises deep
+// expand/collapse and the hits-only counterpart reveal.
 const SOURCE_ID_2 = resolveNodeId("org.hg.fixture.locations.app");
 const TARGET_ID_2 = resolveNodeId("org.hg.fixture.locations.lib");
+// A first-level source package whose counterparts sit two folders deep on the
+// target side (only package drivers are recorded for this cell — never a type).
+const LOC_DRIVER = "org.hg.fixture.locations.app.batch";
+const DEEP_COUNTERPART = "org.hg.fixture.locations.lib.order.detail.OrderLine";
 
 function SelectCellButton() {
   const { setCellSelection } = useSelection();
@@ -65,6 +71,25 @@ async function renderTraceTab() {
 
   await userEvent.click(page.getByText("select-cell", { exact: true }));
   await userEvent.click(page.getByRole("tab", { name: "Trace" }));
+}
+
+// The deep locations.app→lib cell, used for expand/collapse and hits-only
+// reveal assertions on genuinely nested folders.
+async function renderTraceTabDeepCell() {
+  await renderWithQueryClient(
+    <SelectionProvider>
+      <SelectCellButton />
+      <SelectOtherCellButton />
+      <DependencyDetailsPane />
+    </SelectionProvider>,
+  );
+
+  await userEvent.click(page.getByText("select-cell-2"));
+  await userEvent.click(page.getByRole("tab", { name: "Trace" }));
+
+  // The dev-only NodeDetailsWidget floats over the narrow test viewport and can
+  // overlap deep tree rows; dismiss it (Escape) so clicks land on the tree.
+  await userEvent.keyboard("{Escape}");
 }
 
 // The force-mounted "Locations" tab renders the very same fqn text in its own
@@ -204,5 +229,47 @@ describe("Trace tab", () => {
     await expect
       .element(page.getByRole("button", { name: "Show hits only" }))
       .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("clear selection drops the driver and both selections", async () => {
+    await renderTraceTab();
+
+    const clear = page.getByRole("button", { name: "Clear selection" });
+    await expect.element(clear).toBeDisabled(); // nothing selected yet
+
+    await userEvent.click(sourceRow(SUB_CLASS));
+    await expect.element(clear).toBeEnabled();
+
+    await userEvent.click(clear);
+    await expect
+      .element(page.getByTestId("trace-status"))
+      .toHaveTextContent("Select a type"); // back to idle status
+    expect(rowClassName(sourceRow(SUB_CLASS))).not.toContain(
+      "text-state-selected-fg",
+    );
+    await expect.element(clear).toBeDisabled();
+  });
+
+  it("expand all / collapse all act on both trees", async () => {
+    await renderTraceTabDeepCell();
+
+    await userEvent.click(page.getByRole("button", { name: "Expand all" }));
+    await expect.element(targetRow(DEEP_COUNTERPART)).toBeVisible();
+
+    await userEvent.click(page.getByRole("button", { name: "Collapse all" }));
+    await expect.element(targetRow(DEEP_COUNTERPART)).not.toBeInTheDocument();
+  });
+
+  it("hits-only reveals a deeply nested counterpart", async () => {
+    await renderTraceTabDeepCell();
+
+    // Enable hits-only BEFORE selecting a driver, so selecting drives the async
+    // marks → key-remount path that must still leave the counterpart expanded.
+    await userEvent.click(page.getByRole("button", { name: "Show hits only" }));
+    await userEvent.click(sourceRow(LOC_DRIVER)); // package driver app.batch
+
+    // OrderLine sits two folders deep (lib → order → detail); it must be
+    // expanded into view, not left collapsed behind its ancestors.
+    await expect.element(targetRow(DEEP_COUNTERPART)).toBeVisible();
   });
 });

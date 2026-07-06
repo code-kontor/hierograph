@@ -1,5 +1,11 @@
-import { Filter, ListFilter } from "lucide-react";
-import { type RefObject, useRef, useState } from "react";
+import {
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Filter,
+  ListFilter,
+  X,
+} from "lucide-react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -162,15 +168,45 @@ type TraceControlsProps = {
   viewMode: TraceViewMode;
   setViewMode: (value: TraceViewMode) => void;
   traceRef: RefObject<TracePanelHandle | null>;
+  hasSelection: boolean;
 };
 
 function TraceControls({
   viewMode,
   setViewMode,
   traceRef,
+  hasSelection,
 }: TraceControlsProps) {
   return (
     <div className="ml-auto flex items-center gap-1">
+      <button
+        type="button"
+        title="Clear selection"
+        disabled={!hasSelection}
+        onClick={() => traceRef.current?.clearSelection()}
+        className={twMerge(
+          ghostIconTriggerClassName,
+          !hasSelection && "cursor-not-allowed opacity-40",
+        )}
+      >
+        <X className="size-4" />
+      </button>
+      <button
+        type="button"
+        title="Expand all"
+        onClick={() => traceRef.current?.expandAll()}
+        className={ghostIconTriggerClassName}
+      >
+        <ChevronsUpDown className="size-4" />
+      </button>
+      <button
+        type="button"
+        title="Collapse all"
+        onClick={() => traceRef.current?.collapseAll()}
+        className={ghostIconTriggerClassName}
+      >
+        <ChevronsDownUp className="size-4" />
+      </button>
       <button
         type="button"
         aria-pressed={viewMode === "hits-only"}
@@ -228,6 +264,14 @@ export function DependencyDetailsPane() {
   const viewMode = normalizeTraceViewMode(storedViewMode);
   const setViewMode = (value: TraceViewMode) => setStoredViewMode(value);
   const traceRef = useRef<TracePanelHandle>(null);
+
+  // Mirrors the trace panel's driver presence so the Clear Selection control
+  // can disable when nothing is selected.
+  const [traceHasSelection, setTraceHasSelection] = useState(false);
+  const handleTraceSelectionChange = useCallback(
+    (hasSelection: boolean) => setTraceHasSelection(hasSelection),
+    [],
+  );
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
@@ -297,6 +341,7 @@ export function DependencyDetailsPane() {
                   viewMode={viewMode}
                   setViewMode={setViewMode}
                   traceRef={traceRef}
+                  hasSelection={traceHasSelection}
                 />
               )}
             </div>
@@ -343,6 +388,7 @@ export function DependencyDetailsPane() {
                 labelFormat={labelFormat}
                 autoExpandSingleChildren={autoExpandSingleChildren}
                 viewMode={viewMode}
+                onSelectionChange={handleTraceSelectionChange}
               />
             </TabsContent>
           </>
