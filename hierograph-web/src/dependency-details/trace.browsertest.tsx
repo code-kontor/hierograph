@@ -103,6 +103,14 @@ describe("Trace tab", () => {
     await expect
       .element(page.getByTestId("trace-status"))
       .toHaveTextContent("→");
+    const statusSummary = page
+      .getByTestId("trace-status")
+      .element()
+      .querySelector("span > span");
+    expect(statusSummary?.className).toContain("font-medium");
+    expect(
+      page.getByTestId("trace-status").element().querySelector("span")?.title,
+    ).toMatch(/depends on/);
   });
 
   it("is exclusive: driving from the target side clears the source selection", async () => {
