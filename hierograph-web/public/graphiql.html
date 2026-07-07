@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GraphiQL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://esm.sh/graphiql@5.2.1/dist/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://esm.sh/@graphiql/plugin-explorer@5.1.1/dist/style.css"
+    />
+    <style>
+      body {
+        margin: 0;
+      }
+      #graphiql {
+        height: 100vh;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@19.1.0",
+          "react-dom/client": "https://esm.sh/react-dom@19.1.0/client",
+          "graphiql": "https://esm.sh/graphiql@5.2.1?external=react,react-dom",
+          "@graphiql/toolkit": "https://esm.sh/@graphiql/toolkit@0.11.3?external=react,react-dom",
+          "@graphiql/plugin-explorer": "https://esm.sh/@graphiql/plugin-explorer@5.1.1?external=react,react-dom",
+          "graphql": "https://esm.sh/graphql@16.11.0"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="graphiql">Loading GraphiQL...</div>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import { GraphiQL } from "graphiql";
+      import { createGraphiQLFetcher } from "@graphiql/toolkit";
+      import { explorerPlugin } from "@graphiql/plugin-explorer";
+
+      const params = new URLSearchParams(location.search);
+      const query = params.get("query") ?? "";
+      const variables = params.get("variables") ?? "";
+      const endpoint = params.get("endpoint") ?? "/graphql";
+
+      const fetcher = createGraphiQLFetcher({
+        url: new URL(endpoint, location.href).toString(),
+      });
+
+      const root = createRoot(document.getElementById("graphiql"));
+      root.render(
+        React.createElement(GraphiQL, {
+          fetcher,
+          initialQuery: query,
+          initialVariables: variables,
+          plugins: [explorerPlugin()],
+        }),
+      );
+    </script>
+  </body>
+</html>
