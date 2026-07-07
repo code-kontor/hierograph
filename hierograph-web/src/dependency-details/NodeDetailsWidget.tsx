@@ -4,12 +4,19 @@ import { createElement, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/design-system/cn";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/design-system/ui/tabs";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { NodePropertyRow } from "./NodePropertyRow";
+import { QueryLogPanel } from "./QueryLogPanel";
 
 const WIDGET_WIDTH = 384;
 const PRIORITY_KEYS = ["fqn", "sourceFileName", "valid", "visibility"] as const;
@@ -238,12 +245,21 @@ export function NodeDetailsWidget() {
       </div>
       {/* Content */}
       {!collapsed && (
-        <>
-          <NodeDetailsWidgetBody id={focusedId} />
+        <Tabs defaultValue="details">
+          <TabsList className="border-border border-b">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="queries">Queries</TabsTrigger>
+          </TabsList>
+          <TabsContent value="details">
+            <NodeDetailsWidgetBody id={focusedId} />
+          </TabsContent>
+          <TabsContent value="queries">
+            <QueryLogPanel />
+          </TabsContent>
           <div className="text-fg-subtle border-border border-t px-4 py-2 font-mono text-[10.5px]">
             Dev-only · reflects tree focus · toggled in code
           </div>
-        </>
+        </Tabs>
       )}
     </div>,
     document.body,

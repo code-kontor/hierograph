@@ -1,5 +1,9 @@
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
+import { getOperationAST, print } from "graphql";
 import { GraphQLClient } from "graphql-request";
+
+import { recordQuery } from "@/graphql/devQueryLog";
+import { triggerForOperation } from "@/graphql/queryTriggerLabels";
 
 // graphql-request v7 passes the endpoint to `new URL(...)` — a relative path
 // like "/graphql" is not a valid URL without a base. So resolve it against the
@@ -12,6 +16,15 @@ export async function execute<TResult, TVariables extends object>(
   document: TypedDocumentNode<TResult, TVariables>,
   ...[variables]: TVariables extends Record<string, never> ? [] : [TVariables]
 ): Promise<TResult> {
+  if (import.meta.env.DEV) {
+    const operationName = getOperationAST(document)?.name?.value ?? null;
+    recordQuery({
+      operationName: operationName ?? "unknown",
+      queryText: print(document),
+      variables,
+      trigger: triggerForOperation(operationName),
+    });
+  }
   return graphqlClient.request(
     document as TypedDocumentNode<TResult, object>,
     variables as object,
