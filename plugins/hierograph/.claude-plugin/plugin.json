@@ -6,8 +6,8 @@
     "name": "Gerd Wuetherich",
     "email": "gerd.wuetherich@code-kontor.io"
   },
-  "homepage": "https://github.com/code-kontor/io.hierograph",
-  "repository": "https://github.com/code-kontor/io.hierograph",
+  "homepage": "https://github.com/code-kontor/hierograph",
+  "repository": "https://github.com/code-kontor/hierograph",
   "license": "Apache-2.0",
   "keywords": [
     "jqassistant",

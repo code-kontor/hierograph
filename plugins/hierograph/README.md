@@ -17,7 +17,7 @@ The plugin is published from a marketplace hosted in this repo.
 
 ```bash
 # 1. Add the marketplace (once). Use the repo's GitHub slug or its git URL.
-/plugin marketplace add code-kontor/io.hierograph
+/plugin marketplace add code-kontor/hierograph
 
 # 2. Install the plugin.
 /plugin install hierograph@code-kontor
