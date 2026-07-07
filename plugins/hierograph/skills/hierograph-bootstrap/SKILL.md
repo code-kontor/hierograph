@@ -96,6 +96,39 @@ implement them, but verify them if you deviate:
 
 ## The procedure
 
+### Run commands so they don't stall on approval
+
+Run every command below as a **single, plain invocation, exactly as written**. The harness cannot
+statically verify commands that contain shell expansions or chaining, so those force a manual
+permission prompt *every time* — regardless of any allowlist — which stalls an otherwise unattended
+setup. Do **not**:
+
+- use shell expansions or command substitution — `${PIPESTATUS[0]}`, `$(...)`, `` `…` ``, `$VAR`
+  arithmetic;
+- chain with `;`, `&&`, or `||`;
+- pipe into `tail`/`grep`/`head` or redirect with `2>&1 | …` just to trim output;
+- pass quoted brace/template arguments — `docker ps --format '{{.Names}}'`,
+  `docker inspect -f '{{…}}'` — the quoted `{{ }}` reads as expansion obfuscation and always
+  prompts; use the command's plain default output instead;
+- write polling loops to wait for something — `for i in $(seq 1 20); do … sleep 2; done`,
+  `while … do sleep`. These bundle substitution + chaining and always prompt.
+
+Run the action, then **verify in a separate command**. Two examples of what *not* to do, and the
+fix:
+
+- Scan: not `mvn … -Pjqassistant 2>&1 | tail -8; echo "EXIT=${PIPESTATUS[0]}"; ls -d .jqassistant-store/data`
+  — run `mvn clean install -Pjqassistant` on its own, then `ls .jqassistant-store` as its own step.
+- Wait for a server: not a `for`/`while` poll over `docker logs … | grep` and `docker ps --format`.
+  Instead run **one plain check** and, if it's not up yet, repeat that single command as a separate
+  step: `docker logs hierograph-mcp` to read status, then `nc -z localhost 8080` (or
+  `curl -s http://localhost:8080/mcp`) as its own command. Because the server runs in the
+  background, the harness also re-invokes you when the process changes state — you rarely need to
+  poll at all.
+
+The only multi-line commands that are fine are ones using plain `\` line-continuation with no
+expansion (e.g. the `docker run …` block in Step 3). Long output is fine — let it scroll rather than
+piping it through a filter.
+
 ### Keep the user informed
 
 This is a multi-minute setup with slow steps (first scan downloads jQAssistant plugins; `docker
@@ -202,33 +235,27 @@ conversation.
 
 ### 5. Verify
 
-Because the client-side tools require a fresh session (Step 4), verify in two stages:
+Because the client-side tools require a fresh session (Step 4), verify in two stages — and **do not
+hand-roll the streamable-HTTP JSON-RPC handshake in bash** (session-id capture via `$(…)`, header
+arrays like `H=(…)` / `"${H[@]}"`, `sed`/`grep`/`awk` pipes). That construct always trips a
+permission prompt and is brittle; prove the pipeline from the server's own signals instead.
 
-**a) In-session smoke test (no reconnect needed)** — hit the MCP endpoint directly over HTTP to
-prove the server can serve the store *now*. Streamable-HTTP needs the `initialize` →
-`notifications/initialized` → `tools/call` handshake, carrying the `Mcp-Session-Id` header the
-server returns:
+**a) In-session smoke test (no reconnect needed)** — two plain commands prove the server is up and
+has loaded the graph from Bolt:
 
-```bash
-URL=http://localhost:8080/mcp
-H=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream')
-SID=$(curl -s -D - -o /dev/null -X POST "$URL" "${H[@]}" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1"}}}' \
-  | grep -i 'mcp-session-id' | tr -d '\r' | awk '{print $2}')
-curl -s -X POST "$URL" -H "Mcp-Session-Id: $SID" "${H[@]}" \
-  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' >/dev/null
-curl -s -X POST "$URL" -H "Mcp-Session-Id: $SID" "${H[@]}" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"graph_overview","arguments":{}}}' \
-  | sed 's/^data: //' | grep '^{'
-```
+- `nc -z localhost 8080` — confirms the MCP server is listening (or `curl -s http://localhost:8080/mcp`
+  as a single command; a `400/406` still proves it's reachable).
+- `docker logs hierograph-mcp` — on startup the server connects to Bolt and loads the hierarchical
+  model; look for the model-load / node-count line and the **absence** of Bolt-connection errors.
+  That confirms scan → store → Bolt → MCP end to end. (For a source run, read the `spring-boot:run`
+  console instead.) An empty model or a Bolt error means the store is empty or the MCP server can't
+  reach Bolt — recheck the scan (Step 2) and the Bolt URI (Step 3).
 
-A JSON result with a `stats` block (node counts by kind) means scan → store → Bolt → MCP is wired
-end to end. An error or empty hierarchy means the store is empty or the MCP server can't reach Bolt
-— recheck the scan (Step 2) and the Bolt URI (Step 3).
-
-**b) Client verification (after reconnect)** — in a fresh session, the client lists a `hierograph`
-server with tools (`graph_overview`, `find_node`, `pairwise_dependencies`, …); calling
-`graph_overview()` returns the same stats.
+**b) Functional verification (after reconnect)** — the real check is a **tool call, not curl**: in a
+fresh session the client lists a `hierograph` server (`graph_overview`, `find_node`,
+`pairwise_dependencies`, …); call `graph_overview` directly and confirm it returns a `stats` block
+(node counts by kind). If you ever must exercise the HTTP endpoint before a client is connected, use
+a purpose-built MCP client rather than a bash handshake.
 
 Report what is running (both servers, ports, store path), that a new session is needed before the
 tools are usable, and how to re-scan after code changes (the sub-skill's scan command).
