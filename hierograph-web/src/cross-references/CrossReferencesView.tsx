@@ -40,7 +40,6 @@ export function CrossReferencesView({ settings }: CrossReferencesViewProps) {
     () => (subjectKey ? subjectKey.split(",") : []),
     [subjectKey],
   );
-  const subjectSet = useMemo(() => new Set(subjectIds), [subjectKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasSubject = subjectKey.length > 0;
 
   const {
@@ -59,29 +58,20 @@ export function CrossReferencesView({ settings }: CrossReferencesViewProps) {
       const nodes =
         result.hierarchicalGraph?.node?.childrenFilteredByReferencedNodes
           .nodes ?? [];
-      // E2: drop set members as partners at every level so set-internal edges
-      // never surface (and we never descend into a member's internals).
-      // Known limitation: an ancestor-container of set members may appear as a
-      // partner with a contaminated aggregate weight, because the API aggregates
-      // internal+external edges at container level and offers no exclusion
-      // argument. Follow-up task: add excludingNodeIds to childrenFilteredBy* /
-      // dependenciesTo/From or a set-aware net-weight field.
-      return nodes
-        .filter((n) => !subjectSet.has(n.id))
-        .map((n) => ({
-          id: n.id,
-          text: n.text,
-          type: n.type,
-          hasChildren: n.hasChildren,
-          // Empty dependenciesTo → omit weight so "no data" differs from weight 0
-          weight:
-            n.dependenciesTo.length > 0
-              ? n.dependenciesTo.reduce((sum, d) => sum + d.weight, 0)
-              : undefined,
-        }));
+      return nodes.map((n) => ({
+        id: n.id,
+        text: n.text,
+        type: n.type,
+        hasChildren: n.hasChildren,
+        // Empty dependenciesTo → omit weight so "no data" differs from weight 0
+        weight:
+          n.dependenciesTo.length > 0
+            ? n.dependenciesTo.reduce((sum, d) => sum + d.weight, 0)
+            : undefined,
+      }));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queryClient, subjectKey, subjectSet],
+    [queryClient, subjectKey],
   );
 
   const loadUsesChildren = useCallback(
@@ -93,23 +83,20 @@ export function CrossReferencesView({ settings }: CrossReferencesViewProps) {
       const nodes =
         result.hierarchicalGraph?.node?.childrenFilteredByReferencingNodes
           .nodes ?? [];
-      // E2: drop set members as partners (see loadUsedByChildren comment).
-      return nodes
-        .filter((n) => !subjectSet.has(n.id))
-        .map((n) => ({
-          id: n.id,
-          text: n.text,
-          type: n.type,
-          hasChildren: n.hasChildren,
-          // Empty dependenciesFrom → omit weight so "no data" differs from weight 0
-          weight:
-            n.dependenciesFrom.length > 0
-              ? n.dependenciesFrom.reduce((sum, d) => sum + d.weight, 0)
-              : undefined,
-        }));
+      return nodes.map((n) => ({
+        id: n.id,
+        text: n.text,
+        type: n.type,
+        hasChildren: n.hasChildren,
+        // Empty dependenciesFrom → omit weight so "no data" differs from weight 0
+        weight:
+          n.dependenciesFrom.length > 0
+            ? n.dependenciesFrom.reduce((sum, d) => sum + d.weight, 0)
+            : undefined,
+      }));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queryClient, subjectKey, subjectSet],
+    [queryClient, subjectKey],
   );
 
   // E4: only a single-subject end is unambiguous. For a multi-subject set a

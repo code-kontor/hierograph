@@ -60,12 +60,14 @@ class NodeController(private val provider: HierarchicalGraphProvider) {
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencedNodes(
         node: HGNode,
-        @Argument referencedNodeIds: List<String>
+        @Argument referencedNodeIds: List<String>,
+        @Argument excludingNodeIds: List<String>?
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
-        val targetIds = referencedNodeIds.map { it.toLong() }.toSet()
+        val targetSet = expandNodes(hierarchy, referencedNodeIds, NodesToConsider.SELF_AND_SUCCESSORS)
+        val excludeSet = expandNodes(hierarchy, excludingNodeIds ?: emptyList(), NodesToConsider.SELF_AND_SUCCESSORS)
         val filtered = hierarchy.childrenOf(node).filter { child ->
-            hierarchy.accumulatedOutgoing(child).any { it.to.identifier in targetIds }
+            hierarchy.accumulatedOutgoing(child).any { it.to in targetSet && it.from !in excludeSet }
         }
         return NodeSetModel(filtered)
     }
@@ -73,12 +75,14 @@ class NodeController(private val provider: HierarchicalGraphProvider) {
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencingNodes(
         node: HGNode,
-        @Argument referencingNodeIds: List<String>
+        @Argument referencingNodeIds: List<String>,
+        @Argument excludingNodeIds: List<String>?
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
-        val sourceIds = referencingNodeIds.map { it.toLong() }.toSet()
+        val sourceSet = expandNodes(hierarchy, referencingNodeIds, NodesToConsider.SELF_AND_SUCCESSORS)
+        val excludeSet = expandNodes(hierarchy, excludingNodeIds ?: emptyList(), NodesToConsider.SELF_AND_SUCCESSORS)
         val filtered = hierarchy.childrenOf(node).filter { child ->
-            hierarchy.accumulatedIncoming(child).any { it.from.identifier in sourceIds }
+            hierarchy.accumulatedIncoming(child).any { it.from in sourceSet && it.to !in excludeSet }
         }
         return NodeSetModel(filtered)
     }
@@ -90,15 +94,27 @@ class NodeController(private val provider: HierarchicalGraphProvider) {
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<HGCoreDependency> {
-        val targetIds = targetNodes.map { it.toLong() }.toSet()
-        return provider.hierarchy().accumulatedOutgoing(node).filter { it.to.identifier in targetIds }
+    fun dependenciesTo(
+        node: HGNode,
+        @Argument targetNodes: List<String>,
+        @Argument excludingNodeIds: List<String>?
+    ): List<HGCoreDependency> {
+        val hierarchy = provider.hierarchy()
+        val targetSet = expandNodes(hierarchy, targetNodes, NodesToConsider.SELF_AND_SUCCESSORS)
+        val excludeSet = expandNodes(hierarchy, excludingNodeIds ?: emptyList(), NodesToConsider.SELF_AND_SUCCESSORS)
+        return hierarchy.accumulatedOutgoing(node).filter { it.to in targetSet && it.from !in excludeSet }
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<HGCoreDependency> {
-        val sourceIds = sourceNodes.map { it.toLong() }.toSet()
-        return provider.hierarchy().accumulatedIncoming(node).filter { it.from.identifier in sourceIds }
+    fun dependenciesFrom(
+        node: HGNode,
+        @Argument sourceNodes: List<String>,
+        @Argument excludingNodeIds: List<String>?
+    ): List<HGCoreDependency> {
+        val hierarchy = provider.hierarchy()
+        val sourceSet = expandNodes(hierarchy, sourceNodes, NodesToConsider.SELF_AND_SUCCESSORS)
+        val excludeSet = expandNodes(hierarchy, excludingNodeIds ?: emptyList(), NodesToConsider.SELF_AND_SUCCESSORS)
+        return hierarchy.accumulatedIncoming(node).filter { it.from in sourceSet && it.to !in excludeSet }
     }
 
     @SchemaMapping(typeName = "Node")

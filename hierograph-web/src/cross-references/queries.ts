@@ -7,13 +7,19 @@ const crossReferencesUsedByQuery = graphql(`
   query CrossReferencesUsedBy($parentNode: ID!, $subjectIds: [ID!]!) {
     hierarchicalGraph {
       node(id: $parentNode) {
-        childrenFilteredByReferencedNodes(referencedNodeIds: $subjectIds) {
+        childrenFilteredByReferencedNodes(
+          referencedNodeIds: $subjectIds
+          excludingNodeIds: $subjectIds
+        ) {
           nodes {
             id
             text
             type
             hasChildren
-            dependenciesTo(targetNodes: $subjectIds) {
+            dependenciesTo(
+              targetNodes: $subjectIds
+              excludingNodeIds: $subjectIds
+            ) {
               weight
             }
           }
@@ -43,13 +49,19 @@ const crossReferencesUsesQuery = graphql(`
   query CrossReferencesUses($parentNode: ID!, $subjectIds: [ID!]!) {
     hierarchicalGraph {
       node(id: $parentNode) {
-        childrenFilteredByReferencingNodes(referencingNodeIds: $subjectIds) {
+        childrenFilteredByReferencingNodes(
+          referencingNodeIds: $subjectIds
+          excludingNodeIds: $subjectIds
+        ) {
           nodes {
             id
             text
             type
             hasChildren
-            dependenciesFrom(sourceNodes: $subjectIds) {
+            dependenciesFrom(
+              sourceNodes: $subjectIds
+              excludingNodeIds: $subjectIds
+            ) {
               weight
             }
           }

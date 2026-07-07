@@ -84,19 +84,19 @@ type Node {
     children: NodeSet!
 
     #
-    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!): NodeSet!
+    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!, excludingNodeIds: [ID!]): NodeSet!
 
     #
-    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!): NodeSet!
+    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!, excludingNodeIds: [ID!]): NodeSet!
 
     #
     properties: [MapEntry!]!
 
     #
-    dependenciesTo(targetNodes: [ID!]!): [Dependency!]!
+    dependenciesTo(targetNodes: [ID!]!, excludingNodeIds: [ID!]): [Dependency!]!
 
     #
-    dependenciesFrom(sourceNodes: [ID!]!): [Dependency!]!
+    dependenciesFrom(sourceNodes: [ID!]!, excludingNodeIds: [ID!]): [Dependency!]!
 
     #
     referencedNodes(includePredecessors: Boolean): NodeSet!
