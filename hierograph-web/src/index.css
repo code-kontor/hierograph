@@ -66,12 +66,11 @@
     0.55 0.17 256
   ); /* #1c6fd2  2px inset focus ring */
   --hg-state-marked-bg: oklch(
-    0.925 0.072 82
-  ); /* #ffe2b0  cross-ref marked fill */
-  --hg-state-marked-fg: oklch(0.46 0.09 68); /* #794d15  marked text */
-  --hg-state-marked-bar: oklch(
-    0.74 0.13 78
-  ); /* #d7a03d  3px left bar on marks */
+    0.969 0.006 250
+  ); /* #f1f3f5  cross-ref "referenced" wash — calm blue-gray (replaced the old amber fill, which read as a warning block when many rows matched) */
+  --hg-state-marked-dot: oklch(
+    0.62 0.055 256
+  ); /* #7d91b2  6px dot marker in the row gutter of referenced rows (replaced the old amber left bar) */
 
   /* ---- Status ---- */
   --hg-status-info: oklch(0.55 0.15 256); /* #2d71c7 */
@@ -163,8 +162,7 @@
   --color-state-selected-bar: var(--hg-state-selected-bar);
   --color-state-focus-ring: var(--hg-state-focus-ring);
   --color-state-marked-bg: var(--hg-state-marked-bg);
-  --color-state-marked-fg: var(--hg-state-marked-fg);
-  --color-state-marked-bar: var(--hg-state-marked-bar);
+  --color-state-marked-dot: var(--hg-state-marked-dot);
   --color-status-info: var(--hg-status-info);
   --color-status-info-bg: var(--hg-status-info-bg);
   --color-status-success: var(--hg-status-success);
