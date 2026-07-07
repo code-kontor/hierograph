@@ -68,12 +68,16 @@ class NodeController(
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencedNodes(
         node: HGNode,
-        @Argument referencedNodeIds: List<String>
+        @Argument referencedNodeIds: List<String>,
+        @Argument excludingNodeIds: List<String>? = null
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
         val targets = resolveIds(hierarchy, referencedNodeIds)
+        val excludes = resolveIds(hierarchy, excludingNodeIds.orEmpty())
         val filtered = hierarchy.childrenOf(node).filter { child ->
-            hierarchy.accumulatedOutgoing(child).any { isWithin(hierarchy, it.to, targets) }
+            hierarchy.accumulatedOutgoing(child).any {
+                isWithin(hierarchy, it.to, targets) && !isWithin(hierarchy, it.from, excludes)
+            }
         }
         return NodeSetModel(filtered)
     }
@@ -81,12 +85,16 @@ class NodeController(
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencingNodes(
         node: HGNode,
-        @Argument referencingNodeIds: List<String>
+        @Argument referencingNodeIds: List<String>,
+        @Argument excludingNodeIds: List<String>? = null
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
         val sources = resolveIds(hierarchy, referencingNodeIds)
+        val excludes = resolveIds(hierarchy, excludingNodeIds.orEmpty())
         val filtered = hierarchy.childrenOf(node).filter { child ->
-            hierarchy.accumulatedIncoming(child).any { isWithin(hierarchy, it.from, sources) }
+            hierarchy.accumulatedIncoming(child).any {
+                isWithin(hierarchy, it.from, sources) && !isWithin(hierarchy, it.to, excludes)
+            }
         }
         return NodeSetModel(filtered)
     }
@@ -107,17 +115,31 @@ class NodeController(
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<HGCoreDependency> {
+    fun dependenciesTo(
+        node: HGNode,
+        @Argument targetNodes: List<String>,
+        @Argument excludingNodeIds: List<String>? = null
+    ): List<HGCoreDependency> {
         val hierarchy = provider.hierarchy()
         val targets = resolveIds(hierarchy, targetNodes)
-        return hierarchy.accumulatedOutgoing(node).filter { isWithin(hierarchy, it.to, targets) }
+        val excludes = resolveIds(hierarchy, excludingNodeIds.orEmpty())
+        return hierarchy.accumulatedOutgoing(node).filter {
+            isWithin(hierarchy, it.to, targets) && !isWithin(hierarchy, it.from, excludes)
+        }
     }
 
     @SchemaMapping(typeName = "Node")
-    fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<HGCoreDependency> {
+    fun dependenciesFrom(
+        node: HGNode,
+        @Argument sourceNodes: List<String>,
+        @Argument excludingNodeIds: List<String>? = null
+    ): List<HGCoreDependency> {
         val hierarchy = provider.hierarchy()
         val sources = resolveIds(hierarchy, sourceNodes)
-        return hierarchy.accumulatedIncoming(node).filter { isWithin(hierarchy, it.from, sources) }
+        val excludes = resolveIds(hierarchy, excludingNodeIds.orEmpty())
+        return hierarchy.accumulatedIncoming(node).filter {
+            isWithin(hierarchy, it.from, sources) && !isWithin(hierarchy, it.to, excludes)
+        }
     }
 
     @SchemaMapping(typeName = "Node")

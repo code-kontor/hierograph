@@ -133,10 +133,10 @@ type Node {
     children: NodeSet!
 
     "The children whose subtree depends on the subtree of at least one of the given nodes."
-    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!): NodeSet!
+    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!, excludingNodeIds: [ID!]): NodeSet!
 
     "The children whose subtree is depended on by the subtree of at least one of the given nodes."
-    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!): NodeSet!
+    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!, excludingNodeIds: [ID!]): NodeSet!
 
     """
     Key-value facts about the node (`fqn`, `name`, `kind`, counts, modifiers, source file, …). Resolved in
@@ -145,10 +145,10 @@ type Node {
     properties: [MapEntry!]!
 
     "The dependencies from this subtree into the subtree of one of the given nodes."
-    dependenciesTo(targetNodes: [ID!]!): [Dependency!]!
+    dependenciesTo(targetNodes: [ID!]!, excludingNodeIds: [ID!]): [Dependency!]!
 
     "The dependencies into this subtree from the subtree of one of the given nodes."
-    dependenciesFrom(sourceNodes: [ID!]!): [Dependency!]!
+    dependenciesFrom(sourceNodes: [ID!]!, excludingNodeIds: [ID!]): [Dependency!]!
 
     """
     The nodes this subtree depends on, leaving out its own subtree. With `includePredecessors`, each
