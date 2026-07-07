@@ -113,6 +113,12 @@ setup. Do **not**:
 - write polling loops to wait for something — `for i in $(seq 1 20); do … sleep 2; done`,
   `while … do sleep`. These bundle substitution + chaining and always prompt.
 
+**Inspect files with the file tools, not Bash.** Use Read / List / Glob to look at `pom.xml`,
+`build.gradle`, `target/`, `.jqassistant-store/`, etc. — they never prompt. Don't reach for
+`head`/`cat`/`ls`/`tail` in a shell (and never bundle several with `;`, e.g.
+`head -60 pom.xml; ls target/; docker --version`). Reserve Bash for things only a shell can do —
+builds, servers, `java -version`, `docker --version` — each as its own single command.
+
 Run the action, then **verify in a separate command**. Two examples of what *not* to do, and the
 fix:
 
