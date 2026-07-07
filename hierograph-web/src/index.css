@@ -65,12 +65,9 @@
   --hg-state-focus-ring: oklch(
     0.55 0.17 256
   ); /* #1c6fd2  2px inset focus ring */
-  --hg-state-marked-bg: oklch(
-    0.969 0.006 250
-  ); /* #f1f3f5  cross-ref "referenced" wash — calm blue-gray (replaced the old amber fill, which read as a warning block when many rows matched) */
-  --hg-state-marked-dot: oklch(
-    0.62 0.055 256
-  ); /* #7d91b2  6px dot marker in the row gutter of referenced rows (replaced the old amber left bar) */
+  --hg-state-related-bg: oklch(
+    0.972 0.002 260
+  ); /* #f6f6f7  cross-ref "related" fill — very light neutral gray, paired with bold text. Derived highlight: nodes referenced by the current selection. Renamed from 'marked'; replaced the earlier amber (#ffe2b0) / blue-gray (#f1f3f5+dot) treatments that read as warning/heavy blocks. */
 
   /* ---- Status ---- */
   --hg-status-info: oklch(0.55 0.15 256); /* #2d71c7 */
@@ -161,8 +158,7 @@
   --color-state-selected-fg: var(--hg-state-selected-fg);
   --color-state-selected-bar: var(--hg-state-selected-bar);
   --color-state-focus-ring: var(--hg-state-focus-ring);
-  --color-state-marked-bg: var(--hg-state-marked-bg);
-  --color-state-marked-dot: var(--hg-state-marked-dot);
+  --color-state-related-bg: var(--hg-state-related-bg);
   --color-status-info: var(--hg-status-info);
   --color-status-info-bg: var(--hg-status-info-bg);
   --color-status-success: var(--hg-status-success);

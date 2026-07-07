@@ -514,7 +514,9 @@ function TreeRow({
 
   const iconColorClass = isSelected
     ? "text-state-selected-fg"
-    : "text-fg-subtle";
+    : !isSelected && isMarked
+      ? "text-fg-muted"
+      : "text-fg-subtle";
 
   const nodeData = item.getItemData();
   const fullFqn = nodeData.text;
@@ -529,9 +531,10 @@ function TreeRow({
     <div
       {...item.getProps()}
       className={cn(
-        "relative flex h-6 min-w-0 cursor-pointer items-center gap-1.5 rounded-[4px] px-2 select-none",
-        isSelected && "bg-state-selected-bg text-state-selected-fg font-medium",
-        !isSelected && isMarked && "bg-state-marked-bg font-medium",
+        "relative my-px flex h-7 min-w-0 cursor-pointer items-center gap-[7px] rounded-[6px] px-2 select-none",
+        isSelected &&
+          "bg-state-selected-bg text-state-selected-fg font-semibold",
+        !isSelected && isMarked && "bg-state-related-bg font-semibold",
         !isSelected && !isMarked && isHovered && "bg-state-hover",
         isFocused && "ring-state-focus-ring ring-2 ring-inset",
       )}
@@ -565,10 +568,7 @@ function TreeRow({
       }}
     >
       {isSelected && (
-        <span className="bg-state-selected-bar absolute top-0 bottom-0 left-0 w-[3px] rounded-l-[4px]" />
-      )}
-      {!isSelected && isMarked && (
-        <span className="bg-state-marked-dot absolute top-1/2 left-1 size-1.5 -translate-y-1/2 rounded-full" />
+        <span className="bg-state-selected-bar absolute top-0 bottom-0 left-0 w-[3px] rounded-l-[6px]" />
       )}
       <span
         className="h-full shrink-0"
@@ -602,7 +602,7 @@ function TreeRow({
       {createElement(getNodeIcon(nodeData.type), {
         className: cn("size-[15px] shrink-0", iconColorClass),
       })}
-      <span className="min-w-0 flex-1 truncate text-[13px]">
+      <span className="min-w-0 flex-1 truncate text-[13.5px]">
         {displayLabel}
       </span>
       {nodeData.weight != null && (
