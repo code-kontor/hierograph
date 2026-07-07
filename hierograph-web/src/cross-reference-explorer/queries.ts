@@ -82,7 +82,7 @@ const crossReferenceExplorerCenterMarkedByLeftQuery = graphql(`
       nodes(ids: $candidateIds) {
         filterReferencingNodes(
           nodeIds: $selectionIds
-          nodesToConsider: SELF_AND_CHILDREN
+          nodesToConsider: SELF_AND_SUCCESSORS
           includePredecessorsInResult: true
         ) {
           nodeIds
@@ -121,7 +121,7 @@ const crossReferenceExplorerCenterMarkedByRightQuery = graphql(`
       nodes(ids: $candidateIds) {
         filterReferencedNodes(
           nodeIds: $selectionIds
-          nodesToConsider: SELF_AND_CHILDREN
+          nodesToConsider: SELF_AND_SUCCESSORS
           includePredecessorsInResult: true
         ) {
           nodeIds
