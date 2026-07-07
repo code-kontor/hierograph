@@ -1,5 +1,7 @@
-import { useSyncExternalStore } from "react";
+import { ChevronRight } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
 
+import { cn } from "@/design-system/cn";
 import {
   getSnapshot,
   type QueryLogEntry,
@@ -10,6 +12,14 @@ import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
 type QueryLogRowProps = { entry: QueryLogEntry };
 
 function QueryLogRow({ entry }: QueryLogRowProps) {
+  const { variables } = entry;
+  const hasVariables =
+    !!variables &&
+    typeof variables === "object" &&
+    Object.keys(variables as Record<string, unknown>).length > 0;
+
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <div className="border-border flex flex-col gap-1.5 border-b px-4 py-3 text-sm last:border-b-0">
       <div className="flex items-center gap-[9px]">
@@ -23,9 +33,32 @@ function QueryLogRow({ entry }: QueryLogRowProps) {
           {new Date(entry.timestamp).toLocaleTimeString()}
         </span>
       </div>
-      <pre className="bg-panel-header border-border max-h-32 overflow-auto rounded-[6px] border px-2.5 py-2 font-mono text-[11px]">
-        {JSON.stringify(entry.variables ?? {}, null, 2)}
-      </pre>
+      {!hasVariables ? (
+        <span className="text-fg-subtle font-mono text-[11px]">
+          no variables
+        </span>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setIsExpanded((v) => !v)}
+            className="text-fg-subtle hover:text-fg flex w-fit items-center gap-1 font-mono text-[11px]"
+          >
+            <ChevronRight
+              className={cn(
+                "size-[13px] transition-transform duration-[120ms]",
+                isExpanded && "rotate-90",
+              )}
+            />
+            variables
+          </button>
+          {isExpanded && (
+            <pre className="bg-panel-header border-border max-h-32 overflow-auto rounded-[6px] border px-2.5 py-2 font-mono text-[11px]">
+              {JSON.stringify(variables, null, 2)}
+            </pre>
+          )}
+        </>
+      )}
       <a
         href={buildGraphiqlDeepLink(entry.queryText, entry.variables)}
         target="_blank"
