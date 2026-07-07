@@ -1,0 +1,21 @@
+{
+  "name": "hierograph",
+  "description": "Bootstrap and analyze JVM codebases with jQAssistant + the Hierograph MCP server: set a project up for architectural analysis, then render DSMs, detect cycles, and plan extractions.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Gerd Wuetherich",
+    "email": "gerd.wuetherich@code-kontor.io"
+  },
+  "homepage": "https://github.com/code-kontor/io.hierograph",
+  "repository": "https://github.com/code-kontor/io.hierograph",
+  "license": "Apache-2.0",
+  "keywords": [
+    "jqassistant",
+    "hierograph",
+    "architecture",
+    "dependency-analysis",
+    "dsm",
+    "jvm",
+    "mcp"
+  ]
+}

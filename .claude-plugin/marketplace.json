@@ -1,0 +1,20 @@
+{
+  "name": "code-kontor",
+  "description": "Claude Code tooling for Hierograph — bootstrap projects for architectural analysis and query their structure via the Hierograph MCP server.",
+  "owner": {
+    "name": "Gerd Wuetherich",
+    "email": "gerd.wuetherich@code-kontor.io"
+  },
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "hierograph",
+      "source": "./hierograph",
+      "description": "Bootstrap jQAssistant + the Hierograph MCP server against a JVM project, then render DSMs, detect cycles, and plan extractions.",
+      "category": "architecture",
+      "keywords": ["jqassistant", "hierograph", "architecture", "dependency-analysis", "dsm", "jvm", "mcp"]
+    }
+  ]
+}
