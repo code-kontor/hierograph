@@ -19,6 +19,8 @@ import { NodePropertyRow } from "./NodePropertyRow";
 import { QueryLogPanel } from "./QueryLogPanel";
 
 const WIDGET_WIDTH = 384;
+// Keep at least this many px of the widget on screen so title/tabs/footer stay reachable
+const MIN_VISIBLE_HEIGHT = 160;
 const PRIORITY_KEYS = ["fqn", "sourceFileName", "valid", "visibility"] as const;
 
 type NodeDetailsWidgetBodyProps = { id: string | null };
@@ -149,7 +151,10 @@ export function NodeDetailsWidget() {
       );
       const newY = Math.max(
         6,
-        Math.min(dragState.current.origY + dy, window.innerHeight - 6),
+        Math.min(
+          dragState.current.origY + dy,
+          window.innerHeight - MIN_VISIBLE_HEIGHT,
+        ),
       );
       setPos({ x: newX, y: newY });
     }
@@ -192,12 +197,13 @@ export function NodeDetailsWidget() {
   return createPortal(
     <div
       aria-label="NodeDetailsWidget"
-      className="border-border-strong bg-panel overflow-hidden rounded-[8px] border shadow-[var(--hg-shadow-float)]"
+      className="border-border-strong bg-panel flex flex-col overflow-hidden rounded-[8px] border shadow-[var(--hg-shadow-float)]"
       style={{
         position: "fixed",
         left: pos.x,
         top: pos.y,
         width: WIDGET_WIDTH,
+        maxHeight: `calc(100vh - ${pos.y}px - 12px)`,
       }}
     >
       {/* Titlebar */}
@@ -245,18 +251,24 @@ export function NodeDetailsWidget() {
       </div>
       {/* Content */}
       {!collapsed && (
-        <Tabs defaultValue="details">
-          <TabsList className="border-border border-b">
+        <Tabs defaultValue="details" className="min-h-0 flex-1">
+          <TabsList className="border-border shrink-0 border-b">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="queries">Queries</TabsTrigger>
           </TabsList>
-          <TabsContent value="details">
+          <TabsContent
+            value="details"
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
             <NodeDetailsWidgetBody id={focusedId} />
           </TabsContent>
-          <TabsContent value="queries">
+          <TabsContent
+            value="queries"
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
             <QueryLogPanel />
           </TabsContent>
-          <div className="text-fg-subtle border-border border-t px-4 py-2 font-mono text-[10.5px]">
+          <div className="text-fg-subtle border-border shrink-0 border-t px-4 py-2 font-mono text-[10.5px]">
             Dev-only · reflects tree focus · toggled in code
           </div>
         </Tabs>
