@@ -304,8 +304,10 @@ export function CrossReferenceExplorerView({
             </div>
             {showHiddenSelectionHint && (
               <div className="shrink-0 px-2 pt-2">
-                <Message variant="info" title="Selection not visible">
-                  The current selection is filtered and therefore not visible.
+                <Message variant="info" title="Highlighted nodes not visible">
+                  The nodes that use or are used by this selection are in a
+                  collapsed part of the center tree. Expand the center to reveal
+                  them.
                 </Message>
               </div>
             )}
