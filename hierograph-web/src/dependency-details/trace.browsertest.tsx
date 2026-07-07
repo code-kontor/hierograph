@@ -138,7 +138,7 @@ describe("Paths tab", () => {
     // The marked-counterpart query is async; poll rather than assert once.
     await expect
       .poll(() => rowClassName(targetRow(BASE_CLASS)))
-      .toContain("bg-state-marked-bg");
+      .toContain("bg-state-related-bg");
     expect(rowClassName(sourceRow(SUB_CLASS))).toContain(
       "text-state-selected-fg",
     );
@@ -176,7 +176,7 @@ describe("Paths tab", () => {
     // marked-counterpart query is async; poll rather than assert once.
     await expect
       .poll(() => rowClassName(sourceRow(SUB_CLASS)))
-      .toContain("bg-state-marked-bg");
+      .toContain("bg-state-related-bg");
     expect(rowClassName(sourceRow(SUB_CLASS))).not.toContain(
       "text-state-selected-fg",
     );
