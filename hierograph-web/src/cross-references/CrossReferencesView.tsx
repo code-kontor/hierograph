@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRightFromLine, ArrowRightToLine } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -23,6 +24,7 @@ export function CrossReferencesView({ settings }: CrossReferencesViewProps) {
   const {
     selectedIds,
     focusedId,
+    focusedName,
     setFocusedId,
     setFocusedName,
     setCellSelection,
@@ -177,68 +179,94 @@ export function CrossReferencesView({ settings }: CrossReferencesViewProps) {
     );
   }
 
+  const subjectLabel =
+    subjectIds.length === 1
+      ? (focusedName ?? "the selected node")
+      : `the selected set (${subjectIds.length} nodes)`;
+
   const usedBySubHeader = (
-    <p className="text-fg-subtle text-[11px]">
-      Incoming — nodes that depend on{" "}
-      {subjectIds.length > 1 ? "the selected set" : "the selected node"}
-    </p>
+    <div className="space-y-0.5">
+      <p className="text-fg-subtle text-[11px]">Used by {subjectLabel}</p>
+      <p className="text-fg-subtle text-[11px]">
+        # = dependency weight · → = set as subject
+      </p>
+    </div>
   );
 
   const usesSubHeader = (
-    <p className="text-fg-subtle text-[11px]">
-      Outgoing — nodes that{" "}
-      {subjectIds.length > 1
-        ? "the selected set depends on"
-        : "the selected node depends on"}
-    </p>
+    <div className="space-y-0.5">
+      <p className="text-fg-subtle text-[11px]">{subjectLabel} uses</p>
+      <p className="text-fg-subtle text-[11px]">
+        # = dependency weight · → = set as subject
+      </p>
+    </div>
   );
 
   return (
-    <div className="grid h-full grid-cols-2 gap-2">
-      <Pane
-        title="Used by"
-        subHeader={usedBySubHeader}
-        bodyClassName="overflow-auto p-1.5"
-      >
-        {!hasSubject ? (
-          <Message variant="empty" title="No subject selected">
-            Select a node in the hierarchy to see who depends on it.
-          </Message>
-        ) : (
-          <AsyncTree
-            key={subjectKey}
-            rootNode={rootNode}
-            loadChildren={loadUsedByChildren}
-            onSelectedIdsChange={noop}
-            onFocusedIdChange={handleUsedByFocusedIdChange}
-            onPromoteToSubject={handlePromoteToSubject}
-            label="CrossReferencesUsedByTree"
-            settings={settings}
-          />
-        )}
-      </Pane>
-      <Pane
-        title="Uses"
-        subHeader={usesSubHeader}
-        bodyClassName="overflow-auto p-1.5"
-      >
-        {!hasSubject ? (
-          <Message variant="empty" title="No subject selected">
-            Select a node in the hierarchy to see what it depends on.
-          </Message>
-        ) : (
-          <AsyncTree
-            key={subjectKey}
-            rootNode={rootNode}
-            loadChildren={loadUsesChildren}
-            onSelectedIdsChange={noop}
-            onFocusedIdChange={handleUsesFocusedIdChange}
-            onPromoteToSubject={handlePromoteToSubject}
-            label="CrossReferencesUsesTree"
-            settings={settings}
-          />
-        )}
-      </Pane>
+    <div className="flex h-full flex-col gap-2">
+      {hasSubject && (
+        <div className="text-fg-subtle border-border shrink-0 rounded-[8px] border px-3 py-1.5 text-[11px]">
+          Cross references for: {subjectLabel}
+        </div>
+      )}
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-2">
+        <Pane
+          title={
+            <span className="flex items-center gap-1.5">
+              <ArrowRightToLine className="size-[13px]" aria-hidden />
+              Used by
+            </span>
+          }
+          subHeader={usedBySubHeader}
+          bodyClassName="overflow-auto p-1.5"
+        >
+          {!hasSubject ? (
+            <Message variant="empty" title="No subject selected">
+              Select a node in the hierarchy to see who depends on it.
+            </Message>
+          ) : (
+            <AsyncTree
+              key={subjectKey}
+              rootNode={rootNode}
+              loadChildren={loadUsedByChildren}
+              onSelectedIdsChange={noop}
+              onFocusedIdChange={handleUsedByFocusedIdChange}
+              onPromoteToSubject={handlePromoteToSubject}
+              label="CrossReferencesUsedByTree"
+              settings={settings}
+              autoExpandOnLoad="all"
+            />
+          )}
+        </Pane>
+        <Pane
+          title={
+            <span className="flex items-center gap-1.5">
+              <ArrowRightFromLine className="size-[13px]" aria-hidden />
+              Uses
+            </span>
+          }
+          subHeader={usesSubHeader}
+          bodyClassName="overflow-auto p-1.5"
+        >
+          {!hasSubject ? (
+            <Message variant="empty" title="No subject selected">
+              Select a node in the hierarchy to see what it depends on.
+            </Message>
+          ) : (
+            <AsyncTree
+              key={subjectKey}
+              rootNode={rootNode}
+              loadChildren={loadUsesChildren}
+              onSelectedIdsChange={noop}
+              onFocusedIdChange={handleUsesFocusedIdChange}
+              onPromoteToSubject={handlePromoteToSubject}
+              label="CrossReferencesUsesTree"
+              settings={settings}
+              autoExpandOnLoad="all"
+            />
+          )}
+        </Pane>
+      </div>
     </div>
   );
 }

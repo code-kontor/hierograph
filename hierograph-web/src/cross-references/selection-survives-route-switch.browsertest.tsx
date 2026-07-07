@@ -47,5 +47,8 @@ it("selection survives route switch — focusedId visible in CrossReferencesPage
   // NodeDetailsWidget (DEV-only, visible in Vitest browser mode) fetches
   // NodeDetail for focusedId and displays node.text. Polling because the query
   // is async.
-  await expect.poll(() => page.getByText(NODE_FQN).element()).toBeTruthy();
+  const widget = page.getByLabelText("NodeDetailsWidget");
+  await expect
+    .poll(() => widget.getByText(NODE_FQN).first().element())
+    .toBeTruthy();
 });

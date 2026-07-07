@@ -94,7 +94,7 @@ describe("AsyncTree auto-expand root chain on load", () => {
         loadChildren={loadChildren}
         onSelectedIdsChange={onSelectedIdsChange}
         label="root-drill"
-        autoExpandRootChainOnLoad
+        autoExpandOnLoad="root-chain"
         settings={TREE_SETTINGS}
       />,
     );
@@ -120,7 +120,7 @@ describe("AsyncTree auto-expand root chain on load", () => {
         loadChildren={loadChildren}
         onSelectedIdsChange={onSelectedIdsChange}
         label="root-branch"
-        autoExpandRootChainOnLoad
+        autoExpandOnLoad="root-chain"
         settings={TREE_SETTINGS}
       />,
     );

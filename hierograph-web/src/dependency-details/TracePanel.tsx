@@ -468,7 +468,7 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
                 onFocusedIdChange={handleSourceFocus}
                 markedIds={sourceMarkedIds}
                 label="TraceSourceTree"
-                autoExpandRootChainOnLoad
+                autoExpandOnLoad="root-chain"
                 filterIds={sourceFilterIds}
                 settings={{
                   ...DEFAULT_TREE_SETTINGS,
@@ -502,7 +502,7 @@ export const TracePanel = forwardRef<TracePanelHandle, TracePanelProps>(
                 onFocusedIdChange={handleTargetFocus}
                 markedIds={targetMarkedIds}
                 label="TraceTargetTree"
-                autoExpandRootChainOnLoad
+                autoExpandOnLoad="root-chain"
                 filterIds={targetFilterIds}
                 settings={{
                   ...DEFAULT_TREE_SETTINGS,

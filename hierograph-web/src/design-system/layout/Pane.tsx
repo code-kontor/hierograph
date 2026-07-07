@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/design-system/cn";
 
 type PaneProps = {
-  title: string;
+  title: ReactNode;
   toolbar?: ReactNode;
   titleBar?: ReactNode;
   subHeader?: ReactNode;
