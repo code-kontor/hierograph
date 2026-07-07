@@ -47,7 +47,7 @@ export type AsyncTreeProps = {
   markedIds?: string[];
   label: string;
   settings: TreeSettings;
-  autoExpandRootChainOnLoad?: boolean;
+  autoExpandOnLoad?: "root-chain" | "all";
   filterIds?: string[];
 };
 
@@ -78,7 +78,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       markedIds,
       label,
       settings,
-      autoExpandRootChainOnLoad = false,
+      autoExpandOnLoad,
       filterIds,
     },
     ref,
@@ -424,20 +424,17 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       // correct branch runs once.
       const drill = filterSet
         ? expandAllFolders
-        : autoExpandRootChainOnLoad
+        : autoExpandOnLoad === "root-chain"
           ? autoExpandRootChain
-          : null;
+          : autoExpandOnLoad === "all"
+            ? expandAllFolders
+            : null;
       if (!drill) return;
       // Guard against React StrictMode's double effect invocation in dev: the ref
       // survives the mount→unmount→mount cycle, so the drill starts exactly once.
       didAutoExpandRootRef.current = true;
       drill().catch(console.error);
-    }, [
-      filterSet,
-      autoExpandRootChainOnLoad,
-      expandAllFolders,
-      autoExpandRootChain,
-    ]);
+    }, [filterSet, autoExpandOnLoad, expandAllFolders, autoExpandRootChain]);
 
     useEffect(() => {
       onSelectedIdsChange(state.selectedItems ?? []);

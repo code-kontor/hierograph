@@ -184,6 +184,7 @@ export function NodeDetailsWidget() {
 
   return createPortal(
     <div
+      aria-label="NodeDetailsWidget"
       className="border-border-strong bg-panel overflow-hidden rounded-[8px] border shadow-[var(--hg-shadow-float)]"
       style={{
         position: "fixed",

@@ -32,15 +32,28 @@ function SetBetaButton() {
   );
 }
 
-// Simplified MSW responses: return alpha/gamma as direct children of whatever
-// parent is requested. This tests the rendering logic (weight badge) without
-// requiring a running backend to traverse the full hierarchy.
+// Simplified MSW responses: return alpha/gamma as direct children of the root
+// request, and terminate with an empty second level for the partner itself.
+// This tests the rendering logic (weight badge) without requiring a running
+// backend to traverse the full hierarchy, and gives expandAllFolders'
+// unbounded BFS (no visited-set) a terminating tree instead of looping
+// forever on a self-referential parent.
 // TECH-ISSUES: live traversal semantics of dependenciesTo/From for package
 // nodes were not verified against a real store — see plan §E3, §TECH-ISSUES.
 beforeEach(() => {
   worker.use(
-    graphql.query("CrossReferencesUsedBy", () =>
-      HttpResponse.json({
+    graphql.query("CrossReferencesUsedBy", ({ variables }) => {
+      const { parentNode } = variables as { parentNode: string };
+      if (parentNode === ALPHA_ID) {
+        return HttpResponse.json({
+          data: {
+            hierarchicalGraph: {
+              node: { childrenFilteredByReferencedNodes: { nodes: [] } },
+            },
+          },
+        });
+      }
+      return HttpResponse.json({
         data: {
           hierarchicalGraph: {
             node: {
@@ -58,10 +71,20 @@ beforeEach(() => {
             },
           },
         },
-      }),
-    ),
-    graphql.query("CrossReferencesUses", () =>
-      HttpResponse.json({
+      });
+    }),
+    graphql.query("CrossReferencesUses", ({ variables }) => {
+      const { parentNode } = variables as { parentNode: string };
+      if (parentNode === GAMMA_ID) {
+        return HttpResponse.json({
+          data: {
+            hierarchicalGraph: {
+              node: { childrenFilteredByReferencingNodes: { nodes: [] } },
+            },
+          },
+        });
+      }
+      return HttpResponse.json({
         data: {
           hierarchicalGraph: {
             node: {
@@ -79,8 +102,8 @@ beforeEach(() => {
             },
           },
         },
-      }),
-    ),
+      });
+    }),
     graphql.query("CrossReferencesNodePredecessors", ({ variables }) =>
       HttpResponse.json({
         data: {
@@ -137,4 +160,83 @@ it("populated — Used by shows alpha with weight 1, Uses shows gamma with weigh
   const usesTree = page.getByLabelText("CrossReferencesUsesTree");
   await expect.poll(() => usesTree.getByText(GAMMA_FQN).element()).toBeTruthy();
   await expect.poll(() => usesTree.getByText("1").element()).toBeTruthy();
+
+  // Legend and subject-naming sub-header sit outside the tree containers.
+  await expect
+    .poll(() =>
+      page.getByText("# = dependency weight · → = set as subject").elements(),
+    )
+    .toHaveLength(2);
+  await expect
+    .poll(() =>
+      page.getByText(`Used by ${BETA_FQN}`, { exact: false }).element(),
+    )
+    .toBeTruthy();
+  await expect
+    .poll(() =>
+      page.getByText("Cross references for:", { exact: false }).element(),
+    )
+    .toBeTruthy();
+});
+
+it("auto-expands nested partner children on load", async () => {
+  worker.use(
+    graphql.query("CrossReferencesUsedBy", ({ variables }) => {
+      const { parentNode } = variables as { parentNode: string };
+      if (parentNode === ALPHA_ID) {
+        return HttpResponse.json({
+          data: {
+            hierarchicalGraph: {
+              node: {
+                childrenFilteredByReferencedNodes: {
+                  nodes: [
+                    {
+                      id: `${ALPHA_ID}.sub`,
+                      text: "alpha.sub",
+                      type: "java.package",
+                      hasChildren: false,
+                      dependenciesTo: [{ weight: 1 }],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        });
+      }
+      return HttpResponse.json({
+        data: {
+          hierarchicalGraph: {
+            node: {
+              childrenFilteredByReferencedNodes: {
+                nodes: [
+                  {
+                    id: ALPHA_ID,
+                    text: ALPHA_FQN,
+                    type: "java.package",
+                    hasChildren: true,
+                    dependenciesTo: [{ weight: 1 }],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      });
+    }),
+  );
+
+  await renderWithQueryClient(
+    <SelectionProvider>
+      <SetBetaButton />
+      <CrossReferencesPage />
+    </SelectionProvider>,
+  );
+
+  await userEvent.click(page.getByText("set-beta"));
+
+  const usedByTree = page.getByLabelText("CrossReferencesUsedByTree");
+  await expect
+    .poll(() => usedByTree.getByText("alpha.sub", { exact: true }).element())
+    .toBeTruthy();
 });
