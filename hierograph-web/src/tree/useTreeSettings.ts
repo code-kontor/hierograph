@@ -29,7 +29,7 @@ export type UseTreeSettingsResult = {
 } & TreeSettingsControls;
 
 export const DEFAULT_TREE_SETTINGS: TreeSettings = {
-  showIndentGuides: true,
+  showIndentGuides: false,
   autoExpandSingleChildren: false,
   preserveSelectionOnCollapse: false,
   labelFormat: "full",
