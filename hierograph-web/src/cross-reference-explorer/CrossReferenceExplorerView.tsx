@@ -277,12 +277,12 @@ export function CrossReferenceExplorerView({
           {/* Left column */}
           <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
             <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
-              Left · references <span className="text-fg-muted">→ center</span>
+              Used by
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-1.5">
               {centerSelectedIds.length === 0 ? (
-                <Message variant="empty" title="No center selection">
-                  Select a node in the center tree to see references.
+                <Message variant="empty" title="No node selected">
+                  Select a node in the center tree to see what uses it.
                 </Message>
               ) : (
                 <AsyncTree
@@ -324,13 +324,12 @@ export function CrossReferenceExplorerView({
           {/* Right column */}
           <div className="flex min-w-0 flex-col overflow-auto">
             <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
-              Right · referenced by{" "}
-              <span className="text-fg-muted">← center</span>
+              Uses
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-1.5">
               {centerSelectedIds.length === 0 ? (
-                <Message variant="empty" title="No center selection">
-                  Select a node in the center tree to see references.
+                <Message variant="empty" title="No node selected">
+                  Select a node in the center tree to see what it uses.
                 </Message>
               ) : (
                 <AsyncTree
