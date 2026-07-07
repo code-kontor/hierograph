@@ -514,9 +514,7 @@ function TreeRow({
 
   const iconColorClass = isSelected
     ? "text-state-selected-fg"
-    : !isSelected && isMarked
-      ? "text-state-marked-fg"
-      : "text-fg-subtle";
+    : "text-fg-subtle";
 
   const nodeData = item.getItemData();
   const fullFqn = nodeData.text;
@@ -533,9 +531,7 @@ function TreeRow({
       className={cn(
         "relative flex h-6 min-w-0 cursor-pointer items-center gap-1.5 rounded-[4px] px-2 select-none",
         isSelected && "bg-state-selected-bg text-state-selected-fg font-medium",
-        !isSelected &&
-          isMarked &&
-          "bg-state-marked-bg text-state-marked-fg font-medium",
+        !isSelected && isMarked && "bg-state-marked-bg font-medium",
         !isSelected && !isMarked && isHovered && "bg-state-hover",
         isFocused && "ring-state-focus-ring ring-2 ring-inset",
       )}
@@ -568,13 +564,11 @@ function TreeRow({
         onHoveredIdChange?.(undefined);
       }}
     >
-      {(isSelected || (!isSelected && isMarked)) && (
-        <span
-          className={cn(
-            "absolute top-0 bottom-0 left-0 w-[3px] rounded-l-[4px]",
-            isSelected ? "bg-state-selected-bar" : "bg-state-marked-bar",
-          )}
-        />
+      {isSelected && (
+        <span className="bg-state-selected-bar absolute top-0 bottom-0 left-0 w-[3px] rounded-l-[4px]" />
+      )}
+      {!isSelected && isMarked && (
+        <span className="bg-state-marked-dot absolute top-1/2 left-1 size-1.5 -translate-y-1/2 rounded-full" />
       )}
       <span
         className="h-full shrink-0"
