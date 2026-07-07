@@ -1,6 +1,25 @@
 ---
 name: hierograph-bootstrap
 description: Set a JVM project up for architectural analysis with jQAssistant + the Hierograph MCP server — scan the project into an embedded Neo4j store, start the jQAssistant Bolt server and the Hierograph MCP server, and register the server with the MCP client. Handles the three project "shapes" — Maven, Gradle, and plain JARs / a classes directory (no build tool) — each via its own scan sub-skill. Trigger when the user says "bootstrap hierograph", "set up hierograph for this project", "get this project ready for hierograph", "set up jqassistant", "wire up the hierograph MCP server", "scan this project for dependency analysis", or "I want to analyze this codebase's architecture" (and hierograph is not yet running). Do NOT use once the hierograph MCP tools are already available — then just query them (see hierograph-dsm / hierograph-extract); this skill only performs first-time setup.
+allowed-tools:
+  - Bash(java -version)
+  - Bash(mvn:*)
+  - Bash(./mvnw:*)
+  - Bash(gradle:*)
+  - Bash(./gradlew:*)
+  - Bash(nc -z:*)
+  - Bash(curl:*)
+  - Bash(sed:*)
+  - Bash(docker run:*)
+  - Bash(docker logs:*)
+  - Bash(docker ps:*)
+  - Bash(docker stop:*)
+  - Bash(docker pull:*)
+  - Bash(docker login:*)
+  - Bash(docker version:*)
+  - Bash(claude mcp add:*)
+  - Bash(claude mcp list:*)
+  - Read
 ---
 
 # hierograph-bootstrap — set a project up for hierograph analysis
@@ -19,6 +38,10 @@ Target bytecode → jQAssistant (scan) → Neo4j store → jQAssistant Bolt serv
 Two long-running servers are involved (the jQAssistant Bolt server and the Hierograph MCP server).
 **Start each in the background** and keep it running for the rest of the session — do not block on
 them.
+
+**Open by setting expectations:** before Step 1, tell the user this is a one-time setup that takes
+a few minutes (a build/scan plus a Docker image pull) and that you'll report progress at each
+stage. See *Keep the user informed* below for how.
 
 ## Project shapes
 
@@ -73,6 +96,21 @@ implement them, but verify them if you deviate:
 
 ## The procedure
 
+### Keep the user informed
+
+This is a multi-minute setup with slow steps (first scan downloads jQAssistant plugins; `docker
+pull` fetches the image) and two background servers. Don't run it silently:
+
+- **Track the pipeline as a task list** — create one task per stage (preflight, scan, Bolt server,
+  MCP server, register client, verify) and flip each to in-progress / completed as you go, so the
+  user sees the whole arc and where it currently is.
+- **Narrate the slow and background steps** before they run — say what's starting and the rough
+  wait (e.g. "first scan downloads plugins, ~1 min"; "pulling the MCP image"). A backgrounded
+  command that takes a while should be announced, not left to look hung.
+- **Confirm each server as it comes up** — echo the concrete endpoint and that it's listening
+  (`Bolt enabled on …:7687`; MCP up on `MCP_PORT`), not just "started".
+- **On failure, surface the actual error and which stage it belongs to** — don't retry silently.
+
 ### 1. Preflight
 
 - `java -version` → **21+**. If not, stop and tell the user.
@@ -116,7 +154,10 @@ docker run --rm -p 8080:8080 \
 ```
 
 - The image is on GHCR and may require authentication to pull — if `docker run` fails with a
-  manifest/authorization error, run `docker login ghcr.io` first (a GitHub PAT with `read:packages`).
+  manifest/`unauthorized` error, run `docker login ghcr.io` first (a GitHub PAT with
+  `read:packages`). If the package is **private**, `docker login` alone won't help without org
+  access: the maintainer must make the GHCR package public (or grant you access) before the pull
+  succeeds.
 - `host.docker.internal` lets the container reach the Bolt server on the host. On plain-Docker
   Linux, add `--add-host=host.docker.internal:host-gateway`, or use the host's LAN IP.
 - The Bolt server listens only on loopback by default and will refuse the container's connection.
@@ -153,18 +194,44 @@ claude mcp add hierograph --transport streamable-http http://localhost:8080/mcp
 }
 ```
 
-For Claude Code, the tools become available after the session reconnects to the server.
+For Claude Code, the `hierograph` tools are **not callable in the session that ran `claude mcp
+add`** — even though `claude mcp list` reports the server as ✔ Connected. The tools load only after
+a **new session reconnects** to the server (start a fresh session, or reconnect via `/mcp`).
+"Connected" confirms the server is reachable, not that the tools are available in the current
+conversation.
 
 ### 5. Verify
 
-- The client lists a `hierograph` server with tools (`graph_overview`, `find_node`,
-  `pairwise_dependencies`, …).
-- Run a smoke query: `graph_overview()` should return the project's top-level artifacts and
-  dependency stats. If it errors or returns an empty hierarchy, the store is empty or the MCP
-  server cannot reach Bolt — recheck the scan (Step 2) and the Bolt URI (Step 3).
+Because the client-side tools require a fresh session (Step 4), verify in two stages:
 
-Report what is running (both servers, ports, store path) and how to re-scan after code changes
-(the sub-skill's scan command).
+**a) In-session smoke test (no reconnect needed)** — hit the MCP endpoint directly over HTTP to
+prove the server can serve the store *now*. Streamable-HTTP needs the `initialize` →
+`notifications/initialized` → `tools/call` handshake, carrying the `Mcp-Session-Id` header the
+server returns:
+
+```bash
+URL=http://localhost:8080/mcp
+H=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream')
+SID=$(curl -s -D - -o /dev/null -X POST "$URL" "${H[@]}" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1"}}}' \
+  | grep -i 'mcp-session-id' | tr -d '\r' | awk '{print $2}')
+curl -s -X POST "$URL" -H "Mcp-Session-Id: $SID" "${H[@]}" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' >/dev/null
+curl -s -X POST "$URL" -H "Mcp-Session-Id: $SID" "${H[@]}" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"graph_overview","arguments":{}}}' \
+  | sed 's/^data: //' | grep '^{'
+```
+
+A JSON result with a `stats` block (node counts by kind) means scan → store → Bolt → MCP is wired
+end to end. An error or empty hierarchy means the store is empty or the MCP server can't reach Bolt
+— recheck the scan (Step 2) and the Bolt URI (Step 3).
+
+**b) Client verification (after reconnect)** — in a fresh session, the client lists a `hierograph`
+server with tools (`graph_overview`, `find_node`, `pairwise_dependencies`, …); calling
+`graph_overview()` returns the same stats.
+
+Report what is running (both servers, ports, store path), that a new session is needed before the
+tools are usable, and how to re-scan after code changes (the sub-skill's scan command).
 
 ## Handing off
 

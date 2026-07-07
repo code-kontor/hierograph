@@ -96,24 +96,47 @@ Activating the profile is what triggers `scan` + `analyze`; a plain `mvn clean i
 without scanning. Confirm it completes without "Cannot find group" (→ recheck orchestrator Step 1
 and the plugin/group block above). Re-run only when the code changes.
 
+`analyze` prints one `[WARNING] --[ Concept Application Failure ]---` block per concept that
+matched nothing (e.g. `java:MemberInheritedFrom … Number of rows: 0`). With severity `MINOR`
+these are **benign** — the concept simply had no rows in this codebase, and the build still ends
+in `BUILD SUCCESS`. Only a non-zero exit or a *"Cannot find group"* error is a real failure.
+
 ## 4. Start the jQAssistant Bolt server (background)
 
+**Decide the MCP transport first** — it changes this command. If the MCP server (orchestrator
+Step 3) will run in **Docker**, the Bolt server must listen on all interfaces so the container can
+reach it; append `-Djqassistant.store.embedded.listen-address=0.0.0.0`. Deciding now avoids
+starting Bolt on loopback and having to restart it.
+
+The server goal is **interactive** — it prints `Press <Enter> to finish` and blocks on stdin. Run
+in a foreground terminal it stays up until you press Enter. **Started detached / in the background
+it reads EOF immediately and shuts down with `BUILD SUCCESS`** — looks successful, but no server is
+left running. To background it, keep stdin open by piping a never-closing source:
+
 ```bash
-mvn -N com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server
+# foreground (interactive terminal):
+mvn -N com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server \
+  -Djqassistant.store.embedded.listen-address=0.0.0.0
+
+# background (detached — keep stdin open so it doesn't exit on EOF):
+tail -f /dev/null | mvn -N com.buschmais.jqassistant:jqassistant-maven-plugin:2.9.1:server \
+  -Djqassistant.store.embedded.listen-address=0.0.0.0
 ```
 
 - **`-N` (non-recursive) is required** in multi-module builds — otherwise the goal runs per reactor
   module and the server starts/stops repeatedly instead of staying up. `-N` restricts it to the
   root module (where `.jqassistant.yml` lives).
-- Binds `bolt://localhost:7687` and a browser UI at `http://localhost:7474`. Wait until the log
-  shows the Bolt endpoint listening.
-- **If the MCP server will run in Docker**, bind all interfaces so the container can connect:
-  append `-Djqassistant.store.embedded.listen-address=0.0.0.0`.
+- Binds `bolt://localhost:7687` and a browser UI at `http://localhost:7474`. **Ready** when the log
+  shows `Bolt enabled on <addr>:7687` followed by `Press <Enter> to finish`; confirm the port is
+  open with `nc -z localhost 7687`.
 
 Leave this running and return to the orchestrator **Step 3** (start the Hierograph MCP server).
 
 ## Maven-specific failures
 
+- **Server exits immediately with `BUILD SUCCESS` when backgrounded** — the `server` goal waits on
+  stdin (`Press <Enter> to finish`); a detached process hits EOF and stops. Pipe a never-closing
+  stdin: `tail -f /dev/null | mvn -N …:server`.
 - **Server goal starts and stops repeatedly** — missing `-N`.
 - **"Cannot find group" during `analyze`** — rules plugin missing from `~/.m2` (orchestrator
   Step 1) or from the `plugins:` block above.
