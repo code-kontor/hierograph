@@ -157,6 +157,18 @@ onSuccess: (_data, _vars, _result, context) => {
 - Use `renderWithQueryClient` from `@/testing/render` for any component that
   needs `QueryClient`. MSW intercepts all GraphQL requests automatically.
 - `src/testing/public/mockServiceWorker.js` is generated — never edit.
+- **Known harmless noise: occasional `console.error`/`[Unhandled rejection]
+  Error: CancelledError` line in `pnpm test`/`pnpm test:browser` output.**
+  `renderWithQueryClient` cancels in-flight queries on test teardown
+  (`render.tsx`), which rejects the pending `ensureQueryData` promise in a
+  loader with a `CancelledError`. `src/testing/setup.ts` swallows this in the
+  common case (`unhandledrejection` listener + `console.error` filter), but a
+  timing race with Vitest browser-mode's page teardown between test files can
+  still let a `console.error`/`[Unhandled rejection] Error: CancelledError`
+  line through in a minority of runs. This is purely a console-log artifact —
+  it never fails a test or changes the exit code. Safe to ignore when seen; do
+  not chase it further (root cause and rejected fix options are recorded in
+  `docs/tasks/0075-test-rauschen-kontrollieren.plan.md` in the workspace repo).
 
 ## Routing (TanStack Router, file-based)
 
