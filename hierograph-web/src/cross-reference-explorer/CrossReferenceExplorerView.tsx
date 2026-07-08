@@ -264,6 +264,7 @@ export function CrossReferenceExplorerView({
                 rootNode={rootNode}
                 loadChildren={loadLeftChildren}
                 onSelectedIdsChange={handleLeftSelectedIdsChange}
+                autoExpandOnLoad="all"
                 label="XrefLeft"
                 settings={settings}
               />
@@ -313,6 +314,7 @@ export function CrossReferenceExplorerView({
                 rootNode={rootNode}
                 loadChildren={loadRightChildren}
                 onSelectedIdsChange={handleRightSelectedIdsChange}
+                autoExpandOnLoad="all"
                 label="XrefRight"
                 settings={settings}
               />

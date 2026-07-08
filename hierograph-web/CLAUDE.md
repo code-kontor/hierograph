@@ -158,7 +158,7 @@ onSuccess: (_data, _vars, _result, context) => {
   needs `QueryClient`. MSW intercepts all GraphQL requests automatically.
 - `src/testing/public/mockServiceWorker.js` is generated — never edit.
 - **Known harmless noise: occasional `console.error`/`[Unhandled rejection]
-  Error: CancelledError` line in `pnpm test`/`pnpm test:browser` output.**
+Error: CancelledError` line in `pnpm test`/`pnpm test:browser` output.**
   `renderWithQueryClient` cancels in-flight queries on test teardown
   (`render.tsx`), which rejects the pending `ensureQueryData` promise in a
   loader with a `CancelledError`. `src/testing/setup.ts` swallows this in the
