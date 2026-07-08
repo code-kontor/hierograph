@@ -6,6 +6,7 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { PanelRight } from "lucide-react";
+import { twMerge } from "tailwind-merge";
 
 import lupeUrl from "@/assets/hierograph-lupe.svg";
 import {
@@ -21,15 +22,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 );
 
 function OpenNodeDetailsButton() {
-  const { setOpen } = useNodeDetailsWidget();
+  const { open, setOpen } = useNodeDetailsWidget();
 
   return (
     <button
       type="button"
-      onClick={() => setOpen(true)}
-      aria-label="Open Node Details"
-      title="Open Node Details (dev)"
-      className="text-fg-muted hover:text-fg hover:bg-panel-header border-border flex h-7 items-center gap-1.5 rounded-[6px] border px-2 text-[12px] font-normal transition-colors"
+      onClick={() => setOpen(!open)}
+      aria-pressed={open}
+      aria-label={open ? "Close Node Details" : "Open Node Details"}
+      title="Toggle Node Details (dev)"
+      className={twMerge(
+        "text-fg-muted hover:text-fg hover:bg-panel-header border-border flex h-7 items-center gap-1.5 rounded-[6px] border px-2 text-[12px] font-normal transition-colors",
+        open && "bg-panel-header text-fg border-border-strong",
+      )}
     >
       <PanelRight className="h-[14px] w-[14px]" />
       Node Details

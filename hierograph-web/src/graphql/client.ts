@@ -30,3 +30,13 @@ export async function execute<TResult, TVariables extends object>(
     variables as object,
   );
 }
+
+// Dev-only: re-run a logged query from its printed text to show its result in
+// the query-log panel. Deliberately bypasses `recordQuery` so this fetch does
+// not append itself to the log. Read-only operations only.
+export function executeRaw(
+  queryText: string,
+  variables: unknown,
+): Promise<unknown> {
+  return graphqlClient.request<unknown>(queryText, variables as object);
+}
