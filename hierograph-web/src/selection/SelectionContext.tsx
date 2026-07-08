@@ -62,3 +62,46 @@ export function useSelection(): SelectionContextValue {
   }
   return ctx;
 }
+
+export type NodeDetailsTab = "details" | "queries";
+
+type NodeDetailsWidgetContextValue = {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  tab: NodeDetailsTab;
+  setTab: (tab: NodeDetailsTab) => void;
+};
+
+const NodeDetailsWidgetContext =
+  createContext<NodeDetailsWidgetContextValue | null>(null);
+
+type NodeDetailsWidgetProviderProps = {
+  children: ReactNode;
+};
+
+// Visibility and active tab of the floating node-details widget. Kept above the
+// router outlet so it survives navigation (the widget itself is remounted per
+// route) and can be reopened from the top-level navbar. Deliberately separate
+// from SelectionProvider, which pages re-provide locally — this one stays global.
+export function NodeDetailsWidgetProvider({
+  children,
+}: NodeDetailsWidgetProviderProps) {
+  const [open, setOpen] = useState(true);
+  const [tab, setTab] = useState<NodeDetailsTab>("details");
+  const value = useMemo(() => ({ open, setOpen, tab, setTab }), [open, tab]);
+  return (
+    <NodeDetailsWidgetContext.Provider value={value}>
+      {children}
+    </NodeDetailsWidgetContext.Provider>
+  );
+}
+
+export function useNodeDetailsWidget(): NodeDetailsWidgetContextValue {
+  const ctx = useContext(NodeDetailsWidgetContext);
+  if (!ctx) {
+    throw new Error(
+      "useNodeDetailsWidget must be used within a NodeDetailsWidgetProvider",
+    );
+  }
+  return ctx;
+}

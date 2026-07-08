@@ -21,7 +21,11 @@ import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
 import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
-import { useSelection } from "@/selection/SelectionContext";
+import {
+  type NodeDetailsTab,
+  useNodeDetailsWidget,
+  useSelection,
+} from "@/selection/SelectionContext";
 
 import { NodePropertyRow } from "./NodePropertyRow";
 import { QueryLogPanel } from "./QueryLogPanel";
@@ -194,7 +198,7 @@ function NodeDetailsWidgetBody({ id }: NodeDetailsWidgetBodyProps) {
 
 export function NodeDetailsWidget() {
   const { focusedId } = useSelection();
-  const [closed, setClosed] = useState(false);
+  const { open, setOpen, tab, setTab } = useNodeDetailsWidget();
   const [collapsed, setCollapsed] = useLocalStorage(
     "hg.nodeDetailsWidget.collapsed",
     false,
@@ -249,13 +253,13 @@ export function NodeDetailsWidget() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setClosed(true);
+      if (e.key === "Escape") setOpen(false);
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [setOpen]);
 
-  if (closed) return null;
+  if (!open) return null;
 
   function handleTitlebarMouseDown(e: React.MouseEvent) {
     dragState.current = {
@@ -319,7 +323,7 @@ export function NodeDetailsWidget() {
             "hover:bg-panel focus-visible:ring-state-focus-ring focus-visible:ring-2",
           )}
           onMouseDown={handleButtonMouseDown}
-          onClick={() => setClosed(true)}
+          onClick={() => setOpen(false)}
           aria-label="Close"
         >
           <X className="h-[14px] w-[14px]" />
@@ -327,7 +331,11 @@ export function NodeDetailsWidget() {
       </div>
       {/* Content */}
       {!collapsed && (
-        <Tabs defaultValue="details" className="min-h-0 flex-1">
+        <Tabs
+          value={tab}
+          onValueChange={(value) => setTab(value as NodeDetailsTab)}
+          className="min-h-0 flex-1"
+        >
           <TabsList className="border-border shrink-0 border-b">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="queries">Queries</TabsTrigger>
@@ -345,7 +353,7 @@ export function NodeDetailsWidget() {
             <QueryLogPanel />
           </TabsContent>
           <div className="text-fg-subtle border-border shrink-0 border-t px-4 py-2 font-mono text-[10.5px]">
-            Dev-only · reflects tree focus · toggled in code
+            Dev-only · reflects tree focus · reopen from the navbar
           </div>
         </Tabs>
       )}
