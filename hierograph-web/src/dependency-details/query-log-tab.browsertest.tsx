@@ -94,6 +94,47 @@ it("Details tab shows the node id and a NodeExplore GraphiQL deep link", async (
   expect(url.searchParams.get("variables")).toContain(NODE_ID);
 });
 
+it("query section reveals the query text on expand", async () => {
+  await renderWithQueryClient(
+    <SelectionProvider>
+      <SetFocusButton />
+      <NodeDetailsWidget />
+    </SelectionProvider>,
+  );
+
+  await userEvent.click(page.getByText("set-focus"));
+  await expect.element(page.getByText("java.package")).toBeVisible();
+
+  await userEvent.click(page.getByRole("tab", { name: "Queries" }));
+  await expect
+    .element(page.getByText("NodeDetail", { exact: true }).first())
+    .toBeVisible();
+
+  await userEvent.click(page.getByText("query", { exact: true }));
+
+  await expect.element(page.getByText(/query NodeDetail/)).toBeVisible();
+});
+
+it("result section re-runs the query on expand without adding a log entry", async () => {
+  await renderWithQueryClient(
+    <SelectionProvider>
+      <SetFocusButton />
+      <NodeDetailsWidget />
+    </SelectionProvider>,
+  );
+
+  await userEvent.click(page.getByText("set-focus"));
+  await expect.element(page.getByText("java.package")).toBeVisible();
+
+  await userEvent.click(page.getByRole("tab", { name: "Queries" }));
+  await expect.element(page.getByText("1 query")).toBeVisible();
+
+  await userEvent.click(page.getByText("result", { exact: true }));
+
+  await expect.element(page.getByText(/"java\.package"/)).toBeVisible();
+  await expect.element(page.getByText("1 query")).toBeVisible();
+});
+
 it("Clear button empties the query log", async () => {
   await renderWithQueryClient(
     <SelectionProvider>

@@ -1,8 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Trash2 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { type ReactNode, useState, useSyncExternalStore } from "react";
 
 import { cn } from "@/design-system/cn";
+import { executeRaw } from "@/graphql/client";
 import {
   clearQueryLog,
   getSnapshot,
@@ -10,6 +11,80 @@ import {
   subscribe,
 } from "@/graphql/devQueryLog";
 import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
+
+const TOGGLE_BUTTON_CLASSNAME =
+  "text-fg-subtle hover:text-fg flex w-fit items-center gap-1 font-mono text-[11px]";
+const SECTION_BODY_CLASSNAME =
+  "bg-panel-header border-border max-h-32 overflow-auto rounded-[6px] border px-2.5 py-2 font-mono text-[11px]";
+
+type CollapsibleSectionProps = {
+  label: string;
+  children: ReactNode;
+};
+
+function CollapsibleSection({ label, children }: CollapsibleSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        className={TOGGLE_BUTTON_CLASSNAME}
+      >
+        <ChevronRight
+          className={cn(
+            "size-[13px] transition-transform duration-[120ms]",
+            isExpanded && "rotate-90",
+          )}
+        />
+        {label}
+      </button>
+      {isExpanded && children}
+    </>
+  );
+}
+
+type ResultSectionProps = {
+  entry: QueryLogEntry;
+};
+
+function ResultSection({ entry }: ResultSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const result = useQuery({
+    queryKey: ["devQueryLogResult", entry.id],
+    enabled: isExpanded,
+    async queryFn() {
+      return executeRaw(entry.queryText, entry.variables);
+    },
+  });
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        className={TOGGLE_BUTTON_CLASSNAME}
+      >
+        <ChevronRight
+          className={cn(
+            "size-[13px] transition-transform duration-[120ms]",
+            isExpanded && "rotate-90",
+          )}
+        />
+        result
+      </button>
+      {isExpanded && (
+        <pre className={SECTION_BODY_CLASSNAME}>
+          {result.isPending
+            ? "Loading…"
+            : result.isError
+              ? `Error: ${result.error.message}`
+              : JSON.stringify(result.data, null, 2)}
+        </pre>
+      )}
+    </>
+  );
+}
 
 type QueryLogRowProps = { entry: QueryLogEntry };
 
@@ -19,8 +94,6 @@ function QueryLogRow({ entry }: QueryLogRowProps) {
     !!variables &&
     typeof variables === "object" &&
     Object.keys(variables as Record<string, unknown>).length > 0;
-
-  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <div className="border-border flex flex-col gap-1.5 border-b px-4 py-3 text-sm last:border-b-0">
@@ -40,27 +113,16 @@ function QueryLogRow({ entry }: QueryLogRowProps) {
           no variables
         </span>
       ) : (
-        <>
-          <button
-            type="button"
-            onClick={() => setIsExpanded((v) => !v)}
-            className="text-fg-subtle hover:text-fg flex w-fit items-center gap-1 font-mono text-[11px]"
-          >
-            <ChevronRight
-              className={cn(
-                "size-[13px] transition-transform duration-[120ms]",
-                isExpanded && "rotate-90",
-              )}
-            />
-            variables
-          </button>
-          {isExpanded && (
-            <pre className="bg-panel-header border-border max-h-32 overflow-auto rounded-[6px] border px-2.5 py-2 font-mono text-[11px]">
-              {JSON.stringify(variables, null, 2)}
-            </pre>
-          )}
-        </>
+        <CollapsibleSection label="variables">
+          <pre className={SECTION_BODY_CLASSNAME}>
+            {JSON.stringify(variables, null, 2)}
+          </pre>
+        </CollapsibleSection>
       )}
+      <CollapsibleSection label="query">
+        <pre className={SECTION_BODY_CLASSNAME}>{entry.queryText}</pre>
+      </CollapsibleSection>
+      <ResultSection entry={entry} />
       <a
         href={buildGraphiqlDeepLink(entry.queryText, entry.variables)}
         target="_blank"
