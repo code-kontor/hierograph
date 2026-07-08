@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
-import { nodeBasicsQueryOptions } from "@/graph/queries";
+import { nodeBasicsQueryOptions, rootNodeQueryOptions } from "@/graph/queries";
 
 type DependencyInspectorHeaderProps = {
   sourceNodeId: string;
@@ -20,9 +20,11 @@ export function DependencyInspectorHeader({
   const { data: targetData, isPending: targetPending } = useQuery(
     nodeBasicsQueryOptions(targetNodeId),
   );
+  const { data: rootData } = useQuery(rootNodeQueryOptions());
 
   const sourceNode = sourceData?.hierarchicalGraph?.node;
   const targetNode = targetData?.hierarchicalGraph?.node;
+  const rootId = rootData?.hierarchicalGraph?.rootNode?.id;
 
   const sourceText = sourcePending
     ? sourceNodeId
@@ -38,6 +40,25 @@ export function DependencyInspectorHeader({
         labelFormat,
         targetNode?.type,
       );
+
+  if (rootId !== undefined && sourceNodeId === rootId) {
+    return (
+      <div className="flex items-center gap-2 font-mono text-[12px]">
+        <span className="text-fg-subtle">Everything that uses</span>
+        <span className="text-fg">{targetText}</span>
+      </div>
+    );
+  }
+
+  if (rootId !== undefined && targetNodeId === rootId) {
+    return (
+      <div className="flex items-center gap-2 font-mono text-[12px]">
+        <span className="text-fg-subtle">Everything</span>
+        <span className="text-fg">{sourceText}</span>
+        <span className="text-fg-subtle">uses</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 font-mono text-[12px]">

@@ -1,15 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
-import { Button } from "@/design-system/ui/button";
 import { Message } from "@/design-system/ui/message";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/design-system/ui/tooltip";
 import {
   nodeChildrenQueryOptions,
   rootNodeQueryOptions,
@@ -189,33 +182,36 @@ export function CrossReferenceExplorerView({
       rightMarkingData !== undefined &&
       markedCenterIds.length === 0);
 
-  // Inspect: enabled when a valid (source, target) pair can be derived.
-  // Left active → source = left[0], target = center[0]
-  // Right active → source = center[0], target = right[0]
-  const inspectSource =
-    lastActiveSide === "left"
-      ? leftSelectedIds[0]
-      : lastActiveSide === "right"
-        ? centerSelectedIds[0]
-        : undefined;
-  const inspectTarget =
-    lastActiveSide === "left"
-      ? centerSelectedIds[0]
-      : lastActiveSide === "right"
+  // The cell shown in the Dependencies Details pane, derived from the current
+  // selection. Only first-selected ids are used; DependencyDetailsPane takes a
+  // single directed pair.
+  // Left active → source = left[0], target = center[0] ("Used by" partner)
+  // Right active → source = center[0], target = right[0] ("Uses" partner)
+  // Center only (no active partner) → default source = root, target = center[0]
+  // ("everything that uses" the center selection).
+  const center = centerSelectedIds[0];
+  const cellSource =
+    center === undefined
+      ? undefined
+      : lastActiveSide === "left" && leftSelectedIds[0] !== undefined
+        ? leftSelectedIds[0]
+        : lastActiveSide === "right"
+          ? center
+          : rootNode?.id;
+  const cellTarget =
+    center === undefined
+      ? undefined
+      : lastActiveSide === "right" && rightSelectedIds[0] !== undefined
         ? rightSelectedIds[0]
-        : undefined;
-  const inspectEnabled =
-    inspectSource !== undefined && inspectTarget !== undefined;
+        : center;
 
-  const handleInspect = useCallback(() => {
-    if (inspectSource && inspectTarget) {
-      // Inspect[0] — only first-selected ids are used; DependencyDetailsPane takes a single pair.
-      setCellSelection({
-        sourceNodeId: inspectSource,
-        targetNodeId: inspectTarget,
-      });
+  useEffect(() => {
+    if (cellSource !== undefined && cellTarget !== undefined) {
+      setCellSelection({ sourceNodeId: cellSource, targetNodeId: cellTarget });
+    } else {
+      setCellSelection(null);
     }
-  }, [inspectSource, inspectTarget, setCellSelection]);
+  }, [cellSource, cellTarget, setCellSelection]);
 
   if (rootPending) {
     return (
@@ -238,115 +234,92 @@ export function CrossReferenceExplorerView({
   }
 
   return (
-    <TooltipProvider>
-      <Pane
-        title="Cross-Reference View"
-        bodyClassName="overflow-hidden p-0"
-        toolbar={
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={!inspectEnabled}
-                    onClick={handleInspect}
-                  >
-                    Inspect
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {inspectEnabled
-                  ? "Show dependencies between selected nodes in the bottom panel"
-                  : "Select a node in the left or right tree and a node in the center tree to enable Inspect"}
-              </TooltipContent>
-            </Tooltip>
-            <TreeSettingsMenu
-              {...settings}
-              setShowIndentGuides={setShowIndentGuides}
-              setAutoExpandSingleChildren={setAutoExpandSingleChildren}
-              setPreserveSelectionOnCollapse={setPreserveSelectionOnCollapse}
-              setLabelFormat={setLabelFormat}
-            />
-          </>
-        }
-      >
-        <div className="grid h-full min-h-0 flex-1 grid-cols-3 overflow-hidden">
-          {/* Left column */}
-          <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
-            <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
-              Used by
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-1.5">
-              {centerSelectedIds.length === 0 ? (
-                <Message variant="empty" title="No node selected">
-                  Select a node in the center tree to see what uses it.
-                </Message>
-              ) : (
-                <AsyncTree
-                  key={`left-${centerSelectionKey}`}
-                  rootNode={rootNode}
-                  loadChildren={loadLeftChildren}
-                  onSelectedIdsChange={handleLeftSelectedIdsChange}
-                  label="XrefLeft"
-                  settings={settings}
-                />
-              )}
-            </div>
+    <Pane
+      title="Cross-Reference View"
+      bodyClassName="overflow-hidden p-0"
+      toolbar={
+        <TreeSettingsMenu
+          {...settings}
+          setShowIndentGuides={setShowIndentGuides}
+          setAutoExpandSingleChildren={setAutoExpandSingleChildren}
+          setPreserveSelectionOnCollapse={setPreserveSelectionOnCollapse}
+          setLabelFormat={setLabelFormat}
+        />
+      }
+    >
+      <div className="grid h-full min-h-0 flex-1 grid-cols-3 overflow-hidden">
+        {/* Left column */}
+        <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
+          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+            Used by
           </div>
-          {/* Center column */}
-          <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
-            <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
-              Center ·{" "}
-              <span className="text-fg-muted">select to filter left/right</span>
-            </div>
-            {showHiddenSelectionHint && (
-              <div className="shrink-0 px-2 pt-2">
-                <Message variant="info" title="Highlighted nodes not visible">
-                  The nodes that use or are used by this selection are in a
-                  collapsed part of the center tree. Expand the center to reveal
-                  them.
-                </Message>
-              </div>
-            )}
-            <div className="min-h-0 flex-1 overflow-auto p-1.5">
+          <div className="min-h-0 flex-1 overflow-auto p-1.5">
+            {centerSelectedIds.length === 0 ? (
+              <Message variant="empty" title="No node selected">
+                Select a node in the center tree to see what uses it.
+              </Message>
+            ) : (
               <AsyncTree
+                key={`left-${centerSelectionKey}`}
                 rootNode={rootNode}
-                loadChildren={loadCenterChildren}
-                onSelectedIdsChange={handleCenterSelectedIdsChange}
-                onFocusedIdChange={handleCenterFocusedIdChange}
-                markedIds={markedCenterIds}
-                label="XrefCenter"
+                loadChildren={loadLeftChildren}
+                onSelectedIdsChange={handleLeftSelectedIdsChange}
+                label="XrefLeft"
                 settings={settings}
               />
-            </div>
-          </div>
-          {/* Right column */}
-          <div className="flex min-w-0 flex-col overflow-auto">
-            <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
-              Uses
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-1.5">
-              {centerSelectedIds.length === 0 ? (
-                <Message variant="empty" title="No node selected">
-                  Select a node in the center tree to see what it uses.
-                </Message>
-              ) : (
-                <AsyncTree
-                  key={`right-${centerSelectionKey}`}
-                  rootNode={rootNode}
-                  loadChildren={loadRightChildren}
-                  onSelectedIdsChange={handleRightSelectedIdsChange}
-                  label="XrefRight"
-                  settings={settings}
-                />
-              )}
-            </div>
+            )}
           </div>
         </div>
-      </Pane>
-    </TooltipProvider>
+        {/* Center column */}
+        <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
+          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+            Center ·{" "}
+            <span className="text-fg-muted">select to filter left/right</span>
+          </div>
+          {showHiddenSelectionHint && (
+            <div className="shrink-0 px-2 pt-2">
+              <Message variant="info" title="Highlighted nodes not visible">
+                The nodes that use or are used by this selection are in a
+                collapsed part of the center tree. Expand the center to reveal
+                them.
+              </Message>
+            </div>
+          )}
+          <div className="min-h-0 flex-1 overflow-auto p-1.5">
+            <AsyncTree
+              rootNode={rootNode}
+              loadChildren={loadCenterChildren}
+              onSelectedIdsChange={handleCenterSelectedIdsChange}
+              onFocusedIdChange={handleCenterFocusedIdChange}
+              markedIds={markedCenterIds}
+              label="XrefCenter"
+              settings={settings}
+            />
+          </div>
+        </div>
+        {/* Right column */}
+        <div className="flex min-w-0 flex-col overflow-auto">
+          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+            Uses
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto p-1.5">
+            {centerSelectedIds.length === 0 ? (
+              <Message variant="empty" title="No node selected">
+                Select a node in the center tree to see what it uses.
+              </Message>
+            ) : (
+              <AsyncTree
+                key={`right-${centerSelectionKey}`}
+                rootNode={rootNode}
+                loadChildren={loadRightChildren}
+                onSelectedIdsChange={handleRightSelectedIdsChange}
+                label="XrefRight"
+                settings={settings}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </Pane>
   );
 }
