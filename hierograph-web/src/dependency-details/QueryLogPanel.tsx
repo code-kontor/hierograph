@@ -1,8 +1,10 @@
-import { ChevronRight } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, Trash2 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
 import { cn } from "@/design-system/cn";
 import {
+  clearQueryLog,
   getSnapshot,
   type QueryLogEntry,
   subscribe,
@@ -73,19 +75,44 @@ function QueryLogRow({ entry }: QueryLogRowProps) {
 
 export function QueryLogPanel() {
   const entries = useSyncExternalStore(subscribe, getSnapshot);
+  const queryClient = useQueryClient();
+  const isEmpty = entries.length === 0;
 
-  if (entries.length === 0) {
-    return (
-      <div className="flex flex-col gap-3 px-4 py-3.5 text-sm">
-        <p className="text-fg-muted text-xs">No queries recorded yet.</p>
-      </div>
-    );
+  // Clear the log and drop the whole react-query cache. The log entries do not
+  // carry their react-query queryKey, so scoping the eviction to just the shown
+  // queries is not possible — but the log records every query anyway, so a full
+  // clear() matches "all of them". Mounted queries refetch and repopulate.
+  function handleClear() {
+    clearQueryLog();
+    queryClient.clear();
   }
 
-  const rows = entries
-    .slice()
-    .reverse()
-    .map((entry) => <QueryLogRow key={entry.id} entry={entry} />);
-
-  return <div className="flex flex-col">{rows}</div>;
+  return (
+    <div className="flex flex-col">
+      <div className="border-border flex shrink-0 items-center justify-between border-b px-4 py-2">
+        <span className="text-fg-subtle font-mono text-[11px]">
+          {entries.length} {entries.length === 1 ? "query" : "queries"}
+        </span>
+        <button
+          type="button"
+          onClick={handleClear}
+          disabled={isEmpty}
+          className="text-fg-subtle hover:text-fg flex items-center gap-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Trash2 className="size-[13px]" />
+          Clear
+        </button>
+      </div>
+      {isEmpty ? (
+        <p className="text-fg-muted px-4 py-3.5 text-xs">
+          No queries recorded yet.
+        </p>
+      ) : (
+        entries
+          .slice()
+          .reverse()
+          .map((entry) => <QueryLogRow key={entry.id} entry={entry} />)
+      )}
+    </div>
+  );
 }
