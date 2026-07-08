@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronUp, GripVertical, X } from "lucide-react";
+import {
+  Check,
+  ChevronUp,
+  Copy,
+  ExternalLink,
+  GripVertical,
+  X,
+} from "lucide-react";
 import { createElement, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -13,6 +20,7 @@ import {
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
+import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { NodePropertyRow } from "./NodePropertyRow";
@@ -23,9 +31,67 @@ const WIDGET_WIDTH = 384;
 const MIN_VISIBLE_HEIGHT = 160;
 const PRIORITY_KEYS = ["fqn", "sourceFileName", "valid", "visibility"] as const;
 
+// A ready-to-run exploration query for the "Open in GraphiQL" link: the node's
+// own details plus a first level of children — a useful starting point to keep
+// drilling from inside GraphiQL, not just a copy of what this tab already shows.
+const GRAPHIQL_EXPLORE_QUERY = `query NodeExplore($id: ID!) {
+  hierarchicalGraph {
+    node(id: $id) {
+      id
+      text
+      type
+      properties {
+        key
+        value
+      }
+      children {
+        nodes {
+          id
+          text
+          type
+          hasChildren
+        }
+      }
+    }
+  }
+}
+`;
+
 type NodeDetailsWidgetBodyProps = { id: string | null };
 
 type NodeDetailsWidgetInnerProps = { id: string };
+
+type NodeIdLineProps = { id: string };
+
+function NodeIdLine({ id }: NodeIdLineProps) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title="Copy node id"
+      className="text-fg-subtle hover:text-fg -mt-1 flex w-fit max-w-full items-center gap-1.5 font-mono text-[11px]"
+    >
+      <span className="text-fg-muted shrink-0">id</span>
+      <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        {id}
+      </span>
+      {copied ? (
+        <Check className="size-3 shrink-0" />
+      ) : (
+        <Copy className="size-3 shrink-0" />
+      )}
+    </button>
+  );
+}
 
 function NodeDetailsWidgetInner({ id }: NodeDetailsWidgetInnerProps) {
   const { data, isPending, isError } = useQuery(nodeDetailQueryOptions(id));
@@ -84,6 +150,7 @@ function NodeDetailsWidgetInner({ id }: NodeDetailsWidgetInnerProps) {
           {node.type}
         </span>
       </div>
+      <NodeIdLine id={node.id} />
       {orderedRows.length > 0 ? (
         <div className="border-border overflow-hidden rounded-[7px] border">
           {orderedRows.map((entry) => (
@@ -97,6 +164,15 @@ function NodeDetailsWidgetInner({ id }: NodeDetailsWidgetInnerProps) {
       ) : (
         <p className="text-fg-muted text-xs">No properties.</p>
       )}
+      <a
+        href={buildGraphiqlDeepLink(GRAPHIQL_EXPLORE_QUERY, { id: node.id })}
+        target="_blank"
+        rel="noreferrer"
+        className="text-fg-subtle hover:text-fg flex w-fit items-center gap-1 text-xs underline"
+      >
+        <ExternalLink className="size-[13px]" />
+        Open in GraphiQL
+      </a>
     </div>
   );
 }

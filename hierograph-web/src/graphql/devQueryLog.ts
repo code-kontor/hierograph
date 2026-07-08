@@ -30,6 +30,14 @@ export function recordQuery(
   listeners.forEach((listener) => listener());
 }
 
+export function clearQueryLog(): void {
+  if (entries.length === 0) {
+    return;
+  }
+  entries = [];
+  listeners.forEach((listener) => listener());
+}
+
 export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
