@@ -162,7 +162,7 @@ export function CrossReferenceExplorerView({
     enabled: rightMarkingEnabled,
   });
 
-  const markedCenterIds: string[] = leftMarkingEnabled
+  const relatedCenterIds: string[] = leftMarkingEnabled
     ? (leftMarkingData?.hierarchicalGraph?.nodes.filterReferencingNodes
         .nodeIds ?? [])
     : rightMarkingEnabled
@@ -170,17 +170,17 @@ export function CrossReferenceExplorerView({
           .nodeIds ?? [])
       : [];
 
-  // Hidden-selection hint: active side has a selection, but no marked nodes are visible in the
+  // Hidden-selection hint: active side has a selection, but no related nodes are visible in the
   // currently-loaded center set (e.g. the matching node hasn't been expanded in center yet).
   const showHiddenSelectionHint =
     (lastActiveSide === "left" &&
       leftSelectedIds.length > 0 &&
       leftMarkingData !== undefined &&
-      markedCenterIds.length === 0) ||
+      relatedCenterIds.length === 0) ||
     (lastActiveSide === "right" &&
       rightSelectedIds.length > 0 &&
       rightMarkingData !== undefined &&
-      markedCenterIds.length === 0);
+      relatedCenterIds.length === 0);
 
   // The cell shown in the Dependencies Details pane, derived from the current
   // selection. Only first-selected ids are used; DependencyDetailsPane takes a
@@ -265,6 +265,7 @@ export function CrossReferenceExplorerView({
                 loadChildren={loadLeftChildren}
                 onSelectedIdsChange={handleLeftSelectedIdsChange}
                 autoExpandOnLoad="all"
+                selectionTone="secondary"
                 label="XrefLeft"
                 settings={settings}
               />
@@ -292,8 +293,7 @@ export function CrossReferenceExplorerView({
               loadChildren={loadCenterChildren}
               onSelectedIdsChange={handleCenterSelectedIdsChange}
               onFocusedIdChange={handleCenterFocusedIdChange}
-              markedIds={markedCenterIds}
-              selectionTone={lastActiveSide !== null ? "secondary" : "primary"}
+              highlightedIds={relatedCenterIds}
               label="XrefCenter"
               settings={settings}
             />
@@ -316,6 +316,7 @@ export function CrossReferenceExplorerView({
                 loadChildren={loadRightChildren}
                 onSelectedIdsChange={handleRightSelectedIdsChange}
                 autoExpandOnLoad="all"
+                selectionTone="secondary"
                 label="XrefRight"
                 settings={settings}
               />

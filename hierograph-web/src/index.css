@@ -73,7 +73,7 @@
   ); /* #1c6fd2  2px inset focus ring */
   --hg-state-highlighted-bg: oklch(
     0.969 0.006 250
-  ); /* #f2f5f9  derived-highlight fill — blue-gray (variant 4c, default). Paired with bold text, NO left bar (bar = "clicked here", no bar = "highlighted for me"). Nodes referenced by the current selection. A/B toggle — swap the value above with the alternative: 4b (alt) = oklch(0.979 0.002 260) / #f7f8f9 neutral-gray, very light. */
+  ); /* #f2f5f9  highlighted (derived/related) nodes fill. Bold text, NO left bar. Default: 4c (blue-gray). Alternative: 4b = oklch(0.979 0.002 260) / #f7f8f9 (neutral-gray, very light). To toggle: manually swap the value above. */
 
   /* ---- Status ---- */
   --hg-status-info: oklch(0.55 0.15 256); /* #2d71c7 */
