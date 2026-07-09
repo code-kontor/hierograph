@@ -127,20 +127,20 @@ beforeEach(() => {
         },
       });
     }),
-    graphql.query("CrossReferenceExplorerCenterMarkedByLeft", () =>
+    graphql.query("CrossReferenceExplorerCenterRelatedByLeft", () =>
       HttpResponse.json({
         data: {
           hierarchicalGraph: {
-            nodes: { filterReferencingNodes: { nodeIds: [] } },
+            nodes: { referencingNodes: { nodeIds: [] } },
           },
         },
       }),
     ),
-    graphql.query("CrossReferenceExplorerCenterMarkedByRight", () =>
+    graphql.query("CrossReferenceExplorerCenterRelatedByRight", () =>
       HttpResponse.json({
         data: {
           hierarchicalGraph: {
-            nodes: { filterReferencedNodes: { nodeIds: [] } },
+            nodes: { referencedNodes: { nodeIds: [] } },
           },
         },
       }),

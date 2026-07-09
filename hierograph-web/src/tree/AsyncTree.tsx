@@ -45,6 +45,13 @@ export type AsyncTreeProps = {
   onHoveredIdChange?: (id: string | undefined) => void;
   onPromoteToSubject?: (nodeData: TreeNodeData) => void;
   highlightedIds?: string[];
+  // Ancestor chain per highlighted hit (hit id → ancestor ids, nearest first).
+  // Used only to count hidden hits per collapsed ancestor and to power
+  // revealHighlighted — never for styling.
+  highlightedAncestors?: Record<string, string[]>;
+  // Reports the total number of highlighted hits that currently sit inside
+  // collapsed branches (i.e. are not rendered). Recomputed on expand/collapse.
+  onHiddenHighlightCountChange?: (count: number) => void;
   label: string;
   settings: TreeSettings;
   autoExpandOnLoad?: "root-chain" | "all";
@@ -59,6 +66,9 @@ export type AsyncTreeProps = {
 export type AsyncTreeHandle = {
   // Expand every marked ancestor folder so all marked rows become visible.
   revealMarked: () => void;
+  // Expand exactly the ancestor folders of hidden highlighted hits so they
+  // become visible; preserves scroll; never automatic.
+  revealHighlighted: () => void;
   // Expand every folder in the tree (unbounded BFS). In filter mode only the
   // surviving hit paths exist, so this expands exactly those.
   expandAll: () => void;
@@ -81,6 +91,8 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       onHoveredIdChange,
       onPromoteToSubject,
       highlightedIds,
+      highlightedAncestors,
+      onHiddenHighlightCountChange,
       label,
       settings,
       autoExpandOnLoad,
@@ -304,6 +316,42 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       }
     }, [highlightedSet, effectiveLoadChildren, rootNode.id]);
 
+    // Expand exactly the ancestor folders of the hidden highlighted hits, so
+    // they become visible. Descends level by level from the (hidden) root,
+    // expanding any loaded child whose id is an ancestor of some hit. Only
+    // touches expandedItems, so the scroll position is preserved; never runs
+    // automatically.
+    const revealHighlighted = useCallback(async () => {
+      const ancestorSet = new Set(
+        Object.values(highlightedAncestors ?? {}).flat(),
+      );
+      ancestorSet.delete(rootNode.id);
+      if (ancestorSet.size === 0) return;
+      const toExpand: string[] = [];
+      const queue: string[] = [rootNode.id];
+      while (queue.length > 0) {
+        const parentId = queue.shift() as string;
+        const children = await effectiveLoadChildren(parentId);
+        for (const child of children) {
+          itemData.current.set(child.id, child);
+        }
+        for (const child of children) {
+          if (ancestorSet.has(child.id)) {
+            toExpand.push(child.id);
+            queue.push(child.id);
+          }
+        }
+      }
+      if (toExpand.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          expandedItems: [
+            ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
+          ],
+        }));
+      }
+    }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
+
     const handleChevronClick = useCallback(
       (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -402,6 +450,9 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
         revealMarked() {
           revealMarked().catch(console.error);
         },
+        revealHighlighted() {
+          revealHighlighted().catch(console.error);
+        },
         expandAll() {
           expandAllFolders().catch(console.error);
         },
@@ -421,7 +472,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             });
         },
       }),
-      [revealMarked, expandAllFolders, tree, rootNode.id],
+      [revealMarked, revealHighlighted, expandAllFolders, tree, rootNode.id],
     );
 
     const didAutoExpandRootRef = useRef(false);
@@ -457,6 +508,35 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       onFocusedIdChange?.(id, name, type);
     }, [state.focusedItem, onFocusedIdChange]);
 
+    // Hidden highlighted hits: highlighted ids that are not currently rendered
+    // because they sit inside a collapsed branch. Each is rolled up to its
+    // nearest rendered ancestor (which is provably collapsed — otherwise its
+    // child on the path would render as a nearer rendered ancestor) for a
+    // per-row badge count, and summed into the total. Computed every render (no
+    // memo) so newly loaded rows and expand/collapse are always reflected; the
+    // work is O(hits × chain) and purely local — no re-query.
+    const renderedIds = new Set(tree.getItems().map((i) => i.getId()));
+    const hiddenCountByAncestor = new Map<string, number>();
+    let totalHidden = 0;
+    for (const id of highlightedSet) {
+      if (renderedIds.has(id)) continue; // visible hit is highlighted itself, no badge
+      totalHidden++;
+      const chain = highlightedAncestors?.[id] ?? [];
+      for (const ancestorId of chain) {
+        if (ancestorId !== rootNode.id && renderedIds.has(ancestorId)) {
+          hiddenCountByAncestor.set(
+            ancestorId,
+            (hiddenCountByAncestor.get(ancestorId) ?? 0) + 1,
+          );
+          break;
+        }
+      }
+    }
+
+    useEffect(() => {
+      onHiddenHighlightCountChange?.(totalHidden);
+    }, [totalHidden, onHiddenHighlightCountChange]);
+
     return (
       <div {...tree.getContainerProps(label)}>
         {tree.getItems().map((item) => (
@@ -464,6 +544,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             key={item.getId()}
             item={item}
             isHighlighted={highlightedSet.has(item.getId())}
+            hiddenHighlightCount={hiddenCountByAncestor.get(item.getId()) ?? 0}
             selectionTone={selectionTone}
             settings={settings}
             onRowClick={handleRowClick}
@@ -480,6 +561,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
 type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
   isHighlighted: boolean;
+  hiddenHighlightCount: number;
   selectionTone: "primary" | "secondary";
   settings: TreeSettings;
   onRowClick: (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => void;
@@ -496,6 +578,7 @@ type TooltipPos = { x: number; y: number };
 function TreeRow({
   item,
   isHighlighted,
+  hiddenHighlightCount,
   selectionTone,
   settings,
   onRowClick,
@@ -615,6 +698,14 @@ function TreeRow({
           )
         ) : null}
       </span>
+      {isFolder && !isExpanded && hiddenHighlightCount > 0 && (
+        <span
+          aria-label={`${hiddenHighlightCount} hidden highlighted nodes`}
+          className="flex h-4 min-w-[17px] shrink-0 items-center justify-center rounded-[8px] border border-[var(--hl-badge-border)] bg-[var(--hl-badge-bg)] px-[5px] font-mono text-[10px] font-semibold text-[var(--hl-badge-fg)] tabular-nums"
+        >
+          {hiddenHighlightCount}
+        </span>
+      )}
       {createElement(getNodeIcon(nodeData.type), {
         className: cn("size-[15px] shrink-0", iconColorClass),
       })}

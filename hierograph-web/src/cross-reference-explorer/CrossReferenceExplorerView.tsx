@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { ChevronsDown } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
 import { Message } from "@/design-system/ui/message";
@@ -8,7 +9,7 @@ import {
   rootNodeQueryOptions,
 } from "@/graph/queries";
 import { useSelection } from "@/selection/SelectionContext";
-import { AsyncTree } from "@/tree/AsyncTree";
+import { AsyncTree, type AsyncTreeHandle } from "@/tree/AsyncTree";
 import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
 import type {
   TreeSettings,
@@ -16,8 +17,9 @@ import type {
 } from "@/tree/useTreeSettings";
 
 import {
-  crossReferenceExplorerCenterMarkedByLeftQueryOptions,
-  crossReferenceExplorerCenterMarkedByRightQueryOptions,
+  crossReferenceExplorerCenterPredecessorsQueryOptions,
+  crossReferenceExplorerCenterRelatedByLeftQueryOptions,
+  crossReferenceExplorerCenterRelatedByRightQueryOptions,
   crossReferenceExplorerLeftChildrenQueryOptions,
   crossReferenceExplorerRightChildrenQueryOptions,
 } from "./queries";
@@ -49,13 +51,8 @@ export function CrossReferenceExplorerView({
   const [lastActiveSide, setLastActiveSide] = useState<"left" | "right" | null>(
     null,
   );
-  // Candidate set for marking; seeded lazily with rootNode.id after load.
-  const [centerLoadedIds, setCenterLoadedIds] = useState<string[]>([]);
-
-  // Seed root into centerLoadedIds once it's available.
-  if (rootNode && centerLoadedIds.length === 0) {
-    setCenterLoadedIds([rootNode.id]);
-  }
+  const [hiddenHighlightTotal, setHiddenHighlightTotal] = useState(0);
+  const centerTreeRef = useRef<AsyncTreeHandle>(null);
 
   const centerSelectionKey = [...centerSelectedIds].sort().join(",");
 
@@ -64,14 +61,7 @@ export function CrossReferenceExplorerView({
       const result = await queryClient.ensureQueryData(
         nodeChildrenQueryOptions(parentId),
       );
-      const nodes = result.hierarchicalGraph?.node?.children.nodes ?? [];
-      const newIds = nodes.map((n) => n.id);
-      setCenterLoadedIds((prev) => {
-        const prevSet = new Set(prev);
-        const toAdd = newIds.filter((id) => !prevSet.has(id));
-        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
-      });
-      return nodes;
+      return result.hierarchicalGraph?.node?.children.nodes ?? [];
     },
     [queryClient],
   );
@@ -136,51 +126,49 @@ export function CrossReferenceExplorerView({
     [setFocusedId, setFocusedName],
   );
 
-  // Marking queries — always called, gated by enabled.
+  // Related queries — always called, gated by enabled. The unbounded fields
+  // return the full related set over the graph, so no candidate set is needed.
   const leftMarkingEnabled =
-    lastActiveSide === "left" &&
-    leftSelectedIds.length > 0 &&
-    centerLoadedIds.length > 0;
+    lastActiveSide === "left" && leftSelectedIds.length > 0;
   const rightMarkingEnabled =
-    lastActiveSide === "right" &&
-    rightSelectedIds.length > 0 &&
-    centerLoadedIds.length > 0;
+    lastActiveSide === "right" && rightSelectedIds.length > 0;
 
   const { data: leftMarkingData } = useQuery({
-    ...crossReferenceExplorerCenterMarkedByLeftQueryOptions(
-      centerLoadedIds,
-      leftSelectedIds,
-    ),
+    ...crossReferenceExplorerCenterRelatedByLeftQueryOptions(leftSelectedIds),
     enabled: leftMarkingEnabled,
   });
 
   const { data: rightMarkingData } = useQuery({
-    ...crossReferenceExplorerCenterMarkedByRightQueryOptions(
-      centerLoadedIds,
-      rightSelectedIds,
-    ),
+    ...crossReferenceExplorerCenterRelatedByRightQueryOptions(rightSelectedIds),
     enabled: rightMarkingEnabled,
   });
 
   const relatedCenterIds: string[] = leftMarkingEnabled
-    ? (leftMarkingData?.hierarchicalGraph?.nodes.filterReferencingNodes
-        .nodeIds ?? [])
+    ? (leftMarkingData?.hierarchicalGraph?.nodes.referencingNodes.nodeIds ?? [])
     : rightMarkingEnabled
-      ? (rightMarkingData?.hierarchicalGraph?.nodes.filterReferencedNodes
-          .nodeIds ?? [])
+      ? (rightMarkingData?.hierarchicalGraph?.nodes.referencedNodes.nodeIds ??
+        [])
       : [];
 
-  // Hidden-selection hint: active side has a selection, but no related nodes are visible in the
-  // currently-loaded center set (e.g. the matching node hasn't been expanded in center yet).
-  const showHiddenSelectionHint =
-    (lastActiveSide === "left" &&
-      leftSelectedIds.length > 0 &&
-      leftMarkingData !== undefined &&
-      relatedCenterIds.length === 0) ||
-    (lastActiveSide === "right" &&
-      rightSelectedIds.length > 0 &&
-      rightMarkingData !== undefined &&
-      relatedCenterIds.length === 0);
+  // Ancestor chains for the related hits, so hidden hits inside collapsed
+  // branches can be counted per collapsed ancestor and revealed on demand.
+  const { data: predecessorsData } = useQuery({
+    ...crossReferenceExplorerCenterPredecessorsQueryOptions(relatedCenterIds),
+    enabled: relatedCenterIds.length > 0,
+  });
+
+  // hit id → ancestor ids (nearest first). Content-stable so AsyncTree does not
+  // churn on every render; the mapping is by id only, never by fqn.
+  const relatedCenterKey = relatedCenterIds.join(",");
+  const highlightedAncestors = useMemo(() => {
+    const nodes = predecessorsData?.hierarchicalGraph?.nodes.nodes ?? [];
+    const result: Record<string, string[]> = {};
+    for (const node of nodes) {
+      result[node.id] = node.predecessors.map((p) => p.id);
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [predecessorsData, relatedCenterKey]);
 
   // The cell shown in the Dependencies Details pane, derived from the current
   // selection. Only first-selected ids are used; DependencyDetailsPane takes a
@@ -273,31 +261,46 @@ export function CrossReferenceExplorerView({
           </div>
         </div>
         {/* Center column */}
-        <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
+        <div className="border-border @container flex min-w-0 flex-col overflow-auto border-r">
           <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
             Center ·{" "}
             <span className="text-fg-muted">select to filter left/right</span>
           </div>
-          {showHiddenSelectionHint && (
-            <div className="shrink-0 px-2 pt-2">
-              <Message variant="info" title="Highlighted nodes not visible">
-                The nodes that use or are used by this selection are in a
-                collapsed part of the center tree. Expand the center to reveal
-                them.
-              </Message>
-            </div>
-          )}
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
             <AsyncTree
+              ref={centerTreeRef}
               rootNode={rootNode}
               loadChildren={loadCenterChildren}
               onSelectedIdsChange={handleCenterSelectedIdsChange}
               onFocusedIdChange={handleCenterFocusedIdChange}
               highlightedIds={relatedCenterIds}
+              highlightedAncestors={highlightedAncestors}
+              onHiddenHighlightCountChange={setHiddenHighlightTotal}
               label="XrefCenter"
               settings={settings}
             />
           </div>
+          {hiddenHighlightTotal > 0 && (
+            <div className="bg-state-highlighted-bg m-[9px_4px_2px] flex shrink-0 items-center gap-2 rounded-[6px] border border-dashed border-[var(--hl-badge-border)] px-2 py-1">
+              <span className="flex h-4 min-w-[17px] shrink-0 items-center justify-center rounded-[8px] border border-[var(--hl-badge-border)] bg-[var(--hl-badge-bg)] px-[5px] font-mono text-[10px] font-semibold text-[var(--hl-badge-fg)] tabular-nums">
+                {hiddenHighlightTotal}
+              </span>
+              <span className="text-fg-muted min-w-0 flex-1 truncate font-mono text-[11.5px] font-medium">
+                highlighted nodes in collapsed branches
+              </span>
+              <button
+                type="button"
+                title="Expand all hits"
+                onClick={() => centerTreeRef.current?.revealHighlighted()}
+                className="border-border-strong bg-panel flex h-[26px] min-w-[22px] shrink-0 items-center justify-center gap-1 rounded-[6px] border px-[9px] py-[3px] text-[var(--hg-accent)]"
+              >
+                <ChevronsDown className="size-[14px]" />
+                <span className="hidden text-[11.5px] font-medium @[20rem]:inline">
+                  Expand
+                </span>
+              </button>
+            </div>
+          )}
         </div>
         {/* Right column */}
         <div className="flex min-w-0 flex-col overflow-auto">

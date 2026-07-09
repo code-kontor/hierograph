@@ -13,8 +13,9 @@ const OPERATION_TRIGGERS: Record<string, string> = {
   CrossReferencesNodePredecessors: "Cross-Reference",
   CrossReferenceLeftChildren: "Cross-Reference",
   CrossReferenceRightChildren: "Cross-Reference",
-  CrossReferenceCenterMarkedByLeft: "Cross-Reference",
-  CrossReferenceCenterMarkedByRight: "Cross-Reference",
+  CrossReferenceCenterRelatedByLeft: "Cross-Reference",
+  CrossReferenceCenterRelatedByRight: "Cross-Reference",
+  CrossReferenceCenterPredecessors: "Cross-Reference",
 };
 
 export function triggerForOperation(

@@ -32,9 +32,8 @@ const PAGE_WRAPPER_STYLE = { height: "600px" };
 
 beforeEach(() => {
   worker.use(
-    // Center tree: put the three leaf classes directly under root, so
-    // centerLoadedIds (the marking candidate set) contains them without
-    // navigating the full recorded hierarchy.
+    // Center tree: put the three leaf classes directly under root, so they are
+    // rendered without navigating the full recorded hierarchy.
     graphql.query("NodeChildren", ({ variables }) => {
       const { id } = variables as { id: string };
       if (id === ROOT_ID) {
@@ -107,20 +106,37 @@ beforeEach(() => {
         },
       });
     }),
-    // Marking: mirrors the real backend's expandNodes(nodesToConsider) —
-    // SELF_AND_CHILDREN on the non-leaf `cycle` package only reaches
-    // {cycle, alpha, beta, gamma}, missing the leaf classes two levels down
-    // (under-aggregation, the AC2 bug); SELF_AND_SUCCESSORS reaches all
-    // descendants and aggregates correctly. This makes the test fail against
-    // the pre-fix query doc and pass against the fixed one.
-    graphql.query("CrossReferenceExplorerCenterMarkedByLeft", ({ query }) => {
-      const nodeIds = query.includes("SELF_AND_SUCCESSORS")
-        ? [CYCLE_A_ID, CYCLE_B_ID, CYCLE_C_ID]
-        : [];
+    // Related: the unbounded field aggregates a container selection over its
+    // own subtree (accumulatedOutgoing/Incoming roll up successors), so
+    // selecting the non-leaf `cycle` package reaches all its nested leaf
+    // classes without a nodesToConsider argument — the leaf classes are the
+    // raw endpoints returned here.
+    graphql.query("CrossReferenceExplorerCenterRelatedByLeft", () => {
       return HttpResponse.json({
         data: {
           hierarchicalGraph: {
-            nodes: { filterReferencingNodes: { nodeIds } },
+            nodes: {
+              referencingNodes: {
+                nodeIds: [CYCLE_A_ID, CYCLE_B_ID, CYCLE_C_ID],
+              },
+            },
+          },
+        },
+      });
+    }),
+    // All three leaves are rendered directly under root, so none are hidden —
+    // predecessor chains are irrelevant, but a handler is still required.
+    graphql.query("CrossReferenceExplorerCenterPredecessors", () => {
+      return HttpResponse.json({
+        data: {
+          hierarchicalGraph: {
+            nodes: {
+              nodes: [
+                { id: CYCLE_A_ID, predecessors: [] },
+                { id: CYCLE_B_ID, predecessors: [] },
+                { id: CYCLE_C_ID, predecessors: [] },
+              ],
+            },
           },
         },
       });

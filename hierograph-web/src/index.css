@@ -75,6 +75,15 @@
     0.969 0.006 250
   ); /* #f2f5f9  highlighted (derived/related) nodes fill. Bold text, NO left bar. Default: 4c (blue-gray). Alternative: 4b = oklch(0.979 0.002 260) / #f7f8f9 (neutral-gray, very light). To toggle: manually swap the value above. */
 
+  /* Count-badge for hidden highlighted hits in collapsed branches. Stronger,
+     readable step of the highlighted blue-gray family (hue 250) — not a new
+     color. */
+  --hl-badge-bg: oklch(
+    0.918 0.02 250
+  ); /* count-badge fill (blue-gray, highlighted family) */
+  --hl-badge-border: oklch(0.84 0.022 250); /* count-badge 1px border */
+  --hl-badge-fg: oklch(0.42 0.06 250); /* count-badge text (mono 600 10px) */
+
   /* ---- Status ---- */
   --hg-status-info: oklch(0.55 0.15 256); /* #2d71c7 */
   --hg-status-info-bg: oklch(0.955 0.028 256); /* #e4f1ff */
