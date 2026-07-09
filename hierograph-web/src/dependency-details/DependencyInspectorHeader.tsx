@@ -41,6 +41,10 @@ export function DependencyInspectorHeader({
         targetNode?.type,
       );
 
+  // Directional wording ("<source> uses <target>") rather than a bare arrow, so
+  // the dependency direction reads unambiguously in every panel: a Used-by
+  // partner reads "<partner> uses <center>", a Uses partner "<center> uses
+  // <partner>". The two root cases below spell out the aggregated ends.
   if (rootId !== undefined && sourceNodeId === rootId) {
     return (
       <div className="flex items-center gap-2 font-mono text-[12px]">
@@ -62,10 +66,8 @@ export function DependencyInspectorHeader({
 
   return (
     <div className="flex items-center gap-2 font-mono text-[12px]">
-      <span className="text-fg-subtle">From</span>
       <span className="text-fg">{sourceText}</span>
-      <span className="text-fg-subtle">→</span>
-      <span className="text-fg-subtle">To</span>
+      <span className="text-fg-subtle">uses</span>
       <span className="text-fg">{targetText}</span>
     </div>
   );

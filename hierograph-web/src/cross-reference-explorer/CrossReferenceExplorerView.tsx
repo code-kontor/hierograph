@@ -293,6 +293,7 @@ export function CrossReferenceExplorerView({
               onSelectedIdsChange={handleCenterSelectedIdsChange}
               onFocusedIdChange={handleCenterFocusedIdChange}
               markedIds={markedCenterIds}
+              selectionTone={lastActiveSide !== null ? "secondary" : "primary"}
               label="XrefCenter"
               settings={settings}
             />

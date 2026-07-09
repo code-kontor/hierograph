@@ -49,6 +49,11 @@ export type AsyncTreeProps = {
   settings: TreeSettings;
   autoExpandOnLoad?: "root-chain" | "all";
   filterIds?: string[];
+  // Tone of this tree's selection. "secondary" renders the selected row in a
+  // de-emphasised style — used when the active selection lives in another tree
+  // (e.g. the center node while a Used-by/Uses partner is active), so the two
+  // selections stay visually distinct. Defaults to "primary".
+  selectionTone?: "primary" | "secondary";
 };
 
 export type AsyncTreeHandle = {
@@ -80,6 +85,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       settings,
       autoExpandOnLoad,
       filterIds,
+      selectionTone = "primary",
     },
     ref,
   ) {
@@ -455,6 +461,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             key={item.getId()}
             item={item}
             isMarked={markedSet.has(item.getId())}
+            selectionTone={selectionTone}
             focusedItemId={state.focusedItem ?? null}
             settings={settings}
             onRowClick={handleRowClick}
@@ -471,6 +478,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
 type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
   isMarked: boolean;
+  selectionTone: "primary" | "secondary";
   focusedItemId: string | null;
   settings: TreeSettings;
   onRowClick: (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => void;
@@ -487,6 +495,7 @@ type TooltipPos = { x: number; y: number };
 function TreeRow({
   item,
   isMarked,
+  selectionTone,
   focusedItemId,
   settings,
   onRowClick,
@@ -499,6 +508,8 @@ function TreeRow({
   const isLoading = item.isLoading();
   const isExpanded = item.isExpanded();
   const isSelected = item.isSelected();
+  const isPrimarySelected = isSelected && selectionTone === "primary";
+  const isSecondarySelected = isSelected && selectionTone === "secondary";
   const isFocused = focusedItemId != null && focusedItemId === item.getId();
 
   const [isHovered, setIsHovered] = useState(false);
@@ -512,11 +523,13 @@ function TreeRow({
     };
   }, []);
 
-  const iconColorClass = isSelected
+  const iconColorClass = isPrimarySelected
     ? "text-state-selected-fg"
-    : !isSelected && isMarked
-      ? "text-fg-muted"
-      : "text-fg-subtle";
+    : isSecondarySelected
+      ? "text-fg"
+      : isMarked
+        ? "text-fg-muted"
+        : "text-fg-subtle";
 
   const nodeData = item.getItemData();
   const fullFqn = nodeData.text;
@@ -532,8 +545,10 @@ function TreeRow({
       {...item.getProps()}
       className={cn(
         "relative my-px flex h-7 min-w-0 cursor-pointer items-center gap-[7px] rounded-[6px] px-2 select-none",
-        isSelected &&
+        isPrimarySelected &&
           "bg-state-selected-bg text-state-selected-fg font-semibold",
+        isSecondarySelected &&
+          "bg-state-selected-secondary-bg text-fg font-semibold",
         !isSelected && isMarked && "bg-state-related-bg font-semibold",
         !isSelected && !isMarked && isHovered && "bg-state-hover",
         isFocused && "ring-state-focus-ring ring-2 ring-inset",
@@ -567,8 +582,11 @@ function TreeRow({
         onHoveredIdChange?.(undefined);
       }}
     >
-      {isSelected && (
+      {isPrimarySelected && (
         <span className="bg-state-selected-bar absolute top-0 bottom-0 left-0 w-[3px] rounded-l-[6px]" />
+      )}
+      {isSecondarySelected && (
+        <span className="bg-state-selected-secondary-bar absolute top-0 bottom-0 left-0 w-[3px] rounded-l-[6px]" />
       )}
       <span
         className="h-full shrink-0"
@@ -609,7 +627,7 @@ function TreeRow({
         <span
           className={cn(
             "shrink-0 rounded px-1 font-mono text-[10px] tabular-nums",
-            isSelected ? "text-state-selected-fg" : "text-fg-subtle",
+            isPrimarySelected ? "text-state-selected-fg" : "text-fg-subtle",
           )}
         >
           {nodeData.weight}
@@ -621,7 +639,7 @@ function TreeRow({
           aria-label="Set as subject"
           className={cn(
             "shrink-0 rounded px-1 text-[11px]",
-            isSelected ? "text-state-selected-fg" : "text-fg-subtle",
+            isPrimarySelected ? "text-state-selected-fg" : "text-fg-subtle",
           )}
           onClick={(e) => {
             e.stopPropagation();
