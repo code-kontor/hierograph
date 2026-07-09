@@ -152,7 +152,7 @@ it("clicking a non-leaf package partner marks its nested leaf classes in the cen
         centerTree
           .getByText(CYCLE_B_FQN)
           .element()
-          .closest("[class*='bg-state-related-bg']") !== null,
+          .closest("[class*='bg-state-highlighted-bg']") !== null,
     )
     .toBe(true);
   await expect
@@ -161,7 +161,7 @@ it("clicking a non-leaf package partner marks its nested leaf classes in the cen
         centerTree
           .getByText(CYCLE_C_FQN)
           .element()
-          .closest("[class*='bg-state-related-bg']") !== null,
+          .closest("[class*='bg-state-highlighted-bg']") !== null,
     )
     .toBe(true);
 
@@ -170,6 +170,6 @@ it("clicking a non-leaf package partner marks its nested leaf classes in the cen
     centerTree
       .getByText(CYCLE_A_FQN)
       .element()
-      .closest("[class*='bg-state-related-bg']"),
+      .closest("[class*='bg-state-highlighted-bg']"),
   ).toBeNull();
 });
