@@ -1,10 +1,4 @@
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 
 export type CellSelection = {
   sourceNodeId: string;
@@ -35,20 +29,22 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
   const [cellSelection, setCellSelection] = useState<CellSelection | null>(
     null,
   );
-  const value = useMemo(
-    () => ({
-      selectedIds,
-      setSelectedIds,
-      focusedId,
-      setFocusedId,
-      focusedName,
-      setFocusedName,
-      cellSelection,
-      setCellSelection,
-    }),
-    [selectedIds, focusedId, focusedName, cellSelection],
+  return (
+    <SelectionContext
+      value={{
+        selectedIds,
+        setSelectedIds,
+        focusedId,
+        setFocusedId,
+        focusedName,
+        setFocusedName,
+        cellSelection,
+        setCellSelection,
+      }}
+    >
+      {children}
+    </SelectionContext>
   );
-  return <SelectionContext value={value}>{children}</SelectionContext>;
 }
 
 export function useSelection(): SelectionContextValue {
@@ -81,8 +77,11 @@ type DevPanelProviderProps = {
 export function DevPanelProvider({ children }: DevPanelProviderProps) {
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState<DevPanelTab>("details");
-  const value = useMemo(() => ({ open, setOpen, tab, setTab }), [open, tab]);
-  return <DevPanelContext value={value}>{children}</DevPanelContext>;
+  return (
+    <DevPanelContext value={{ open, setOpen, tab, setTab }}>
+      {children}
+    </DevPanelContext>
+  );
 }
 
 export function useDevPanel(): DevPanelContextValue {

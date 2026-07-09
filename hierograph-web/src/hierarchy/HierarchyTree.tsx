@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
 
 import {
   nodeChildrenQueryOptions,
@@ -60,23 +59,17 @@ function HierarchyTreeInner({ rootNode, settings }: HierarchyTreeInnerProps) {
   const queryClient = useQueryClient();
   const { setSelectedIds, setFocusedId, setFocusedName } = useSelection();
 
-  const loadChildren = useCallback(
-    async (id: string): Promise<TreeNodeData[]> => {
-      const result = await queryClient.ensureQueryData(
-        nodeChildrenQueryOptions(id),
-      );
-      return result.hierarchicalGraph?.node?.children.nodes ?? [];
-    },
-    [queryClient],
-  );
+  const loadChildren = async (id: string): Promise<TreeNodeData[]> => {
+    const result = await queryClient.ensureQueryData(
+      nodeChildrenQueryOptions(id),
+    );
+    return result.hierarchicalGraph?.node?.children.nodes ?? [];
+  };
 
-  const handleFocusedIdChange = useCallback(
-    (id: string | null, name: string | null) => {
-      setFocusedId(id);
-      setFocusedName(name);
-    },
-    [setFocusedId, setFocusedName],
-  );
+  const handleFocusedIdChange = (id: string | null, name: string | null) => {
+    setFocusedId(id);
+    setFocusedName(name);
+  };
 
   return (
     <div className="flex h-full flex-col">
