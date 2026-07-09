@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronsDown, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
 import { Message } from "@/design-system/ui/message";
@@ -84,56 +84,47 @@ export function CrossReferenceExplorerView({
 
   const centerSelectionKey = [...centerSelectedIds].sort().join(",");
 
-  const loadCenterChildren = useCallback(
-    async (parentId: string) => {
-      const result = await queryClient.ensureQueryData(
-        nodeChildrenQueryOptions(parentId),
-      );
-      return result.hierarchicalGraph?.node?.children.nodes ?? [];
-    },
-    [queryClient],
-  );
+  const loadCenterChildren = async (parentId: string) => {
+    const result = await queryClient.ensureQueryData(
+      nodeChildrenQueryOptions(parentId),
+    );
+    return result.hierarchicalGraph?.node?.children.nodes ?? [];
+  };
 
-  const loadLeftChildren = useCallback(
-    async (parentId: string) => {
-      const result = await queryClient.ensureQueryData(
-        crossReferenceExplorerLeftChildrenQueryOptions(
-          parentId,
-          centerSelectedIds,
-        ),
-      );
-      return (
-        result.hierarchicalGraph?.node?.childrenFilteredByReferencedNodes
-          .nodes ?? []
-      );
-    },
-    [queryClient, centerSelectedIds],
-  );
+  const loadLeftChildren = async (parentId: string) => {
+    const result = await queryClient.ensureQueryData(
+      crossReferenceExplorerLeftChildrenQueryOptions(
+        parentId,
+        centerSelectedIds,
+      ),
+    );
+    return (
+      result.hierarchicalGraph?.node?.childrenFilteredByReferencedNodes.nodes ??
+      []
+    );
+  };
 
-  const loadRightChildren = useCallback(
-    async (parentId: string) => {
-      const result = await queryClient.ensureQueryData(
-        crossReferenceExplorerRightChildrenQueryOptions(
-          parentId,
-          centerSelectedIds,
-        ),
-      );
-      return (
-        result.hierarchicalGraph?.node?.childrenFilteredByReferencingNodes
-          .nodes ?? []
-      );
-    },
-    [queryClient, centerSelectedIds],
-  );
+  const loadRightChildren = async (parentId: string) => {
+    const result = await queryClient.ensureQueryData(
+      crossReferenceExplorerRightChildrenQueryOptions(
+        parentId,
+        centerSelectedIds,
+      ),
+    );
+    return (
+      result.hierarchicalGraph?.node?.childrenFilteredByReferencingNodes
+        .nodes ?? []
+    );
+  };
 
-  const handleCenterSelectedIdsChange = useCallback((ids: string[]) => {
+  const handleCenterSelectedIdsChange = (ids: string[]) => {
     setCenterSelectedIds(ids);
     setAggregateSide(null);
     // Remounting Left/Right resets their selections, which fires onSelectedIdsChange([]).
     // Those handlers will clear lastActiveSide correctly.
-  }, []);
+  };
 
-  const handleLeftSelectedIdsChange = useCallback((ids: string[]) => {
+  const handleLeftSelectedIdsChange = (ids: string[]) => {
     setLeftSelectedIds(ids);
     setLastActiveSide(
       ids.length > 0 ? "left" : (prev) => (prev === "left" ? null : prev),
@@ -141,9 +132,9 @@ export function CrossReferenceExplorerView({
     if (ids.length > 0) {
       setAggregateSide(null);
     }
-  }, []);
+  };
 
-  const handleRightSelectedIdsChange = useCallback((ids: string[]) => {
+  const handleRightSelectedIdsChange = (ids: string[]) => {
     setRightSelectedIds(ids);
     setLastActiveSide(
       ids.length > 0 ? "right" : (prev) => (prev === "right" ? null : prev),
@@ -151,15 +142,15 @@ export function CrossReferenceExplorerView({
     if (ids.length > 0) {
       setAggregateSide(null);
     }
-  }, []);
+  };
 
-  const handleCenterFocusedIdChange = useCallback(
-    (id: string | null, name: string | null) => {
-      setFocusedId(id);
-      setFocusedName(name);
-    },
-    [setFocusedId, setFocusedName],
-  );
+  const handleCenterFocusedIdChange = (
+    id: string | null,
+    name: string | null,
+  ) => {
+    setFocusedId(id);
+    setFocusedName(name);
+  };
 
   // Related queries — always called, gated by enabled. The unbounded fields
   // return the full related set over the graph, so no candidate set is needed.
@@ -234,13 +225,18 @@ export function CrossReferenceExplorerView({
     cellTarget = rootId;
   }
 
+  const notifyCellSelection = useEffectEvent(
+    (source: string | undefined, target: string | undefined) => {
+      if (source !== undefined && target !== undefined) {
+        setCellSelection({ sourceNodeId: source, targetNodeId: target });
+      } else {
+        setCellSelection(null);
+      }
+    },
+  );
   useEffect(() => {
-    if (cellSource !== undefined && cellTarget !== undefined) {
-      setCellSelection({ sourceNodeId: cellSource, targetNodeId: cellTarget });
-    } else {
-      setCellSelection(null);
-    }
-  }, [cellSource, cellTarget, setCellSelection]);
+    notifyCellSelection(cellSource, cellTarget);
+  }, [cellSource, cellTarget]);
 
   if (rootPending) {
     return (

@@ -2,8 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import {
   type Ref,
-  useCallback,
   useEffect,
+  useEffectEvent,
   useImperativeHandle,
   useRef,
   useState,
@@ -220,12 +220,12 @@ export function TracePanel({
   // AsyncTree is always single-select and never clears, so this guard only
   // affects the programmatic clearing path. Edge case accepted for v1: a
   // ctrl/meta-toggle-off of the only selected row leaves a stale driver.
-  const handleSourceSelect = useCallback((ids: string[]) => {
+  const handleSourceSelect = (ids: string[]) => {
     if (ids.length > 0) setDriver({ side: "source", ids });
-  }, []);
-  const handleTargetSelect = useCallback((ids: string[]) => {
+  };
+  const handleTargetSelect = (ids: string[]) => {
     if (ids.length > 0) setDriver({ side: "target", ids });
-  }, []);
+  };
 
   // Exactly one driver at a time: switching sides clears the previously active
   // tree's selection so the two panes never show a selection simultaneously.
@@ -237,22 +237,23 @@ export function TracePanel({
 
   // Report driver presence upward so the pane can enable/disable the Clear
   // Selection control. Refs are not reactive, hence a callback prop.
+  const notifySelectionChange = useEffectEvent((hasDriver: boolean) => {
+    onSelectionChange?.(hasDriver);
+  });
   useEffect(() => {
-    onSelectionChange?.(driver != null);
-  }, [driver, onSelectionChange]);
+    notifySelectionChange(driver != null);
+  }, [driver]);
 
-  // Stable identities: an inline arrow would re-fire the AsyncTree focus effect
-  // (and any effect depending on this callback) on every render and loop.
-  const handleSourceFocus = useCallback(
-    (id: string | null, name: string | null, type: string | null) =>
-      setSourceFocus(id ? { id, name: name ?? "", type } : null),
-    [],
-  );
-  const handleTargetFocus = useCallback(
-    (id: string | null, name: string | null, type: string | null) =>
-      setTargetFocus(id ? { id, name: name ?? "", type } : null),
-    [],
-  );
+  const handleSourceFocus = (
+    id: string | null,
+    name: string | null,
+    type: string | null,
+  ) => setSourceFocus(id ? { id, name: name ?? "", type } : null);
+  const handleTargetFocus = (
+    id: string | null,
+    name: string | null,
+    type: string | null,
+  ) => setTargetFocus(id ? { id, name: name ?? "", type } : null);
 
   const driverLabel = driver
     ? driver.ids.length > 1
@@ -304,41 +305,35 @@ export function TracePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, counterpartMarksKey, sourceIsCounterpart, targetIsCounterpart]);
 
-  const loadSourceChildren = useCallback(
-    async (parentId: string) => {
-      const result = await queryClient.ensureQueryData(
-        filteredChildrenQueryOptions(
-          sourceNodeId,
-          targetNodeId,
-          parentId,
-          "SOURCE",
-        ),
-      );
-      return (
-        result.hierarchicalGraph?.dependencySetForAggregatedDependency
-          ?.filteredChildren ?? []
-      );
-    },
-    [queryClient, sourceNodeId, targetNodeId],
-  );
+  const loadSourceChildren = async (parentId: string) => {
+    const result = await queryClient.ensureQueryData(
+      filteredChildrenQueryOptions(
+        sourceNodeId,
+        targetNodeId,
+        parentId,
+        "SOURCE",
+      ),
+    );
+    return (
+      result.hierarchicalGraph?.dependencySetForAggregatedDependency
+        ?.filteredChildren ?? []
+    );
+  };
 
-  const loadTargetChildren = useCallback(
-    async (parentId: string) => {
-      const result = await queryClient.ensureQueryData(
-        filteredChildrenQueryOptions(
-          sourceNodeId,
-          targetNodeId,
-          parentId,
-          "TARGET",
-        ),
-      );
-      return (
-        result.hierarchicalGraph?.dependencySetForAggregatedDependency
-          ?.filteredChildren ?? []
-      );
-    },
-    [queryClient, sourceNodeId, targetNodeId],
-  );
+  const loadTargetChildren = async (parentId: string) => {
+    const result = await queryClient.ensureQueryData(
+      filteredChildrenQueryOptions(
+        sourceNodeId,
+        targetNodeId,
+        parentId,
+        "TARGET",
+      ),
+    );
+    return (
+      result.hierarchicalGraph?.dependencySetForAggregatedDependency
+        ?.filteredChildren ?? []
+    );
+  };
 
   const sourceRoot = sourceRootData?.hierarchicalGraph?.node ?? null;
   const targetRoot = targetRootData?.hierarchicalGraph?.node ?? null;
