@@ -8,36 +8,38 @@ lower-triangular.
 
 ## Verticals
 
-| Vertical                   | Scope                                                         |
-| -------------------------- | ------------------------------------------------------------- |
-| `dependencies`             | DSM screen (`/dependencies`)                                  |
-| `cross-references`         | Cross References screen (`/cross-references`)                 |
-| `cross-reference`          | cross-reference screen                                        |
-| `cross-reference-explorer` | Cross-Reference Explorer screen (`/cross-reference-explorer`) |
-| `dependency-details`       | shared inspector pane                                         |
-| `hierarchy`                | hierarchy tree browser                                        |
-| `selection`                | cross-view workbench selection state                          |
-| `tree`                     | async tree widget and settings                                |
-| `graph`                    | shared node-domain concepts (icons, labels, node queries)     |
-| `design-system`            | domain-agnostic UI components (depends on no vertical)        |
-| `graphql`                  | data-access platform (Apollo client and generated code)       |
-| `routes`                   | thin route wiring                                             |
-| `testing`                  | test infrastructure                                           |
+| Vertical                   | Scope                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `dependencies`             | DSM screen (`/dependencies`)                                                                |
+| `cross-references`         | Cross References screen (`/cross-references`)                                               |
+| `cross-reference`          | cross-reference screen                                                                      |
+| `cross-reference-explorer` | Cross-Reference Explorer screen (`/cross-reference-explorer`)                               |
+| `dependency-details`       | shared inspector pane                                                                       |
+| `dev-panel`                | floating developer inspector panel (node details + dev query log), rendered globally in DEV |
+| `hierarchy`                | hierarchy tree browser                                                                      |
+| `selection`                | cross-view workbench selection state                                                        |
+| `tree`                     | async tree widget and settings                                                              |
+| `graph`                    | shared node-domain concepts (icons, labels, node queries)                                   |
+| `design-system`            | domain-agnostic UI components (depends on no vertical)                                      |
+| `graphql`                  | data-access platform (Apollo client and generated code)                                     |
+| `routes`                   | thin route wiring                                                                           |
+| `testing`                  | test infrastructure                                                                         |
 
 ## Allowed Dependency Direction (DAG)
 
-| From                                                                                           | May import                                                                                                                                                          |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| app (`main.tsx`, `routeTree.gen.ts`)                                                           | `routes`, `graphql`, `design-system`                                                                                                                                |
-| `routes`                                                                                       | `dependencies`, `cross-references`, `cross-reference`, `cross-reference-explorer`, `dependency-details`, `hierarchy`, `selection`, `tree`, `graph`, `design-system` |
-| `dependencies` / `cross-reference` / `cross-references` / `cross-reference-explorer` (screens) | `hierarchy`, `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql`                                                                         |
-| `dependency-details` / `hierarchy` (shared panes)                                              | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                                                                            |
-| `tree`                                                                                         | `graph`, `design-system`                                                                                                                                            |
-| `graph`                                                                                        | `graphql`, `design-system`                                                                                                                                          |
-| `selection`                                                                                    | (nothing internal)                                                                                                                                                  |
-| `design-system`                                                                                | (nothing internal — only itself)                                                                                                                                    |
-| `graphql`                                                                                      | (nothing internal)                                                                                                                                                  |
-| `test` / `testing`                                                                             | anything                                                                                                                                                            |
+| From                                                                                           | May import                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| app (`main.tsx`, `routeTree.gen.ts`)                                                           | `routes`, `graphql`, `design-system`                                                                                                                                             |
+| `routes`                                                                                       | `dependencies`, `cross-references`, `cross-reference`, `cross-reference-explorer`, `dependency-details`, `dev-panel`, `hierarchy`, `selection`, `tree`, `graph`, `design-system` |
+| `dependencies` / `cross-reference` / `cross-references` / `cross-reference-explorer` (screens) | `hierarchy`, `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql`                                                                                      |
+| `dependency-details` / `hierarchy` (shared panes)                                              | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                                                                                         |
+| `dev-panel`                                                                                    | `selection`, `graph`, `design-system`, `graphql`                                                                                                                                 |
+| `tree`                                                                                         | `graph`, `design-system`                                                                                                                                                         |
+| `graph`                                                                                        | `graphql`, `design-system`                                                                                                                                                       |
+| `selection`                                                                                    | (nothing internal)                                                                                                                                                               |
+| `design-system`                                                                                | (nothing internal — only itself)                                                                                                                                                 |
+| `graphql`                                                                                      | (nothing internal)                                                                                                                                                               |
+| `test` / `testing`                                                                             | anything                                                                                                                                                                         |
 
 The `dependencies` and `cross-reference` verticals are _screen verticals_ —
 each owns a top-level screen and composes the shared panes (`hierarchy`,
@@ -87,17 +89,17 @@ workbench-state restoration. `zod` will not be introduced until that task.
 ## Public-API Rule
 
 Verticals (`dependencies`, `cross-references`, `cross-reference`,
-`cross-reference-explorer`, `dependency-details`, `hierarchy`, `selection`,
-`tree`, `graph`) are entered only through their **declared public files** —
-the explicit per-vertical allow-lists in `eslint.config.js`
+`cross-reference-explorer`, `dependency-details`, `dev-panel`, `hierarchy`,
+`selection`, `tree`, `graph`) are entered only through their **declared public
+files** — the explicit per-vertical allow-lists in `eslint.config.js`
 (`boundaries/dependencies`). Cross-vertical imports use direct paths
 (`@/<vertical>/<File>`); there are no re-export barrel `index.ts` files.
 Public file per vertical: `dependencies` → `DependenciesPage.tsx`,
 `cross-references` → `CrossReferencesPage.tsx`, `cross-reference` →
 `CrossReferenceView.tsx` / `XrefPage.tsx`, `cross-reference-explorer` →
-`CrossReferenceExplorerView.tsx` / `CrossReferenceExplorerPage.tsx`. The
-platform layers (`design-system`, `graphql`, `testing`) expose their files
-directly (shadcn convention / generated client).
+`CrossReferenceExplorerView.tsx` / `CrossReferenceExplorerPage.tsx`,
+`dev-panel` → `DevPanel.tsx`. The platform layers (`design-system`, `graphql`,
+`testing`) expose their files directly (shadcn convention / generated client).
 
 ## Tooling
 

@@ -32,7 +32,6 @@ import {
 } from "./dependencyDetailsLabelSettings";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
-import { NodeDetailsWidget } from "./NodeDetailsWidget";
 import type { TraceViewMode } from "./serializeTrace";
 import {
   TabHelpButton,
@@ -285,7 +284,6 @@ export function DependencyDetailsPane() {
             </Message>
           </div>
         )}
-        {import.meta.env.DEV && <NodeDetailsWidget />}
       </Pane>
     </Tabs>
   );

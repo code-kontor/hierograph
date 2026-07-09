@@ -86,10 +86,6 @@ async function renderPathsTabDeepCell() {
 
   await userEvent.click(page.getByText("select-cell-2"));
   await userEvent.click(page.getByRole("tab", { name: "Paths" }));
-
-  // The dev-only NodeDetailsWidget floats over the narrow test viewport and can
-  // overlap deep tree rows; dismiss it (Escape) so clicks land on the tree.
-  await userEvent.keyboard("{Escape}");
 }
 
 function sourceRow(text: string) {
@@ -162,9 +158,6 @@ describe("Paths tab", () => {
 
     await userEvent.click(sourceRow(SUB_CLASS));
     await expect.element(targetRow(BASE_CLASS)).toBeVisible();
-    // The NodeDetailsWidget floats over the viewport after a click and can
-    // block subsequent tree clicks; dismiss it first.
-    await userEvent.keyboard("{Escape}");
 
     await userEvent.click(targetRow(BASE_CLASS));
 

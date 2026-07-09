@@ -67,6 +67,7 @@ export default defineConfig([
         { type: "cross-reference", pattern: "src/cross-reference" },
         { type: "cross-references", pattern: "src/cross-references" },
         { type: "dependency-details", pattern: "src/dependency-details" },
+        { type: "dev-panel", pattern: "src/dev-panel" },
         { type: "hierarchy", pattern: "src/hierarchy" },
         { type: "selection", pattern: "src/selection" },
         { type: "tree", pattern: "src/tree" },
@@ -155,6 +156,7 @@ export default defineConfig([
                     ],
                   },
                   { type: "design-system" },
+                  { type: "dev-panel", internalPath: ["DevPanel.tsx"] },
                 ],
               },
             },
@@ -223,6 +225,21 @@ export default defineConfig([
                       "NodeInfoTooltip.tsx",
                       "nodeLabel.ts",
                     ],
+                  },
+                  { type: "design-system" },
+                  { type: "graphql" },
+                ],
+              },
+            },
+            // dev-panel → selection, graph, design-system, graphql
+            {
+              from: { type: "dev-panel" },
+              allow: {
+                to: [
+                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
+                  {
+                    type: "graph",
+                    internalPath: ["queries.ts", "nodeIcon.ts"],
                   },
                   { type: "design-system" },
                   { type: "graphql" },
