@@ -81,8 +81,8 @@ class PairwiseDependenciesPaginationTest {
     }
 
     private fun build(model: HGModel): PairwiseDependenciesTool {
-        val graphService = HierarchicalGraphService().also { it.model = model }
-        val dataHashProvider = DataHashProvider(graphService).also { it.init() }
+        val graphService = HierarchicalGraphService().also { it.seed(model) }
+        val dataHashProvider = DataHashProvider(graphService)
         return PairwiseDependenciesTool(graphService, FakeNodeRefFactory(), dataHashProvider)
     }
 

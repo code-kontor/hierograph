@@ -16,42 +16,25 @@
 package io.hierograph.mcp.server.core.pagination
 
 import io.hierograph.mcp.server.core.HierarchicalGraphService
-import jakarta.annotation.PostConstruct
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 /**
- * Holds the data-snapshot hash (`dh`) for the currently-loaded graph.
+ * Exposes the data-snapshot hash (`dh`) for the currently-loaded graph.
  *
- * Per the pagination design, the data hash is captured once when the graph is loaded and reused for
- * every cursor issued during that period. This bean is that capture point: it computes the fingerprint
- * a single time after startup and exposes it as a stable value that paginated tools stamp into the
- * cursors they issue and check against the cursors they receive.
+ * Per the pagination design, the data hash identifies the graph snapshot a cursor was issued against:
+ * paginated tools stamp it into the cursors they issue and check it against the cursors they receive.
  *
- * Because the value is constructor-derived from [HierarchicalGraphService], Spring fully initializes
- * the graph (running its `@PostConstruct`) before this bean's [init] runs, so [graphService.model]
- * is populated by the time the fingerprint is computed. If the graph is ever reloaded into a new
- * snapshot, this hash must be recomputed so that cursors from the previous snapshot are recognized as
- * stale.
+ * The value is delegated live to [HierarchicalGraphService], which owns the snapshot. Because each
+ * snapshot bundles its own hash and [HierarchicalGraphService.reload] swaps the whole snapshot
+ * atomically, a reload's new hash is picked up automatically here — and cursors issued against the
+ * previous snapshot are correctly recognized as stale.
  */
 @Component
 class DataHashProvider(
     private val graphService: HierarchicalGraphService
 ) {
 
-    private lateinit var captured: String
-
-    /** The fingerprint of the loaded graph snapshot; stable for the lifetime of that snapshot. */
+    /** The fingerprint of the currently-loaded graph snapshot. */
     val dataHash: String
-        get() = captured
-
-    @PostConstruct
-    fun init() {
-        captured = DataHash.fingerprint(graphService.model)
-        log.info("Captured data-snapshot hash: {}", captured)
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(DataHashProvider::class.java)
-    }
+        get() = graphService.dataHash
 }

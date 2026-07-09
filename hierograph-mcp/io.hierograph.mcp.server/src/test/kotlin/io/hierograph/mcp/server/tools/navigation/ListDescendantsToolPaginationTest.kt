@@ -54,8 +54,8 @@ class ListDescendantsToolPaginationTest {
         }
 
         val model = HGModel(graph, hierarchy)
-        val graphService = HierarchicalGraphService().also { it.model = model }
-        val dataHashProvider = DataHashProvider(graphService).also { it.init() }
+        val graphService = HierarchicalGraphService().also { it.seed(model) }
+        val dataHashProvider = DataHashProvider(graphService)
         tool = ListDescendantsTool(graphService, FakeNodeRefFactory(), dataHashProvider)
     }
 

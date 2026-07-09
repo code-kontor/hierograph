@@ -20,6 +20,7 @@ import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
+import io.hierograph.mcp.server.core.pagination.DataHash
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.io.File
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.measureTimedValue
 
 @Service
@@ -44,9 +46,21 @@ class HierarchicalGraphService {
 
     lateinit var boltClient: IBoltClient
 
-    lateinit var model: HGModel
+    /**
+     * The currently-served graph snapshot. Swapped atomically by [reload]; every read below goes
+     * through it, so concurrent tool calls always see one consistent (model, index, hash) set.
+     */
+    private val snapshotRef = AtomicReference<GraphSnapshot>()
 
-    lateinit var searchIndex: NodeSearchIndex
+    val model: HGModel get() = current().model
+
+    val searchIndex: NodeSearchIndex get() = current().searchIndex
+
+    /** Fingerprint of the currently-loaded snapshot; changes on every successful [reload]. */
+    val dataHash: String get() = current().dataHash
+
+    private fun current(): GraphSnapshot =
+        snapshotRef.get() ?: error("Hierarchical graph has not been loaded yet")
 
     @PostConstruct
     fun init() {
@@ -56,20 +70,67 @@ class HierarchicalGraphService {
         boltClient = boltClientFactory.createBoltClient(boltUri)
         boltClient.connect()
 
-        log.info("Creating hierarchical graph...")
-        val (createdModel, elapsed) = measureTimedValue {
-            DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
-        }
-        model = createdModel
+        snapshotRef.set(loadSnapshot())
+    }
 
-        val hierarchy = model.hierarchy
+    /**
+     * Rebuild the graph from the (already-connected) Bolt store and swap it in atomically, without
+     * restarting the server. Call this after a re-scan repopulates the store so the tools reflect the
+     * current code. The existing Bolt connection is reused — the Neo4j driver re-establishes sessions
+     * to the (possibly restarted) Bolt server on demand.
+     *
+     * The new snapshot is built fully before the swap, so on failure the previously loaded graph keeps
+     * being served and an `error` status is returned rather than leaving the server empty. Note that
+     * pagination cursors issued against the previous snapshot become stale (their data hash no longer
+     * matches) and must be re-requested.
+     */
+    fun reload(): Map<String, Any?> {
+        log.info("Reloading hierarchical graph from bolt store: {}", boltUri)
+        return try {
+            val (snapshot, elapsed) = measureTimedValue { loadSnapshot() }
+            snapshotRef.set(snapshot)
+            val rootChildren = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
+            log.info("Reload complete: {} root children, hash {} in {}.", rootChildren, snapshot.dataHash, elapsed)
+            linkedMapOf(
+                "status" to "reloaded",
+                "root_children" to rootChildren,
+                "search_index_entries" to snapshot.searchIndex.entries.size,
+                "data_hash" to snapshot.dataHash,
+                "reload_millis" to elapsed.inWholeMilliseconds
+            )
+        } catch (e: Exception) {
+            log.error("Reload failed; keeping the previously loaded graph.", e)
+            linkedMapOf(
+                "status" to "error",
+                "message" to (e.message ?: e.javaClass.simpleName),
+                "data_hash" to snapshotRef.get()?.dataHash,
+                "note" to "The previously loaded graph is still being served; re-run the scan and retry."
+            )
+        }
+    }
+
+    /**
+     * Seed the service with a ready-made model without going through Bolt. Builds the derived index
+     * and data hash and installs them as the current snapshot. Intended for non-Spring construction
+     * in tests; production code loads via [init] / [reload].
+     */
+    fun seed(model: HGModel) {
+        snapshotRef.set(buildSnapshotFrom(model))
+    }
+
+    /** Query the connected Bolt store into a fresh snapshot, logging progress and writing the dump. */
+    private fun loadSnapshot(): GraphSnapshot {
+        log.info("Creating hierarchical graph...")
+        val (snapshot, elapsed) = measureTimedValue {
+            val createdModel = DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
+            buildSnapshotFrom(createdModel)
+        }
+
+        val hierarchy = snapshot.model.hierarchy
         val children = hierarchy.childrenOf(hierarchy.rootNode)
         log.info("Hierarchical graph created with {} root children in {}.", children.size, elapsed)
-
-        // Precompute the find_node search index once; the model is immutable from here on.
-        val (index, indexElapsed) = measureTimedValue { NodeSearchIndex.build(model) }
-        searchIndex = index
-        log.info("Search index built with {} entries in {}.", index.entries.size, indexElapsed)
+        log.info("Search index built with {} entries.", snapshot.searchIndex.entries.size)
+        log.info("Captured data-snapshot hash: {}", snapshot.dataHash)
 
         // Count nodes by kind (skip the root node itself)
         val kindCounts = mutableMapOf<Any?, Int>()
@@ -89,7 +150,13 @@ class HierarchicalGraphService {
             TreeTraverser.dumpTree(hierarchy.rootNode, hierarchy, sink = { writer.appendLine(it) })
         }
         log.info("Hierarchical graph written to: {}", outputFile.absolutePath)
+
+        return snapshot
     }
+
+    /** Bundle a model with its (freshly built) search index and data hash. Pure — no I/O, no logging. */
+    private fun buildSnapshotFrom(model: HGModel): GraphSnapshot =
+        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model))
 
     @PreDestroy
     fun shutdown() {

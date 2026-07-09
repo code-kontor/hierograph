@@ -30,6 +30,7 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesToo
 import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesTool
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
+import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
 import io.hierograph.graphql.HierarchicalGraphProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -62,7 +63,8 @@ class McpApplication {
         findDependencyPathTool: FindDependencyPathTool,
         typeDetailsTool: TypeDetailsTool,
         methodDetailsTool: MethodDetailsTool,
-        fieldDetailsTool: FieldDetailsTool
+        fieldDetailsTool: FieldDetailsTool,
+        reloadGraphTool: ReloadGraphTool
     ): ToolCallbackProvider {
         val delegate = MethodToolCallbackProvider.builder()
             .toolObjects(
@@ -70,7 +72,8 @@ class McpApplication {
                 aggregatedDependenciesTool, pairwiseDependenciesTool,
                 outgoingDependenciesTool, incomingDependenciesTool,
                 affectedByTool, findDependencyPathTool,
-                typeDetailsTool, methodDetailsTool, fieldDetailsTool
+                typeDetailsTool, methodDetailsTool, fieldDetailsTool,
+                reloadGraphTool
             )
             .build()
         return LoggingToolCallbackProvider(delegate)

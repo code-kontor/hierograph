@@ -103,8 +103,8 @@ class DependencyToolsOptionalToIdTest {
         mId = m.identifier as Long
 
         val model = HGModel(graph, hierarchy)
-        val graphService = HierarchicalGraphService().also { it.model = model }
-        val dataHashProvider = DataHashProvider(graphService).also { it.init() }
+        val graphService = HierarchicalGraphService().also { it.seed(model) }
+        val dataHashProvider = DataHashProvider(graphService)
         detail = FakeDetail()
         outgoing = OutgoingDependenciesTool(graphService, FakeNodeRefFactory(), detail, dataHashProvider)
         incoming = IncomingDependenciesTool(outgoing, detail)
