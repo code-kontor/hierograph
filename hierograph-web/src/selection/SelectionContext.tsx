@@ -48,11 +48,7 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
     }),
     [selectedIds, focusedId, focusedName, cellSelection],
   );
-  return (
-    <SelectionContext.Provider value={value}>
-      {children}
-    </SelectionContext.Provider>
-  );
+  return <SelectionContext value={value}>{children}</SelectionContext>;
 }
 
 export function useSelection(): SelectionContextValue {
@@ -86,11 +82,7 @@ export function DevPanelProvider({ children }: DevPanelProviderProps) {
   const [open, setOpen] = useState(true);
   const [tab, setTab] = useState<DevPanelTab>("details");
   const value = useMemo(() => ({ open, setOpen, tab, setTab }), [open, tab]);
-  return (
-    <DevPanelContext.Provider value={value}>
-      {children}
-    </DevPanelContext.Provider>
-  );
+  return <DevPanelContext value={value}>{children}</DevPanelContext>;
 }
 
 export function useDevPanel(): DevPanelContextValue {

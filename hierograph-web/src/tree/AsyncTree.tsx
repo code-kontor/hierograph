@@ -9,7 +9,7 @@ import { useTree } from "@headless-tree/react";
 import { ChevronRight, Loader2 } from "lucide-react";
 import {
   createElement,
-  forwardRef,
+  type Ref,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -61,6 +61,7 @@ export type AsyncTreeProps = {
   // Used to distinguish the anchor tree (center, primary) from partner trees
   // (Used-by/Uses, secondary) in the cross-reference explorer. Defaults to "primary".
   selectionTone?: "primary" | "secondary";
+  ref?: Ref<AsyncTreeHandle>;
 };
 
 export type AsyncTreeHandle = {
@@ -81,155 +82,117 @@ export type AsyncTreeHandle = {
   getVisibleNodes: () => { id: string; text: string; type: string }[];
 };
 
-export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
-  function AsyncTree(
-    {
-      rootNode,
-      loadChildren,
-      onSelectedIdsChange,
-      onFocusedIdChange,
-      onHoveredIdChange,
-      onPromoteToSubject,
-      highlightedIds,
-      highlightedAncestors,
-      onHiddenHighlightCountChange,
-      label,
-      settings,
-      autoExpandOnLoad,
-      filterIds,
-      selectionTone = "primary",
+export function AsyncTree({
+  rootNode,
+  loadChildren,
+  onSelectedIdsChange,
+  onFocusedIdChange,
+  onHoveredIdChange,
+  onPromoteToSubject,
+  highlightedIds,
+  highlightedAncestors,
+  onHiddenHighlightCountChange,
+  label,
+  settings,
+  autoExpandOnLoad,
+  filterIds,
+  selectionTone = "primary",
+  ref,
+}: AsyncTreeProps) {
+  const highlightedSet = useMemo(
+    () => new Set(highlightedIds ?? []),
+    [highlightedIds],
+  );
+
+  // Content-keyed so a new-but-equal filterIds array does not churn the
+  // loader identity (and thus the tree's memoized callbacks) on every render.
+  const filterKey = filterIds ? filterIds.join(",") : null;
+  const filterSet = useMemo(
+    () => (filterIds ? new Set(filterIds) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filterKey],
+  );
+
+  // Filter mode: marks are full paths (leaf + all ancestors), so keeping only
+  // children present in filterSet retains exactly the hit paths and drops
+  // non-hit siblings. Used everywhere loadChildren would otherwise be called.
+  const effectiveLoadChildren = useCallback(
+    async (parentId: string) => {
+      const children = await loadChildren(parentId);
+      return filterSet ? children.filter((c) => filterSet.has(c.id)) : children;
     },
-    ref,
-  ) {
-    const highlightedSet = useMemo(
-      () => new Set(highlightedIds ?? []),
-      [highlightedIds],
-    );
+    [loadChildren, filterSet],
+  );
 
-    // Content-keyed so a new-but-equal filterIds array does not churn the
-    // loader identity (and thus the tree's memoized callbacks) on every render.
-    const filterKey = filterIds ? filterIds.join(",") : null;
-    const filterSet = useMemo(
-      () => (filterIds ? new Set(filterIds) : null),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [filterKey],
-    );
+  const itemData = useRef<Map<string, TreeNodeData>>(
+    new Map([[rootNode.id, rootNode]]),
+  );
 
-    // Filter mode: marks are full paths (leaf + all ancestors), so keeping only
-    // children present in filterSet retains exactly the hit paths and drops
-    // non-hit siblings. Used everywhere loadChildren would otherwise be called.
-    const effectiveLoadChildren = useCallback(
-      async (parentId: string) => {
-        const children = await loadChildren(parentId);
-        return filterSet
-          ? children.filter((c) => filterSet.has(c.id))
-          : children;
-      },
-      [loadChildren, filterSet],
-    );
+  const [state, setState] = useState<Partial<TreeState<TreeNodeData>>>({});
 
-    const itemData = useRef<Map<string, TreeNodeData>>(
-      new Map([[rootNode.id, rootNode]]),
-    );
+  const setFocusedItem = useCallback((id: string | null) => {
+    setState((prev) => ({ ...prev, focusedItem: id ?? undefined }));
+  }, []);
 
-    const [state, setState] = useState<Partial<TreeState<TreeNodeData>>>({});
+  // Collapse the item and prune expanded descendants. Optionally removes
+  // descendant selections when preserveSelectionOnCollapse is off.
+  const collapseWithPrune = useCallback(
+    (item: ItemInstance<TreeNodeData>) => {
+      const nodeId = item.getId();
+      const nodeLevel = item.getItemMeta().level;
+      const allItems = tree.getItems();
+      const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
 
-    const setFocusedItem = useCallback((id: string | null) => {
-      setState((prev) => ({ ...prev, focusedItem: id ?? undefined }));
-    }, []);
+      const descendantIds = new Set<string>();
+      for (let i = nodeIndex + 1; i < allItems.length; i++) {
+        if (allItems[i].getItemMeta().level <= nodeLevel) break;
+        descendantIds.add(allItems[i].getId());
+      }
 
-    // Collapse the item and prune expanded descendants. Optionally removes
-    // descendant selections when preserveSelectionOnCollapse is off.
-    const collapseWithPrune = useCallback(
-      (item: ItemInstance<TreeNodeData>) => {
-        const nodeId = item.getId();
-        const nodeLevel = item.getItemMeta().level;
-        const allItems = tree.getItems();
-        const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
+      setState((prev) => {
+        const nextExpanded = (prev.expandedItems ?? []).filter(
+          (id) => id !== nodeId && !descendantIds.has(id),
+        );
 
-        const descendantIds = new Set<string>();
-        for (let i = nodeIndex + 1; i < allItems.length; i++) {
-          if (allItems[i].getItemMeta().level <= nodeLevel) break;
-          descendantIds.add(allItems[i].getId());
+        if (settings.preserveSelectionOnCollapse) {
+          return { ...prev, expandedItems: nextExpanded };
         }
 
-        setState((prev) => {
-          const nextExpanded = (prev.expandedItems ?? []).filter(
-            (id) => id !== nodeId && !descendantIds.has(id),
-          );
+        const nextSelected = (prev.selectedItems ?? []).filter(
+          (id) => !descendantIds.has(id),
+        );
+        const nextFocused =
+          prev.focusedItem != null && descendantIds.has(prev.focusedItem)
+            ? nodeId
+            : prev.focusedItem;
 
-          if (settings.preserveSelectionOnCollapse) {
-            return { ...prev, expandedItems: nextExpanded };
-          }
-
-          const nextSelected = (prev.selectedItems ?? []).filter(
-            (id) => !descendantIds.has(id),
-          );
-          const nextFocused =
-            prev.focusedItem != null && descendantIds.has(prev.focusedItem)
-              ? nodeId
-              : prev.focusedItem;
-
-          return {
-            ...prev,
-            expandedItems: nextExpanded,
-            selectedItems: nextSelected,
-            focusedItem: nextFocused,
-          };
-        });
-      },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [settings.preserveSelectionOnCollapse],
-    );
-
-    // Expand the item. When autoExpandSingleChildren is on, chains through
-    // single-child folders until a node with ≥2 children or a non-folder is
-    // reached. Chaining crosses module boundaries (e.g. project -> jar module ->
-    // root package) so a deeply nested single-child path opens in one action.
-    const expandWithAutoExpand = useCallback(
-      async (item: ItemInstance<TreeNodeData>) => {
-        const startId = item.getId();
-        setState((prev) => ({
+        return {
           ...prev,
-          expandedItems: [...(prev.expandedItems ?? []), startId],
-        }));
+          expandedItems: nextExpanded,
+          selectedItems: nextSelected,
+          focusedItem: nextFocused,
+        };
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.preserveSelectionOnCollapse],
+  );
 
-        if (!settings.autoExpandSingleChildren) return;
+  // Expand the item. When autoExpandSingleChildren is on, chains through
+  // single-child folders until a node with ≥2 children or a non-folder is
+  // reached. Chaining crosses module boundaries (e.g. project -> jar module ->
+  // root package) so a deeply nested single-child path opens in one action.
+  const expandWithAutoExpand = useCallback(
+    async (item: ItemInstance<TreeNodeData>) => {
+      const startId = item.getId();
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [...(prev.expandedItems ?? []), startId],
+      }));
 
-        let currentId = startId;
-        const chained: string[] = [];
-        for (;;) {
-          const children = await effectiveLoadChildren(currentId);
-          // Register loaded data so the tree can render the chained nodes without
-          // waiting on its own separate child-loading pass.
-          for (const child of children) {
-            itemData.current.set(child.id, child);
-          }
-          if (children.length !== 1 || !children[0].hasChildren) {
-            break;
-          }
-          const childId = children[0].id;
-          chained.push(childId);
-          currentId = childId;
-        }
-        if (chained.length > 0) {
-          setState((prev) => ({
-            ...prev,
-            expandedItems: [...(prev.expandedItems ?? []), ...chained],
-          }));
-        }
-      },
-      [settings.autoExpandSingleChildren, effectiveLoadChildren],
-    );
+      if (!settings.autoExpandSingleChildren) return;
 
-    // Drill from the (hidden) root through single-child folders on initial load,
-    // opening the tree down to the first real branch. Mirrors the chaining loop
-    // in expandWithAutoExpand, but starts at rootNode.id and never pushes the
-    // root itself into expandedItems (it is the hidden container item, rootItemId),
-    // and runs regardless of settings.autoExpandSingleChildren — this is the
-    // "first moment" orientation, not the interactive expand.
-    const autoExpandRootChain = useCallback(async () => {
-      let currentId = rootNode.id;
+      let currentId = startId;
       const chained: string[] = [];
       for (;;) {
         const children = await effectiveLoadChildren(currentId);
@@ -251,312 +214,344 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           expandedItems: [...(prev.expandedItems ?? []), ...chained],
         }));
       }
-    }, [effectiveLoadChildren, rootNode.id]);
+    },
+    [settings.autoExpandSingleChildren, effectiveLoadChildren],
+  );
 
-    // Expand every folder in the tree via unbounded BFS. Filter-agnostic: it
-    // drills through effectiveLoadChildren, so in filter mode only the surviving
-    // hit paths exist and it opens exactly those, while unfiltered it opens the
-    // whole tree. Unbounded: loads each level's children; consistent with
-    // revealMarked. A node/depth guardrail for very large trees is a follow-up.
-    const expandAllFolders = useCallback(async () => {
-      const toExpand: string[] = [];
-      const queue: string[] = [rootNode.id];
-      while (queue.length > 0) {
-        const parentId = queue.shift() as string;
-        const children = await effectiveLoadChildren(parentId);
-        for (const child of children) {
-          itemData.current.set(child.id, child);
-        }
-        for (const child of children) {
-          if (child.hasChildren) {
-            toExpand.push(child.id);
-            queue.push(child.id);
-          }
-        }
+  // Drill from the (hidden) root through single-child folders on initial load,
+  // opening the tree down to the first real branch. Mirrors the chaining loop
+  // in expandWithAutoExpand, but starts at rootNode.id and never pushes the
+  // root itself into expandedItems (it is the hidden container item, rootItemId),
+  // and runs regardless of settings.autoExpandSingleChildren — this is the
+  // "first moment" orientation, not the interactive expand.
+  const autoExpandRootChain = useCallback(async () => {
+    let currentId = rootNode.id;
+    const chained: string[] = [];
+    for (;;) {
+      const children = await effectiveLoadChildren(currentId);
+      // Register loaded data so the tree can render the chained nodes without
+      // waiting on its own separate child-loading pass.
+      for (const child of children) {
+        itemData.current.set(child.id, child);
       }
-      if (toExpand.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          expandedItems: [
-            ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
-          ],
-        }));
+      if (children.length !== 1 || !children[0].hasChildren) {
+        break;
       }
-    }, [effectiveLoadChildren, rootNode.id]);
+      const childId = children[0].id;
+      chained.push(childId);
+      currentId = childId;
+    }
+    if (chained.length > 0) {
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [...(prev.expandedItems ?? []), ...chained],
+      }));
+    }
+  }, [effectiveLoadChildren, rootNode.id]);
 
-    const revealMarked = useCallback(async () => {
-      if (highlightedSet.size === 0) return;
-      const toExpand: string[] = [];
-      // Root is the hidden container item (rootItemId) and is never pushed into
-      // expandedItems — start by loading its children, then descend level by level
-      // so each next level's node ids materialize before we expand into them.
-      const queue: string[] = [rootNode.id];
-      while (queue.length > 0) {
-        const parentId = queue.shift() as string;
-        const children = await effectiveLoadChildren(parentId);
-        for (const child of children) {
-          itemData.current.set(child.id, child);
-        }
-        for (const child of children) {
-          // Only highlighted *folders* go into expandedItems; a highlighted leaf just needs
-          // its ancestors open to become visible (it has no children to expand).
-          if (highlightedSet.has(child.id) && child.hasChildren) {
-            toExpand.push(child.id);
-            queue.push(child.id);
-          }
-        }
+  // Expand every folder in the tree via unbounded BFS. Filter-agnostic: it
+  // drills through effectiveLoadChildren, so in filter mode only the surviving
+  // hit paths exist and it opens exactly those, while unfiltered it opens the
+  // whole tree. Unbounded: loads each level's children; consistent with
+  // revealMarked. A node/depth guardrail for very large trees is a follow-up.
+  const expandAllFolders = useCallback(async () => {
+    const toExpand: string[] = [];
+    const queue: string[] = [rootNode.id];
+    while (queue.length > 0) {
+      const parentId = queue.shift() as string;
+      const children = await effectiveLoadChildren(parentId);
+      for (const child of children) {
+        itemData.current.set(child.id, child);
       }
-      if (toExpand.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          expandedItems: [
-            ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
-          ],
-        }));
-      }
-    }, [highlightedSet, effectiveLoadChildren, rootNode.id]);
-
-    // Expand exactly the ancestor folders of the hidden highlighted hits, so
-    // they become visible. Descends level by level from the (hidden) root,
-    // expanding any loaded child whose id is an ancestor of some hit. Only
-    // touches expandedItems, so the scroll position is preserved; never runs
-    // automatically.
-    const revealHighlighted = useCallback(async () => {
-      const ancestorSet = new Set(
-        Object.values(highlightedAncestors ?? {}).flat(),
-      );
-      ancestorSet.delete(rootNode.id);
-      if (ancestorSet.size === 0) return;
-      const toExpand: string[] = [];
-      const queue: string[] = [rootNode.id];
-      while (queue.length > 0) {
-        const parentId = queue.shift() as string;
-        const children = await effectiveLoadChildren(parentId);
-        for (const child of children) {
-          itemData.current.set(child.id, child);
-        }
-        for (const child of children) {
-          if (ancestorSet.has(child.id)) {
-            toExpand.push(child.id);
-            queue.push(child.id);
-          }
-        }
-      }
-      if (toExpand.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          expandedItems: [
-            ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
-          ],
-        }));
-      }
-    }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
-
-    const handleChevronClick = useCallback(
-      (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (item.isExpanded()) {
-          collapseWithPrune(item);
-        } else {
-          expandWithAutoExpand(item).catch(console.error);
-        }
-      },
-      [collapseWithPrune, expandWithAutoExpand],
-    );
-
-    const handleRowClick = useCallback(
-      (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
-        const id = item.getId();
-        if (e.shiftKey) {
-          item.selectUpTo(e.ctrlKey || e.metaKey);
-          setFocusedItem(id);
-        } else if (e.metaKey || e.ctrlKey) {
-          item.toggleSelect();
-          setFocusedItem(id);
-        } else {
-          tree.setSelectedItems([id]);
-          setFocusedItem(id);
-        }
-      },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [setFocusedItem],
-    );
-
-    const tree = useTree<TreeNodeData>({
-      rootItemId: rootNode.id,
-      getItemName: (item) => item.getItemData().text,
-      isItemFolder: (item) => item.getItemData().hasChildren,
-      createLoadingItemData: () => ({
-        id: "",
-        text: "Loading…",
-        type: "",
-        hasChildren: false,
-      }),
-      state,
-      setState,
-      dataLoader: {
-        async getItem(id: string) {
-          return (
-            itemData.current.get(id) ?? {
-              id,
-              text: id,
-              type: "",
-              hasChildren: false,
-            }
-          );
-        },
-        async getChildren(id: string) {
-          const nodes = await effectiveLoadChildren(id);
-          for (const n of nodes) {
-            itemData.current.set(n.id, n);
-          }
-          return nodes.map((n) => n.id);
-        },
-      },
-      features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
-      hotkeys: {
-        collapseOrUp: {
-          hotkey: "ArrowLeft",
-          canRepeat: true,
-          handler: (_e, t) => {
-            const focused = t.getFocusedItem();
-            if (focused.isExpanded() && focused.isFolder()) {
-              collapseWithPrune(focused);
-            } else if (focused.getItemMeta().level !== 0) {
-              focused.getParent()?.setFocused();
-              t.updateDomFocus();
-            }
-          },
-        },
-        expandOrDown: {
-          hotkey: "ArrowRight",
-          canRepeat: true,
-          handler: (_e, t) => {
-            const focused = t.getFocusedItem();
-            if (focused.isFolder() && !focused.isExpanded()) {
-              expandWithAutoExpand(focused).catch(console.error);
-            } else {
-              t.focusNextItem();
-              t.updateDomFocus();
-            }
-          },
-        },
-      },
-    });
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        revealMarked() {
-          revealMarked().catch(console.error);
-        },
-        revealHighlighted() {
-          revealHighlighted().catch(console.error);
-        },
-        expandAll() {
-          expandAllFolders().catch(console.error);
-        },
-        collapseAll() {
-          setState((prev) => ({ ...prev, expandedItems: [] }));
-        },
-        clearSelection() {
-          tree.setSelectedItems([]);
-        },
-        getVisibleNodes() {
-          return tree
-            .getItems()
-            .filter((item) => item.getId() !== rootNode.id)
-            .map((item) => {
-              const data = item.getItemData();
-              return { id: data.id, text: data.text, type: data.type };
-            });
-        },
-      }),
-      [revealMarked, revealHighlighted, expandAllFolders, tree, rootNode.id],
-    );
-
-    const didAutoExpandRootRef = useRef(false);
-    useEffect(() => {
-      if (didAutoExpandRootRef.current) return;
-      // Filter mode expands every surviving folder; otherwise, when requested,
-      // drill the root single-child chain. Toggling filter on/off is driven by a
-      // consumer-side key remount, so the ref resets with the fresh mount and the
-      // correct branch runs once.
-      const drill = filterSet
-        ? expandAllFolders
-        : autoExpandOnLoad === "root-chain"
-          ? autoExpandRootChain
-          : autoExpandOnLoad === "all"
-            ? expandAllFolders
-            : null;
-      if (!drill) return;
-      // Guard against React StrictMode's double effect invocation in dev: the ref
-      // survives the mount→unmount→mount cycle, so the drill starts exactly once.
-      didAutoExpandRootRef.current = true;
-      drill().catch(console.error);
-    }, [filterSet, autoExpandOnLoad, expandAllFolders, autoExpandRootChain]);
-
-    useEffect(() => {
-      onSelectedIdsChange(state.selectedItems ?? []);
-    }, [state.selectedItems, onSelectedIdsChange]);
-
-    useEffect(() => {
-      const id = state.focusedItem ?? null;
-      const data = id != null ? itemData.current.get(id) : undefined;
-      const name = data?.text.split(".").pop() ?? null;
-      const type = data?.type ?? null;
-      onFocusedIdChange?.(id, name, type);
-    }, [state.focusedItem, onFocusedIdChange]);
-
-    // Hidden highlighted hits: highlighted ids that are not currently rendered
-    // because they sit inside a collapsed branch. Each is rolled up to its
-    // nearest rendered ancestor (which is provably collapsed — otherwise its
-    // child on the path would render as a nearer rendered ancestor) for a
-    // per-row badge count, and summed into the total. Computed every render (no
-    // memo) so newly loaded rows and expand/collapse are always reflected; the
-    // work is O(hits × chain) and purely local — no re-query.
-    const renderedIds = new Set(tree.getItems().map((i) => i.getId()));
-    const hiddenCountByAncestor = new Map<string, number>();
-    let totalHidden = 0;
-    for (const id of highlightedSet) {
-      if (renderedIds.has(id)) continue; // visible hit is highlighted itself, no badge
-      totalHidden++;
-      const chain = highlightedAncestors?.[id] ?? [];
-      for (const ancestorId of chain) {
-        if (ancestorId !== rootNode.id && renderedIds.has(ancestorId)) {
-          hiddenCountByAncestor.set(
-            ancestorId,
-            (hiddenCountByAncestor.get(ancestorId) ?? 0) + 1,
-          );
-          break;
+      for (const child of children) {
+        if (child.hasChildren) {
+          toExpand.push(child.id);
+          queue.push(child.id);
         }
       }
     }
+    if (toExpand.length > 0) {
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [
+          ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
+        ],
+      }));
+    }
+  }, [effectiveLoadChildren, rootNode.id]);
 
-    useEffect(() => {
-      onHiddenHighlightCountChange?.(totalHidden);
-    }, [totalHidden, onHiddenHighlightCountChange]);
+  const revealMarked = useCallback(async () => {
+    if (highlightedSet.size === 0) return;
+    const toExpand: string[] = [];
+    // Root is the hidden container item (rootItemId) and is never pushed into
+    // expandedItems — start by loading its children, then descend level by level
+    // so each next level's node ids materialize before we expand into them.
+    const queue: string[] = [rootNode.id];
+    while (queue.length > 0) {
+      const parentId = queue.shift() as string;
+      const children = await effectiveLoadChildren(parentId);
+      for (const child of children) {
+        itemData.current.set(child.id, child);
+      }
+      for (const child of children) {
+        // Only highlighted *folders* go into expandedItems; a highlighted leaf just needs
+        // its ancestors open to become visible (it has no children to expand).
+        if (highlightedSet.has(child.id) && child.hasChildren) {
+          toExpand.push(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+    if (toExpand.length > 0) {
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [
+          ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
+        ],
+      }));
+    }
+  }, [highlightedSet, effectiveLoadChildren, rootNode.id]);
 
-    return (
-      <div {...tree.getContainerProps(label)}>
-        {tree.getItems().map((item) => (
-          <TreeRow
-            key={item.getId()}
-            item={item}
-            isHighlighted={highlightedSet.has(item.getId())}
-            hiddenHighlightCount={hiddenCountByAncestor.get(item.getId()) ?? 0}
-            selectionTone={selectionTone}
-            settings={settings}
-            onRowClick={handleRowClick}
-            onChevronClick={handleChevronClick}
-            onHoveredIdChange={onHoveredIdChange}
-            onPromoteToSubject={onPromoteToSubject}
-          />
-        ))}
-      </div>
+  // Expand exactly the ancestor folders of the hidden highlighted hits, so
+  // they become visible. Descends level by level from the (hidden) root,
+  // expanding any loaded child whose id is an ancestor of some hit. Only
+  // touches expandedItems, so the scroll position is preserved; never runs
+  // automatically.
+  const revealHighlighted = useCallback(async () => {
+    const ancestorSet = new Set(
+      Object.values(highlightedAncestors ?? {}).flat(),
     );
-  },
-);
+    ancestorSet.delete(rootNode.id);
+    if (ancestorSet.size === 0) return;
+    const toExpand: string[] = [];
+    const queue: string[] = [rootNode.id];
+    while (queue.length > 0) {
+      const parentId = queue.shift() as string;
+      const children = await effectiveLoadChildren(parentId);
+      for (const child of children) {
+        itemData.current.set(child.id, child);
+      }
+      for (const child of children) {
+        if (ancestorSet.has(child.id)) {
+          toExpand.push(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+    if (toExpand.length > 0) {
+      setState((prev) => ({
+        ...prev,
+        expandedItems: [
+          ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
+        ],
+      }));
+    }
+  }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
+
+  const handleChevronClick = useCallback(
+    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (item.isExpanded()) {
+        collapseWithPrune(item);
+      } else {
+        expandWithAutoExpand(item).catch(console.error);
+      }
+    },
+    [collapseWithPrune, expandWithAutoExpand],
+  );
+
+  const handleRowClick = useCallback(
+    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
+      const id = item.getId();
+      if (e.shiftKey) {
+        item.selectUpTo(e.ctrlKey || e.metaKey);
+        setFocusedItem(id);
+      } else if (e.metaKey || e.ctrlKey) {
+        item.toggleSelect();
+        setFocusedItem(id);
+      } else {
+        tree.setSelectedItems([id]);
+        setFocusedItem(id);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setFocusedItem],
+  );
+
+  const tree = useTree<TreeNodeData>({
+    rootItemId: rootNode.id,
+    getItemName: (item) => item.getItemData().text,
+    isItemFolder: (item) => item.getItemData().hasChildren,
+    createLoadingItemData: () => ({
+      id: "",
+      text: "Loading…",
+      type: "",
+      hasChildren: false,
+    }),
+    state,
+    setState,
+    dataLoader: {
+      async getItem(id: string) {
+        return (
+          itemData.current.get(id) ?? {
+            id,
+            text: id,
+            type: "",
+            hasChildren: false,
+          }
+        );
+      },
+      async getChildren(id: string) {
+        const nodes = await effectiveLoadChildren(id);
+        for (const n of nodes) {
+          itemData.current.set(n.id, n);
+        }
+        return nodes.map((n) => n.id);
+      },
+    },
+    features: [asyncDataLoaderFeature, selectionFeature, hotkeysCoreFeature],
+    hotkeys: {
+      collapseOrUp: {
+        hotkey: "ArrowLeft",
+        canRepeat: true,
+        handler: (_e, t) => {
+          const focused = t.getFocusedItem();
+          if (focused.isExpanded() && focused.isFolder()) {
+            collapseWithPrune(focused);
+          } else if (focused.getItemMeta().level !== 0) {
+            focused.getParent()?.setFocused();
+            t.updateDomFocus();
+          }
+        },
+      },
+      expandOrDown: {
+        hotkey: "ArrowRight",
+        canRepeat: true,
+        handler: (_e, t) => {
+          const focused = t.getFocusedItem();
+          if (focused.isFolder() && !focused.isExpanded()) {
+            expandWithAutoExpand(focused).catch(console.error);
+          } else {
+            t.focusNextItem();
+            t.updateDomFocus();
+          }
+        },
+      },
+    },
+  });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      revealMarked() {
+        revealMarked().catch(console.error);
+      },
+      revealHighlighted() {
+        revealHighlighted().catch(console.error);
+      },
+      expandAll() {
+        expandAllFolders().catch(console.error);
+      },
+      collapseAll() {
+        setState((prev) => ({ ...prev, expandedItems: [] }));
+      },
+      clearSelection() {
+        tree.setSelectedItems([]);
+      },
+      getVisibleNodes() {
+        return tree
+          .getItems()
+          .filter((item) => item.getId() !== rootNode.id)
+          .map((item) => {
+            const data = item.getItemData();
+            return { id: data.id, text: data.text, type: data.type };
+          });
+      },
+    }),
+    [revealMarked, revealHighlighted, expandAllFolders, tree, rootNode.id],
+  );
+
+  const didAutoExpandRootRef = useRef(false);
+  useEffect(() => {
+    if (didAutoExpandRootRef.current) return;
+    // Filter mode expands every surviving folder; otherwise, when requested,
+    // drill the root single-child chain. Toggling filter on/off is driven by a
+    // consumer-side key remount, so the ref resets with the fresh mount and the
+    // correct branch runs once.
+    const drill = filterSet
+      ? expandAllFolders
+      : autoExpandOnLoad === "root-chain"
+        ? autoExpandRootChain
+        : autoExpandOnLoad === "all"
+          ? expandAllFolders
+          : null;
+    if (!drill) return;
+    // Guard against React StrictMode's double effect invocation in dev: the ref
+    // survives the mount→unmount→mount cycle, so the drill starts exactly once.
+    didAutoExpandRootRef.current = true;
+    drill().catch(console.error);
+  }, [filterSet, autoExpandOnLoad, expandAllFolders, autoExpandRootChain]);
+
+  useEffect(() => {
+    onSelectedIdsChange(state.selectedItems ?? []);
+  }, [state.selectedItems, onSelectedIdsChange]);
+
+  useEffect(() => {
+    const id = state.focusedItem ?? null;
+    const data = id != null ? itemData.current.get(id) : undefined;
+    const name = data?.text.split(".").pop() ?? null;
+    const type = data?.type ?? null;
+    onFocusedIdChange?.(id, name, type);
+  }, [state.focusedItem, onFocusedIdChange]);
+
+  // Hidden highlighted hits: highlighted ids that are not currently rendered
+  // because they sit inside a collapsed branch. Each is rolled up to its
+  // nearest rendered ancestor (which is provably collapsed — otherwise its
+  // child on the path would render as a nearer rendered ancestor) for a
+  // per-row badge count, and summed into the total. Computed every render (no
+  // memo) so newly loaded rows and expand/collapse are always reflected; the
+  // work is O(hits × chain) and purely local — no re-query.
+  const renderedIds = new Set(tree.getItems().map((i) => i.getId()));
+  const hiddenCountByAncestor = new Map<string, number>();
+  let totalHidden = 0;
+  for (const id of highlightedSet) {
+    if (renderedIds.has(id)) continue; // visible hit is highlighted itself, no badge
+    totalHidden++;
+    const chain = highlightedAncestors?.[id] ?? [];
+    for (const ancestorId of chain) {
+      if (ancestorId !== rootNode.id && renderedIds.has(ancestorId)) {
+        hiddenCountByAncestor.set(
+          ancestorId,
+          (hiddenCountByAncestor.get(ancestorId) ?? 0) + 1,
+        );
+        break;
+      }
+    }
+  }
+
+  useEffect(() => {
+    onHiddenHighlightCountChange?.(totalHidden);
+  }, [totalHidden, onHiddenHighlightCountChange]);
+
+  return (
+    <div {...tree.getContainerProps(label)}>
+      {tree.getItems().map((item) => (
+        <TreeRow
+          key={item.getId()}
+          item={item}
+          isHighlighted={highlightedSet.has(item.getId())}
+          hiddenHighlightCount={hiddenCountByAncestor.get(item.getId()) ?? 0}
+          selectionTone={selectionTone}
+          settings={settings}
+          onRowClick={handleRowClick}
+          onChevronClick={handleChevronClick}
+          onHoveredIdChange={onHoveredIdChange}
+          onPromoteToSubject={onPromoteToSubject}
+        />
+      ))}
+    </div>
+  );
+}
 
 type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
