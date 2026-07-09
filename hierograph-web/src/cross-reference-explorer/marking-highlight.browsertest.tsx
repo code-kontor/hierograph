@@ -149,15 +149,17 @@ it("clicking a partner on the left highlights the matching center node without f
     )
     .toBe(true);
 
-  // Highlight statt Navigieren: beta stays visibly selected in the center;
-  // the left click only changes marking, not the center selection.
+  // Highlight statt Navigieren: beta stays selected in the center; the left
+  // click only changes marking, not the center selection. While a partner is
+  // the active selection, the center selection renders in the secondary tone so
+  // the two selections stay visually distinct.
   await expect
     .poll(
       () =>
         centerTree
           .getByText(BETA_FQN)
           .element()
-          .closest("[class*='bg-state-selected-bg']") !== null,
+          .closest("[class*='bg-state-selected-secondary-bg']") !== null,
     )
     .toBe(true);
 

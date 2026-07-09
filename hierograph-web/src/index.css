@@ -62,6 +62,12 @@
   --hg-state-selected-bar: oklch(
     0.55 0.17 256
   ); /* #1c6fd2  3px left bar on selection */
+  --hg-state-selected-secondary-bg: oklch(
+    0.955 0.022 256
+  ); /* #e4eefb  secondary/inactive selection fill — a selection that has been de-emphasised because focus moved to another tree (e.g. the center node while a Used-by/Uses partner is the active selection). Paler and less saturated than the primary blue, but bluer than the neutral 'related' gray, so all three levels stay distinct. */
+  --hg-state-selected-secondary-bar: oklch(
+    0.7 0.09 256
+  ); /* #8fb2df  muted left bar for the secondary selection */
   --hg-state-focus-ring: oklch(
     0.55 0.17 256
   ); /* #1c6fd2  2px inset focus ring */
@@ -157,6 +163,8 @@
   --color-state-selected-bg: var(--hg-state-selected-bg);
   --color-state-selected-fg: var(--hg-state-selected-fg);
   --color-state-selected-bar: var(--hg-state-selected-bar);
+  --color-state-selected-secondary-bg: var(--hg-state-selected-secondary-bg);
+  --color-state-selected-secondary-bar: var(--hg-state-selected-secondary-bar);
   --color-state-focus-ring: var(--hg-state-focus-ring);
   --color-state-related-bg: var(--hg-state-related-bg);
   --color-status-info: var(--hg-status-info);

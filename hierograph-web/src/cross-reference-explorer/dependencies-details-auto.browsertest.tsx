@@ -240,7 +240,7 @@ it("center click auto-shows Everything that uses <center> in the Dependencies De
     .toContain(BETA_FQN);
 });
 
-it("clicking a Used-by partner auto-shows the directed pair From <partner> To <center>", async () => {
+it("clicking a Used-by partner auto-shows the directed pair <partner> uses <center>", async () => {
   await renderWithQueryClient(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
@@ -257,24 +257,25 @@ it("clicking a Used-by partner auto-shows the directed pair From <partner> To <c
   await expect.poll(() => leftTree.getByText(ALPHA_FQN).element()).toBeTruthy();
   await userEvent.click(leftTree.getByText(ALPHA_FQN));
 
-  await expect.element(page.getByText("From", { exact: true })).toBeVisible();
+  // Used-by partner alpha uses center beta → header reads "<alpha> uses <beta>".
+  await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
   await expect
     .poll(
       () =>
-        page.getByText("From", { exact: true }).element().closest("div")
+        page.getByText("uses", { exact: true }).element().closest("div")
           ?.textContent,
     )
     .toContain(ALPHA_FQN);
   await expect
     .poll(
       () =>
-        page.getByText("From", { exact: true }).element().closest("div")
+        page.getByText("uses", { exact: true }).element().closest("div")
           ?.textContent,
     )
     .toContain(BETA_FQN);
 });
 
-it("clicking a Uses partner auto-shows the directed pair From <center> To <partner>", async () => {
+it("clicking a Uses partner auto-shows the directed pair <center> uses <partner>", async () => {
   await renderWithQueryClient(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
@@ -293,18 +294,19 @@ it("clicking a Uses partner auto-shows the directed pair From <center> To <partn
     .toBeTruthy();
   await userEvent.click(rightTree.getByText(GAMMA_FQN));
 
-  await expect.element(page.getByText("From", { exact: true })).toBeVisible();
+  // Center beta uses partner gamma → header reads "<beta> uses <gamma>".
+  await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
   await expect
     .poll(
       () =>
-        page.getByText("From", { exact: true }).element().closest("div")
+        page.getByText("uses", { exact: true }).element().closest("div")
           ?.textContent,
     )
     .toContain(BETA_FQN);
   await expect
     .poll(
       () =>
-        page.getByText("From", { exact: true }).element().closest("div")
+        page.getByText("uses", { exact: true }).element().closest("div")
           ?.textContent,
     )
     .toContain(GAMMA_FQN);
