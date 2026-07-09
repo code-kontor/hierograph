@@ -462,7 +462,6 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
             item={item}
             isMarked={markedSet.has(item.getId())}
             selectionTone={selectionTone}
-            focusedItemId={state.focusedItem ?? null}
             settings={settings}
             onRowClick={handleRowClick}
             onChevronClick={handleChevronClick}
@@ -479,7 +478,6 @@ type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
   isMarked: boolean;
   selectionTone: "primary" | "secondary";
-  focusedItemId: string | null;
   settings: TreeSettings;
   onRowClick: (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => void;
   onChevronClick: (
@@ -496,7 +494,6 @@ function TreeRow({
   item,
   isMarked,
   selectionTone,
-  focusedItemId,
   settings,
   onRowClick,
   onChevronClick,
@@ -510,7 +507,6 @@ function TreeRow({
   const isSelected = item.isSelected();
   const isPrimarySelected = isSelected && selectionTone === "primary";
   const isSecondarySelected = isSelected && selectionTone === "secondary";
-  const isFocused = focusedItemId != null && focusedItemId === item.getId();
 
   const [isHovered, setIsHovered] = useState(false);
   const [tooltipPos, setTooltipPos] = useState<TooltipPos | null>(null);
@@ -551,7 +547,6 @@ function TreeRow({
           "bg-state-selected-secondary-bg text-fg font-semibold",
         !isSelected && isMarked && "bg-state-highlighted-bg font-semibold",
         !isSelected && !isMarked && isHovered && "bg-state-hover",
-        isFocused && "ring-state-focus-ring ring-2 ring-inset",
       )}
       onClick={(e) => onRowClick(item, e)}
       // Any press within the row (row body, chevron, or icon) hides the tooltip.
