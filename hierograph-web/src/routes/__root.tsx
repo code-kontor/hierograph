@@ -70,18 +70,6 @@ function RootLayout() {
               Dependencies
             </Link>
             <Link
-              to="/cross-references"
-              className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
-              activeProps={{
-                className: "text-primary font-semibold",
-              }}
-              inactiveProps={{
-                className: "after:hidden",
-              }}
-            >
-              Cross References
-            </Link>
-            <Link
               to="/cross-reference-explorer"
               className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
               activeProps={{
@@ -92,18 +80,6 @@ function RootLayout() {
               }}
             >
               Cross-Reference Explorer
-            </Link>
-            <Link
-              to="/xref"
-              className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
-              activeProps={{
-                className: "text-primary font-semibold",
-              }}
-              inactiveProps={{
-                className: "after:hidden",
-              }}
-            >
-              Cross-Reference (Prototype)
             </Link>
           </nav>
           <div className="flex-1" />

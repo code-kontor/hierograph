@@ -64,8 +64,6 @@ export default defineConfig([
           type: "cross-reference-explorer",
           pattern: "src/cross-reference-explorer",
         },
-        { type: "cross-reference", pattern: "src/cross-reference" },
-        { type: "cross-references", pattern: "src/cross-references" },
         { type: "dependency-details", pattern: "src/dependency-details" },
         { type: "dev-panel", pattern: "src/dev-panel" },
         { type: "hierarchy", pattern: "src/hierarchy" },
@@ -115,19 +113,11 @@ export default defineConfig([
                     ],
                   },
                   {
-                    type: "cross-reference",
-                    internalPath: ["CrossReferenceView.tsx", "XrefPage.tsx"],
-                  },
-                  {
                     type: "cross-reference-explorer",
                     internalPath: [
                       "CrossReferenceExplorerView.tsx",
                       "CrossReferenceExplorerPage.tsx",
                     ],
-                  },
-                  {
-                    type: "cross-references",
-                    internalPath: ["CrossReferencesPage.tsx"],
                   },
                   {
                     type: "dependency-details",
@@ -163,12 +153,7 @@ export default defineConfig([
             // screen verticals → shared panes + shared verticals via public files, design-system, graphql
             {
               from: {
-                type: [
-                  "dependencies",
-                  "cross-reference",
-                  "cross-references",
-                  "cross-reference-explorer",
-                ],
+                type: ["dependencies", "cross-reference-explorer"],
               },
               allow: {
                 to: [
