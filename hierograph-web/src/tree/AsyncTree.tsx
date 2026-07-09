@@ -550,6 +550,13 @@ export function AsyncTree({
         <TreeRow
           key={item.getId()}
           item={item}
+          rowProps={item.getProps() as React.HTMLAttributes<HTMLDivElement>}
+          level={item.getItemMeta().level}
+          isFolder={item.isFolder()}
+          isLoading={item.isLoading()}
+          isExpanded={item.isExpanded()}
+          isSelected={item.isSelected()}
+          nodeData={item.getItemData()}
           isHighlighted={highlightedSet.has(item.getId())}
           hiddenHighlightCount={hiddenCountByAncestor.get(item.getId()) ?? 0}
           selectionTone={selectionTone}
@@ -572,7 +579,23 @@ export function AsyncTree({
 }
 
 type TreeRowProps = {
+  // `item` is a mutable headless-tree instance with a *stable* identity across
+  // rebuilds (its `itemInstancesMap` reuses instances by id). Reading its
+  // reactive state through method calls (`item.isExpanded()` etc.) at render
+  // time is invisible to the React Compiler: it keys those derivations on the
+  // stable `item` reference and caches them forever, so the row never reflects
+  // expand/collapse/selection changes. All render-time state is therefore
+  // computed in the (uncompiled) parent — which recomputes every render — and
+  // passed in as plain props below. `item` is kept only for event handlers,
+  // which read live state at event time (correct) rather than at render time.
   item: ItemInstance<TreeNodeData>;
+  rowProps: React.HTMLAttributes<HTMLDivElement>;
+  level: number;
+  isFolder: boolean;
+  isLoading: boolean;
+  isExpanded: boolean;
+  isSelected: boolean;
+  nodeData: TreeNodeData;
   isHighlighted: boolean;
   hiddenHighlightCount: number;
   selectionTone: "primary" | "secondary";
@@ -590,6 +613,13 @@ type TooltipPos = { x: number; y: number };
 
 function TreeRow({
   item,
+  rowProps,
+  level,
+  isFolder,
+  isLoading,
+  isExpanded,
+  isSelected,
+  nodeData,
   isHighlighted,
   hiddenHighlightCount,
   selectionTone,
@@ -599,11 +629,6 @@ function TreeRow({
   onHoveredIdChange,
   onPromoteToSubject,
 }: TreeRowProps) {
-  const level = item.getItemMeta().level;
-  const isFolder = item.isFolder();
-  const isLoading = item.isLoading();
-  const isExpanded = item.isExpanded();
-  const isSelected = item.isSelected();
   const isPrimarySelected = isSelected && selectionTone === "primary";
   const isSecondarySelected = isSelected && selectionTone === "secondary";
 
@@ -626,7 +651,6 @@ function TreeRow({
         ? "text-fg-muted"
         : "text-fg-subtle";
 
-  const nodeData = item.getItemData();
   const fullFqn = nodeData.text;
   const shortName = fullFqn.split(".").pop() ?? fullFqn;
   const displayLabel = formatNodeLabel(
@@ -637,7 +661,7 @@ function TreeRow({
 
   return (
     <div
-      {...item.getProps()}
+      {...rowProps}
       className={cn(
         "relative my-px flex h-7 min-w-0 cursor-pointer items-center gap-[7px] rounded-[6px] px-2 select-none",
         isPrimarySelected &&

@@ -35,17 +35,6 @@ export default defineConfig(({ mode }) => {
       viteReact(),
       babel({
         presets: [reactCompilerPreset()],
-        // AsyncTree.tsx's badge-computation block was refactored in #0102 to be
-        // compiler-safe (state-anchored `getVisibleItems`), but removing this
-        // exclude also lets the compiler process TreeRow (same file) — and that
-        // reproducibly breaks the hidden-highlights badge in
-        // hidden-highlights.browsertest.tsx even with a completely unmodified
-        // TreeRow: the row's computed hiddenHighlightCount is provably correct
-        // (verified via direct instrumentation) but the commit never reaches the
-        // DOM. Root cause not yet found — see #0102 plan's `## Stand` for the
-        // full investigation. Exclude kept until that's resolved (tracking: a
-        // follow-up task to #0102).
-        exclude: [/\/tree\/AsyncTree\.tsx$/],
       }),
     ],
     optimizeDeps: {
