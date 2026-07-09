@@ -100,8 +100,6 @@ export function DsmCanvas({
     [labelFormat],
   );
 
-  const matrixElements = useMemo(() => buildMatrixElements(cells), [cells]);
-
   const boxSize = useMemo(() => {
     if (!fitToWindow || availableSize === null || labels.length === 0) {
       return Math.min(Math.max(cellSize, MIN_BOX_SIZE), MAX_BOX_SIZE);
@@ -246,7 +244,9 @@ export function DsmCanvas({
           if (changed) {
             const next = x !== undefined && y !== undefined ? { x, y } : null;
             setHover(next);
-            onHoverCell?.(buildCellSelection(x, y, labels, matrixElements));
+            onHoverCell?.(
+              buildCellSelection(x, y, labels, buildMatrixElements(cells)),
+            );
           }
 
           if (!mouseDownRef.current) {
@@ -323,7 +323,9 @@ export function DsmCanvas({
             );
             const next = x !== undefined && y !== undefined ? { x, y } : null;
             setSelected(next);
-            onSelectCell?.(buildCellSelection(x, y, labels, matrixElements));
+            onSelectCell?.(
+              buildCellSelection(x, y, labels, buildMatrixElements(cells)),
+            );
           }
         }}
         onMouseLeave={() => {

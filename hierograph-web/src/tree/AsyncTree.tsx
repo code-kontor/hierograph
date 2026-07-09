@@ -348,18 +348,6 @@ export function AsyncTree({
     }
   }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
 
-  const handleChevronClick = useCallback(
-    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (item.isExpanded()) {
-        collapseWithPrune(item);
-      } else {
-        expandWithAutoExpand(item).catch(console.error);
-      }
-    },
-    [collapseWithPrune, expandWithAutoExpand],
-  );
-
   const handleRowClick = useCallback(
     (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
       const id = item.getId();
@@ -544,7 +532,14 @@ export function AsyncTree({
           selectionTone={selectionTone}
           settings={settings}
           onRowClick={handleRowClick}
-          onChevronClick={handleChevronClick}
+          onChevronClick={(item, e) => {
+            e.stopPropagation();
+            if (item.isExpanded()) {
+              collapseWithPrune(item);
+            } else {
+              expandWithAutoExpand(item).catch(console.error);
+            }
+          }}
           onHoveredIdChange={onHoveredIdChange}
           onPromoteToSubject={onPromoteToSubject}
         />

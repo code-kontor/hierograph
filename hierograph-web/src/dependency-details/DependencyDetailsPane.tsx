@@ -1,5 +1,5 @@
 import { ChevronsDownUp, ChevronsUpDown, Filter, X } from "lucide-react";
-import { type RefObject, useCallback, useRef, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -181,10 +181,8 @@ export function DependencyDetailsPane() {
   // Mirrors the trace panel's driver presence so the Clear Selection control
   // can disable when nothing is selected.
   const [traceHasSelection, setTraceHasSelection] = useState(false);
-  const handleTraceSelectionChange = useCallback(
-    (hasSelection: boolean) => setTraceHasSelection(hasSelection),
-    [],
-  );
+  const handleTraceSelectionChange = (hasSelection: boolean) =>
+    setTraceHasSelection(hasSelection);
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
