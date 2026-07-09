@@ -145,7 +145,7 @@ it("clicking a partner on the left highlights the matching center node without f
         centerTree
           .getByText(GAMMA_FQN)
           .element()
-          .closest("[class*='bg-state-related-bg']") !== null,
+          .closest("[class*='bg-state-highlighted-bg']") !== null,
     )
     .toBe(true);
 
@@ -169,6 +169,6 @@ it("clicking a partner on the left highlights the matching center node without f
     centerTree
       .getByText(BETA_FQN)
       .element()
-      .closest("[class*='bg-state-related-bg']"),
+      .closest("[class*='bg-state-highlighted-bg']"),
   ).toBeNull();
 });

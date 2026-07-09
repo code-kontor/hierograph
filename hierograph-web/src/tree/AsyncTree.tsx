@@ -549,7 +549,7 @@ function TreeRow({
           "bg-state-selected-bg text-state-selected-fg font-semibold",
         isSecondarySelected &&
           "bg-state-selected-secondary-bg text-fg font-semibold",
-        !isSelected && isMarked && "bg-state-related-bg font-semibold",
+        !isSelected && isMarked && "bg-state-highlighted-bg font-semibold",
         !isSelected && !isMarked && isHovered && "bg-state-hover",
         isFocused && "ring-state-focus-ring ring-2 ring-inset",
       )}

@@ -63,17 +63,17 @@
     0.55 0.17 256
   ); /* #1c6fd2  3px left bar on selection */
   --hg-state-selected-secondary-bg: oklch(
-    0.955 0.022 256
-  ); /* #e4eefb  secondary/inactive selection fill — a selection that has been de-emphasised because focus moved to another tree (e.g. the center node while a Used-by/Uses partner is the active selection). Paler and less saturated than the primary blue, but bluer than the neutral 'related' gray, so all three levels stay distinct. */
+    0.94 0.004 260
+  ); /* #e9ebee  secondary/inactive selection fill — a selection that has been de-emphasised because focus moved to another tree (e.g. the center node while a Used-by/Uses partner is the active selection). Neutral gray, distinct from the primary blue selection and the derived-highlight blue-gray. */
   --hg-state-selected-secondary-bar: oklch(
-    0.7 0.09 256
-  ); /* #8fb2df  muted left bar for the secondary selection */
+    0.6 0.012 260
+  ); /* #7c8088  muted (neutral-gray) left bar for the secondary selection */
   --hg-state-focus-ring: oklch(
     0.55 0.17 256
   ); /* #1c6fd2  2px inset focus ring */
-  --hg-state-related-bg: oklch(
-    0.972 0.002 260
-  ); /* #f6f6f7  cross-ref "related" fill — very light neutral gray, paired with bold text. Derived highlight: nodes referenced by the current selection. Renamed from 'marked'; replaced the earlier amber (#ffe2b0) / blue-gray (#f1f3f5+dot) treatments that read as warning/heavy blocks. */
+  --hg-state-highlighted-bg: oklch(
+    0.969 0.006 250
+  ); /* #f2f5f9  derived-highlight fill — blue-gray (variant 4c, default). Paired with bold text, NO left bar (bar = "clicked here", no bar = "highlighted for me"). Nodes referenced by the current selection. A/B toggle — swap the value above with the alternative: 4b (alt) = oklch(0.979 0.002 260) / #f7f8f9 neutral-gray, very light. */
 
   /* ---- Status ---- */
   --hg-status-info: oklch(0.55 0.15 256); /* #2d71c7 */
@@ -166,7 +166,7 @@
   --color-state-selected-secondary-bg: var(--hg-state-selected-secondary-bg);
   --color-state-selected-secondary-bar: var(--hg-state-selected-secondary-bar);
   --color-state-focus-ring: var(--hg-state-focus-ring);
-  --color-state-related-bg: var(--hg-state-related-bg);
+  --color-state-highlighted-bg: var(--hg-state-highlighted-bg);
   --color-status-info: var(--hg-status-info);
   --color-status-info-bg: var(--hg-status-info-bg);
   --color-status-success: var(--hg-status-success);
