@@ -1,7 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import { NodeDetailsWidget } from "@/dependency-details/NodeDetailsWidget";
+import { DevPanel } from "@/dev-panel/DevPanel";
 import { clearQueryLog } from "@/graphql/devQueryLog";
 import { SelectionProvider, useSelection } from "@/selection/SelectionContext";
 import { resolveNodeId } from "@/testing/nodeLookup";
@@ -17,7 +17,7 @@ function SetFocusButton() {
 }
 
 beforeEach(() => {
-  // Reset widget position/collapse so the floating widget doesn't overlap
+  // Reset panel position/collapse so the floating panel doesn't overlap
   // the viewport and block clicks.
   localStorage.clear();
   // The dev query log is a module-level singleton — isolate tests from each
@@ -29,7 +29,7 @@ it("Queries tab lists the recorded NodeDetail query with a working GraphiQL deep
   await renderWithQueryClient(
     <SelectionProvider>
       <SetFocusButton />
-      <NodeDetailsWidget />
+      <DevPanel />
     </SelectionProvider>,
   );
 
@@ -61,14 +61,14 @@ it("Details tab stays the default and shows the previous content", async () => {
   await renderWithQueryClient(
     <SelectionProvider>
       <SetFocusButton />
-      <NodeDetailsWidget />
+      <DevPanel />
     </SelectionProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));
 
   await expect
-    .element(page.getByRole("tab", { name: "Details" }))
+    .element(page.getByRole("tab", { name: "Node Details" }))
     .toHaveAttribute("data-state", "active");
   await expect.element(page.getByText("java.package")).toBeVisible();
 });
@@ -77,7 +77,7 @@ it("Details tab shows the node id and a NodeExplore GraphiQL deep link", async (
   await renderWithQueryClient(
     <SelectionProvider>
       <SetFocusButton />
-      <NodeDetailsWidget />
+      <DevPanel />
     </SelectionProvider>,
   );
 
@@ -98,7 +98,7 @@ it("query section reveals the query text on expand", async () => {
   await renderWithQueryClient(
     <SelectionProvider>
       <SetFocusButton />
-      <NodeDetailsWidget />
+      <DevPanel />
     </SelectionProvider>,
   );
 
@@ -119,7 +119,7 @@ it("result section re-runs the query on expand without adding a log entry", asyn
   await renderWithQueryClient(
     <SelectionProvider>
       <SetFocusButton />
-      <NodeDetailsWidget />
+      <DevPanel />
     </SelectionProvider>,
   );
 
@@ -139,7 +139,7 @@ it("Clear button empties the query log", async () => {
   await renderWithQueryClient(
     <SelectionProvider>
       <SetFocusButton />
-      <NodeDetailsWidget />
+      <DevPanel />
     </SelectionProvider>,
   );
 

@@ -63,45 +63,40 @@ export function useSelection(): SelectionContextValue {
   return ctx;
 }
 
-export type NodeDetailsTab = "details" | "queries";
+export type DevPanelTab = "details" | "queries";
 
-type NodeDetailsWidgetContextValue = {
+type DevPanelContextValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
-  tab: NodeDetailsTab;
-  setTab: (tab: NodeDetailsTab) => void;
+  tab: DevPanelTab;
+  setTab: (tab: DevPanelTab) => void;
 };
 
-const NodeDetailsWidgetContext =
-  createContext<NodeDetailsWidgetContextValue | null>(null);
+const DevPanelContext = createContext<DevPanelContextValue | null>(null);
 
-type NodeDetailsWidgetProviderProps = {
+type DevPanelProviderProps = {
   children: ReactNode;
 };
 
-// Visibility and active tab of the floating node-details widget. Kept above the
-// router outlet so it survives navigation (the widget itself is remounted per
-// route) and can be reopened from the top-level navbar. Deliberately separate
-// from SelectionProvider, which pages re-provide locally — this one stays global.
-export function NodeDetailsWidgetProvider({
-  children,
-}: NodeDetailsWidgetProviderProps) {
+// Visibility and active tab of the floating dev panel. Kept above the router
+// outlet so it survives navigation (the panel itself is remounted per route)
+// and can be reopened from the top-level navbar. Deliberately separate from
+// SelectionProvider, which pages re-provide locally — this one stays global.
+export function DevPanelProvider({ children }: DevPanelProviderProps) {
   const [open, setOpen] = useState(true);
-  const [tab, setTab] = useState<NodeDetailsTab>("details");
+  const [tab, setTab] = useState<DevPanelTab>("details");
   const value = useMemo(() => ({ open, setOpen, tab, setTab }), [open, tab]);
   return (
-    <NodeDetailsWidgetContext.Provider value={value}>
+    <DevPanelContext.Provider value={value}>
       {children}
-    </NodeDetailsWidgetContext.Provider>
+    </DevPanelContext.Provider>
   );
 }
 
-export function useNodeDetailsWidget(): NodeDetailsWidgetContextValue {
-  const ctx = useContext(NodeDetailsWidgetContext);
+export function useDevPanel(): DevPanelContextValue {
+  const ctx = useContext(DevPanelContext);
   if (!ctx) {
-    throw new Error(
-      "useNodeDetailsWidget must be used within a NodeDetailsWidgetProvider",
-    );
+    throw new Error("useDevPanel must be used within a DevPanelProvider");
   }
   return ctx;
 }

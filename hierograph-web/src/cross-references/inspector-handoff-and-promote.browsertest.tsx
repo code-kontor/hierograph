@@ -58,7 +58,7 @@ function SetBetaButton() {
 
 // Variable-aware MSW handlers that model the cycle topology.
 beforeEach(() => {
-  // Reset widget position so NodeDetailsWidget doesn't overlap tree rows.
+  // Reset panel position so DevPanel doesn't overlap tree rows.
   localStorage.clear();
   worker.use(
     graphql.query("CrossReferencesUsedBy", ({ variables }) => {

@@ -28,8 +28,8 @@ import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
 import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
 import {
-  type NodeDetailsTab,
-  useNodeDetailsWidget,
+  type DevPanelTab,
+  useDevPanel,
   useSelection,
 } from "@/selection/SelectionContext";
 
@@ -72,9 +72,9 @@ const GRAPHIQL_EXPLORE_QUERY = `query NodeExplore($id: ID!) {
 }
 `;
 
-type NodeDetailsWidgetBodyProps = { id: string | null };
+type DevPanelBodyProps = { id: string | null };
 
-type NodeDetailsWidgetInnerProps = { id: string };
+type DevPanelInnerProps = { id: string };
 
 type NodeIdLineProps = { id: string };
 
@@ -108,7 +108,7 @@ function NodeIdLine({ id }: NodeIdLineProps) {
   );
 }
 
-function NodeDetailsWidgetInner({ id }: NodeDetailsWidgetInnerProps) {
+function DevPanelInner({ id }: DevPanelInnerProps) {
   const { data, isPending, isError } = useQuery(nodeDetailQueryOptions(id));
 
   if (isPending) {
@@ -200,7 +200,7 @@ function NodeDetailsWidgetInner({ id }: NodeDetailsWidgetInnerProps) {
   );
 }
 
-function NodeDetailsWidgetBody({ id }: NodeDetailsWidgetBodyProps) {
+function DevPanelBody({ id }: DevPanelBodyProps) {
   if (id == null) {
     return (
       <div className="flex flex-col gap-3 px-4 py-3.5 text-sm">
@@ -212,14 +212,14 @@ function NodeDetailsWidgetBody({ id }: NodeDetailsWidgetBodyProps) {
     );
   }
 
-  return <NodeDetailsWidgetInner id={id} />;
+  return <DevPanelInner id={id} />;
 }
 
-export function NodeDetailsWidget() {
+export function DevPanel() {
   const { focusedId } = useSelection();
-  const { open, setOpen, tab, setTab } = useNodeDetailsWidget();
+  const { open, setOpen, tab, setTab } = useDevPanel();
   const [collapsed, setCollapsed] = useLocalStorage(
-    "hg.nodeDetailsWidget.collapsed",
+    "hg.devPanel.collapsed",
     false,
   );
 
@@ -227,8 +227,8 @@ export function NodeDetailsWidget() {
     x: window.innerWidth - WIDGET_WIDTH - 24,
     y: window.innerHeight - WIDGET_HEIGHT - 24,
   };
-  const [pos, setPos] = useLocalStorage("hg.nodeDetailsWidget.pos", defaultPos);
-  const [size, setSize] = useLocalStorage("hg.nodeDetailsWidget.size", {
+  const [pos, setPos] = useLocalStorage("hg.devPanel.pos", defaultPos);
+  const [size, setSize] = useLocalStorage("hg.devPanel.size", {
     width: WIDGET_WIDTH,
     height: WIDGET_HEIGHT,
   });
@@ -345,7 +345,7 @@ export function NodeDetailsWidget() {
   return createPortal(
     <TooltipProvider>
       <div
-        aria-label="NodeDetailsWidget"
+        aria-label="DevPanel"
         className="border-border-strong bg-panel flex flex-col overflow-hidden rounded-[8px] border shadow-[var(--hg-shadow-float)]"
         style={{
           position: "fixed",
@@ -363,7 +363,7 @@ export function NodeDetailsWidget() {
         >
           <GripVertical className="text-fg-subtle h-[13px] w-[13px] shrink-0" />
           <span className="text-fg-muted font-mono text-[11px] tracking-[0.06em] uppercase">
-            NODE DETAILS
+            DEV PANEL
           </span>
           <span className="border-border-strong rounded-[20px] border px-[7px] py-px font-mono text-[9.5px] tracking-[0.06em] uppercase">
             dev
@@ -403,18 +403,18 @@ export function NodeDetailsWidget() {
         {!collapsed && (
           <Tabs
             value={tab}
-            onValueChange={(value) => setTab(value as NodeDetailsTab)}
+            onValueChange={(value) => setTab(value as DevPanelTab)}
             className="min-h-0 flex-1"
           >
             <TabsList className="border-border shrink-0 border-b">
-              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="details">Node Details</TabsTrigger>
               <TabsTrigger value="queries">Queries</TabsTrigger>
             </TabsList>
             <TabsContent
               value="details"
               className="min-h-0 flex-1 overflow-y-auto"
             >
-              <NodeDetailsWidgetBody id={focusedId} />
+              <DevPanelBody id={focusedId} />
             </TabsContent>
             <TabsContent
               value="queries"
