@@ -85,15 +85,16 @@ export function crossReferenceExplorerRightChildrenQueryOptions(
 // actual related nodes light up; their collapsed ancestor folders are surfaced
 // separately via the predecessor batch + badges.
 //
-// Direction mirrors the two side columns: selecting on the left ("Used by")
-// explores upstream — highlight who uses the selected partner
-// (referencingNodes); selecting on the right ("Uses") explores downstream —
-// highlight what the selected partner uses (referencedNodes).
+// Direction mirrors the Details pane pivot (dependencies-details-anbindung.md,
+// Regel 3): selecting on the left ("Used by") pivots to "Everything the
+// partner uses" — highlight what the selected partner uses (referencedNodes);
+// selecting on the right ("Uses") pivots to "Everything that uses the
+// partner" — highlight who uses the selected partner (referencingNodes).
 const crossReferenceExplorerCenterRelatedByLeftQuery = graphql(`
   query CrossReferenceExplorerCenterRelatedByLeft($selectionIds: [ID!]!) {
     hierarchicalGraph {
       nodes(ids: $selectionIds) {
-        referencingNodes {
+        referencedNodes {
           nodeIds
         }
       }
@@ -118,7 +119,7 @@ const crossReferenceExplorerCenterRelatedByRightQuery = graphql(`
   query CrossReferenceExplorerCenterRelatedByRight($selectionIds: [ID!]!) {
     hierarchicalGraph {
       nodes(ids: $selectionIds) {
-        referencedNodes {
+        referencingNodes {
           nodeIds
         }
       }

@@ -109,11 +109,12 @@ beforeEach(() => {
     // Highlights gamma (not beta, the currently-selected center node) — a
     // highlighted node distinct from the selection is needed to observe the
     // highlighted-row style, since a selected row always renders as selected.
+    // Left reads referencedNodes post-flip: what the partner (alpha) uses.
     graphql.query("CrossReferenceExplorerCenterRelatedByLeft", () => {
       return HttpResponse.json({
         data: {
           hierarchicalGraph: {
-            nodes: { referencingNodes: { nodeIds: [GAMMA_ID] } },
+            nodes: { referencedNodes: { nodeIds: [GAMMA_ID] } },
           },
         },
       });

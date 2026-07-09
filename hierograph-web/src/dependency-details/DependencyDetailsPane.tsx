@@ -153,7 +153,15 @@ function TraceControls({
   );
 }
 
-export function DependencyDetailsPane() {
+export type DependencyDetailsPaneProps = {
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
+};
+
+export function DependencyDetailsPane({
+  emptyStateTitle = "No cell selected",
+  emptyStateDescription = "Pick a dependency cell in the matrix to inspect its usages and paths.",
+}: DependencyDetailsPaneProps = {}) {
   const { cellSelection } = useSelection();
   const [activeTab, setActiveTab] = useState<ActiveTab>("usages");
   const [storedLabelFormat, setLabelFormat] = useLocalStorage<string>(
@@ -276,9 +284,8 @@ export function DependencyDetailsPane() {
           </>
         ) : (
           <div className="p-4">
-            <Message variant="empty" title="No cell selected">
-              Pick a dependency cell in the matrix to inspect its usages and
-              paths.
+            <Message variant="empty" title={emptyStateTitle}>
+              {emptyStateDescription}
             </Message>
           </div>
         )}

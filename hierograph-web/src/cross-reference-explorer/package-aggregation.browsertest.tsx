@@ -116,7 +116,7 @@ beforeEach(() => {
         data: {
           hierarchicalGraph: {
             nodes: {
-              referencingNodes: {
+              referencedNodes: {
                 nodeIds: [CYCLE_A_ID, CYCLE_B_ID, CYCLE_C_ID],
               },
             },
