@@ -127,16 +127,10 @@ beforeEach(() => {
         },
       });
     }),
+    // Related-node (highlight-flip) queries — Left now reads referencedNodes
+    // (what the Used-by partner uses), Right reads referencingNodes (who uses
+    // the Uses partner). See dependencies-details-anbindung.md, Regel 3.
     graphql.query("CrossReferenceExplorerCenterRelatedByLeft", () =>
-      HttpResponse.json({
-        data: {
-          hierarchicalGraph: {
-            nodes: { referencingNodes: { nodeIds: [] } },
-          },
-        },
-      }),
-    ),
-    graphql.query("CrossReferenceExplorerCenterRelatedByRight", () =>
       HttpResponse.json({
         data: {
           hierarchicalGraph: {
@@ -145,7 +139,16 @@ beforeEach(() => {
         },
       }),
     ),
-    // Dependencies Details body queries — the auto-selection effect always
+    graphql.query("CrossReferenceExplorerCenterRelatedByRight", () =>
+      HttpResponse.json({
+        data: {
+          hierarchicalGraph: {
+            nodes: { referencingNodes: { nodeIds: [] } },
+          },
+        },
+      }),
+    ),
+    // Dependencies Details body queries — the derived cell selection always
     // fires one of these, including with the graph root as an endpoint (no
     // recorded fixture covers that combination). Only the header (asserted
     // below) depends on NodeBasics/RootNode; these mocks just keep the body
@@ -210,7 +213,7 @@ it("shows no Inspect button — the toolbar only carries tree settings", async (
   );
 });
 
-it("center click auto-shows Everything that uses <center> in the Dependencies Details pane", async () => {
+it("center click alone keeps the Dependencies Details pane empty", async () => {
   await renderWithQueryClient(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
@@ -223,9 +226,28 @@ it("center click auto-shows Everything that uses <center> in the Dependencies De
     .toBeTruthy();
   await userEvent.click(centerTree.getByText(BETA_FQN));
 
+  await expect.element(page.getByText("No selection")).toBeVisible();
   await expect
-    .element(page.getByText("No cell selected"))
+    .element(page.getByText("Everything that uses", { exact: true }))
     .not.toBeInTheDocument();
+});
+
+it("the Used by column's inspect button shows Everything that uses <center>", async () => {
+  await renderWithQueryClient(
+    <div style={PAGE_WRAPPER_STYLE}>
+      <CrossReferenceExplorerPage />
+    </div>,
+  );
+
+  const centerTree = page.getByLabelText("XrefCenter");
+  await expect
+    .poll(() => centerTree.getByText(BETA_FQN).element())
+    .toBeTruthy();
+  await userEvent.click(centerTree.getByText(BETA_FQN));
+
+  await userEvent.click(page.getByRole("button", { name: "Inspect Used by" }));
+
+  // (root, beta) → "Everything that uses <beta>".
   await expect
     .element(page.getByText("Everything that uses", { exact: true }))
     .toBeVisible();
@@ -240,7 +262,33 @@ it("center click auto-shows Everything that uses <center> in the Dependencies De
     .toContain(BETA_FQN);
 });
 
-it("clicking a Used-by partner auto-shows the directed pair <partner> uses <center>", async () => {
+it("the Uses column's inspect button shows Everything <center> uses — the #0092 (C, root) case", async () => {
+  await renderWithQueryClient(
+    <div style={PAGE_WRAPPER_STYLE}>
+      <CrossReferenceExplorerPage />
+    </div>,
+  );
+
+  const centerTree = page.getByLabelText("XrefCenter");
+  await expect
+    .poll(() => centerTree.getByText(BETA_FQN).element())
+    .toBeTruthy();
+  await userEvent.click(centerTree.getByText(BETA_FQN));
+
+  await userEvent.click(page.getByRole("button", { name: "Inspect Uses" }));
+
+  // (beta, root) → "Everything <beta> uses".
+  await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        page.getByText("uses", { exact: true }).element().closest("div")
+          ?.textContent,
+    )
+    .toContain(BETA_FQN);
+});
+
+it("clicking a Used-by partner pivots to Everything <partner> uses", async () => {
   await renderWithQueryClient(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
@@ -257,7 +305,7 @@ it("clicking a Used-by partner auto-shows the directed pair <partner> uses <cent
   await expect.poll(() => leftTree.getByText(ALPHA_FQN).element()).toBeTruthy();
   await userEvent.click(leftTree.getByText(ALPHA_FQN));
 
-  // Used-by partner alpha uses center beta → header reads "<alpha> uses <beta>".
+  // Used-by partner alpha pivots to (alpha, root) → "Everything <alpha> uses".
   await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
   await expect
     .poll(
@@ -266,16 +314,9 @@ it("clicking a Used-by partner auto-shows the directed pair <partner> uses <cent
           ?.textContent,
     )
     .toContain(ALPHA_FQN);
-  await expect
-    .poll(
-      () =>
-        page.getByText("uses", { exact: true }).element().closest("div")
-          ?.textContent,
-    )
-    .toContain(BETA_FQN);
 });
 
-it("clicking a Uses partner auto-shows the directed pair <center> uses <partner>", async () => {
+it("clicking a Uses partner pivots to Everything that uses <partner>", async () => {
   await renderWithQueryClient(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
@@ -294,7 +335,47 @@ it("clicking a Uses partner auto-shows the directed pair <center> uses <partner>
     .toBeTruthy();
   await userEvent.click(rightTree.getByText(GAMMA_FQN));
 
-  // Center beta uses partner gamma → header reads "<beta> uses <gamma>".
+  // Uses partner gamma pivots to (root, gamma) → "Everything that uses <gamma>".
+  await expect
+    .element(page.getByText("Everything that uses", { exact: true }))
+    .toBeVisible();
+  await expect
+    .poll(
+      () =>
+        page
+          .getByText("Everything that uses", { exact: true })
+          .element()
+          .closest("div")?.textContent,
+    )
+    .toContain(GAMMA_FQN);
+});
+
+it("a partner click resets an active aggregate button (partner pivot takes precedence)", async () => {
+  await renderWithQueryClient(
+    <div style={PAGE_WRAPPER_STYLE}>
+      <CrossReferenceExplorerPage />
+    </div>,
+  );
+
+  const centerTree = page.getByLabelText("XrefCenter");
+  await expect
+    .poll(() => centerTree.getByText(BETA_FQN).element())
+    .toBeTruthy();
+  await userEvent.click(centerTree.getByText(BETA_FQN));
+
+  await userEvent.click(page.getByRole("button", { name: "Inspect Used by" }));
+  await expect
+    .element(page.getByText("Everything that uses", { exact: true }))
+    .toBeVisible();
+
+  const leftTree = page.getByLabelText("XrefLeft");
+  await expect.poll(() => leftTree.getByText(ALPHA_FQN).element()).toBeTruthy();
+  await userEvent.click(leftTree.getByText(ALPHA_FQN));
+
+  // Aggregate (root, beta) is replaced by the partner pivot (alpha, root).
+  await expect
+    .element(page.getByText("Everything that uses", { exact: true }))
+    .not.toBeInTheDocument();
   await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
   await expect
     .poll(
@@ -302,12 +383,5 @@ it("clicking a Uses partner auto-shows the directed pair <center> uses <partner>
         page.getByText("uses", { exact: true }).element().closest("div")
           ?.textContent,
     )
-    .toContain(BETA_FQN);
-  await expect
-    .poll(
-      () =>
-        page.getByText("uses", { exact: true }).element().closest("div")
-          ?.textContent,
-    )
-    .toContain(GAMMA_FQN);
+    .toContain(ALPHA_FQN);
 });

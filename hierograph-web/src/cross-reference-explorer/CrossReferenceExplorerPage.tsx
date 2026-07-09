@@ -26,7 +26,12 @@ export function CrossReferenceExplorerPage() {
             setLabelFormat={setLabelFormat}
           />
         }
-        bottom={<DependencyDetailsPane />}
+        bottom={
+          <DependencyDetailsPane
+            emptyStateTitle="No selection"
+            emptyStateDescription="Use the column inspect buttons or click a partner node to inspect dependencies."
+          />
+        }
       />
     </SelectionProvider>
   );

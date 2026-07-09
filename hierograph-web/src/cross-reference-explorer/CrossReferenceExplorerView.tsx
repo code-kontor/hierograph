@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronsDown } from "lucide-react";
+import { ChevronsDown, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -28,6 +28,28 @@ export type CrossReferenceExplorerViewProps = {
   settings: TreeSettings;
 } & TreeSettingsControls;
 
+type ColumnInspectButtonProps = {
+  label: string;
+  onClick: () => void;
+};
+
+// Explicit affordance to send the aggregated Center↔column relationship to
+// the Dependencies Details pane (see dependencies-details-anbindung.md,
+// Regel 2) — only rendered once a center node is selected.
+function ColumnInspectButton({ label, onClick }: ColumnInspectButtonProps) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className="border-border-strong bg-panel flex size-[20px] shrink-0 items-center justify-center rounded-[4px] border text-[var(--hg-accent)]"
+    >
+      <Search className="size-[12px]" />
+    </button>
+  );
+}
+
 export function CrossReferenceExplorerView({
   settings,
   setShowIndentGuides,
@@ -49,6 +71,12 @@ export function CrossReferenceExplorerView({
   const [leftSelectedIds, setLeftSelectedIds] = useState<string[]>([]);
   const [rightSelectedIds, setRightSelectedIds] = useState<string[]>([]);
   const [lastActiveSide, setLastActiveSide] = useState<"left" | "right" | null>(
+    null,
+  );
+  // Which column's "Everything Center uses/is used by" aggregate is pinned to
+  // the Dependencies Details pane (Regel 2). Reset whenever the center
+  // selection changes or a partner takes over (Regel 6, Precedence).
+  const [aggregateSide, setAggregateSide] = useState<"left" | "right" | null>(
     null,
   );
   const [hiddenHighlightTotal, setHiddenHighlightTotal] = useState(0);
@@ -100,6 +128,7 @@ export function CrossReferenceExplorerView({
 
   const handleCenterSelectedIdsChange = useCallback((ids: string[]) => {
     setCenterSelectedIds(ids);
+    setAggregateSide(null);
     // Remounting Left/Right resets their selections, which fires onSelectedIdsChange([]).
     // Those handlers will clear lastActiveSide correctly.
   }, []);
@@ -109,6 +138,9 @@ export function CrossReferenceExplorerView({
     setLastActiveSide(
       ids.length > 0 ? "left" : (prev) => (prev === "left" ? null : prev),
     );
+    if (ids.length > 0) {
+      setAggregateSide(null);
+    }
   }, []);
 
   const handleRightSelectedIdsChange = useCallback((ids: string[]) => {
@@ -116,6 +148,9 @@ export function CrossReferenceExplorerView({
     setLastActiveSide(
       ids.length > 0 ? "right" : (prev) => (prev === "right" ? null : prev),
     );
+    if (ids.length > 0) {
+      setAggregateSide(null);
+    }
   }, []);
 
   const handleCenterFocusedIdChange = useCallback(
@@ -144,9 +179,9 @@ export function CrossReferenceExplorerView({
   });
 
   const relatedCenterIds: string[] = leftMarkingEnabled
-    ? (leftMarkingData?.hierarchicalGraph?.nodes.referencingNodes.nodeIds ?? [])
+    ? (leftMarkingData?.hierarchicalGraph?.nodes.referencedNodes.nodeIds ?? [])
     : rightMarkingEnabled
-      ? (rightMarkingData?.hierarchicalGraph?.nodes.referencedNodes.nodeIds ??
+      ? (rightMarkingData?.hierarchicalGraph?.nodes.referencingNodes.nodeIds ??
         [])
       : [];
 
@@ -171,27 +206,33 @@ export function CrossReferenceExplorerView({
   }, [predecessorsData, relatedCenterKey]);
 
   // The cell shown in the Dependencies Details pane, derived from the current
-  // selection. Only first-selected ids are used; DependencyDetailsPane takes a
-  // single directed pair.
-  // Left active → source = left[0], target = center[0] ("Used by" partner)
-  // Right active → source = center[0], target = right[0] ("Uses" partner)
-  // Center only (no active partner) → default source = root, target = center[0]
-  // ("everything that uses" the center selection).
+  // selection (dependencies-details-anbindung.md). Only first-selected ids
+  // are used; DependencyDetailsPane takes a single directed pair.
+  //
+  // Precedence: active partner (pivot) > aggregate button > empty.
+  // - Active Used-by partner P (left) → pivot (P, root), "Everything P uses".
+  // - Active Uses partner Q (right) → pivot (root, Q), "Everything that uses Q".
+  // - aggregateSide "left" → (root, C), "Everything that uses C".
+  // - aggregateSide "right" → (C, root), "Everything C uses".
+  // - Otherwise (center-only, nothing, or no aggregate chosen) → empty state.
+  const rootId = rootNode?.id;
   const center = centerSelectedIds[0];
-  const cellSource =
-    center === undefined
-      ? undefined
-      : lastActiveSide === "left" && leftSelectedIds[0] !== undefined
-        ? leftSelectedIds[0]
-        : lastActiveSide === "right"
-          ? center
-          : rootNode?.id;
-  const cellTarget =
-    center === undefined
-      ? undefined
-      : lastActiveSide === "right" && rightSelectedIds[0] !== undefined
-        ? rightSelectedIds[0]
-        : center;
+
+  let cellSource: string | undefined;
+  let cellTarget: string | undefined;
+  if (lastActiveSide === "left" && leftSelectedIds[0] !== undefined) {
+    cellSource = leftSelectedIds[0];
+    cellTarget = rootId;
+  } else if (lastActiveSide === "right" && rightSelectedIds[0] !== undefined) {
+    cellSource = rootId;
+    cellTarget = rightSelectedIds[0];
+  } else if (aggregateSide === "left" && center !== undefined) {
+    cellSource = rootId;
+    cellTarget = center;
+  } else if (aggregateSide === "right" && center !== undefined) {
+    cellSource = center;
+    cellTarget = rootId;
+  }
 
   useEffect(() => {
     if (cellSource !== undefined && cellTarget !== undefined) {
@@ -238,8 +279,14 @@ export function CrossReferenceExplorerView({
       <div className="grid h-full min-h-0 flex-1 grid-cols-3 overflow-hidden">
         {/* Left column */}
         <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
-          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+          <div className="border-border text-fg-subtle flex shrink-0 items-center justify-between border-b px-[14px] py-2 font-mono text-[11px]">
             Used by
+            {centerSelectedIds.length > 0 && (
+              <ColumnInspectButton
+                label="Inspect Used by"
+                onClick={() => setAggregateSide("left")}
+              />
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
             {centerSelectedIds.length === 0 ? (
@@ -304,8 +351,14 @@ export function CrossReferenceExplorerView({
         </div>
         {/* Right column */}
         <div className="flex min-w-0 flex-col overflow-auto">
-          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+          <div className="border-border text-fg-subtle flex shrink-0 items-center justify-between border-b px-[14px] py-2 font-mono text-[11px]">
             Uses
+            {centerSelectedIds.length > 0 && (
+              <ColumnInspectButton
+                label="Inspect Uses"
+                onClick={() => setAggregateSide("right")}
+              />
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
             {centerSelectedIds.length === 0 ? (

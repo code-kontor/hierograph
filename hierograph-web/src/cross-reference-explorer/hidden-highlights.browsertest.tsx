@@ -122,7 +122,7 @@ beforeEach(() => {
       return HttpResponse.json({
         data: {
           hierarchicalGraph: {
-            nodes: { referencingNodes: { nodeIds: [L_ID] } },
+            nodes: { referencedNodes: { nodeIds: [L_ID] } },
           },
         },
       });
