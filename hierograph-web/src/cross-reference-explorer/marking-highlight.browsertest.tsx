@@ -109,11 +109,22 @@ beforeEach(() => {
     // Highlights gamma (not beta, the currently-selected center node) — a
     // highlighted node distinct from the selection is needed to observe the
     // highlighted-row style, since a selected row always renders as selected.
-    graphql.query("CrossReferenceExplorerCenterMarkedByLeft", () => {
+    graphql.query("CrossReferenceExplorerCenterRelatedByLeft", () => {
       return HttpResponse.json({
         data: {
           hierarchicalGraph: {
-            nodes: { filterReferencingNodes: { nodeIds: [GAMMA_ID] } },
+            nodes: { referencingNodes: { nodeIds: [GAMMA_ID] } },
+          },
+        },
+      });
+    }),
+    // gamma is related and visible directly under root, so it has no hidden
+    // ancestors — no badge, no hint bar.
+    graphql.query("CrossReferenceExplorerCenterPredecessors", () => {
+      return HttpResponse.json({
+        data: {
+          hierarchicalGraph: {
+            nodes: { nodes: [{ id: GAMMA_ID, predecessors: [] }] },
           },
         },
       });
