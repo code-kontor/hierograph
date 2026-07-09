@@ -13,6 +13,7 @@ import {
   type Ref,
   useCallback,
   useEffect,
+  useEffectEvent,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -123,6 +124,8 @@ export function AsyncTree({
 
   // Content-keyed so a new-but-equal filterIds array does not churn the
   // loader identity (and thus the tree's memoized callbacks) on every render.
+  // Kept deliberately — the compiler can't defeat identity churn from a
+  // content-equal-but-reference-new array.
   const filterKey = filterIds ? filterIds.join(",") : null;
   const filterSet = useMemo(
     () => (filterIds ? new Set(filterIds) : null),
@@ -153,6 +156,8 @@ export function AsyncTree({
 
   // Collapse the item and prune expanded descendants. Optionally removes
   // descendant selections when preserveSelectionOnCollapse is off.
+  // Reads `tree`, declared after this because `useTree`'s hotkeys config
+  // references this callback — structural ordering, not effect-coupled.
   const collapseWithPrune = useCallback(
     (item: ItemInstance<TreeNodeData>) => {
       const nodeId = item.getId();
@@ -365,24 +370,6 @@ export function AsyncTree({
     }
   }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
 
-  const handleRowClick = useCallback(
-    (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
-      const id = item.getId();
-      if (e.shiftKey) {
-        item.selectUpTo(e.ctrlKey || e.metaKey);
-        setFocusedItem(id);
-      } else if (e.metaKey || e.ctrlKey) {
-        item.toggleSelect();
-        setFocusedItem(id);
-      } else {
-        tree.setSelectedItems([id]);
-        setFocusedItem(id);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setFocusedItem],
-  );
-
   const tree = useTree<TreeNodeData>({
     rootItemId: rootNode.id,
     getItemName: (item) => item.getItemData().text,
@@ -445,6 +432,23 @@ export function AsyncTree({
     },
   });
 
+  const handleRowClick = (
+    item: ItemInstance<TreeNodeData>,
+    e: React.MouseEvent,
+  ) => {
+    const id = item.getId();
+    if (e.shiftKey) {
+      item.selectUpTo(e.ctrlKey || e.metaKey);
+      setFocusedItem(id);
+    } else if (e.metaKey || e.ctrlKey) {
+      item.toggleSelect();
+      setFocusedItem(id);
+    } else {
+      tree.setSelectedItems([id]);
+      setFocusedItem(id);
+    }
+  };
+
   useImperativeHandle(
     ref,
     () => ({
@@ -497,17 +501,25 @@ export function AsyncTree({
     drill().catch(console.error);
   }, [filterSet, autoExpandOnLoad, expandAllFolders, autoExpandRootChain]);
 
+  const notifySelectedIds = useEffectEvent((ids: string[]) => {
+    onSelectedIdsChange(ids);
+  });
   useEffect(() => {
-    onSelectedIdsChange(state.selectedItems ?? []);
-  }, [state.selectedItems, onSelectedIdsChange]);
+    notifySelectedIds(state.selectedItems ?? []);
+  }, [state.selectedItems]);
 
+  const notifyFocusedId = useEffectEvent(
+    (id: string | null, name: string | null, type: string | null) => {
+      onFocusedIdChange?.(id, name, type);
+    },
+  );
   useEffect(() => {
     const id = state.focusedItem ?? null;
     const data = id != null ? itemData.current.get(id) : undefined;
     const name = data?.text.split(".").pop() ?? null;
     const type = data?.type ?? null;
-    onFocusedIdChange?.(id, name, type);
-  }, [state.focusedItem, onFocusedIdChange]);
+    notifyFocusedId(id, name, type);
+  }, [state.focusedItem]);
 
   // Reading the visible items through `getVisibleItems(tree, state)` instead
   // of `tree.getItems()` directly ties this scope to `state` — a genuine
@@ -540,9 +552,12 @@ export function AsyncTree({
     }
   }
 
+  const notifyHiddenHighlightCount = useEffectEvent((count: number) => {
+    onHiddenHighlightCountChange?.(count);
+  });
   useEffect(() => {
-    onHiddenHighlightCountChange?.(totalHidden);
-  }, [totalHidden, onHiddenHighlightCountChange]);
+    notifyHiddenHighlightCount(totalHidden);
+  }, [totalHidden]);
 
   return (
     <div {...tree.getContainerProps(label)}>
