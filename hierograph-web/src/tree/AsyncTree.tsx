@@ -3,6 +3,7 @@ import {
   hotkeysCoreFeature,
   type ItemInstance,
   selectionFeature,
+  type TreeInstance,
   type TreeState,
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
@@ -81,6 +82,22 @@ export type AsyncTreeHandle = {
   // Currently rendered rows (in display order), for dev/debug serialization.
   getVisibleNodes: () => { id: string; text: string; type: string }[];
 };
+
+// `expandedItems`/`loadingItemChildrens` are what the visible set actually
+// depends on: every expand, collapse, and async child load produces a new
+// `state` reference carrying updated values for these two fields (see
+// AsyncTree's setState calls). Reading them here — rather than reading
+// `tree.getItems()` directly at the call site — ties this scope to a
+// genuine, compiler-visible dependency instead of the mutable `tree`
+// reference, which never changes on its own.
+function getVisibleItems<T>(
+  tree: TreeInstance<T>,
+  state: Partial<TreeState<T>>,
+): ItemInstance<T>[] {
+  void state.expandedItems;
+  void state.loadingItemChildrens;
+  return tree.getItems();
+}
 
 export function AsyncTree({
   rootNode,
@@ -492,14 +509,20 @@ export function AsyncTree({
     onFocusedIdChange?.(id, name, type);
   }, [state.focusedItem, onFocusedIdChange]);
 
+  // Reading the visible items through `getVisibleItems(tree, state)` instead
+  // of `tree.getItems()` directly ties this scope to `state` — a genuine
+  // compiler-visible reactive input — instead of the stable `tree` reference,
+  // so the compiler re-derives the visible set on every expand/collapse/
+  // child-load.
+  const items = getVisibleItems(tree, state);
+  const renderedIds = new Set(items.map((i) => i.getId()));
+
   // Hidden highlighted hits: highlighted ids that are not currently rendered
   // because they sit inside a collapsed branch. Each is rolled up to its
   // nearest rendered ancestor (which is provably collapsed — otherwise its
   // child on the path would render as a nearer rendered ancestor) for a
-  // per-row badge count, and summed into the total. Computed every render (no
-  // memo) so newly loaded rows and expand/collapse are always reflected; the
-  // work is O(hits × chain) and purely local — no re-query.
-  const renderedIds = new Set(tree.getItems().map((i) => i.getId()));
+  // per-row badge count, and summed into the total; the work is O(hits ×
+  // chain) and purely local — no re-query.
   const hiddenCountByAncestor = new Map<string, number>();
   let totalHidden = 0;
   for (const id of highlightedSet) {
@@ -523,7 +546,7 @@ export function AsyncTree({
 
   return (
     <div {...tree.getContainerProps(label)}>
-      {tree.getItems().map((item) => (
+      {items.map((item) => (
         <TreeRow
           key={item.getId()}
           item={item}
