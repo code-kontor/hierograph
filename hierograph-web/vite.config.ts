@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import viteReact from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig, loadEnv } from "vite";
 
@@ -29,7 +30,20 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [tailwindcss(), viteReact()],
+    plugins: [
+      tailwindcss(),
+      viteReact(),
+      babel({
+        presets: [reactCompilerPreset()],
+        // AsyncTree.tsx intentionally recomputes hidden-highlight counts on
+        // every render from a mutable tree-instance read (not memoized on
+        // purpose, see the comment above hiddenCountByAncestor) — the
+        // compiler auto-memoizes that block against stale inputs, breaking
+        // the hidden-highlight badge. Exclude until the tree-instance read
+        // is refactored to a compiler-safe pattern (#0068).
+        exclude: [/\/tree\/AsyncTree\.tsx$/],
+      }),
+    ],
     optimizeDeps: {
       include: ["tslib"],
     },
