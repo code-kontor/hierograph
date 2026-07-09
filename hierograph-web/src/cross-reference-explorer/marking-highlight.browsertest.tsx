@@ -106,9 +106,9 @@ beforeEach(() => {
         },
       });
     }),
-    // Marks gamma (not beta, the currently-selected center node) — a marked
-    // node distinct from the selection is needed to observe the marked-row
-    // style, since a selected row always renders as selected, never marked.
+    // Highlights gamma (not beta, the currently-selected center node) — a
+    // highlighted node distinct from the selection is needed to observe the
+    // highlighted-row style, since a selected row always renders as selected.
     graphql.query("CrossReferenceExplorerCenterMarkedByLeft", () => {
       return HttpResponse.json({
         data: {
@@ -121,7 +121,7 @@ beforeEach(() => {
   );
 });
 
-it("clicking a partner on the left highlights the matching center node without filtering the center", async () => {
+it("selecting a partner on the left highlights the matching center node without filtering the center", async () => {
   await renderWithQueryClient(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
@@ -149,22 +149,33 @@ it("clicking a partner on the left highlights the matching center node without f
     )
     .toBe(true);
 
-  // Highlight statt Navigieren: beta stays selected in the center; the left
-  // click only changes marking, not the center selection. While a partner is
-  // the active selection, the center selection renders in the secondary tone so
-  // the two selections stay visually distinct.
+  // Highlight, not navigate: beta stays selected in the center; the left click
+  // only changes highlighting, not the center selection. The center anchor
+  // remains in the primary (blue) tone, independent of the partner selection.
   await expect
     .poll(
       () =>
         centerTree
           .getByText(BETA_FQN)
           .element()
+          .closest("[class*='bg-state-selected-bg']") !== null,
+    )
+    .toBe(true);
+
+  // Partner-side selection renders in secondary tone: alpha in the left tree is
+  // the currently-active selection, so it renders in the secondary (gray) style.
+  await expect
+    .poll(
+      () =>
+        leftTree
+          .getByText(ALPHA_FQN)
+          .element()
           .closest("[class*='bg-state-selected-secondary-bg']") !== null,
     )
     .toBe(true);
 
   // Not filtered (AC1 core): beta remains visible in the center alongside the
-  // marked gamma — marking highlights, it does not remove other nodes.
+  // highlighted gamma — highlighting does not filter, it only visually marks related nodes.
   expect(
     centerTree
       .getByText(BETA_FQN)

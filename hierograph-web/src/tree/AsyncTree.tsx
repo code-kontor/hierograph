@@ -44,15 +44,15 @@ export type AsyncTreeProps = {
   ) => void;
   onHoveredIdChange?: (id: string | undefined) => void;
   onPromoteToSubject?: (nodeData: TreeNodeData) => void;
-  markedIds?: string[];
+  highlightedIds?: string[];
   label: string;
   settings: TreeSettings;
   autoExpandOnLoad?: "root-chain" | "all";
   filterIds?: string[];
-  // Tone of this tree's selection. "secondary" renders the selected row in a
-  // de-emphasised style — used when the active selection lives in another tree
-  // (e.g. the center node while a Used-by/Uses partner is active), so the two
-  // selections stay visually distinct. Defaults to "primary".
+  // Tone of this tree's selection. "primary" renders the selected row in the
+  // primary (blue) style; "secondary" renders in the secondary (gray) style.
+  // Used to distinguish the anchor tree (center, primary) from partner trees
+  // (Used-by/Uses, secondary) in the cross-reference explorer. Defaults to "primary".
   selectionTone?: "primary" | "secondary";
 };
 
@@ -80,7 +80,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
       onFocusedIdChange,
       onHoveredIdChange,
       onPromoteToSubject,
-      markedIds,
+      highlightedIds,
       label,
       settings,
       autoExpandOnLoad,
@@ -89,7 +89,10 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
     },
     ref,
   ) {
-    const markedSet = useMemo(() => new Set(markedIds ?? []), [markedIds]);
+    const highlightedSet = useMemo(
+      () => new Set(highlightedIds ?? []),
+      [highlightedIds],
+    );
 
     // Content-keyed so a new-but-equal filterIds array does not churn the
     // loader identity (and thus the tree's memoized callbacks) on every render.
@@ -270,7 +273,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
     }, [effectiveLoadChildren, rootNode.id]);
 
     const revealMarked = useCallback(async () => {
-      if (markedSet.size === 0) return;
+      if (highlightedSet.size === 0) return;
       const toExpand: string[] = [];
       // Root is the hidden container item (rootItemId) and is never pushed into
       // expandedItems — start by loading its children, then descend level by level
@@ -283,9 +286,9 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           itemData.current.set(child.id, child);
         }
         for (const child of children) {
-          // Only marked *folders* go into expandedItems; a marked leaf just needs
+          // Only highlighted *folders* go into expandedItems; a highlighted leaf just needs
           // its ancestors open to become visible (it has no children to expand).
-          if (markedSet.has(child.id) && child.hasChildren) {
+          if (highlightedSet.has(child.id) && child.hasChildren) {
             toExpand.push(child.id);
             queue.push(child.id);
           }
@@ -299,7 +302,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           ],
         }));
       }
-    }, [markedSet, effectiveLoadChildren, rootNode.id]);
+    }, [highlightedSet, effectiveLoadChildren, rootNode.id]);
 
     const handleChevronClick = useCallback(
       (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => {
@@ -460,7 +463,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
           <TreeRow
             key={item.getId()}
             item={item}
-            isMarked={markedSet.has(item.getId())}
+            isHighlighted={highlightedSet.has(item.getId())}
             selectionTone={selectionTone}
             settings={settings}
             onRowClick={handleRowClick}
@@ -476,7 +479,7 @@ export const AsyncTree = forwardRef<AsyncTreeHandle, AsyncTreeProps>(
 
 type TreeRowProps = {
   item: ItemInstance<TreeNodeData>;
-  isMarked: boolean;
+  isHighlighted: boolean;
   selectionTone: "primary" | "secondary";
   settings: TreeSettings;
   onRowClick: (item: ItemInstance<TreeNodeData>, e: React.MouseEvent) => void;
@@ -492,7 +495,7 @@ type TooltipPos = { x: number; y: number };
 
 function TreeRow({
   item,
-  isMarked,
+  isHighlighted,
   selectionTone,
   settings,
   onRowClick,
@@ -523,7 +526,7 @@ function TreeRow({
     ? "text-state-selected-fg"
     : isSecondarySelected
       ? "text-fg"
-      : isMarked
+      : isHighlighted
         ? "text-fg-muted"
         : "text-fg-subtle";
 
@@ -545,8 +548,8 @@ function TreeRow({
           "bg-state-selected-bg text-state-selected-fg font-semibold",
         isSecondarySelected &&
           "bg-state-selected-secondary-bg text-fg font-semibold",
-        !isSelected && isMarked && "bg-state-highlighted-bg font-semibold",
-        !isSelected && !isMarked && isHovered && "bg-state-hover",
+        !isSelected && isHighlighted && "bg-state-highlighted-bg font-semibold",
+        !isSelected && !isHighlighted && isHovered && "bg-state-hover",
       )}
       onClick={(e) => onRowClick(item, e)}
       // Any press within the row (row body, chevron, or icon) hides the tooltip.
