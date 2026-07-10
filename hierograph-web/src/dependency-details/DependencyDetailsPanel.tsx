@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
 import { Message } from "@/design-system/ui/message";
@@ -27,6 +28,10 @@ import { dependencyPartnersQueryOptions } from "./queries";
 export type DependencyDetailsPanelProps = {
   emptyStateTitle?: string;
   emptyStateDescription?: string;
+  // Optional: called with the clicked partner's node id so the host can reveal
+  // it elsewhere (cross-reference explorer wires this to the center tree). When
+  // omitted, partner rows are not interactive.
+  onRevealInCenter?: (id: string) => void;
 };
 
 // One request with a generous cap covers all edges for fixture-sized
@@ -47,12 +52,21 @@ type PartnerRowData = {
 type PartnerRowProps = {
   row: PartnerRowData;
   labelFormat: NodeLabelFormat;
+  onRevealInCenter?: (id: string) => void;
 };
 
-function PartnerRow({ row, labelFormat }: PartnerRowProps) {
+function PartnerRow({ row, labelFormat, onRevealInCenter }: PartnerRowProps) {
   const label = formatNodeLabel(row.text, labelFormat, row.type);
   return (
-    <div className="odd:bg-zebra flex min-w-0 items-center gap-2 px-[14px] py-2">
+    <div
+      role="button"
+      data-testid="partner-row"
+      onClick={() => onRevealInCenter?.(row.id)}
+      className={twMerge(
+        "odd:bg-zebra flex min-w-0 items-center gap-2 px-[14px] py-2",
+        onRevealInCenter && "hover:bg-state-hover cursor-pointer",
+      )}
+    >
       <span className="min-w-0 flex-1 truncate font-mono text-[13.5px]">
         {label}
       </span>
@@ -66,6 +80,7 @@ function PartnerRow({ row, labelFormat }: PartnerRowProps) {
 export function DependencyDetailsPanel({
   emptyStateTitle = "No cell selected",
   emptyStateDescription = "Pick a dependency cell in the matrix to inspect its usages and paths.",
+  onRevealInCenter,
 }: DependencyDetailsPanelProps = {}) {
   const { cellSelection } = useSelection();
   const [storedLabelFormat] = useLocalStorage<string>(
@@ -226,7 +241,12 @@ export function DependencyDetailsPanel({
             className="flex min-h-0 flex-1 flex-col overflow-auto"
           >
             {rows.map((row) => (
-              <PartnerRow key={row.id} row={row} labelFormat={labelFormat} />
+              <PartnerRow
+                key={row.id}
+                row={row}
+                labelFormat={labelFormat}
+                onRevealInCenter={onRevealInCenter}
+              />
             ))}
           </div>
         </div>
