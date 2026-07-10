@@ -10,11 +10,9 @@ import { ChevronRight, Loader2 } from "lucide-react";
 import {
   createElement,
   type Ref,
-  useCallback,
   useEffect,
   useEffectEvent,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -116,32 +114,21 @@ export function AsyncTree({
   selectionTone = "primary",
   ref,
 }: AsyncTreeProps) {
-  const highlightedSet = useMemo(
-    () => new Set(highlightedIds ?? []),
-    [highlightedIds],
-  );
+  const highlightedSet = new Set(highlightedIds ?? []);
 
-  // Content-keyed so a new-but-equal filterIds array does not churn the
-  // loader identity (and thus the tree's memoized callbacks) on every render.
-  // Kept deliberately — the compiler can't defeat identity churn from a
-  // content-equal-but-reference-new array.
-  const filterKey = filterIds ? filterIds.join(",") : null;
-  const filterSet = useMemo(
-    () => (filterIds ? new Set(filterIds) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filterKey],
-  );
+  // No consumer reads the identity of filterSet: loads are pull-based, the
+  // mount effect below has `[]` deps + a ref guard, and useImperativeHandle
+  // runs without deps. Consumers remount via `key` on a filter change anyway
+  // (e.g. TracePanel's sourceKey/targetKey), so a fresh Set per render is fine.
+  const filterSet = filterIds ? new Set(filterIds) : null;
 
   // Filter mode: marks are full paths (leaf + all ancestors), so keeping only
   // children present in filterSet retains exactly the hit paths and drops
   // non-hit siblings. Used everywhere loadChildren would otherwise be called.
-  const effectiveLoadChildren = useCallback(
-    async (parentId: string) => {
-      const children = await loadChildren(parentId);
-      return filterSet ? children.filter((c) => filterSet.has(c.id)) : children;
-    },
-    [loadChildren, filterSet],
-  );
+  const effectiveLoadChildren = async (parentId: string) => {
+    const children = await loadChildren(parentId);
+    return filterSet ? children.filter((c) => filterSet.has(c.id)) : children;
+  };
 
   const itemData = useRef<Map<string, TreeNodeData>>(
     new Map([[rootNode.id, rootNode]]),
@@ -215,35 +202,32 @@ export function AsyncTree({
   // single-child folders until a node with ≥2 children or a non-folder is
   // reached. Chaining crosses module boundaries (e.g. project -> jar module ->
   // root package) so a deeply nested single-child path opens in one action.
-  const expandWithAutoExpand = useCallback(
-    async (item: ItemInstance<TreeNodeData>) => {
-      const startId = item.getId();
-      setExpandedItems((prev) => [...prev, startId]);
+  const expandWithAutoExpand = async (item: ItemInstance<TreeNodeData>) => {
+    const startId = item.getId();
+    setExpandedItems((prev) => [...prev, startId]);
 
-      if (!settings.autoExpandSingleChildren) return;
+    if (!settings.autoExpandSingleChildren) return;
 
-      let currentId = startId;
-      const chained: string[] = [];
-      for (;;) {
-        const children = await effectiveLoadChildren(currentId);
-        // Register loaded data so the tree can render the chained nodes without
-        // waiting on its own separate child-loading pass.
-        for (const child of children) {
-          itemData.current.set(child.id, child);
-        }
-        if (children.length !== 1 || !children[0].hasChildren) {
-          break;
-        }
-        const childId = children[0].id;
-        chained.push(childId);
-        currentId = childId;
+    let currentId = startId;
+    const chained: string[] = [];
+    for (;;) {
+      const children = await effectiveLoadChildren(currentId);
+      // Register loaded data so the tree can render the chained nodes without
+      // waiting on its own separate child-loading pass.
+      for (const child of children) {
+        itemData.current.set(child.id, child);
       }
-      if (chained.length > 0) {
-        setExpandedItems((prev) => [...prev, ...chained]);
+      if (children.length !== 1 || !children[0].hasChildren) {
+        break;
       }
-    },
-    [settings.autoExpandSingleChildren, effectiveLoadChildren],
-  );
+      const childId = children[0].id;
+      chained.push(childId);
+      currentId = childId;
+    }
+    if (chained.length > 0) {
+      setExpandedItems((prev) => [...prev, ...chained]);
+    }
+  };
 
   // Drill from the (hidden) root through single-child folders on initial load,
   // opening the tree down to the first real branch. Mirrors the chaining loop
@@ -251,7 +235,7 @@ export function AsyncTree({
   // root itself into expandedItems (it is the hidden container item, rootItemId),
   // and runs regardless of settings.autoExpandSingleChildren — this is the
   // "first moment" orientation, not the interactive expand.
-  const autoExpandRootChain = useCallback(async () => {
+  const autoExpandRootChain = async () => {
     let currentId = rootNode.id;
     const chained: string[] = [];
     for (;;) {
@@ -271,14 +255,14 @@ export function AsyncTree({
     if (chained.length > 0) {
       setExpandedItems((prev) => [...prev, ...chained]);
     }
-  }, [effectiveLoadChildren, rootNode.id]);
+  };
 
   // Expand every folder in the tree via unbounded BFS. Filter-agnostic: it
   // drills through effectiveLoadChildren, so in filter mode only the surviving
   // hit paths exist and it opens exactly those, while unfiltered it opens the
   // whole tree. Unbounded: loads each level's children; consistent with
   // revealMarked. A node/depth guardrail for very large trees is a follow-up.
-  const expandAllFolders = useCallback(async () => {
+  const expandAllFolders = async () => {
     const toExpand: string[] = [];
     const queue: string[] = [rootNode.id];
     while (queue.length > 0) {
@@ -297,9 +281,9 @@ export function AsyncTree({
     if (toExpand.length > 0) {
       setExpandedItems((prev) => [...new Set([...prev, ...toExpand])]);
     }
-  }, [effectiveLoadChildren, rootNode.id]);
+  };
 
-  const revealMarked = useCallback(async () => {
+  const revealMarked = async () => {
     if (highlightedSet.size === 0) return;
     const toExpand: string[] = [];
     // Root is the hidden container item (rootItemId) and is never pushed into
@@ -324,14 +308,14 @@ export function AsyncTree({
     if (toExpand.length > 0) {
       setExpandedItems((prev) => [...new Set([...prev, ...toExpand])]);
     }
-  }, [highlightedSet, effectiveLoadChildren, rootNode.id]);
+  };
 
   // Expand exactly the ancestor folders of the hidden highlighted hits, so
   // they become visible. Descends level by level from the (hidden) root,
   // expanding any loaded child whose id is an ancestor of some hit. Only
   // touches expandedItems, so the scroll position is preserved; never runs
   // automatically.
-  const revealHighlighted = useCallback(async () => {
+  const revealHighlighted = async () => {
     const ancestorSet = new Set(
       Object.values(highlightedAncestors ?? {}).flat(),
     );
@@ -355,7 +339,7 @@ export function AsyncTree({
     if (toExpand.length > 0) {
       setExpandedItems((prev) => [...new Set([...prev, ...toExpand])]);
     }
-  }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
+  };
 
   const tree = useTree<TreeNodeData>({
     rootItemId: rootNode.id,
@@ -451,46 +435,43 @@ export function AsyncTree({
     }
   };
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      revealMarked() {
-        revealMarked().catch(console.error);
-      },
-      revealHighlighted() {
-        revealHighlighted().catch(console.error);
-      },
-      expandAll() {
-        expandAllFolders().catch(console.error);
-      },
-      collapseAll() {
-        setExpandedItems([]);
-      },
-      clearSelection() {
-        // Routes through the library and the config's setSelectedItems above
-        // — exactly one notify via the choke point, no direct call here.
-        tree.setSelectedItems([]);
-      },
-      getVisibleNodes() {
-        return tree
-          .getItems()
-          .filter((item) => item.getId() !== rootNode.id)
-          .map((item) => {
-            const data = item.getItemData();
-            return { id: data.id, text: data.text, type: data.type };
-          });
-      },
-    }),
-    [revealMarked, revealHighlighted, expandAllFolders, tree, rootNode.id],
-  );
+  useImperativeHandle(ref, () => ({
+    revealMarked() {
+      revealMarked().catch(console.error);
+    },
+    revealHighlighted() {
+      revealHighlighted().catch(console.error);
+    },
+    expandAll() {
+      expandAllFolders().catch(console.error);
+    },
+    collapseAll() {
+      setExpandedItems([]);
+    },
+    clearSelection() {
+      // Routes through the library and the config's setSelectedItems above
+      // — exactly one notify via the choke point, no direct call here.
+      tree.setSelectedItems([]);
+    },
+    getVisibleNodes() {
+      return tree
+        .getItems()
+        .filter((item) => item.getId() !== rootNode.id)
+        .map((item) => {
+          const data = item.getItemData();
+          return { id: data.id, text: data.text, type: data.type };
+        });
+    },
+  }));
 
   const didAutoExpandRootRef = useRef(false);
-  useEffect(() => {
-    if (didAutoExpandRootRef.current) return;
-    // Filter mode expands every surviving folder; otherwise, when requested,
-    // drill the root single-child chain. Toggling filter on/off is driven by a
-    // consumer-side key remount, so the ref resets with the fresh mount and the
-    // correct branch runs once.
+  // Filter mode expands every surviving folder; otherwise, when requested,
+  // drill the root single-child chain. Toggling filter on/off is driven by a
+  // consumer-side key remount, so the ref resets with the fresh mount and the
+  // correct branch runs once. The drill selection itself always reads the
+  // latest props/closures (via useEffectEvent), so the effect can run with an
+  // empty dependency array and fire exactly once per mount.
+  const runInitialDrill = useEffectEvent(() => {
     const drill = filterSet
       ? expandAllFolders
       : autoExpandOnLoad === "root-chain"
@@ -498,12 +479,15 @@ export function AsyncTree({
         : autoExpandOnLoad === "all"
           ? expandAllFolders
           : null;
-    if (!drill) return;
+    drill?.().catch(console.error);
+  });
+  useEffect(() => {
     // Guard against React StrictMode's double effect invocation in dev: the ref
     // survives the mount→unmount→mount cycle, so the drill starts exactly once.
+    if (didAutoExpandRootRef.current) return;
     didAutoExpandRootRef.current = true;
-    drill().catch(console.error);
-  }, [filterSet, autoExpandOnLoad, expandAllFolders, autoExpandRootChain]);
+    runInitialDrill();
+  }, []);
 
   // Reading the visible items through `getVisibleItems(tree, expandedItems,
   // loadingItemChildrens)` instead of `tree.getItems()` directly ties this
@@ -536,6 +520,14 @@ export function AsyncTree({
     }
   }
 
+  // Deliberate exception to the event-time notification rule above:
+  // totalHidden is pure render output derived from three sources
+  // (expandedItems, async child-load completion, highlight props) — there is
+  // no single event handler where the value originates. Lifting the
+  // expansion state into consumers or exposing a render slot for the banner
+  // was considered and rejected (logic duplication / consumers own the
+  // scroll layout). Do not copy this pattern for values that originate in
+  // one event handler — use a choke point like applySelectionChange instead.
   const notifyHiddenHighlightCount = useEffectEvent((count: number) => {
     onHiddenHighlightCountChange?.(count);
   });
