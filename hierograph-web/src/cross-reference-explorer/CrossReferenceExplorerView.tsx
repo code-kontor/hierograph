@@ -120,8 +120,12 @@ export function CrossReferenceExplorerView({
   const handleCenterSelectedIdsChange = (ids: string[]) => {
     setCenterSelectedIds(ids);
     setAggregateSide(null);
-    // Remounting Left/Right resets their selections, which fires onSelectedIdsChange([]).
-    // Those handlers will clear lastActiveSide correctly.
+    // The Left/Right trees are remounted via key on a center change and no
+    // longer emit an initial onSelectedIdsChange([]), so their selections and
+    // the active side are reset explicitly here.
+    setLeftSelectedIds([]);
+    setRightSelectedIds([]);
+    setLastActiveSide(null);
   };
 
   const handleLeftSelectedIdsChange = (ids: string[]) => {
