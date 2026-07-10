@@ -71,10 +71,9 @@ human-driven; the two former copy-paste handoffs are replaced by MCP reads.
    reconciled against the repo state into an implementation-ready change list. The
    **`design-sync` skill** performs this pull.
 
-> The `design-sync` (inbound) and `design-brief` (outbound) skills live under
-> `hierograph/.claude/skills/` and are the intended mechanism for steps 3 and 1. If they
-> are not present yet, perform the steps manually with the MCP tools above (they are
-> built in workspace task #0107).
+> The `design-sync` (inbound) and `design-brief` (outbound) skills are the intended
+> mechanism for steps 3 and 1, provided by the surrounding hg-develop workspace tooling.
+> If not present, perform the steps manually with the MCP tools above.
 
 ## Dev tooling
 
