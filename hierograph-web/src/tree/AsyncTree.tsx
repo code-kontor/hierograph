@@ -4,7 +4,6 @@ import {
   type ItemInstance,
   selectionFeature,
   type TreeInstance,
-  type TreeState,
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
 import { ChevronRight, Loader2 } from "lucide-react";
@@ -86,17 +85,17 @@ export type AsyncTreeHandle = {
 
 // `expandedItems`/`loadingItemChildrens` are what the visible set actually
 // depends on: every expand, collapse, and async child load produces a new
-// `state` reference carrying updated values for these two fields (see
-// AsyncTree's setState calls). Reading them here — rather than reading
-// `tree.getItems()` directly at the call site — ties this scope to a
-// genuine, compiler-visible dependency instead of the mutable `tree`
+// value for one of these two controlled slices. Reading them here — rather
+// than reading `tree.getItems()` directly at the call site — ties this scope
+// to genuine, compiler-visible dependencies instead of the mutable `tree`
 // reference, which never changes on its own.
 function getVisibleItems<T>(
   tree: TreeInstance<T>,
-  state: Partial<TreeState<T>>,
+  expandedItems: string[],
+  loadingItemChildrens: string[],
 ): ItemInstance<T>[] {
-  void state.expandedItems;
-  void state.loadingItemChildrens;
+  void expandedItems;
+  void loadingItemChildrens;
   return tree.getItems();
 }
 
@@ -148,57 +147,69 @@ export function AsyncTree({
     new Map([[rootNode.id, rootNode]]),
   );
 
-  const [state, setState] = useState<Partial<TreeState<TreeNodeData>>>({});
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [focusedItem, setFocusedItem] = useState<string | null>(null);
+  const [loadingItemChildrens, setLoadingItemChildrens] = useState<string[]>(
+    [],
+  );
 
-  const setFocusedItem = useCallback((id: string | null) => {
-    setState((prev) => ({ ...prev, focusedItem: id ?? undefined }));
-  }, []);
+  // Single choke point for selection notifications: sets the controlled
+  // slice and notifies the parent at event time (see "You Might Not Need an
+  // Effect" — Notifying parent components about state changes). Called only
+  // from the useTree config's setSelectedItems and from collapseWithPrune;
+  // handleRowClick and clearSelection mutate through the library (which
+  // routes through the config setter), so calling this there too would
+  // double-notify.
+  const applySelectionChange = (ids: string[]) => {
+    setSelectedItems(ids);
+    onSelectedIdsChange(ids);
+  };
+
+  // Single choke point for focus notifications, analogous to
+  // applySelectionChange.
+  const applyFocusChange = (id: string | null) => {
+    setFocusedItem(id);
+    const data = id != null ? itemData.current.get(id) : undefined;
+    onFocusedIdChange?.(
+      id,
+      data?.text.split(".").pop() ?? null,
+      data?.type ?? null,
+    );
+  };
 
   // Collapse the item and prune expanded descendants. Optionally removes
-  // descendant selections when preserveSelectionOnCollapse is off.
-  // Reads `tree`, declared after this because `useTree`'s hotkeys config
-  // references this callback — structural ordering, not effect-coupled.
-  const collapseWithPrune = useCallback(
-    (item: ItemInstance<TreeNodeData>) => {
-      const nodeId = item.getId();
-      const nodeLevel = item.getItemMeta().level;
-      const allItems = tree.getItems();
-      const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
+  // descendant selections when preserveSelectionOnCollapse is off. Reads
+  // `tree` and the current selection/focus slices from the render scope —
+  // this is only safe because the function is not memoized (see below).
+  // Declared after this because `useTree`'s hotkeys config references this
+  // function — structural ordering, not effect-coupled.
+  const collapseWithPrune = (item: ItemInstance<TreeNodeData>) => {
+    const nodeId = item.getId();
+    const nodeLevel = item.getItemMeta().level;
+    const allItems = tree.getItems();
+    const nodeIndex = allItems.findIndex((i) => i.getId() === nodeId);
 
-      const descendantIds = new Set<string>();
-      for (let i = nodeIndex + 1; i < allItems.length; i++) {
-        if (allItems[i].getItemMeta().level <= nodeLevel) break;
-        descendantIds.add(allItems[i].getId());
-      }
+    const descendantIds = new Set<string>();
+    for (let i = nodeIndex + 1; i < allItems.length; i++) {
+      if (allItems[i].getItemMeta().level <= nodeLevel) break;
+      descendantIds.add(allItems[i].getId());
+    }
 
-      setState((prev) => {
-        const nextExpanded = (prev.expandedItems ?? []).filter(
-          (id) => id !== nodeId && !descendantIds.has(id),
-        );
+    setExpandedItems((prev) =>
+      prev.filter((id) => id !== nodeId && !descendantIds.has(id)),
+    );
 
-        if (settings.preserveSelectionOnCollapse) {
-          return { ...prev, expandedItems: nextExpanded };
-        }
+    if (settings.preserveSelectionOnCollapse) return;
 
-        const nextSelected = (prev.selectedItems ?? []).filter(
-          (id) => !descendantIds.has(id),
-        );
-        const nextFocused =
-          prev.focusedItem != null && descendantIds.has(prev.focusedItem)
-            ? nodeId
-            : prev.focusedItem;
-
-        return {
-          ...prev,
-          expandedItems: nextExpanded,
-          selectedItems: nextSelected,
-          focusedItem: nextFocused,
-        };
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.preserveSelectionOnCollapse],
-  );
+    const nextSelected = selectedItems.filter((id) => !descendantIds.has(id));
+    if (nextSelected.length !== selectedItems.length) {
+      applySelectionChange(nextSelected);
+    }
+    if (focusedItem != null && descendantIds.has(focusedItem)) {
+      applyFocusChange(nodeId);
+    }
+  };
 
   // Expand the item. When autoExpandSingleChildren is on, chains through
   // single-child folders until a node with ≥2 children or a non-folder is
@@ -207,10 +218,7 @@ export function AsyncTree({
   const expandWithAutoExpand = useCallback(
     async (item: ItemInstance<TreeNodeData>) => {
       const startId = item.getId();
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [...(prev.expandedItems ?? []), startId],
-      }));
+      setExpandedItems((prev) => [...prev, startId]);
 
       if (!settings.autoExpandSingleChildren) return;
 
@@ -231,10 +239,7 @@ export function AsyncTree({
         currentId = childId;
       }
       if (chained.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          expandedItems: [...(prev.expandedItems ?? []), ...chained],
-        }));
+        setExpandedItems((prev) => [...prev, ...chained]);
       }
     },
     [settings.autoExpandSingleChildren, effectiveLoadChildren],
@@ -264,10 +269,7 @@ export function AsyncTree({
       currentId = childId;
     }
     if (chained.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [...(prev.expandedItems ?? []), ...chained],
-      }));
+      setExpandedItems((prev) => [...prev, ...chained]);
     }
   }, [effectiveLoadChildren, rootNode.id]);
 
@@ -293,12 +295,7 @@ export function AsyncTree({
       }
     }
     if (toExpand.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [
-          ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
-        ],
-      }));
+      setExpandedItems((prev) => [...new Set([...prev, ...toExpand])]);
     }
   }, [effectiveLoadChildren, rootNode.id]);
 
@@ -325,12 +322,7 @@ export function AsyncTree({
       }
     }
     if (toExpand.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [
-          ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
-        ],
-      }));
+      setExpandedItems((prev) => [...new Set([...prev, ...toExpand])]);
     }
   }, [highlightedSet, effectiveLoadChildren, rootNode.id]);
 
@@ -361,12 +353,7 @@ export function AsyncTree({
       }
     }
     if (toExpand.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        expandedItems: [
-          ...new Set([...(prev.expandedItems ?? []), ...toExpand]),
-        ],
-      }));
+      setExpandedItems((prev) => [...new Set([...prev, ...toExpand])]);
     }
   }, [highlightedAncestors, effectiveLoadChildren, rootNode.id]);
 
@@ -380,8 +367,19 @@ export function AsyncTree({
       type: "",
       hasChildren: false,
     }),
-    state,
-    setState,
+    state: { expandedItems, selectedItems, focusedItem, loadingItemChildrens },
+    setExpandedItems,
+    setLoadingItemChildrens,
+    // applySubStateUpdate always passes the resolved value; the functional
+    // branch only exists to satisfy the SetStateFn<T> signature.
+    setSelectedItems: (updater) =>
+      applySelectionChange(
+        typeof updater === "function" ? updater(selectedItems) : updater,
+      ),
+    setFocusedItem: (updater) =>
+      applyFocusChange(
+        typeof updater === "function" ? updater(focusedItem) : updater,
+      ),
     dataLoader: {
       async getItem(id: string) {
         return (
@@ -432,6 +430,10 @@ export function AsyncTree({
     },
   });
 
+  // The three selection branches run through the library (`item.selectUpTo`/
+  // `item.toggleSelect`/`tree.setSelectedItems`), which routes through the
+  // config's `setSelectedItems` above — never call applySelectionChange here
+  // too, that would double-notify.
   const handleRowClick = (
     item: ItemInstance<TreeNodeData>,
     e: React.MouseEvent,
@@ -439,13 +441,13 @@ export function AsyncTree({
     const id = item.getId();
     if (e.shiftKey) {
       item.selectUpTo(e.ctrlKey || e.metaKey);
-      setFocusedItem(id);
+      applyFocusChange(id);
     } else if (e.metaKey || e.ctrlKey) {
       item.toggleSelect();
-      setFocusedItem(id);
+      applyFocusChange(id);
     } else {
       tree.setSelectedItems([id]);
-      setFocusedItem(id);
+      applyFocusChange(id);
     }
   };
 
@@ -462,9 +464,11 @@ export function AsyncTree({
         expandAllFolders().catch(console.error);
       },
       collapseAll() {
-        setState((prev) => ({ ...prev, expandedItems: [] }));
+        setExpandedItems([]);
       },
       clearSelection() {
+        // Routes through the library and the config's setSelectedItems above
+        // — exactly one notify via the choke point, no direct call here.
         tree.setSelectedItems([]);
       },
       getVisibleNodes() {
@@ -501,32 +505,12 @@ export function AsyncTree({
     drill().catch(console.error);
   }, [filterSet, autoExpandOnLoad, expandAllFolders, autoExpandRootChain]);
 
-  const notifySelectedIds = useEffectEvent((ids: string[]) => {
-    onSelectedIdsChange(ids);
-  });
-  useEffect(() => {
-    notifySelectedIds(state.selectedItems ?? []);
-  }, [state.selectedItems]);
-
-  const notifyFocusedId = useEffectEvent(
-    (id: string | null, name: string | null, type: string | null) => {
-      onFocusedIdChange?.(id, name, type);
-    },
-  );
-  useEffect(() => {
-    const id = state.focusedItem ?? null;
-    const data = id != null ? itemData.current.get(id) : undefined;
-    const name = data?.text.split(".").pop() ?? null;
-    const type = data?.type ?? null;
-    notifyFocusedId(id, name, type);
-  }, [state.focusedItem]);
-
-  // Reading the visible items through `getVisibleItems(tree, state)` instead
-  // of `tree.getItems()` directly ties this scope to `state` — a genuine
-  // compiler-visible reactive input — instead of the stable `tree` reference,
-  // so the compiler re-derives the visible set on every expand/collapse/
-  // child-load.
-  const items = getVisibleItems(tree, state);
+  // Reading the visible items through `getVisibleItems(tree, expandedItems,
+  // loadingItemChildrens)` instead of `tree.getItems()` directly ties this
+  // scope to genuine, compiler-visible reactive inputs — instead of the
+  // stable `tree` reference — so the compiler re-derives the visible set on
+  // every expand/collapse/child-load.
+  const items = getVisibleItems(tree, expandedItems, loadingItemChildrens);
   const renderedIds = new Set(items.map((i) => i.getId()));
 
   // Hidden highlighted hits: highlighted ids that are not currently rendered
