@@ -245,7 +245,9 @@ it("the Used by column's inspect button shows Everything that uses <center>", as
     .toBeTruthy();
   await userEvent.click(centerTree.getByText(BETA_FQN));
 
-  await userEvent.click(page.getByRole("button", { name: "Inspect Used by" }));
+  await userEvent.click(
+    page.getByRole("button", { name: /^Inspect everything that uses / }),
+  );
 
   // (root, beta) → "Everything that uses <beta>".
   await expect
@@ -275,7 +277,9 @@ it("the Uses column's inspect button shows Everything <center> uses — the #009
     .toBeTruthy();
   await userEvent.click(centerTree.getByText(BETA_FQN));
 
-  await userEvent.click(page.getByRole("button", { name: "Inspect Uses" }));
+  await userEvent.click(
+    page.getByRole("button", { name: /^Inspect everything .+ uses$/ }),
+  );
 
   // (beta, root) → "Everything <beta> uses".
   await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
@@ -363,7 +367,9 @@ it("a partner click resets an active aggregate button (partner pivot takes prece
     .toBeTruthy();
   await userEvent.click(centerTree.getByText(BETA_FQN));
 
-  await userEvent.click(page.getByRole("button", { name: "Inspect Used by" }));
+  await userEvent.click(
+    page.getByRole("button", { name: /^Inspect everything that uses / }),
+  );
   await expect
     .element(page.getByText("Everything that uses", { exact: true }))
     .toBeVisible();

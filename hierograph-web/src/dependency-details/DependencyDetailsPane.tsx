@@ -12,6 +12,7 @@ import {
   DropdownMenuRadioItem,
   ghostIconTriggerClassName,
 } from "@/design-system/ui/dropdown-menu";
+import { HelpPopoverButton } from "@/design-system/ui/help-popover";
 import { Message } from "@/design-system/ui/message";
 import {
   Tabs,
@@ -34,7 +35,6 @@ import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
 import type { TraceViewMode } from "./serializeTrace";
 import {
-  TabHelpButton,
   TRACE_HELP_LABEL,
   TraceHelpContent,
   USAGES_HELP_LABEL,
@@ -218,14 +218,14 @@ export function DependencyDetailsPane({
             </TabsList>
             <div className="ml-auto flex items-center pr-3">
               {activeTab === "usages" && (
-                <TabHelpButton label={USAGES_HELP_LABEL}>
+                <HelpPopoverButton label={USAGES_HELP_LABEL}>
                   <UsagesHelpContent />
-                </TabHelpButton>
+                </HelpPopoverButton>
               )}
               {activeTab === "paths" && (
-                <TabHelpButton label={TRACE_HELP_LABEL}>
+                <HelpPopoverButton label={TRACE_HELP_LABEL}>
                   <TraceHelpContent />
-                </TabHelpButton>
+                </HelpPopoverButton>
               )}
               <LabelFormatMenu
                 labelFormat={labelFormat}
