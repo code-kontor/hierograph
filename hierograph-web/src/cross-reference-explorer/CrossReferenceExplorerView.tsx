@@ -38,22 +38,36 @@ export type CrossReferenceExplorerViewProps = {
 
 type ColumnInspectButtonProps = {
   label: string;
+  active: boolean;
   onClick: () => void;
 };
 
 // Explicit affordance to send the aggregated Center↔column relationship to
 // the Dependencies Details pane (see dependencies-details-anbindung.md,
 // Regel 2) — only rendered once a center node is selected.
-function ColumnInspectButton({ label, onClick }: ColumnInspectButtonProps) {
+function ColumnInspectButton({
+  label,
+  active,
+  onClick,
+}: ColumnInspectButtonProps) {
   return (
     <button
       type="button"
       title={label}
       aria-label={label}
+      aria-pressed={active}
       onClick={onClick}
-      className="border-border-strong bg-panel flex size-[20px] shrink-0 items-center justify-center rounded-[4px] border text-[var(--hg-accent)]"
+      className={twMerge(
+        "border-border-strong bg-panel flex size-[20px] shrink-0 items-center justify-center rounded-[4px] border",
+        active && "bg-[var(--hg-accent)]",
+      )}
     >
-      <Search className="size-[12px]" />
+      <Search
+        className={twMerge(
+          "size-[12px] text-[var(--hg-accent)]",
+          active && "text-[var(--hg-accent-fg)]",
+        )}
+      />
     </button>
   );
 }
@@ -183,6 +197,13 @@ export function CrossReferenceExplorerView({
   const handleInspect = (side: "left" | "right") => {
     if (centerSelectedIds.length === 1) {
       setInspectHintSide(null);
+      // Inspect always wins: clear any active partner selection on both sides so
+      // aggregateSide becomes the single source driving the details pane.
+      leftTreeRef.current?.clearSelection();
+      rightTreeRef.current?.clearSelection();
+      setLeftSelectedIds([]);
+      setRightSelectedIds([]);
+      setLastActiveSide(null);
       setAggregateSide(side);
     } else {
       setInspectHintSide(side);
@@ -267,7 +288,10 @@ export function CrossReferenceExplorerView({
   // selection (dependencies-details-anbindung.md). Only first-selected ids
   // are used; DependencyDetailsPane takes a single directed pair.
   //
-  // Precedence: active partner (pivot) > aggregate button > empty.
+  // Exactly one source is ever set — an active partner pivot OR an aggregate
+  // (Inspect) button; each action clears the other (a partner click resets
+  // aggregateSide, an Inspect click clears both partner selections), so the
+  // branch order below is not load-bearing: at most one condition is ever true.
   // - Active Used-by partner P (left) → pivot (P, root), "Everything P uses".
   // - Active Uses partner Q (right) → pivot (root, Q), "Everything that uses Q".
   // - aggregateSide "left" → (root, C), "Everything that uses C".
@@ -355,6 +379,12 @@ export function CrossReferenceExplorerView({
     if (lastActiveSide === "right" && rightSelectedIds[0] !== undefined) {
       return `Highlighting what uses ${partnerLabel}`;
     }
+    if (aggregateSide === "left") {
+      return `Inspecting everything that uses ${centerDisplayLabel}`;
+    }
+    if (aggregateSide === "right") {
+      return `Inspecting everything ${centerDisplayLabel} ${centerUsesVerb}`;
+    }
     return `Anchor · ${centerDisplayLabel}`;
   }
 
@@ -406,6 +436,7 @@ export function CrossReferenceExplorerView({
               {centerSelectedIds.length > 0 && (
                 <ColumnInspectButton
                   label={leftInspectLabel}
+                  active={aggregateSide === "left"}
                   onClick={() => handleInspect("left")}
                 />
               )}
@@ -508,6 +539,7 @@ export function CrossReferenceExplorerView({
               {centerSelectedIds.length > 0 && (
                 <ColumnInspectButton
                   label={rightInspectLabel}
+                  active={aggregateSide === "right"}
                   onClick={() => handleInspect("right")}
                 />
               )}

@@ -411,3 +411,88 @@ it("a partner click resets an active aggregate button (partner pivot takes prece
     )
     .toContain(ALPHA_FQN);
 });
+
+it("Inspect wins over an active partner pivot (aggregate takes over)", async () => {
+  await renderWithQueryClient(
+    <div style={PAGE_WRAPPER_STYLE}>
+      <CrossReferenceExplorerPage />
+    </div>,
+  );
+
+  const centerTree = page.getByLabelText("XrefCenter");
+  await expect
+    .poll(() => centerTree.getByText(BETA_FQN).element())
+    .toBeTruthy();
+  await userEvent.click(centerTree.getByText(BETA_FQN));
+
+  const leftTree = page.getByLabelText("XrefLeft");
+  await expect.poll(() => leftTree.getByText(ALPHA_FQN).element()).toBeTruthy();
+  await userEvent.click(leftTree.getByText(ALPHA_FQN));
+
+  // Used-by partner alpha pivots to (alpha, root) → "Everything <alpha> uses".
+  await expect.element(page.getByText("uses", { exact: true })).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        page.getByText("uses", { exact: true }).element().closest("div")
+          ?.textContent,
+    )
+    .toContain(ALPHA_FQN);
+
+  await userEvent.click(
+    page.getByRole("button", { name: /^Inspect everything that uses / }),
+  );
+
+  // Pivot (alpha, root) is replaced by the aggregate (root, beta).
+  await expect
+    .element(page.getByText("uses", { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByText("Everything that uses", { exact: true }))
+    .toBeVisible();
+  await expect
+    .poll(
+      () =>
+        page
+          .getByText("Everything that uses", { exact: true })
+          .element()
+          .closest("div")?.textContent,
+    )
+    .toContain(BETA_FQN);
+});
+
+it("the active Inspect button reflects the pinned aggregate (aria-pressed)", async () => {
+  await renderWithQueryClient(
+    <div style={PAGE_WRAPPER_STYLE}>
+      <CrossReferenceExplorerPage />
+    </div>,
+  );
+
+  const centerTree = page.getByLabelText("XrefCenter");
+  await expect
+    .poll(() => centerTree.getByText(BETA_FQN).element())
+    .toBeTruthy();
+  await userEvent.click(centerTree.getByText(BETA_FQN));
+
+  await userEvent.click(
+    page.getByRole("button", { name: /^Inspect everything that uses / }),
+  );
+
+  // The clicked Left-Inspect button is pressed; the Right-Inspect is not.
+  await expect
+    .element(
+      page.getByRole("button", {
+        name: /^Inspect everything that uses /,
+        pressed: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole("button", {
+        name: /^Inspect everything .+ uses$/,
+        pressed: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+});
