@@ -96,14 +96,22 @@ const CROSS_REFERENCE_HELP_LABEL = "About the Cross-Reference Explorer";
 
 function CrossReferenceHelpContent() {
   return (
-    <p>
-      Center is the anchor. <em>Used by</em> (left, incoming) lists everything
-      that uses the center; <em>Uses</em> (right, outgoing) lists everything the
-      center uses. Click a node in either partner column to pivot: it becomes
-      the subject and the center highlights its own dependencies. The inspect
-      buttons (🔍) open the aggregated Center↔column relationship in
-      Dependencies Details.
-    </p>
+    <>
+      <p>
+        The Cross-Reference Explorer answers <em>who depends on what</em>: pick
+        any type or package and see, side by side, what uses it and what it uses
+        — a fast way to gauge the ripple of a planned refactoring before you
+        make it.
+      </p>
+      <p>
+        Center is the anchor. <em>Used by</em> (left, incoming) lists everything
+        that uses the center; <em>Uses</em> (right, outgoing) lists everything
+        the center uses. Click a node in either partner column to pivot: it
+        becomes the subject and the center highlights its own dependencies. The
+        inspect buttons (🔍) open the aggregated Center↔column relationship in
+        Dependencies Details.
+      </p>
+    </>
   );
 }
 
