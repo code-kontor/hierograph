@@ -5,7 +5,14 @@ import {
   ChevronsDown,
   Search,
 } from "lucide-react";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -34,6 +41,7 @@ import { useNodeLabel } from "./useNodeLabel";
 
 export type CrossReferenceExplorerViewProps = {
   settings: TreeSettings;
+  centerTreeRef: RefObject<AsyncTreeHandle | null>;
 } & TreeSettingsControls;
 
 type ColumnInspectButtonProps = {
@@ -117,6 +125,7 @@ function CrossReferenceHelpContent() {
 
 export function CrossReferenceExplorerView({
   settings,
+  centerTreeRef,
   setShowIndentGuides,
   setAutoExpandSingleChildren,
   setPreserveSelectionOnCollapse,
@@ -151,7 +160,6 @@ export function CrossReferenceExplorerView({
     "left" | "right" | null
   >(null);
   const [hiddenHighlightTotal, setHiddenHighlightTotal] = useState(0);
-  const centerTreeRef = useRef<AsyncTreeHandle>(null);
   const leftTreeRef = useRef<AsyncTreeHandle>(null);
   const rightTreeRef = useRef<AsyncTreeHandle>(null);
 

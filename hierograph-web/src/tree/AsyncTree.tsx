@@ -69,6 +69,12 @@ export type AsyncTreeHandle = {
   // Expand exactly the ancestor folders of hidden highlighted hits so they
   // become visible; preserves scroll; never automatic.
   revealHighlighted: () => void;
+  // Reveal a specific node: expand exactly its ancestor folders (ids passed in
+  // by the caller — the tree cannot derive them, it only loads children
+  // top-down) and scroll the row into view. Never touches selection/focus/
+  // highlight, so the caller's selection stays unchanged. No-op if the ancestor
+  // chain never materializes the row within the frame budget.
+  revealNode: (id: string, ancestorIds: string[]) => void;
   // Expand every folder in the tree (unbounded BFS). In filter mode only the
   // surviving hit paths exist, so this expands exactly those.
   expandAll: () => void;
@@ -311,6 +317,33 @@ export function AsyncTree({
     await expandFoldersMatching((c) => ancestorSet.has(c.id));
   };
 
+  // Bounded rAF retry: expandFoldersMatching's final addExpandedItems triggers a
+  // setState, so the target row is only in the DOM after the next React commit.
+  // Poll getElement() for up to ~10 frames, then give up silently (no crash) —
+  // e.g. if the id is not actually in this tree.
+  const scrollNodeIntoView = (id: string) => {
+    let frames = 0;
+    const tryScroll = () => {
+      const element = tree.getItemInstance(id)?.getElement();
+      if (element) {
+        element.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      if (frames++ < 10) requestAnimationFrame(tryScroll);
+    };
+    requestAnimationFrame(tryScroll);
+  };
+
+  const revealNode = async (id: string, ancestorIds: string[]) => {
+    const ancestorSet = new Set(ancestorIds);
+    ancestorSet.delete(rootNode.id);
+    // Empty chain = top-level node: nothing to expand, still scroll.
+    if (ancestorSet.size > 0) {
+      await expandFoldersMatching((c) => ancestorSet.has(c.id));
+    }
+    scrollNodeIntoView(id);
+  };
+
   const tree = useTree<TreeNodeData>({
     rootItemId: rootNode.id,
     getItemName: (item) => item.getItemData().text,
@@ -414,6 +447,9 @@ export function AsyncTree({
     },
     revealHighlighted() {
       revealHighlighted().catch(console.error);
+    },
+    revealNode(id, ancestorIds) {
+      revealNode(id, ancestorIds).catch(console.error);
     },
     expandAll() {
       expandAllFolders().catch(console.error);
