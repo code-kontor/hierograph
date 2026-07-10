@@ -148,47 +148,62 @@ beforeEach(() => {
         },
       }),
     ),
-    // Dependencies Details body queries — the derived cell selection always
-    // fires one of these, including with the graph root as an endpoint (no
-    // recorded fixture covers that combination). Only the header (asserted
-    // below) depends on NodeBasics/RootNode; these mocks just keep the body
-    // from throwing "no fixture recorded" errors.
-    graphql.query("FilteredDependencies", () =>
-      HttpResponse.json({
+    // Dependencies Details body query — the derived cell selection always
+    // fires this, including with the graph root as an endpoint (no recorded
+    // fixture covers that combination). (root, beta) — the Used-by-beta
+    // aggregate — returns one edge (alpha uses beta), so the partner list
+    // assertion below has real data; every other combination returns an
+    // empty set (Empty state b), which is all the other tests need from the
+    // body.
+    graphql.query("DependencyPartners", ({ variables }) => {
+      const { sourceNodeId, targetNodeId } = variables as {
+        sourceNodeId: string;
+        targetNodeId: string;
+      };
+      if (sourceNodeId === ROOT_ID && targetNodeId === BETA_ID) {
+        return HttpResponse.json({
+          data: {
+            hierarchicalGraph: {
+              dependencySetForAggregatedDependency: {
+                size: 1,
+                dependencyPage: {
+                  pageInfo: {
+                    pageNumber: 1,
+                    maxPages: 1,
+                    pageSize: 1000,
+                    totalCount: 1,
+                  },
+                  dependencies: [
+                    {
+                      id: "alpha-uses-beta",
+                      sourceNode: {
+                        id: ALPHA_ID,
+                        text: ALPHA_FQN,
+                        type: "java.package",
+                      },
+                      targetNode: {
+                        id: BETA_ID,
+                        text: BETA_FQN,
+                        type: "java.package",
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        });
+      }
+      return HttpResponse.json({
         data: {
           hierarchicalGraph: {
             dependencySetForAggregatedDependency: {
               size: 0,
-              filteredDependencies: {
-                markedSourceIds: [],
-                markedTargetIds: [],
-                markedSourceLeafIds: [],
-                markedTargetLeafIds: [],
-              },
-            },
-          },
-        },
-      }),
-    ),
-    graphql.query("FilteredChildren", () =>
-      HttpResponse.json({
-        data: {
-          hierarchicalGraph: {
-            dependencySetForAggregatedDependency: { filteredChildren: [] },
-          },
-        },
-      }),
-    ),
-    graphql.query("DependencyEdges", () =>
-      HttpResponse.json({
-        data: {
-          hierarchicalGraph: {
-            dependencySetForAggregatedDependency: {
               dependencyPage: {
                 pageInfo: {
                   pageNumber: 1,
                   maxPages: 1,
-                  pageSize: 50,
+                  pageSize: 1000,
                   totalCount: 0,
                 },
                 dependencies: [],
@@ -196,8 +211,8 @@ beforeEach(() => {
             },
           },
         },
-      }),
-    ),
+      });
+    }),
   );
 });
 
@@ -262,6 +277,11 @@ it("the Used by column's inspect button shows Everything that uses <center>", as
           .closest("div")?.textContent,
     )
     .toContain(BETA_FQN);
+
+  // Partner list: alpha uses beta → one partner row "alpha" with count 1.
+  const partnersList = page.getByTestId("dependency-partners-list");
+  await expect.element(partnersList.getByText(ALPHA_FQN)).toBeVisible();
+  await expect.poll(() => partnersList.element().textContent).toContain("1");
 });
 
 it("the Uses column's inspect button shows Everything <center> uses — the #0092 (C, root) case", async () => {

@@ -1,4 +1,4 @@
-import { DependencyDetailsPane } from "@/dependency-details/DependencyDetailsPane";
+import { DependencyDetailsPanel } from "@/dependency-details/DependencyDetailsPanel";
 import { OneOneSplitLayout } from "@/design-system/layout/OneOneSplitLayout";
 import { SelectionProvider } from "@/selection/SelectionContext";
 import { useTreeSettings } from "@/tree/useTreeSettings";
@@ -27,7 +27,7 @@ export function CrossReferenceExplorerPage() {
           />
         }
         bottom={
-          <DependencyDetailsPane
+          <DependencyDetailsPanel
             emptyStateTitle="No selection"
             emptyStateDescription="Use the column inspect buttons or click a partner node to inspect dependencies."
           />
