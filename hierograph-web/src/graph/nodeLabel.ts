@@ -102,6 +102,10 @@ function formatModule(text: string, format: NodeLabelFormat): string {
   return text;
 }
 
+export function shortNameOf(text: string): string {
+  return text.split(".").pop() ?? text;
+}
+
 export function formatNodeLabel(
   text: string,
   format: NodeLabelFormat,
