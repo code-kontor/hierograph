@@ -6,6 +6,7 @@ import {
   Search,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
 import { HelpPopoverButton } from "@/design-system/ui/help-popover";
@@ -57,6 +58,26 @@ function ColumnInspectButton({ label, onClick }: ColumnInspectButtonProps) {
   );
 }
 
+type ColumnInspectHintProps = {
+  message: string;
+};
+
+// Inline hint shown in a column header when Inspect is clicked while the
+// center selection has more than one node — the aggregate needs a single
+// anchor. Rendered as a plain text line (like the column sub-labels) rather
+// than the full Message component, which doesn't fit the narrow header.
+function ColumnInspectHint({ message }: ColumnInspectHintProps) {
+  return (
+    <div
+      className={twMerge(
+        "mt-0.5 truncate text-[10.5px] text-[var(--hg-accent)]",
+      )}
+    >
+      {message}
+    </div>
+  );
+}
+
 const CROSS_REFERENCE_HELP_LABEL = "About the Cross-Reference Explorer";
 
 function CrossReferenceHelpContent() {
@@ -101,8 +122,16 @@ export function CrossReferenceExplorerView({
   const [aggregateSide, setAggregateSide] = useState<"left" | "right" | null>(
     null,
   );
+  // Which column shows the "select exactly one center node" inline hint
+  // after an Inspect click while the center selection has more than one
+  // node. Reset whenever the center selection changes.
+  const [inspectHintSide, setInspectHintSide] = useState<
+    "left" | "right" | null
+  >(null);
   const [hiddenHighlightTotal, setHiddenHighlightTotal] = useState(0);
   const centerTreeRef = useRef<AsyncTreeHandle>(null);
+  const leftTreeRef = useRef<AsyncTreeHandle>(null);
+  const rightTreeRef = useRef<AsyncTreeHandle>(null);
 
   const centerSelectionKey = [...centerSelectedIds].sort().join(",");
 
@@ -148,25 +177,37 @@ export function CrossReferenceExplorerView({
     setLeftSelectedIds([]);
     setRightSelectedIds([]);
     setLastActiveSide(null);
+    setInspectHintSide(null);
+  };
+
+  const handleInspect = (side: "left" | "right") => {
+    if (centerSelectedIds.length === 1) {
+      setInspectHintSide(null);
+      setAggregateSide(side);
+    } else {
+      setInspectHintSide(side);
+    }
   };
 
   const handleLeftSelectedIdsChange = (ids: string[]) => {
     setLeftSelectedIds(ids);
-    setLastActiveSide(
-      ids.length > 0 ? "left" : (prev) => (prev === "left" ? null : prev),
-    );
     if (ids.length > 0) {
+      setLastActiveSide("left");
       setAggregateSide(null);
+      rightTreeRef.current?.clearSelection();
+    } else {
+      setLastActiveSide((prev) => (prev === "left" ? null : prev));
     }
   };
 
   const handleRightSelectedIdsChange = (ids: string[]) => {
     setRightSelectedIds(ids);
-    setLastActiveSide(
-      ids.length > 0 ? "right" : (prev) => (prev === "right" ? null : prev),
-    );
     if (ids.length > 0) {
+      setLastActiveSide("right");
       setAggregateSide(null);
+      leftTreeRef.current?.clearSelection();
+    } else {
+      setLastActiveSide((prev) => (prev === "right" ? null : prev));
     }
   };
 
@@ -238,6 +279,13 @@ export function CrossReferenceExplorerView({
   // Names for the dynamic labels/tooltips below. Both hooks are called
   // unconditionally — gating happens via `enabled` inside useNodeLabel.
   const centerLabel = useNodeLabel(center, settings.labelFormat);
+  const centerDisplayLabel =
+    centerSelectedIds.length === 1
+      ? centerLabel
+      : `${centerSelectedIds.length} nodes`;
+  // Center as the subject of the "Uses" direction (analogous to the DSM's
+  // references/referencing verb pair).
+  const centerUsesVerb = centerSelectedIds.length === 1 ? "uses" : "use";
   const partnerId =
     lastActiveSide === "left"
       ? leftSelectedIds[0]
@@ -307,8 +355,18 @@ export function CrossReferenceExplorerView({
     if (lastActiveSide === "right" && rightSelectedIds[0] !== undefined) {
       return `Highlighting what uses ${partnerLabel}`;
     }
-    return `Anchor · ${centerLabel}`;
+    return `Anchor · ${centerDisplayLabel}`;
   }
+
+  const isSingleCenter = centerSelectedIds.length === 1;
+  const leftInspectLabel = isSingleCenter
+    ? `Inspect everything that uses ${centerDisplayLabel}`
+    : `Inspect works on a single anchor — select exactly one center node (${centerDisplayLabel})`;
+  const rightInspectLabel = isSingleCenter
+    ? `Inspect everything ${centerDisplayLabel} ${centerUsesVerb}`
+    : `Inspect works on a single anchor — select exactly one center node (${centerDisplayLabel})`;
+  const inspectHintMessage =
+    "Inspect works on a single anchor — select exactly one center node.";
 
   return (
     <Pane
@@ -338,7 +396,7 @@ export function CrossReferenceExplorerView({
                 className="flex min-w-0 items-center gap-1.5 truncate"
                 title={
                   centerSelectedIds.length > 0
-                    ? `Incoming dependencies — everything that uses ${centerLabel}. Click a node to pivot to it: the center highlights what that node uses.`
+                    ? `Incoming dependencies — everything that uses ${centerDisplayLabel}. Click a node to pivot to it: the center highlights what that node uses.`
                     : undefined
                 }
               >
@@ -347,18 +405,21 @@ export function CrossReferenceExplorerView({
               </span>
               {centerSelectedIds.length > 0 && (
                 <ColumnInspectButton
-                  label={`Inspect everything that uses ${centerLabel}`}
-                  onClick={() => setAggregateSide("left")}
+                  label={leftInspectLabel}
+                  onClick={() => handleInspect("left")}
                 />
               )}
             </div>
             {centerSelectedIds.length > 0 && (
               <div
                 className="text-fg-muted mt-0.5 truncate text-[10.5px]"
-                title={`what uses ${centerLabel}`}
+                title={`what uses ${centerDisplayLabel}`}
               >
-                what uses {centerLabel}
+                what uses {centerDisplayLabel}
               </div>
+            )}
+            {inspectHintSide === "left" && centerSelectedIds.length > 1 && (
+              <ColumnInspectHint message={inspectHintMessage} />
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
@@ -369,11 +430,13 @@ export function CrossReferenceExplorerView({
             ) : (
               <AsyncTree
                 key={`left-${centerSelectionKey}`}
+                ref={leftTreeRef}
                 rootNode={rootNode}
                 loadChildren={loadLeftChildren}
                 onSelectedIdsChange={handleLeftSelectedIdsChange}
                 autoExpandOnLoad="all"
                 selectionTone="secondary"
+                selectionMode="single"
                 label="XrefLeft"
                 settings={settings}
               />
@@ -435,7 +498,7 @@ export function CrossReferenceExplorerView({
                 className="flex min-w-0 items-center gap-1.5 truncate"
                 title={
                   centerSelectedIds.length > 0
-                    ? `Outgoing dependencies — everything ${centerLabel} uses. Click a node to pivot to it: the center highlights what uses that node.`
+                    ? `Outgoing dependencies — everything ${centerDisplayLabel} ${centerUsesVerb}. Click a node to pivot to it: the center highlights what uses that node.`
                     : undefined
                 }
               >
@@ -444,18 +507,21 @@ export function CrossReferenceExplorerView({
               </span>
               {centerSelectedIds.length > 0 && (
                 <ColumnInspectButton
-                  label={`Inspect everything ${centerLabel} uses`}
-                  onClick={() => setAggregateSide("right")}
+                  label={rightInspectLabel}
+                  onClick={() => handleInspect("right")}
                 />
               )}
             </div>
             {centerSelectedIds.length > 0 && (
               <div
                 className="text-fg-muted mt-0.5 truncate text-[10.5px]"
-                title={`what ${centerLabel} uses`}
+                title={`what ${centerDisplayLabel} ${centerUsesVerb}`}
               >
-                what {centerLabel} uses
+                what {centerDisplayLabel} {centerUsesVerb}
               </div>
+            )}
+            {inspectHintSide === "right" && centerSelectedIds.length > 1 && (
+              <ColumnInspectHint message={inspectHintMessage} />
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
@@ -466,11 +532,13 @@ export function CrossReferenceExplorerView({
             ) : (
               <AsyncTree
                 key={`right-${centerSelectionKey}`}
+                ref={rightTreeRef}
                 rootNode={rootNode}
                 loadChildren={loadRightChildren}
                 onSelectedIdsChange={handleRightSelectedIdsChange}
                 autoExpandOnLoad="all"
                 selectionTone="secondary"
+                selectionMode="single"
                 label="XrefRight"
                 settings={settings}
               />

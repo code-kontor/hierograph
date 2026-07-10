@@ -56,6 +56,10 @@ export type AsyncTreeProps = {
   // Used to distinguish the anchor tree (center, primary) from partner trees
   // (Used-by/Uses, secondary) in the cross-reference explorer. Defaults to "primary".
   selectionTone?: "primary" | "secondary";
+  // Selection behavior for row clicks. "single" forces exactly one selected
+  // item at a time and ignores Shift/Ctrl/Cmd modifiers; used by the partner
+  // trees of the cross-reference explorer. Defaults to "multi".
+  selectionMode?: "single" | "multi";
   ref?: Ref<AsyncTreeHandle>;
 };
 
@@ -108,6 +112,7 @@ export function AsyncTree({
   autoExpandOnLoad,
   filterIds,
   selectionTone = "primary",
+  selectionMode = "multi",
   ref,
 }: AsyncTreeProps) {
   const highlightedSet = new Set(highlightedIds ?? []);
@@ -377,16 +382,21 @@ export function AsyncTree({
     },
   });
 
-  // The three selection branches run through the library (`item.selectUpTo`/
-  // `item.toggleSelect`/`tree.setSelectedItems`), which routes through the
-  // config's `setSelectedItems` above — never call applySelectionChange here
-  // too, that would double-notify.
+  // Two selection modes, both routed through the library
+  // (`item.selectUpTo`/`item.toggleSelect`/`tree.setSelectedItems`), which
+  // routes through the config's `setSelectedItems` above — never call
+  // applySelectionChange here too, that would double-notify. In "single"
+  // mode every click replaces the selection with just this item, ignoring
+  // Shift/Ctrl/Cmd modifiers.
   const handleRowClick = (
     item: ItemInstance<TreeNodeData>,
     e: React.MouseEvent,
   ) => {
     const id = item.getId();
-    if (e.shiftKey) {
+    if (selectionMode === "single") {
+      tree.setSelectedItems([id]);
+      applyFocusChange(id);
+    } else if (e.shiftKey) {
       item.selectUpTo(e.ctrlKey || e.metaKey);
       applyFocusChange(id);
     } else if (e.metaKey || e.ctrlKey) {
