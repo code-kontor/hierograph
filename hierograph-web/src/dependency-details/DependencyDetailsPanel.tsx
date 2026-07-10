@@ -164,13 +164,6 @@ export function DependencyDetailsPanel({
     }
   }
   const rows = [...partnerGroups.values()];
-  const anchorLabel = anchorData?.hierarchicalGraph?.node
-    ? formatNodeLabel(
-        anchorData.hierarchicalGraph.node.text,
-        labelFormat,
-        anchorData.hierarchicalGraph.node.type,
-      )
-    : anchorId;
 
   return (
     <Pane
@@ -209,7 +202,7 @@ export function DependencyDetailsPanel({
             </span>
             {anchorIsContainer && (
               <span className="text-fg-subtle ml-auto truncate font-mono text-[11px]">
-                aggregated over {anchorLabel}
+                aggregated
               </span>
             )}
           </div>
