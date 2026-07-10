@@ -99,7 +99,17 @@ export default defineConfig(({ mode }) => {
               },
               provider: playwright(),
               // https://vitest.dev/guide/browser/playwright
-              instances: browsers.map((browser) => ({ browser })),
+              // Containers (Docker default) cap /dev/shm at 64MB, which
+              // Chromium exhausts under parallel test files and crashes with
+              // "Browser connection was closed" — back its shared memory with
+              // /tmp instead. No effect outside Chromium/Linux.
+              instances: browsers.map((browser) => ({
+                browser,
+                launch:
+                  browser === "chromium"
+                    ? { args: ["--disable-dev-shm-usage"] }
+                    : undefined,
+              })),
             },
           },
         },
