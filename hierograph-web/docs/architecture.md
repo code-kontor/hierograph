@@ -81,6 +81,10 @@ that spans the entire workbench state:
 [selectedIds])` reset; serialising `cellSelection` alongside `selectedIds`
   requires careful ordering.
 
+`DependencyDetailsPanel` is the second public file of `dependency-details`: an
+anchor-centric aggregate overview (Ebene 1) used by the Cross-Reference
+Explorer, whereas `DependencyDetailsPane` remains the DSM inspector.
+
 Deep-linking belongs in a dedicated follow-up task with a holistic UX design for
 workbench-state restoration. `zod` will not be introduced until that task.
 

@@ -183,3 +183,71 @@ export function filteredDependenciesQueryOptions(
     },
   });
 }
+
+// If `pageInfo.maxPages > 1` the client-side grouping below is only over this
+// first page — full multi-page aggregation for very large anchors is deferred
+// (FT-2 follow-up).
+const dependencyPartnersQuery = graphql(`
+  query DependencyPartners(
+    $sourceNodeId: ID!
+    $targetNodeId: ID!
+    $pageNumber: Int!
+    $pageSize: Int!
+  ) {
+    hierarchicalGraph {
+      dependencySetForAggregatedDependency(
+        sourceNodeId: $sourceNodeId
+        targetNodeId: $targetNodeId
+      ) {
+        size
+        dependencyPage(pageNumber: $pageNumber, pageSize: $pageSize) {
+          pageInfo {
+            pageNumber
+            maxPages
+            pageSize
+            totalCount
+          }
+          dependencies {
+            id
+            sourceNode {
+              id
+              text
+              type
+            }
+            targetNode {
+              id
+              text
+              type
+            }
+          }
+        }
+      }
+    }
+  }
+`);
+
+export function dependencyPartnersQueryOptions(
+  sourceNodeId: string,
+  targetNodeId: string,
+  pageNumber: number,
+  pageSize: number,
+) {
+  return queryOptions({
+    queryKey: [
+      "dependencySet",
+      sourceNodeId,
+      targetNodeId,
+      "partners",
+      pageNumber,
+      pageSize,
+    ],
+    async queryFn() {
+      return execute(dependencyPartnersQuery, {
+        sourceNodeId,
+        targetNodeId,
+        pageNumber,
+        pageSize,
+      });
+    },
+  });
+}
