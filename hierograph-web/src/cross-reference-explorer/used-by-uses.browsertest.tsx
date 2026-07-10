@@ -139,14 +139,14 @@ it("empty state — headers and direction hints show before a center selection",
   await expect
     .poll(() =>
       page
-        .getByText("Select a node in the center tree to see what uses it.")
+        .getByText("Pick a node in the center tree to see what uses it.")
         .element(),
     )
     .toBeTruthy();
   await expect
     .poll(() =>
       page
-        .getByText("Select a node in the center tree to see what it uses.")
+        .getByText("Pick a node in the center tree to see what it uses.")
         .element(),
     )
     .toBeTruthy();

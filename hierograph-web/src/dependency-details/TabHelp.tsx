@@ -1,37 +1,3 @@
-import { HelpCircle } from "lucide-react";
-import type { ReactNode } from "react";
-
-import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/design-system/ui/popover";
-
-type TabHelpButtonProps = {
-  label: string;
-  children: ReactNode;
-};
-
-// Non-modal help popover shown above the active tab.
-export function TabHelpButton({ label, children }: TabHelpButtonProps) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          title={label}
-          aria-label={label}
-          className={ghostIconTriggerClassName}
-        >
-          <HelpCircle className="size-4" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent aria-label={label}>{children}</PopoverContent>
-    </Popover>
-  );
-}
-
 export const USAGES_HELP_LABEL = "About the Usages tab";
 export const TRACE_HELP_LABEL = "About the Paths tab";
 

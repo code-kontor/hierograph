@@ -1,8 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronsDown, Search } from "lucide-react";
+import {
+  ArrowRightFromLine,
+  ArrowRightToLine,
+  ChevronsDown,
+  Search,
+} from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
+import { HelpPopoverButton } from "@/design-system/ui/help-popover";
 import { Message } from "@/design-system/ui/message";
 import {
   nodeChildrenQueryOptions,
@@ -23,6 +29,7 @@ import {
   crossReferenceExplorerLeftChildrenQueryOptions,
   crossReferenceExplorerRightChildrenQueryOptions,
 } from "./queries";
+import { useNodeLabel } from "./useNodeLabel";
 
 export type CrossReferenceExplorerViewProps = {
   settings: TreeSettings;
@@ -47,6 +54,21 @@ function ColumnInspectButton({ label, onClick }: ColumnInspectButtonProps) {
     >
       <Search className="size-[12px]" />
     </button>
+  );
+}
+
+const CROSS_REFERENCE_HELP_LABEL = "About the Cross-Reference Explorer";
+
+function CrossReferenceHelpContent() {
+  return (
+    <p>
+      Center is the anchor. <em>Used by</em> (left, incoming) lists everything
+      that uses the center; <em>Uses</em> (right, outgoing) lists everything the
+      center uses. Click a node in either partner column to pivot: it becomes
+      the subject and the center highlights its own dependencies. The inspect
+      buttons (🔍) open the aggregated Center↔column relationship in
+      Dependencies Details.
+    </p>
   );
 }
 
@@ -213,6 +235,17 @@ export function CrossReferenceExplorerView({
   const rootId = rootNode?.id;
   const center = centerSelectedIds[0];
 
+  // Names for the dynamic labels/tooltips below. Both hooks are called
+  // unconditionally — gating happens via `enabled` inside useNodeLabel.
+  const centerLabel = useNodeLabel(center, settings.labelFormat);
+  const partnerId =
+    lastActiveSide === "left"
+      ? leftSelectedIds[0]
+      : lastActiveSide === "right"
+        ? rightSelectedIds[0]
+        : undefined;
+  const partnerLabel = useNodeLabel(partnerId, settings.labelFormat);
+
   let cellSource: string | undefined;
   let cellTarget: string | undefined;
   if (lastActiveSide === "left" && leftSelectedIds[0] !== undefined) {
@@ -262,36 +295,76 @@ export function CrossReferenceExplorerView({
     );
   }
 
+  // Center sub-label: one line per state — no center, center-only (anchor),
+  // or an active partner pivot (Welt A — the partner becomes the subject).
+  function centerSubLabel(): string {
+    if (centerSelectedIds.length === 0) {
+      return "select a node to explore";
+    }
+    if (lastActiveSide === "left" && leftSelectedIds[0] !== undefined) {
+      return `Highlighting what ${partnerLabel} uses`;
+    }
+    if (lastActiveSide === "right" && rightSelectedIds[0] !== undefined) {
+      return `Highlighting what uses ${partnerLabel}`;
+    }
+    return `Anchor · ${centerLabel}`;
+  }
+
   return (
     <Pane
       title="Cross-Reference View"
       bodyClassName="overflow-hidden p-0"
       toolbar={
-        <TreeSettingsMenu
-          {...settings}
-          setShowIndentGuides={setShowIndentGuides}
-          setAutoExpandSingleChildren={setAutoExpandSingleChildren}
-          setPreserveSelectionOnCollapse={setPreserveSelectionOnCollapse}
-          setLabelFormat={setLabelFormat}
-        />
+        <div className="flex items-center gap-1">
+          <HelpPopoverButton label={CROSS_REFERENCE_HELP_LABEL}>
+            <CrossReferenceHelpContent />
+          </HelpPopoverButton>
+          <TreeSettingsMenu
+            {...settings}
+            setShowIndentGuides={setShowIndentGuides}
+            setAutoExpandSingleChildren={setAutoExpandSingleChildren}
+            setPreserveSelectionOnCollapse={setPreserveSelectionOnCollapse}
+            setLabelFormat={setLabelFormat}
+          />
+        </div>
       }
     >
       <div className="grid h-full min-h-0 flex-1 grid-cols-3 overflow-hidden">
         {/* Left column */}
         <div className="border-border flex min-w-0 flex-col overflow-auto border-r">
-          <div className="border-border text-fg-subtle flex shrink-0 items-center justify-between border-b px-[14px] py-2 font-mono text-[11px]">
-            Used by
+          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="flex min-w-0 items-center gap-1.5 truncate"
+                title={
+                  centerSelectedIds.length > 0
+                    ? `Incoming dependencies — everything that uses ${centerLabel}. Click a node to pivot to it: the center highlights what that node uses.`
+                    : undefined
+                }
+              >
+                <ArrowRightToLine className="size-[13px] shrink-0" />
+                Used by
+              </span>
+              {centerSelectedIds.length > 0 && (
+                <ColumnInspectButton
+                  label={`Inspect everything that uses ${centerLabel}`}
+                  onClick={() => setAggregateSide("left")}
+                />
+              )}
+            </div>
             {centerSelectedIds.length > 0 && (
-              <ColumnInspectButton
-                label="Inspect Used by"
-                onClick={() => setAggregateSide("left")}
-              />
+              <div
+                className="text-fg-muted mt-0.5 truncate text-[10.5px]"
+                title={`what uses ${centerLabel}`}
+              >
+                what uses {centerLabel}
+              </div>
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
             {centerSelectedIds.length === 0 ? (
               <Message variant="empty" title="No node selected">
-                Select a node in the center tree to see what uses it.
+                Pick a node in the center tree to see what uses it.
               </Message>
             ) : (
               <AsyncTree
@@ -310,8 +383,13 @@ export function CrossReferenceExplorerView({
         {/* Center column */}
         <div className="border-border @container flex min-w-0 flex-col overflow-auto border-r">
           <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
-            Center ·{" "}
-            <span className="text-fg-muted">select to filter left/right</span>
+            <div>Center</div>
+            <div
+              className="text-fg-muted mt-0.5 truncate text-[10.5px]"
+              title={centerSubLabel()}
+            >
+              {centerSubLabel()}
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
             <AsyncTree
@@ -351,19 +429,39 @@ export function CrossReferenceExplorerView({
         </div>
         {/* Right column */}
         <div className="flex min-w-0 flex-col overflow-auto">
-          <div className="border-border text-fg-subtle flex shrink-0 items-center justify-between border-b px-[14px] py-2 font-mono text-[11px]">
-            Uses
+          <div className="border-border text-fg-subtle shrink-0 border-b px-[14px] py-2 font-mono text-[11px]">
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className="flex min-w-0 items-center gap-1.5 truncate"
+                title={
+                  centerSelectedIds.length > 0
+                    ? `Outgoing dependencies — everything ${centerLabel} uses. Click a node to pivot to it: the center highlights what uses that node.`
+                    : undefined
+                }
+              >
+                <ArrowRightFromLine className="size-[13px] shrink-0" />
+                Uses
+              </span>
+              {centerSelectedIds.length > 0 && (
+                <ColumnInspectButton
+                  label={`Inspect everything ${centerLabel} uses`}
+                  onClick={() => setAggregateSide("right")}
+                />
+              )}
+            </div>
             {centerSelectedIds.length > 0 && (
-              <ColumnInspectButton
-                label="Inspect Uses"
-                onClick={() => setAggregateSide("right")}
-              />
+              <div
+                className="text-fg-muted mt-0.5 truncate text-[10.5px]"
+                title={`what ${centerLabel} uses`}
+              >
+                what {centerLabel} uses
+              </div>
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1.5">
             {centerSelectedIds.length === 0 ? (
               <Message variant="empty" title="No node selected">
-                Select a node in the center tree to see what it uses.
+                Pick a node in the center tree to see what it uses.
               </Message>
             ) : (
               <AsyncTree
