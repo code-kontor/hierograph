@@ -167,20 +167,20 @@ export function TreeRow({
           )
         ) : null}
       </span>
-      {isFolder && !isExpanded && hiddenHighlightCount > 0 && (
-        <span
-          aria-label={`${hiddenHighlightCount} hidden highlighted nodes`}
-          className="flex h-4 min-w-[17px] shrink-0 items-center justify-center rounded-[8px] border border-[var(--hl-badge-border)] bg-[var(--hl-badge-bg)] px-[5px] font-mono text-[10px] font-semibold text-[var(--hl-badge-fg)] tabular-nums"
-        >
-          {hiddenHighlightCount}
-        </span>
-      )}
       {createElement(getNodeIcon(nodeData.type), {
         className: cn("size-[15px] shrink-0", iconColorClass),
       })}
-      <span className="min-w-0 flex-1 truncate text-[13.5px]">
-        {displayLabel}
-      </span>
+      <div className="flex min-w-0 flex-1 items-center gap-[7px]">
+        <span className="min-w-0 truncate text-[13.5px]">{displayLabel}</span>
+        {isFolder && !isExpanded && hiddenHighlightCount > 0 && (
+          <span
+            aria-label={`${hiddenHighlightCount} hidden highlighted nodes`}
+            className="flex h-4 min-w-[17px] shrink-0 items-center justify-center rounded-[8px] border border-[var(--hl-badge-border)] bg-[var(--hl-badge-bg)] px-[5px] font-mono text-[10px] font-semibold text-[var(--hl-badge-fg)] tabular-nums"
+          >
+            {hiddenHighlightCount}
+          </span>
+        )}
+      </div>
       {nodeData.weight != null && (
         <span
           className={cn(
