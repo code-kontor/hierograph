@@ -52,7 +52,7 @@ type PartnerRowProps = {
 function PartnerRow({ row, labelFormat }: PartnerRowProps) {
   const label = formatNodeLabel(row.text, labelFormat, row.type);
   return (
-    <div className="flex h-7 min-w-0 items-center gap-2 rounded-[6px] px-2">
+    <div className="odd:bg-zebra flex min-w-0 items-center gap-2 px-[14px] py-2">
       <span className="min-w-0 flex-1 truncate font-mono text-[13.5px]">
         {label}
       </span>
@@ -73,6 +73,16 @@ export function DependencyDetailsPanel({
     "full",
   );
   const labelFormat = normalizeLabelFormat(storedLabelFormat);
+
+  // Header label mirrors the DSM Usages pane title styling (semibold mono
+  // caps) so both "Dependencies Details" panes read identically. Uses a
+  // titleBar rather than the Pane default `title` because the default renders
+  // the label at normal weight.
+  const headerTitleBar = (
+    <div className="text-fg-muted flex items-center px-[14px] font-mono text-[11px] font-semibold tracking-[0.06em] uppercase">
+      Dependencies Details
+    </div>
+  );
 
   const { data: rootData } = useQuery(rootNodeQueryOptions());
   const rootId = rootData?.hierarchicalGraph?.rootNode?.id;
@@ -131,7 +141,11 @@ export function DependencyDetailsPanel({
     selectionTargetId === undefined
   ) {
     return (
-      <Pane title="Dependencies Details" bodyClassName="p-3">
+      <Pane
+        title="Dependencies Details"
+        titleBar={headerTitleBar}
+        bodyClassName="p-3"
+      >
         <Message variant="empty" title={emptyStateTitle}>
           {emptyStateDescription}
         </Message>
@@ -168,6 +182,7 @@ export function DependencyDetailsPanel({
   return (
     <Pane
       title="Dependencies Details"
+      titleBar={headerTitleBar}
       subHeader={
         <DependencyInspectorHeader
           sourceNodeId={selectionSourceId}
@@ -208,7 +223,7 @@ export function DependencyDetailsPanel({
           </div>
           <div
             data-testid="dependency-partners-list"
-            className="flex min-h-0 flex-1 flex-col gap-px overflow-auto p-2"
+            className="flex min-h-0 flex-1 flex-col overflow-auto"
           >
             {rows.map((row) => (
               <PartnerRow key={row.id} row={row} labelFormat={labelFormat} />
