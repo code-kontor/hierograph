@@ -7,6 +7,16 @@ Corepack, `packageManager` field in `package.json`).
 shadcn/ui components live in `src/design-system/ui/` (generated via
 `pnpm dlx shadcn@latest add <component>`).
 
+## Design system
+
+New or changed UI components must be styled **design-conform** to the IDE design
+system — tokens from `src/index.css`, plus the component specs. **Design decisions
+and changes happen only in Claude Design**, never ad hoc in the code; from the code
+the design is read **read-only** via the Design MCP. `src/design-system/ui/button.tsx`
+is the open "pending" example (stock shadcn, restyle on first real use). The full
+convention, the MCP setup, and the Claude Design ↔ Claude Code change loop are in
+[`docs/design-system.md`](docs/design-system.md).
+
 ## Architecture: verticals & import boundaries
 
 Code is organised into feature _verticals_ as top-level folders under `src/`:
