@@ -179,9 +179,8 @@ export default defineConfig([
                 ],
               },
             },
-            // dependency-diagram screen → shared verticals via public files, design-system, graphql
-            // (no dependency-details pane, no cross-screen import of dsm/HierarchyTree — this
-            // screen builds its own tree wiring from `tree`/`graph`, same as cross-reference-explorer)
+            // dependency-diagram screen → shared verticals + the shared dependency-details
+            // pane (edge click populates it) via public files, design-system, graphql
             {
               from: { type: "dependency-diagram" },
               allow: {
@@ -189,6 +188,7 @@ export default defineConfig([
                   to("selection", ["SelectionContext.tsx"]),
                   to("tree"),
                   to("graph"),
+                  to("dependency-details", ["DependencyDetailsPane.tsx"]),
                   { type: "design-system" },
                   { type: "graphql" },
                 ],
