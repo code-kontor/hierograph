@@ -1,5 +1,5 @@
 export const USAGES_HELP_LABEL = "About the Usages tab";
-export const TRACE_HELP_LABEL = "About the Paths tab";
+export const PATHS_HELP_LABEL = "About the Paths tab";
 
 export function UsagesHelpContent() {
   return (
@@ -12,7 +12,7 @@ export function UsagesHelpContent() {
   );
 }
 
-export function TraceHelpContent() {
+export function PathsHelpContent() {
   return (
     <p>
       Paths lets you click a type on one side to make it the driver
