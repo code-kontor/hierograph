@@ -1,4 +1,4 @@
-import type { ElkNode } from "elkjs/lib/elk.bundled.js";
+import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk.bundled.js";
 import { useEffect, useRef, useState } from "react";
 
 import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
@@ -8,6 +8,7 @@ import { resolveGraphColors } from "./colorScheme";
 import { DependencyDiagramControls } from "./DependencyDiagramControls";
 import { setupCanvas } from "./dpiFixer";
 import { drawGraph } from "./drawGraph";
+import { hitTestEdge } from "./edgeHitTest";
 import type { DiagramElkNode } from "./elkLayout";
 import { hitTestNode } from "./hitTest";
 import {
@@ -31,6 +32,7 @@ type DependencyDiagramCanvasProps = {
   rootNode: ElkNode;
   labelFormat: NodeLabelFormat;
   onNodeActivate?: (id: string, label: string) => void;
+  onEdgeActivate?: (sourceNodeId: string, targetNodeId: string) => void;
 };
 
 type NodeTooltip = {
@@ -45,6 +47,7 @@ export function DependencyDiagramCanvas({
   rootNode,
   labelFormat,
   onNodeActivate,
+  onEdgeActivate,
 }: DependencyDiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -86,6 +89,22 @@ export function DependencyDiagramCanvas({
       clientY - rect.top,
     );
     return hitTestNode(rootNodeRef.current, world.x, world.y);
+  }
+
+  function edgeAtClient(
+    clientX: number,
+    clientY: number,
+  ): ElkExtendedEdge | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const world = screenToWorld(
+      viewportRef.current,
+      clientX - rect.left,
+      clientY - rect.top,
+    );
+    const toleranceWorld = 6 / viewportRef.current.scale;
+    return hitTestEdge(rootNodeRef.current, world.x, world.y, toleranceWorld);
   }
 
   function redraw() {
@@ -301,9 +320,19 @@ export function DependencyDiagramCanvas({
           const dy = e.clientY - dragStartClientRef.current.y;
           const isClick =
             dx * dx + dy * dy < CLICK_DRAG_THRESHOLD * CLICK_DRAG_THRESHOLD;
-          if (isClick && onNodeActivate) {
-            const hit = nodeAtClient(e.clientX, e.clientY);
-            if (hit) onNodeActivate(hit.id, hit.labels?.[0]?.text ?? hit.id);
+          if (isClick) {
+            const nodeHit = nodeAtClient(e.clientX, e.clientY);
+            if (nodeHit) {
+              onNodeActivate?.(
+                nodeHit.id,
+                nodeHit.labels?.[0]?.text ?? nodeHit.id,
+              );
+            } else if (onEdgeActivate) {
+              const edge = edgeAtClient(e.clientX, e.clientY);
+              if (edge?.sources?.[0] && edge.targets?.[0]) {
+                onEdgeActivate(edge.sources[0], edge.targets[0]);
+              }
+            }
           }
           isDraggingRef.current = false;
           e.currentTarget.releasePointerCapture(e.pointerId);

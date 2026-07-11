@@ -236,6 +236,7 @@ export function DependencyDiagramOptionsMenu({
 }
 
 function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
+  const { setCellSelection } = useSelection();
   const orderedNodes = matrix?.orderedNodes ?? [];
   const cells = matrix?.cells ?? [];
 
@@ -301,6 +302,9 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
           rootNode={rootNode}
           labelFormat={labelFormat}
           onNodeActivate={onNodeActivate}
+          onEdgeActivate={(sourceNodeId, targetNodeId) =>
+            setCellSelection({ sourceNodeId, targetNodeId })
+          }
         />
       </div>
     </Pane>

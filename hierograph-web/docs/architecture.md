@@ -31,7 +31,7 @@ lower-triangular.
 | app (`main.tsx`, `routeTree.gen.ts`)         | `routes`, `routing`, `graphql`, `design-system`                                                               |
 | `routes`                                     | `dsm`, `cross-reference-explorer`, `dependency-diagram`, `selection`, `dev-panel`, `routing`, `design-system` |
 | `dsm` / `cross-reference-explorer` (screens) | `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql`                                |
-| `dependency-diagram` (screen)                | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                      |
+| `dependency-diagram` (screen)                | `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql`                                |
 | `dependency-details` (shared pane)           | `selection`, `tree`, `graph`, `design-system`, `graphql`                                                      |
 | `dev-panel`                                  | `selection`, `graph`, `design-system`, `graphql`                                                              |
 | `tree`                                       | `graph`, `design-system`                                                                                      |
@@ -51,11 +51,11 @@ deliberately directed: `dependency-details` does not import `dsm` or
 no cycle).
 
 `dependency-diagram` is a third, experimental screen vertical (`/dependency-diagram`).
-It does not compose `dependency-details` (no details pane in this screen) and,
-like `cross-reference-explorer`, builds its own tree wiring directly from the
-shared `tree`/`graph` primitives rather than importing another screen's
-internals — there is no `dsm` → `dependency-diagram` edge (or vice versa);
-screen verticals never import each other.
+It composes the shared `dependency-details` pane as a lower panel (an edge click
+in the diagram populates it) and, like `cross-reference-explorer`, builds its own
+tree wiring directly from the shared `tree`/`graph` primitives rather than
+importing another screen's internals — there is no `dsm` → `dependency-diagram`
+edge (or vice versa); screen verticals never import each other.
 
 ## Router context & data loading
 
