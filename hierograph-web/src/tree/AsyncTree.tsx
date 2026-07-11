@@ -126,7 +126,7 @@ export function AsyncTree({
   // No consumer reads the identity of filterSet: loads are pull-based, the
   // mount effect below has `[]` deps + a ref guard, and useImperativeHandle
   // runs without deps. Consumers remount via `key` on a filter change anyway
-  // (e.g. TracePanel's sourceKey/targetKey), so a fresh Set per render is fine.
+  // (e.g. PathsPanel's sourceKey/targetKey), so a fresh Set per render is fine.
   const filterSet = filterIds ? new Set(filterIds) : null;
 
   // Filter mode: marks are full paths (leaf + all ancestors), so keeping only

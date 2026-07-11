@@ -28,20 +28,20 @@ import {
   AUTO_EXPAND_STORAGE_KEY,
   LABEL_FORMAT_STORAGE_KEY,
   normalizeLabelFormat,
-  normalizeTraceViewMode,
-  TRACE_VIEW_MODE_STORAGE_KEY,
+  normalizePathsViewMode,
+  PATHS_VIEW_MODE_STORAGE_KEY,
 } from "./dependencyDetailsLabelSettings";
 import { DependencyEdgeTable } from "./DependencyEdgeTable";
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
-import type { TraceViewMode } from "./serializeTrace";
+import { PathsCopyButton } from "./PathsCopyButton";
+import { PathsPanel, type PathsPanelHandle } from "./PathsPanel";
+import type { PathsViewMode } from "./serializePaths";
 import {
-  TRACE_HELP_LABEL,
-  TraceHelpContent,
+  PATHS_HELP_LABEL,
+  PathsHelpContent,
   USAGES_HELP_LABEL,
   UsagesHelpContent,
 } from "./TabHelp";
-import { TraceCopyButton } from "./TraceCopyButton";
-import { TracePanel, type TracePanelHandle } from "./TracePanel";
 
 type ActiveTab = "usages" | "paths";
 
@@ -87,26 +87,26 @@ function LabelFormatMenu({
   );
 }
 
-type TraceControlsProps = {
-  viewMode: TraceViewMode;
-  setViewMode: (value: TraceViewMode) => void;
-  traceRef: RefObject<TracePanelHandle | null>;
+type PathsControlsProps = {
+  viewMode: PathsViewMode;
+  setViewMode: (value: PathsViewMode) => void;
+  pathsRef: RefObject<PathsPanelHandle | null>;
   hasSelection: boolean;
 };
 
-function TraceControls({
+function PathsControls({
   viewMode,
   setViewMode,
-  traceRef,
+  pathsRef,
   hasSelection,
-}: TraceControlsProps) {
+}: PathsControlsProps) {
   return (
     <div className="ml-auto flex items-center gap-1">
       <button
         type="button"
         title="Clear selection"
         disabled={!hasSelection}
-        onClick={() => traceRef.current?.clearSelection()}
+        onClick={() => pathsRef.current?.clearSelection()}
         className={twMerge(
           ghostIconTriggerClassName,
           !hasSelection && "cursor-not-allowed opacity-40",
@@ -117,7 +117,7 @@ function TraceControls({
       <button
         type="button"
         title="Expand all"
-        onClick={() => traceRef.current?.expandAll()}
+        onClick={() => pathsRef.current?.expandAll()}
         className={ghostIconTriggerClassName}
       >
         <ChevronsUpDown className="size-4" />
@@ -125,7 +125,7 @@ function TraceControls({
       <button
         type="button"
         title="Collapse all"
-        onClick={() => traceRef.current?.collapseAll()}
+        onClick={() => pathsRef.current?.collapseAll()}
         className={ghostIconTriggerClassName}
       >
         <ChevronsDownUp className="size-4" />
@@ -145,8 +145,8 @@ function TraceControls({
         <Filter className="size-4" />
       </button>
       {import.meta.env.DEV && (
-        <TraceCopyButton
-          buildInput={() => traceRef.current?.buildSerializeInput() ?? null}
+        <PathsCopyButton
+          buildInput={() => pathsRef.current?.buildSerializeInput() ?? null}
         />
       )}
     </div>
@@ -175,22 +175,22 @@ export function DependencyDetailsPane({
     false,
   );
 
-  // Persisted here (not in the per-cell-remounted TracePanel) so "hits only"
+  // Persisted here (not in the per-cell-remounted PathsPanel) so "hits only"
   // survives both a cell change (key={cellKey} remount) and a tab switch
   // (forceMount keeps the panel mounted, but its own state would still reset).
   const [storedViewMode, setStoredViewMode] = useLocalStorage<string>(
-    TRACE_VIEW_MODE_STORAGE_KEY,
+    PATHS_VIEW_MODE_STORAGE_KEY,
     "in-context",
   );
-  const viewMode = normalizeTraceViewMode(storedViewMode);
-  const setViewMode = (value: TraceViewMode) => setStoredViewMode(value);
-  const traceRef = useRef<TracePanelHandle>(null);
+  const viewMode = normalizePathsViewMode(storedViewMode);
+  const setViewMode = (value: PathsViewMode) => setStoredViewMode(value);
+  const pathsRef = useRef<PathsPanelHandle>(null);
 
-  // Mirrors the trace panel's driver presence so the Clear Selection control
+  // Mirrors the paths panel's driver presence so the Clear Selection control
   // can disable when nothing is selected.
-  const [traceHasSelection, setTraceHasSelection] = useState(false);
-  const handleTraceSelectionChange = (hasSelection: boolean) =>
-    setTraceHasSelection(hasSelection);
+  const [pathsHasSelection, setPathsHasSelection] = useState(false);
+  const handlePathsSelectionChange = (hasSelection: boolean) =>
+    setPathsHasSelection(hasSelection);
 
   const cellKey = cellSelection
     ? `${cellSelection.sourceNodeId}:${cellSelection.targetNodeId}`
@@ -223,8 +223,8 @@ export function DependencyDetailsPane({
                 </HelpPopoverButton>
               )}
               {activeTab === "paths" && (
-                <HelpPopoverButton label={TRACE_HELP_LABEL}>
-                  <TraceHelpContent />
+                <HelpPopoverButton label={PATHS_HELP_LABEL}>
+                  <PathsHelpContent />
                 </HelpPopoverButton>
               )}
               <LabelFormatMenu
@@ -243,11 +243,11 @@ export function DependencyDetailsPane({
                 labelFormat={labelFormat}
               />
               {activeTab === "paths" && (
-                <TraceControls
+                <PathsControls
                   viewMode={viewMode}
                   setViewMode={setViewMode}
-                  traceRef={traceRef}
-                  hasSelection={traceHasSelection}
+                  pathsRef={pathsRef}
+                  hasSelection={pathsHasSelection}
                 />
               )}
             </div>
@@ -270,15 +270,15 @@ export function DependencyDetailsPane({
               forceMount
               className="flex min-h-0 flex-1 flex-col"
             >
-              <TracePanel
+              <PathsPanel
                 key={cellKey}
-                ref={traceRef}
+                ref={pathsRef}
                 sourceNodeId={cellSelection.sourceNodeId}
                 targetNodeId={cellSelection.targetNodeId}
                 labelFormat={labelFormat}
                 autoExpandSingleChildren={autoExpandSingleChildren}
                 viewMode={viewMode}
-                onSelectionChange={handleTraceSelectionChange}
+                onSelectionChange={handlePathsSelectionChange}
               />
             </TabsContent>
           </>
