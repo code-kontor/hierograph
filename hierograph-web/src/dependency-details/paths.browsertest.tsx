@@ -90,12 +90,12 @@ async function renderPathsTabDeepCell() {
 
 function sourceRow(text: string) {
   return page
-    .getByLabelText("TraceSourceTree")
+    .getByLabelText("PathsSourceTree")
     .getByText(text, { exact: true });
 }
 function targetRow(text: string) {
   return page
-    .getByLabelText("TraceTargetTree")
+    .getByLabelText("PathsTargetTree")
     .getByText(text, { exact: true });
 }
 
@@ -141,15 +141,15 @@ describe("Paths tab", () => {
 
     await expect.element(page.getByText(/Dependencies of/)).toBeVisible();
     await expect
-      .element(page.getByTestId("trace-status"))
+      .element(page.getByTestId("paths-status"))
       .toHaveTextContent("references");
     const statusSummary = page
-      .getByTestId("trace-status")
+      .getByTestId("paths-status")
       .element()
       .querySelector("span > span");
     expect(statusSummary?.className).toContain("font-medium");
     expect(
-      page.getByTestId("trace-status").element().querySelector("span")?.title,
+      page.getByTestId("paths-status").element().querySelector("span")?.title,
     ).toMatch(/references/);
   });
 
@@ -162,7 +162,7 @@ describe("Paths tab", () => {
     await userEvent.click(targetRow(BASE_CLASS));
 
     await expect
-      .element(page.getByTestId("trace-status"))
+      .element(page.getByTestId("paths-status"))
       .toHaveTextContent("referenced by");
     // The source side is now the counterpart: marked, but no longer the
     // (blue) selected row — the previous driver selection was cleared. The
@@ -234,7 +234,7 @@ describe("Paths tab", () => {
 
     await userEvent.click(clear);
     await expect
-      .element(page.getByTestId("trace-status"))
+      .element(page.getByTestId("paths-status"))
       .toHaveTextContent("Select a type"); // back to idle status
     expect(rowClassName(sourceRow(SUB_CLASS))).not.toContain(
       "text-state-selected-fg",

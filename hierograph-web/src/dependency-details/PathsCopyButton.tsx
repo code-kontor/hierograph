@@ -5,21 +5,21 @@ import { twMerge } from "tailwind-merge";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 
 import {
-  serializeTraceForClipboard,
-  type SerializeTraceInput,
-} from "./serializeTrace";
+  serializePathsForClipboard,
+  type SerializePathsInput,
+} from "./serializePaths";
 
 // Takes a factory instead of a plain input: the row snapshots come from
 // AsyncTree refs, which must only be read on interaction (a click handler),
-// never during render (see the AsyncTree refs in TracePanel). `null` means
+// never during render (see the AsyncTree refs in PathsPanel). `null` means
 // the panel ref is not attached yet — the click is a no-op in that case.
-type TraceCopyButtonProps = { buildInput: () => SerializeTraceInput | null };
+type PathsCopyButtonProps = { buildInput: () => SerializePathsInput | null };
 
 type CopyStatus = "idle" | "copied" | "error";
 
 const RESET_DELAY_MS = 1500;
 
-export function TraceCopyButton({ buildInput }: TraceCopyButtonProps) {
+export function PathsCopyButton({ buildInput }: PathsCopyButtonProps) {
   const [status, setStatus] = useState<CopyStatus>("idle");
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
@@ -35,7 +35,7 @@ export function TraceCopyButton({ buildInput }: TraceCopyButtonProps) {
     const input = buildInput();
     if (!input) return;
     clearTimeout(resetTimerRef.current);
-    const text = serializeTraceForClipboard(input);
+    const text = serializePathsForClipboard(input);
     try {
       if (!navigator.clipboard) {
         throw new Error("Clipboard API not available");
@@ -53,13 +53,13 @@ export function TraceCopyButton({ buildInput }: TraceCopyButtonProps) {
       ? "Copied!"
       : status === "error"
         ? "Copy failed"
-        : "Copy trace state to clipboard";
+        : "Copy paths state to clipboard";
 
   return (
     <button
       type="button"
       title={title}
-      aria-label="Copy trace state to clipboard"
+      aria-label="Copy paths state to clipboard"
       onClick={handleClick}
       className={twMerge(ghostIconTriggerClassName)}
     >

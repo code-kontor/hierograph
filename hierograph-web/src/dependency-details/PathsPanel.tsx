@@ -25,26 +25,26 @@ import {
   filteredDependenciesQueryOptions,
 } from "./queries";
 import type {
-  SerializeTraceInput,
-  TraceSide,
-  TraceViewMode,
-} from "./serializeTrace";
+  PathsSide,
+  PathsViewMode,
+  SerializePathsInput,
+} from "./serializePaths";
 
-export type TracePanelProps = {
+export type PathsPanelProps = {
   sourceNodeId: string;
   targetNodeId: string;
   labelFormat: NodeLabelFormat;
   autoExpandSingleChildren: boolean;
-  viewMode: TraceViewMode;
+  viewMode: PathsViewMode;
   // Reports whether a driver selection currently exists, so the pane can
   // enable/disable the Clear Selection control. Refs are not reactive, hence a
   // callback prop (consistent with onSelectedIdsChange).
   onSelectionChange?: (hasSelection: boolean) => void;
-  ref?: Ref<TracePanelHandle>;
+  ref?: Ref<PathsPanelHandle>;
 };
 
-export type TracePanelHandle = {
-  buildSerializeInput: () => SerializeTraceInput;
+export type PathsPanelHandle = {
+  buildSerializeInput: () => SerializePathsInput;
   // Drop the driver and clear both trees' selections.
   clearSelection: () => void;
   // Expand/collapse both trees (source + target).
@@ -52,11 +52,11 @@ export type TracePanelHandle = {
   collapseAll: () => void;
 };
 
-type Driver = { side: TraceSide; ids: string[] } | null;
+type Driver = { side: PathsSide; ids: string[] } | null;
 
 function headerText(
   isCounterpart: boolean,
-  driverSide: TraceSide | null,
+  driverSide: PathsSide | null,
   driverLabel: string | null,
   rootLabel: string,
 ): string {
@@ -65,7 +65,7 @@ function headerText(
       ? `Dependencies of ${driverLabel}`
       : `Dependents of ${driverLabel}`;
   }
-  return `${rootLabel} — click a type to trace its dependencies`;
+  return `${rootLabel} — click a type to see its dependency paths`;
 }
 
 function headerTitle(
@@ -73,11 +73,11 @@ function headerTitle(
   driverLabel: string | null,
 ): string | undefined {
   return isCounterpart && driverLabel
-    ? `Types on this side connected to ${driverLabel} through the traced dependency.`
+    ? `Types on this side connected to ${driverLabel} through the dependency path.`
     : undefined;
 }
 
-type TraceStatus = { summary: string; detail: string; title: string };
+type PathsStatus = { summary: string; detail: string; title: string };
 
 function buildStatusText(params: {
   driver: Driver;
@@ -86,8 +86,8 @@ function buildStatusText(params: {
   counterpartLeafCount: number;
   sourceRootLabel: string;
   targetRootLabel: string;
-  viewMode: TraceViewMode;
-}): TraceStatus {
+  viewMode: PathsViewMode;
+}): PathsStatus {
   const {
     driver,
     driverLabel,
@@ -101,7 +101,7 @@ function buildStatusText(params: {
   if (!driver) {
     return {
       summary: "No type selected.",
-      detail: " Select a type to trace its dependencies.",
+      detail: " Select a type to see its dependency paths.",
       title: "Select a type on either side to see the types it connects to.",
     };
   }
@@ -138,7 +138,7 @@ function buildStatusText(params: {
   };
 }
 
-export function TracePanel({
+export function PathsPanel({
   sourceNodeId,
   targetNodeId,
   labelFormat,
@@ -146,7 +146,7 @@ export function TracePanel({
   viewMode,
   onSelectionChange,
   ref,
-}: TracePanelProps) {
+}: PathsPanelProps) {
   const queryClient = useQueryClient();
   const [driver, setDriver] = useState<Driver>(null);
   const [sourceFocus, setSourceFocus] = useState<{
@@ -352,7 +352,7 @@ export function TracePanel({
         ? (targetFocus?.type ?? null)
         : null;
 
-  const traceStatus = buildStatusText({
+  const pathsStatus = buildStatusText({
     driver,
     driverLabel,
     driverType,
@@ -364,7 +364,7 @@ export function TracePanel({
 
   // Reads the AsyncTree refs, so this must only run on click, never during
   // render (react-hooks/refs forbids reading ref.current while rendering).
-  const buildSerializeInput = (): SerializeTraceInput => ({
+  const buildSerializeInput = (): SerializePathsInput => ({
     from: { id: sourceNodeId, label: sourceRootLabel },
     to: { id: targetNodeId, label: targetRootLabel },
     sourceRows: sourceTreeRef.current?.getVisibleNodes() ?? [],
@@ -376,7 +376,7 @@ export function TracePanel({
     },
     markedCounterpartIds: counterpartMarks,
     viewMode,
-    statusText: `${traceStatus.summary}${traceStatus.detail}`,
+    statusText: `${pathsStatus.summary}${pathsStatus.detail}`,
   });
 
   useImperativeHandle(
@@ -454,7 +454,7 @@ export function TracePanel({
               onSelectedIdsChange={handleSourceSelect}
               onFocusedIdChange={handleSourceFocus}
               highlightedIds={sourceMarkedIds}
-              label="TraceSourceTree"
+              label="PathsSourceTree"
               autoExpandOnLoad="root-chain"
               filterIds={sourceFilterIds}
               settings={{
@@ -488,7 +488,7 @@ export function TracePanel({
               onSelectedIdsChange={handleTargetSelect}
               onFocusedIdChange={handleTargetFocus}
               highlightedIds={targetMarkedIds}
-              label="TraceTargetTree"
+              label="PathsTargetTree"
               autoExpandOnLoad="root-chain"
               filterIds={targetFilterIds}
               settings={{
@@ -501,12 +501,12 @@ export function TracePanel({
         </div>
       </div>
       {driver && <DirectionBadge key={driver.side} side={driver.side} />}
-      <TraceStatusLine status={traceStatus} />
+      <PathsStatusLine status={pathsStatus} />
     </div>
   );
 }
 
-type DirectionBadgeProps = { side: TraceSide };
+type DirectionBadgeProps = { side: PathsSide };
 
 function DirectionBadge({ side }: DirectionBadgeProps) {
   const Icon = side === "source" ? ArrowRight : ArrowLeft;
@@ -522,12 +522,12 @@ function DirectionBadge({ side }: DirectionBadgeProps) {
   );
 }
 
-type TraceStatusLineProps = { status: TraceStatus };
+type PathsStatusLineProps = { status: PathsStatus };
 
-function TraceStatusLine({ status }: TraceStatusLineProps) {
+function PathsStatusLine({ status }: PathsStatusLineProps) {
   return (
     <div
-      data-testid="trace-status"
+      data-testid="paths-status"
       className="border-border text-fg-subtle flex shrink-0 items-center border-t px-3 py-1 font-mono text-[11px]"
     >
       <span className="min-w-0 truncate" title={status.title}>

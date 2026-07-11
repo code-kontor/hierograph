@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  serializeTraceForClipboard,
-  type SerializeTraceInput,
-} from "./serializeTrace";
+  serializePathsForClipboard,
+  type SerializePathsInput,
+} from "./serializePaths";
 
-const baseInput: SerializeTraceInput = {
+const baseInput: SerializePathsInput = {
   from: { id: "n1", label: "com.example.source" },
   to: { id: "n2", label: "com.example.target" },
   sourceRows: [
@@ -24,9 +24,9 @@ const baseInput: SerializeTraceInput = {
   statusText: "Type SubClass references 1 type in com.example.target",
 };
 
-describe("serializeTraceForClipboard", () => {
+describe("serializePathsForClipboard", () => {
   it("renders From/To, driver, view mode and status for an active driver", () => {
-    const text = serializeTraceForClipboard(baseInput);
+    const text = serializePathsForClipboard(baseInput);
 
     expect(text).toContain("From: com.example.source");
     expect(text).toContain("To: com.example.target");
@@ -40,11 +40,11 @@ describe("serializeTraceForClipboard", () => {
   });
 
   it("renders a (none) driver and empty counterparts when nothing is selected", () => {
-    const text = serializeTraceForClipboard({
+    const text = serializePathsForClipboard({
       ...baseInput,
       driver: null,
       markedCounterpartIds: [],
-      statusText: "Select a type to trace its dependencies.",
+      statusText: "Select a type to see its dependency paths.",
     });
 
     expect(text).toContain("Driver: (none)");
@@ -52,7 +52,7 @@ describe("serializeTraceForClipboard", () => {
   });
 
   it("lists visible source and target rows", () => {
-    const text = serializeTraceForClipboard(baseInput);
+    const text = serializePathsForClipboard(baseInput);
 
     expect(text).toContain("## Source types (visible)");
     expect(text).toContain("1. com.example.source.SubClass");
