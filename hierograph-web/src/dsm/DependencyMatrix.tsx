@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
 import {
@@ -39,11 +39,7 @@ type MatrixData = NonNullable<
 >["children"]["orderedAdjacencyMatrix"];
 
 export function DependencyMatrix() {
-  const { selectedIds, setCellSelection } = useSelection();
-
-  useEffect(() => {
-    setCellSelection(null);
-  }, [selectedIds, setCellSelection]);
+  const { selectedIds } = useSelection();
 
   if (selectedIds.length === 0) {
     return (

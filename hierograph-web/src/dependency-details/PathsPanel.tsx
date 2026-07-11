@@ -3,7 +3,6 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import {
   type Ref,
   useEffect,
-  useEffectEvent,
   useImperativeHandle,
   useRef,
   useState,
@@ -214,35 +213,29 @@ export function PathsPanel({
       : 0;
   const counterpartMarksKey = counterpartMarks.join(",");
 
-  // Ignore empty ids: the exclusivity effect below programmatically clears the
-  // passive side, which fires onSelectedIdsChange([]) — without this guard that
-  // would immediately reset the driver back to null (loop). A plain click in
+  // Single choke point for driver changes: sets the driver, clears the
+  // opposite tree so the two panes never show a selection simultaneously, and
+  // reports driver presence upward so the pane can enable/disable the Clear
+  // Selection control (analogous to applySelectionChange in AsyncTree).
+  const applyDriver = (next: Driver) => {
+    setDriver(next);
+    if (next?.side === "source") targetTreeRef.current?.clearSelection();
+    else if (next?.side === "target") sourceTreeRef.current?.clearSelection();
+    onSelectionChange?.(next != null);
+  };
+
+  // Ignore empty ids: applyDriver above programmatically clears the passive
+  // side, which fires onSelectedIdsChange([]) — without this guard that would
+  // immediately reset the driver back to null (loop). A plain click in
   // AsyncTree is always single-select and never clears, so this guard only
   // affects the programmatic clearing path. Edge case accepted for v1: a
   // ctrl/meta-toggle-off of the only selected row leaves a stale driver.
   const handleSourceSelect = (ids: string[]) => {
-    if (ids.length > 0) setDriver({ side: "source", ids });
+    if (ids.length > 0) applyDriver({ side: "source", ids });
   };
   const handleTargetSelect = (ids: string[]) => {
-    if (ids.length > 0) setDriver({ side: "target", ids });
+    if (ids.length > 0) applyDriver({ side: "target", ids });
   };
-
-  // Exactly one driver at a time: switching sides clears the previously active
-  // tree's selection so the two panes never show a selection simultaneously.
-  const driverIdsKey = driver?.ids.join(",");
-  useEffect(() => {
-    if (driver?.side === "source") targetTreeRef.current?.clearSelection();
-    else if (driver?.side === "target") sourceTreeRef.current?.clearSelection();
-  }, [driver?.side, driverIdsKey]);
-
-  // Report driver presence upward so the pane can enable/disable the Clear
-  // Selection control. Refs are not reactive, hence a callback prop.
-  const notifySelectionChange = useEffectEvent((hasDriver: boolean) => {
-    onSelectionChange?.(hasDriver);
-  });
-  useEffect(() => {
-    notifySelectionChange(driver != null);
-  }, [driver]);
 
   const handleSourceFocus = (
     id: string | null,
@@ -362,45 +355,41 @@ export function PathsPanel({
     viewMode,
   });
 
-  // Reads the AsyncTree refs, so this must only run on click, never during
-  // render (react-hooks/refs forbids reading ref.current while rendering).
-  const buildSerializeInput = (): SerializePathsInput => ({
-    from: { id: sourceNodeId, label: sourceRootLabel },
-    to: { id: targetNodeId, label: targetRootLabel },
-    sourceRows: sourceTreeRef.current?.getVisibleNodes() ?? [],
-    targetRows: targetTreeRef.current?.getVisibleNodes() ?? [],
-    driver: driver && {
-      side: driver.side,
-      label: driverLabel ?? "",
-      ids: driver.ids,
+  useImperativeHandle(ref, () => ({
+    // Reads the AsyncTree refs, so this must only run on click, never during
+    // render (react-hooks/refs forbids reading ref.current while rendering).
+    buildSerializeInput(): SerializePathsInput {
+      return {
+        from: { id: sourceNodeId, label: sourceRootLabel },
+        to: { id: targetNodeId, label: targetRootLabel },
+        sourceRows: sourceTreeRef.current?.getVisibleNodes() ?? [],
+        targetRows: targetTreeRef.current?.getVisibleNodes() ?? [],
+        driver: driver && {
+          side: driver.side,
+          label: driverLabel ?? "",
+          ids: driver.ids,
+        },
+        markedCounterpartIds: counterpartMarks,
+        viewMode,
+        statusText: `${pathsStatus.summary}${pathsStatus.detail}`,
+      };
     },
-    markedCounterpartIds: counterpartMarks,
-    viewMode,
-    statusText: `${pathsStatus.summary}${pathsStatus.detail}`,
-  });
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      buildSerializeInput,
-      clearSelection() {
-        // Drop the driver AND actively clear both trees — do not rely on the
-        // exclusivity effect, which only clears the passive side.
-        setDriver(null);
-        sourceTreeRef.current?.clearSelection();
-        targetTreeRef.current?.clearSelection();
-      },
-      expandAll() {
-        sourceTreeRef.current?.expandAll();
-        targetTreeRef.current?.expandAll();
-      },
-      collapseAll() {
-        sourceTreeRef.current?.collapseAll();
-        targetTreeRef.current?.collapseAll();
-      },
-    }),
-    [buildSerializeInput, setDriver],
-  );
+    clearSelection() {
+      // Drop the driver AND actively clear both trees — applyDriver(null)
+      // has no tree-clear branch of its own, so both are cleared here.
+      applyDriver(null);
+      sourceTreeRef.current?.clearSelection();
+      targetTreeRef.current?.clearSelection();
+    },
+    expandAll() {
+      sourceTreeRef.current?.expandAll();
+      targetTreeRef.current?.expandAll();
+    },
+    collapseAll() {
+      sourceTreeRef.current?.collapseAll();
+      targetTreeRef.current?.collapseAll();
+    },
+  }));
 
   if (sourceRootPending || targetRootPending) {
     return (
