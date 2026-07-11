@@ -11,6 +11,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 
+import {
+  routerParseSearch,
+  routerStringifySearch,
+} from "@/routing/searchCodec";
+
 import { routeTree } from "./routeTree.gen";
 
 // The GraphQL server exposes a read-only, effectively immutable model, so we
@@ -31,7 +36,12 @@ const queryClient = new QueryClient({
     },
   },
 });
-const router = createRouter({ routeTree, context: { queryClient } });
+const router = createRouter({
+  routeTree,
+  context: { queryClient },
+  parseSearch: routerParseSearch,
+  stringifySearch: routerStringifySearch,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

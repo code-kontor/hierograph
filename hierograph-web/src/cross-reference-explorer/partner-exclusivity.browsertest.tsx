@@ -4,7 +4,7 @@ import { page, userEvent } from "vitest/browser";
 
 import { worker } from "@/testing/msw/worker";
 import { resolveNodeId } from "@/testing/nodeLookup";
-import { renderWithQueryClient } from "@/testing/render";
+import { renderWithRouter } from "@/testing/render";
 
 import { CrossReferenceExplorerPage } from "./CrossReferenceExplorerPage";
 
@@ -136,10 +136,11 @@ beforeEach(() => {
 });
 
 it("selecting a partner on one side clears the selection on the other side (Bug 3)", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");

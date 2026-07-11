@@ -4,7 +4,7 @@ import { page, userEvent } from "vitest/browser";
 
 import { worker } from "@/testing/msw/worker";
 import { resolveNodeId } from "@/testing/nodeLookup";
-import { renderWithQueryClient } from "@/testing/render";
+import { renderWithRouter } from "@/testing/render";
 
 import { CrossReferenceExplorerPage } from "./CrossReferenceExplorerPage";
 
@@ -86,10 +86,11 @@ beforeEach(() => {
 });
 
 it("center Ctrl-click multi-selection shows an aggregated count label and plural verb (Bug 4)", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");

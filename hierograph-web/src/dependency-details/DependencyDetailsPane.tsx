@@ -156,14 +156,27 @@ function PathsControls({
 export type DependencyDetailsPaneProps = {
   emptyStateTitle?: string;
   emptyStateDescription?: string;
+  // Optional controlled tab: when provided (e.g. wired to the URL by the DSM
+  // route), it is the source of truth and `onActiveTabChange` reports clicks.
+  // When omitted, the pane keeps the tab in local state (standalone renders,
+  // tests) — so the pane stays router-agnostic.
+  activeTab?: ActiveTab;
+  onActiveTabChange?: (tab: ActiveTab) => void;
 };
 
 export function DependencyDetailsPane({
   emptyStateTitle = "No cell selected",
   emptyStateDescription = "Pick a dependency cell in the matrix to inspect its usages and paths.",
+  activeTab: controlledTab,
+  onActiveTabChange,
 }: DependencyDetailsPaneProps = {}) {
   const { cellSelection } = useSelection();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("usages");
+  const [internalTab, setInternalTab] = useState<ActiveTab>("usages");
+  const activeTab = controlledTab ?? internalTab;
+  const handleTabChange = (tab: ActiveTab) => {
+    onActiveTabChange?.(tab);
+    setInternalTab(tab);
+  };
   const [storedLabelFormat, setLabelFormat] = useLocalStorage<string>(
     LABEL_FORMAT_STORAGE_KEY,
     "full",
@@ -202,7 +215,7 @@ export function DependencyDetailsPane({
   return (
     <Tabs
       value={activeTab}
-      onValueChange={(v) => setActiveTab(v as ActiveTab)}
+      onValueChange={(v) => handleTabChange(v as ActiveTab)}
       className="h-full min-h-0"
     >
       <Pane

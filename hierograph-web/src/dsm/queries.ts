@@ -81,3 +81,31 @@ export function nodesDsmQueryOptions(ids: string[]) {
     },
   });
 }
+
+// Ancestor chains for the subject nodes, batched by id — used to expand and
+// scroll the tree to a deep-linked / back-navigated selection via
+// AsyncTree.revealNode (`predecessors` returns each node's ancestors, nearest
+// first; the mapping to tree rows is by id only, never by fqn).
+const dsmSubjectPredecessorsQuery = graphql(`
+  query DsmSubjectPredecessors($ids: [ID!]!) {
+    hierarchicalGraph {
+      nodes(ids: $ids) {
+        nodes {
+          id
+          predecessors {
+            id
+          }
+        }
+      }
+    }
+  }
+`);
+
+export function dsmSubjectPredecessorsQueryOptions(ids: string[]) {
+  return queryOptions({
+    queryKey: ["dsm", "subjectPredecessors", ids],
+    async queryFn() {
+      return execute(dsmSubjectPredecessorsQuery, { ids }, DSM_TRIGGER);
+    },
+  });
+}
