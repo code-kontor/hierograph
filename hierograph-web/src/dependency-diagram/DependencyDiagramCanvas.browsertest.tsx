@@ -35,7 +35,7 @@ describe("DependencyDiagramCanvas", () => {
   it("renders and sizes the canvas to its container without error", async () => {
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
-        <DependencyDiagramCanvas rootNode={FAKE_ROOT_NODE} />
+        <DependencyDiagramCanvas rootNode={FAKE_ROOT_NODE} labelFormat="full" />
       </div>,
     );
 
@@ -52,7 +52,7 @@ describe("DependencyDiagramCanvas", () => {
   it("handles a wheel event without throwing", async () => {
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
-        <DependencyDiagramCanvas rootNode={FAKE_ROOT_NODE} />
+        <DependencyDiagramCanvas rootNode={FAKE_ROOT_NODE} labelFormat="full" />
       </div>,
     );
 
@@ -76,6 +76,7 @@ describe("DependencyDiagramCanvas", () => {
       <div style={{ width: 400, height: 300 }}>
         <DependencyDiagramCanvas
           rootNode={NODE_ROOT_NODE}
+          labelFormat="full"
           onNodeActivate={onNodeActivate}
         />
       </div>,
@@ -117,6 +118,7 @@ describe("DependencyDiagramCanvas", () => {
       <div style={{ width: 400, height: 300 }}>
         <DependencyDiagramCanvas
           rootNode={NODE_ROOT_NODE}
+          labelFormat="full"
           onNodeActivate={onNodeActivate}
         />
       </div>,
@@ -160,7 +162,7 @@ describe("DependencyDiagramCanvas", () => {
   it("shows a pointer cursor while hovering a node", async () => {
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
-        <DependencyDiagramCanvas rootNode={NODE_ROOT_NODE} />
+        <DependencyDiagramCanvas rootNode={NODE_ROOT_NODE} labelFormat="full" />
       </div>,
     );
 

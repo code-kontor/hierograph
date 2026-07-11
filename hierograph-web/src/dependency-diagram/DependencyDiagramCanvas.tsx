@@ -1,6 +1,8 @@
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import { useEffect, useRef } from "react";
 
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
+
 import { resolveGraphColors } from "./colorScheme";
 import { DependencyDiagramControls } from "./DependencyDiagramControls";
 import { setupCanvas } from "./dpiFixer";
@@ -22,17 +24,20 @@ const IDENTITY_VIEWPORT: Viewport = { scale: 1, translateX: 0, translateY: 0 };
 
 type DependencyDiagramCanvasProps = {
   rootNode: ElkNode;
+  labelFormat: NodeLabelFormat;
   onNodeActivate?: (id: string, label: string) => void;
 };
 
 export function DependencyDiagramCanvas({
   rootNode,
+  labelFormat,
   onNodeActivate,
 }: DependencyDiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const rootNodeRef = useRef(rootNode);
+  const labelFormatRef = useRef(labelFormat);
   const sizeRef = useRef({ width: 0, height: 0 });
   const viewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
   const needsFitRef = useRef(true);
@@ -78,6 +83,7 @@ export function DependencyDiagramCanvas({
       ctx,
       rootNodeRef.current,
       resolveGraphColors(),
+      labelFormatRef.current,
       hoveredIdRef.current ?? undefined,
     );
     ctx.restore();
@@ -146,6 +152,15 @@ export function DependencyDiagramCanvas({
     // scheduleRedraw/fitViewport close only over refs, no need to re-run on their identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootNode]);
+
+  // A label-format change must only redraw, never re-fit the viewport (unlike
+  // the rootNode effect above).
+  useEffect(() => {
+    labelFormatRef.current = labelFormat;
+    scheduleRedraw();
+    // scheduleRedraw closes only over refs; no need to re-run on its identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelFormat]);
 
   // (f) React's onWheel is passive, so preventDefault() would not reliably
   // stop the page from scrolling/zooming; a native listener is required.
