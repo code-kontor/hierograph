@@ -20,8 +20,8 @@ convention, the MCP setup, and the Claude Design ↔ Claude Code change loop are
 ## Architecture: verticals & import boundaries
 
 Code is organised into feature _verticals_ as top-level folders under `src/`:
-`dependencies`, `cross-reference-explorer`, `dependency-details`, `dev-panel`,
-`hierarchy`, `selection`, `tree`, `graph`, plus the platform layers
+`dsm`, `cross-reference-explorer`, `dependency-details`, `dev-panel`,
+`selection`, `tree`, `graph`, plus the platform layers
 `design-system`, `graphql`, `testing`, and the `routes` wiring.
 
 - **Cross-vertical imports may target only a vertical's public files.** Each

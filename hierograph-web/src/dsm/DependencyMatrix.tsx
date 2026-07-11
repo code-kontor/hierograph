@@ -47,7 +47,7 @@ export function DependencyMatrix() {
 
   if (selectedIds.length === 0) {
     return (
-      <Pane title="Dependency Overview">
+      <Pane title="DSM">
         <Message variant="empty">
           Select a package node to view its dependency matrix.
         </Message>
@@ -188,7 +188,7 @@ function SingleNodeMatrix({ id }: SingleNodeMatrixProps) {
 
   if (isPending) {
     return (
-      <Pane title="Dependency Overview">
+      <Pane title="DSM">
         <Message variant="loading">Loading dependency matrix…</Message>
       </Pane>
     );
@@ -196,7 +196,7 @@ function SingleNodeMatrix({ id }: SingleNodeMatrixProps) {
 
   if (isError) {
     return (
-      <Pane title="Dependency Overview">
+      <Pane title="DSM">
         <Message variant="error">Could not load dependency matrix.</Message>
       </Pane>
     );
@@ -220,7 +220,7 @@ function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
 
   if (isPending) {
     return (
-      <Pane title="Dependency Overview">
+      <Pane title="DSM">
         <Message variant="loading">Loading dependency matrix…</Message>
       </Pane>
     );
@@ -228,7 +228,7 @@ function MultiNodeMatrix({ ids }: MultiNodeMatrixProps) {
 
   if (isError) {
     return (
-      <Pane title="Dependency Overview">
+      <Pane title="DSM">
         <Message variant="error">Could not load dependency matrix.</Message>
       </Pane>
     );
@@ -293,7 +293,7 @@ function MatrixView({ matrix, subject }: MatrixViewProps) {
 
   if (orderedNodes.length === 0) {
     return (
-      <Pane title="Dependency Overview">
+      <Pane title="DSM">
         <Message variant="empty">No dependencies to display.</Message>
       </Pane>
     );
@@ -305,7 +305,7 @@ function MatrixView({ matrix, subject }: MatrixViewProps) {
 
   return (
     <Pane
-      title="Dependency Overview"
+      title="DSM"
       toolbar={
         <>
           <DsmZoomControls

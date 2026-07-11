@@ -55,7 +55,7 @@ function RootLayout() {
           </Link>
           <nav className="flex h-full items-stretch gap-0.5">
             <Link
-              to="/dependencies"
+              to="/dsm"
               className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
               activeProps={{
                 className: "text-primary font-semibold",
@@ -64,7 +64,7 @@ function RootLayout() {
                 className: "after:hidden",
               }}
             >
-              Dependencies
+              DSM
             </Link>
             <Link
               to="/cross-reference-explorer"

@@ -9,13 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
-import { Route as DependenciesRouteImport } from "./routes/dependencies";
+import { Route as DsmRouteImport } from "./routes/dsm";
 import { Route as CrossReferenceExplorerRouteImport } from "./routes/cross-reference-explorer";
 import { Route as IndexRouteImport } from "./routes/index";
 
-const DependenciesRoute = DependenciesRouteImport.update({
-  id: "/dependencies",
-  path: "/dependencies",
+const DsmRoute = DsmRouteImport.update({
+  id: "/dsm",
+  path: "/dsm",
   getParentRoute: () => rootRouteImport,
 } as any);
 const CrossReferenceExplorerRoute = CrossReferenceExplorerRouteImport.update({
@@ -32,40 +32,40 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/cross-reference-explorer": typeof CrossReferenceExplorerRoute;
-  "/dependencies": typeof DependenciesRoute;
+  "/dsm": typeof DsmRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
   "/cross-reference-explorer": typeof CrossReferenceExplorerRoute;
-  "/dependencies": typeof DependenciesRoute;
+  "/dsm": typeof DsmRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
   "/cross-reference-explorer": typeof CrossReferenceExplorerRoute;
-  "/dependencies": typeof DependenciesRoute;
+  "/dsm": typeof DsmRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/cross-reference-explorer" | "/dependencies";
+  fullPaths: "/" | "/cross-reference-explorer" | "/dsm";
   fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/cross-reference-explorer" | "/dependencies";
-  id: "__root__" | "/" | "/cross-reference-explorer" | "/dependencies";
+  to: "/" | "/cross-reference-explorer" | "/dsm";
+  id: "__root__" | "/" | "/cross-reference-explorer" | "/dsm";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   CrossReferenceExplorerRoute: typeof CrossReferenceExplorerRoute;
-  DependenciesRoute: typeof DependenciesRoute;
+  DsmRoute: typeof DsmRoute;
 }
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    "/dependencies": {
-      id: "/dependencies";
-      path: "/dependencies";
-      fullPath: "/dependencies";
-      preLoaderRoute: typeof DependenciesRouteImport;
+    "/dsm": {
+      id: "/dsm";
+      path: "/dsm";
+      fullPath: "/dsm";
+      preLoaderRoute: typeof DsmRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/cross-reference-explorer": {
@@ -88,7 +88,7 @@ declare module "@tanstack/react-router" {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrossReferenceExplorerRoute: CrossReferenceExplorerRoute,
-  DependenciesRoute: DependenciesRoute,
+  DsmRoute: DsmRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

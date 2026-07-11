@@ -5,7 +5,7 @@ import {
   BOX_SIZE,
   DEFAULT_HORIZONTAL_SIDE_MARKER_HEIGHT,
   DEFAULT_VERTICAL_SIDE_MARKER_WIDTH,
-} from "@/dependencies/dsmModel";
+} from "@/dsm/dsmModel";
 import nodeAdjacencyMatrixFixture from "@/testing/fixtures/NodeAdjacencyMatrix.json";
 import { renderWithQueryClient } from "@/testing/render";
 
