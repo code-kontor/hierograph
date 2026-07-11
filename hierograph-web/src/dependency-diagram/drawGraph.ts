@@ -50,6 +50,7 @@ export function drawNode(
   ctx: CanvasRenderingContext2D,
   node: ElkNode,
   colors: GraphColors,
+  hovered?: boolean,
 ): void {
   if (
     node.x === undefined ||
@@ -85,6 +86,22 @@ export function drawNode(
   ctx.fillText(label, node.x + NODE_PADDING, node.y + node.height / 2);
 
   ctx.restore();
+
+  if (hovered) {
+    ctx.save();
+    ctx.lineWidth = 2;
+    roundRect(
+      ctx,
+      node.x,
+      node.y,
+      node.width,
+      node.height,
+      CORNER_RADIUS,
+      undefined,
+      colors.nodeHoverBorder,
+    );
+    ctx.restore();
+  }
 }
 
 export function drawArrowhead(
@@ -221,9 +238,10 @@ export function drawGraph(
   ctx: CanvasRenderingContext2D,
   rootNode: ElkNode,
   colors: GraphColors,
+  hoveredNodeId?: string,
 ): void {
   for (const node of rootNode.children ?? []) {
-    drawNode(ctx, node, colors);
+    drawNode(ctx, node, colors, node.id === hoveredNodeId);
   }
   for (const edge of rootNode.edges ?? []) {
     drawEdge(ctx, edge, colors);

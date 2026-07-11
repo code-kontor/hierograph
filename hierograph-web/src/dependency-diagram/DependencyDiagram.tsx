@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -7,6 +8,7 @@ import { Message } from "@/design-system/ui/message";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { DependencyDiagramCanvas } from "./DependencyDiagramCanvas";
+import { DiagramBreadcrumb, type DrillCrumb } from "./DiagramBreadcrumb";
 import { layoutGraph } from "./elkLayout";
 import { buildDependencyGraph } from "./graphModel";
 import {
@@ -19,10 +21,61 @@ type MatrixData = {
   cells: { row: number; column: number; value: number }[];
 };
 
-type MatrixViewProps = { matrix: MatrixData | undefined };
+type MatrixViewProps = {
+  matrix: MatrixData | undefined;
+  onNodeActivate: (id: string, label: string) => void;
+  breadcrumb?: ReactNode;
+};
 
 export function DependencyDiagram() {
   const { selectedIds } = useSelection();
+
+  // Scope interplay (AC5): the tree selection sets the *root* scope of the
+  // diagram (level 0). Clicking a node in the diagram pushes a deeper scope
+  // onto drillPath (level 1..n) — this is a one-way relationship: the drill
+  // never writes back into the tree selection. Changing the tree selection
+  // resets the drill, because the drilled node may not live under the new
+  // selection.
+  const [drillPath, setDrillPath] = useState<DrillCrumb[]>([]);
+
+  const selectionKey = [...selectedIds].sort().join(",");
+  // Reset the drill path during render when the tree selection changes,
+  // instead of in an effect (React's "adjust state when a prop changes"
+  // pattern) — avoids an extra render pass and the resulting setState call
+  // is synchronous with this render, not a separate commit.
+  const [resetKey, setResetKey] = useState(selectionKey);
+  if (selectionKey !== resetKey) {
+    setResetKey(selectionKey);
+    setDrillPath([]);
+  }
+
+  function pushDrill(id: string, label: string) {
+    setDrillPath((prev) => [...prev, { id, label }]);
+  }
+  function navigateDrill(index: number) {
+    setDrillPath((prev) => (index < 0 ? [] : prev.slice(0, index + 1)));
+  }
+
+  const rootLabel =
+    selectedIds.length > 1 ? `Selection (${selectedIds.length})` : "Selection";
+  const breadcrumb =
+    drillPath.length > 0 ? (
+      <DiagramBreadcrumb
+        rootLabel={rootLabel}
+        path={drillPath}
+        onNavigate={navigateDrill}
+      />
+    ) : undefined;
+
+  if (drillPath.length > 0) {
+    return (
+      <DrilledNodeDiagram
+        id={drillPath[drillPath.length - 1].id}
+        onNodeActivate={pushDrill}
+        breadcrumb={breadcrumb}
+      />
+    );
+  }
 
   if (selectedIds.length === 0) {
     return (
@@ -35,23 +88,48 @@ export function DependencyDiagram() {
   }
 
   if (selectedIds.length === 1) {
-    return <SingleNodeDiagram id={selectedIds[0]} />;
+    return <SingleNodeDiagram id={selectedIds[0]} onNodeActivate={pushDrill} />;
   }
 
-  return <MultiNodeDiagram ids={selectedIds} />;
+  return <MultiNodeDiagram ids={selectedIds} onNodeActivate={pushDrill} />;
 }
 
-type SingleNodeDiagramProps = { id: string };
-type MultiNodeDiagramProps = { ids: string[] };
+type SingleNodeDiagramProps = {
+  id: string;
+  onNodeActivate: (id: string, label: string) => void;
+};
+type MultiNodeDiagramProps = {
+  ids: string[];
+  onNodeActivate: (id: string, label: string) => void;
+};
+type DrilledNodeDiagramProps = {
+  id: string;
+  onNodeActivate: (id: string, label: string) => void;
+  breadcrumb?: ReactNode;
+};
 
-function SingleNodeDiagram({ id }: SingleNodeDiagramProps) {
+function SingleNodeDiagram({ id, onNodeActivate }: SingleNodeDiagramProps) {
+  return (
+    <DrilledNodeDiagram
+      id={id}
+      onNodeActivate={onNodeActivate}
+      breadcrumb={undefined}
+    />
+  );
+}
+
+function DrilledNodeDiagram({
+  id,
+  onNodeActivate,
+  breadcrumb,
+}: DrilledNodeDiagramProps) {
   const { data, isPending, isError } = useQuery(
     diagramNodeAdjacencyMatrixQueryOptions(id),
   );
 
   if (isPending) {
     return (
-      <Pane title="Dependency Diagram">
+      <Pane title="Dependency Diagram" subHeader={breadcrumb}>
         <Message variant="loading">Loading dependency diagram…</Message>
       </Pane>
     );
@@ -59,17 +137,23 @@ function SingleNodeDiagram({ id }: SingleNodeDiagramProps) {
 
   if (isError) {
     return (
-      <Pane title="Dependency Diagram">
+      <Pane title="Dependency Diagram" subHeader={breadcrumb}>
         <Message variant="error">Could not load dependency diagram.</Message>
       </Pane>
     );
   }
 
   const matrix = data.hierarchicalGraph?.node?.children?.orderedAdjacencyMatrix;
-  return <MatrixView matrix={matrix} />;
+  return (
+    <MatrixView
+      matrix={matrix}
+      onNodeActivate={onNodeActivate}
+      breadcrumb={breadcrumb}
+    />
+  );
 }
 
-function MultiNodeDiagram({ ids }: MultiNodeDiagramProps) {
+function MultiNodeDiagram({ ids, onNodeActivate }: MultiNodeDiagramProps) {
   const { data, isPending, isError } = useQuery(
     diagramNodesAdjacencyMatrixQueryOptions(ids),
   );
@@ -91,10 +175,10 @@ function MultiNodeDiagram({ ids }: MultiNodeDiagramProps) {
   }
 
   const matrix = data.hierarchicalGraph?.nodes?.orderedAdjacencyMatrix;
-  return <MatrixView matrix={matrix} />;
+  return <MatrixView matrix={matrix} onNodeActivate={onNodeActivate} />;
 }
 
-function MatrixView({ matrix }: MatrixViewProps) {
+function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
   const orderedNodes = matrix?.orderedNodes ?? [];
   const cells = matrix?.cells ?? [];
 
@@ -121,7 +205,7 @@ function MatrixView({ matrix }: MatrixViewProps) {
 
   if (orderedNodes.length === 0) {
     return (
-      <Pane title="Dependency Diagram">
+      <Pane title="Dependency Diagram" subHeader={breadcrumb}>
         <Message variant="empty">No dependencies to display.</Message>
       </Pane>
     );
@@ -131,16 +215,23 @@ function MatrixView({ matrix }: MatrixViewProps) {
 
   if (!rootNode) {
     return (
-      <Pane title="Dependency Diagram">
+      <Pane title="Dependency Diagram" subHeader={breadcrumb}>
         <Message variant="loading">Computing layout…</Message>
       </Pane>
     );
   }
 
   return (
-    <Pane title="Dependency Diagram" bodyClassName="p-0 overflow-hidden">
+    <Pane
+      title="Dependency Diagram"
+      subHeader={breadcrumb}
+      bodyClassName="p-0 overflow-hidden"
+    >
       <div className="h-full w-full overflow-hidden">
-        <DependencyDiagramCanvas rootNode={rootNode} />
+        <DependencyDiagramCanvas
+          rootNode={rootNode}
+          onNodeActivate={onNodeActivate}
+        />
       </div>
     </Pane>
   );
