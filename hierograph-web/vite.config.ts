@@ -38,6 +38,12 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     optimizeDeps: {
+      // Restrict the dependency scanner to the real app entry. By default Vite
+      // crawls every *.html under the root, including public/graphiql.html —
+      // a standalone CDN page whose imports resolve at runtime via an importmap
+      // (esm.sh), not from node_modules. The scanner can't see the importmap and
+      // fails to resolve those bare specifiers ("Failed to run dependency scan").
+      entries: ["index.html"],
       include: ["tslib"],
     },
     test: {
