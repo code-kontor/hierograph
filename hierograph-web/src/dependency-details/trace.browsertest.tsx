@@ -100,7 +100,7 @@ function targetRow(text: string) {
 }
 
 function rowClassName(row: ReturnType<typeof sourceRow>): string {
-  return row.element().closest("div")?.className ?? "";
+  return row.element().closest('[role="treeitem"]')?.className ?? "";
 }
 
 describe("Paths tab", () => {
