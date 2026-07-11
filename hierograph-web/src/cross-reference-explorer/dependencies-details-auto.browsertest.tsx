@@ -129,7 +129,8 @@ beforeEach(() => {
     }),
     // Related-node (highlight-flip) queries — Left now reads referencedNodes
     // (what the Used-by partner uses), Right reads referencingNodes (who uses
-    // the Uses partner). See dependencies-details-anbindung.md, Regel 3.
+    // the Uses partner). See docs/dependency-details-wiring.md — Partner
+    // pivot & highlight flip.
     graphql.query("CrossReferenceExplorerCenterRelatedByLeft", () =>
       HttpResponse.json({
         data: {

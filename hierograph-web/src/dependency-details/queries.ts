@@ -201,8 +201,8 @@ export function filteredDependenciesQueryOptions(
 }
 
 // If `pageInfo.maxPages > 1` the client-side grouping below is only over this
-// first page — full multi-page aggregation for very large anchors is deferred
-// (FT-2 follow-up).
+// first page — full multi-page aggregation for very large anchors is
+// deferred to a follow-up.
 const dependencyPartnersQuery = graphql(`
   query DependencyPartners(
     $sourceNodeId: ID!

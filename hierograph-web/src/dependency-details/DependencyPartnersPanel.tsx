@@ -15,17 +15,17 @@ import {
 import { DependencyInspectorHeader } from "./DependencyInspectorHeader";
 import { dependencyPartnersQueryOptions } from "./queries";
 
-// New UI building blocks introduced in FT-1 (Ebene 1 of the two-tier
-// Cross-Reference Details View), candidates for a later Claude Design
-// refinement pass — FT-1 proves the interaction concept and content, not the
-// final visual polish:
+// New UI building blocks introduced in the first version (tier 1 of the
+// two-tier Cross-Reference Details View), candidates for a later Claude
+// Design refinement pass — the first version proves the interaction concept
+// and content, not the final visual polish:
 // 1. This panel container itself (a Pane without Tabs).
 // 2. The aggregate metric bar (primary `size` count + "across M types" +
 //    the container roll-up hint).
 // 3. The partner row + its per-partner count badge (non-interactive,
 //    same row metrics as the tree/table rows, --hl-badge-* tokens).
 
-export type DependencyDetailsPanelProps = {
+export type DependencyPartnersPanelProps = {
   emptyStateTitle?: string;
   emptyStateDescription?: string;
   // Optional: called with the clicked partner's node id so the host can reveal
@@ -37,7 +37,7 @@ export type DependencyDetailsPanelProps = {
 // One request with a generous cap covers all edges for fixture-sized
 // anchors. If `pageInfo.maxPages > 1` the grouping below only covers this
 // first page — full multi-page aggregation for very large anchors is
-// deferred (FT-2 follow-up).
+// deferred to a follow-up.
 const PARTNER_PAGE_CAP = 1000;
 
 type PartnerDirection = "used-by" | "uses";
@@ -77,11 +77,11 @@ function PartnerRow({ row, labelFormat, onRevealInCenter }: PartnerRowProps) {
   );
 }
 
-export function DependencyDetailsPanel({
+export function DependencyPartnersPanel({
   emptyStateTitle = "No cell selected",
   emptyStateDescription = "Pick a dependency cell in the matrix to inspect its usages and paths.",
   onRevealInCenter,
-}: DependencyDetailsPanelProps = {}) {
+}: DependencyPartnersPanelProps = {}) {
   const { cellSelection } = useSelection();
   const [storedLabelFormat] = useLocalStorage<string>(
     LABEL_FORMAT_STORAGE_KEY,
@@ -171,8 +171,8 @@ export function DependencyDetailsPanel({
   const dependencySet =
     partnersData?.hierarchicalGraph?.dependencySetForAggregatedDependency;
   // metric = `size` = number of member pairs (not weight); equal to the
-  // Ebene-2 row count. Weight intentionally omitted in FT-1 (candidate for a
-  // subtle secondary annotation later).
+  // tier-2 row count. Weight intentionally omitted in the first version
+  // (candidate for a subtle secondary annotation later).
   const size = dependencySet?.size ?? 0;
   const dependencies = dependencySet?.dependencyPage?.dependencies ?? [];
 

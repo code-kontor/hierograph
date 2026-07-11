@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 
-import { DependencyDetailsPanel } from "@/dependency-details/DependencyDetailsPanel";
+import { DependencyPartnersPanel } from "@/dependency-details/DependencyPartnersPanel";
 import { OneOneSplitLayout } from "@/design-system/layout/OneOneSplitLayout";
 import { SelectionProvider } from "@/selection/SelectionContext";
 import type { AsyncTreeHandle } from "@/tree/AsyncTree";
@@ -49,7 +49,7 @@ export function CrossReferenceExplorerPage() {
           />
         }
         bottom={
-          <DependencyDetailsPanel
+          <DependencyPartnersPanel
             emptyStateTitle="No selection"
             emptyStateDescription="Use the column inspect buttons or click a partner node to inspect dependencies."
             onRevealInCenter={(id) => {

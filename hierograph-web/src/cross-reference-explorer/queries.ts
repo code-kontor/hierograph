@@ -95,8 +95,9 @@ export function crossReferenceExplorerRightChildrenQueryOptions(
 // actual related nodes light up; their collapsed ancestor folders are surfaced
 // separately via the predecessor batch + badges.
 //
-// Direction mirrors the Details pane pivot (dependencies-details-anbindung.md,
-// Regel 3): selecting on the left ("Used by") pivots to "Everything the
+// Direction mirrors the Details pane pivot (see
+// docs/dependency-details-wiring.md — Partner pivot & highlight flip):
+// selecting on the left ("Used by") pivots to "Everything the
 // partner uses" — highlight what the selected partner uses (referencedNodes);
 // selecting on the right ("Uses") pivots to "Everything that uses the
 // partner" — highlight who uses the selected partner (referencingNodes).

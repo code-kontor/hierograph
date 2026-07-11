@@ -18,7 +18,7 @@ const PUBLIC = {
   "cross-reference-explorer": ["CrossReferenceExplorerPage.tsx"],
   "dependency-details": [
     "DependencyDetailsPane.tsx",
-    "DependencyDetailsPanel.tsx",
+    "DependencyPartnersPanel.tsx",
   ],
   "dev-panel": ["DevPanel.tsx", "DevPanelContext.tsx"],
   selection: ["SelectionContext.tsx", "FocusBridge.tsx"],
