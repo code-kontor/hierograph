@@ -4,10 +4,25 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { Pane } from "@/design-system/layout/Pane";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGhostTrigger,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
+import { useLocalStorage } from "@/design-system/useLocalStorage";
+import type { NodeLabelFormat } from "@/graph/nodeLabel";
 import { useSelection } from "@/selection/SelectionContext";
 
 import { DependencyDiagramCanvas } from "./DependencyDiagramCanvas";
+import {
+  LABEL_FORMAT_OPTIONS,
+  LABEL_FORMAT_STORAGE_KEY,
+  normalizeLabelFormat,
+} from "./dependencyDiagramLabelSettings";
 import { DiagramBreadcrumb, type DrillCrumb } from "./DiagramBreadcrumb";
 import { layoutGraph } from "./elkLayout";
 import { buildDependencyGraph } from "./graphModel";
@@ -178,9 +193,57 @@ function MultiNodeDiagram({ ids, onNodeActivate }: MultiNodeDiagramProps) {
   return <MatrixView matrix={matrix} onNodeActivate={onNodeActivate} />;
 }
 
+type DependencyDiagramOptionsMenuProps = {
+  labelFormat: NodeLabelFormat;
+  onLabelFormatChange: (value: NodeLabelFormat) => void;
+};
+
+export function DependencyDiagramOptionsMenu({
+  labelFormat,
+  onLabelFormatChange,
+}: DependencyDiagramOptionsMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuGhostTrigger title="Diagram options" />
+      <DropdownMenuContent>
+        <DropdownMenuLabel>Label format</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={labelFormat}
+          onValueChange={(v) => onLabelFormatChange(v as NodeLabelFormat)}
+        >
+          <DropdownMenuRadioItem
+            value={LABEL_FORMAT_OPTIONS[0].value}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {LABEL_FORMAT_OPTIONS[0].label}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value={LABEL_FORMAT_OPTIONS[1].value}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {LABEL_FORMAT_OPTIONS[1].label}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value={LABEL_FORMAT_OPTIONS[2].value}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {LABEL_FORMAT_OPTIONS[2].label}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
   const orderedNodes = matrix?.orderedNodes ?? [];
   const cells = matrix?.cells ?? [];
+
+  const [storedFormat, setLabelFormat] = useLocalStorage<string>(
+    LABEL_FORMAT_STORAGE_KEY,
+    "last-segment",
+  );
+  const labelFormat = normalizeLabelFormat(storedFormat);
 
   const nodeKey = [...orderedNodes.map((n) => n.id)].sort().join(",");
   const [layout, setLayout] = useState<{
@@ -225,11 +288,18 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
     <Pane
       title="Dependency Diagram"
       subHeader={breadcrumb}
+      toolbar={
+        <DependencyDiagramOptionsMenu
+          labelFormat={labelFormat}
+          onLabelFormatChange={setLabelFormat}
+        />
+      }
       bodyClassName="p-0 overflow-hidden"
     >
       <div className="h-full w-full overflow-hidden">
         <DependencyDiagramCanvas
           rootNode={rootNode}
+          labelFormat={labelFormat}
           onNodeActivate={onNodeActivate}
         />
       </div>

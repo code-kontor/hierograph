@@ -4,7 +4,10 @@ import type {
   ElkPoint,
 } from "elkjs/lib/elk.bundled.js";
 
+import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
+
 import type { GraphColors } from "./colorScheme";
+import type { DiagramElkNode } from "./elkLayout";
 
 const CORNER_RADIUS = 3;
 const NODE_PADDING = 10;
@@ -50,6 +53,7 @@ export function drawNode(
   ctx: CanvasRenderingContext2D,
   node: ElkNode,
   colors: GraphColors,
+  labelFormat: NodeLabelFormat,
   hovered?: boolean,
 ): void {
   if (
@@ -79,7 +83,12 @@ export function drawNode(
   ctx.rect(node.x, node.y, node.width - NODE_PADDING, node.height);
   ctx.clip();
 
-  const label = node.labels?.[0]?.text ?? node.id;
+  const rawText = node.labels?.[0]?.text ?? node.id;
+  const label = formatNodeLabel(
+    rawText,
+    labelFormat,
+    (node as DiagramElkNode).nodeType,
+  );
   ctx.fillStyle = colors.nodeLabel;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
@@ -238,10 +247,11 @@ export function drawGraph(
   ctx: CanvasRenderingContext2D,
   rootNode: ElkNode,
   colors: GraphColors,
+  labelFormat: NodeLabelFormat,
   hoveredNodeId?: string,
 ): void {
   for (const node of rootNode.children ?? []) {
-    drawNode(ctx, node, colors, node.id === hoveredNodeId);
+    drawNode(ctx, node, colors, labelFormat, node.id === hoveredNodeId);
   }
   for (const edge of rootNode.edges ?? []) {
     drawEdge(ctx, edge, colors);
