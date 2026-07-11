@@ -37,8 +37,6 @@ type TreeRowProps = {
     item: ItemInstance<TreeNodeData>,
     e: React.MouseEvent,
   ) => void;
-  onHoveredIdChange?: (id: string | undefined) => void;
-  onPromoteToSubject?: (nodeData: TreeNodeData) => void;
 };
 
 type TooltipPos = { x: number; y: number };
@@ -58,8 +56,6 @@ export function TreeRow({
   settings,
   onRowClick,
   onChevronClick,
-  onHoveredIdChange,
-  onPromoteToSubject,
 }: TreeRowProps) {
   const isPrimarySelected = isSelected && selectionTone === "primary";
   const isSecondarySelected = isSelected && selectionTone === "secondary";
@@ -118,7 +114,6 @@ export function TreeRow({
             y: pointerRef.current.y + 20,
           });
         }, 480);
-        onHoveredIdChange?.(item.getId());
       }}
       onMouseMove={(e) => {
         if (tooltipPos === null) {
@@ -129,7 +124,6 @@ export function TreeRow({
         setIsHovered(false);
         if (timerRef.current) clearTimeout(timerRef.current);
         setTooltipPos(null);
-        onHoveredIdChange?.(undefined);
       }}
     >
       {isPrimarySelected && (
@@ -190,22 +184,6 @@ export function TreeRow({
         >
           {nodeData.weight}
         </span>
-      )}
-      {onPromoteToSubject != null && (
-        <button
-          type="button"
-          aria-label="Set as subject"
-          className={cn(
-            "shrink-0 rounded px-1 text-[11px]",
-            isPrimarySelected ? "text-state-selected-fg" : "text-fg-subtle",
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPromoteToSubject(nodeData);
-          }}
-        >
-          →
-        </button>
       )}
       {tooltipPos !== null && (
         <NodeInfoTooltip
