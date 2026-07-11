@@ -44,8 +44,8 @@ type ColumnInspectButtonProps = {
 };
 
 // Explicit affordance to send the aggregated Center↔column relationship to
-// the Dependencies Details pane (see dependencies-details-anbindung.md,
-// Regel 2) — only rendered once a center node is selected.
+// the Dependencies Details pane (see docs/dependency-details-wiring.md —
+// Aggregate pinning) — only rendered once a center node is selected.
 function ColumnInspectButton({
   label,
   active,
@@ -148,8 +148,9 @@ export function CrossReferenceExplorerView({
     null,
   );
   // Which column's "Everything Center uses/is used by" aggregate is pinned to
-  // the Dependencies Details pane (Regel 2). Reset whenever the center
-  // selection changes or a partner takes over (Regel 6, Precedence).
+  // the Dependencies Details pane (see docs/dependency-details-wiring.md —
+  // Aggregate pinning). Reset whenever the center selection changes or a
+  // partner takes over (Precedence & reset).
   const [aggregateSide, setAggregateSide] = useState<"left" | "right" | null>(
     null,
   );
@@ -308,8 +309,9 @@ export function CrossReferenceExplorerView({
   }
 
   // The cell shown in the Dependencies Details pane is set via `setCell` at
-  // the interaction events that change it (dependencies-details-anbindung.md;
-  // handleInspect, handleLeft/RightSelectedIdsChange,
+  // the interaction events that change it (see
+  // docs/dependency-details-wiring.md; handleInspect,
+  // handleLeft/RightSelectedIdsChange,
   // handleCenterSelectedIdsChange above), not derived on every render. Only
   // first-selected ids are used; DependencyDetailsPane takes a single
   // directed pair.
@@ -341,7 +343,10 @@ export function CrossReferenceExplorerView({
 
   if (rootPending) {
     return (
-      <Pane title="Cross-Reference View" bodyClassName="overflow-hidden p-0">
+      <Pane
+        title="Cross-Reference Explorer"
+        bodyClassName="overflow-hidden p-0"
+      >
         <div className="p-4">
           <Message variant="loading" title="Loading hierarchy" />
         </div>
@@ -351,7 +356,10 @@ export function CrossReferenceExplorerView({
 
   if (rootError || !rootNode) {
     return (
-      <Pane title="Cross-Reference View" bodyClassName="overflow-hidden p-0">
+      <Pane
+        title="Cross-Reference Explorer"
+        bodyClassName="overflow-hidden p-0"
+      >
         <div className="p-4">
           <Message variant="error" title="Could not load hierarchy root" />
         </div>
@@ -360,7 +368,7 @@ export function CrossReferenceExplorerView({
   }
 
   // Center sub-label: one line per state — no center, center-only (anchor),
-  // or an active partner pivot (Welt A — the partner becomes the subject).
+  // or an active partner pivot — the partner becomes the subject.
   function centerSubLabel(): string {
     if (centerSelectedIds.length === 0) {
       return "select a node to explore";
@@ -392,7 +400,7 @@ export function CrossReferenceExplorerView({
 
   return (
     <Pane
-      title="Cross-Reference View"
+      title="Cross-Reference Explorer"
       bodyClassName="overflow-hidden p-0"
       toolbar={
         <div className="flex items-center gap-1">

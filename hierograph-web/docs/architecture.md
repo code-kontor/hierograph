@@ -79,8 +79,8 @@ that spans the entire workbench state:
 [selectedIds])` reset; serialising `cellSelection` alongside `selectedIds`
   requires careful ordering.
 
-`DependencyDetailsPanel` is the second public file of `dependency-details`: an
-anchor-centric aggregate overview (Ebene 1) used by the Cross-Reference
+`DependencyPartnersPanel` is the second public file of `dependency-details`: an
+anchor-centric aggregate overview (tier 1) used by the Cross-Reference
 Explorer, whereas `DependencyDetailsPane` remains the DSM inspector.
 
 Deep-linking belongs in a dedicated follow-up task with a holistic UX design for
@@ -118,7 +118,7 @@ barrel `index.ts` files.
 | -------------------------- | ------------------------------------------------------------------ |
 | `dsm`                      | `DsmPage.tsx`                                                      |
 | `cross-reference-explorer` | `CrossReferenceExplorerPage.tsx`                                   |
-| `dependency-details`       | `DependencyDetailsPane.tsx`, `DependencyDetailsPanel.tsx`          |
+| `dependency-details`       | `DependencyDetailsPane.tsx`, `DependencyPartnersPanel.tsx`         |
 | `dev-panel`                | `DevPanel.tsx`, `DevPanelContext.tsx`                              |
 | `selection`                | `SelectionContext.tsx`, `FocusBridge.tsx`                          |
 | `tree`                     | `AsyncTree.tsx`, `TreeSettingsMenu.tsx`, `useTreeSettings.ts`      |

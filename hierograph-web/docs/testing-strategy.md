@@ -54,7 +54,7 @@ src/
     DsmCanvas.browsertest.tsx    canvas-click → onSelectCell callback test
   testing/
     integration/
-      dependency-filtering.browsertest.tsx  DependencyDetailsPanel filter correctness
+      dependency-filtering.browsertest.tsx  DependencyPartnersPanel filter correctness
     fixtures/               recorded GraphQL fixture JSONs (do not edit by hand)
     msw/
       handlers.ts           MSW graphql.query handlers backed by fixture JSONs
