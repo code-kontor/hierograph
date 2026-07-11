@@ -11,6 +11,9 @@ import type { DiagramElkNode } from "./elkLayout";
 
 const CORNER_RADIUS = 3;
 const NODE_PADDING = 10;
+// Height of the reserved top header band of a container, in which its own label
+// is drawn (mirrors the top inset of CONTAINER_PADDING in elkLayout.ts).
+const CONTAINER_HEADER_HEIGHT = 28;
 const NODE_FONT = '12px "IBM Plex Mono", ui-monospace, monospace';
 const EDGE_LABEL_FONT = '10px "IBM Plex Mono", ui-monospace, monospace';
 
@@ -93,6 +96,78 @@ export function drawNode(
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(label, node.x + NODE_PADDING, node.y + node.height / 2);
+
+  ctx.restore();
+
+  if (hovered) {
+    ctx.save();
+    ctx.lineWidth = 2;
+    roundRect(
+      ctx,
+      node.x,
+      node.y,
+      node.width,
+      node.height,
+      CORNER_RADIUS,
+      undefined,
+      colors.nodeHoverBorder,
+    );
+    ctx.restore();
+  }
+}
+
+// Draws an expanded container's box and its label as a top-aligned header (not
+// vertically centered like a leaf). The container's children and internal edges
+// are drawn separately by the recursive walk, in the container's translated
+// coordinate space.
+export function drawContainer(
+  ctx: CanvasRenderingContext2D,
+  node: ElkNode,
+  colors: GraphColors,
+  labelFormat: NodeLabelFormat,
+  hovered?: boolean,
+): void {
+  if (
+    node.x === undefined ||
+    node.y === undefined ||
+    node.width === undefined ||
+    node.height === undefined
+  ) {
+    return;
+  }
+
+  ctx.save();
+  ctx.font = NODE_FONT;
+
+  roundRect(
+    ctx,
+    node.x,
+    node.y,
+    node.width,
+    node.height,
+    CORNER_RADIUS,
+    colors.containerFill,
+    colors.containerBorder,
+  );
+
+  ctx.beginPath();
+  ctx.rect(node.x, node.y, node.width - NODE_PADDING, CONTAINER_HEADER_HEIGHT);
+  ctx.clip();
+
+  const rawText = node.labels?.[0]?.text ?? node.id;
+  const label = formatNodeLabel(
+    rawText,
+    labelFormat,
+    (node as DiagramElkNode).nodeType,
+  );
+  ctx.fillStyle = colors.containerHeaderLabel;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(
+    label,
+    node.x + NODE_PADDING,
+    node.y + CONTAINER_HEADER_HEIGHT / 2,
+  );
 
   ctx.restore();
 
@@ -243,6 +318,43 @@ export function drawEdge(
   ctx.restore();
 }
 
+function isContainer(node: ElkNode): boolean {
+  return (node.children?.length ?? 0) > 0;
+}
+
+// Recursively draws one container's contents in the current (already-translated)
+// coordinate space. ELK gives child coordinates relative to their parent and an
+// edge's section coordinates relative to the container that owns the edge, so
+// every descent into a child pushes a matched translate. Per level, child boxes
+// (and their subtrees) are drawn first, then this level's own edges on top —
+// preserving the flat z-order (nodes below, edges above), so a tree with no
+// containers renders exactly like the flat layout.
+function drawSubtree(
+  ctx: CanvasRenderingContext2D,
+  node: ElkNode,
+  colors: GraphColors,
+  labelFormat: NodeLabelFormat,
+  hoveredNodeId?: string,
+): void {
+  for (const child of node.children ?? []) {
+    const hovered = child.id === hoveredNodeId;
+    if (isContainer(child)) {
+      drawContainer(ctx, child, colors, labelFormat, hovered);
+      if (child.x !== undefined && child.y !== undefined) {
+        ctx.save();
+        ctx.translate(child.x, child.y);
+        drawSubtree(ctx, child, colors, labelFormat, hoveredNodeId);
+        ctx.restore();
+      }
+    } else {
+      drawNode(ctx, child, colors, labelFormat, hovered);
+    }
+  }
+  for (const edge of node.edges ?? []) {
+    drawEdge(ctx, edge, colors);
+  }
+}
+
 export function drawGraph(
   ctx: CanvasRenderingContext2D,
   rootNode: ElkNode,
@@ -250,10 +362,7 @@ export function drawGraph(
   labelFormat: NodeLabelFormat,
   hoveredNodeId?: string,
 ): void {
-  for (const node of rootNode.children ?? []) {
-    drawNode(ctx, node, colors, labelFormat, node.id === hoveredNodeId);
-  }
-  for (const edge of rootNode.edges ?? []) {
-    drawEdge(ctx, edge, colors);
-  }
+  // The root draws no box (it is the canvas): its children and its own edges are
+  // drawn at offset 0, then each expanded child recurses in its own space.
+  drawSubtree(ctx, rootNode, colors, labelFormat, hoveredNodeId);
 }

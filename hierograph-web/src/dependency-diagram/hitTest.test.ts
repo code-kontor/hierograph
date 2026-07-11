@@ -56,4 +56,56 @@ describe("hitTestNode", () => {
 
     expect(hitTestNode(root, 50, 25)).toBe(nodeB);
   });
+
+  it("returns the inner nested child, not the enclosing container", () => {
+    // Container at world (100, 100); child at container-relative (20, 30),
+    // i.e. world (120, 130).
+    const inner: ElkNode = { id: "inner", x: 20, y: 30, width: 50, height: 40 };
+    const container: ElkNode = {
+      id: "container",
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+      children: [inner],
+    };
+    const root = makeRoot([container]);
+
+    // World (130, 140) -> inside inner (container-relative 30, 40).
+    expect(hitTestNode(root, 130, 140)).toBe(inner);
+  });
+
+  it("returns the container when the point is in its header band (no child)", () => {
+    const inner: ElkNode = { id: "inner", x: 20, y: 30, width: 50, height: 40 };
+    const container: ElkNode = {
+      id: "container",
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+      children: [inner],
+    };
+    const root = makeRoot([container]);
+
+    // World (110, 110): inside the container but above/left of the child.
+    expect(hitTestNode(root, 110, 110)).toBe(container);
+  });
+
+  it("maps a container-relative child offset to world coordinates", () => {
+    // Child at container-relative x=5, container at world x=200 -> world 205.
+    const inner: ElkNode = { id: "inner", x: 5, y: 5, width: 10, height: 10 };
+    const container: ElkNode = {
+      id: "container",
+      x: 200,
+      y: 0,
+      width: 100,
+      height: 100,
+      children: [inner],
+    };
+    const root = makeRoot([container]);
+
+    expect(hitTestNode(root, 208, 8)).toBe(inner);
+    // Just outside the child (world 204 < 205) -> falls back to container.
+    expect(hitTestNode(root, 204, 8)).toBe(container);
+  });
 });

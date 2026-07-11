@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import { useLocalStorage } from "@/design-system/useLocalStorage";
 import type { NodeLabelFormat } from "@/graph/nodeLabel";
 import { useSelection } from "@/selection/SelectionContext";
 
+import { buildCompoundElkGraph } from "./compoundModel";
 import { DependencyDiagramCanvas } from "./DependencyDiagramCanvas";
 import {
   LABEL_FORMAT_OPTIONS,
@@ -24,8 +25,8 @@ import {
   normalizeLabelFormat,
 } from "./dependencyDiagramLabelSettings";
 import { DiagramBreadcrumb, type DrillCrumb } from "./DiagramBreadcrumb";
-import { layoutGraph } from "./elkLayout";
-import { buildDependencyGraph } from "./graphModel";
+import { layoutCompoundGraph } from "./elkLayout";
+import { buildDependencyGraph, type DependencyGraph } from "./graphModel";
 import {
   diagramNodeAdjacencyMatrixQueryOptions,
   diagramNodesAdjacencyMatrixQueryOptions,
@@ -237,6 +238,7 @@ export function DependencyDiagramOptionsMenu({
 
 function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
   const { setCellSelection } = useSelection();
+  const queryClient = useQueryClient();
   const orderedNodes = matrix?.orderedNodes ?? [];
   const cells = matrix?.cells ?? [];
 
@@ -247,6 +249,35 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
   const labelFormat = normalizeLabelFormat(storedFormat);
 
   const nodeKey = [...orderedNodes.map((n) => n.id)].sort().join(",");
+
+  // Compound state (AC2/AC3): which nodes are expanded, and the incrementally
+  // merged cache of already-loaded child graphs. Expanding never rebuilds the
+  // whole diagram — the root matrix is never refetched and loaded subtrees are
+  // never discarded; new children are merged into loadedChildren and ELK
+  // re-lays out the (small) compound tree. react-query caches each child
+  // matrix by id, so re-expanding an already-loaded node is instant.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [loadedChildren, setLoadedChildren] = useState<
+    Map<string, DependencyGraph>
+  >(() => new Map());
+
+  // Expand state is keyed per root node set (AC2): a tree-selection or drill
+  // change swaps the root matrix (nodeKey changes), and the previously expanded
+  // ids may not exist under it — reset during render (the "adjust state when a
+  // prop changes" pattern), not in an effect.
+  const [expandResetKey, setExpandResetKey] = useState(nodeKey);
+  if (nodeKey !== expandResetKey) {
+    setExpandResetKey(nodeKey);
+    setExpanded(new Set());
+    setLoadedChildren(new Map());
+  }
+
+  const expandedKey = [...expanded].sort().join(",");
+  const loadedKey = [...loadedChildren.keys()].sort().join(",");
+  // The layout must recompute whenever the root set, the expand set, or which
+  // children are loaded changes.
+  const layoutKey = `${nodeKey}|${expandedKey}|${loadedKey}`;
+
   const [layout, setLayout] = useState<{
     key: string;
     rootNode: ElkNode;
@@ -255,17 +286,53 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
   useEffect(() => {
     let cancelled = false;
 
-    const { nodes, edges } = buildDependencyGraph(orderedNodes, cells);
-    layoutGraph(nodes, edges).then((rootNode) => {
-      if (!cancelled) setLayout({ key: nodeKey, rootNode });
+    const rootGraph = buildDependencyGraph(orderedNodes, cells);
+    const compound = buildCompoundElkGraph(rootGraph, loadedChildren, expanded);
+    layoutCompoundGraph(compound).then((rootNode) => {
+      if (!cancelled) setLayout({ key: layoutKey, rootNode });
     });
 
     return () => {
       cancelled = true;
     };
-    // nodeKey is the stable, memoization-friendly proxy for orderedNodes/cells.
+    // layoutKey folds in nodeKey (proxy for orderedNodes/cells) plus the expand
+    // set and loaded-children ids — the only inputs to the compound layout.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeKey]);
+  }, [layoutKey]);
+
+  async function handleToggleExpand(id: string) {
+    if (expanded.has(id)) {
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+
+    if (!loadedChildren.has(id)) {
+      const data = await queryClient.fetchQuery(
+        diagramNodeAdjacencyMatrixQueryOptions(id),
+      );
+      const childMatrix =
+        data.hierarchicalGraph?.node?.children?.orderedAdjacencyMatrix;
+      const childGraph = buildDependencyGraph(
+        childMatrix?.orderedNodes ?? [],
+        childMatrix?.cells ?? [],
+      );
+      setLoadedChildren((prev) => {
+        const next = new Map(prev);
+        next.set(id, childGraph);
+        return next;
+      });
+    }
+
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }
 
   if (orderedNodes.length === 0) {
     return (
@@ -275,7 +342,7 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
     );
   }
 
-  const rootNode = layout?.key === nodeKey ? layout.rootNode : null;
+  const rootNode = layout?.key === layoutKey ? layout.rootNode : null;
 
   if (!rootNode) {
     return (
@@ -298,10 +365,16 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
       bodyClassName="p-0 overflow-hidden"
     >
       <div className="h-full w-full overflow-hidden">
+        {/* A new layout yields a new rootNode identity, so the canvas re-fits
+            (E8). Preserving the viewport across an incremental expand is a
+            possible follow-up, not part of this task. Single click toggles
+            expand; double click drills (onNodeActivate = pushDrill), which
+            unmounts this compound view. */}
         <DependencyDiagramCanvas
           rootNode={rootNode}
           labelFormat={labelFormat}
           onNodeActivate={onNodeActivate}
+          onNodeToggleExpand={handleToggleExpand}
           onEdgeActivate={(sourceNodeId, targetNodeId) =>
             setCellSelection({ sourceNodeId, targetNodeId })
           }

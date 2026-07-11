@@ -1,11 +1,14 @@
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 
-// Returns the top-level child node whose bounding box contains the world-space
-// point, or null. Coordinates are ELK world coordinates (same space as
-// node.x/y/width/height), so callers must convert screen -> world first
-// (see viewport.ts screenToWorld). Iterating rootNode.children only is
-// sufficient for the flat node-link layout of #0127; #0128 (in-place expand)
-// will extend this to descend into nested children (innermost hit wins).
+// Returns the deepest nested node whose bounding box contains the point, or
+// null. Coordinates are ELK world coordinates (same space as
+// node.x/y/width/height), so callers must convert screen -> world first (see
+// viewport.ts screenToWorld). Child coordinates are parent-relative, so on
+// descent the point is translated by the container origin (the same transform
+// stack as drawGraph). Innermost hit wins: a hit on a nested child takes
+// precedence over the enclosing container; a hit in a container's header band
+// (outside any child) returns the container itself. The flat top-level case
+// (leaves only) is unchanged.
 export function hitTestNode(
   rootNode: ElkNode,
   worldX: number,
@@ -27,7 +30,8 @@ export function hitTestNode(
       worldY >= y &&
       worldY <= y + height
     ) {
-      return node;
+      const deeper = hitTestNode(node, worldX - x, worldY - y);
+      return deeper ?? node;
     }
   }
   return null;

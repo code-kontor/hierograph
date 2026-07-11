@@ -32,6 +32,7 @@ type DependencyDiagramCanvasProps = {
   rootNode: ElkNode;
   labelFormat: NodeLabelFormat;
   onNodeActivate?: (id: string, label: string) => void;
+  onNodeToggleExpand?: (id: string) => void;
   onEdgeActivate?: (sourceNodeId: string, targetNodeId: string) => void;
 };
 
@@ -47,6 +48,7 @@ export function DependencyDiagramCanvas({
   rootNode,
   labelFormat,
   onNodeActivate,
+  onNodeToggleExpand,
   onEdgeActivate,
 }: DependencyDiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -321,12 +323,16 @@ export function DependencyDiagramCanvas({
           const isClick =
             dx * dx + dy * dy < CLICK_DRAG_THRESHOLD * CLICK_DRAG_THRESHOLD;
           if (isClick) {
+            // Single click on a box = in-place expand/collapse (the primary
+            // gesture); double click drills/scope-replaces via onDoubleClick
+            // below. No single/double timer disambiguation: the first click of
+            // a double-click harmlessly toggles expand and is immediately
+            // discarded when the drill unmounts the compound view (a brief,
+            // consequence-free flash) — this keeps zero latency on every single
+            // click, which matters for the primary gesture.
             const nodeHit = nodeAtClient(e.clientX, e.clientY);
             if (nodeHit) {
-              onNodeActivate?.(
-                nodeHit.id,
-                nodeHit.labels?.[0]?.text ?? nodeHit.id,
-              );
+              onNodeToggleExpand?.(nodeHit.id);
             } else if (onEdgeActivate) {
               const edge = edgeAtClient(e.clientX, e.clientY);
               if (edge?.sources?.[0] && edge.targets?.[0]) {
@@ -336,6 +342,15 @@ export function DependencyDiagramCanvas({
           }
           isDraggingRef.current = false;
           e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onDoubleClick={(e) => {
+          const nodeHit = nodeAtClient(e.clientX, e.clientY);
+          if (nodeHit) {
+            onNodeActivate?.(
+              nodeHit.id,
+              nodeHit.labels?.[0]?.text ?? nodeHit.id,
+            );
+          }
         }}
         onPointerCancel={(e) => {
           isDraggingRef.current = false;
