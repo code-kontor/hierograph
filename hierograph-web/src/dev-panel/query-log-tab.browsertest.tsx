@@ -2,7 +2,9 @@ import { beforeEach, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { DevPanel } from "@/dev-panel/DevPanel";
+import { DevPanelProvider } from "@/dev-panel/DevPanelContext";
 import { clearQueryLog } from "@/graphql/devQueryLog";
+import { FocusBridgeProvider } from "@/selection/FocusBridge";
 import { SelectionProvider, useSelection } from "@/selection/SelectionContext";
 import { resolveNodeId } from "@/testing/nodeLookup";
 import { renderWithQueryClient } from "@/testing/render";
@@ -27,10 +29,14 @@ beforeEach(() => {
 
 it("Queries tab lists the recorded NodeDetail query with a working GraphiQL deep link", async () => {
   await renderWithQueryClient(
-    <SelectionProvider>
-      <SetFocusButton />
-      <DevPanel />
-    </SelectionProvider>,
+    <DevPanelProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <SetFocusButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
+    </DevPanelProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));
@@ -59,10 +65,14 @@ it("Queries tab lists the recorded NodeDetail query with a working GraphiQL deep
 
 it("Details tab stays the default and shows the previous content", async () => {
   await renderWithQueryClient(
-    <SelectionProvider>
-      <SetFocusButton />
-      <DevPanel />
-    </SelectionProvider>,
+    <DevPanelProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <SetFocusButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
+    </DevPanelProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));
@@ -75,10 +85,14 @@ it("Details tab stays the default and shows the previous content", async () => {
 
 it("Details tab shows the node id and a NodeExplore GraphiQL deep link", async () => {
   await renderWithQueryClient(
-    <SelectionProvider>
-      <SetFocusButton />
-      <DevPanel />
-    </SelectionProvider>,
+    <DevPanelProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <SetFocusButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
+    </DevPanelProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));
@@ -96,10 +110,14 @@ it("Details tab shows the node id and a NodeExplore GraphiQL deep link", async (
 
 it("query section reveals the query text on expand", async () => {
   await renderWithQueryClient(
-    <SelectionProvider>
-      <SetFocusButton />
-      <DevPanel />
-    </SelectionProvider>,
+    <DevPanelProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <SetFocusButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
+    </DevPanelProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));
@@ -117,10 +135,14 @@ it("query section reveals the query text on expand", async () => {
 
 it("result section re-runs the query on expand without adding a log entry", async () => {
   await renderWithQueryClient(
-    <SelectionProvider>
-      <SetFocusButton />
-      <DevPanel />
-    </SelectionProvider>,
+    <DevPanelProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <SetFocusButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
+    </DevPanelProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));
@@ -137,10 +159,14 @@ it("result section re-runs the query on expand without adding a log entry", asyn
 
 it("Clear button empties the query log", async () => {
   await renderWithQueryClient(
-    <SelectionProvider>
-      <SetFocusButton />
-      <DevPanel />
-    </SelectionProvider>,
+    <DevPanelProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <SetFocusButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
+    </DevPanelProvider>,
   );
 
   await userEvent.click(page.getByText("set-focus"));

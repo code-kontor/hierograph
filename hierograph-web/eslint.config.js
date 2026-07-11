@@ -127,7 +127,10 @@ export default defineConfig([
                     ],
                   },
                   { type: "hierarchy", internalPath: ["HierarchyTree.tsx"] },
-                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
+                  {
+                    type: "selection",
+                    internalPath: ["SelectionContext.tsx", "FocusBridge.tsx"],
+                  },
                   {
                     type: "tree",
                     internalPath: [
@@ -146,7 +149,10 @@ export default defineConfig([
                     ],
                   },
                   { type: "design-system" },
-                  { type: "dev-panel", internalPath: ["DevPanel.tsx"] },
+                  {
+                    type: "dev-panel",
+                    internalPath: ["DevPanel.tsx", "DevPanelContext.tsx"],
+                  },
                 ],
               },
             },
@@ -221,7 +227,10 @@ export default defineConfig([
               from: { type: "dev-panel" },
               allow: {
                 to: [
-                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
+                  {
+                    type: "selection",
+                    internalPath: ["SelectionContext.tsx", "FocusBridge.tsx"],
+                  },
                   {
                     type: "graph",
                     internalPath: ["queries.ts", "nodeIcon.ts"],
