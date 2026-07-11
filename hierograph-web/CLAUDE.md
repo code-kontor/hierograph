@@ -74,6 +74,17 @@ Code is organised into feature _verticals_ as top-level folders under `src/`:
   instead of generating them dynamically
   - NOT: `{(['a', 'b'] as const).map(x => <Item key={x} value={x} />)}`
   - INSTEAD: `<Item value="a" /><Item value="b" />`
+- **React Compiler is enabled** (`vite.config.ts`): never add `useCallback`,
+  `useMemo`, or `React.memo` — write plain functions and expressions; the
+  compiler memoizes automatically. Enforced by lint (`no-restricted-syntax`
+  in `eslint.config.js`). A genuine need for manual memoization semantics
+  requires an inline `eslint-disable-next-line no-restricted-syntax` with a
+  comment justifying it.
+  - Known caveat: default values in destructured props
+    (`function C({ a = 1 }: P)`) currently make the compiler bail out on the
+    whole component (babel-plugin-react-compiler 1.0.0 on Babel 8). Where
+    stable identities matter, avoid destructuring defaults (make the prop
+    required or default inside the body).
 
 ## Checking code and code style
 

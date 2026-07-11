@@ -1,10 +1,4 @@
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 
 type FocusBridgeValue = {
   focusedId: string | null;
@@ -29,13 +23,13 @@ export function FocusBridgeProvider({ children }: FocusBridgeProviderProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [focusedName, setFocusedName] = useState<string | null>(null);
 
-  const setFocus = useCallback(
-    (focus: { focusedId: string | null; focusedName: string | null }) => {
-      setFocusedId(focus.focusedId);
-      setFocusedName(focus.focusedName);
-    },
-    [],
-  );
+  const setFocus = (focus: {
+    focusedId: string | null;
+    focusedName: string | null;
+  }) => {
+    setFocusedId(focus.focusedId);
+    setFocusedName(focus.focusedName);
+  };
 
   return (
     <FocusBridgeContext value={{ focusedId, focusedName, setFocus }}>
