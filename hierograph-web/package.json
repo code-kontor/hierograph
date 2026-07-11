@@ -36,6 +36,7 @@
     "@tanstack/react-router": "^1.170.17",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "elkjs": "^0.11.1",
     "graphql": "^16.14.2",
     "graphql-request": "^7.4.0",
     "lucide-react": "^1.23.0",

@@ -78,6 +78,18 @@ function RootLayout() {
             >
               Cross-Reference Explorer
             </Link>
+            <Link
+              to="/dependency-diagram"
+              className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
+              activeProps={{
+                className: "text-primary font-semibold",
+              }}
+              inactiveProps={{
+                className: "after:hidden",
+              }}
+            >
+              Dependency Diagram
+            </Link>
           </nav>
           <div className="flex-1" />
           {import.meta.env.DEV && <OpenDevPanelButton />}

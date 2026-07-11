@@ -16,6 +16,7 @@ import tseslint from "typescript-eslint";
 const PUBLIC = {
   dsm: ["DsmPage.tsx"],
   "cross-reference-explorer": ["CrossReferenceExplorerPage.tsx"],
+  "dependency-diagram": ["DependencyDiagramPage.tsx"],
   "dependency-details": [
     "DependencyDetailsPane.tsx",
     "DependencyPartnersPanel.tsx",
@@ -107,6 +108,7 @@ export default defineConfig([
           pattern: "src/cross-reference-explorer",
         },
         { type: "dependency-details", pattern: "src/dependency-details" },
+        { type: "dependency-diagram", pattern: "src/dependency-diagram" },
         { type: "dev-panel", pattern: "src/dev-panel" },
         { type: "selection", pattern: "src/selection" },
         { type: "tree", pattern: "src/tree" },
@@ -148,6 +150,7 @@ export default defineConfig([
                 to: [
                   to("dsm"),
                   to("cross-reference-explorer"),
+                  to("dependency-diagram"),
                   to("selection"),
                   to("dev-panel"),
                   { type: "design-system" },
@@ -162,6 +165,21 @@ export default defineConfig([
               allow: {
                 to: [
                   to("dependency-details"),
+                  to("selection", ["SelectionContext.tsx"]),
+                  to("tree"),
+                  to("graph"),
+                  { type: "design-system" },
+                  { type: "graphql" },
+                ],
+              },
+            },
+            // dependency-diagram screen → shared verticals via public files, design-system, graphql
+            // (no dependency-details pane, no cross-screen import of dsm/HierarchyTree — this
+            // screen builds its own tree wiring from `tree`/`graph`, same as cross-reference-explorer)
+            {
+              from: { type: "dependency-diagram" },
+              allow: {
+                to: [
                   to("selection", ["SelectionContext.tsx"]),
                   to("tree"),
                   to("graph"),

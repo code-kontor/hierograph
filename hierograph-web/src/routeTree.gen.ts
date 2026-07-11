@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as DsmRouteImport } from "./routes/dsm";
+import { Route as DependencyDiagramRouteImport } from "./routes/dependency-diagram";
 import { Route as CrossReferenceExplorerRouteImport } from "./routes/cross-reference-explorer";
 import { Route as IndexRouteImport } from "./routes/index";
 
 const DsmRoute = DsmRouteImport.update({
   id: "/dsm",
   path: "/dsm",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const DependencyDiagramRoute = DependencyDiagramRouteImport.update({
+  id: "/dependency-diagram",
+  path: "/dependency-diagram",
   getParentRoute: () => rootRouteImport,
 } as any);
 const CrossReferenceExplorerRoute = CrossReferenceExplorerRouteImport.update({
@@ -32,30 +38,39 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/cross-reference-explorer": typeof CrossReferenceExplorerRoute;
+  "/dependency-diagram": typeof DependencyDiagramRoute;
   "/dsm": typeof DsmRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
   "/cross-reference-explorer": typeof CrossReferenceExplorerRoute;
+  "/dependency-diagram": typeof DependencyDiagramRoute;
   "/dsm": typeof DsmRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
   "/cross-reference-explorer": typeof CrossReferenceExplorerRoute;
+  "/dependency-diagram": typeof DependencyDiagramRoute;
   "/dsm": typeof DsmRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/cross-reference-explorer" | "/dsm";
+  fullPaths: "/" | "/cross-reference-explorer" | "/dependency-diagram" | "/dsm";
   fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/cross-reference-explorer" | "/dsm";
-  id: "__root__" | "/" | "/cross-reference-explorer" | "/dsm";
+  to: "/" | "/cross-reference-explorer" | "/dependency-diagram" | "/dsm";
+  id:
+    | "__root__"
+    | "/"
+    | "/cross-reference-explorer"
+    | "/dependency-diagram"
+    | "/dsm";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   CrossReferenceExplorerRoute: typeof CrossReferenceExplorerRoute;
+  DependencyDiagramRoute: typeof DependencyDiagramRoute;
   DsmRoute: typeof DsmRoute;
 }
 
@@ -66,6 +81,13 @@ declare module "@tanstack/react-router" {
       path: "/dsm";
       fullPath: "/dsm";
       preLoaderRoute: typeof DsmRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/dependency-diagram": {
+      id: "/dependency-diagram";
+      path: "/dependency-diagram";
+      fullPath: "/dependency-diagram";
+      preLoaderRoute: typeof DependencyDiagramRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/cross-reference-explorer": {
@@ -88,6 +110,7 @@ declare module "@tanstack/react-router" {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrossReferenceExplorerRoute: CrossReferenceExplorerRoute,
+  DependencyDiagramRoute: DependencyDiagramRoute,
   DsmRoute: DsmRoute,
 };
 export const routeTree = rootRouteImport
