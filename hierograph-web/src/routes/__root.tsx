@@ -10,11 +10,8 @@ import { twMerge } from "tailwind-merge";
 
 import lupeUrl from "@/assets/hierograph-lupe.svg";
 import { DevPanel } from "@/dev-panel/DevPanel";
-import {
-  DevPanelProvider,
-  SelectionProvider,
-  useDevPanel,
-} from "@/selection/SelectionContext";
+import { DevPanelProvider, useDevPanel } from "@/dev-panel/DevPanelContext";
+import { FocusBridgeProvider } from "@/selection/FocusBridge";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
@@ -89,10 +86,10 @@ function RootLayout() {
           </div>
         </header>
         <main className="min-h-0 flex-1 p-3">
-          <SelectionProvider>
+          <FocusBridgeProvider>
             <Outlet />
             {import.meta.env.DEV && <DevPanel />}
-          </SelectionProvider>
+          </FocusBridgeProvider>
         </main>
       </div>
     </DevPanelProvider>

@@ -88,6 +88,25 @@ Explorer, whereas `DependencyDetailsPane` remains the DSM inspector.
 Deep-linking belongs in a dedicated follow-up task with a holistic UX design for
 workbench-state restoration. `zod` will not be introduced until that task.
 
+## Selection & DevPanel provider scoping
+
+**One `SelectionProvider` per screen.** `DependenciesPage` and
+`CrossReferenceExplorerPage` each mount their own `SelectionProvider` — there
+is deliberately no global `SelectionProvider`. The globally-rendered
+`DevPanel` does not read any screen's `SelectionProvider`; instead it reads
+the current focus through a purpose-built global `FocusBridge`
+(`selection/FocusBridge.tsx`), mounted once at the root around both the
+router outlet and the panel. `SelectionProvider` mirrors its `focusedId`/
+`focusedName` into the bridge whenever one is present above it (a no-op
+otherwise, e.g. in browsertests that render a standalone `SelectionProvider`).
+
+This was chosen over the alternative of a single global `SelectionProvider`
+(with the Cross-Reference Explorer's local reset made explicit on route
+change): per-screen providers give each screen a clean reset on remount
+instead of an imperative global reset that is easy to get subtly wrong, keep
+each screen's selection lifecycle self-contained, and decouple the panel's
+focus read from screen internals via the bridge.
+
 ## Public-API Rule
 
 Verticals (`dependencies`, `cross-reference-explorer`, `dependency-details`,
@@ -98,8 +117,10 @@ imports use direct paths (`@/<vertical>/<File>`); there are no re-export
 barrel `index.ts` files. Public file per vertical: `dependencies` →
 `DependenciesPage.tsx`, `cross-reference-explorer` →
 `CrossReferenceExplorerView.tsx` / `CrossReferenceExplorerPage.tsx`,
-`dev-panel` → `DevPanel.tsx`. The platform layers (`design-system`, `graphql`,
-`testing`) expose their files directly (shadcn convention / generated client).
+`selection` → `SelectionContext.tsx` / `FocusBridge.tsx`, `dev-panel` →
+`DevPanel.tsx` / `DevPanelContext.tsx`. The platform layers (`design-system`,
+`graphql`, `testing`) expose their files directly (shadcn convention /
+generated client).
 
 ## Tooling
 

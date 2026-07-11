@@ -27,13 +27,10 @@ import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
 import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
-import {
-  type DevPanelTab,
-  useDevPanel,
-  useSelection,
-} from "@/selection/SelectionContext";
+import { useFocusBridge } from "@/selection/FocusBridge";
 
 import { CopyButton } from "./CopyButton";
+import { type DevPanelTab, useDevPanel } from "./DevPanelContext";
 import { NodePropertyRow } from "./NodePropertyRow";
 import { QueryLogPanel } from "./QueryLogPanel";
 
@@ -216,7 +213,7 @@ function DevPanelBody({ id }: DevPanelBodyProps) {
 }
 
 export function DevPanel() {
-  const { focusedId } = useSelection();
+  const { focusedId } = useFocusBridge();
   const { open, setOpen, tab, setTab } = useDevPanel();
   const [collapsed, setCollapsed] = useLocalStorage(
     "hg.devPanel.collapsed",

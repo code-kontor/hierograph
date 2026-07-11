@@ -3,11 +3,9 @@ import { beforeEach, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { DevPanel } from "@/dev-panel/DevPanel";
-import {
-  DevPanelProvider,
-  SelectionProvider,
-  useDevPanel,
-} from "@/selection/SelectionContext";
+import { DevPanelProvider, useDevPanel } from "@/dev-panel/DevPanelContext";
+import { FocusBridgeProvider } from "@/selection/FocusBridge";
+import { SelectionProvider } from "@/selection/SelectionContext";
 import { renderWithQueryClient } from "@/testing/render";
 
 beforeEach(() => {
@@ -38,9 +36,11 @@ function RemountHarness() {
 it("keeps the active tab across a remount (route switch)", async () => {
   await renderWithQueryClient(
     <DevPanelProvider>
-      <SelectionProvider>
-        <RemountHarness />
-      </SelectionProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <RemountHarness />
+        </SelectionProvider>
+      </FocusBridgeProvider>
     </DevPanelProvider>,
   );
 
@@ -62,10 +62,12 @@ it("keeps the active tab across a remount (route switch)", async () => {
 it("reopens from an external trigger after being closed", async () => {
   await renderWithQueryClient(
     <DevPanelProvider>
-      <SelectionProvider>
-        <ReopenButton />
-        <DevPanel />
-      </SelectionProvider>
+      <FocusBridgeProvider>
+        <SelectionProvider>
+          <ReopenButton />
+          <DevPanel />
+        </SelectionProvider>
+      </FocusBridgeProvider>
     </DevPanelProvider>,
   );
 

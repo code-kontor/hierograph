@@ -1,4 +1,12 @@
-import { createContext, type ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
+import { useOptionalFocusBridge } from "./FocusBridge";
 
 export type CellSelection = {
   sourceNodeId: string;
@@ -29,6 +37,14 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
   const [cellSelection, setCellSelection] = useState<CellSelection | null>(
     null,
   );
+
+  const bridge = useOptionalFocusBridge();
+  useEffect(() => {
+    if (!bridge) return;
+    bridge.setFocus({ focusedId, focusedName });
+    return () => bridge.setFocus({ focusedId: null, focusedName: null });
+  }, [bridge, focusedId, focusedName]);
+
   return (
     <SelectionContext
       value={{
@@ -51,43 +67,6 @@ export function useSelection(): SelectionContextValue {
   const ctx = useContext(SelectionContext);
   if (!ctx) {
     throw new Error("useSelection must be used within a SelectionProvider");
-  }
-  return ctx;
-}
-
-export type DevPanelTab = "details" | "queries";
-
-type DevPanelContextValue = {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  tab: DevPanelTab;
-  setTab: (tab: DevPanelTab) => void;
-};
-
-const DevPanelContext = createContext<DevPanelContextValue | null>(null);
-
-type DevPanelProviderProps = {
-  children: ReactNode;
-};
-
-// Visibility and active tab of the floating dev panel. Kept above the router
-// outlet so it survives navigation (the panel itself is remounted per route)
-// and can be reopened from the top-level navbar. Deliberately separate from
-// SelectionProvider, which pages re-provide locally — this one stays global.
-export function DevPanelProvider({ children }: DevPanelProviderProps) {
-  const [open, setOpen] = useState(true);
-  const [tab, setTab] = useState<DevPanelTab>("details");
-  return (
-    <DevPanelContext value={{ open, setOpen, tab, setTab }}>
-      {children}
-    </DevPanelContext>
-  );
-}
-
-export function useDevPanel(): DevPanelContextValue {
-  const ctx = useContext(DevPanelContext);
-  if (!ctx) {
-    throw new Error("useDevPanel must be used within a DevPanelProvider");
   }
   return ctx;
 }
