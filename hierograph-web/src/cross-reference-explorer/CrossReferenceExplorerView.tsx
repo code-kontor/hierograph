@@ -5,13 +5,7 @@ import {
   ChevronsDown,
   Search,
 } from "lucide-react";
-import {
-  type RefObject,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-} from "react";
+import { type RefObject, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -133,6 +127,13 @@ export function CrossReferenceExplorerView({
   const { setCellSelection, setFocusedId, setFocusedName } = useSelection();
   const queryClient = useQueryClient();
 
+  const setCell = (source: string | undefined, target: string | undefined) =>
+    setCellSelection(
+      source !== undefined && target !== undefined
+        ? { sourceNodeId: source, targetNodeId: target }
+        : null,
+    );
+
   const {
     data: rootData,
     isPending: rootPending,
@@ -207,6 +208,7 @@ export function CrossReferenceExplorerView({
     setRightSelectedIds([]);
     setLastActiveSide(null);
     setInspectHintSide(null);
+    setCell(undefined, undefined);
   };
 
   const handleInspect = (side: "left" | "right") => {
@@ -220,6 +222,10 @@ export function CrossReferenceExplorerView({
       setRightSelectedIds([]);
       setLastActiveSide(null);
       setAggregateSide(side);
+      setCell(
+        side === "left" ? rootId : center,
+        side === "left" ? center : rootId,
+      );
     } else {
       setInspectHintSide(side);
     }
@@ -228,22 +234,26 @@ export function CrossReferenceExplorerView({
   const handleLeftSelectedIdsChange = (ids: string[]) => {
     setLeftSelectedIds(ids);
     if (ids.length > 0) {
+      rightTreeRef.current?.clearSelection();
       setLastActiveSide("left");
       setAggregateSide(null);
-      rightTreeRef.current?.clearSelection();
+      setCell(ids[0], rootId);
     } else {
       setLastActiveSide((prev) => (prev === "left" ? null : prev));
+      setCell(undefined, undefined);
     }
   };
 
   const handleRightSelectedIdsChange = (ids: string[]) => {
     setRightSelectedIds(ids);
     if (ids.length > 0) {
+      leftTreeRef.current?.clearSelection();
       setLastActiveSide("right");
       setAggregateSide(null);
-      leftTreeRef.current?.clearSelection();
+      setCell(rootId, ids[0]);
     } else {
       setLastActiveSide((prev) => (prev === "right" ? null : prev));
+      setCell(undefined, undefined);
     }
   };
 
@@ -297,19 +307,17 @@ export function CrossReferenceExplorerView({
     highlightedAncestors[node.id] = node.predecessors.map((p) => p.id);
   }
 
-  // The cell shown in the Dependencies Details pane, derived from the current
-  // selection (dependencies-details-anbindung.md). Only first-selected ids
-  // are used; DependencyDetailsPane takes a single directed pair.
-  //
-  // Exactly one source is ever set — an active partner pivot OR an aggregate
-  // (Inspect) button; each action clears the other (a partner click resets
-  // aggregateSide, an Inspect click clears both partner selections), so the
-  // branch order below is not load-bearing: at most one condition is ever true.
+  // The cell shown in the Dependencies Details pane is set via `setCell` at
+  // the interaction events that change it (dependencies-details-anbindung.md;
+  // handleInspect, handleLeft/RightSelectedIdsChange,
+  // handleCenterSelectedIdsChange above), not derived on every render. Only
+  // first-selected ids are used; DependencyDetailsPane takes a single
+  // directed pair.
   // - Active Used-by partner P (left) → pivot (P, root), "Everything P uses".
   // - Active Uses partner Q (right) → pivot (root, Q), "Everything that uses Q".
   // - aggregateSide "left" → (root, C), "Everything that uses C".
   // - aggregateSide "right" → (C, root), "Everything C uses".
-  // - Otherwise (center-only, nothing, or no aggregate chosen) → empty state.
+  // - Otherwise (center-only, nothing, or no aggregate chosen) → null.
   const rootId = rootNode?.id;
   const center = centerSelectedIds[0];
 
@@ -330,35 +338,6 @@ export function CrossReferenceExplorerView({
         ? rightSelectedIds[0]
         : undefined;
   const partnerLabel = useNodeLabel(partnerId, settings.labelFormat);
-
-  let cellSource: string | undefined;
-  let cellTarget: string | undefined;
-  if (lastActiveSide === "left" && leftSelectedIds[0] !== undefined) {
-    cellSource = leftSelectedIds[0];
-    cellTarget = rootId;
-  } else if (lastActiveSide === "right" && rightSelectedIds[0] !== undefined) {
-    cellSource = rootId;
-    cellTarget = rightSelectedIds[0];
-  } else if (aggregateSide === "left" && center !== undefined) {
-    cellSource = rootId;
-    cellTarget = center;
-  } else if (aggregateSide === "right" && center !== undefined) {
-    cellSource = center;
-    cellTarget = rootId;
-  }
-
-  const notifyCellSelection = useEffectEvent(
-    (source: string | undefined, target: string | undefined) => {
-      if (source !== undefined && target !== undefined) {
-        setCellSelection({ sourceNodeId: source, targetNodeId: target });
-      } else {
-        setCellSelection(null);
-      }
-    },
-  );
-  useEffect(() => {
-    notifyCellSelection(cellSource, cellTarget);
-  }, [cellSource, cellTarget]);
 
   if (rootPending) {
     return (

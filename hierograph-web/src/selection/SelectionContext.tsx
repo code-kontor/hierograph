@@ -31,12 +31,17 @@ type SelectionProviderProps = {
 };
 
 export function SelectionProvider({ children }: SelectionProviderProps) {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [focusedName, setFocusedName] = useState<string | null>(null);
   const [cellSelection, setCellSelection] = useState<CellSelection | null>(
     null,
   );
+
+  const setSelectedIds = (ids: string[]) => {
+    setSelectedIdsState(ids);
+    setCellSelection(null);
+  };
 
   const bridge = useOptionalFocusBridge();
   useEffect(() => {
