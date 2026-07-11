@@ -26,9 +26,10 @@ import { FocusBridgeProvider } from "@/selection/FocusBridge";
 
 // Union of every screen's search params, all optional. The root only coerces
 // types via the shared codec — the cascade/validation rules live in the leaf
-// routes (`/dsm`, `/cross-reference-explorer`). `retainSearchParams(true)`
-// keeps both param sets across route switches so the header `<Link>`s need not
-// carry `search`; `stripSearchParams` drops the `tab` default from the URL.
+// routes (`/dsm`, `/cross-reference-explorer`, `/dependency-diagram`).
+// `retainSearchParams(true)` keeps all param sets across route switches so the
+// header `<Link>`s need not carry `search`; `stripSearchParams` drops the
+// `tab` default from the URL.
 type RootSearch = {
   subject_ids?: string[];
   from_id?: string;
@@ -37,6 +38,8 @@ type RootSearch = {
   center_ids?: string[];
   side?: Side;
   aggregated?: Side;
+  drill_ids?: string[];
+  expanded_ids?: string[];
 };
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
@@ -49,6 +52,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       center_ids: parseIdList(search.center_ids),
       side: parseEnum(search.side, SIDES),
       aggregated: parseEnum(search.aggregated, SIDES),
+      drill_ids: parseIdList(search.drill_ids),
+      expanded_ids: parseIdList(search.expanded_ids),
     }),
     search: {
       middlewares: [

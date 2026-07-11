@@ -14,6 +14,7 @@ import {
   stringifyIdList,
   TABS,
   validateCrossReferenceSearch,
+  validateDependencyDiagramSearch,
   validateDsmSearch,
 } from "./searchCodec";
 
@@ -193,6 +194,89 @@ describe("validateCrossReferenceSearch cascade", () => {
         aggregated: "left",
       }),
     ).toEqual({ center_ids: ["42"], side: undefined, aggregated: undefined });
+  });
+});
+
+describe("validateDependencyDiagramSearch cascade", () => {
+  it("keeps drill_ids/expanded_ids with a subject selection", () => {
+    expect(
+      validateDependencyDiagramSearch({
+        subject_ids: ["42"],
+        drill_ids: ["1", "2"],
+        expanded_ids: ["3"],
+      }),
+    ).toEqual({
+      subject_ids: ["42"],
+      drill_ids: ["1", "2"],
+      expanded_ids: ["3"],
+    });
+  });
+
+  it("drops drill_ids/expanded_ids without subject_ids", () => {
+    expect(
+      validateDependencyDiagramSearch({
+        drill_ids: ["1"],
+        expanded_ids: ["3"],
+      }),
+    ).toEqual({
+      subject_ids: undefined,
+      drill_ids: undefined,
+      expanded_ids: undefined,
+    });
+  });
+
+  it("drops drill_ids/expanded_ids when subject_ids is empty", () => {
+    expect(
+      validateDependencyDiagramSearch({
+        subject_ids: "",
+        drill_ids: ["1"],
+        expanded_ids: ["3"],
+      }),
+    ).toEqual({
+      subject_ids: undefined,
+      drill_ids: undefined,
+      expanded_ids: undefined,
+    });
+  });
+
+  it("parses comma lists and a lone numeric id", () => {
+    expect(
+      validateDependencyDiagramSearch({
+        subject_ids: "42,43",
+        drill_ids: 1,
+      }),
+    ).toEqual({
+      subject_ids: ["42", "43"],
+      drill_ids: ["1"],
+      expanded_ids: undefined,
+    });
+  });
+
+  it("drops blank segments", () => {
+    expect(
+      validateDependencyDiagramSearch({
+        subject_ids: ["42", " "],
+        drill_ids: [" 1 ", ""],
+      }),
+    ).toEqual({
+      subject_ids: ["42"],
+      drill_ids: ["1"],
+      expanded_ids: undefined,
+    });
+  });
+
+  it("keeps stale/unknown ids without checking existence", () => {
+    expect(
+      validateDependencyDiagramSearch({
+        subject_ids: ["42"],
+        drill_ids: ["does-not-exist"],
+        expanded_ids: ["also-stale"],
+      }),
+    ).toEqual({
+      subject_ids: ["42"],
+      drill_ids: ["does-not-exist"],
+      expanded_ids: ["also-stale"],
+    });
   });
 });
 

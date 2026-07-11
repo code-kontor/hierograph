@@ -20,7 +20,12 @@ const stringifySearch = stringifySearchWith(JSON.stringify);
 // Keys whose values are comma-separated id lists: `string[]` to consumers,
 // `"a,b"` in the URL. Consumed by the router parse/stringify wrappers (added in
 // a later step) to intercept exactly these keys.
-export const ID_LIST_KEYS = ["subject_ids", "center_ids"] as const;
+export const ID_LIST_KEYS = [
+  "subject_ids",
+  "center_ids",
+  "drill_ids",
+  "expanded_ids",
+] as const;
 
 // Inspector tab values for `/dsm`.
 export const TABS = ["usages", "paths"] as const;
@@ -117,6 +122,31 @@ export function validateCrossReferenceSearch(
     ? parseEnum(search.aggregated, SIDES)
     : undefined;
   return { center_ids, side, aggregated };
+}
+
+// Search shape for `/dependency-diagram`. `label` is deliberately not part of
+// this shape (unlike the task-shape sketch): the label format (#0130) stays in
+// `localStorage` (`LABEL_FORMAT_STORAGE_KEY`), matching the DSM, which is the
+// task's own analogy and keeps its label format out of `DsmSearch` too — URL
+// plus localStorage for the same value would be exactly the duplicated,
+// drifting state the task explicitly rules out.
+export type DependencyDiagramSearch = {
+  subject_ids?: string[];
+  drill_ids?: string[];
+  expanded_ids?: string[];
+};
+
+export function validateDependencyDiagramSearch(
+  search: Record<string, unknown>,
+): DependencyDiagramSearch {
+  const subject_ids = parseIdList(search.subject_ids);
+  const hasSubjects = !!subject_ids?.length;
+  // Drill path and expand state only make sense once a root selection exists.
+  const drill_ids = hasSubjects ? parseIdList(search.drill_ids) : undefined;
+  const expanded_ids = hasSubjects
+    ? parseIdList(search.expanded_ids)
+    : undefined;
+  return { subject_ids, drill_ids, expanded_ids };
 }
 
 // Router-level `parseSearch`: delegates the whole query string to the TanStack

@@ -185,7 +185,7 @@ export default defineConfig([
               from: { type: "dependency-diagram" },
               allow: {
                 to: [
-                  to("selection", ["SelectionContext.tsx"]),
+                  to("selection", ["SelectionContext.tsx", "useFocusState.ts"]),
                   to("tree"),
                   to("graph"),
                   to("dependency-details", ["DependencyDetailsPane.tsx"]),
