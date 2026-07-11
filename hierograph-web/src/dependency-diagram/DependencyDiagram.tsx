@@ -139,7 +139,7 @@ function MatrixView({ matrix }: MatrixViewProps) {
 
   return (
     <Pane title="Dependency Diagram" bodyClassName="p-0 overflow-hidden">
-      <div className="h-full overflow-auto p-3">
+      <div className="h-full w-full overflow-hidden">
         <DependencyDiagramCanvas rootNode={rootNode} />
       </div>
     </Pane>
