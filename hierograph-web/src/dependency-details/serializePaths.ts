@@ -1,14 +1,14 @@
-export type TraceSide = "source" | "target";
-export type TraceViewMode = "in-context" | "hits-only";
+export type PathsSide = "source" | "target";
+export type PathsViewMode = "in-context" | "hits-only";
 
-export type SerializeTraceInput = {
+export type SerializePathsInput = {
   from: { id: string; label: string };
   to: { id: string; label: string };
   sourceRows: { id: string; text: string; type: string }[];
   targetRows: { id: string; text: string; type: string }[];
-  driver: { side: TraceSide; label: string; ids: string[] } | null;
+  driver: { side: PathsSide; label: string; ids: string[] } | null;
   markedCounterpartIds: string[];
-  viewMode: TraceViewMode;
+  viewMode: PathsViewMode;
   statusText: string;
 };
 
@@ -22,7 +22,7 @@ function buildRowsSection(title: string, rows: { text: string }[]): string[] {
   ];
 }
 
-function buildDriverLine(driver: SerializeTraceInput["driver"]): string {
+function buildDriverLine(driver: SerializePathsInput["driver"]): string {
   return driver ? `Driver: ${driver.label} (${driver.side})` : "Driver: (none)";
 }
 
@@ -36,7 +36,7 @@ function buildCounterpartsSection(markedCounterpartIds: string[]): string[] {
   ];
 }
 
-export function serializeTraceForClipboard(input: SerializeTraceInput): string {
+export function serializePathsForClipboard(input: SerializePathsInput): string {
   const {
     from,
     to,
