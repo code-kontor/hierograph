@@ -10,7 +10,7 @@ import {
   type QueryLogEntry,
   subscribe,
 } from "@/graphql/devQueryLog";
-import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
+import { buildGraphiqlDeepLink } from "@/graphql/graphiqlDeepLink";
 
 const TOGGLE_BUTTON_CLASSNAME =
   "text-fg-subtle hover:text-fg flex w-fit items-center gap-1 font-mono text-[11px]";

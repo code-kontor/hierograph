@@ -26,7 +26,7 @@ import {
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
-import { buildGraphiqlDeepLink } from "@/graphql/queryTriggerLabels";
+import { buildGraphiqlDeepLink } from "@/graphql/graphiqlDeepLink";
 import { useFocusBridge } from "@/selection/FocusBridge";
 
 import { CopyButton } from "./CopyButton";
