@@ -4,7 +4,7 @@ import { page, userEvent } from "vitest/browser";
 
 import { worker } from "@/testing/msw/worker";
 import { resolveNodeId } from "@/testing/nodeLookup";
-import { renderWithQueryClient } from "@/testing/render";
+import { renderWithRouter } from "@/testing/render";
 
 import { CrossReferenceExplorerPage } from "./CrossReferenceExplorerPage";
 
@@ -218,10 +218,11 @@ beforeEach(() => {
 });
 
 it("shows no Inspect button — the toolbar only carries tree settings", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   expect(page.getByRole("button", { name: "Inspect" }).elements()).toHaveLength(
@@ -230,10 +231,11 @@ it("shows no Inspect button — the toolbar only carries tree settings", async (
 });
 
 it("center click alone keeps the Dependencies Details pane empty", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -249,10 +251,11 @@ it("center click alone keeps the Dependencies Details pane empty", async () => {
 });
 
 it("the Used by column's inspect button shows Everything that uses <center>", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -286,10 +289,11 @@ it("the Used by column's inspect button shows Everything that uses <center>", as
 });
 
 it("the Uses column's inspect button shows Everything <center> uses — the #0092 (C, root) case", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -314,10 +318,11 @@ it("the Uses column's inspect button shows Everything <center> uses — the #009
 });
 
 it("clicking a Used-by partner pivots to Everything <partner> uses", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -342,10 +347,11 @@ it("clicking a Used-by partner pivots to Everything <partner> uses", async () =>
 });
 
 it("clicking a Uses partner pivots to Everything that uses <partner>", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -376,10 +382,11 @@ it("clicking a Uses partner pivots to Everything that uses <partner>", async () 
 });
 
 it("a partner click resets an active aggregate button (partner pivot takes precedence)", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -414,10 +421,11 @@ it("a partner click resets an active aggregate button (partner pivot takes prece
 });
 
 it("Inspect wins over an active partner pivot (aggregate takes over)", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");
@@ -463,10 +471,11 @@ it("Inspect wins over an active partner pivot (aggregate takes over)", async () 
 });
 
 it("the active Inspect button reflects the pinned aggregate (aria-pressed)", async () => {
-  await renderWithQueryClient(
+  await renderWithRouter(
     <div style={PAGE_WRAPPER_STYLE}>
       <CrossReferenceExplorerPage />
     </div>,
+    "/cross-reference-explorer",
   );
 
   const centerTree = page.getByLabelText("XrefCenter");

@@ -1,11 +1,18 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowRightFromLine,
   ArrowRightToLine,
   ChevronsDown,
   Search,
 } from "lucide-react";
-import { type RefObject, useRef, useState } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -141,19 +148,42 @@ export function CrossReferenceExplorerView({
   } = useQuery(rootNodeQueryOptions());
   const rootNode = rootData?.hierarchicalGraph?.rootNode ?? null;
 
-  const [centerSelectedIds, setCenterSelectedIds] = useState<string[]>([]);
+  // URL-backed view state (source of truth): the center selection and the
+  // pinned aggregate direction live in the search params. Writes go through
+  // `navigate`; no mirror `useState`, no URL→state→navigate effect.
+  const search = useSearch({ from: "/cross-reference-explorer" });
+  const navigate = useNavigate({ from: "/cross-reference-explorer" });
+  const centerSelectedIds = search.center_ids ?? [];
+  // Which column's "Everything Center uses/is used by" aggregate is pinned to
+  // the Dependencies Details pane (see docs/dependency-details-wiring.md —
+  // Aggregate pinning). Derived from the `aggregated` param (used-by↔left,
+  // uses↔right); dropped from the URL whenever the center changes or a partner
+  // takes over (Precedence & reset).
+  const aggregateSide: "left" | "right" | null = search.aggregated
+    ? search.aggregated === "used-by"
+      ? "left"
+      : "right"
+    : null;
+
+  // Partner-column selection stays deliberately local (never serialized): the
+  // partner nodes have no URL representation, so a reload has nothing to
+  // re-select (see task #0123 — "bewusst nicht in die URL").
   const [leftSelectedIds, setLeftSelectedIds] = useState<string[]>([]);
   const [rightSelectedIds, setRightSelectedIds] = useState<string[]>([]);
   const [lastActiveSide, setLastActiveSide] = useState<"left" | "right" | null>(
     null,
   );
-  // Which column's "Everything Center uses/is used by" aggregate is pinned to
-  // the Dependencies Details pane (see docs/dependency-details-wiring.md —
-  // Aggregate pinning). Reset whenever the center selection changes or a
-  // partner takes over (Precedence & reset).
-  const [aggregateSide, setAggregateSide] = useState<"left" | "right" | null>(
-    null,
-  );
+
+  // Drop the pinned aggregate (and active side) from the URL — used when a
+  // partner selection takes over. Replace, not push: a partner click is a
+  // transient, non-serialized interaction, so it must not add a history entry.
+  const clearAggregateFromUrl = () => {
+    if (search.side === undefined && search.aggregated === undefined) return;
+    navigate({
+      search: (prev) => ({ ...prev, side: undefined, aggregated: undefined }),
+      replace: true,
+    });
+  };
   // Which column shows the "select exactly one center node" inline hint
   // after an Inspect click while the center selection has more than one
   // node. Reset whenever the center selection changes.
@@ -200,11 +230,18 @@ export function CrossReferenceExplorerView({
   };
 
   const handleCenterSelectedIdsChange = (ids: string[]) => {
-    setCenterSelectedIds(ids);
-    setAggregateSide(null);
+    // Center change pushes a history entry and drops side/aggregated (cascade).
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        center_ids: ids.length > 0 ? ids : undefined,
+        side: undefined,
+        aggregated: undefined,
+      }),
+    });
     // The Left/Right trees are remounted via key on a center change and no
-    // longer emit an initial onSelectedIdsChange([]), so their selections and
-    // the active side are reset explicitly here.
+    // longer emit an initial onSelectedIdsChange([]), so their (local, non-URL)
+    // selections and the active side are reset explicitly here.
     setLeftSelectedIds([]);
     setRightSelectedIds([]);
     setLastActiveSide(null);
@@ -222,7 +259,13 @@ export function CrossReferenceExplorerView({
       setLeftSelectedIds([]);
       setRightSelectedIds([]);
       setLastActiveSide(null);
-      setAggregateSide(side);
+      // Pin the aggregate direction in the URL (replace: a view toggle, not a
+      // navigation step). used-by↔left, uses↔right.
+      const dir = side === "left" ? "used-by" : "uses";
+      navigate({
+        search: (prev) => ({ ...prev, side: dir, aggregated: dir }),
+        replace: true,
+      });
       setCell(
         side === "left" ? rootId : center,
         side === "left" ? center : rootId,
@@ -237,7 +280,7 @@ export function CrossReferenceExplorerView({
     if (ids.length > 0) {
       rightTreeRef.current?.clearSelection();
       setLastActiveSide("left");
-      setAggregateSide(null);
+      clearAggregateFromUrl();
       setCell(ids[0], rootId);
     } else {
       setLastActiveSide((prev) => (prev === "left" ? null : prev));
@@ -250,7 +293,7 @@ export function CrossReferenceExplorerView({
     if (ids.length > 0) {
       leftTreeRef.current?.clearSelection();
       setLastActiveSide("right");
-      setAggregateSide(null);
+      clearAggregateFromUrl();
       setCell(rootId, ids[0]);
     } else {
       setLastActiveSide((prev) => (prev === "right" ? null : prev));
@@ -265,6 +308,39 @@ export function CrossReferenceExplorerView({
     setFocusedId(id);
     setFocusedName(name);
   };
+
+  // Reveal the URL center selection in the center tree (deep-link reload / Back
+  // button): expand each center's ancestor folders and scroll it into view.
+  // Never navigates — the single allowed URL-reading effect (no sync loop),
+  // analogous to the DSM tree reveal. Gated on `rootNode` so it fires only once
+  // the center tree is mounted (the ref would be null while the root query is
+  // still pending, which is why this lives in the view, not the page).
+  const centerRevealKey = centerSelectedIds.join(",");
+  const revealCenters = useEffectEvent((ids: string[]) => {
+    queryClient
+      .ensureQueryData(
+        crossReferenceExplorerCenterPredecessorsQueryOptions(ids),
+      )
+      .then((data) => {
+        const nodes = data.hierarchicalGraph?.nodes.nodes ?? [];
+        const ancestorsById = new Map(
+          nodes.map((node) => [node.id, node.predecessors.map((p) => p.id)]),
+        );
+        for (const id of ids) {
+          centerTreeRef.current?.revealNode(id, ancestorsById.get(id) ?? []);
+        }
+      })
+      .catch(console.error);
+  });
+  const lastRevealedCenterKeyRef = useRef<string | null>(null);
+  const rootReady = rootNode !== null;
+  useEffect(() => {
+    if (!rootReady) return;
+    if (lastRevealedCenterKeyRef.current === centerRevealKey) return;
+    lastRevealedCenterKeyRef.current = centerRevealKey;
+    if (centerRevealKey.length === 0) return;
+    revealCenters(centerRevealKey.split(","));
+  }, [centerRevealKey, rootReady]);
 
   // Related queries — always called, gated by enabled. The unbounded fields
   // return the full related set over the graph, so no candidate set is needed.

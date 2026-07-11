@@ -3,6 +3,8 @@ import {
   createRootRouteWithContext,
   Link,
   Outlet,
+  retainSearchParams,
+  stripSearchParams,
   useLocation,
 } from "@tanstack/react-router";
 import { PanelRight } from "lucide-react";
@@ -11,10 +13,49 @@ import { twMerge } from "tailwind-merge";
 import lupeUrl from "@/assets/hierograph-lupe.svg";
 import { DevPanel } from "@/dev-panel/DevPanel";
 import { DevPanelProvider, useDevPanel } from "@/dev-panel/DevPanelContext";
+import {
+  parseEnum,
+  parseIdList,
+  parseSingleId,
+  type Side,
+  SIDES,
+  type Tab,
+  TABS,
+} from "@/routing/searchCodec";
 import { FocusBridgeProvider } from "@/selection/FocusBridge";
+
+// Union of every screen's search params, all optional. The root only coerces
+// types via the shared codec — the cascade/validation rules live in the leaf
+// routes (`/dsm`, `/cross-reference-explorer`). `retainSearchParams(true)`
+// keeps both param sets across route switches so the header `<Link>`s need not
+// carry `search`; `stripSearchParams` drops the `tab` default from the URL.
+type RootSearch = {
+  subject_ids?: string[];
+  from_id?: string;
+  to_id?: string;
+  tab?: Tab;
+  center_ids?: string[];
+  side?: Side;
+  aggregated?: Side;
+};
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
+    validateSearch: (search: Record<string, unknown>): RootSearch => ({
+      subject_ids: parseIdList(search.subject_ids),
+      from_id: parseSingleId(search.from_id),
+      to_id: parseSingleId(search.to_id),
+      tab: parseEnum(search.tab, TABS),
+      center_ids: parseIdList(search.center_ids),
+      side: parseEnum(search.side, SIDES),
+      aggregated: parseEnum(search.aggregated, SIDES),
+    }),
+    search: {
+      middlewares: [
+        retainSearchParams(true),
+        stripSearchParams({ tab: "usages" }),
+      ],
+    },
     component: RootLayout,
   },
 );

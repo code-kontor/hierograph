@@ -14,6 +14,7 @@ import tseslint from "typescript-eslint";
 // Platform layers (design-system, graphql, testing) expose all files by
 // convention and are granted as whole verticals, not routed through PUBLIC.
 const PUBLIC = {
+  routing: ["searchCodec.ts"],
   dsm: ["DsmPage.tsx"],
   "cross-reference-explorer": ["CrossReferenceExplorerPage.tsx"],
   "dependency-diagram": ["DependencyDiagramPage.tsx"],
@@ -22,7 +23,7 @@ const PUBLIC = {
     "DependencyPartnersPanel.tsx",
   ],
   "dev-panel": ["DevPanel.tsx", "DevPanelContext.tsx"],
-  selection: ["SelectionContext.tsx", "FocusBridge.tsx"],
+  selection: ["SelectionContext.tsx", "FocusBridge.tsx", "useFocusState.ts"],
   tree: ["AsyncTree.tsx", "TreeSettingsMenu.tsx", "useTreeSettings.ts"],
   graph: ["queries.ts", "nodeIcon.ts", "NodeInfoTooltip.tsx", "nodeLabel.ts"],
 };
@@ -102,6 +103,7 @@ export default defineConfig([
         },
         { type: "testing", pattern: "src/testing" },
         { type: "routes", pattern: "src/routes" },
+        { type: "routing", pattern: "src/routing" },
         { type: "dsm", pattern: "src/dsm" },
         {
           type: "cross-reference-explorer",
@@ -131,19 +133,22 @@ export default defineConfig([
           message:
             "${file.type} must not import ${dependency.type} (dependency rules: docs/architecture.md)",
           rules: [
-            // app → app (main.tsx imports routeTree.gen.ts), routes, graphql, design-system
+            // app → app (main.tsx imports routeTree.gen.ts), routes, routing
+            // (custom search codec), graphql, design-system
             {
               from: { type: "app" },
               allow: {
                 to: [
                   { type: "app" },
                   { type: "routes" },
+                  to("routing"),
                   { type: "graphql" },
                   { type: "design-system" },
                 ],
               },
             },
-            // routes → verticals via public files, design-system
+            // routes → verticals via public files, routing (validateSearch
+            // codec helpers), design-system
             {
               from: { type: "routes" },
               allow: {
@@ -153,6 +158,7 @@ export default defineConfig([
                   to("dependency-diagram"),
                   to("selection"),
                   to("dev-panel"),
+                  to("routing"),
                   { type: "design-system" },
                 ],
               },
@@ -165,7 +171,7 @@ export default defineConfig([
               allow: {
                 to: [
                   to("dependency-details"),
-                  to("selection", ["SelectionContext.tsx"]),
+                  to("selection", ["SelectionContext.tsx", "useFocusState.ts"]),
                   to("tree"),
                   to("graph"),
                   { type: "design-system" },

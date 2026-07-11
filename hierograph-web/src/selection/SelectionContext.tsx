@@ -1,19 +1,13 @@
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 
-import { useOptionalFocusBridge } from "./FocusBridge";
+import { useFocusState } from "./useFocusState";
 
 export type CellSelection = {
   sourceNodeId: string;
   targetNodeId: string;
 };
 
-type SelectionContextValue = {
+export type SelectionContextValue = {
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
   focusedId: string | null;
@@ -24,7 +18,12 @@ type SelectionContextValue = {
   setCellSelection: (sel: CellSelection | null) => void;
 };
 
-const SelectionContext = createContext<SelectionContextValue | null>(null);
+// Exported so a route-specific provider (e.g. the DSM's URL-backed
+// `DsmSelectionProvider`) can supply the same context value under the same
+// `useSelection()` API without re-declaring the context.
+export const SelectionContext = createContext<SelectionContextValue | null>(
+  null,
+);
 
 type SelectionProviderProps = {
   children: ReactNode;
@@ -32,8 +31,6 @@ type SelectionProviderProps = {
 
 export function SelectionProvider({ children }: SelectionProviderProps) {
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [focusedName, setFocusedName] = useState<string | null>(null);
   const [cellSelection, setCellSelection] = useState<CellSelection | null>(
     null,
   );
@@ -43,24 +40,16 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
     setCellSelection(null);
   };
 
-  const bridge = useOptionalFocusBridge();
-  useEffect(() => {
-    if (!bridge) return;
-    bridge.setFocus({ focusedId, focusedName });
-    return () => bridge.setFocus({ focusedId: null, focusedName: null });
-  }, [bridge, focusedId, focusedName]);
+  const focus = useFocusState();
 
   return (
     <SelectionContext
       value={{
         selectedIds,
         setSelectedIds,
-        focusedId,
-        setFocusedId,
-        focusedName,
-        setFocusedName,
         cellSelection,
         setCellSelection,
+        ...focus,
       }}
     >
       {children}
