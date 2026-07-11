@@ -37,8 +37,6 @@ export type AsyncTreeProps = {
     name: string | null,
     type: string | null,
   ) => void;
-  onHoveredIdChange?: (id: string | undefined) => void;
-  onPromoteToSubject?: (nodeData: TreeNodeData) => void;
   highlightedIds?: string[];
   // Ancestor chain per highlighted hit (hit id → ancestor ids, nearest first).
   // Used only to count hidden hits per collapsed ancestor and to power
@@ -108,8 +106,6 @@ export function AsyncTree({
   loadChildren,
   onSelectedIdsChange,
   onFocusedIdChange,
-  onHoveredIdChange,
-  onPromoteToSubject,
   highlightedIds,
   highlightedAncestors,
   onHiddenHighlightCountChange,
@@ -567,8 +563,6 @@ export function AsyncTree({
               expandWithAutoExpand(item).catch(console.error);
             }
           }}
-          onHoveredIdChange={onHoveredIdChange}
-          onPromoteToSubject={onPromoteToSubject}
         />
       ))}
     </div>

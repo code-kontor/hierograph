@@ -98,35 +98,4 @@ export const handlers = [
       ),
     }),
   ),
-
-  // Default empty responses — tests that need real data override via worker.use()
-  graphql.query("CrossReferencesNodePredecessors", ({ variables }) =>
-    HttpResponse.json({
-      data: {
-        hierarchicalGraph: {
-          node: { id: (variables as { id: string }).id, predecessors: [] },
-        },
-      },
-    }),
-  ),
-
-  graphql.query("CrossReferencesUsedBy", () =>
-    HttpResponse.json({
-      data: {
-        hierarchicalGraph: {
-          node: { childrenFilteredByReferencedNodes: { nodes: [] } },
-        },
-      },
-    }),
-  ),
-
-  graphql.query("CrossReferencesUses", () =>
-    HttpResponse.json({
-      data: {
-        hierarchicalGraph: {
-          node: { childrenFilteredByReferencingNodes: { nodes: [] } },
-        },
-      },
-    }),
-  ),
 ];
