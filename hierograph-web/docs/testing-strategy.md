@@ -140,3 +140,14 @@ Both the axis convention and the flip are documented in `dsmModel.test.ts`.
 - **optimizeDeps**: `@headless-tree/react` and several other packages must be
   listed in the browser project's `optimizeDeps.include` (in `vite.config.ts`)
   to avoid duplicate React instances in the Vite dev-server bundle.
+- **Browser tests run sequentially** (`fileParallelism: false` on the browser
+  project in `vite.config.ts`). Vitest's default file-parallelism launches one
+  Chromium instance per test file simultaneously; on memory-constrained hosts
+  (containers, CI, the sandbox with ~2GB free) that OOM-crashes mid-run with
+  `Browser connection was closed` / `[birpc] rpc is closed` on a random file —
+  not a test failure, a resource limit. Sequential runs are deterministic and,
+  for this small suite, only ~20s. The provider also passes
+  `--disable-dev-shm-usage` (routes Chromium's shared memory off the 64MB
+  container `/dev/shm` to `/tmp`); note this flag belongs on the Playwright
+  **provider** (`playwright({ launchOptions })`), not on a browser instance,
+  where Vitest silently ignores it.

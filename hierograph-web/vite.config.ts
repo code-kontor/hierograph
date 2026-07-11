@@ -75,6 +75,13 @@ export default defineConfig(({ mode }) => {
             name: "browser",
             include: ["src/**/*.browsertest.{ts,tsx}"],
             setupFiles: ["./src/testing/setup.ts"],
+            // Run browser test files sequentially. In parallel, Vitest spins up
+            // one Chromium instance per file at once; on memory-constrained hosts
+            // (containers, CI, the sandbox — ~2GB free) that OOM-crashes mid-run
+            // with "Browser connection was closed" / "[birpc] rpc is closed" on a
+            // random file. The suite is small (~20s sequential), so the lost
+            // parallelism costs little and buys a deterministic green run.
+            fileParallelism: false,
             browser: {
               enabled: true,
               headless,
@@ -97,19 +104,16 @@ export default defineConfig(({ mode }) => {
                     `${root}/${testFileDirectory}/__screenshots__/${testFileName}/${arg}-${browserName}-${platform}${ext}`,
                 },
               },
-              provider: playwright(),
               // https://vitest.dev/guide/browser/playwright
               // Containers (Docker default) cap /dev/shm at 64MB, which
               // Chromium exhausts under parallel test files and crashes with
-              // "Browser connection was closed" — back its shared memory with
-              // /tmp instead. No effect outside Chromium/Linux.
-              instances: browsers.map((browser) => ({
-                browser,
-                launch:
-                  browser === "chromium"
-                    ? { args: ["--disable-dev-shm-usage"] }
-                    : undefined,
-              })),
+              // "Browser connection was closed" — route its shared memory to
+              // /tmp instead. Launch options belong on the provider, not on the
+              // instance; chromium is the only configured browser.
+              provider: playwright({
+                launchOptions: { args: ["--disable-dev-shm-usage"] },
+              }),
+              instances: browsers.map((browser) => ({ browser })),
             },
           },
         },
