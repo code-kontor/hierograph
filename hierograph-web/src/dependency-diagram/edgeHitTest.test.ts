@@ -157,6 +157,41 @@ describe("hitTestEdge", () => {
     expect(hitTestEdge({ id: "root" }, 0, 0, 5)).toBeNull();
   });
 
+  it("hits a nested edge inside a translated container at world coordinates", () => {
+    // Container at world (100, 100). Its internal edge section is
+    // container-relative: (0,0) -> (100,0), i.e. world (100,100) -> (200,100).
+    const innerEdge: ElkExtendedEdge = {
+      id: "container:0-1",
+      sources: ["c1"],
+      targets: ["c2"],
+      sections: [
+        {
+          id: "s1",
+          startPoint: { x: 0, y: 0 },
+          endPoint: { x: 100, y: 0 },
+        },
+      ],
+    };
+    const container: ElkNode = {
+      id: "container",
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+      children: [
+        { id: "c1", x: 0, y: 0, width: 40, height: 20 },
+        { id: "c2", x: 100, y: 0, width: 40, height: 20 },
+      ],
+      edges: [innerEdge],
+    };
+    const root = makeRoot([container], []);
+
+    // World (150, 102): near the shifted section -> hit.
+    expect(hitTestEdge(root, 150, 102, 5)).toBe(innerEdge);
+    // Same point without the container offset (150, 2): far from world section.
+    expect(hitTestEdge(root, 150, 2, 5)).toBeNull();
+  });
+
   it("skips an edge with missing geometry instead of crashing, other edges still hit", () => {
     const brokenEdge: ElkExtendedEdge = {
       id: "broken",

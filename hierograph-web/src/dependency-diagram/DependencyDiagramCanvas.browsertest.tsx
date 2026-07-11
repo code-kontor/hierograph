@@ -32,6 +32,36 @@ const NODE_ROOT_NODE: ElkNode = {
   edges: [],
 };
 
+// A container filling the root, with an inner child filling the container, so a
+// center click descends to the innermost node (innermost hit wins).
+const NESTED_ROOT_NODE: ElkNode = {
+  id: "root",
+  width: 400,
+  height: 300,
+  children: [
+    {
+      id: "container",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 300,
+      labels: [{ text: "pkg.outer" }],
+      children: [
+        {
+          id: "inner",
+          x: 0,
+          y: 0,
+          width: 400,
+          height: 300,
+          labels: [{ text: "pkg.inner" }],
+        },
+      ],
+      edges: [],
+    },
+  ],
+  edges: [],
+};
+
 describe("DependencyDiagramCanvas", () => {
   it("renders and sizes the canvas to its container without error", async () => {
     const screen = await render(
@@ -71,14 +101,16 @@ describe("DependencyDiagramCanvas", () => {
     );
   });
 
-  it("activates the hit node on a click without movement", async () => {
+  it("toggles expand on the hit node on a click without movement", async () => {
     const onNodeActivate = vi.fn();
+    const onNodeToggleExpand = vi.fn();
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
         <DependencyDiagramCanvas
           rootNode={NODE_ROOT_NODE}
           labelFormat="full"
           onNodeActivate={onNodeActivate}
+          onNodeToggleExpand={onNodeToggleExpand}
         />
       </div>,
     );
@@ -108,19 +140,98 @@ describe("DependencyDiagramCanvas", () => {
     );
 
     await expect
-      .poll(() => onNodeActivate.mock.calls.length)
+      .poll(() => onNodeToggleExpand.mock.calls.length)
       .toBeGreaterThan(0);
-    expect(onNodeActivate).toHaveBeenCalledWith("n1", "pkg.one");
+    expect(onNodeToggleExpand).toHaveBeenCalledWith("n1");
+    // A single click never drills.
+    expect(onNodeActivate).not.toHaveBeenCalled();
   });
 
-  it("does not activate on a drag past the click threshold", async () => {
+  it("drills the hit node on a double click", async () => {
     const onNodeActivate = vi.fn();
+    const onNodeToggleExpand = vi.fn();
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
         <DependencyDiagramCanvas
           rootNode={NODE_ROOT_NODE}
           labelFormat="full"
           onNodeActivate={onNodeActivate}
+          onNodeToggleExpand={onNodeToggleExpand}
+        />
+      </div>,
+    );
+
+    const canvas = screen.getByTestId("dependency-diagram-canvas");
+    await expect.poll(() => canvas.element().clientWidth).toBeGreaterThan(0);
+
+    const rect = canvas.element().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+
+    canvas.element().dispatchEvent(
+      new MouseEvent("dblclick", {
+        clientX,
+        clientY,
+        bubbles: true,
+      }),
+    );
+
+    await expect
+      .poll(() => onNodeActivate.mock.calls.length)
+      .toBeGreaterThan(0);
+    expect(onNodeActivate).toHaveBeenCalledWith("n1", "pkg.one");
+  });
+
+  it("toggles expand on the innermost nested node (innermost wins)", async () => {
+    const onNodeToggleExpand = vi.fn();
+    const screen = await render(
+      <div style={{ width: 400, height: 300 }}>
+        <DependencyDiagramCanvas
+          rootNode={NESTED_ROOT_NODE}
+          labelFormat="full"
+          onNodeToggleExpand={onNodeToggleExpand}
+        />
+      </div>,
+    );
+
+    const canvas = screen.getByTestId("dependency-diagram-canvas");
+    await expect.poll(() => canvas.element().clientWidth).toBeGreaterThan(0);
+
+    const rect = canvas.element().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointerdown", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointerup", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+
+    await expect
+      .poll(() => onNodeToggleExpand.mock.calls.length)
+      .toBeGreaterThan(0);
+    expect(onNodeToggleExpand).toHaveBeenCalledWith("inner");
+  });
+
+  it("does not toggle expand on a drag past the click threshold", async () => {
+    const onNodeToggleExpand = vi.fn();
+    const screen = await render(
+      <div style={{ width: 400, height: 300 }}>
+        <DependencyDiagramCanvas
+          rootNode={NODE_ROOT_NODE}
+          labelFormat="full"
+          onNodeToggleExpand={onNodeToggleExpand}
         />
       </div>,
     );
@@ -157,7 +268,7 @@ describe("DependencyDiagramCanvas", () => {
       }),
     );
 
-    expect(onNodeActivate).not.toHaveBeenCalled();
+    expect(onNodeToggleExpand).not.toHaveBeenCalled();
   });
 
   it("shows a pointer cursor while hovering a node", async () => {

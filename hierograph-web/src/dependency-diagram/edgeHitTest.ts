@@ -2,6 +2,49 @@ import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk.bundled.js";
 
 type Point = { x: number; y: number };
 
+// A node's bounding box in accumulated world coordinates (used for the
+// no-sections fallback polyline).
+type WorldNode = { x: number; y: number; width: number; height: number };
+
+// An edge together with the world origin of the container that owns it. ELK
+// gives edge section coordinates relative to that container, so its sections
+// must be shifted by this offset before distance-testing against a world point.
+type EdgeAtOffset = { edge: ElkExtendedEdge; offsetX: number; offsetY: number };
+
+// Walks the compound tree, accumulating each container's world origin. Fills
+// nodeMap with every node's world-space box (for the fallback) and collects
+// every edge tagged with the world origin of its owning container. The root's
+// own edges use offset (0, 0).
+function collectEdges(
+  node: ElkNode,
+  offsetX: number,
+  offsetY: number,
+  nodeMap: Map<string, WorldNode>,
+  edges: EdgeAtOffset[],
+): void {
+  for (const child of node.children ?? []) {
+    if (
+      child.x !== undefined &&
+      child.y !== undefined &&
+      child.width !== undefined &&
+      child.height !== undefined
+    ) {
+      nodeMap.set(child.id, {
+        x: offsetX + child.x,
+        y: offsetY + child.y,
+        width: child.width,
+        height: child.height,
+      });
+    }
+    if (child.x !== undefined && child.y !== undefined) {
+      collectEdges(child, offsetX + child.x, offsetY + child.y, nodeMap, edges);
+    }
+  }
+  for (const edge of node.edges ?? []) {
+    edges.push({ edge, offsetX, offsetY });
+  }
+}
+
 function distancePointToSegment(
   px: number,
   py: number,
@@ -24,16 +67,25 @@ function distancePointToSegment(
   return Math.hypot(px - closestX, py - closestY);
 }
 
-function edgePolylines(edge: ElkExtendedEdge, nodeMap: Map<string, ElkNode>) {
+// Returns the edge's polylines in world coordinates: section points are shifted
+// by the owning container's world origin; the fallback (no sections) uses the
+// source/target boxes already stored in world coordinates in nodeMap.
+function edgePolylines(
+  edge: ElkExtendedEdge,
+  nodeMap: Map<string, WorldNode>,
+  offsetX: number,
+  offsetY: number,
+): Point[][] {
+  const shift = (p: Point): Point => ({ x: p.x + offsetX, y: p.y + offsetY });
   const polylines: Point[][] = [];
   for (const section of edge.sections ?? []) {
     if (!section.startPoint || !section.endPoint) {
       continue;
     }
     polylines.push([
-      section.startPoint,
-      ...(section.bendPoints ?? []),
-      section.endPoint,
+      shift(section.startPoint),
+      ...(section.bendPoints ?? []).map(shift),
+      shift(section.endPoint),
     ]);
   }
   if (polylines.length > 0) {
@@ -42,16 +94,7 @@ function edgePolylines(edge: ElkExtendedEdge, nodeMap: Map<string, ElkNode>) {
 
   const sourceNode = nodeMap.get(edge.sources?.[0] ?? "");
   const targetNode = nodeMap.get(edge.targets?.[0] ?? "");
-  if (
-    sourceNode?.x === undefined ||
-    sourceNode.y === undefined ||
-    sourceNode.width === undefined ||
-    sourceNode.height === undefined ||
-    targetNode?.x === undefined ||
-    targetNode.y === undefined ||
-    targetNode.width === undefined ||
-    targetNode.height === undefined
-  ) {
+  if (sourceNode === undefined || targetNode === undefined) {
     return polylines;
   }
   polylines.push([
@@ -67,26 +110,27 @@ function edgePolylines(edge: ElkExtendedEdge, nodeMap: Map<string, ElkNode>) {
   return polylines;
 }
 
-// Returns the top-level edge whose polyline is within toleranceWorld of the
-// world-space point, or null. Iterating rootNode.edges only (flat top-level
-// edges) is sufficient for the #0127 node-link layout; #0128 (in-place
-// expand / compound edges) will need descent into child nodes' `.edges`.
+// Returns the edge (at any nesting level) whose polyline is within
+// toleranceWorld of the world-space point, or null. Edges of the root use
+// offset (0, 0); edges of an expanded container are shifted by that container's
+// world origin (never double-counted — collectEdges accumulates the offset
+// once per descent). Closest-edge selection and tolerance semantics are
+// unchanged from the flat layout.
 export function hitTestEdge(
   rootNode: ElkNode,
   worldX: number,
   worldY: number,
   toleranceWorld: number,
 ): ElkExtendedEdge | null {
-  const nodeMap = new Map<string, ElkNode>();
-  for (const node of rootNode.children ?? []) {
-    nodeMap.set(node.id, node);
-  }
+  const nodeMap = new Map<string, WorldNode>();
+  const edges: EdgeAtOffset[] = [];
+  collectEdges(rootNode, 0, 0, nodeMap, edges);
 
   let closestEdge: ElkExtendedEdge | null = null;
   let closestDist = Infinity;
 
-  for (const edge of rootNode.edges ?? []) {
-    for (const polyline of edgePolylines(edge, nodeMap)) {
+  for (const { edge, offsetX, offsetY } of edges) {
+    for (const polyline of edgePolylines(edge, nodeMap, offsetX, offsetY)) {
       for (let i = 0; i < polyline.length - 1; i++) {
         const a = polyline[i];
         const b = polyline[i + 1];
