@@ -10,6 +10,27 @@ import unusedImports from "eslint-plugin-unused-imports";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+// Public files per guarded feature vertical (cross-vertical import surface).
+// Platform layers (design-system, graphql, testing) expose all files by
+// convention and are granted as whole verticals, not routed through PUBLIC.
+const PUBLIC = {
+  dependencies: ["DependenciesPage.tsx"],
+  "cross-reference-explorer": ["CrossReferenceExplorerPage.tsx"],
+  "dependency-details": [
+    "DependencyDetailsPane.tsx",
+    "DependencyDetailsPanel.tsx",
+  ],
+  "dev-panel": ["DevPanel.tsx", "DevPanelContext.tsx"],
+  selection: ["SelectionContext.tsx", "FocusBridge.tsx"],
+  hierarchy: ["HierarchyTree.tsx"],
+  tree: ["AsyncTree.tsx", "TreeSettingsMenu.tsx", "useTreeSettings.ts"],
+  graph: ["queries.ts", "nodeIcon.ts", "NodeInfoTooltip.tsx", "nodeLabel.ts"],
+};
+
+// Grant helper: full public surface of `type`, or an explicit subset for edges
+// that intentionally consume only some of a vertical's public files.
+const to = (type, only) => ({ type, internalPath: only ?? PUBLIC[type] });
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -127,54 +148,11 @@ export default defineConfig([
               from: { type: "routes" },
               allow: {
                 to: [
-                  {
-                    type: "dependencies",
-                    internalPath: [
-                      "DependenciesPage.tsx",
-                      "DependencyMatrix.tsx",
-                    ],
-                  },
-                  {
-                    type: "cross-reference-explorer",
-                    internalPath: [
-                      "CrossReferenceExplorerView.tsx",
-                      "CrossReferenceExplorerPage.tsx",
-                    ],
-                  },
-                  {
-                    type: "dependency-details",
-                    internalPath: [
-                      "DependencyDetailsPane.tsx",
-                      "DependencyDetailsPanel.tsx",
-                    ],
-                  },
-                  { type: "hierarchy", internalPath: ["HierarchyTree.tsx"] },
-                  {
-                    type: "selection",
-                    internalPath: ["SelectionContext.tsx", "FocusBridge.tsx"],
-                  },
-                  {
-                    type: "tree",
-                    internalPath: [
-                      "AsyncTree.tsx",
-                      "TreeSettingsMenu.tsx",
-                      "useTreeSettings.ts",
-                    ],
-                  },
-                  {
-                    type: "graph",
-                    internalPath: [
-                      "queries.ts",
-                      "nodeIcon.ts",
-                      "NodeInfoTooltip.tsx",
-                      "nodeLabel.ts",
-                    ],
-                  },
+                  to("dependencies"),
+                  to("cross-reference-explorer"),
+                  to("selection"),
+                  to("dev-panel"),
                   { type: "design-system" },
-                  {
-                    type: "dev-panel",
-                    internalPath: ["DevPanel.tsx", "DevPanelContext.tsx"],
-                  },
                 ],
               },
             },
@@ -185,32 +163,11 @@ export default defineConfig([
               },
               allow: {
                 to: [
-                  { type: "hierarchy", internalPath: ["HierarchyTree.tsx"] },
-                  {
-                    type: "dependency-details",
-                    internalPath: [
-                      "DependencyDetailsPane.tsx",
-                      "DependencyDetailsPanel.tsx",
-                    ],
-                  },
-                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
-                  {
-                    type: "tree",
-                    internalPath: [
-                      "AsyncTree.tsx",
-                      "TreeSettingsMenu.tsx",
-                      "useTreeSettings.ts",
-                    ],
-                  },
-                  {
-                    type: "graph",
-                    internalPath: [
-                      "queries.ts",
-                      "nodeIcon.ts",
-                      "NodeInfoTooltip.tsx",
-                      "nodeLabel.ts",
-                    ],
-                  },
+                  to("hierarchy"),
+                  to("dependency-details"),
+                  to("selection", ["SelectionContext.tsx"]),
+                  to("tree"),
+                  to("graph"),
                   { type: "design-system" },
                   { type: "graphql" },
                 ],
@@ -221,24 +178,9 @@ export default defineConfig([
               from: { type: ["dependency-details", "hierarchy"] },
               allow: {
                 to: [
-                  { type: "selection", internalPath: ["SelectionContext.tsx"] },
-                  {
-                    type: "tree",
-                    internalPath: [
-                      "AsyncTree.tsx",
-                      "TreeSettingsMenu.tsx",
-                      "useTreeSettings.ts",
-                    ],
-                  },
-                  {
-                    type: "graph",
-                    internalPath: [
-                      "queries.ts",
-                      "nodeIcon.ts",
-                      "NodeInfoTooltip.tsx",
-                      "nodeLabel.ts",
-                    ],
-                  },
+                  to("selection", ["SelectionContext.tsx"]),
+                  to("tree"),
+                  to("graph"),
                   { type: "design-system" },
                   { type: "graphql" },
                 ],
@@ -249,14 +191,8 @@ export default defineConfig([
               from: { type: "dev-panel" },
               allow: {
                 to: [
-                  {
-                    type: "selection",
-                    internalPath: ["SelectionContext.tsx", "FocusBridge.tsx"],
-                  },
-                  {
-                    type: "graph",
-                    internalPath: ["queries.ts", "nodeIcon.ts"],
-                  },
+                  to("selection"),
+                  to("graph", ["queries.ts", "nodeIcon.ts"]),
                   { type: "design-system" },
                   { type: "graphql" },
                 ],
@@ -266,18 +202,7 @@ export default defineConfig([
             {
               from: { type: "tree" },
               allow: {
-                to: [
-                  {
-                    type: "graph",
-                    internalPath: [
-                      "queries.ts",
-                      "nodeIcon.ts",
-                      "NodeInfoTooltip.tsx",
-                      "nodeLabel.ts",
-                    ],
-                  },
-                  { type: "design-system" },
-                ],
+                to: [to("graph"), { type: "design-system" }],
               },
             },
             // graph → graphql, design-system
