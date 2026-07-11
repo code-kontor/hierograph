@@ -60,6 +60,8 @@ describe("DsmCanvas — canvas click delivers correct cell selection", () => {
         labelFormat="full"
         showDiagonal={true}
         onSelectCell={onSelectCell}
+        fitToWindow={false}
+        cellSize={BOX_SIZE}
       />,
     );
 
@@ -107,6 +109,8 @@ describe("DsmCanvas — canvas click delivers correct cell selection", () => {
         labelFormat="full"
         showDiagonal={true}
         onSelectCell={onSelectCell}
+        fitToWindow={false}
+        cellSize={BOX_SIZE}
       />,
     );
 

@@ -9,7 +9,6 @@ import {
   type RefObject,
   useEffect,
   useEffectEvent,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -287,18 +286,16 @@ export function CrossReferenceExplorerView({
     enabled: relatedCenterIds.length > 0,
   });
 
-  // hit id → ancestor ids (nearest first). Content-stable so AsyncTree does not
-  // churn on every render; the mapping is by id only, never by fqn.
-  const relatedCenterKey = relatedCenterIds.join(",");
-  const highlightedAncestors = useMemo(() => {
-    const nodes = predecessorsData?.hierarchicalGraph?.nodes.nodes ?? [];
-    const result: Record<string, string[]> = {};
-    for (const node of nodes) {
-      result[node.id] = node.predecessors.map((p) => p.id);
-    }
-    return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [predecessorsData, relatedCenterKey]);
+  // hit id → ancestor ids (nearest first); the mapping is by id only, never by
+  // fqn. Derived from predecessorsData alone — the React Compiler memoizes it
+  // on that input, so the object stays content-stable and AsyncTree does not
+  // churn on every render.
+  const predecessorNodes =
+    predecessorsData?.hierarchicalGraph?.nodes.nodes ?? [];
+  const highlightedAncestors: Record<string, string[]> = {};
+  for (const node of predecessorNodes) {
+    highlightedAncestors[node.id] = node.predecessors.map((p) => p.id);
+  }
 
   // The cell shown in the Dependencies Details pane, derived from the current
   // selection (dependencies-details-anbindung.md). Only first-selected ids

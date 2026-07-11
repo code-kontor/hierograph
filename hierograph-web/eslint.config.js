@@ -40,6 +40,28 @@ export default defineConfig([
       "import/first": "error",
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
+      // React Compiler is enabled (vite.config.ts) — manual memoization is
+      // unnecessary; see CLAUDE.md, "Code Style". A genuine need for manual
+      // memoization semantics requires an inline disable + justification.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.name='useMemo']",
+          message:
+            "React Compiler is enabled — useMemo is unnecessary; write a plain expression (see CLAUDE.md, Code Style).",
+        },
+        {
+          selector: "CallExpression[callee.name='useCallback']",
+          message:
+            "React Compiler is enabled — useCallback is unnecessary; write a plain function (see CLAUDE.md, Code Style).",
+        },
+        {
+          selector:
+            "CallExpression[callee.name='memo'], CallExpression[callee.object.name='React'][callee.property.name=/^(memo|useMemo|useCallback)$/]",
+          message:
+            "React Compiler is enabled — React.memo/manual memoization is unnecessary (see CLAUDE.md, Code Style).",
+        },
+      ],
     },
   },
   {

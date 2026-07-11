@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
 import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 
 import { drawDsm, drawDsmOverlay } from "./drawDsm";
 import {
-  BOX_SIZE,
   buildCellSelection,
   buildMatrixElements,
   computeCellPosition,
@@ -43,11 +42,31 @@ type DsmCanvasProps = {
   showDiagonal: boolean;
   onHoverCell?: (selection: DsmCellSelection | undefined) => void;
   onSelectCell?: (selection: DsmCellSelection | undefined) => void;
-  fitToWindow?: boolean;
-  cellSize?: number;
+  // Required (no destructuring defaults): default values in destructured
+  // props currently make the React Compiler bail out on the whole component
+  // (babel-plugin-react-compiler 1.0.0 on Babel 8), and this component needs
+  // compilation — the draw effects depend on stable identities.
+  fitToWindow: boolean;
+  cellSize: number;
 };
 
 const MIN_SIDE_MARKER = 24;
+
+function computeBoxSize(
+  fitToWindow: boolean,
+  cellSize: number,
+  availableSize: { width: number; height: number } | null,
+  labelCount: number,
+  markerSizes: DsmMarkerSizes,
+): number {
+  if (!fitToWindow || availableSize === null || labelCount === 0) {
+    return Math.min(Math.max(cellSize, MIN_BOX_SIZE), MAX_BOX_SIZE);
+  }
+  const availW = availableSize.width - markerSizes.verticalSideMarkerWidth;
+  const availH = availableSize.height - markerSizes.horizontalSideMarkerHeight;
+  const fit = Math.floor(Math.min(availW / labelCount, availH / labelCount));
+  return Math.min(Math.max(fit, MIN_BOX_SIZE), MAX_BOX_SIZE);
+}
 
 export function DsmCanvas({
   labels,
@@ -57,8 +76,8 @@ export function DsmCanvas({
   showDiagonal,
   onHoverCell,
   onSelectCell,
-  fitToWindow = false,
-  cellSize = BOX_SIZE,
+  fitToWindow,
+  cellSize,
 }: DsmCanvasProps) {
   const baseCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -94,23 +113,15 @@ export function DsmCanvas({
   const horizontalResizeRef = useRef(false);
   const tooltipTimerRef = useRef<number | null>(null);
 
-  const format = useMemo(
-    () => (text: string, type?: string) =>
-      formatNodeLabel(text, labelFormat, type),
-    [labelFormat],
+  // Referentially stable per its inputs via the React Compiler — the draw
+  // effects below depend on it.
+  const boxSize = computeBoxSize(
+    fitToWindow,
+    cellSize,
+    availableSize,
+    labels.length,
+    markerSizes,
   );
-
-  const boxSize = useMemo(() => {
-    if (!fitToWindow || availableSize === null || labels.length === 0) {
-      return Math.min(Math.max(cellSize, MIN_BOX_SIZE), MAX_BOX_SIZE);
-    }
-    const n = labels.length;
-    const availW = availableSize.width - markerSizes.verticalSideMarkerWidth;
-    const availH =
-      availableSize.height - markerSizes.horizontalSideMarkerHeight;
-    const fit = Math.floor(Math.min(availW / n, availH / n));
-    return Math.min(Math.max(fit, MIN_BOX_SIZE), MAX_BOX_SIZE);
-  }, [fitToWindow, cellSize, availableSize, labels.length, markerSizes]);
 
   // Tooltip timer cleanup on unmount
   useEffect(() => {
@@ -121,9 +132,12 @@ export function DsmCanvas({
     };
   }, []);
 
-  // Base canvas draw
+  // Base canvas draw. The label formatter is created inside the effect so the
+  // dependency is the reactive input (labelFormat), not a function identity.
   useEffect(() => {
     if (baseCanvasRef.current) {
+      const format = (text: string, type?: string) =>
+        formatNodeLabel(text, labelFormat, type);
       drawDsm(
         baseCanvasRef.current,
         { labels, cells, sccs },
@@ -133,11 +147,13 @@ export function DsmCanvas({
         boxSize,
       );
     }
-  }, [labels, cells, sccs, markerSizes, format, showDiagonal, boxSize]);
+  }, [labels, cells, sccs, markerSizes, labelFormat, showDiagonal, boxSize]);
 
   // Overlay canvas draw
   useEffect(() => {
     if (overlayCanvasRef.current) {
+      const format = (text: string, type?: string) =>
+        formatNodeLabel(text, labelFormat, type);
       drawDsmOverlay(
         overlayCanvasRef.current,
         { labels, sccs, hover, headerHover, selected },
@@ -153,7 +169,7 @@ export function DsmCanvas({
     headerHover,
     selected,
     markerSizes,
-    format,
+    labelFormat,
     boxSize,
   ]);
 
