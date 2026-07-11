@@ -27,7 +27,7 @@ export function HierarchyTree({ settings }: HierarchyTreeProps) {
   }
 
   if (isError || !data.hierarchicalGraph?.rootNode) {
-    console.log(error);
+    console.error(error);
 
     return (
       <div className="border-destructive/50 max-w-md rounded-lg border p-4 text-sm">

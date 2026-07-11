@@ -14,7 +14,7 @@ import tseslint from "typescript-eslint";
 // Platform layers (design-system, graphql, testing) expose all files by
 // convention and are granted as whole verticals, not routed through PUBLIC.
 const PUBLIC = {
-  dependencies: ["DependenciesPage.tsx"],
+  dsm: ["DsmPage.tsx"],
   "cross-reference-explorer": ["CrossReferenceExplorerPage.tsx"],
   "dependency-details": [
     "DependencyDetailsPane.tsx",
@@ -22,7 +22,6 @@ const PUBLIC = {
   ],
   "dev-panel": ["DevPanel.tsx", "DevPanelContext.tsx"],
   selection: ["SelectionContext.tsx", "FocusBridge.tsx"],
-  hierarchy: ["HierarchyTree.tsx"],
   tree: ["AsyncTree.tsx", "TreeSettingsMenu.tsx", "useTreeSettings.ts"],
   graph: ["queries.ts", "nodeIcon.ts", "NodeInfoTooltip.tsx", "nodeLabel.ts"],
 };
@@ -102,14 +101,13 @@ export default defineConfig([
         },
         { type: "testing", pattern: "src/testing" },
         { type: "routes", pattern: "src/routes" },
-        { type: "dependencies", pattern: "src/dependencies" },
+        { type: "dsm", pattern: "src/dsm" },
         {
           type: "cross-reference-explorer",
           pattern: "src/cross-reference-explorer",
         },
         { type: "dependency-details", pattern: "src/dependency-details" },
         { type: "dev-panel", pattern: "src/dev-panel" },
-        { type: "hierarchy", pattern: "src/hierarchy" },
         { type: "selection", pattern: "src/selection" },
         { type: "tree", pattern: "src/tree" },
         { type: "graph", pattern: "src/graph" },
@@ -148,7 +146,7 @@ export default defineConfig([
               from: { type: "routes" },
               allow: {
                 to: [
-                  to("dependencies"),
+                  to("dsm"),
                   to("cross-reference-explorer"),
                   to("selection"),
                   to("dev-panel"),
@@ -159,11 +157,10 @@ export default defineConfig([
             // screen verticals → shared panes + shared verticals via public files, design-system, graphql
             {
               from: {
-                type: ["dependencies", "cross-reference-explorer"],
+                type: ["dsm", "cross-reference-explorer"],
               },
               allow: {
                 to: [
-                  to("hierarchy"),
                   to("dependency-details"),
                   to("selection", ["SelectionContext.tsx"]),
                   to("tree"),
@@ -175,7 +172,7 @@ export default defineConfig([
             },
             // shared panes → shared verticals via public files, design-system, graphql
             {
-              from: { type: ["dependency-details", "hierarchy"] },
+              from: { type: ["dependency-details"] },
               allow: {
                 to: [
                   to("selection", ["SelectionContext.tsx"]),

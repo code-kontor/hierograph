@@ -10,11 +10,10 @@ lower-triangular.
 
 | Vertical                   | Scope                                                                                       |
 | -------------------------- | ------------------------------------------------------------------------------------------- |
-| `dependencies`             | DSM screen (`/dependencies`)                                                                |
+| `dsm`                      | DSM screen (`/dsm`)                                                                         |
 | `cross-reference-explorer` | Cross-Reference Explorer screen (`/cross-reference-explorer`)                               |
 | `dependency-details`       | shared inspector pane                                                                       |
 | `dev-panel`                | floating developer inspector panel (node details + dev query log), rendered globally in DEV |
-| `hierarchy`                | hierarchy tree browser                                                                      |
 | `selection`                | cross-view workbench selection state                                                        |
 | `tree`                     | async tree widget and settings                                                              |
 | `graph`                    | shared node-domain concepts (icons, labels, node queries)                                   |
@@ -25,26 +24,25 @@ lower-triangular.
 
 ## Allowed Dependency Direction (DAG)
 
-| From                                                  | May import                                                                                  |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| app (`main.tsx`, `routeTree.gen.ts`)                  | `routes`, `graphql`, `design-system`                                                        |
-| `routes`                                              | `dependencies`, `cross-reference-explorer`, `selection`, `dev-panel`, `design-system`       |
-| `dependencies` / `cross-reference-explorer` (screens) | `hierarchy`, `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql` |
-| `dependency-details` / `hierarchy` (shared panes)     | `selection`, `tree`, `graph`, `design-system`, `graphql`                                    |
-| `dev-panel`                                           | `selection`, `graph`, `design-system`, `graphql`                                            |
-| `tree`                                                | `graph`, `design-system`                                                                    |
-| `graph`                                               | `graphql`, `design-system`                                                                  |
-| `selection`                                           | (nothing internal)                                                                          |
-| `design-system`                                       | (nothing internal — only itself)                                                            |
-| `graphql`                                             | (nothing internal)                                                                          |
-| `test` / `testing`                                    | anything                                                                                    |
+| From                                         | May import                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| app (`main.tsx`, `routeTree.gen.ts`)         | `routes`, `graphql`, `design-system`                                           |
+| `routes`                                     | `dsm`, `cross-reference-explorer`, `selection`, `dev-panel`, `design-system`   |
+| `dsm` / `cross-reference-explorer` (screens) | `dependency-details`, `selection`, `tree`, `graph`, `design-system`, `graphql` |
+| `dependency-details` (shared pane)           | `selection`, `tree`, `graph`, `design-system`, `graphql`                       |
+| `dev-panel`                                  | `selection`, `graph`, `design-system`, `graphql`                               |
+| `tree`                                       | `graph`, `design-system`                                                       |
+| `graph`                                      | `graphql`, `design-system`                                                     |
+| `selection`                                  | (nothing internal)                                                             |
+| `design-system`                              | (nothing internal — only itself)                                               |
+| `graphql`                                    | (nothing internal)                                                             |
+| `test` / `testing`                           | anything                                                                       |
 
-The `dependencies` and `cross-reference-explorer` verticals are _screen
-verticals_ — each owns a top-level screen and composes the shared panes
-(`hierarchy`, `dependency-details`) into that screen. `hierarchy` and
-`dependency-details` are _shared panes_ with no knowledge of which screen
-uses them. This screen-→-pane layering is deliberately directed: `hierarchy`
-and `dependency-details` do not import `dependencies` or
+The `dsm` and `cross-reference-explorer` verticals are _screen verticals_ —
+each owns a top-level screen and composes the shared `dependency-details`
+pane into that screen. `dependency-details` is a _shared pane_ with no
+knowledge of which screen uses it. This screen-→-pane layering is
+deliberately directed: `dependency-details` does not import `dsm` or
 `cross-reference-explorer`, keeping the DSM lower-triangular (no back-edge,
 no cycle).
 
@@ -90,7 +88,7 @@ workbench-state restoration. `zod` will not be introduced until that task.
 
 ## Selection & DevPanel provider scoping
 
-**One `SelectionProvider` per screen.** `DependenciesPage` and
+**One `SelectionProvider` per screen.** `DsmPage` and
 `CrossReferenceExplorerPage` each mount their own `SelectionProvider` — there
 is deliberately no global `SelectionProvider`. The globally-rendered
 `DevPanel` does not read any screen's `SelectionProvider`; instead it reads
@@ -109,8 +107,8 @@ focus read from screen internals via the bridge.
 
 ## Public-API Rule
 
-Verticals (`dependencies`, `cross-reference-explorer`, `dependency-details`,
-`dev-panel`, `hierarchy`, `selection`, `tree`, `graph`) are entered only
+Verticals (`dsm`, `cross-reference-explorer`, `dependency-details`,
+`dev-panel`, `selection`, `tree`, `graph`) are entered only
 through their **declared public files** — the explicit per-vertical
 allow-lists in `eslint.config.js` (`boundaries/dependencies`). Cross-vertical
 imports use direct paths (`@/<vertical>/<File>`); there are no re-export
@@ -118,12 +116,11 @@ barrel `index.ts` files.
 
 | Vertical                   | Public files                                                       |
 | -------------------------- | ------------------------------------------------------------------ |
-| `dependencies`             | `DependenciesPage.tsx`                                             |
+| `dsm`                      | `DsmPage.tsx`                                                      |
 | `cross-reference-explorer` | `CrossReferenceExplorerPage.tsx`                                   |
 | `dependency-details`       | `DependencyDetailsPane.tsx`, `DependencyDetailsPanel.tsx`          |
 | `dev-panel`                | `DevPanel.tsx`, `DevPanelContext.tsx`                              |
 | `selection`                | `SelectionContext.tsx`, `FocusBridge.tsx`                          |
-| `hierarchy`                | `HierarchyTree.tsx`                                                |
 | `tree`                     | `AsyncTree.tsx`, `TreeSettingsMenu.tsx`, `useTreeSettings.ts`      |
 | `graph`                    | `queries.ts`, `nodeIcon.ts`, `NodeInfoTooltip.tsx`, `nodeLabel.ts` |
 
