@@ -1,12 +1,14 @@
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { NodeLabelFormat } from "@/graph/nodeLabel";
+import { NodeInfoTooltip } from "@/graph/NodeInfoTooltip";
+import { type NodeLabelFormat, shortNameOf } from "@/graph/nodeLabel";
 
 import { resolveGraphColors } from "./colorScheme";
 import { DependencyDiagramControls } from "./DependencyDiagramControls";
 import { setupCanvas } from "./dpiFixer";
 import { drawGraph } from "./drawGraph";
+import type { DiagramElkNode } from "./elkLayout";
 import { hitTestNode } from "./hitTest";
 import {
   FIT_PADDING,
@@ -21,11 +23,22 @@ const ZOOM_SENSITIVITY = 0.0015;
 const BUTTON_ZOOM_FACTOR = 1.2;
 const CLICK_DRAG_THRESHOLD = 4;
 const IDENTITY_VIEWPORT: Viewport = { scale: 1, translateX: 0, translateY: 0 };
+const TOOLTIP_HOVER_DELAY_MS = 300;
+const TOOLTIP_OFFSET_X = 18;
+const TOOLTIP_OFFSET_Y = 20;
 
 type DependencyDiagramCanvasProps = {
   rootNode: ElkNode;
   labelFormat: NodeLabelFormat;
   onNodeActivate?: (id: string, label: string) => void;
+};
+
+type NodeTooltip = {
+  shortName: string;
+  type: string;
+  fullName: string;
+  x: number;
+  y: number;
 };
 
 export function DependencyDiagramCanvas({
@@ -43,10 +56,25 @@ export function DependencyDiagramCanvas({
   const needsFitRef = useRef(true);
   const rafRef = useRef<number | null>(null);
   const hoveredIdRef = useRef<string | null>(null);
+  const tooltipTimerRef = useRef<number | null>(null);
 
   const isDraggingRef = useRef(false);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
   const dragStartViewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
+
+  const [tooltip, setTooltip] = useState<NodeTooltip | null>(null);
+
+  function clearTooltipTimer() {
+    if (tooltipTimerRef.current !== null) {
+      window.clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+  }
+
+  function hideTooltip() {
+    clearTooltipTimer();
+    setTooltip(null);
+  }
 
   function nodeAtClient(clientX: number, clientY: number): ElkNode | null {
     const canvas = canvasRef.current;
@@ -187,6 +215,9 @@ export function DependencyDiagramCanvas({
   useEffect(() => {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (tooltipTimerRef.current !== null) {
+        window.clearTimeout(tooltipTimerRef.current);
+      }
     };
   }, []);
 
@@ -229,6 +260,7 @@ export function DependencyDiagramCanvas({
           isDraggingRef.current = true;
           dragStartClientRef.current = { x: e.clientX, y: e.clientY };
           dragStartViewportRef.current = viewportRef.current;
+          hideTooltip();
         }}
         onPointerMove={(e) => {
           if (isDraggingRef.current) {
@@ -244,6 +276,24 @@ export function DependencyDiagramCanvas({
           if (id !== hoveredIdRef.current) {
             hoveredIdRef.current = id;
             scheduleRedraw();
+          }
+          if (hit) {
+            const fullName = hit.labels?.[0]?.text ?? hit.id;
+            const type = (hit as DiagramElkNode).nodeType ?? "java.package";
+            const clientX = e.clientX + TOOLTIP_OFFSET_X;
+            const clientY = e.clientY + TOOLTIP_OFFSET_Y;
+            clearTooltipTimer();
+            tooltipTimerRef.current = window.setTimeout(() => {
+              setTooltip({
+                shortName: shortNameOf(fullName),
+                type,
+                fullName,
+                x: clientX,
+                y: clientY,
+              });
+            }, TOOLTIP_HOVER_DELAY_MS);
+          } else {
+            hideTooltip();
           }
         }}
         onPointerUp={(e) => {
@@ -261,6 +311,14 @@ export function DependencyDiagramCanvas({
         onPointerCancel={(e) => {
           isDraggingRef.current = false;
           e.currentTarget.releasePointerCapture(e.pointerId);
+          hideTooltip();
+        }}
+        onPointerLeave={() => {
+          hideTooltip();
+          if (hoveredIdRef.current !== null) {
+            hoveredIdRef.current = null;
+            scheduleRedraw();
+          }
         }}
       />
       <div className="absolute top-2 right-2 z-10 flex gap-1">
@@ -270,6 +328,15 @@ export function DependencyDiagramCanvas({
           onZoomOut={handleZoomOut}
         />
       </div>
+      {tooltip && (
+        <NodeInfoTooltip
+          x={tooltip.x}
+          y={tooltip.y}
+          shortName={tooltip.shortName}
+          type={tooltip.type}
+          fullName={tooltip.fullName}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import { describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import { DependencyDiagramCanvas } from "./DependencyDiagramCanvas";
@@ -185,5 +186,53 @@ describe("DependencyDiagramCanvas", () => {
     await expect
       .poll(() => (canvas.element() as HTMLElement).style.cursor)
       .toBe("pointer");
+  });
+
+  it("shows a hover tooltip after a delay and hides it on pointer leave", async () => {
+    const screen = await render(
+      <div style={{ width: 400, height: 300 }}>
+        <DependencyDiagramCanvas rootNode={NODE_ROOT_NODE} labelFormat="full" />
+      </div>,
+    );
+
+    const canvas = screen.getByTestId("dependency-diagram-canvas");
+    await expect.poll(() => canvas.element().clientWidth).toBeGreaterThan(0);
+
+    const rect = canvas.element().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+
+    await expect.element(page.getByText("one", { exact: true })).toBeVisible();
+    await expect
+      .element(page.getByText("java.package", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByText("pkg.one", { exact: true }))
+      .toBeVisible();
+
+    // React derives onPointerLeave from the native pointerout event (leave
+    // events don't bubble), so the test dispatches pointerout, not pointerleave.
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointerout", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
+    );
+
+    await expect
+      .poll(() => document.body.textContent?.includes("java.package"))
+      .toBe(false);
   });
 });
