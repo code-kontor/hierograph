@@ -5,11 +5,11 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/design-system/ui/resizable";
-import { SelectionProvider } from "@/selection/SelectionContext";
 import { TreeSettingsMenu } from "@/tree/TreeSettingsMenu";
 import { useTreeSettings } from "@/tree/useTreeSettings";
 
 import { DependencyDiagram } from "./DependencyDiagram";
+import { DependencyDiagramSelectionProvider } from "./DependencyDiagramSelectionProvider";
 import { HierarchyPane } from "./HierarchyPane";
 
 export function DependencyDiagramPage() {
@@ -22,7 +22,7 @@ export function DependencyDiagramPage() {
   } = useTreeSettings();
 
   return (
-    <SelectionProvider>
+    <DependencyDiagramSelectionProvider>
       <ResizablePanelGroup
         direction="vertical"
         autoSaveId="dependency-diagram-2-1-v"
@@ -64,6 +64,6 @@ export function DependencyDiagramPage() {
           <DependencyDetailsPane />
         </ResizablePanel>
       </ResizablePanelGroup>
-    </SelectionProvider>
+    </DependencyDiagramSelectionProvider>
   );
 }
