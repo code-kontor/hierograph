@@ -5,16 +5,29 @@ import { resolveGraphColors } from "./colorScheme";
 import { DependencyDiagramControls } from "./DependencyDiagramControls";
 import { setupCanvas } from "./dpiFixer";
 import { drawGraph } from "./drawGraph";
-import { FIT_PADDING, fitToView, pan, type Viewport, zoomAt } from "./viewport";
+import { hitTestNode } from "./hitTest";
+import {
+  FIT_PADDING,
+  fitToView,
+  pan,
+  screenToWorld,
+  type Viewport,
+  zoomAt,
+} from "./viewport";
 
 const ZOOM_SENSITIVITY = 0.0015;
 const BUTTON_ZOOM_FACTOR = 1.2;
+const CLICK_DRAG_THRESHOLD = 4;
 const IDENTITY_VIEWPORT: Viewport = { scale: 1, translateX: 0, translateY: 0 };
 
-type DependencyDiagramCanvasProps = { rootNode: ElkNode };
+type DependencyDiagramCanvasProps = {
+  rootNode: ElkNode;
+  onNodeActivate?: (id: string, label: string) => void;
+};
 
 export function DependencyDiagramCanvas({
   rootNode,
+  onNodeActivate,
 }: DependencyDiagramCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,10 +37,23 @@ export function DependencyDiagramCanvas({
   const viewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
   const needsFitRef = useRef(true);
   const rafRef = useRef<number | null>(null);
+  const hoveredIdRef = useRef<string | null>(null);
 
   const isDraggingRef = useRef(false);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
   const dragStartViewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
+
+  function nodeAtClient(clientX: number, clientY: number): ElkNode | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const world = screenToWorld(
+      viewportRef.current,
+      clientX - rect.left,
+      clientY - rect.top,
+    );
+    return hitTestNode(rootNodeRef.current, world.x, world.y);
+  }
 
   function redraw() {
     const canvas = canvasRef.current;
@@ -48,7 +74,12 @@ export function DependencyDiagramCanvas({
     ctx.save();
     ctx.translate(vp.translateX, vp.translateY);
     ctx.scale(vp.scale, vp.scale);
-    drawGraph(ctx, rootNodeRef.current, resolveGraphColors());
+    drawGraph(
+      ctx,
+      rootNodeRef.current,
+      resolveGraphColors(),
+      hoveredIdRef.current ?? undefined,
+    );
     ctx.restore();
   }
 
@@ -178,20 +209,37 @@ export function DependencyDiagramCanvas({
         data-testid="dependency-diagram-canvas"
         className="absolute inset-0 block h-full w-full"
         onPointerDown={(e) => {
-          // #0127/#0129: hit-test node here; if hit, start node-drag instead of pan
+          // #0129: on drag-over-node start node-drag instead of pan
           e.currentTarget.setPointerCapture(e.pointerId);
           isDraggingRef.current = true;
           dragStartClientRef.current = { x: e.clientX, y: e.clientY };
           dragStartViewportRef.current = viewportRef.current;
         }}
         onPointerMove={(e) => {
-          if (!isDraggingRef.current) return;
-          const dx = e.clientX - dragStartClientRef.current.x;
-          const dy = e.clientY - dragStartClientRef.current.y;
-          viewportRef.current = pan(dragStartViewportRef.current, dx, dy);
-          scheduleRedraw();
+          if (isDraggingRef.current) {
+            const dx = e.clientX - dragStartClientRef.current.x;
+            const dy = e.clientY - dragStartClientRef.current.y;
+            viewportRef.current = pan(dragStartViewportRef.current, dx, dy);
+            scheduleRedraw();
+            return;
+          }
+          const hit = nodeAtClient(e.clientX, e.clientY);
+          const id = hit?.id ?? null;
+          e.currentTarget.style.cursor = hit ? "pointer" : "grab";
+          if (id !== hoveredIdRef.current) {
+            hoveredIdRef.current = id;
+            scheduleRedraw();
+          }
         }}
         onPointerUp={(e) => {
+          const dx = e.clientX - dragStartClientRef.current.x;
+          const dy = e.clientY - dragStartClientRef.current.y;
+          const isClick =
+            dx * dx + dy * dy < CLICK_DRAG_THRESHOLD * CLICK_DRAG_THRESHOLD;
+          if (isClick && onNodeActivate) {
+            const hit = nodeAtClient(e.clientX, e.clientY);
+            if (hit) onNodeActivate(hit.id, hit.labels?.[0]?.text ?? hit.id);
+          }
           isDraggingRef.current = false;
           e.currentTarget.releasePointerCapture(e.pointerId);
         }}
