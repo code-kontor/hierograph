@@ -3,6 +3,8 @@ import { queryOptions } from "@tanstack/react-query";
 import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
+const DSM_TRIGGER = "DSM";
+
 const dsmQuery = graphql(`
   query NodeAdjacencyMatrix($id: ID!) {
     hierarchicalGraph {
@@ -36,7 +38,7 @@ export function dsmQueryOptions(id: string) {
   return queryOptions({
     queryKey: ["hierarchicalGraph", "node", id, "dsm"],
     async queryFn() {
-      return execute(dsmQuery, { id });
+      return execute(dsmQuery, { id }, DSM_TRIGGER);
     },
   });
 }
@@ -75,7 +77,7 @@ export function nodesDsmQueryOptions(ids: string[]) {
   return queryOptions({
     queryKey: ["hierarchicalGraph", "nodes", sortedIds, "dsm"],
     async queryFn() {
-      return execute(nodesDsmQuery, { ids: sortedIds });
+      return execute(nodesDsmQuery, { ids: sortedIds }, DSM_TRIGGER);
     },
   });
 }

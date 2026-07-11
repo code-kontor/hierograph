@@ -6,6 +6,10 @@ import type { NodeType } from "@/graphql/generated/graphql";
 
 export type { NodeType };
 
+const PATHS_TRIGGER = "Paths";
+const USAGES_TRIGGER = "Usages";
+const PARTNERS_TRIGGER = "Dependencies Details";
+
 const filteredChildrenQuery = graphql(`
   query FilteredChildren(
     $sourceNodeId: ID!
@@ -48,12 +52,16 @@ export function filteredChildrenQueryOptions(
       parentNodeType,
     ],
     async queryFn() {
-      return execute(filteredChildrenQuery, {
-        sourceNodeId,
-        targetNodeId,
-        parentNode: parentNodeId,
-        parentNodeType,
-      });
+      return execute(
+        filteredChildrenQuery,
+        {
+          sourceNodeId,
+          targetNodeId,
+          parentNode: parentNodeId,
+          parentNodeType,
+        },
+        PATHS_TRIGGER,
+      );
     },
   });
 }
@@ -148,12 +156,16 @@ export function dependencyEdgesQueryOptions(
       pageSize,
     ],
     async queryFn() {
-      return execute(dependencyEdgesQuery, {
-        sourceNodeId,
-        targetNodeId,
-        pageNumber,
-        pageSize,
-      });
+      return execute(
+        dependencyEdgesQuery,
+        {
+          sourceNodeId,
+          targetNodeId,
+          pageNumber,
+          pageSize,
+        },
+        USAGES_TRIGGER,
+      );
     },
   });
 }
@@ -174,12 +186,16 @@ export function filteredDependenciesQueryOptions(
       selectedTargetIds,
     ],
     async queryFn() {
-      return execute(filteredDependenciesQuery, {
-        sourceNodeId,
-        targetNodeId,
-        selectedSourceIds,
-        selectedTargetIds,
-      });
+      return execute(
+        filteredDependenciesQuery,
+        {
+          sourceNodeId,
+          targetNodeId,
+          selectedSourceIds,
+          selectedTargetIds,
+        },
+        PATHS_TRIGGER,
+      );
     },
   });
 }
@@ -242,12 +258,16 @@ export function dependencyPartnersQueryOptions(
       pageSize,
     ],
     async queryFn() {
-      return execute(dependencyPartnersQuery, {
-        sourceNodeId,
-        targetNodeId,
-        pageNumber,
-        pageSize,
-      });
+      return execute(
+        dependencyPartnersQuery,
+        {
+          sourceNodeId,
+          targetNodeId,
+          pageNumber,
+          pageSize,
+        },
+        PARTNERS_TRIGGER,
+      );
     },
   });
 }

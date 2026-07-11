@@ -3,7 +3,6 @@ import { getOperationAST, print } from "graphql";
 import { GraphQLClient } from "graphql-request";
 
 import { recordQuery } from "@/graphql/devQueryLog";
-import { triggerForOperation } from "@/graphql/queryTriggerLabels";
 
 // graphql-request v7 passes the endpoint to `new URL(...)` — a relative path
 // like "/graphql" is not a valid URL without a base. So resolve it against the
@@ -14,7 +13,9 @@ const graphqlClient = new GraphQLClient(
 
 export async function execute<TResult, TVariables extends object>(
   document: TypedDocumentNode<TResult, TVariables>,
-  ...[variables]: TVariables extends Record<string, never> ? [] : [TVariables]
+  ...[variables, trigger]: TVariables extends Record<string, never>
+    ? [variables?: undefined, trigger?: string]
+    : [variables: TVariables, trigger?: string]
 ): Promise<TResult> {
   if (import.meta.env.DEV) {
     const operationName = getOperationAST(document)?.name?.value ?? null;
@@ -22,7 +23,7 @@ export async function execute<TResult, TVariables extends object>(
       operationName: operationName ?? "unknown",
       queryText: print(document),
       variables,
-      trigger: triggerForOperation(operationName),
+      trigger: trigger ?? operationName ?? "unknown",
     });
   }
   return graphqlClient.request(

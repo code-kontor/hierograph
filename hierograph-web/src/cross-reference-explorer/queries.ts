@@ -3,6 +3,8 @@ import { queryOptions } from "@tanstack/react-query";
 import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
+const XREF_TRIGGER = "Cross-Reference";
+
 const crossReferenceExplorerLeftChildrenQuery = graphql(`
   query CrossReferenceExplorerLeftChildren(
     $parentNode: ID!
@@ -30,10 +32,14 @@ export function crossReferenceExplorerLeftChildrenQueryOptions(
   return queryOptions({
     queryKey: ["crossReferenceExplorer", "left", parentNodeId, centerNodeIds],
     async queryFn() {
-      return execute(crossReferenceExplorerLeftChildrenQuery, {
-        parentNode: parentNodeId,
-        centerNodeIds,
-      });
+      return execute(
+        crossReferenceExplorerLeftChildrenQuery,
+        {
+          parentNode: parentNodeId,
+          centerNodeIds,
+        },
+        XREF_TRIGGER,
+      );
     },
   });
 }
@@ -65,10 +71,14 @@ export function crossReferenceExplorerRightChildrenQueryOptions(
   return queryOptions({
     queryKey: ["crossReferenceExplorer", "right", parentNodeId, centerNodeIds],
     async queryFn() {
-      return execute(crossReferenceExplorerRightChildrenQuery, {
-        parentNode: parentNodeId,
-        centerNodeIds,
-      });
+      return execute(
+        crossReferenceExplorerRightChildrenQuery,
+        {
+          parentNode: parentNodeId,
+          centerNodeIds,
+        },
+        XREF_TRIGGER,
+      );
     },
   });
 }
@@ -108,9 +118,13 @@ export function crossReferenceExplorerCenterRelatedByLeftQueryOptions(
   return queryOptions({
     queryKey: ["crossReferenceExplorer", "relatedByLeft", selectionIds],
     async queryFn() {
-      return execute(crossReferenceExplorerCenterRelatedByLeftQuery, {
-        selectionIds,
-      });
+      return execute(
+        crossReferenceExplorerCenterRelatedByLeftQuery,
+        {
+          selectionIds,
+        },
+        XREF_TRIGGER,
+      );
     },
   });
 }
@@ -133,9 +147,13 @@ export function crossReferenceExplorerCenterRelatedByRightQueryOptions(
   return queryOptions({
     queryKey: ["crossReferenceExplorer", "relatedByRight", selectionIds],
     async queryFn() {
-      return execute(crossReferenceExplorerCenterRelatedByRightQuery, {
-        selectionIds,
-      });
+      return execute(
+        crossReferenceExplorerCenterRelatedByRightQuery,
+        {
+          selectionIds,
+        },
+        XREF_TRIGGER,
+      );
     },
   });
 }
@@ -164,9 +182,13 @@ export function crossReferenceExplorerCenterPredecessorsQueryOptions(
   return queryOptions({
     queryKey: ["crossReferenceExplorer", "predecessors", relatedIds],
     async queryFn() {
-      return execute(crossReferenceExplorerCenterPredecessorsQuery, {
-        relatedIds,
-      });
+      return execute(
+        crossReferenceExplorerCenterPredecessorsQuery,
+        {
+          relatedIds,
+        },
+        XREF_TRIGGER,
+      );
     },
   });
 }
