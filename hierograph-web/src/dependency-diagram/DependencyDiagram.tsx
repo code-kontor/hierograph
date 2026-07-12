@@ -82,8 +82,8 @@ export function DependencyDiagram() {
     label: drillLabelById.get(id) ?? fallbackDrillLabel(id),
   }));
 
-  function pushDrill(id: string) {
-    navigate({
+  async function pushDrill(id: string) {
+    await navigate({
       search: (prev) => ({
         ...prev,
         drill_ids: [...(prev.drill_ids ?? []), id],
@@ -91,8 +91,8 @@ export function DependencyDiagram() {
       }),
     });
   }
-  function navigateDrill(index: number) {
-    navigate({
+  async function navigateDrill(index: number) {
+    await navigate({
       search: (prev) => ({
         ...prev,
         drill_ids: index < 0 ? undefined : prev.drill_ids?.slice(0, index + 1),
@@ -353,9 +353,13 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
 
     const rootGraph = buildDependencyGraph(orderedNodes, cells);
     const compound = buildCompoundElkGraph(rootGraph, loadedChildren, expanded);
-    layoutCompoundGraph(compound).then((rootNode) => {
-      if (!cancelled) setLayout({ key: layoutKey, rootNode });
-    });
+    layoutCompoundGraph(compound)
+      .then((rootNode) => {
+        if (!cancelled) setLayout({ key: layoutKey, rootNode });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error("Failed to layout dependency graph", err);
+      });
 
     return () => {
       cancelled = true;
@@ -391,14 +395,19 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
           ),
         ] as const;
       }),
-    ).then((entries) => {
-      if (cancelled) return;
-      setLoadedChildren((prev) => {
-        const next = new Map(prev);
-        for (const [id, graph] of entries) next.set(id, graph);
-        return next;
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setLoadedChildren((prev) => {
+          const next = new Map(prev);
+          for (const [id, graph] of entries) next.set(id, graph);
+          return next;
+        });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          console.error("Failed to load child dependency graphs", err);
       });
-    });
 
     return () => {
       cancelled = true;
@@ -411,7 +420,7 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
 
   async function handleToggleExpand(id: string) {
     if (expanded.has(id)) {
-      navigate({
+      await navigate({
         search: (prev) => {
           const nextIds = (prev.expanded_ids ?? []).filter(
             (existingId) => existingId !== id,
@@ -442,7 +451,7 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
       });
     }
 
-    navigate({
+    await navigate({
       search: (prev) => ({
         ...prev,
         expanded_ids: [...(prev.expanded_ids ?? []), id],

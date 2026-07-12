@@ -29,8 +29,8 @@ export function DsmSelectionProvider({ children }: DsmSelectionProviderProps) {
 
   // Committing a tree selection pushes a history entry and drops the cell +
   // tab (mirrors the old `setSelectedIds` → `setCellSelection(null)` coupling).
-  const setSelectedIds = (ids: string[]) => {
-    navigate({
+  const setSelectedIds = async (ids: string[]) => {
+    await navigate({
       search: (prev) => ({
         ...prev,
         subject_ids: ids.length > 0 ? ids : undefined,
@@ -43,8 +43,8 @@ export function DsmSelectionProvider({ children }: DsmSelectionProviderProps) {
 
   // Selecting/clearing a matrix cell pushes a history entry; clearing the cell
   // also drops the tab (no cell → no inspector tab).
-  const setCellSelection = (sel: CellSelection | null) => {
-    navigate({
+  const setCellSelection = async (sel: CellSelection | null) => {
+    await navigate({
       search: (prev) => ({
         ...prev,
         from_id: sel?.sourceNodeId,

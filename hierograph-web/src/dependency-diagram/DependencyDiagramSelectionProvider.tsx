@@ -33,9 +33,9 @@ export function DependencyDiagramSelectionProvider({
   // Committing a tree selection pushes a history entry and drops the drill
   // path + expand state (level 0..n depend on the root scope that just
   // changed) and clears the transient cell selection.
-  const setSelectedIds = (ids: string[]) => {
+  const setSelectedIds = async (ids: string[]) => {
     setCellSelection(null);
-    navigate({
+    await navigate({
       search: (prev) => ({
         ...prev,
         subject_ids: ids.length > 0 ? ids : undefined,

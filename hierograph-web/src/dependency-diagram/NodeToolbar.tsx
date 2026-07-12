@@ -1,25 +1,20 @@
 import { Check, Copy, Minus, Plus, Search } from "lucide-react";
-import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/design-system/cn";
+import { useCopyToClipboard } from "@/design-system/useCopyToClipboard";
 
 type CopyFqnButtonProps = {
   fqn: string;
 };
 
-// Copies the node's fully-qualified name; briefly flips to a checkmark on
-// success. Local re-implementation of dev-panel/CopyButton's copy+flip logic
-// (that vertical is not importable from here — see eslint boundaries).
+// Copies the node's fully-qualified name; briefly flips to a checkmark on success.
 function CopyFqnButton({ fqn }: CopyFqnButtonProps) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
-    navigator.clipboard.writeText(fqn).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    });
+    copy(fqn);
   }
 
   return (
