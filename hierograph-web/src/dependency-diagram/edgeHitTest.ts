@@ -4,12 +4,16 @@ type Point = { x: number; y: number };
 
 // A node's bounding box in accumulated world coordinates (used for the
 // no-sections fallback polyline).
-type WorldNode = { x: number; y: number; width: number; height: number };
+export type WorldNode = { x: number; y: number; width: number; height: number };
 
 // An edge together with the world origin of the container that owns it. ELK
 // gives edge section coordinates relative to that container, so its sections
 // must be shifted by this offset before distance-testing against a world point.
-type EdgeAtOffset = { edge: ElkExtendedEdge; offsetX: number; offsetY: number };
+export type EdgeAtOffset = {
+  edge: ElkExtendedEdge;
+  offsetX: number;
+  offsetY: number;
+};
 
 // Walks the compound tree, accumulating each container's world origin. Fills
 // nodeMap with every node's world-space box (for the fallback) and collects
@@ -43,6 +47,20 @@ function collectEdges(
   for (const edge of node.edges ?? []) {
     edges.push({ edge, offsetX, offsetY });
   }
+}
+
+// Walks the compound tree from its root and returns every node's world-space
+// box together with every edge tagged with the world origin of its owning
+// container. Shared by hit-testing (this module), edge straightening on node
+// drag, and hover-toolbar positioning.
+export function collectWorldGraph(root: ElkNode): {
+  nodes: Map<string, WorldNode>;
+  edges: EdgeAtOffset[];
+} {
+  const nodes = new Map<string, WorldNode>();
+  const edges: EdgeAtOffset[] = [];
+  collectEdges(root, 0, 0, nodes, edges);
+  return { nodes, edges };
 }
 
 function distancePointToSegment(
@@ -122,9 +140,7 @@ export function hitTestEdge(
   worldY: number,
   toleranceWorld: number,
 ): ElkExtendedEdge | null {
-  const nodeMap = new Map<string, WorldNode>();
-  const edges: EdgeAtOffset[] = [];
-  collectEdges(rootNode, 0, 0, nodeMap, edges);
+  const { nodes: nodeMap, edges } = collectWorldGraph(rootNode);
 
   let closestEdge: ElkExtendedEdge | null = null;
   let closestDist = Infinity;

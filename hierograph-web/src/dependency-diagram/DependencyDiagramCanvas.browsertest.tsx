@@ -1,6 +1,6 @@
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import { describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import { DependencyDiagramCanvas } from "./DependencyDiagramCanvas";
@@ -101,7 +101,7 @@ describe("DependencyDiagramCanvas", () => {
     );
   });
 
-  it("toggles expand on the hit node on a click without movement", async () => {
+  it("click on the box is inert (no toggle, no drill)", async () => {
     const onNodeActivate = vi.fn();
     const onNodeToggleExpand = vi.fn();
     const screen = await render(
@@ -139,24 +139,18 @@ describe("DependencyDiagramCanvas", () => {
       }),
     );
 
-    await expect
-      .poll(() => onNodeToggleExpand.mock.calls.length)
-      .toBeGreaterThan(0);
-    expect(onNodeToggleExpand).toHaveBeenCalledWith("n1");
-    // A single click never drills.
+    expect(onNodeToggleExpand).not.toHaveBeenCalled();
     expect(onNodeActivate).not.toHaveBeenCalled();
   });
 
-  it("drills the hit node on a double click", async () => {
+  it("double click does not drill", async () => {
     const onNodeActivate = vi.fn();
-    const onNodeToggleExpand = vi.fn();
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
         <DependencyDiagramCanvas
           rootNode={NODE_ROOT_NODE}
           labelFormat="full"
           onNodeActivate={onNodeActivate}
-          onNodeToggleExpand={onNodeToggleExpand}
         />
       </div>,
     );
@@ -176,13 +170,10 @@ describe("DependencyDiagramCanvas", () => {
       }),
     );
 
-    await expect
-      .poll(() => onNodeActivate.mock.calls.length)
-      .toBeGreaterThan(0);
-    expect(onNodeActivate).toHaveBeenCalledWith("n1", "pkg.one");
+    expect(onNodeActivate).not.toHaveBeenCalled();
   });
 
-  it("toggles expand on the innermost nested node (innermost wins)", async () => {
+  it("click on the innermost nested node is also inert", async () => {
     const onNodeToggleExpand = vi.fn();
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
@@ -218,19 +209,18 @@ describe("DependencyDiagramCanvas", () => {
       }),
     );
 
-    await expect
-      .poll(() => onNodeToggleExpand.mock.calls.length)
-      .toBeGreaterThan(0);
-    expect(onNodeToggleExpand).toHaveBeenCalledWith("inner");
+    expect(onNodeToggleExpand).not.toHaveBeenCalled();
   });
 
-  it("does not toggle expand on a drag past the click threshold", async () => {
+  it("does not toggle expand or drill on a drag past the click threshold", async () => {
+    const onNodeActivate = vi.fn();
     const onNodeToggleExpand = vi.fn();
     const screen = await render(
       <div style={{ width: 400, height: 300 }}>
         <DependencyDiagramCanvas
           rootNode={NODE_ROOT_NODE}
           labelFormat="full"
+          onNodeActivate={onNodeActivate}
           onNodeToggleExpand={onNodeToggleExpand}
         />
       </div>,
@@ -269,6 +259,146 @@ describe("DependencyDiagramCanvas", () => {
     );
 
     expect(onNodeToggleExpand).not.toHaveBeenCalled();
+    expect(onNodeActivate).not.toHaveBeenCalled();
+  });
+
+  it("drags the hit node to a new position, mutating the root node in place", async () => {
+    const screen = await render(
+      <div style={{ width: 400, height: 300 }}>
+        <DependencyDiagramCanvas rootNode={NODE_ROOT_NODE} labelFormat="full" />
+      </div>,
+    );
+
+    const canvas = screen.getByTestId("dependency-diagram-canvas");
+    await expect.poll(() => canvas.element().clientWidth).toBeGreaterThan(0);
+
+    const rect = canvas.element().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+    const n1 = NODE_ROOT_NODE.children![0];
+    const startX = n1.x;
+    const startY = n1.y;
+
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointerdown", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX: clientX + 20,
+        clientY: clientY + 20,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointerup", {
+        clientX: clientX + 20,
+        clientY: clientY + 20,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+
+    expect(n1.x).not.toBe(startX);
+    expect(n1.y).not.toBe(startY);
+  });
+
+  it("shows the hover toolbar and wires its buttons to the callback props", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const onNodeActivate = vi.fn();
+    const onNodeToggleExpand = vi.fn();
+    const screen = await render(
+      <div style={{ width: 400, height: 300 }}>
+        <DependencyDiagramCanvas
+          rootNode={NODE_ROOT_NODE}
+          labelFormat="full"
+          onNodeActivate={onNodeActivate}
+          onNodeToggleExpand={onNodeToggleExpand}
+        />
+      </div>,
+    );
+
+    const canvas = screen.getByTestId("dependency-diagram-canvas");
+    await expect.poll(() => canvas.element().clientWidth).toBeGreaterThan(0);
+
+    const rect = canvas.element().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+
+    await expect
+      .element(page.getByRole("button", { name: "Expand" }))
+      .toBeVisible();
+
+    await userEvent.click(page.getByRole("button", { name: "Expand" }));
+    expect(onNodeToggleExpand).toHaveBeenCalledWith("n1");
+
+    await userEvent.click(
+      page.getByRole("button", { name: "Drill into node" }),
+    );
+    expect(onNodeActivate).toHaveBeenCalledWith("n1", "pkg.one");
+
+    await userEvent.click(
+      page.getByRole("button", { name: "Copy fully-qualified name" }),
+    );
+    await expect.poll(() => writeText.mock.calls.length).toBeGreaterThan(0);
+    expect(writeText).toHaveBeenCalledWith("pkg.one");
+    await expect
+      .poll(() => document.querySelector(".lucide-check") !== null)
+      .toBe(true);
+  });
+
+  it("shows collapse (minus) instead of expand (plus) for an already-expanded node", async () => {
+    const screen = await render(
+      <div style={{ width: 400, height: 300 }}>
+        <DependencyDiagramCanvas
+          rootNode={NODE_ROOT_NODE}
+          labelFormat="full"
+          expandedIds={new Set(["n1"])}
+        />
+      </div>,
+    );
+
+    const canvas = screen.getByTestId("dependency-diagram-canvas");
+    await expect.poll(() => canvas.element().clientWidth).toBeGreaterThan(0);
+
+    const rect = canvas.element().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+
+    canvas.element().dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX,
+        clientY,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    );
+
+    await expect
+      .element(page.getByRole("button", { name: "Collapse" }))
+      .toBeVisible();
+    expect(
+      page.getByRole("button", { name: "Expand" }).elements(),
+    ).toHaveLength(0);
   });
 
   it("shows a pointer cursor while hovering a node", async () => {
