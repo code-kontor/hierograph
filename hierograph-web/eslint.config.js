@@ -59,6 +59,7 @@ export default defineConfig([
     rules: {
       "unused-imports/no-unused-imports": "error",
       "simple-import-sort/imports": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
       "import/first": "error",
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
