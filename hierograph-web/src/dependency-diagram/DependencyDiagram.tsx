@@ -13,6 +13,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/design-system/ui/dropdown-menu";
+import { HelpPopoverButton } from "@/design-system/ui/help-popover";
 import { Message } from "@/design-system/ui/message";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import type { NodeLabelFormat } from "@/graph/nodeLabel";
@@ -264,6 +265,35 @@ export function DependencyDiagramOptionsMenu({
   );
 }
 
+const DEPENDENCY_DIAGRAM_HELP_LABEL = "About the Dependency Diagram";
+
+function DependencyDiagramHelpContent() {
+  return (
+    <>
+      <p>
+        The Dependency Diagram shows how the selected packages depend on each
+        other as a directed graph: each box is a node, each arrow points from a
+        dependent to what it depends on, and the number on an arrow is how many
+        underlying references it aggregates.
+      </p>
+      <p>
+        Hover a box for its toolbar. <strong>+</strong> expands the box in
+        place, nesting its children inside; <strong>−</strong> collapses it
+        again (reachable on the expanded box's header strip). The <em>drill</em>{" "}
+        button (🔍) makes the node the new root of the diagram, and{" "}
+        <em>copy</em> grabs its fully-qualified name. Drag a box to rearrange
+        the layout, and use the controls in the top-right corner to zoom and
+        fit.
+      </p>
+      <p>
+        Click an arrow to inspect that relationship in Dependencies Details.
+        When you have drilled into nodes, the breadcrumb above the diagram steps
+        you back out.
+      </p>
+    </>
+  );
+}
+
 function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
   const { setCellSelection } = useSelection();
   const queryClient = useQueryClient();
@@ -443,10 +473,15 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
       title="Dependency Diagram"
       subHeader={breadcrumb}
       toolbar={
-        <DependencyDiagramOptionsMenu
-          labelFormat={labelFormat}
-          onLabelFormatChange={setLabelFormat}
-        />
+        <div className="flex items-center gap-1">
+          <HelpPopoverButton label={DEPENDENCY_DIAGRAM_HELP_LABEL}>
+            <DependencyDiagramHelpContent />
+          </HelpPopoverButton>
+          <DependencyDiagramOptionsMenu
+            labelFormat={labelFormat}
+            onLabelFormatChange={setLabelFormat}
+          />
+        </div>
       }
       bodyClassName="p-0 overflow-hidden"
     >

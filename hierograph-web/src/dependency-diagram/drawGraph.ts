@@ -7,13 +7,10 @@ import type {
 import { formatNodeLabel, type NodeLabelFormat } from "@/graph/nodeLabel";
 
 import type { GraphColors } from "./colorScheme";
-import type { DiagramElkNode } from "./elkLayout";
+import { CONTAINER_HEADER_HEIGHT, type DiagramElkNode } from "./elkLayout";
 
 const CORNER_RADIUS = 3;
 const NODE_PADDING = 10;
-// Height of the reserved top header band of a container, in which its own label
-// is drawn (mirrors the top inset of CONTAINER_PADDING in elkLayout.ts).
-const CONTAINER_HEADER_HEIGHT = 28;
 const NODE_FONT = '12px "IBM Plex Mono", ui-monospace, monospace';
 const EDGE_LABEL_FONT = '10px "IBM Plex Mono", ui-monospace, monospace';
 

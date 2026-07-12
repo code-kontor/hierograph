@@ -55,11 +55,18 @@ const COMPOUND_ROOT_OPTIONS: Record<string, string> = {
   "elk.hierarchyHandling": "INCLUDE_CHILDREN",
 };
 
-// Container padding reserves a top header band for the container's own label
+// Height of the reserved top header band of a container (ELK world px): the
+// strip where the container's own label is drawn and where hovering resolves to
+// the container itself (no child lives there), which keeps its collapse toolbar
+// reachable. Single source of truth shared by the layout padding below, the
+// draw code (drawGraph.ts), and hit-testing (pointerHitTest.ts).
+export const CONTAINER_HEADER_HEIGHT = 28;
+
+// Container padding reserves the top header band for the container's own label
 // plus an inset around its children. These values are empirical placeholders,
 // tuned live against the running diagram (task #0128, step 8). The string is
 // the ELK ElkPadding literal.
-const CONTAINER_PADDING = "[top=28.0,left=12.0,bottom=12.0,right=12.0]";
+const CONTAINER_PADDING = `[top=${CONTAINER_HEADER_HEIGHT.toFixed(1)},left=12.0,bottom=12.0,right=12.0]`;
 
 // A node with children is a container: give it padding for its header band and
 // leave its width/height unset so ELK grows it around its children. Leaves keep
