@@ -44,6 +44,7 @@ const router = createRouter({
 });
 
 declare module "@tanstack/react-router" {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- module augmentation requires interface merging; a type alias would not merge
   interface Register {
     router: typeof router;
   }

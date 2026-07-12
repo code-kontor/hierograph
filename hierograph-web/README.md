@@ -1,21 +1,40 @@
 # hierograph-web
 
-Web frontend for Hierograph: Vite, React, TypeScript (strict), Tailwind CSS v4,
-shadcn/ui. A standalone pnpm project — intentionally **not** part of the Maven
-build.
+Web frontend for Hierograph. **Work in progress**
 
 ## Prerequisites
 
-- **Node.js 24+**
-- **pnpm** via Corepack: `corepack enable` (the version is pinned through the
-  `packageManager` field in `package.json`)
+- **Node.js 24+** — install from [nodejs.org](https://nodejs.org/) or via a
+  version manager such as [nvm](https://github.com/nvm-sh/nvm).
+- Package mananger **pnpm** — Installation guide: https://pnpm.io/installation#using-corepack
 
-## Getting started
+## Quick start
 
 ```bash
+# 1. Install the frontend dependencies (reads pnpm-lock.yaml)
 pnpm install
-pnpm dev        # dev server on http://localhost:3080
+
+# 2. Start the dev server
+pnpm dev
 ```
+
+- The frontend runs on **http://localhost:3080**.
+- It expects the hierograph GraphQL backend (the MCP server) on
+  **http://localhost:8080** — the Vite dev server proxies `/graphql` there.
+  Override the target with `VITE_GRAPHQL_PROXY_TARGET` (see [GraphQL](#graphql)).
+  See the workspace README for how to start the backend.
+
+## Views
+
+The app opens on the DSM view (`/` redirects to `/dsm`). Three views are
+available from the top navigation:
+
+- **DSM** — the Design Structure Matrix: the primary view for exploring the
+  hierarchical dependency model (tree + matrix + dependency inspector).
+- **Cross-Reference Explorer** — explores cross references between nodes.
+  ⚠️ Still needs further conceptual/domain clarification before it settles.
+- **Dependency Diagram** — a node-graph visualization. ⚠️ Prototype / work in
+  progress; it exists only to evaluate the feature and is not production-ready.
 
 ## Scripts
 
@@ -47,9 +66,3 @@ from the SDL files in
 running). Note: the schema is pre-processed in `codegen.ts` (empty type
 bodies are stripped for graphql-js); schema changes require a codegen re-run
 or watch restart.
-
-## UI components
-
-shadcn/ui (style `new-york`, base color `neutral`, CSS variables). Add
-components with `pnpm dlx shadcn@latest add <component>`; they are generated
-into `src/components/ui/`.
