@@ -188,19 +188,25 @@ export function drawContainer(
   }
 }
 
+// Distance the arrowhead centre sits back from the segment's end point, along
+// the segment direction.
+const ARROWHEAD_BACKOFF = 5;
+
 export function drawArrowhead(
   ctx: CanvasRenderingContext2D,
   from: ElkPoint,
   to: ElkPoint,
   radius: number,
 ): void {
-  const xDelta = from.x - to.x;
-  const yDelta = from.y - to.y;
-
-  const xCenter = xDelta !== 0 ? (xDelta > 0 ? to.x + 5 : to.x - 5) : to.x;
-  const yCenter = yDelta !== 0 ? (yDelta > 0 ? to.y + 5 : to.y - 5) : to.y;
-
   let angle = Math.atan2(to.y - from.y, to.x - from.x);
+
+  // Seat the arrowhead a fixed distance back from the end point *along the
+  // segment* rather than by a fixed x/y offset. For an orthogonal segment this
+  // reduces to the previous ±5 offset; for a diagonal segment (e.g. an edge
+  // re-routed by a node drag) it keeps the head centred on the line instead of
+  // pushing it sideways.
+  const xCenter = to.x - ARROWHEAD_BACKOFF * Math.cos(angle);
+  const yCenter = to.y - ARROWHEAD_BACKOFF * Math.sin(angle);
 
   ctx.beginPath();
   ctx.moveTo(
