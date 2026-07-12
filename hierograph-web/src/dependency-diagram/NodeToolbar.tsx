@@ -47,10 +47,17 @@ type NodeToolbarProps = {
   onPointerLeave: () => void;
 };
 
-// Floating per-box action toolbar (expand/collapse, drill, copy fqn), shown
-// on hover next to the box it belongs to. Positioned like NodeInfoTooltip
-// (DOM portal, fixed client coordinates) so it renders above the canvas and
-// its clicks never reach the canvas's own pointer handlers.
+// Small inset (px) so the toolbar sits just inside the box's top-right corner
+// rather than flush against the border.
+const TOOLBAR_INSET = 4;
+
+// Floating per-box action toolbar (expand/collapse, drill, copy fqn), shown on
+// hover inside the box it belongs to. Positioned like NodeInfoTooltip (DOM
+// portal, fixed client coordinates) so it renders above the canvas and its
+// clicks never reach the canvas's own pointer handlers. `left`/`top` mark the
+// box's top-right corner; the toolbar anchors its right edge there (via
+// translateX(-100%)) so it draws into the box — hovering it never crosses empty
+// canvas, which is what lets the box keep its highlight.
 export function NodeToolbar({
   left,
   top,
@@ -67,7 +74,12 @@ export function NodeToolbar({
       className={cn(
         "border-border-strong bg-popover pointer-events-auto z-50 flex gap-0.5 rounded-lg border p-0.5 shadow-[var(--hg-shadow)]",
       )}
-      style={{ position: "fixed", left, top }}
+      style={{
+        position: "fixed",
+        left: left - TOOLBAR_INSET,
+        top: top + TOOLBAR_INSET,
+        transform: "translateX(-100%)",
+      }}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >
