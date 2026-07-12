@@ -61,6 +61,7 @@ export function DependencyDiagramCanvas({
   const needsFitRef = useRef(true);
   const rafRef = useRef<number | null>(null);
   const hoveredIdRef = useRef<string | null>(null);
+  const hoveredEdgeIdRef = useRef<string | null>(null);
   const tooltipTimerRef = useRef<number | null>(null);
 
   const isDraggingRef = useRef(false);
@@ -134,6 +135,7 @@ export function DependencyDiagramCanvas({
       resolveGraphColors(),
       labelFormatRef.current,
       hoveredIdRef.current ?? undefined,
+      hoveredEdgeIdRef.current ?? undefined,
     );
     ctx.restore();
   }
@@ -291,14 +293,15 @@ export function DependencyDiagramCanvas({
             scheduleRedraw();
             return;
           }
+          const prevNode = hoveredIdRef.current;
+          const prevEdge = hoveredEdgeIdRef.current;
+
           const hit = nodeAtClient(e.clientX, e.clientY);
-          const id = hit?.id ?? null;
-          e.currentTarget.style.cursor = hit ? "pointer" : "grab";
-          if (id !== hoveredIdRef.current) {
-            hoveredIdRef.current = id;
-            scheduleRedraw();
-          }
           if (hit) {
+            e.currentTarget.style.cursor = "pointer";
+            hoveredIdRef.current = hit.id;
+            hoveredEdgeIdRef.current = null;
+
             const fullName = hit.labels?.[0]?.text ?? hit.id;
             const type = (hit as DiagramElkNode).nodeType ?? "java.package";
             const clientX = e.clientX + TOOLTIP_OFFSET_X;
@@ -314,7 +317,24 @@ export function DependencyDiagramCanvas({
               });
             }, TOOLTIP_HOVER_DELAY_MS);
           } else {
-            hideTooltip();
+            hoveredIdRef.current = null;
+            const edge = edgeAtClient(e.clientX, e.clientY);
+            if (edge) {
+              e.currentTarget.style.cursor = "pointer";
+              hoveredEdgeIdRef.current = edge.id ?? null;
+              hideTooltip();
+            } else {
+              e.currentTarget.style.cursor = "grab";
+              hoveredEdgeIdRef.current = null;
+              hideTooltip();
+            }
+          }
+
+          if (
+            hoveredIdRef.current !== prevNode ||
+            hoveredEdgeIdRef.current !== prevEdge
+          ) {
+            scheduleRedraw();
           }
         }}
         onPointerUp={(e) => {
@@ -356,11 +376,16 @@ export function DependencyDiagramCanvas({
           isDraggingRef.current = false;
           e.currentTarget.releasePointerCapture(e.pointerId);
           hideTooltip();
+          hoveredEdgeIdRef.current = null;
         }}
         onPointerLeave={() => {
           hideTooltip();
-          if (hoveredIdRef.current !== null) {
+          if (
+            hoveredIdRef.current !== null ||
+            hoveredEdgeIdRef.current !== null
+          ) {
             hoveredIdRef.current = null;
+            hoveredEdgeIdRef.current = null;
             scheduleRedraw();
           }
         }}

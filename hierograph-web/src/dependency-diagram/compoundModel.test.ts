@@ -5,14 +5,14 @@ import { buildCompoundElkGraph } from "./compoundModel";
 import { NODE_HEIGHT, NODE_WIDTH } from "./elkLayout";
 import { buildDependencyGraph, type DependencyGraph } from "./graphModel";
 
-// A -> B (column 0 = source A, row 1 = target B).
+// A -> B (row 0 = source A, column 1 = target B).
 function rootGraph(): DependencyGraph {
   return buildDependencyGraph(
     [
       { id: "A", text: "pkg.a" },
       { id: "B", text: "pkg.b" },
     ],
-    [{ row: 1, column: 0, value: 3 }],
+    [{ row: 0, column: 1, value: 3 }],
   );
 }
 
@@ -23,7 +23,7 @@ function childGraphOfA(): DependencyGraph {
       { id: "a1", text: "pkg.a.one" },
       { id: "a2", text: "pkg.a.two" },
     ],
-    [{ row: 1, column: 0, value: 1 }],
+    [{ row: 0, column: 1, value: 1 }],
   );
 }
 
@@ -34,7 +34,7 @@ function childGraphOfB(): DependencyGraph {
       { id: "b1", text: "pkg.b.one" },
       { id: "b2", text: "pkg.b.two" },
     ],
-    [{ row: 1, column: 0, value: 1 }],
+    [{ row: 0, column: 1, value: 1 }],
   );
 }
 
