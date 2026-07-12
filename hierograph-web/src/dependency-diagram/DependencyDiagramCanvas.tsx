@@ -8,15 +8,18 @@ import { resolveGraphColors } from "./colorScheme";
 import { DependencyDiagramControls } from "./DependencyDiagramControls";
 import { setupCanvas } from "./dpiFixer";
 import { drawGraph } from "./drawGraph";
-import { hitTestEdge } from "./edgeHitTest";
+import { collectWorldGraph, hitTestEdge } from "./edgeHitTest";
 import type { DiagramElkNode } from "./elkLayout";
 import { hitTestNode } from "./hitTest";
+import { straightenIncidentEdges } from "./nodeDrag";
+import { NodeToolbar } from "./NodeToolbar";
 import {
   FIT_PADDING,
   fitToView,
   pan,
   screenToWorld,
   type Viewport,
+  worldToScreen,
   zoomAt,
 } from "./viewport";
 
@@ -27,10 +30,13 @@ const IDENTITY_VIEWPORT: Viewport = { scale: 1, translateX: 0, translateY: 0 };
 const TOOLTIP_HOVER_DELAY_MS = 300;
 const TOOLTIP_OFFSET_X = 18;
 const TOOLTIP_OFFSET_Y = 20;
+const TOOLBAR_HIDE_DELAY_MS = 120;
+const EMPTY_SET: ReadonlySet<string> = new Set();
 
 type DependencyDiagramCanvasProps = {
   rootNode: ElkNode;
   labelFormat: NodeLabelFormat;
+  expandedIds?: ReadonlySet<string>;
   onNodeActivate?: (id: string, label: string) => void;
   onNodeToggleExpand?: (id: string) => void;
   onEdgeActivate?: (sourceNodeId: string, targetNodeId: string) => void;
@@ -44,13 +50,23 @@ type NodeTooltip = {
   y: number;
 };
 
+type NodeToolbarState = {
+  nodeId: string;
+  fqn: string;
+  isExpanded: boolean;
+  left: number;
+  top: number;
+};
+
 export function DependencyDiagramCanvas({
   rootNode,
   labelFormat,
+  expandedIds,
   onNodeActivate,
   onNodeToggleExpand,
   onEdgeActivate,
 }: DependencyDiagramCanvasProps) {
+  const expanded = expandedIds ?? EMPTY_SET;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -63,12 +79,16 @@ export function DependencyDiagramCanvas({
   const hoveredIdRef = useRef<string | null>(null);
   const hoveredEdgeIdRef = useRef<string | null>(null);
   const tooltipTimerRef = useRef<number | null>(null);
+  const toolbarHideTimerRef = useRef<number | null>(null);
 
-  const isDraggingRef = useRef(false);
+  const dragModeRef = useRef<"none" | "pan" | "node">("none");
   const dragStartClientRef = useRef({ x: 0, y: 0 });
   const dragStartViewportRef = useRef<Viewport>(IDENTITY_VIEWPORT);
+  const dragNodeRef = useRef<ElkNode | null>(null);
+  const dragNodeStartRef = useRef({ x: 0, y: 0 });
 
   const [tooltip, setTooltip] = useState<NodeTooltip | null>(null);
+  const [toolbar, setToolbar] = useState<NodeToolbarState | null>(null);
 
   function clearTooltipTimer() {
     if (tooltipTimerRef.current !== null) {
@@ -80,6 +100,27 @@ export function DependencyDiagramCanvas({
   function hideTooltip() {
     clearTooltipTimer();
     setTooltip(null);
+  }
+
+  function clearToolbarHideTimer() {
+    if (toolbarHideTimerRef.current !== null) {
+      window.clearTimeout(toolbarHideTimerRef.current);
+      toolbarHideTimerRef.current = null;
+    }
+  }
+
+  function hideToolbar() {
+    clearToolbarHideTimer();
+    setToolbar(null);
+  }
+
+  // Delays hiding the toolbar so the pointer can travel from the box to the
+  // floating toolbar (a separate DOM overlay) without it disappearing first.
+  function scheduleToolbarHide() {
+    clearToolbarHideTimer();
+    toolbarHideTimerRef.current = window.setTimeout(() => {
+      setToolbar(null);
+    }, TOOLBAR_HIDE_DELAY_MS);
   }
 
   function nodeAtClient(clientX: number, clientY: number): ElkNode | null {
@@ -226,6 +267,7 @@ export function DependencyDiagramCanvas({
       const sy = e.clientY - rect.top;
       const factor = Math.exp(-e.deltaY * ZOOM_SENSITIVITY);
       viewportRef.current = zoomAt(viewportRef.current, sx, sy, factor);
+      setToolbar(null);
       scheduleRedraw();
     }
 
@@ -240,6 +282,9 @@ export function DependencyDiagramCanvas({
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       if (tooltipTimerRef.current !== null) {
         window.clearTimeout(tooltipTimerRef.current);
+      }
+      if (toolbarHideTimerRef.current !== null) {
+        window.clearTimeout(toolbarHideTimerRef.current);
       }
     };
   }, []);
@@ -278,18 +323,40 @@ export function DependencyDiagramCanvas({
         data-testid="dependency-diagram-canvas"
         className="absolute inset-0 block h-full w-full"
         onPointerDown={(e) => {
-          // #0129: on drag-over-node start node-drag instead of pan
           e.currentTarget.setPointerCapture(e.pointerId);
-          isDraggingRef.current = true;
-          dragStartClientRef.current = { x: e.clientX, y: e.clientY };
-          dragStartViewportRef.current = viewportRef.current;
           hideTooltip();
+          hideToolbar();
+          dragStartClientRef.current = { x: e.clientX, y: e.clientY };
+
+          const hit = nodeAtClient(e.clientX, e.clientY);
+          if (hit && hit.x !== undefined && hit.y !== undefined) {
+            dragModeRef.current = "node";
+            dragNodeRef.current = hit;
+            dragNodeStartRef.current = { x: hit.x, y: hit.y };
+          } else {
+            dragModeRef.current = "pan";
+            dragStartViewportRef.current = viewportRef.current;
+          }
         }}
         onPointerMove={(e) => {
-          if (isDraggingRef.current) {
+          if (dragModeRef.current === "pan") {
+            hideToolbar();
             const dx = e.clientX - dragStartClientRef.current.x;
             const dy = e.clientY - dragStartClientRef.current.y;
             viewportRef.current = pan(dragStartViewportRef.current, dx, dy);
+            scheduleRedraw();
+            return;
+          }
+          if (dragModeRef.current === "node") {
+            hideToolbar();
+            const node = dragNodeRef.current;
+            if (!node) return;
+            const dx = e.clientX - dragStartClientRef.current.x;
+            const dy = e.clientY - dragStartClientRef.current.y;
+            const s = viewportRef.current.scale;
+            node.x = dragNodeStartRef.current.x + dx / s;
+            node.y = dragNodeStartRef.current.y + dy / s;
+            straightenIncidentEdges(rootNodeRef.current, node.id);
             scheduleRedraw();
             return;
           }
@@ -316,6 +383,29 @@ export function DependencyDiagramCanvas({
                 y: clientY,
               });
             }, TOOLTIP_HOVER_DELAY_MS);
+
+            if (prevNode !== hit.id) {
+              clearToolbarHideTimer();
+              const box = collectWorldGraph(rootNodeRef.current).nodes.get(
+                hit.id,
+              );
+              const canvas = canvasRef.current;
+              if (box && canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const screen = worldToScreen(
+                  viewportRef.current,
+                  box.x + box.width,
+                  box.y,
+                );
+                setToolbar({
+                  nodeId: hit.id,
+                  fqn: fullName,
+                  isExpanded: expanded.has(hit.id),
+                  left: rect.left + screen.x,
+                  top: rect.top + screen.y,
+                });
+              }
+            }
           } else {
             hoveredIdRef.current = null;
             const edge = edgeAtClient(e.clientX, e.clientY);
@@ -328,6 +418,7 @@ export function DependencyDiagramCanvas({
               hoveredEdgeIdRef.current = null;
               hideTooltip();
             }
+            scheduleToolbarHide();
           }
 
           if (
@@ -342,44 +433,30 @@ export function DependencyDiagramCanvas({
           const dy = e.clientY - dragStartClientRef.current.y;
           const isClick =
             dx * dx + dy * dy < CLICK_DRAG_THRESHOLD * CLICK_DRAG_THRESHOLD;
-          if (isClick) {
-            // Single click on a box = in-place expand/collapse (the primary
-            // gesture); double click drills/scope-replaces via onDoubleClick
-            // below. No single/double timer disambiguation: the first click of
-            // a double-click harmlessly toggles expand and is immediately
-            // discarded when the drill unmounts the compound view (a brief,
-            // consequence-free flash) — this keeps zero latency on every single
-            // click, which matters for the primary gesture.
-            const nodeHit = nodeAtClient(e.clientX, e.clientY);
-            if (nodeHit) {
-              onNodeToggleExpand?.(nodeHit.id);
-            } else if (onEdgeActivate) {
-              const edge = edgeAtClient(e.clientX, e.clientY);
-              if (edge?.sources?.[0] && edge.targets?.[0]) {
-                onEdgeActivate(edge.sources[0], edge.targets[0]);
-              }
+          // A click on a box is inert (no toggle/drill) — those live on the
+          // hover toolbar now. A click on empty space still activates the
+          // edge under the pointer, if any.
+          if (isClick && dragModeRef.current === "pan" && onEdgeActivate) {
+            const edge = edgeAtClient(e.clientX, e.clientY);
+            if (edge?.sources?.[0] && edge.targets?.[0]) {
+              onEdgeActivate(edge.sources[0], edge.targets[0]);
             }
           }
-          isDraggingRef.current = false;
+          dragModeRef.current = "none";
+          dragNodeRef.current = null;
           e.currentTarget.releasePointerCapture(e.pointerId);
-        }}
-        onDoubleClick={(e) => {
-          const nodeHit = nodeAtClient(e.clientX, e.clientY);
-          if (nodeHit) {
-            onNodeActivate?.(
-              nodeHit.id,
-              nodeHit.labels?.[0]?.text ?? nodeHit.id,
-            );
-          }
         }}
         onPointerCancel={(e) => {
-          isDraggingRef.current = false;
+          dragModeRef.current = "none";
+          dragNodeRef.current = null;
           e.currentTarget.releasePointerCapture(e.pointerId);
           hideTooltip();
+          hideToolbar();
           hoveredEdgeIdRef.current = null;
         }}
         onPointerLeave={() => {
           hideTooltip();
+          scheduleToolbarHide();
           if (
             hoveredIdRef.current !== null ||
             hoveredEdgeIdRef.current !== null
@@ -404,6 +481,19 @@ export function DependencyDiagramCanvas({
           shortName={tooltip.shortName}
           type={tooltip.type}
           fullName={tooltip.fullName}
+        />
+      )}
+      {toolbar && (
+        <NodeToolbar
+          left={toolbar.left}
+          top={toolbar.top}
+          nodeId={toolbar.nodeId}
+          fqn={toolbar.fqn}
+          isExpanded={toolbar.isExpanded}
+          onToggleExpand={(id) => onNodeToggleExpand?.(id)}
+          onDrill={(id, label) => onNodeActivate?.(id, label)}
+          onPointerEnter={clearToolbarHideTimer}
+          onPointerLeave={hideToolbar}
         />
       )}
     </div>

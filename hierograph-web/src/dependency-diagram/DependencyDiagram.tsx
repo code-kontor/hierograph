@@ -453,12 +453,14 @@ function MatrixView({ matrix, onNodeActivate, breadcrumb }: MatrixViewProps) {
       <div className="h-full w-full overflow-hidden">
         {/* A new layout yields a new rootNode identity, so the canvas re-fits
             (E8). Preserving the viewport across an incremental expand is a
-            possible follow-up, not part of this task. Single click toggles
-            expand; double click drills (onNodeActivate = pushDrill), which
-            unmounts this compound view. */}
+            possible follow-up, not part of this task. The box area only
+            drags (position override, #129); expand/collapse, drill
+            (onNodeActivate = pushDrill, unmounts this compound view), and
+            copy live on the per-box hover toolbar. */}
         <DependencyDiagramCanvas
           rootNode={rootNode}
           labelFormat={labelFormat}
+          expandedIds={expanded}
           onNodeActivate={onNodeActivate}
           onNodeToggleExpand={handleToggleExpand}
           onEdgeActivate={(sourceNodeId, targetNodeId) =>
