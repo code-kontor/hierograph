@@ -1,7 +1,7 @@
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
 
 import { cn } from "@/design-system/cn";
+import { useCopyToClipboard } from "@/design-system/useCopyToClipboard";
 
 type CopyButtonProps = {
   value: string;
@@ -13,14 +13,11 @@ type CopyButtonProps = {
 // checkmark. Used next to truncated values (node title, ids) so the full text is
 // still recoverable even when the label is clipped.
 export function CopyButton({ value, label, className }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    });
+    copy(value);
   }
 
   return (

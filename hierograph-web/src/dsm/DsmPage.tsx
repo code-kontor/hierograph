@@ -25,8 +25,8 @@ export function DsmPage() {
   const search = useSearch({ from: "/dsm" });
   const navigate = useNavigate({ from: "/dsm" });
   const activeTab = search.tab ?? "usages";
-  const handleTabChange = (tab: "usages" | "paths") => {
-    navigate({
+  const handleTabChange = async (tab: "usages" | "paths") => {
+    await navigate({
       search: (prev) => ({ ...prev, tab: tab === "usages" ? undefined : tab }),
       replace: true,
     });

@@ -177,9 +177,9 @@ export function CrossReferenceExplorerView({
   // Drop the pinned aggregate (and active side) from the URL — used when a
   // partner selection takes over. Replace, not push: a partner click is a
   // transient, non-serialized interaction, so it must not add a history entry.
-  const clearAggregateFromUrl = () => {
+  const clearAggregateFromUrl = async () => {
     if (search.side === undefined && search.aggregated === undefined) return;
-    navigate({
+    await navigate({
       search: (prev) => ({ ...prev, side: undefined, aggregated: undefined }),
       replace: true,
     });
@@ -229,9 +229,9 @@ export function CrossReferenceExplorerView({
     );
   };
 
-  const handleCenterSelectedIdsChange = (ids: string[]) => {
+  const handleCenterSelectedIdsChange = async (ids: string[]) => {
     // Center change pushes a history entry and drops side/aggregated (cascade).
-    navigate({
+    await navigate({
       search: (prev) => ({
         ...prev,
         center_ids: ids.length > 0 ? ids : undefined,
@@ -249,7 +249,7 @@ export function CrossReferenceExplorerView({
     setCell(undefined, undefined);
   };
 
-  const handleInspect = (side: "left" | "right") => {
+  const handleInspect = async (side: "left" | "right") => {
     if (centerSelectedIds.length === 1) {
       setInspectHintSide(null);
       // Inspect always wins: clear any active partner selection on both sides so
@@ -262,7 +262,7 @@ export function CrossReferenceExplorerView({
       // Pin the aggregate direction in the URL (replace: a view toggle, not a
       // navigation step). used-by↔left, uses↔right.
       const dir = side === "left" ? "used-by" : "uses";
-      navigate({
+      await navigate({
         search: (prev) => ({ ...prev, side: dir, aggregated: dir }),
         replace: true,
       });
@@ -275,12 +275,12 @@ export function CrossReferenceExplorerView({
     }
   };
 
-  const handleLeftSelectedIdsChange = (ids: string[]) => {
+  const handleLeftSelectedIdsChange = async (ids: string[]) => {
     setLeftSelectedIds(ids);
     if (ids.length > 0) {
       rightTreeRef.current?.clearSelection();
       setLastActiveSide("left");
-      clearAggregateFromUrl();
+      await clearAggregateFromUrl();
       setCell(ids[0], rootId);
     } else {
       setLastActiveSide((prev) => (prev === "left" ? null : prev));
@@ -288,12 +288,12 @@ export function CrossReferenceExplorerView({
     }
   };
 
-  const handleRightSelectedIdsChange = (ids: string[]) => {
+  const handleRightSelectedIdsChange = async (ids: string[]) => {
     setRightSelectedIds(ids);
     if (ids.length > 0) {
       leftTreeRef.current?.clearSelection();
       setLastActiveSide("right");
-      clearAggregateFromUrl();
+      await clearAggregateFromUrl();
       setCell(rootId, ids[0]);
     } else {
       setLastActiveSide((prev) => (prev === "right" ? null : prev));

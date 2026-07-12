@@ -21,7 +21,7 @@ files and allowed edges live in `eslint.config.js`; the dependency table in
 - **No barrel `index.ts`** — import public files by direct path
   (`@/<vertical>/<File>`); intra-vertical imports are direct paths too.
 - **Never loosen, disable or add exceptions to the boundary rules to make
-  `pnpm check` pass.** A failing check means the *code* is wrong (wrong
+  `pnpm check` pass.** A failing check means the _code_ is wrong (wrong
   direction, deep import, misplaced file) — fix the code. Widen a rule only for
   a genuinely intended new edge, and update `docs/architecture.md` in the same
   change.

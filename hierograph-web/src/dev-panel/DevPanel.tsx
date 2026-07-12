@@ -7,7 +7,7 @@ import {
   GripVertical,
   X,
 } from "lucide-react";
-import { createElement, useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/design-system/cn";
@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/design-system/ui/tooltip";
+import { useCopyToClipboard } from "@/design-system/useCopyToClipboard";
 import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { getNodeIcon } from "@/graph/nodeIcon";
 import { nodeDetailQueryOptions } from "@/graph/queries";
@@ -76,13 +77,10 @@ type DevPanelInnerProps = { id: string };
 type NodeIdLineProps = { id: string };
 
 function NodeIdLine({ id }: NodeIdLineProps) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   function handleCopy() {
-    navigator.clipboard.writeText(id).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    });
+    copy(id);
   }
 
   return (

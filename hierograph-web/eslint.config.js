@@ -50,6 +50,10 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       "unused-imports": unusedImports,
@@ -60,6 +64,10 @@ export default defineConfig([
       "unused-imports/no-unused-imports": "error",
       "simple-import-sort/imports": "error",
       "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        { ignoreVoid: false },
+      ],
       "import/first": "error",
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
