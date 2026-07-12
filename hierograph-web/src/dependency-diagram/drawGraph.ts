@@ -228,6 +228,7 @@ export function drawEdge(
   ctx: CanvasRenderingContext2D,
   edge: ElkExtendedEdge,
   colors: GraphColors,
+  highlighted?: boolean,
 ): void {
   ctx.save();
   ctx.font = EDGE_LABEL_FONT;
@@ -244,9 +245,14 @@ export function drawEdge(
 
   for (const section of edge.sections ?? []) {
     const backward = section.startPoint.y > section.endPoint.y;
-    const strokeColor = backward ? colors.edgeBackward : colors.edge;
+    const strokeColor = highlighted
+      ? colors.nodeHoverBorder
+      : backward
+        ? colors.edgeBackward
+        : colors.edge;
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = strokeColor;
+    ctx.lineWidth = highlighted ? 2 : 1;
 
     let lastPoint: ElkPoint = section.startPoint;
     const bendPoints = section.bendPoints ?? [];
@@ -335,6 +341,7 @@ function drawSubtree(
   colors: GraphColors,
   labelFormat: NodeLabelFormat,
   hoveredNodeId?: string,
+  hoveredEdgeId?: string,
 ): void {
   for (const child of node.children ?? []) {
     const hovered = child.id === hoveredNodeId;
@@ -343,7 +350,14 @@ function drawSubtree(
       if (child.x !== undefined && child.y !== undefined) {
         ctx.save();
         ctx.translate(child.x, child.y);
-        drawSubtree(ctx, child, colors, labelFormat, hoveredNodeId);
+        drawSubtree(
+          ctx,
+          child,
+          colors,
+          labelFormat,
+          hoveredNodeId,
+          hoveredEdgeId,
+        );
         ctx.restore();
       }
     } else {
@@ -351,7 +365,7 @@ function drawSubtree(
     }
   }
   for (const edge of node.edges ?? []) {
-    drawEdge(ctx, edge, colors);
+    drawEdge(ctx, edge, colors, edge.id === hoveredEdgeId);
   }
 }
 
@@ -361,8 +375,9 @@ export function drawGraph(
   colors: GraphColors,
   labelFormat: NodeLabelFormat,
   hoveredNodeId?: string,
+  hoveredEdgeId?: string,
 ): void {
   // The root draws no box (it is the canvas): its children and its own edges are
   // drawn at offset 0, then each expanded child recurses in its own space.
-  drawSubtree(ctx, rootNode, colors, labelFormat, hoveredNodeId);
+  drawSubtree(ctx, rootNode, colors, labelFormat, hoveredNodeId, hoveredEdgeId);
 }
