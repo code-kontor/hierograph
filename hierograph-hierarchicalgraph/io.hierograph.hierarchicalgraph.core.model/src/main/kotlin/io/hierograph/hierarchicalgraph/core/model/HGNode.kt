@@ -22,4 +22,11 @@ interface HGNode {
     val outgoingCoreDependencies: List<HGCoreDependency>
     val incomingCoreDependencies: List<HGCoreDependency>
     fun <T : Any> getNodeSource(clazz: Class<T>): T?
+
+    /**
+     * Store-backed labels of this node, delegated from its [nodeSource] (e.g. the Neo4j labels of a
+     * graph-DB-backed node). Empty when the source carries no classification. Lets callers classify a
+     * node without knowing — or importing — the concrete node-source type.
+     */
+    val labels: List<String> get() = nodeSource.labels
 }

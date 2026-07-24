@@ -30,7 +30,7 @@ open class GraphDbNodeSource(
     /** Labels and properties are fetched from Neo4j once, on first access, and then cached. */
     private val nodeData: NodeData by lazy { loadNodeData() }
 
-    val labels: List<String> get() = nodeData.labels
+    override val labels: List<String> get() = nodeData.labels
 
     val properties: Map<String, String> get() = nodeData.properties
 

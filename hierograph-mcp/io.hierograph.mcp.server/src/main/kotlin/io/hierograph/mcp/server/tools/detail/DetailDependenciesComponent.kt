@@ -18,7 +18,6 @@ package io.hierograph.mcp.server.tools.detail
 import org.slf4j.LoggerFactory
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
@@ -548,8 +547,7 @@ class DetailDependenciesComponent(
      * since they carry the Neo4j `Method` label.
      */
     private fun neoLabelForMember(node: HGNode): String? {
-        val src = node.nodeSource as? GraphDbNodeSource ?: return null
-        val labels = src.labels
+        val labels = node.labels
         return when {
             "Field" in labels -> "Field"
             "Method" in labels -> "Method"  // includes constructors (Constructor + Method labels)

@@ -64,10 +64,6 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.model</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</artifactId>
         </dependency>
         <dependency>

@@ -18,4 +18,12 @@ package io.hierograph.hierarchicalgraph.core.model
 interface INodeSource {
     val identifier: Any
     var node: HGNode?
+
+    /**
+     * Store-backed labels (tags) classifying the underlying node, e.g. the Neo4j labels of a
+     * graph-DB-backed source. Empty for sources that carry no such classification. Exposed here (and
+     * surfaced on [HGNode.labels]) so callers can branch on node classification without downcasting to
+     * a concrete, store-specific [INodeSource] implementation.
+     */
+    val labels: List<String> get() = emptyList()
 }
