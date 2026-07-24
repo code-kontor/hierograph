@@ -59,6 +59,12 @@ class HierarchicalGraphService {
     /** Fingerprint of the currently-loaded snapshot; changes on every successful [reload]. */
     val dataHash: String get() = current().dataHash
 
+    /**
+     * Whether a hierarchical graph is currently loaded. `false` when the server was started without a
+     * reachable database (see [init]); tools consult this to decide whether they can answer at all.
+     */
+    val isGraphAvailable: Boolean get() = snapshotRef.get() != null
+
     private fun current(): GraphSnapshot =
         snapshotRef.get() ?: error("Hierarchical graph has not been loaded yet")
 
@@ -68,9 +74,21 @@ class HierarchicalGraphService {
 
         val boltClientFactory = IBoltClientFactory.newInstance(Executors.newFixedThreadPool(4))
         boltClient = boltClientFactory.createBoltClient(boltUri)
-        boltClient.connect()
 
-        snapshotRef.set(loadSnapshot())
+        // Start "empty" if no database is reachable: connect + build best-effort, but never fail
+        // startup. Tools then report that no graph is available until one is loaded (e.g. via
+        // reload_graph once a database has been set up).
+        try {
+            boltClient.connect()
+            snapshotRef.set(loadSnapshot())
+        } catch (e: Exception) {
+            log.warn(
+                "No hierarchical graph loaded at startup: could not build a graph from the bolt store " +
+                        "at {} ({}). The server is starting empty; tools will report that no graph is " +
+                        "available until one is loaded (e.g. via reload_graph once a database is reachable).",
+                boltUri, e.message
+            )
+        }
     }
 
     /**
@@ -87,6 +105,12 @@ class HierarchicalGraphService {
     fun reload(): Map<String, Any?> {
         log.info("Reloading hierarchical graph from bolt store: {}", boltUri)
         return try {
+            // The server may have started empty (no database reachable at startup), leaving the bolt
+            // client unconnected. Connect on demand so a reload can load the first graph.
+            if (!boltClient.isConnected) {
+                log.info("Bolt client not connected; connecting to {} before reload.", boltUri)
+                boltClient.connect()
+            }
             val (snapshot, elapsed) = measureTimedValue { loadSnapshot() }
             snapshotRef.set(snapshot)
             val rootChildren = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
@@ -160,7 +184,7 @@ class HierarchicalGraphService {
 
     @PreDestroy
     fun shutdown() {
-        if (::boltClient.isInitialized) {
+        if (::boltClient.isInitialized && boltClient.isConnected) {
             boltClient.disconnect()
         }
     }

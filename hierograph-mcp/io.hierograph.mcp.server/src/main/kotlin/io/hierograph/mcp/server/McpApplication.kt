@@ -15,6 +15,7 @@
  */
 package io.hierograph.mcp.server
 
+import io.hierograph.mcp.server.core.GraphAvailabilityToolCallbackProvider
 import io.hierograph.mcp.server.core.HierarchicalGraphService
 import io.hierograph.mcp.server.core.logging.LoggingToolCallbackProvider
 import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
@@ -51,6 +52,7 @@ class McpApplication {
 
     @Bean
     fun graphToolCallbackProvider(
+        graphService: HierarchicalGraphService,
         findNodeTool: FindNodeTool,
         graphOverviewTool: GraphOverviewTool,
         listChildrenTool: ListChildrenTool,
@@ -76,7 +78,14 @@ class McpApplication {
                 reloadGraphTool
             )
             .build()
-        return LoggingToolCallbackProvider(delegate)
+        // Short-circuit every tool with the standard "no graph available" description while the server
+        // runs empty. `reload_graph` is exempt so a graph can still be loaded once a database is set up.
+        val guarded = GraphAvailabilityToolCallbackProvider(
+            delegate,
+            graphService,
+            toolsAllowedWithoutGraph = setOf("reload_graph")
+        )
+        return LoggingToolCallbackProvider(guarded)
     }
 }
 
