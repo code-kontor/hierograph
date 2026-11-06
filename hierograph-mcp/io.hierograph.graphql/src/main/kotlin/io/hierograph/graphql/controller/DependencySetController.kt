@@ -99,13 +99,19 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     }
 
     companion object {
+        /**
+         * Slices [deps] into the 1-based page [pageNumber] of [pageSize] entries. A page past the end is
+         * empty; a non-positive [pageNumber] or [pageSize] is rejected with [InvalidArgumentException].
+         */
         fun createPage(
             deps: List<HGCoreDependency>,
             pageNumber: Int,
             pageSize: Int
         ): DependencyPageModel {
+            if (pageNumber < 1) throw InvalidArgumentException("pageNumber must be >= 1 (pages are 1-based), was $pageNumber")
+            if (pageSize < 1) throw InvalidArgumentException("pageSize must be >= 1, was $pageSize")
             val totalCount = deps.size
-            val maxPages = if (pageSize > 0) ceil(totalCount.toDouble() / pageSize).toInt() else 0
+            val maxPages = ceil(totalCount.toDouble() / pageSize).toInt()
             val fromIndex = min((pageNumber - 1) * pageSize, totalCount)
             val toIndex = min(fromIndex + pageSize, totalCount)
             val pageDeps = if (fromIndex < toIndex) deps.subList(fromIndex, toIndex) else emptyList()
