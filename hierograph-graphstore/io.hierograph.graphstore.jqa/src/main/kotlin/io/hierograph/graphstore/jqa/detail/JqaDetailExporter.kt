@@ -47,64 +47,71 @@ class JqaDetailExporter(private val boltClient: IBoltClient) {
     }
 
     companion object {
+        /** The full-export query: every scanned type's raw member edges. */
+        val DETAIL_REFS = detailRefsCypher("")
+
         /**
          * Raw member-level edges mirroring the detail tool's `BRANCHES`, as a `UNION ALL`. Each branch
          * returns the same six columns. Member keys use `type.fqn + '#' + signature` (matching
          * `members.parquet`); type-reference targets set `to_key = to_type = the type FQN`. `read_by` /
          * `written_by` are not stored — they are the `READS` / `WRITES` edges read in reverse at query
          * time. `parameter_annotated_by` is deferred.
+         *
+         * [sourceFilter] is appended to every branch's `WHERE` (the source type is always bound to
+         * `ft`), so the same patterns serve both the full export (`""`) and a scoped reference query
+         * (e.g. `"AND ft.fqn IN ${'$'}fromFqns"`).
          */
-        val DETAIL_REFS = """
+        fun detailRefsCypher(sourceFilter: String): String = """
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[r:INVOKES|VIRTUAL_INVOKES]->(t:Method)<-[:DECLARES]-(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn + '#' + t.signature AS to_key, tt.fqn AS to_type,
                    'calls' AS relationship, r.lineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[r:READS]->(t:Field)<-[:DECLARES]-(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn + '#' + t.signature AS to_key, tt.fqn AS to_type,
                    'reads_field' AS relationship, r.lineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[r:WRITES]->(t:Field)<-[:DECLARES]-(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn + '#' + t.signature AS to_key, tt.fqn AS to_type,
                    'writes_field' AS relationship, r.lineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[:OVERRIDES]->(t:Method)<-[:DECLARES]-(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn + '#' + t.signature AS to_key, tt.fqn AS to_type,
                    'overrides' AS relationship, s.firstLineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[:THROWS]->(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn AS to_key, tt.fqn AS to_type,
                    'throws' AS relationship, s.firstLineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[:RETURNS]->(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn AS to_key, tt.fqn AS to_type,
                    'returns' AS relationship, s.firstLineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Field)-[:OF_TYPE]->(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn AS to_key, tt.fqn AS to_type,
                    'has_type' AS relationship, null AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s:Method)-[:HAS]->(:Parameter)-[:OF_TYPE]->(tt:Type)
-            WHERE NOT ft:Virtual
+            WHERE NOT ft:Virtual $sourceFilter
             RETURN DISTINCT ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    tt.fqn AS to_key, tt.fqn AS to_type,
                    'parameter_type' AS relationship, s.firstLineNumber AS line
             UNION ALL
             MATCH (ft:Type)-[:DECLARES]->(s)-[:ANNOTATED_BY]->(:Annotation)-[:OF_TYPE]->(at:Type)
-            WHERE NOT ft:Virtual AND (s:Method OR s:Field)
+            WHERE NOT ft:Virtual AND (s:Method OR s:Field) $sourceFilter
             RETURN ft.fqn + '#' + s.signature AS from_key, ft.fqn AS from_type,
                    at.fqn AS to_key, at.fqn AS to_type,
                    'annotated_by' AS relationship, null AS line
