@@ -469,6 +469,8 @@ Decisions taken: GraphStore lives in its own top-level module group (parallel to
 
 `GraphStoreVsGraphDbMappingIT` encodes this as the acceptance criterion **by category** (stable across scans): dependencies must be identical, reference-only rows must all be `PACKAGE`, GraphStore-only rows must all be type kinds — anything else fails. Run with `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=GraphStoreVsGraphDbMappingIT` (needs Docker); the IT prints the full diff before asserting.
 
+**Read performance (`GraphStoreReadPerformanceIT`, same full Spring scan):** building the type-level in-memory graph from the Parquet snapshot takes a **median ~80 ms** vs **~71 s** from Neo4j via the mapping Cypher — **~900×** faster. (The Neo4j build is dominated by the `EXISTS`-heavy `DEPENDS_ON` dependency query.) Snapshot ≈ 3.6 MB (types 142 KB · members 2.86 MB · refs 592 KB); one-time Neo4j→Parquet export ≈ 2.9 s. Note the loader currently reads `members.parquet` (the bulk) only to discard it — a type-level cold start could skip it and be faster still. Timings are printed, not asserted (wall-clock thresholds would be flaky).
+
 ### Implementation order
 
 1. MVP: jQA export → Parquet → loader → GraphStore, diffed against `GraphDbMapping`.
