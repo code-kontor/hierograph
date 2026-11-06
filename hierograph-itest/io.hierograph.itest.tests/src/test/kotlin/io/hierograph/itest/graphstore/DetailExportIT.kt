@@ -16,8 +16,8 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.boltclient.IBoltClientFactory
-import io.hierograph.graphstore.jqa.detail.DetailRefs
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
+import io.hierograph.graphstore.parquet.DetailRefs
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

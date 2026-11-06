@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphstore.jqa.detail
+package io.hierograph.graphstore.detail
 
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.ArtifactInfo
@@ -21,6 +21,8 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
+import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.parquet.DetailRefs
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

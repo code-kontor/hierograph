@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphstore.jqa.detail
+package io.hierograph.graphstore.detail
 
+import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.parquet.DetailRefs
 import java.nio.file.Path
 
 /**

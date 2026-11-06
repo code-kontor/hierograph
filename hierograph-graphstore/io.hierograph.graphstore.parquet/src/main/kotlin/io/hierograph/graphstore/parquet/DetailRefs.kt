@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphstore.jqa.detail
+package io.hierograph.graphstore.parquet
 
 import dev.hardwood.InputFile
 import dev.hardwood.OutputFile

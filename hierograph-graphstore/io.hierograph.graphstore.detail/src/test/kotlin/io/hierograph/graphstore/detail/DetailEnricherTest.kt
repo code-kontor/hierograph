@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphstore.jqa.detail
+package io.hierograph.graphstore.detail
 
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.GraphStore
@@ -21,6 +21,7 @@ import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Origin
+import io.hierograph.graphstore.parquet.DetailRef
 import io.hierograph.graphstore.parquet.SnapshotWriter
 import io.hierograph.graphstore.parquet.SnapshotWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaKinds
