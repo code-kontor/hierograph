@@ -66,7 +66,7 @@ class ParquetWriterTest {
         ParquetReader().load(dir, store)
 
         assertThat(store.typeByFqn("com.foo.A")!!.placeholder).isFalse
-        assertThat(store.contains("com.foo.A#a()V")).isFalse   // members not materialized (type-level graph)
+        assertThat(store.memberByKey("com.foo.A#a()V")!!.kind).isEqualTo(JavaKinds.METHOD)   // members round-trip as nodes
         assertThat(store.typeByFqn("java.util.List")!!.placeholder).isTrue
 
         val deps = store.typeDependencies().associateBy { it.to }

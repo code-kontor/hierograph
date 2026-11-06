@@ -44,7 +44,8 @@ class GraphDbMappingReference(
     private val mapping: GraphDbMapping = jQAssistantMapping,
     /**
      * When false (the default) the FIELD / METHOD parent-child rules are skipped, so the projection is
-     * type-level — matching the GraphStore's type-level in-memory graph (members are an on-demand concern).
+     * type-level. Pass true to compare against the GraphStore, which materializes declared members (note
+     * the reference then also has jQA's referenced-but-not-declared member stubs, which the GraphStore omits).
      */
     private val includeMembers: Boolean = false,
 ) {

@@ -23,6 +23,7 @@ import io.hierograph.graphstore.hgmodel.GraphStoreToHGModel
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
 import io.hierograph.mcp.server.core.pagination.DataHash
@@ -71,6 +72,14 @@ class HierarchicalGraphService {
 
     /** Reverse index `node handle → member key` for the Parquet detail tools; empty in `jqa` mode. */
     val memberHandleIndex: Map<Long, String> get() = snapshotRef.get()?.memberHandles ?: emptyMap()
+
+    /**
+     * The node handle for a bare member key (`<owner fqn>#<signature>`, as detail refs carry it): the
+     * artifact-scoped member node's handle when the member is in the graph, else a stable but
+     * non-navigable handle of the bare key (e.g. a member of an external type).
+     */
+    fun memberHandle(memberKey: String): Long =
+        graphStore?.memberByKey(memberKey)?.key?.let { NodeHandle.of(it) } ?: NodeHandle.of(memberKey)
 
     lateinit var boltClient: IBoltClient
 
@@ -216,8 +225,10 @@ class HierarchicalGraphService {
             val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
             val reader = ParquetReader()
             reader.load(dir, store)
-            // Reverse index for the detail tools: members aren't nodes, so map their handle back to the key.
-            val memberHandles = reader.readMemberKeys(dir).associateBy({ NodeHandle.of(it) }, { it })
+            // Reverse index for the detail tools: member node handle -> bare member key (the snapshot key).
+            val memberHandles = store.nodes().asSequence()
+                .filter { it.kind in JavaKinds.MEMBER_KINDS }
+                .associateBy({ NodeHandle.of(it.key) }, { it.fqn })
             buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles)
         } else {
             buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null, memberHandles = emptyMap())

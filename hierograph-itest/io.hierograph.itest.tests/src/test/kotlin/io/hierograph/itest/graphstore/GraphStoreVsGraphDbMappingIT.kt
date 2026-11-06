@@ -63,8 +63,9 @@ class GraphStoreVsGraphDbMappingIT : AbstractIntegrationTest() {
             val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
             ParquetReader().load(parquetDir, store)
 
-            // Reference side: the existing GraphDbMapping projection of the same store.
-            val reference = GraphDbMappingReference(boltClient).build()
+            // Reference side: the existing GraphDbMapping projection of the same store, members included
+            // (the GraphStore materializes members as children of their type).
+            val reference = GraphDbMappingReference(boltClient, includeMembers = true).build()
 
             val result = SnapshotDiff.diff(
                 store.hierarchyRows().toList(),
@@ -82,10 +83,20 @@ class GraphStoreVsGraphDbMappingIT : AbstractIntegrationTest() {
                 .withFailMessage { "Dependencies differ:\n${result.render()}" }
                 .isTrue()
 
-            // Hierarchy differences are confined to the two documented selection-seam categories.
-            assertThat(result.hierarchy.onlyInReference)
-                .withFailMessage { "Unexpected non-PACKAGE rows only in GraphDbMapping:\n${result.render()}" }
-                .allMatch { it.kind == JavaKinds.PACKAGE }
+            // Hierarchy differences are confined to the documented selection-seam categories: packages, and
+            // jQA's *referenced-but-not-declared* member stubs — members of library types, or inherited
+            // members invoked through a subtype (e.g. ApplicationContext#getBean, declared on BeanFactory).
+            // Those are known only through member-level refs, which the GraphStore deliberately does not
+            // materialize. Every *declared* member (one in members.parquet) must match.
+            val declaredMembers = ParquetReader().readMemberKeys(parquetDir).toHashSet()
+            val referenceOnlyStubs = result.hierarchy.onlyInReference.count { it.kind in JavaKinds.MEMBER_KINDS }
+            println("reference-only member stubs (referenced, not declared): $referenceOnlyStubs")
+            val unexpectedOnlyInReference = result.hierarchy.onlyInReference.filterNot { row ->
+                row.kind == JavaKinds.PACKAGE || row.kind in JavaKinds.MEMBER_KINDS && row.fqn !in declaredMembers
+            }
+            assertThat(unexpectedOnlyInReference)
+                .withFailMessage { "Unexpected rows only in GraphDbMapping:\n${unexpectedOnlyInReference.take(50).joinToString("\n")}" }
+                .isEmpty()
             assertThat(result.hierarchy.onlyInGraphStore)
                 .withFailMessage { "Unexpected non-type rows only in GraphStore:\n${result.render()}" }
                 .allMatch { JavaKinds.isTypeKind(it.kind) }

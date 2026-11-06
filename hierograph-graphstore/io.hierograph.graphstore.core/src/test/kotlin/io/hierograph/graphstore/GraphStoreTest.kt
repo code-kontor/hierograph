@@ -37,20 +37,91 @@ class GraphStoreTest {
         ClassFacts(fqn = fqn, kind = JavaKinds.CLASS, modifiers = 0, members = members, refs = refs, classHash = "h:$fqn")
 
     @Test
-    fun `applyClass builds the type-level hierarchy and does not materialize members`() {
+    fun `applyClass builds the hierarchy down to the members`() {
         val store = GraphStore()
         store.registerArtifact(artifact("app"))
-        store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
+        store.applyClass(
+            "app",
+            classFacts(
+                "com.foo.A",
+                members = listOf(
+                    method("com.foo.A", "a()V"),
+                    MemberFacts(key = "com.foo.A#<init>()V", kind = JavaKinds.CONSTRUCTOR, signature = "<init>()V"),
+                    MemberFacts(key = "com.foo.A#x", kind = JavaKinds.FIELD, signature = "x"),
+                ),
+            ),
+        )
 
         val rows = store.hierarchyRows().toList()
-        // module (top-level), package chain com -> com.foo, the type
+        // module (top-level), package chain com -> com.foo, the type, its members
         assertThat(rows).contains(HierarchyRow(JavaKinds.MODULE, "app", null))
         assertThat(rows).contains(HierarchyRow(JavaKinds.PACKAGE, "com", "app"))
         assertThat(rows).contains(HierarchyRow(JavaKinds.PACKAGE, "com.foo", "com"))
         assertThat(rows).contains(HierarchyRow(JavaKinds.CLASS, "com.foo.A", "com.foo"))
-        // members are an on-demand concern: they are carried in ClassFacts but never enter the graph
-        assertThat(rows.map { it.kind }).doesNotContain(JavaKinds.METHOD, JavaKinds.FIELD)
+        assertThat(rows).contains(
+            HierarchyRow(JavaKinds.METHOD, "com.foo.A#a()V", "com.foo.A"),
+            HierarchyRow(JavaKinds.METHOD, "com.foo.A#<init>()V", "com.foo.A"), // constructors are java.method
+            HierarchyRow(JavaKinds.FIELD, "com.foo.A#x", "com.foo.A"),
+        )
+        // members are children of the type, artifact-scoped, and not types
+        assertThat(store.childKeysOf(store.typeKey("app", "com.foo.A"))).containsExactly(
+            store.memberKey("app", "com.foo.A#a()V"),
+            store.memberKey("app", "com.foo.A#<init>()V"),
+            store.memberKey("app", "com.foo.A#x"),
+        )
+        assertThat(store.node(store.memberKey("app", "com.foo.A#a()V"))!!.name).isEqualTo("a()V")
         assertThat(store.typeByFqn("com.foo.A#a()V")).isNull()
+    }
+
+    @Test
+    fun `members carry no dependencies of their own`() {
+        val store = GraphStore()
+        store.registerArtifact(artifact("app"))
+        store.applyClass(
+            "app",
+            classFacts(
+                "com.foo.A",
+                members = listOf(method("com.foo.A", "a()V")),
+                refs = listOf(Ref("com.foo.A", "com.foo.B", RefKind.DEPENDS_ON, count = 1)),
+            ),
+        )
+
+        val edges = store.typeDependencyEdges().toList()
+        assertThat(edges).hasSize(1)
+        assertThat(edges.single().fromKey).isEqualTo(store.typeKey("app", "com.foo.A"))
+    }
+
+    @Test
+    fun `re-applying and removing a class replaces and drops its members`() {
+        val store = GraphStore()
+        store.registerArtifact(artifact("app"))
+        store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
+        store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "b()V"))))
+
+        assertThat(store.contains(store.memberKey("app", "com.foo.A#a()V"))).isFalse
+        assertThat(store.memberByKey("com.foo.A#a()V")).isNull()
+        assertThat(store.memberByKey("com.foo.A#b()V")!!.key).isEqualTo(store.memberKey("app", "com.foo.A#b()V"))
+
+        store.removeClass("app", "com.foo.A")
+        assertThat(store.contains(store.memberKey("app", "com.foo.A#b()V"))).isFalse
+        assertThat(store.memberByKey("com.foo.A#b()V")).isNull()
+    }
+
+    @Test
+    fun `same-FQN types in two artifacts get distinct members and memberByKey follows typeByFqn`() {
+        val store = GraphStore()
+        store.registerArtifact(artifact("app"))
+        store.registerArtifact(artifact("lib"))
+        store.applyClass("lib", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
+        store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
+
+        assertThat(store.contains(store.memberKey("app", "com.foo.A#a()V"))).isTrue
+        assertThat(store.contains(store.memberKey("lib", "com.foo.A#a()V"))).isTrue
+        // the member resolves under the same owner the type resolves to
+        val owner = store.typeByFqn("com.foo.A")!!
+        assertThat(store.memberByKey("com.foo.A#a()V")!!.parent).isEqualTo(owner.key)
+        // a member of an unscanned owner does not resolve
+        assertThat(store.memberByKey("java.util.List#size()I")).isNull()
     }
 
     @Test

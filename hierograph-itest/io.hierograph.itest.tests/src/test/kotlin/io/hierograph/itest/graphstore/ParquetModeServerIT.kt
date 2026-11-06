@@ -247,26 +247,47 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
     fun `method_details runs off members+parameters+detail_refs parquet`() {
         // A real method's handle, resolved exactly as the service's handle index does.
         val methodKey = snapshotMembers().first { it.kind == JavaNodeKind.METHOD }.key
-        val response = methodDetailsTool.methodDetails(NodeHandle.of(methodKey))
+        val response = methodDetailsTool.methodDetails(graphService.memberHandle(methodKey))
 
         assertThat(response).doesNotContainKey("error")
         assertThat(response).containsKeys("method", "declaring_type", "modifiers", "return_type", "parameters", "throws", "annotations")
         // modifiers always carry a visibility token; parameters match the parameters.parquet arity.
         assertThat(response["modifiers"] as List<String>).isNotEmpty()
         val method = response["method"] as Map<String, Any?>
-        assertThat(method["id"]).isEqualTo(NodeHandle.of(methodKey))
+        assertThat(method["id"]).isEqualTo(graphService.memberHandle(methodKey))
         assertThat(method["qualified_name"]).isEqualTo(methodKey)
+        // members are hierarchy nodes now: the handle the detail tools hand out is navigable
+        assertThat(graphService.model.lookupNode(method["id"] as Long)).isNotNull()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `members are materialized as children of their type, without member dependencies`() {
+        val methodKey = snapshotMembers().first { it.kind == JavaNodeKind.METHOD }.key
+        val member = graphService.graphStore!!.memberByKey(methodKey)!!
+        val typeId = NodeHandle.of(member.parent!!)
+
+        val response = listChildrenTool.listChildren(typeId, listOf("members"), null, null, null)
+
+        assertThat(response).doesNotContainKey("error")
+        val results = response["results"] as List<Map<String, Any?>>
+        assertThat(results.map { it["qualified_name"] }).contains(methodKey)
+        assertThat(results.map { it["kind"] }.toSet()).isSubsetOf(JavaKinds.METHOD.value, JavaKinds.FIELD.value)
+        // member nodes carry no dependency edges — those stay in detail_refs.parquet
+        val memberNode = graphService.model.lookupNode(NodeHandle.of(member.key))!!
+        assertThat(memberNode.outgoingCoreDependencies).isEmpty()
+        assertThat(memberNode.incomingCoreDependencies).isEmpty()
     }
 
     @Suppress("UNCHECKED_CAST")
     @Test
     fun `field_details runs off members+detail_refs parquet`() {
         val fieldKey = snapshotMembers().first { it.kind == JavaNodeKind.FIELD }.key
-        val response = fieldDetailsTool.fieldDetails(NodeHandle.of(fieldKey))
+        val response = fieldDetailsTool.fieldDetails(graphService.memberHandle(fieldKey))
 
         assertThat(response).doesNotContainKey("error")
         assertThat(response).containsKeys("nodes", "field", "declaring_type", "modifiers", "type_name", "read_access", "write_access")
-        assertThat(response["field"]).isEqualTo(NodeHandle.of(fieldKey))
+        assertThat(response["field"]).isEqualTo(graphService.memberHandle(fieldKey))
         assertThat(response["modifiers"] as List<String>).isNotEmpty()
         val readAccess = response["read_access"] as Map<String, Any?>
         assertThat(readAccess).containsKeys("method_count", "methods_sample", "by_declaring_type")

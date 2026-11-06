@@ -21,6 +21,7 @@ import io.hierograph.graphstore.model.Node
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.javaspec.JavaNodeKind
 import java.util.EnumSet
 
 /**
@@ -41,10 +42,12 @@ import java.util.EnumSet
  * itself while it still has incoming edges — those are instead downgraded to placeholders so references
  * from unchanged classes stay valid.
  *
- * The in-memory graph is **type-level**: modules, packages, types and type-to-type refs. Members are
- * *not* materialized here — they live in the snapshot and are a strictly on-demand (detail) concern, so
- * the live graph stays small. [placeholderPolicy] decides which unscanned ref targets become in-memory
- * placeholder nodes; it is a projection policy only and never affects what the snapshot persists.
+ * The in-memory graph holds modules, packages, types, **members** and type-to-type refs. Members are
+ * materialized as children of their declaring type (`member:<artifact>:<owner fqn>#<signature>`, so they
+ * are artifact-scoped like types) for navigation; their *dependencies* are not — member-level refs stay
+ * in the snapshot as a strictly on-demand (detail) concern. [placeholderPolicy] decides which unscanned
+ * ref targets become in-memory placeholder nodes; it is a projection policy only and never affects what
+ * the snapshot persists.
  *
  * Not thread-safe; callers coordinate read/write batches (see the spec's concurrency decision).
  */
@@ -59,6 +62,7 @@ class GraphStore(
     private val incomingByFqn = HashMap<String, MutableSet<String>>()
     private val definersByFqn = HashMap<String, MutableSet<String>>()
     private val typeKeysByFqn = HashMap<String, MutableSet<String>>()
+    private val nodeKeysByMemberKey = HashMap<String, MutableSet<String>>()
 
     /** A scanned type's owning artifact plus its outgoing refs (targets are bare-FQN/member-key facts). */
     private class OwnedRefs(val artifactKey: String, val refs: List<Ref>)
@@ -79,15 +83,20 @@ class GraphStore(
 
     /**
      * Replaces the owned subgraph of [facts].fqn under [artifactKey]: removes the type's previous
-     * outgoing refs, ensures the package path, upserts the type node, stores refs, and creates
-     * placeholders for unscanned ref targets. [ClassFacts.members] are intentionally **not** materialized
-     * — the in-memory graph is type-level; members are served on demand from the snapshot.
+     * members and outgoing refs, ensures the package path, upserts the type node, materializes
+     * [ClassFacts.members] as its children, stores refs, and creates placeholders for unscanned ref
+     * targets. Member-level refs are not part of [ClassFacts] and stay in the snapshot.
      */
     fun applyClass(artifactKey: String, facts: ClassFacts) {
         val ownerKey = typeKey(artifactKey, facts.fqn)
         removeOwned(ownerKey)
         val parentKey = ensurePackagePath(artifactKey, packageOf(facts.fqn))
         upsertType(artifactKey, facts.fqn, facts.kind, parentKey)
+        for (m in facts.members) {
+            // Constructors are java.method nodes, as in the hierarchy vocabulary ("includes constructors").
+            val kind = if (m.kind == JavaNodeKind.CONSTRUCTOR) JavaKinds.METHOD else m.kind
+            putNode(Node(memberKey(artifactKey, m.key), kind, m.signature, m.key, parent = ownerKey))
+        }
         storeRefs(ownerKey, artifactKey, facts.refs)
     }
 
@@ -162,23 +171,40 @@ class GraphStore(
     /** Every type (or external-type placeholder) node with this FQN — more than one only across artifacts. */
     fun typesWithFqn(fqn: String): List<Node> = typeKeysByFqn[fqn].orEmpty().mapNotNull { nodesByKey[it] }
 
+    /** The artifact-scoped key of a member node (`member:<artifact>:<owner fqn>#<signature>`). */
+    fun memberKey(artifactKey: String, memberKey: String): String = "member:${artifactKey.length}:$artifactKey:$memberKey"
+
+    /**
+     * The member node for a bare member key (`<owner fqn>#<signature>`, as detail refs carry it), declared
+     * by the owner [typeByFqn] resolves to — so member and owner handles agree. `null` when the owner is
+     * not scanned (e.g. a member of an external type) or does not declare it.
+     */
+    fun memberByKey(memberKey: String): Node? {
+        val owner = typeByFqn(typeOf(memberKey)) ?: return null
+        return nodeKeysByMemberKey[memberKey].orEmpty().firstNotNullOfOrNull { k -> nodesByKey[k]?.takeIf { it.parent == owner.key } }
+    }
+
     // ── internals ──────────────────────────────────────────────────────
 
     private fun externalTypeKey(fqn: String) = typeKey(EXTERNAL_ARTIFACT_KEY, fqn)
 
     private fun isTypeNode(kind: Any): Boolean = JavaKinds.isTypeKind(kind) || kind == JavaKinds.EXTERNAL_TYPE
 
+    private fun isMemberNode(kind: Any): Boolean = kind in JavaKinds.MEMBER_KINDS
+
     private fun putNode(node: Node) {
         nodesByKey[node.key] = node
         node.parent?.let { childKeys.getOrPut(it) { linkedSetOf() } += node.key }
         if (isTypeNode(node.kind)) typeKeysByFqn.getOrPut(node.fqn) { linkedSetOf() } += node.key
+        if (isMemberNode(node.kind)) nodeKeysByMemberKey.getOrPut(node.fqn) { linkedSetOf() } += node.key
     }
 
-    /** Removes [node] from the key map, its parent's child set, and the by-FQN type index. */
+    /** Removes [node] from the key map, its parent's child set, and the by-FQN type / by-key member index. */
     private fun removeNode(node: Node) {
         nodesByKey.remove(node.key)
         node.parent?.let { childKeys[it]?.remove(node.key) }
         if (isTypeNode(node.kind)) typeKeysByFqn[node.fqn]?.let { it.remove(node.key); if (it.isEmpty()) typeKeysByFqn.remove(node.fqn) }
+        if (isMemberNode(node.kind)) nodeKeysByMemberKey[node.fqn]?.let { it.remove(node.key); if (it.isEmpty()) nodeKeysByMemberKey.remove(node.fqn) }
     }
 
     /** Upserts a scanned type under [parentKey] and records its defining artifact. */

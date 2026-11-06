@@ -61,10 +61,10 @@ class ParquetReaderTest {
         assertThat(a.placeholder).isFalse
         assertThat(store.typeByFqn("com.foo.B")!!.kind).isEqualTo(JavaKinds.INTERFACE)
 
-        // members are not materialized in the type-level graph (they round-trip through Parquet but
-        // stay an on-demand concern)
-        assertThat(store.contains("com.foo.A#a()V")).isFalse
-        assertThat(store.childKeysOf(store.typeKey("app", "com.foo.A"))).isEmpty()
+        // members are materialized as artifact-scoped children of their type
+        assertThat(store.childKeysOf(store.typeKey("app", "com.foo.A")))
+            .containsExactlyInAnyOrder(store.memberKey("app", "com.foo.A#a()V"), store.memberKey("app", "com.foo.A#x"))
+        assertThat(store.memberByKey("com.foo.A#x")!!.kind).isEqualTo(JavaKinds.FIELD)
 
         // external ref target became a placeholder under the external module
         val list = store.typeByFqn("java.util.List")!!

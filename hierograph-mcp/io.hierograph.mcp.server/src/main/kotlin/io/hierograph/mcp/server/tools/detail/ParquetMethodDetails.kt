@@ -103,7 +103,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         val isCtor = target?.kind == JavaNodeKind.CONSTRUCTOR || memberKey.substringAfterLast('#').startsWith("<init>")
         val parent = typeRef(declaringFqn)
         return linkedMapOf(
-            "id" to NodeHandle.of(memberKey),
+            "id" to graphService.memberHandle(memberKey),
             "name" to (target?.name ?: memberKey.substringAfterLast('#').substringBefore('(')),
             "qualified_name" to memberKey,
             "kind" to (if (isCtor) JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD).value,

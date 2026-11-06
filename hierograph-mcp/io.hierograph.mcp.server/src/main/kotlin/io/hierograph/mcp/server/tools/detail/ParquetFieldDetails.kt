@@ -103,7 +103,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
     private fun accessDigest(reader: ParquetReader, dir: Path, edges: List<DetailRef>, nodes: MutableMap<String, Any>): MutableMap<String, Any> {
         val methods = edges.associateBy { it.fromKey }.values.sortedBy { it.fromType } // distinct accessing methods
         val sample = methods.take(10)
-        val sampleIds = sample.map { NodeHandle.of(it.fromKey) }
+        val sampleIds = sample.map { graphService.memberHandle(it.fromKey) }
 
         val declarerCounts = LinkedHashMap<Long, Int>()
         for (m in methods) (typeHandle(m.fromType) ?: continue).let { declarerCounts.merge(it, 1, Int::plus) }
@@ -111,7 +111,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
             .map { linkedMapOf<String, Any>("type" to it.key, "count" to it.value) }
 
         for (m in sample) {
-            val handle = NodeHandle.of(m.fromKey)
+            val handle = graphService.memberHandle(m.fromKey)
             val target = reader.readMember(dir, m.fromKey)
             val isCtor = target?.kind == JavaNodeKind.CONSTRUCTOR || m.fromKey.substringAfterLast('#').startsWith("<init>")
             putSlimNode(nodes, handle, target?.name ?: m.fromKey.substringAfterLast('#').substringBefore('('), m.fromKey,

@@ -42,11 +42,11 @@ import java.nio.file.Path
  * over the in-memory model, reads member-level edges from `detail_refs.parquet` via [DetailQueryEngine],
  * and maps them into the same response shape using content-addressed [NodeHandle]s for every endpoint.
  *
- * Two deliberate differences from the Cypher path, both from the type-level bridged model: scopes must be
- * containers (module / package / type) — a specific method/field as `from`/`to` is not supported because
- * the model has no member nodes; and member endpoints get a stable `NodeHandle.of(memberKey)` id that is
- * not itself navigable (members aren't in the hierarchy), whereas type endpoints line up with the ids
- * returned by `find_node` / `list_children`.
+ * Scopes must be containers (module / package / type) — a specific method/field as `from`/`to` is not
+ * supported, a deliberate difference from the Cypher path. Endpoint ids line up with `find_node` /
+ * `list_children`: members are hierarchy nodes, so a member endpoint is its (artifact-scoped) member
+ * node's handle; only members of unscanned owners fall back to a stable but non-navigable
+ * `NodeHandle.of(memberKey)` (see [HierarchicalGraphService.memberHandle]).
  */
 @Component
 class ParquetDetailDependencies(
@@ -94,9 +94,9 @@ class ParquetDetailDependencies(
             .edges
         val edges = raw.filter { typeHandle(it.fromType) != null && typeHandle(it.toType) != null }
 
-        // Endpoint id = content-addressed handle: a type by its model node key, a member by its key.
+        // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
         fun endpointHandle(key: String, type: String): Long =
-            if ('#' in key) NodeHandle.of(key) else typeHandle(type)!!
+            if ('#' in key) graphService.memberHandle(key) else typeHandle(type)!!
 
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
