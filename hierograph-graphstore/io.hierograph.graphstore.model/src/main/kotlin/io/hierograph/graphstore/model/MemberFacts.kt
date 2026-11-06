@@ -27,6 +27,8 @@ data class MemberFacts(
     val key: String,
     val kind: JavaNodeKind,
     val signature: String,
+    /** The member's simple name (`place`, `log`, `<init>`), for display — distinct from [signature]. */
+    val name: String = "",
     val modifiers: Int = 0,
     val lineFrom: Int? = null,
     val lineTo: Int? = null,

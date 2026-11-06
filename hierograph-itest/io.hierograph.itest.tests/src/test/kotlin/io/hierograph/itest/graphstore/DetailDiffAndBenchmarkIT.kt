@@ -19,6 +19,7 @@ import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.PlaceholderPolicy
 import io.hierograph.graphstore.jqa.JqaSnapshotExporter
+import io.hierograph.graphstore.jqa.detail.DetailEnricher
 import io.hierograph.graphstore.jqa.detail.DetailQuery
 import io.hierograph.graphstore.jqa.detail.DetailQueryEngine
 import io.hierograph.graphstore.jqa.detail.DetailRef
@@ -105,6 +106,19 @@ class DetailDiffAndBenchmarkIT : AbstractIntegrationTest() {
             val engineCalls = engine.query(DetailQuery(fromTypes = from, relationship = "calls", limit = Int.MAX_VALUE)).edges.toSet()
             val refCalls = reference.query(from).filter { it.relationship == "calls" }.toSet()
             assertThat(engineCalls).isEqualTo(refCalls)
+
+            // Member display enrichment: a page's edges -> a nodes map (name/kind) from members.parquet
+            // (in the type snapshot) + the in-memory type graph.
+            val enricher = DetailEnricher(store, typeDir)
+            val page = engine.query(DetailQuery(fromTypes = from, limit = 50)).edges
+            val nodes = enricher.nodesFor(page)
+            for (e in page) {
+                assertThat(nodes).containsKeys(e.fromKey, e.fromType, e.toKey, e.toType)
+            }
+            assertThat(nodes.values).allMatch { it.name.isNotEmpty() }
+            // the scope is a class with method calls, so both kinds must appear
+            assertThat(nodes.values.map { it.kind }).contains("java.method", "java.class")
+            println("  sample nodes: " + nodes.entries.take(6).joinToString { "${it.value.name}:${it.value.kind}" })
         } finally {
             boltClient.disconnect()
             executor.shutdownNow()

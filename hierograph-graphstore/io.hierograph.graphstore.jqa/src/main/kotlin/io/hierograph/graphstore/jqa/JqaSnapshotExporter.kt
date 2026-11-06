@@ -45,6 +45,7 @@ class JqaSnapshotExporter(private val boltClient: IBoltClient) {
                 key = r.string("member_key"),
                 kind = JavaNodeKind.valueOf(r.string("kind")),
                 signature = r.string("signature"),
+                name = r.stringOrNull("name").orEmpty(),
                 lineFrom = r.intOrNull("line_from"),
                 lineTo = r.intOrNull("line_to"),
             )

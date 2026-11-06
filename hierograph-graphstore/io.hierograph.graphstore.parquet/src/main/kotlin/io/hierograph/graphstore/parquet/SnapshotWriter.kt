@@ -52,7 +52,7 @@ object SnapshotWriter {
             sb.setString(SnapshotSchema.Members.OWNER_FQN, owner)
             sb.setString(SnapshotSchema.Members.MEMBER_KEY, m.key)
             sb.setString(SnapshotSchema.Members.KIND, m.kind.name)
-            sb.setString(SnapshotSchema.Members.NAME, m.signature)   // MemberFacts has no separate name; signature is the display name
+            sb.setString(SnapshotSchema.Members.NAME, m.name)
             sb.setString(SnapshotSchema.Members.SIGNATURE, m.signature)
             sb.setNullableInt(SnapshotSchema.Members.LINE_FROM, m.lineFrom)
             sb.setNullableInt(SnapshotSchema.Members.LINE_TO, m.lineTo)

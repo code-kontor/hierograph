@@ -43,7 +43,8 @@ object JqaExportCypher {
         WHERE (m:Method OR m:Field) AND NOT t:Virtual
         RETURN t.fqn AS owner_fqn,
                t.fqn + '#' + m.signature AS member_key,
-               CASE WHEN m:Field THEN 'FIELD' ELSE 'METHOD' END AS kind,
+               CASE WHEN m:Field THEN 'FIELD' WHEN m:Constructor THEN 'CONSTRUCTOR' ELSE 'METHOD' END AS kind,
+               m.name AS name,
                m.signature AS signature,
                m.firstLineNumber AS line_from,
                m.lastLineNumber AS line_to
