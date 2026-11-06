@@ -126,6 +126,47 @@ The test prints the full report (snapshot sizes, graph sizes, timings, speedup) 
 
 ---
 
+## Detail-layer read performance (scoped member queries)
+
+*Added 2026-11-06 — `DetailDiffAndBenchmarkIT`, same full Spring scan.*
+
+The numbers above are a **cold-start** comparison (build the whole type graph once). The **detail layer** answers a different, on-demand question — member-level `detail_dependencies` scoped to a type or package — and was the last piece still tied to Neo4j (the detail MCP tools query it directly). The prototype serves it from a `detail_refs.parquet` (member edges — calls / reads_field / writes_field / overrides / throws / returns / has_type / parameter_type / annotated_by; **633,377 edges, ~22 MB** on the Spring scan) via Hardwood predicate push-down, with inheritance scope resolved in-memory from the type graph.
+
+### Correctness (diff vs Neo4j)
+
+For each scope the engine's edge set is compared against the *same* member-edge Cypher run directly against Neo4j (`JqaDetailReference`), both fed the identical inheritance-expanded FQN set. Exact match across all scopes:
+
+| Scope | types in scope | edges | diff (only-Parquet / only-Neo4j) |
+| --- | ---: | ---: | :---: |
+| `DefaultListableBeanFactory` | 17 | 6,082 | 0 / 0 |
+| `ClassReader` | 2 | 1,355 | 0 / 0 |
+| `AbstractBeanFactory` | 10 | 2,621 | 0 / 0 |
+
+A relationship-filtered query (`calls`) also matched the baseline exactly — so the export is faithful, inheritance scope resolution matches jQA's `EXTENDS|IMPLEMENTS*0..` expansion, and Hardwood's row-group skipping drops no valid rows.
+
+### Timings (median, 3 runs)
+
+| Scope | Parquet | Neo4j | speedup |
+| --- | ---: | ---: | ---: |
+| `DefaultListableBeanFactory` (17 types, 6,082 edges) | 14.6 ms | 72.0 ms | 5× |
+| `ClassReader` (2 types, 1,355 edges) | 10.5 ms | 18.3 ms | 2× |
+| `AbstractBeanFactory` (10 types, 2,621 edges) | 10.9 ms | 33.1 ms | 3× |
+
+### Reading these numbers honestly
+
+- **Scoped detail queries are 2–5× faster on Parquet — a modest, *expected* margin.** Unlike the cold-start build (~900×), a scoped detail query is exactly where Neo4j is strong: a small, index-anchored traversal already in the tens-of-ms range. The win is **matching it from our own files with no Neo4j and no second engine**, not beating it by orders of magnitude.
+- **The Parquet figures have clear headroom.** The prototype reads the full ~22 MB `detail_refs.parquet` **uncompressed** per query (row-group skipping on `from_type`, but no footer/page caching yet). ZSTD + footer caching + tighter row-group sizing should pull the 10–15 ms down further.
+- **Prototype scope.** Reverse relationships (`read_by` / `written_by`), member display enrichment (join to `members.parquet`), and keyset cursors are not yet implemented; none affects the edge-set correctness measured here.
+
+Reproduce (needs Docker): `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=DetailDiffAndBenchmarkIT`.
+
+---
+
 ## Conclusion
 
-For cold start / rebuild, loading the type-level graph from a Parquet snapshot is ~900× faster than rebuilding it from Neo4j (median 80 ms vs ~71 s), against a one-time 2.9 s export and a 3.4 MB snapshot. This confirms the core premise of the scanner/snapshot/GraphStore migration: once facts live in Parquet, standing up Hierograph's in-memory model is effectively free compared with re-querying jQAssistant's graph.
+Two complementary results, both against the full Spring scan:
+
+- **Cold start / rebuild (type level):** loading the type graph from a Parquet snapshot is **~900× faster** than rebuilding it from Neo4j (median 80 ms vs ~71 s), against a one-time 2.9 s export and a 3.4 MB snapshot.
+- **On-demand detail (member level):** scoped `detail_dependencies` queries are served from Parquet with **exact** edge-set parity to Neo4j and a **2–5×** speedup — replacing the last Neo4j-backed path with no second engine.
+
+Together they confirm the core premise of the scanner/snapshot/GraphStore migration: once facts live in Parquet, both standing up Hierograph's in-memory model and answering member-level queries are at least as fast as — and for cold start, dramatically faster than — re-querying jQAssistant's graph, while owning the whole model.
