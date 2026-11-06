@@ -17,6 +17,10 @@ package io.hierograph.mcp.server.core
 
 import io.hierograph.boltclient.IBoltClient
 import io.hierograph.boltclient.IBoltClientFactory
+import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.PlaceholderPolicy
+import io.hierograph.graphstore.hgmodel.GraphStoreToHGModel
+import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
@@ -27,6 +31,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.io.File
+import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.measureTimedValue
@@ -43,6 +48,16 @@ class HierarchicalGraphService {
 
     @Value("\${hierograph.graph.dumpFile:hierarchical-graph.txt}")
     private lateinit var graphDumpFile: String
+
+    /** Where the hierarchical graph is built from: `jqa` (Neo4j via GraphDbMapping) or `parquet`. */
+    @Value("\${hierograph.graph.source:jqa}")
+    private lateinit var graphSource: String
+
+    /** Directory holding the Parquet tables, used when `hierograph.graph.source=parquet`. */
+    @Value("\${hierograph.graph.parquetDir:parquet}")
+    private lateinit var parquetDir: String
+
+    private val useParquet: Boolean get() = graphSource.equals("parquet", ignoreCase = true)
 
     lateinit var boltClient: IBoltClient
 
@@ -70,23 +85,23 @@ class HierarchicalGraphService {
 
     @PostConstruct
     fun init() {
-        log.info("Connecting bolt client to: {}", boltUri)
-
         val boltClientFactory = IBoltClientFactory.newInstance(Executors.newFixedThreadPool(4))
         boltClient = boltClientFactory.createBoltClient(boltUri)
 
-        // Start "empty" if no database is reachable: connect + build best-effort, but never fail
-        // startup. Tools then report that no graph is available until one is loaded (e.g. via
-        // reload_graph once a database has been set up).
+        // Bolt is required for the `jqa` source and is also used by the detail-level tools, so connect
+        // best-effort either way. In `parquet` mode the graph builds from files and does not need it.
+        log.info("Connecting bolt client to: {} (graph source = {})", boltUri, graphSource)
+        runCatching { boltClient.connect() }.onFailure { log.warn("Bolt connect to {} failed: {}", boltUri, it.message) }
+
+        // Start "empty" if the graph cannot be built: build best-effort, but never fail startup. Tools
+        // then report that no graph is available until one is loaded (e.g. via reload_graph).
         try {
-            boltClient.connect()
             snapshotRef.set(loadSnapshot())
         } catch (e: Exception) {
             log.warn(
-                "No hierarchical graph loaded at startup: could not build a graph from the bolt store " +
-                        "at {} ({}). The server is starting empty; tools will report that no graph is " +
-                        "available until one is loaded (e.g. via reload_graph once a database is reachable).",
-                boltUri, e.message
+                "No hierarchical graph loaded at startup (source={}): {}. The server is starting empty; " +
+                        "tools will report that no graph is available until one is loaded (e.g. via reload_graph).",
+                graphSource, e.message,
             )
         }
     }
@@ -109,7 +124,7 @@ class HierarchicalGraphService {
             // client unconnected. Connect on demand so a reload can load the first graph.
             if (!boltClient.isConnected) {
                 log.info("Bolt client not connected; connecting to {} before reload.", boltUri)
-                boltClient.connect()
+                runCatching { boltClient.connect() }.onFailure { log.warn("Bolt connect failed: {}", it.message) }
             }
             val (snapshot, elapsed) = measureTimedValue { loadSnapshot() }
             snapshotRef.set(snapshot)
@@ -142,12 +157,11 @@ class HierarchicalGraphService {
         snapshotRef.set(buildSnapshotFrom(model))
     }
 
-    /** Query the connected Bolt store into a fresh snapshot, logging progress and writing the dump. */
+    /** Build a fresh snapshot from the configured source, logging progress and writing the dump. */
     private fun loadSnapshot(): GraphSnapshot {
-        log.info("Creating hierarchical graph...")
+        log.info("Creating hierarchical graph (source = {})...", graphSource)
         val (snapshot, elapsed) = measureTimedValue {
-            val createdModel = DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
-            buildSnapshotFrom(createdModel)
+            buildSnapshotFrom(buildModel())
         }
 
         val hierarchy = snapshot.model.hierarchy
@@ -177,6 +191,20 @@ class HierarchicalGraphService {
 
         return snapshot
     }
+
+    /**
+     * Builds the hierarchical graph model from the configured source: `parquet` reads the Parquet
+     * tables into a [GraphStore] and bridges to an [HGModel] (no Neo4j); `jqa` projects it from the
+     * connected Bolt store via `GraphDbMapping`.
+     */
+    private fun buildModel(): HGModel =
+        if (useParquet) {
+            val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+            ParquetReader().load(Path.of(parquetDir), store)
+            GraphStoreToHGModel.build(store)
+        } else {
+            DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
+        }
 
     /** Bundle a model with its (freshly built) search index and data hash. Pure — no I/O, no logging. */
     private fun buildSnapshotFrom(model: HGModel): GraphSnapshot =
