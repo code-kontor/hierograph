@@ -17,7 +17,7 @@ package io.hierograph.graphstore.jqa.detail
 
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.boltclient.IBoltClient
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.DetailRefs
 import java.nio.file.Path
 

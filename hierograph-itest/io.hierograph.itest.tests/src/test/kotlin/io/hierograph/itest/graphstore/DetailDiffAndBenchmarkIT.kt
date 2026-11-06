@@ -25,7 +25,7 @@ import io.hierograph.graphstore.detail.DetailScope
 import io.hierograph.graphstore.jqa.JqaSnapshotExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailReference
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.DetailRefs
 import io.hierograph.graphstore.parquet.ParquetSnapshotLoader
 import io.hierograph.itest.fwk.AbstractIntegrationTest

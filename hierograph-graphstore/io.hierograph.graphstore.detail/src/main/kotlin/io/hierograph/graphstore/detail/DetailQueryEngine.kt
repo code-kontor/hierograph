@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphstore.detail
 
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.DetailRefs
 import java.nio.file.Path
 

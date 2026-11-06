@@ -16,7 +16,7 @@
 package io.hierograph.graphstore.jqa.detail
 
 import io.hierograph.boltclient.IBoltClient
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 
 /**
  * The Neo4j comparison baseline for the Parquet detail engine: runs the *same* member-edge patterns

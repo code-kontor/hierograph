@@ -26,27 +26,9 @@ import dev.hardwood.reader.ParquetFileReader
 import dev.hardwood.schema.FileSchema
 import dev.hardwood.writer.ParquetFileWriter
 import dev.hardwood.writer.WriterConfig
+import io.hierograph.graphstore.model.DetailRef
 import java.nio.file.Files
 import java.nio.file.Path
-
-/**
- * One member-level ("detail") reference: an edge from a source **member** (or type, for class-level
- * annotations) to a target **symbol** — a member for `calls`/`reads_field`/…, a type for
- * `throws`/`returns`/`has_type`/`parameter_type`/`annotated_by`. [relationship] is the Hierograph
- * detail vocabulary; [toKey] equals [toType] when the target is a type reference.
- *
- * Prototype note: this is a dedicated `detail_refs.parquet` so the validated type-level snapshot stays
- * untouched. In the production model these rows merge into the single `refs` table, distinguished by
- * kind (see the "Types vs Type References" model doc).
- */
-data class DetailRef(
-    val fromKey: String,
-    val fromType: String,
-    val toKey: String,
-    val toType: String,
-    val relationship: String,
-    val line: Int? = null,
-)
 
 /**
  * Parquet I/O for the detail-refs table. Rows are written sorted by `from_type` so a scoped read
@@ -87,7 +69,8 @@ object DetailRefs {
                     sb.setString(TO_KEY, r.toKey)
                     sb.setString(TO_TYPE, r.toType)
                     sb.setString(RELATIONSHIP, r.relationship)
-                    if (r.line == null) sb.setNull(LINE) else sb.setInt(LINE, r.line)
+                    val line = r.line
+                    if (line == null) sb.setNull(LINE) else sb.setInt(LINE, line)
                 }
             }
             writer.endRowGroup()

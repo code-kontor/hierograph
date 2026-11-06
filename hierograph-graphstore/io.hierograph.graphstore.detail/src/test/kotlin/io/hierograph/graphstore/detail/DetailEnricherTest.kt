@@ -21,7 +21,7 @@ import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Origin
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.SnapshotWriter
 import io.hierograph.graphstore.parquet.SnapshotWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaKinds

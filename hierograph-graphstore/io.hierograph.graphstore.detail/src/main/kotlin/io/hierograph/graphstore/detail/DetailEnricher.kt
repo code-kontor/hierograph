@@ -19,7 +19,7 @@ import dev.hardwood.InputFile
 import dev.hardwood.reader.FilterPredicate
 import dev.hardwood.reader.ParquetFileReader
 import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.SnapshotSchema
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind

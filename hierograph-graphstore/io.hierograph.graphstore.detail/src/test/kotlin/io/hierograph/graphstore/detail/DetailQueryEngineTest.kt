@@ -21,7 +21,7 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
-import io.hierograph.graphstore.parquet.DetailRef
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.DetailRefs
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
