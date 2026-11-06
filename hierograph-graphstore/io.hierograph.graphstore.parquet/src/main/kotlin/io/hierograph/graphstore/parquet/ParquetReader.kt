@@ -112,7 +112,8 @@ class ParquetReader {
         }
     }
 
-    private data class TypeRow(
+    /** One row of `types.parquet`: a scanned type's identity plus its per-class snapshot facts. */
+    data class TypeRow(
         val artifact: String,
         val fqn: String,
         val kind: String,
@@ -120,8 +121,25 @@ class ParquetReader {
         val classHash: String?,
     )
 
-    private fun readTypes(path: Path): List<TypeRow> =
-        readRows(path) { r ->
+    /**
+     * Scoped read of `types.parquet`: the rows whose `fqn` is in [fqns] (one per defining artifact).
+     * Used to serve per-type properties on demand without keeping them in the in-memory graph.
+     */
+    fun readTypeRows(parquetDir: Path, fqns: Collection<String>): List<TypeRow> =
+        if (fqns.isEmpty()) emptyList()
+        else readTypes(parquetDir.resolve(ParquetSchema.TYPES_FILE), FilterPredicate.`in`(ParquetSchema.Types.FQN, *fqns.toTypedArray()))
+
+    /**
+     * Scoped read of `members.parquet`, grouped by owner FQN, for the owners in [ownerFqns] (no
+     * parameters attached). Members are keyed by owner FQN only, so same-FQN types from different
+     * artifacts share one entry.
+     */
+    fun readMembersByOwner(parquetDir: Path, ownerFqns: Collection<String>): Map<String, List<MemberFacts>> =
+        if (ownerFqns.isEmpty()) emptyMap()
+        else readMembers(parquetDir.resolve(ParquetSchema.MEMBERS_FILE), FilterPredicate.`in`(ParquetSchema.Members.OWNER_FQN, *ownerFqns.toTypedArray()))
+
+    private fun readTypes(path: Path, filter: FilterPredicate? = null): List<TypeRow> =
+        readRows(path, filter) { r ->
             TypeRow(
                 artifact = r.string(ParquetSchema.Types.ARTIFACT),
                 fqn = r.string(ParquetSchema.Types.FQN),
@@ -131,8 +149,8 @@ class ParquetReader {
             )
         }
 
-    private fun readMembers(path: Path): Map<String, List<MemberFacts>> =
-        readRows(path) { r -> r.string(ParquetSchema.Members.OWNER_FQN) to memberFacts(r) }
+    private fun readMembers(path: Path, filter: FilterPredicate? = null): Map<String, List<MemberFacts>> =
+        readRows(path, filter) { r -> r.string(ParquetSchema.Members.OWNER_FQN) to memberFacts(r) }
             .groupBy({ it.first }, { it.second })
 
     private fun memberFacts(r: RowCursor): MemberFacts =

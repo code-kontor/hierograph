@@ -25,6 +25,7 @@ import io.hierograph.itest.fwk.HierographImageContainer
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.mcp.server.core.ParquetNodePropertiesProvider
 import io.hierograph.mcp.server.core.pagination.DataHashProvider
 import io.hierograph.mcp.server.core.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.NodeRefFactory
@@ -80,6 +81,7 @@ import java.util.concurrent.Executors
         ParquetFieldDetails::class,
         MethodDetailsTool::class,
         FieldDetailsTool::class,
+        ParquetNodePropertiesProvider::class,
     ]
 )
 class ParquetModeServerIT : AbstractIntegrationTest() {
@@ -108,6 +110,9 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
 
     @Autowired
     private lateinit var fieldDetailsTool: FieldDetailsTool
+
+    @Autowired
+    private lateinit var nodePropertiesProvider: ParquetNodePropertiesProvider
 
     @Test
     fun `serves a hierarchical graph from Parquet with no reachable Neo4j`() {
@@ -265,6 +270,28 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
         assertThat(response["modifiers"] as List<String>).isNotEmpty()
         val readAccess = response["read_access"] as Map<String, Any?>
         assertThat(readAccess).containsKeys("method_count", "methods_sample", "by_declaring_type")
+    }
+
+    @Test
+    fun `node properties are served on demand from the hierarchy and the types+members parquet`() {
+        val hierarchy = graphService.model.hierarchy
+        // A scanned type that declares at least one method, and its owning module.
+        val owner = snapshotMembers().first { it.kind == JavaNodeKind.METHOD }.key.substringBefore('#')
+        val type = graphService.graphStore!!.typeByFqn(owner)!!
+        val typeNode = graphService.model.lookupNode(NodeHandle.of(type.key))!!
+        var module = typeNode
+        while (module.kind != JavaKinds.MODULE) module = hierarchy.parentOf(module)!!
+
+        val props = nodePropertiesProvider.propertiesOf(listOf(typeNode, module))
+
+        val typeProps = props.getValue(typeNode)
+        assertThat(typeProps["fqn"]).isEqualTo(owner)
+        assertThat(typeProps["artifact"]).isEqualTo(module.nodeSource.qualifiedName) // parquet artifacts: key == fqn
+        assertThat(typeProps["methodCount"]!!.toInt()).isPositive()
+        assertThat(typeProps).containsKeys("constructorCount", "fieldCount")
+        val moduleProps = props.getValue(module)
+        assertThat(moduleProps["typeCount"]!!.toInt()).isPositive()
+        assertThat(moduleProps["packageCount"]!!.toInt()).isPositive()
     }
 
     /** The members of the exported snapshot (the same files the service loaded). */

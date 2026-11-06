@@ -16,6 +16,7 @@
 package io.hierograph.graphql.controller
 
 import io.hierograph.graphql.HierarchicalGraphProvider
+import io.hierograph.graphql.NodePropertiesProvider
 import io.hierograph.graphql.model.MapEntryModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.graphql.model.NodesToConsider
@@ -25,6 +26,7 @@ import io.hierograph.hierarchicalgraph.core.model.Hierarchy
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.springframework.graphql.data.method.annotation.Argument
+import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
@@ -34,7 +36,10 @@ import org.springframework.stereotype.Controller
  * hierarchy, not the node.
  */
 @Controller
-class NodeController(private val provider: HierarchicalGraphProvider) {
+class NodeController(
+    private val provider: HierarchicalGraphProvider,
+    private val propertiesProvider: NodePropertiesProvider? = null,
+) {
 
     @SchemaMapping(typeName = "Node")
     fun id(node: HGNode): String = node.identifier.toString()
@@ -83,10 +88,19 @@ class NodeController(private val provider: HierarchicalGraphProvider) {
         return NodeSetModel(filtered)
     }
 
-    @SchemaMapping(typeName = "Node")
-    fun properties(node: HGNode): List<MapEntryModel> {
-        val source = node.nodeSource as? GraphDbNodeSource ?: return emptyList()
-        return source.properties.map { (k, v) -> MapEntryModel(k, v) }
+    /**
+     * Batched and on demand: runs only when `properties` is selected, once for all nodes of the response.
+     * Neo4j-backed nodes report their (lazily fetched) store properties; every other node is delegated
+     * to the optional [propertiesProvider] in a single call.
+     */
+    @BatchMapping(typeName = "Node", field = "properties")
+    fun properties(nodes: List<HGNode>): Map<HGNode, List<MapEntryModel>> {
+        val delegated = nodes.filter { it.nodeSource !is GraphDbNodeSource }
+        val provided = if (delegated.isEmpty()) emptyMap() else propertiesProvider?.propertiesOf(delegated).orEmpty()
+        return nodes.associateWith { node ->
+            val props = (node.nodeSource as? GraphDbNodeSource)?.properties ?: provided[node].orEmpty()
+            props.map { (k, v) -> MapEntryModel(k, v) }
+        }
     }
 
     @SchemaMapping(typeName = "Node")

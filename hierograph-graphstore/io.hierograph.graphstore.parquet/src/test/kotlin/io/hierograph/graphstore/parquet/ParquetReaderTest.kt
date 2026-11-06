@@ -89,6 +89,38 @@ class ParquetReaderTest {
     }
 
     @Test
+    fun `scoped type and member reads return only the requested FQNs`(@TempDir dir: Path) {
+        ParquetTestWriter.writeTypes(
+            dir,
+            listOf(
+                TypeFixture("app", "com.foo.A", "CLASS", sourceFile = "A.java", classHash = "h1"),
+                TypeFixture("lib", "com.foo.A", "CLASS", classHash = "h1-lib"),   // same FQN, other artifact
+                TypeFixture("app", "com.foo.B", "INTERFACE", classHash = "h2"),
+            ),
+        )
+        ParquetTestWriter.writeMembers(
+            dir,
+            listOf(
+                MemberFixture("com.foo.A", "com.foo.A#a()V", "METHOD", "a", "a()V"),
+                MemberFixture("com.foo.A", "com.foo.A#x", "FIELD", "x", "x"),
+                MemberFixture("com.foo.B", "com.foo.B#b()V", "METHOD", "b", "b()V"),
+            ),
+        )
+        val reader = ParquetReader()
+
+        val rows = reader.readTypeRows(dir, listOf("com.foo.A"))
+        assertThat(rows.map { it.artifact to it.classHash }).containsExactlyInAnyOrder("app" to "h1", "lib" to "h1-lib")
+        assertThat(rows.first { it.artifact == "app" }.sourceFile).isEqualTo("A.java")
+
+        val members = reader.readMembersByOwner(dir, listOf("com.foo.A"))
+        assertThat(members.keys).containsExactly("com.foo.A")
+        assertThat(members.getValue("com.foo.A").map { it.key }).containsExactlyInAnyOrder("com.foo.A#a()V", "com.foo.A#x")
+
+        assertThat(reader.readTypeRows(dir, emptyList())).isEmpty()
+        assertThat(reader.readMembersByOwner(dir, emptyList())).isEmpty()
+    }
+
+    @Test
     fun `missing members and refs tables load the types only`(@TempDir dir: Path) {
         ParquetTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
 
