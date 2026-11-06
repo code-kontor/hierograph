@@ -96,16 +96,23 @@ object DetailRefs {
 
     /**
      * Scoped read with predicate push-down: returns the detail refs whose `from_type` is in [fromTypes]
-     * (all rows when null/empty) and whose `relationship` matches [relationship] (any when null).
-     * Hardwood skips row groups outside the `from_type` range via column statistics.
+     * (unconstrained when null/empty), whose `to_type` is in [toTypes] (unconstrained when null/empty),
+     * and whose `relationship` matches [relationship] (any when null). Hardwood skips row groups outside
+     * the `from_type` range via column statistics; the `to_type` predicate still filters rows but, since
+     * `to_type` is not the sort key, does not drive row-group skipping.
      */
-    fun read(dir: Path, fromTypes: Collection<String>? = null, relationship: String? = null): List<DetailRef> {
+    fun read(
+        dir: Path,
+        fromTypes: Collection<String>? = null,
+        toTypes: Collection<String>? = null,
+        relationship: String? = null,
+    ): List<DetailRef> {
         val path = dir.resolve(FILE)
         if (!Files.exists(path)) return emptyList()
         val out = ArrayList<DetailRef>()
         ParquetFileReader.open(InputFile.of(path)).use { reader ->
             val builder = reader.buildRowReader()
-            buildFilter(fromTypes, relationship)?.let { builder.filter(it) }
+            buildFilter(fromTypes, toTypes, relationship)?.let { builder.filter(it) }
             builder.build().use { rowReader ->
                 val schema = reader.fileSchema
                 fun idx(name: String) = schema.getColumn(name).columnIndex()
@@ -128,9 +135,10 @@ object DetailRefs {
         return out
     }
 
-    private fun buildFilter(fromTypes: Collection<String>?, relationship: String?): FilterPredicate? {
+    private fun buildFilter(fromTypes: Collection<String>?, toTypes: Collection<String>?, relationship: String?): FilterPredicate? {
         val preds = buildList {
             if (!fromTypes.isNullOrEmpty()) add(FilterPredicate.`in`(FROM_TYPE, *fromTypes.toTypedArray()))
+            if (!toTypes.isNullOrEmpty()) add(FilterPredicate.`in`(TO_TYPE, *toTypes.toTypedArray()))
             if (relationship != null) add(FilterPredicate.eq(RELATIONSHIP, relationship))
         }
         return when (preds.size) {

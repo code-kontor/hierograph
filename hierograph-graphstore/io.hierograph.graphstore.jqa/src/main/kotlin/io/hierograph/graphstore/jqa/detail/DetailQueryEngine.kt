@@ -45,22 +45,23 @@ data class DetailQueryResult(
 /**
  * The Parquet-backed `detail_dependencies` engine (approach B). Scope resolution happens in memory via
  * [DetailScope]; this engine does the member-edge half: a scoped push-down read of `detail_refs.parquet`
- * (`from_type ∈ fromTypes`, optionally `relationship`), an in-Kotlin `to_type` filter, a stable sort, the
- * summaries, and offset paging. No Neo4j, no second engine.
+ * (`from_type` / `to_type` ∈ scope, optionally `relationship`), a stable sort, the summaries, and offset
+ * paging. No Neo4j, no second engine.
  *
- * Not yet implemented (next increments): the reverse relationships `read_by` / `written_by` (the
- * `READS` / `WRITES` edges read target→source), member display enrichment (join to `members.parquet`),
- * and keyset cursors in place of offset paging.
+ * The reverse relationships `read_by` / `written_by` are the stored `reads_field` / `writes_field` edges
+ * viewed target→source: the scope anchors on the field side (`to_type`) and the endpoints are swapped so
+ * the field is the source and the reading/writing method is the target.
+ *
+ * Not yet implemented (next increments): member display enrichment (join to `members.parquet`) and
+ * keyset cursors in place of offset paging.
  */
 class DetailQueryEngine(private val snapshotDir: Path) {
 
     fun query(q: DetailQuery): DetailQueryResult {
-        // Push `from_type` (sorted column → row-group skipping) and `relationship` into the reader.
-        val scoped = DetailRefs.read(snapshotDir, fromTypes = q.fromTypes, relationship = q.relationship)
-        // `to_type` is not the sort key, so constrain it in memory.
-        val matched = if (q.toTypes == null) scoped else scoped.filter { it.toType in q.toTypes }
+        val reverseStored = REVERSE[q.relationship]
+        val edges = if (reverseStored != null) reverseEdges(q, reverseStored) else forwardEdges(q)
 
-        val sorted = matched.sortedWith(
+        val sorted = edges.sortedWith(
             compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }, { it.line ?: -1 }),
         )
 
@@ -72,5 +73,29 @@ class DetailQueryEngine(private val snapshotDir: Path) {
         val nextOffset = (q.offset + q.limit).takeIf { it < sorted.size }
 
         return DetailQueryResult(page, sorted.size, byRelationship, bySourceType, nextOffset)
+    }
+
+    /** Forward relationships: the scope is the source; `from_type` (sorted) drives row-group skipping. */
+    private fun forwardEdges(q: DetailQuery): List<DetailRef> =
+        DetailRefs.read(snapshotDir, fromTypes = q.fromTypes, toTypes = q.toTypes, relationship = q.relationship)
+
+    /**
+     * Reverse relationships (`read_by` / `written_by`): the scope anchors on the field side, so it maps
+     * to the stored edge's `to_type`; the optional target constraint maps to `from_type`. Endpoints are
+     * swapped on the way out so the result reads field → reading/writing method under the requested kind.
+     */
+    private fun reverseEdges(q: DetailQuery, stored: String): List<DetailRef> =
+        DetailRefs.read(snapshotDir, fromTypes = q.toTypes, toTypes = q.fromTypes, relationship = stored)
+            .map {
+                DetailRef(
+                    fromKey = it.toKey, fromType = it.toType,
+                    toKey = it.fromKey, toType = it.fromType,
+                    relationship = q.relationship!!, line = it.line,
+                )
+            }
+
+    private companion object {
+        /** Reverse relationship → the stored forward kind it reads target→source. */
+        val REVERSE = mapOf("read_by" to "reads_field", "written_by" to "writes_field")
     }
 }

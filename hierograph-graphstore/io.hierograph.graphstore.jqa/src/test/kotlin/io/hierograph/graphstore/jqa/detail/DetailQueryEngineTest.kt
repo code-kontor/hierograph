@@ -55,6 +55,8 @@ class DetailQueryEngineTest {
                 DetailRef("com.foo.Base#m()V", "com.foo.Base", "com.foo.Other#x()V", "com.foo.Other", "calls", 10),
                 DetailRef("com.foo.Sub#n()V", "com.foo.Sub", "com.foo.Other#f", "com.foo.Other", "reads_field", 20),
                 DetailRef("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#m()V", "com.foo.Base", "calls", 30),
+                // a write into a field of Base, by a method of Other (outside the {Sub,Base} forward scope)
+                DetailRef("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#f", "com.foo.Base", "writes_field", 40),
             ),
         )
         engine = DetailQueryEngine(dir)
@@ -94,6 +96,30 @@ class DetailQueryEngineTest {
         val from = DetailScope.expand(store, "com.foo.Sub")
         assertThat(engine.query(DetailQuery(fromTypes = from, toTypes = setOf("com.foo.Other"))).total).isEqualTo(2)
         assertThat(engine.query(DetailQuery(fromTypes = from, toTypes = setOf("com.foo.Base"))).total).isEqualTo(0)
+    }
+
+    @Test
+    fun `read_by returns the readers of fields in the scope, endpoints swapped`() {
+        // "what reads fields declared in Other" — scope anchors on the field side (to_type = Other).
+        val result = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Other"), relationship = "read_by"))
+
+        assertThat(result.total).isEqualTo(1)
+        val edge = result.edges.single()
+        assertThat(edge.relationship).isEqualTo("read_by")
+        assertThat(edge.fromKey).isEqualTo("com.foo.Other#f")   // the field is the source
+        assertThat(edge.toKey).isEqualTo("com.foo.Sub#n()V")    // the reading method is the target
+        assertThat(edge.line).isEqualTo(20)
+    }
+
+    @Test
+    fun `written_by returns the writers of fields in the scope, endpoints swapped`() {
+        val result = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Base"), relationship = "written_by"))
+
+        assertThat(result.total).isEqualTo(1)
+        val edge = result.edges.single()
+        assertThat(edge.relationship).isEqualTo("written_by")
+        assertThat(edge.fromKey).isEqualTo("com.foo.Base#f")      // the field is the source
+        assertThat(edge.toKey).isEqualTo("com.foo.Other#x()V")    // the writing method is the target
     }
 
     @Test
