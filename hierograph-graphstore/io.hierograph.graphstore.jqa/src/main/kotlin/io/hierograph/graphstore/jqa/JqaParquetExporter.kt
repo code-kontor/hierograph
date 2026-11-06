@@ -23,6 +23,7 @@ import io.hierograph.graphstore.model.MemberModifiers
 import io.hierograph.graphstore.model.ParameterFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
+import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetWriter
 import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaNodeKind
@@ -91,7 +92,12 @@ class JqaParquetExporter(private val boltClient: IBoltClient) {
                 facts = ClassFacts(
                     fqn = fqn,
                     kind = JavaNodeKind.valueOf(r.string("kind")),
-                    modifiers = 0,
+                    modifiers = TypeModifiers.pack(
+                        visibility = r.stringOrNull("visibility"),
+                        abstract = r.bool("is_abstract"),
+                        final = r.bool("is_final"),
+                        static = r.bool("is_static"),
+                    ),
                     members = membersByOwner[fqn].orEmpty(),
                     refs = refsByOwner[fqn].orEmpty(),
                     classHash = "",

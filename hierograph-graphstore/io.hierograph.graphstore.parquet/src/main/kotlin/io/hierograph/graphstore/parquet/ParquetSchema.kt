@@ -43,6 +43,7 @@ object ParquetSchema {
         const val KIND = "kind"                 // JavaNodeKind name: CLASS | INTERFACE | ENUM | ANNOTATION | RECORD
         const val SOURCE_FILE = "source_file"
         const val CLASS_HASH = "class_hash"
+        const val MODIFIERS = "modifiers"       // packed access flags; see TypeModifiers. Absent in older snapshots.
     }
 
     object Members {
@@ -97,6 +98,7 @@ object ParquetSchema {
             .string(Types.KIND, RepetitionType.REQUIRED)
             .string(Types.SOURCE_FILE, RepetitionType.OPTIONAL)
             .string(Types.CLASS_HASH, RepetitionType.OPTIONAL)
+            .addColumn(Types.MODIFIERS, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .build()
 
     fun membersSchema(): FileSchema =

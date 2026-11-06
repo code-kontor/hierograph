@@ -35,7 +35,11 @@ object JqaExportCypher {
           CASE WHEN t:Annotation THEN 'ANNOTATION' WHEN t:Enum THEN 'ENUM'
                WHEN t:Record THEN 'RECORD' WHEN t:Interface THEN 'INTERFACE'
                ELSE 'CLASS' END AS kind,
-          t.sourceFileName AS source_file
+          t.sourceFileName AS source_file,
+          t.visibility AS visibility,
+          coalesce(t.abstract, false) AS is_abstract,
+          coalesce(t.final, false) AS is_final,
+          coalesce(t.static, false) AS is_static
     """.trimIndent()
 
     val MEMBERS = """

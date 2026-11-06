@@ -21,6 +21,7 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
+import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
@@ -36,7 +37,7 @@ class ParquetWriterTest {
             ClassFacts(
                 fqn = "com.foo.A",
                 kind = JavaKinds.CLASS,
-                modifiers = 0,
+                modifiers = TypeModifiers.pack("public", abstract = true),
                 members = listOf(MemberFacts("com.foo.A#a()V", JavaKinds.METHOD, "a()V", lineFrom = 1, lineTo = 2)),
                 refs = listOf(
                     Ref("com.foo.A", "com.foo.B", RefKind.EXTENDS, count = 1),
@@ -46,8 +47,27 @@ class ParquetWriterTest {
                 sourceFile = "A.java",
             ),
         ),
-        ArtifactClass("app", ClassFacts("com.foo.B", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h2")),
+        ArtifactClass("app", ClassFacts("com.foo.B", JavaKinds.CLASS, TypeModifiers.pack(null, final = true, static = true), emptyList(), emptyList(), "h2")),
     )
+
+    @Test
+    fun `type modifiers round-trip through types parquet`(@TempDir dir: Path) {
+        ParquetWriter.writeClassFacts(dir, classes, CompressionCodec.UNCOMPRESSED)
+
+        val rows = ParquetReader().readTypeRows(dir, listOf("com.foo.A", "com.foo.B")).associateBy { it.fqn }
+        assertThat(TypeModifiers.modifiers(rows.getValue("com.foo.A").modifiers!!)).containsExactly("public", "abstract")
+        assertThat(TypeModifiers.modifiers(rows.getValue("com.foo.B").modifiers!!)).containsExactly("package-private", "final", "static")
+    }
+
+    @Test
+    fun `a snapshot without the modifiers column still loads and reports modifiers as unknown`(@TempDir dir: Path) {
+        ParquetTestWriter.writeLegacyTypes(dir, listOf(ParquetTestWriter.TypeFixture("app", "com.foo.A", "CLASS")))
+
+        val store = GraphStore()
+        ParquetReader().load(dir, store)
+        assertThat(store.typeByFqn("com.foo.A")!!.placeholder).isFalse
+        assertThat(ParquetReader().readTypeRows(dir, listOf("com.foo.A")).single().modifiers).isNull()
+    }
 
     @Test
     fun `writeClassFacts round-trips through the loader uncompressed`(@TempDir dir: Path) {

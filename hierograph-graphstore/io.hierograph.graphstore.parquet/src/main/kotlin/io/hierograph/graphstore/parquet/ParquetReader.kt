@@ -61,7 +61,7 @@ class ParquetReader {
                 ClassFacts(
                     fqn = t.fqn,
                     kind = JavaNodeKind.valueOf(t.kind),
-                    modifiers = 0,
+                    modifiers = t.modifiers ?: 0,
                     members = membersByOwner[t.fqn].orEmpty(),
                     refs = refsByOwner[t.fqn].orEmpty(),
                     classHash = t.classHash.orEmpty(),
@@ -119,6 +119,8 @@ class ParquetReader {
         val kind: String,
         val sourceFile: String?,
         val classHash: String?,
+        /** Packed [io.hierograph.graphstore.model.TypeModifiers] flags; `null` for a snapshot written before the column existed. */
+        val modifiers: Int?,
     )
 
     /**
@@ -146,6 +148,7 @@ class ParquetReader {
                 kind = r.string(ParquetSchema.Types.KIND),
                 sourceFile = r.stringOrNull(ParquetSchema.Types.SOURCE_FILE),
                 classHash = r.stringOrNull(ParquetSchema.Types.CLASS_HASH),
+                modifiers = if (r.hasColumn(ParquetSchema.Types.MODIFIERS)) r.intOrNull(ParquetSchema.Types.MODIFIERS) ?: 0 else null,
             )
         }
 
@@ -226,6 +229,9 @@ class ParquetReader {
     private class RowCursor(private val reader: RowReader, schema: FileSchema) {
         private val indexByName: Map<String, Int> =
             schema.columns.associate { it.name() to it.columnIndex() }
+
+        /** Whether the snapshot's schema has [name] — false for columns added after it was written. */
+        fun hasColumn(name: String): Boolean = name in indexByName
 
         private fun index(name: String): Int =
             indexByName[name] ?: error("Column '$name' not present in snapshot schema")

@@ -46,6 +46,9 @@ object ParquetWriter {
             sb.setString(ParquetSchema.Types.KIND, c.facts.kind.name)
             sb.setNullable(ParquetSchema.Types.SOURCE_FILE, c.facts.sourceFile)
             sb.setNullable(ParquetSchema.Types.CLASS_HASH, c.facts.classHash.ifEmpty { null })
+            // Always written (0 = package-private, no flags), so "column absent" unambiguously means an
+            // older snapshot without type modifiers.
+            sb.setInt(ParquetSchema.Types.MODIFIERS, c.facts.modifiers)
         }
 
         val members = classes.flatMap { c -> c.facts.members.map { c.facts.fqn to it } }

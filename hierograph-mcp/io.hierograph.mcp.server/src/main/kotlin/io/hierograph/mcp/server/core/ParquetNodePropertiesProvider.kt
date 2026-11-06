@@ -18,6 +18,8 @@ package io.hierograph.mcp.server.core
 import io.hierograph.graphql.NodePropertiesProvider
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.hgmodel.GraphStoreNodeSource
+import io.hierograph.graphstore.model.MemberModifiers
+import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
@@ -28,12 +30,10 @@ import java.nio.file.Path
 
 /**
  * `Node.properties` for the Parquet-backed graph, computed on demand. Structural counts come from the
- * in-memory hierarchy; per-type snapshot facts (`sourceFile`, `classHash`, member counts) are read from
- * `types.parquet` / `members.parquet`, scoped to just the requested types — one filtered read per table
- * per batch, nothing kept in memory. In `jqa` mode it answers nothing (those nodes carry Neo4j
+ * in-memory hierarchy; per-type snapshot facts (`sourceFile`, `classHash`, modifiers, member counts) are
+ * read from `types.parquet` / `members.parquet`, scoped to just the requested types — one filtered read
+ * per table per batch, nothing kept in memory. In `jqa` mode it answers nothing (those nodes carry Neo4j
  * properties of their own).
- *
- * Type modifiers (visibility, abstract, final) are not part of the snapshot yet, so they are not reported.
  */
 @Component
 class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphService) : NodePropertiesProvider {
@@ -75,6 +75,14 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
                         typeRows[artifact to source.qualifiedName]?.let { row ->
                             row.sourceFile?.let { put("sourceFile", it) }
                             row.classHash?.takeIf { it.isNotEmpty() }?.let { put("classHash", it) }
+                            // Omitted (rather than guessed) for snapshots written before the modifiers column.
+                            row.modifiers?.let { bits ->
+                                put("visibility", MemberModifiers.visibility(bits))
+                                put("modifiers", TypeModifiers.modifiers(bits).joinToString(" "))
+                                put("abstract", TypeModifiers.isAbstract(bits).toString())
+                                put("final", TypeModifiers.isFinal(bits).toString())
+                                put("static", TypeModifiers.isStatic(bits).toString())
+                            }
                         }
                         val members = membersByOwner[source.qualifiedName].orEmpty()
                         put("methodCount", members.count { it.kind == JavaNodeKind.METHOD }.toString())

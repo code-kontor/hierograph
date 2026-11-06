@@ -18,6 +18,7 @@ package io.hierograph.itest.graphstore
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.jqa.JqaParquetExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
+import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.itest.fwk.AbstractIntegrationTest
@@ -309,7 +310,16 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
         assertThat(typeProps["fqn"]).isEqualTo(owner)
         assertThat(typeProps["artifact"]).isEqualTo(module.nodeSource.qualifiedName) // parquet artifacts: key == fqn
         assertThat(typeProps["methodCount"]!!.toInt()).isPositive()
-        assertThat(typeProps).containsKeys("constructorCount", "fieldCount")
+        assertThat(typeProps).containsKeys("constructorCount", "fieldCount", "visibility", "modifiers", "abstract", "final", "static")
+        assertThat(typeProps["modifiers"]!!.split(' ').first()).isEqualTo(typeProps["visibility"])
+
+        // The jQA export carries real type flags: the snapshot has public, abstract and final types.
+        val typeRows = ParquetReader().readTypeRows(SNAPSHOT_DIR, graphService.graphStore!!.nodes()
+            .filter { it.kind in JavaKinds.TYPE_KINDS }.map { it.fqn })
+        val decoded = typeRows.map { TypeModifiers.modifiers(it.modifiers!!) }
+        assertThat(decoded).anyMatch { "public" in it }
+        assertThat(decoded).anyMatch { "abstract" in it }
+        assertThat(decoded).anyMatch { "final" in it }
         val moduleProps = props.getValue(module)
         assertThat(moduleProps["typeCount"]!!.toInt()).isPositive()
         assertThat(moduleProps["packageCount"]!!.toInt()).isPositive()

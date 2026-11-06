@@ -17,6 +17,9 @@ package io.hierograph.graphstore.parquet
 
 import dev.hardwood.OutputFile
 import dev.hardwood.metadata.CompressionCodec
+import dev.hardwood.metadata.LogicalType
+import dev.hardwood.metadata.PhysicalType
+import dev.hardwood.metadata.RepetitionType
 import dev.hardwood.schema.FileSchema
 import dev.hardwood.writer.ParquetFileWriter
 import dev.hardwood.writer.StructBuilder
@@ -54,6 +57,26 @@ object ParquetTestWriter {
         val kind: String,
         val count: Int? = null,
     )
+
+    /** Writes `types.parquet` in the layout used before the `modifiers` column existed (an older snapshot). */
+    fun writeLegacyTypes(dir: Path, rows: List<TypeFixture>) {
+        fun FileSchema.Builder.str(name: String, rep: RepetitionType) =
+            addColumn(name, PhysicalType.BYTE_ARRAY, rep, LogicalType.string())
+        val legacySchema = FileSchema.builder("type")
+            .str(ParquetSchema.Types.ARTIFACT, RepetitionType.REQUIRED)
+            .str(ParquetSchema.Types.FQN, RepetitionType.REQUIRED)
+            .str(ParquetSchema.Types.KIND, RepetitionType.REQUIRED)
+            .str(ParquetSchema.Types.SOURCE_FILE, RepetitionType.OPTIONAL)
+            .str(ParquetSchema.Types.CLASS_HASH, RepetitionType.OPTIONAL)
+            .build()
+        write(dir.resolve(ParquetSchema.TYPES_FILE), legacySchema, rows) { sb, t ->
+            sb.setString(ParquetSchema.Types.ARTIFACT, t.artifact)
+            sb.setString(ParquetSchema.Types.FQN, t.fqn)
+            sb.setString(ParquetSchema.Types.KIND, t.kind)
+            sb.setNullable(ParquetSchema.Types.SOURCE_FILE, t.sourceFile)
+            sb.setNullable(ParquetSchema.Types.CLASS_HASH, t.classHash)
+        }
+    }
 
     fun writeTypes(dir: Path, rows: List<TypeFixture>) {
         write(dir.resolve(ParquetSchema.TYPES_FILE), ParquetSchema.typesSchema(), rows) { sb, t ->
