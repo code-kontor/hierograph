@@ -116,12 +116,31 @@ data class Node(
 - Keys are content-derived and stable across rescans, restarts and snapshots. They replace Neo4j's internal `id()`.
 - References always point to a **key string**, never to a node. Internal and external targets look the same.
 
-### Placeholders
+### Types vs type references (resolution model)
 
-- A referenced but unscanned type becomes a placeholder node under the synthetic module **External Types** (replaces `:Virtual:Type` and `RESOLVES_TO`).
-- When the real class is scanned, the placeholder is **upgraded in place** – incoming edges stay valid.
-- When a scanned class disappears but is still referenced, it is **downgraded** to a placeholder.
-- Orphan placeholders (no incoming edges) are cleaned up periodically.
+Strictly separate **a type that was parsed** from **a mention of a type by name**:
+
+- **Type (definition)** – something actually scanned: kind, members, modifiers, source file, bytecode hash. It exists in a snapshot as a `types` row.
+- **Type reference** – a mention of a type by FQN from some context (a supertype, a parameter, an `INVOKES` target …). A name, not a thing; it may or may not correspond to a scanned type.
+
+Three layers, kept strictly apart:
+
+- **Facts (persisted):** snapshots contain only **types** (definitions: `types` + `members`) and **references** (`refs`, FQN-valued). No `RESOLVES_TO`, no stub/placeholder rows, no virtual nodes — those are computed results, not facts.
+- **Resolution (in-memory, derived):** map each reference's FQN to a scanned type, or mark it unresolved. Done globally after load, **never at scan time** — a class cannot know what else was scanned, which is also what keeps the scanner stateless and trivially parallel. On an incremental update a reference flips `unresolved ↔ resolved` in place rather than triggering a rebuild.
+- **Presentation (in-memory, derived):** choose which unresolved references to surface, and how (the External Types view below).
+
+Resolution is **relative to the loaded snapshot set**: `java.util.List` is unresolved with only app code, and becomes resolved once a JDK API snapshot is loaded — so status is recomputed when the set changes, never stored. References are to **symbols**: type references resolve in the type-level graph; member references (`INVOKES` / `READS` / `WRITES`) resolve in the detail layer.
+
+This is the same axis as the `Type` / `Definition` split (section 6): a reference resolves to a logical `Type {fqn}` that has 0..N `Definition`s — **0 = unresolved** (external), 1 = normal, >1 = duplicate/shaded. jQAssistant instead materializes per-artifact stub `:Type` nodes and reconciles them post-scan via `RESOLVES_TO`; owning the model lets references stay references and drops `RESOLVES_TO` entirely. The code vocabulary should make the distinction explicit — `Type` / `TypeDefinition` vs `TypeReference`.
+
+### External Types view (unresolved references)
+
+An unresolved reference is not a type, so it needs no type node. For navigability the GraphStore materializes a **placeholder view** of unresolved references under the synthetic module **External Types** (replacing jQA's `:Virtual:Type` + `RESOLVES_TO`). The view is derived, never persisted.
+
+- When the real class is later scanned, the placeholder is **upgraded in place** – incoming edges stay valid (the reference flips to resolved).
+- When a scanned class disappears but is still referenced, it is **downgraded** back to a placeholder (resolved → unresolved).
+- Orphan placeholders (no incoming references) are cleaned up periodically.
+- A `PlaceholderPolicy` decides **which** unresolved references to surface — the jQA-aligned policy excludes primitives, array descriptors, default-package names, `java.lang.*` / `kotlin.*`, and the two nullability annotations. This is a presentation choice over references; the underlying refs stay in the snapshot regardless.
 
 ### Scanner modes
 
