@@ -349,6 +349,11 @@ limitations under the License.]]></inlineHeader>
                 <artifactId>io.hierograph.graphstore.parquet</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.graphstore.jqa</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>

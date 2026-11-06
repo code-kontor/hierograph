@@ -56,6 +56,12 @@
             <artifactId>neo4j-java-driver</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- GraphStore MVP: export the jQA store to a snapshot and diff it against GraphDbMapping. -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.jqa</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test-junit5</artifactId>
