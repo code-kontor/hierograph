@@ -59,6 +59,15 @@ class HierarchicalGraphService {
 
     private val useParquet: Boolean get() = graphSource.equals("parquet", ignoreCase = true)
 
+    /** Whether the served graph is built from Parquet (vs the Neo4j/jQA projection). */
+    val isParquetBacked: Boolean get() = useParquet
+
+    /** Directory holding the Parquet tables (incl. `detail_refs.parquet`); meaningful only when [isParquetBacked]. */
+    val parquetDirectory: String get() = parquetDir
+
+    /** The type-level GraphStore backing the current snapshot in `parquet` mode, else `null`. */
+    val graphStore: GraphStore? get() = snapshotRef.get()?.graphStore
+
     lateinit var boltClient: IBoltClient
 
     /**
@@ -154,14 +163,14 @@ class HierarchicalGraphService {
      * in tests; production code loads via [init] / [reload].
      */
     fun seed(model: HGModel) {
-        snapshotRef.set(buildSnapshotFrom(model))
+        snapshotRef.set(buildSnapshotFrom(model, graphStore = null))
     }
 
     /** Build a fresh snapshot from the configured source, logging progress and writing the dump. */
     private fun loadSnapshot(): GraphSnapshot {
         log.info("Creating hierarchical graph (source = {})...", graphSource)
         val (snapshot, elapsed) = measureTimedValue {
-            buildSnapshotFrom(buildModel())
+            buildSnapshot()
         }
 
         val hierarchy = snapshot.model.hierarchy
@@ -193,22 +202,22 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Builds the hierarchical graph model from the configured source: `parquet` reads the Parquet
-     * tables into a [GraphStore] and bridges to an [HGModel] (no Neo4j); `jqa` projects it from the
-     * connected Bolt store via `GraphDbMapping`.
+     * Builds a snapshot from the configured source: `parquet` reads the Parquet tables into a
+     * [GraphStore] and bridges to an [HGModel] (no Neo4j), carrying the store so the detail path can
+     * read it; `jqa` projects the model from the connected Bolt store via `GraphDbMapping`.
      */
-    private fun buildModel(): HGModel =
+    private fun buildSnapshot(): GraphSnapshot =
         if (useParquet) {
             val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
             ParquetReader().load(Path.of(parquetDir), store)
-            GraphStoreToHGModel.build(store)
+            buildSnapshotFrom(GraphStoreToHGModel.build(store), store)
         } else {
-            DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient)
+            buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null)
         }
 
     /** Bundle a model with its (freshly built) search index and data hash. Pure — no I/O, no logging. */
-    private fun buildSnapshotFrom(model: HGModel): GraphSnapshot =
-        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model))
+    private fun buildSnapshotFrom(model: HGModel, graphStore: GraphStore?): GraphSnapshot =
+        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model), graphStore)
 
     @PreDestroy
     fun shutdown() {

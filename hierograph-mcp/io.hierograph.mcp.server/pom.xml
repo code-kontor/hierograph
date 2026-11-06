@@ -91,6 +91,11 @@
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
         </dependency>
+        <!-- Parquet-backed detail_dependencies engine (served when graph.source=parquet). -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.detail</artifactId>
+        </dependency>
 
         <!-- kotlin -->
         <dependency>

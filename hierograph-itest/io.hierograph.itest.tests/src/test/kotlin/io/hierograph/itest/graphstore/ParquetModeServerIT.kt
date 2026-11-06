@@ -17,6 +17,7 @@ package io.hierograph.itest.graphstore
 
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.jqa.JqaParquetExporter
+import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import io.hierograph.itest.fwk.HierographImageContainer
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -26,7 +27,10 @@ import io.hierograph.mcp.server.core.pagination.DataHashProvider
 import io.hierograph.mcp.server.core.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
+import io.hierograph.mcp.server.tools.detail.DetailDependenciesComponent
+import io.hierograph.mcp.server.tools.detail.DetailDependenciesRouter
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
+import io.hierograph.mcp.server.tools.detail.ParquetDetailDependencies
 import io.hierograph.mcp.server.tools.navigation.FindNodeTool
 import io.hierograph.mcp.server.tools.navigation.GraphOverviewTool
 import io.hierograph.mcp.server.tools.navigation.ListChildrenTool
@@ -61,6 +65,10 @@ import java.util.concurrent.Executors
         GraphOverviewTool::class,
         FindNodeTool::class,
         ListChildrenTool::class,
+        DataHashProvider::class,
+        DetailDependenciesComponent::class,
+        ParquetDetailDependencies::class,
+        DetailDependenciesRouter::class,
     ]
 )
 class ParquetModeServerIT : AbstractIntegrationTest() {
@@ -79,6 +87,10 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
 
     @Autowired
     private lateinit var listChildrenTool: ListChildrenTool
+
+    /** The @Primary router; in parquet mode it routes to the Parquet detail engine (no Neo4j). */
+    @Autowired
+    private lateinit var detailDependencies: IDetailDependencies
 
     @Test
     fun `serves a hierarchical graph from Parquet with no reachable Neo4j`() {
@@ -177,6 +189,37 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
         assertThat(response).containsKey("summary")
     }
 
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `detail_dependencies runs over the Parquet detail engine with no reachable Neo4j`() {
+        // The @Primary router must be the Parquet-backed one in parquet mode.
+        assertThat(detailDependencies).isInstanceOf(DetailDependenciesRouter::class.java)
+
+        // Whole-graph scope (root -> root) so the member-level edge set is certainly non-empty on a real
+        // scan. Served entirely from detail_refs.parquet; the dead Bolt port is never touched.
+        val rootId = graphService.model.hierarchy.rootNode.identifier as Long
+        val response = detailDependencies.detailDependencies(rootId, rootId, null, 5, null, DETAIL_SPEC)
+
+        assertThat(response).withFailMessage("detail_dependencies should not error in parquet mode")
+            .doesNotContainKey("error")
+        val summary = response["summary"] as Map<String, Any?>
+        assertThat(summary["total_edges"] as Int)
+            .withFailMessage("the Parquet detail engine should find member-level edges in the scanned graph")
+            .isPositive()
+        val edges = response["edges"] as List<Map<String, Any?>>
+        assertThat(edges).isNotEmpty()
+        // every edge carries a relationship from the detail vocabulary and resolvable endpoint handles
+        assertThat(edges).allSatisfy { edge ->
+            assertThat(edge["relationship"] as String).isNotBlank()
+            assertThat(edge["from"]).isInstanceOf(Long::class.javaObjectType)
+            assertThat(edge["to"]).isInstanceOf(Long::class.javaObjectType)
+        }
+
+        // Prove the detail path used no Neo4j: the configured Bolt endpoint is dead.
+        assertThatThrownBy { graphService.boltClient.syncExecCypherQuery("RETURN 1") }
+            .isInstanceOf(Throwable::class.java)
+    }
+
     /** The top-level node with the most children and its handle — a node that certainly has children. */
     private fun richestTopLevel(): Pair<Long, Int> {
         val hierarchy = graphService.model.hierarchy
@@ -193,6 +236,9 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
     }
 
     companion object {
+
+        /** Pagination policy for the detail call (mirrors the dependency tools' detail spec). */
+        private val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 250, bytesPerItem = 550)
 
         @JvmStatic
         @DynamicPropertySource
@@ -213,13 +259,14 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
             registry.add("hierograph.bolt.uri") { "bolt://localhost:1" }
         }
 
-        /** Export the container's jQA store (type-level tables) to [parquetDir] via the MVP exporter. */
+        /** Export the container's jQA store (type-level tables + member-level detail_refs) to [parquetDir]. */
         private fun exportSnapshot(parquetDir: java.nio.file.Path) {
             val executor = Executors.newVirtualThreadPerTaskExecutor()
             val boltClient = IBoltClientFactory.newInstance(executor).createBoltClient(HierographImageContainer.boltUri)
             boltClient.connect()
             try {
                 JqaParquetExporter(boltClient).exportTo(parquetDir)
+                JqaDetailExporter(boltClient).exportTo(parquetDir)
             } finally {
                 boltClient.disconnect()
                 executor.shutdownNow()

@@ -15,6 +15,7 @@
  */
 package io.hierograph.mcp.server.core
 
+import io.hierograph.graphstore.GraphStore
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 
 /**
@@ -24,9 +25,14 @@ import io.hierograph.hierarchicalgraph.core.model.HGModel
  * scan of the codebase. Holding them in a single immutable value lets [HierarchicalGraphService] swap
  * the whole set atomically on a reload, so a concurrent tool call sees a consistent old-or-new
  * snapshot and never a torn mix of a new model with a stale index or hash.
+ *
+ * [graphStore] is the type-level GraphStore the model was bridged from in `parquet` mode (`null` in
+ * `jqa` mode); the Parquet-backed detail path reads it for scope expansion and type display so it stays
+ * in lock-step with the served model.
  */
 data class GraphSnapshot(
     val model: HGModel,
     val searchIndex: NodeSearchIndex,
-    val dataHash: String
+    val dataHash: String,
+    val graphStore: GraphStore? = null
 )
