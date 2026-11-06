@@ -93,6 +93,37 @@ class GraphStoreTest {
     }
 
     @Test
+    fun `superseding a placeholder prunes its now-empty external package chain`() {
+        val store = GraphStore()
+        store.registerArtifact(artifact("app"))
+        store.registerArtifact(artifact("lib"))
+        // app is ingested first: it references lib.B before lib is scanned, plus a truly external type
+        store.applyClass(
+            "app",
+            classFacts(
+                "com.app.A",
+                refs = listOf(
+                    Ref("com.app.A", "com.lib.sub.B", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.app.A", "com.ext.C", RefKind.DEPENDS_ON, count = 1),
+                ),
+            ),
+        )
+        assertThat(store.contains("pkg:<external>:com.lib.sub")).isTrue
+
+        store.applyClass("lib", classFacts("com.lib.sub.B"))
+
+        // B's external package chain is gone ...
+        assertThat(store.contains("pkg:<external>:com.lib.sub")).isFalse
+        assertThat(store.contains("pkg:<external>:com.lib")).isFalse
+        // ... but the shared ancestor still holding a placeholder is kept
+        assertThat(store.contains("pkg:<external>:com")).isTrue
+        assertThat(store.contains("pkg:<external>:com.ext")).isTrue
+        assertThat(store.typeByFqn("com.ext.C")!!.placeholder).isTrue
+        assertThat(store.childKeysOf("pkg:<external>:com")).containsExactly("pkg:<external>:com.ext")
+        assertThat(store.typeByFqn("com.lib.sub.B")!!.parent).isEqualTo("pkg:lib:com.lib.sub")
+    }
+
+    @Test
     fun `typeDependencies aggregates weight and sets structural flags`() {
         val store = GraphStore()
         store.registerArtifact(artifact("app"))

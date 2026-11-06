@@ -198,7 +198,23 @@ class GraphStore(
 
     private fun removeExternalPlaceholder(fqn: String) {
         val node = nodesByKey[externalTypeKey(fqn)] ?: return
-        if (node.placeholder) removeNode(node)
+        if (!node.placeholder) return
+        removeNode(node)
+        pruneEmptyPackages(node.parent)
+    }
+
+    /**
+     * Removes [key] and its ancestor packages under the external module while they have no children
+     * left, so a placeholder superseded by a scanned type doesn't leave an empty package chain behind.
+     */
+    private fun pruneEmptyPackages(key: String?) {
+        var k = key
+        while (k != null && k != EXTERNAL_ARTIFACT_KEY && childKeys[k].isNullOrEmpty()) {
+            val pkg = nodesByKey[k] ?: return
+            childKeys.remove(k)
+            removeNode(pkg)
+            k = pkg.parent
+        }
     }
 
     private fun ensurePlaceholder(fqn: String) {
