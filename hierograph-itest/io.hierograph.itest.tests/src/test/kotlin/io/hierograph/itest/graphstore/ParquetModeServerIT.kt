@@ -18,6 +18,7 @@ package io.hierograph.itest.graphstore
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.jqa.JqaParquetExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
+import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
@@ -39,6 +40,8 @@ import io.hierograph.mcp.server.tools.detail.MethodDetailsTool
 import io.hierograph.mcp.server.tools.detail.ParquetDetailDependencies
 import io.hierograph.mcp.server.tools.detail.ParquetFieldDetails
 import io.hierograph.mcp.server.tools.detail.ParquetMethodDetails
+import io.hierograph.mcp.server.tools.detail.ParquetTypeDetails
+import io.hierograph.mcp.server.tools.detail.TypeDetailsTool
 import io.hierograph.mcp.server.tools.navigation.FindNodeTool
 import io.hierograph.mcp.server.tools.navigation.GraphOverviewTool
 import io.hierograph.mcp.server.tools.navigation.ListChildrenTool
@@ -83,6 +86,8 @@ import java.util.concurrent.Executors
         MethodDetailsTool::class,
         FieldDetailsTool::class,
         ParquetNodePropertiesProvider::class,
+        ParquetTypeDetails::class,
+        TypeDetailsTool::class,
     ]
 )
 class ParquetModeServerIT : AbstractIntegrationTest() {
@@ -114,6 +119,9 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
 
     @Autowired
     private lateinit var nodePropertiesProvider: ParquetNodePropertiesProvider
+
+    @Autowired
+    private lateinit var typeDetailsTool: TypeDetailsTool
 
     @Test
     fun `serves a hierarchical graph from Parquet with no reachable Neo4j`() {
@@ -259,6 +267,37 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
         assertThat(method["qualified_name"]).isEqualTo(methodKey)
         // members are hierarchy nodes now: the handle the detail tools hand out is navigable
         assertThat(graphService.model.lookupNode(method["id"] as Long)).isNotNull()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `type_details runs off types+refs+members parquet`() {
+        // A scanned type that both extends and implements something, resolved to its model handle.
+        val store = graphService.graphStore!!
+        val scanned = store.nodes().filter { it.kind in JavaKinds.TYPE_KINDS }.associateBy { it.fqn }
+        val refsByType = ParquetReader().readRefsFrom(SNAPSHOT_DIR, scanned.keys)
+        val (fqn, refs) = refsByType.entries.first { (_, rs) ->
+            rs.any { it.kind == RefKind.EXTENDS } && rs.any { it.kind == RefKind.IMPLEMENTS }
+        }
+        val typeId = NodeHandle.of(scanned.getValue(fqn).key)
+
+        val response = typeDetailsTool.typeDetails(typeId)
+
+        assertThat(response).doesNotContainKey("error")
+        assertThat((response["type"] as Map<String, Any?>)["qualified_name"]).isEqualTo(fqn)
+        assertThat((response["superclass"] as Map<String, Any?>)["qualified_name"])
+            .isEqualTo(refs.first { it.kind == RefKind.EXTENDS }.toKey)
+        assertThat((response["interfaces"] as List<Map<String, Any?>>).map { it["qualified_name"] })
+            .containsExactlyInAnyOrderElementsOf(refs.filter { it.kind == RefKind.IMPLEMENTS }.map { it.toKey }.distinct())
+        assertThat(response["modifiers"] as List<String>).isNotEmpty()
+        val members = ParquetReader().readMembersByOwner(SNAPSHOT_DIR, listOf(fqn))[fqn].orEmpty()
+        assertThat((response["member_summary"] as Map<String, Any?>)["method_count"])
+            .isEqualTo(members.count { it.kind == JavaNodeKind.METHOD })
+
+        // a member id is rejected with a pointer to the member detail tools
+        val methodKey = snapshotMembers().first { it.kind == JavaNodeKind.METHOD }.key
+        val wrong = typeDetailsTool.typeDetails(graphService.memberHandle(methodKey))
+        assertThat((wrong["error"] as Map<String, Any?>)["code"]).isEqualTo("WRONG_NODE_KIND")
     }
 
     @Suppress("UNCHECKED_CAST")

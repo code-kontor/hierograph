@@ -29,12 +29,13 @@ import org.springframework.stereotype.Component
  *
  * Returns full structural details for a single type: modifiers, superclass,
  * interfaces, annotations, member counts, inner types, and source location.
- * Uses inline NodeRefs (not slim encoding).
+ * Uses inline NodeRefs (not slim encoding). In `parquet` mode it is served by [ParquetTypeDetails].
  */
 @Component
 class TypeDetailsTool(
     graphService: HierarchicalGraphService,
-    private val nodeRefFactory: INodeRefFactory
+    private val nodeRefFactory: INodeRefFactory,
+    private val parquet: ParquetTypeDetails,
 ) : AbstractDetailTool(graphService) {
 
     @Tool(
@@ -52,7 +53,11 @@ class TypeDetailsTool(
     fun typeDetails(
         @ToolParam(description = "The node ID of the type to inspect.")
         typeId: Long
-    ): Map<String, Any?> {
+    ): Map<String, Any?> =
+        if (graphService.isParquetBacked) parquet.typeDetails(typeId) else cypherTypeDetails(typeId)
+
+    /** The Neo4j/Cypher implementation, used when the graph is served from jQAssistant. */
+    private fun cypherTypeDetails(typeId: Long): Map<String, Any?> {
 
         // ── query Neo4j ────────────────────────────────────────────────
         val cypher = buildTypeDetailsCypher()

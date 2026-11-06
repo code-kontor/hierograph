@@ -121,6 +121,25 @@ class ParquetReaderTest {
     }
 
     @Test
+    fun `scoped refs read returns only the requested source types, external targets included`(@TempDir dir: Path) {
+        ParquetTestWriter.writeRefs(
+            dir,
+            listOf(
+                RefFixture("com.foo.A", "java.lang.Object", "EXTENDS", count = 1),
+                RefFixture("com.foo.A", "com.foo.B", "IMPLEMENTS", count = 1),
+                RefFixture("com.foo.C", "com.foo.A", "EXTENDS", count = 1),
+            ),
+        )
+
+        val refs = ParquetReader().readRefsFrom(dir, listOf("com.foo.A"))
+
+        assertThat(refs.keys).containsExactly("com.foo.A")
+        assertThat(refs.getValue("com.foo.A").map { it.kind.name to it.toKey })
+            .containsExactlyInAnyOrder("EXTENDS" to "java.lang.Object", "IMPLEMENTS" to "com.foo.B")
+        assertThat(ParquetReader().readRefsFrom(dir, emptyList())).isEmpty()
+    }
+
+    @Test
     fun `missing members and refs tables load the types only`(@TempDir dir: Path) {
         ParquetTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
 

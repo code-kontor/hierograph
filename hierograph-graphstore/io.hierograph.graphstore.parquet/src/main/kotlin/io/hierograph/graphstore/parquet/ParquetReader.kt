@@ -140,6 +140,15 @@ class ParquetReader {
         if (ownerFqns.isEmpty()) emptyMap()
         else readMembers(parquetDir.resolve(ParquetSchema.MEMBERS_FILE), FilterPredicate.`in`(ParquetSchema.Members.OWNER_FQN, *ownerFqns.toTypedArray()))
 
+    /**
+     * Scoped read of the type-level `refs.parquet`: the outgoing refs (extends / implements / annotated_by /
+     * depends_on) of the types in [fromTypes], grouped by source type FQN. Targets are bare FQNs, kept even
+     * when the placeholder policy keeps them out of the in-memory graph (e.g. `java.lang.Object`).
+     */
+    fun readRefsFrom(parquetDir: Path, fromTypes: Collection<String>): Map<String, List<Ref>> =
+        if (fromTypes.isEmpty()) emptyMap()
+        else readRefs(parquetDir.resolve(ParquetSchema.REFS_FILE), FilterPredicate.`in`(ParquetSchema.Refs.FROM_TYPE, *fromTypes.toTypedArray()))
+
     private fun readTypes(path: Path, filter: FilterPredicate? = null): List<TypeRow> =
         readRows(path, filter) { r ->
             TypeRow(
@@ -196,8 +205,8 @@ class ParquetReader {
             )
         }.sortedBy { it.index }
 
-    private fun readRefs(path: Path): Map<String, List<Ref>> =
-        readRows(path) { r ->
+    private fun readRefs(path: Path, filter: FilterPredicate? = null): Map<String, List<Ref>> =
+        readRows(path, filter) { r ->
             r.string(ParquetSchema.Refs.FROM_TYPE).let { fromType ->
                 fromType to Ref(
                     fromKey = fromType, // type-level refs are type→type: source key == owning type
