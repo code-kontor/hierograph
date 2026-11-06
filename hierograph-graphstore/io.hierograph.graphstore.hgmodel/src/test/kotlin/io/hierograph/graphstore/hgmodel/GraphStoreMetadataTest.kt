@@ -19,6 +19,7 @@ import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Origin
+import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
@@ -38,14 +39,15 @@ class GraphStoreMetadataTest {
         store.applyClass("app", ClassFacts("com.foo.Service", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
 
         val model = GraphStoreToHGModel.build(store)
-        val node = model.lookupNode("com.foo.Service")!!
+        // Nodes are identified by the content-addressed handle of their artifact-scoped GraphStore key.
+        val node = model.lookupNode(NodeHandle.of(store.typeKey("app", "com.foo.Service")))!!
 
         assertThat(JQAssistantNodeMetadataProvider.getName(node)).isEqualTo("Service")
         assertThat(JQAssistantNodeMetadataProvider.getQualifiedName(node)).isEqualTo("com.foo.Service")
         assertThat(JQAssistantNodeMetadataProvider.getKind(node)).isEqualTo(JavaNodeKind.CLASS.value)
 
-        // a package node resolves too
-        val pkg = model.lookupNode("pkg:app:com.foo")!!
+        // a package node resolves too (package keys are already artifact-scoped)
+        val pkg = model.lookupNode(NodeHandle.of("pkg:app:com.foo"))!!
         assertThat(JQAssistantNodeMetadataProvider.getName(pkg)).isEqualTo("foo")
         assertThat(JQAssistantNodeMetadataProvider.getQualifiedName(pkg)).isEqualTo("com.foo")
     }

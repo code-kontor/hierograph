@@ -21,6 +21,7 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
+import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
@@ -30,6 +31,9 @@ import org.junit.jupiter.api.Test
 class GraphStoreToHGModelTest {
 
     private lateinit var store: GraphStore
+
+    /** Nodes are identified by the content-addressed handle of their GraphStore key; address them via this. */
+    private fun h(key: String): Long = NodeHandle.of(key)
 
     @BeforeEach
     fun setUp() {
@@ -58,33 +62,37 @@ class GraphStoreToHGModelTest {
 
         // top-level modules hang under the root: the app module and the External Types module
         val rootChildren = model.hierarchy.childrenOf(model.hierarchy.rootNode).map { it.identifier }
-        assertThat(rootChildren).contains("app", GraphStore.EXTERNAL_ARTIFACT_KEY)
+        // Modules and packages are keyed directly; types by their artifact-scoped key.
+        assertThat(rootChildren).contains(h("app"), h(GraphStore.EXTERNAL_ARTIFACT_KEY))
 
         // the package chain and type are navigable, with kinds carried over
-        val sub = model.lookupNode("com.foo.Sub")!!
+        val sub = model.lookupNode(h(store.typeKey("app", "com.foo.Sub")))!!
         assertThat(sub.kind).isEqualTo(JavaKinds.CLASS)
-        assertThat(model.hierarchy.parentOf(sub)!!.identifier).isEqualTo("pkg:app:com.foo")
-        assertThat(model.lookupNode("pkg:app:com.foo")!!.kind).isEqualTo(JavaKinds.PACKAGE)
+        assertThat(model.hierarchy.parentOf(sub)!!.identifier).isEqualTo(h("pkg:app:com.foo"))
+        assertThat(model.lookupNode(h("pkg:app:com.foo"))!!.kind).isEqualTo(JavaKinds.PACKAGE)
 
-        // the unresolved target is a placeholder external type
-        assertThat(model.lookupNode("java.util.List")!!.kind).isEqualTo(JavaKinds.EXTERNAL_TYPE)
+        // the unresolved target is a placeholder external type, scoped to the external module
+        assertThat(model.lookupNode(h(store.typeKey(GraphStore.EXTERNAL_ARTIFACT_KEY, "java.util.List")))!!.kind)
+            .isEqualTo(JavaKinds.EXTERNAL_TYPE)
     }
 
     @Test
     fun `carries type dependencies with weight and attribute bitmap`() {
         val model = GraphStoreToHGModel.build(store)
-        val sub = model.lookupNode("com.foo.Sub")!!
+        val sub = model.lookupNode(h(store.typeKey("app", "com.foo.Sub")))!!
 
-        val toBase = sub.outgoingCoreDependencies.single { it.to.identifier == "com.foo.Base" }
+        val toBase = sub.outgoingCoreDependencies.single { it.to.identifier == h(store.typeKey("app", "com.foo.Base")) }
         assertThat(JavaEdgeAttributes.isSet(toBase.attributesBitmap, JavaEdgeAttributes.IS_EXTENDS)).isTrue
         assertThat(JavaEdgeAttributes.isSet(toBase.attributesBitmap, JavaEdgeAttributes.IS_DEPENDS_ON_OTHER)).isFalse
 
-        val toList = sub.outgoingCoreDependencies.single { it.to.identifier == "java.util.List" }
+        val toList = sub.outgoingCoreDependencies.single {
+            it.to.identifier == h(store.typeKey(GraphStore.EXTERNAL_ARTIFACT_KEY, "java.util.List"))
+        }
         assertThat(toList.weight).isEqualTo(3)
         assertThat(JavaEdgeAttributes.isSet(toList.attributesBitmap, JavaEdgeAttributes.IS_DEPENDS_ON_OTHER)).isTrue
 
         // the edge shows up as incoming on Base
-        assertThat(model.lookupNode("com.foo.Base")!!.incomingCoreDependencies.map { it.from.identifier })
-            .contains("com.foo.Sub")
+        assertThat(model.lookupNode(h(store.typeKey("app", "com.foo.Base")))!!.incomingCoreDependencies.map { it.from.identifier })
+            .contains(h(store.typeKey("app", "com.foo.Sub")))
     }
 }

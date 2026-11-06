@@ -28,8 +28,11 @@ import io.hierograph.mcp.javaspec.JavaKinds
 object DetailScope {
 
     fun expand(store: GraphStore, rootKey: String): Set<String> {
+        // The scope anchor may be a node key (module / package / artifact-scoped type key) or a bare type
+        // FQN; resolve either to the starting node, then collect its subtree by key.
+        val start = store.node(rootKey) ?: store.typeByFqn(rootKey) ?: return emptySet()
         val subtree = linkedSetOf<String>()
-        collectTypes(store, rootKey, subtree)
+        collectTypes(store, start.key, subtree)
         return withSupertypes(store, subtree)
     }
 

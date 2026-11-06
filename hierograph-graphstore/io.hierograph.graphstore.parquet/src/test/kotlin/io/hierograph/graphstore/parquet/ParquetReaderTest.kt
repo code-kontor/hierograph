@@ -56,18 +56,18 @@ class ParquetReaderTest {
         ParquetReader().load(dir, store)
 
         // scanned types
-        val a = store.node("com.foo.A")!!
+        val a = store.typeByFqn("com.foo.A")!!
         assertThat(a.kind).isEqualTo(JavaKinds.CLASS)
         assertThat(a.placeholder).isFalse
-        assertThat(store.node("com.foo.B")!!.kind).isEqualTo(JavaKinds.INTERFACE)
+        assertThat(store.typeByFqn("com.foo.B")!!.kind).isEqualTo(JavaKinds.INTERFACE)
 
         // members are not materialized in the type-level graph (they round-trip through Parquet but
         // stay an on-demand concern)
         assertThat(store.contains("com.foo.A#a()V")).isFalse
-        assertThat(store.childKeysOf("com.foo.A")).isEmpty()
+        assertThat(store.childKeysOf(store.typeKey("app", "com.foo.A"))).isEmpty()
 
         // external ref target became a placeholder under the external module
-        val list = store.node("java.util.List")!!
+        val list = store.typeByFqn("java.util.List")!!
         assertThat(list.placeholder).isTrue
         assertThat(list.kind).isEqualTo(JavaKinds.EXTERNAL_TYPE)
 
@@ -95,8 +95,8 @@ class ParquetReaderTest {
         val store = GraphStore()
         ParquetReader().load(dir, store)
 
-        assertThat(store.node("com.foo.A")!!.placeholder).isFalse
-        assertThat(store.childKeysOf("com.foo.A")).isEmpty()
+        assertThat(store.typeByFqn("com.foo.A")!!.placeholder).isFalse
+        assertThat(store.childKeysOf(store.typeKey("app", "com.foo.A"))).isEmpty()
         assertThat(store.typeDependencies().toList()).isEmpty()
     }
 }

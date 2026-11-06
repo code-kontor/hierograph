@@ -110,11 +110,12 @@ data class Node(
 
 ### Keys
 
-- Type: FQN, e.g. `com.foo.Bar`.
+- Type node: artifact-scoped key `type:<artifact>:<fqn>` — a *definition*. The same FQN defined in two artifacts is **two distinct nodes** (the key was a bare FQN before; scoping it stops duplicates/shaded classes from collapsing). Packages are `pkg:<artifact>:<fqn>`, modules the artifact key.
 - Member: `<owner fqn>#<signature>` – same format the current mapping uses.
 - Artifact / snapshot: `maven/<g>/<a>/<v>/<jar-sha256>`, `jdk/temurin/21.0.5`, `module/<g>/<a>/<content-hash>`.
 - Keys are content-derived and stable across rescans, restarts and snapshots. They replace Neo4j's internal `id()`.
-- References always point to a **key string**, never to a node. Internal and external targets look the same.
+- References carry a **bare FQN**, never a node — the owning definition is chosen at resolution time (see *Reference resolution* below). Internal and external targets look the same.
+- **Node handle** (the agent-facing id): a content-addressed hash of the key — `NodeHandle.of(key)`, SHA-256 truncated to 53 bits (JSON/JS-safe). Compact and opaque for the MCP protocol, yet durable across rescans/restarts because it is a pure function of the stable key; distinct per artifact because the key is; a build-time collision check fails fast rather than serving an ambiguous id.
 
 ### Types vs type references (resolution model)
 
@@ -132,6 +133,8 @@ Three layers, kept strictly apart:
 Resolution is **relative to the loaded snapshot set**: `java.util.List` is unresolved with only app code, and becomes resolved once a JDK API snapshot is loaded — so status is recomputed when the set changes, never stored. References are to **symbols**: type references resolve in the type-level graph; member references (`INVOKES` / `READS` / `WRITES`) resolve in the detail layer.
 
 This is the same axis as the `Type` / `Definition` split (section 6): a reference resolves to a logical `Type {fqn}` that has 0..N `Definition`s — **0 = unresolved** (external), 1 = normal, >1 = duplicate/shaded. jQAssistant instead materializes per-artifact stub `:Type` nodes and reconciles them post-scan via `RESOLVES_TO`; owning the model lets references stay references and drops `RESOLVES_TO` entirely. The code vocabulary should make the distinction explicit — `Type` / `TypeDefinition` vs `TypeReference`.
+
+**Reference resolution and the classpath.** A reference carries a bare FQN; binding it to a concrete *definition* when several artifacts define that FQN is **classpath shadowing** — the first artifact on the consumer's classpath that defines the FQN wins. This is a **per-owner** decision (each module resolves against its own classpath), not a global one. The GraphStore routes every reference through a `TypeResolver` seam for exactly this. **Phase 1 (current)** ships a deterministic owner-first stand-in (the owner's own artifact if it defines the FQN, else the sole definer, else the lexicographically-smallest) — behaviour-neutral while no FQN is duplicated. **Phase 2** feeds the seam real per-module dependency order from the build; the call sites do not change. `typeDependencies()` exposes the resolved edges as FQN pairs (for diffing/display); `typeDependencyEdges()` exposes them as artifact-scoped node keys (for the hierarchical graph, so an edge binds to the correct distinct node).
 
 ### External Types view (unresolved references)
 
@@ -394,8 +397,8 @@ changed .class files → hash compare (in memory) → ASM scan (FULL) of changed
 
 ### Same FQN in several jars (shading, duplicates, multi-release jars)
 
-- MVP: FQN = identity, first wins, log duplicates.
-- Later: split `Type {fqn}` (logical identity) from `Definition {artifact, hash} -[:DEFINES]-> Type` to answer "which jar wins" and "where are duplicates".
+- **Phase 1 (done):** the type node key is artifact-scoped (`type:<artifact>:<fqn>`), so each definition is a distinct node — duplicates/shaded classes no longer collapse. References resolve to a definition through the `TypeResolver` seam (§3), with a deterministic owner-first stand-in for classpath order.
+- **Phase 2:** feed the seam the real **per-owner classpath order** (per-module dependency order from the build) so "which jar wins" follows actual shadowing; expose "where are duplicates" via `typesWithFqn(fqn)` and the logical `Type {fqn}` ↔ `Definition {artifact, hash}` view. Member-level `detail_refs` are still FQN-keyed, so detail queries don't yet distinguish duplicate-FQN members across artifacts.
 
 ### Libraries
 
@@ -514,6 +517,14 @@ Decisions taken: GraphStore lives in its own top-level module group (parallel to
 
 **Read performance (`GraphStoreReadPerformanceIT`, same full Spring scan):** building the type-level in-memory graph from the Parquet snapshot takes a **median ~80 ms** vs **~71 s** from Neo4j via the mapping Cypher — **~900×** faster. (The Neo4j build is dominated by the `EXISTS`-heavy `DEPENDS_ON` dependency query.) Snapshot ≈ 3.6 MB (types 142 KB · members 2.86 MB · refs 592 KB); one-time Neo4j→Parquet export ≈ 2.9 s. Note the loader currently reads `members.parquet` (the bulk) only to discard it — a type-level cold start could skip it and be faster still. Timings are printed, not asserted (wall-clock thresholds would be flaky).
 
+**Serving the production graph from Parquet (2026-11-06).** The GraphStore now feeds the existing Hierograph API with no Neo4j in the serving path:
+- `io.hierograph.graphstore.hgmodel` — `GraphStoreToHGModel.build(store)` bridges a GraphStore to a production `HGModel` (root → modules → packages → types; type dependencies as core edges with the `JavaEdgeAttributes` bitmap), via a `GraphStoreNodeSource` that carries name/fqn so the existing `JQAssistantNodeMetadataProvider` resolves metadata off `INodeSource` — no bolt.
+- **Node handles** (`NodeHandle`, in `hierarchicalgraph.core.model`): the `HGNode` identifier is a content-addressed hash of the GraphStore key (SHA-256 → 53-bit, JSON-safe), replacing Neo4j's allocation-order `id()`. Durable across rescans/restarts/backends; distinct per artifact because the key is; collision-checked at build.
+- **Artifact-scoped type keys + `TypeResolver` seam** (see §3): type nodes are `type:<artifact>:<fqn>`; references resolve through the seam (owner-first stand-in for classpath order). `typeDependencyEdges()` added for the bridge; the FQN projections (`hierarchyRows`, `typeDependencies`) are unchanged, so the jQA diff and the detail engine are untouched.
+- **Server switch:** `HierarchicalGraphService` gains `hierograph.graph.source=jqa|parquet` (+ `parquetDir`); in `parquet` mode it builds the model from files and never touches Neo4j. `ParquetModeServerIT` boots the service in parquet mode with bolt pointed at a dead port and drives real MCP tools (`graph_overview`, `find_node`, `list_children`, `outgoing_dependencies`) end to end — the id-taking tools work because handles round-trip.
+
+**How close is a fully Neo4j-free MVP?** The **type-level serving path is fully Parquet** (proved by the dead-bolt IT). Two Neo4j ties remain: (1) **snapshot origin** — the Parquet files are still produced by exporting the existing jQA/Neo4j DB (`JqaParquetExporter`); the own ASM scanner (step 2) is not built yet, so Neo4j is still the data *source*. (2) **detail tools** — the detail-level MCP tools still issue Cypher via the server's bolt client; the Parquet `DetailQueryEngine` is validated but not yet wired into the server. Closing both (scanner + detail-engine wiring) gives an end-to-end Neo4j-free MVP.
+
 ### Implementation order
 
 1. MVP: jQA export → Parquet → loader → GraphStore, diffed against `GraphDbMapping`.
@@ -529,7 +540,8 @@ Decisions taken: GraphStore lives in its own top-level module group (parallel to
 - [ ] Semantics of the `other` dependency flag ("none of the structural kinds" vs "also non-structural refs").
 - [ ] Update trigger: Maven build, git diff, or file watching during a Claude Code session.
 - [ ] Parquet writer: Hardwood (beta writer) vs DuckDB JDBC.
-- [ ] Duplicate FQNs: first-wins in MVP vs `Type` / `Definition` split.
+- [x] Duplicate FQNs: **resolved** — artifact-scoped type keys make each definition a distinct node (phase 1); reference binding goes through a `TypeResolver` seam (owner-first stand-in now).
+- [ ] Classpath-order source for the resolver (phase 2): per-owner (per-module) dependency order from the Maven/Gradle build, vs a single global order.
 - [ ] Concurrency model for reads during updates (copy-on-write vs read/write lock).
 - [ ] Ship JDK snapshots in the Docker image or download on demand (depends on measured size).
 

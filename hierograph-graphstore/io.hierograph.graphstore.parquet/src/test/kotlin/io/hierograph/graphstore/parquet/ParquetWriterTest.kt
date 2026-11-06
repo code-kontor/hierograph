@@ -65,9 +65,9 @@ class ParquetWriterTest {
         val store = GraphStore()
         ParquetReader().load(dir, store)
 
-        assertThat(store.node("com.foo.A")!!.placeholder).isFalse
+        assertThat(store.typeByFqn("com.foo.A")!!.placeholder).isFalse
         assertThat(store.contains("com.foo.A#a()V")).isFalse   // members not materialized (type-level graph)
-        assertThat(store.node("java.util.List")!!.placeholder).isTrue
+        assertThat(store.typeByFqn("java.util.List")!!.placeholder).isTrue
 
         val deps = store.typeDependencies().associateBy { it.to }
         assertThat(deps.getValue("com.foo.B").extends).isTrue

@@ -50,7 +50,7 @@ class GraphStoreTest {
         assertThat(rows).contains(HierarchyRow(JavaKinds.CLASS, "com.foo.A", "com.foo"))
         // members are an on-demand concern: they are carried in ClassFacts but never enter the graph
         assertThat(rows.map { it.kind }).doesNotContain(JavaKinds.METHOD, JavaKinds.FIELD)
-        assertThat(store.contains("com.foo.A#a()V")).isFalse
+        assertThat(store.typeByFqn("com.foo.A#a()V")).isNull()
     }
 
     @Test
@@ -62,7 +62,7 @@ class GraphStoreTest {
             classFacts("com.foo.A", refs = listOf(Ref("com.foo.A", "java.util.List", RefKind.DEPENDS_ON, count = 1))),
         )
 
-        val placeholder = store.node("java.util.List")
+        val placeholder = store.typeByFqn("java.util.List")
         assertThat(placeholder).isNotNull
         assertThat(placeholder!!.placeholder).isTrue
         assertThat(placeholder.kind).isEqualTo(JavaKinds.EXTERNAL_TYPE)
@@ -80,12 +80,12 @@ class GraphStoreTest {
             "app",
             classFacts("com.foo.A", refs = listOf(Ref("com.foo.A", "com.foo.B", RefKind.EXTENDS, count = 1))),
         )
-        assertThat(store.node("com.foo.B")!!.placeholder).isTrue
+        assertThat(store.typeByFqn("com.foo.B")!!.placeholder).isTrue
 
         // now B is scanned for real
         store.applyClass("app", classFacts("com.foo.B"))
 
-        val b = store.node("com.foo.B")!!
+        val b = store.typeByFqn("com.foo.B")!!
         assertThat(b.placeholder).isFalse
         assertThat(b.kind).isEqualTo(JavaKinds.CLASS)
         assertThat(b.parent).isEqualTo("pkg:app:com.foo")           // re-homed out of <external>
@@ -174,15 +174,15 @@ class GraphStoreTest {
         store.applyClass("app", classFacts("com.foo.C"))
 
         // B is referenced by A -> downgrade to placeholder
-        store.removeClass("com.foo.B")
-        val b = store.node("com.foo.B")
+        store.removeClass("app", "com.foo.B")
+        val b = store.typeByFqn("com.foo.B")
         assertThat(b).isNotNull
         assertThat(b!!.placeholder).isTrue
         assertThat(b.kind).isEqualTo(JavaKinds.EXTERNAL_TYPE)
 
         // C has no incoming edges -> removed outright
-        store.removeClass("com.foo.C")
-        assertThat(store.contains("com.foo.C")).isFalse
+        store.removeClass("app", "com.foo.C")
+        assertThat(store.typeByFqn("com.foo.C")).isNull()
     }
 
     @Test
@@ -204,15 +204,15 @@ class GraphStoreTest {
             ),
         )
         // excluded targets: no placeholder node, and no external package chain
-        assertThat(store.contains("int")).isFalse
-        assertThat(store.contains("[I")).isFalse
-        assertThat(store.contains("Task")).isFalse
-        assertThat(store.contains("java.lang.String")).isFalse
-        assertThat(store.contains("kotlin.Unit")).isFalse
+        assertThat(store.typeByFqn("int")).isNull()
+        assertThat(store.typeByFqn("[I")).isNull()
+        assertThat(store.typeByFqn("Task")).isNull()
+        assertThat(store.typeByFqn("java.lang.String")).isNull()
+        assertThat(store.typeByFqn("kotlin.Unit")).isNull()
         assertThat(store.hierarchyRows().map { it.fqn }.toList()).doesNotContain("java.lang", "kotlin")
 
         // a normal external type still becomes a placeholder
-        assertThat(store.node("com.other.Lib")!!.placeholder).isTrue
+        assertThat(store.typeByFqn("com.other.Lib")!!.placeholder).isTrue
 
         // the refs are still facts: every target remains a type dependency even without a node
         assertThat(store.typeDependencies().map { it.to }.toList())
@@ -226,6 +226,6 @@ class GraphStoreTest {
         store.applyClass("app", classFacts("com.foo.A", refs = listOf(Ref("com.foo.A", "com.foo.B", RefKind.EXTENDS, count = 1))))
 
         store.resolvePlaceholders() // idempotent: B already a placeholder from applyClass
-        assertThat(store.node("com.foo.B")!!.placeholder).isTrue
+        assertThat(store.typeByFqn("com.foo.B")!!.placeholder).isTrue
     }
 }

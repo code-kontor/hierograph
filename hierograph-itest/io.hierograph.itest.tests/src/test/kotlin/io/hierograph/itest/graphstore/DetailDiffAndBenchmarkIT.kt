@@ -68,7 +68,7 @@ class DetailDiffAndBenchmarkIT : AbstractIntegrationTest() {
             val scopes = ParquetReader().readDetailRefs(detailDir)
                 .groupingBy { it.fromType }.eachCount()
                 .entries.sortedByDescending { it.value }
-                .map { it.key }.filter { store.node(it) != null }
+                .map { it.key }.filter { store.typeByFqn(it) != null }
                 .take(3)
             assertThat(scopes).isNotEmpty
 

@@ -29,10 +29,17 @@ import java.util.EnumSet
  * logic here, and the hierarchy + type-dependency query surface produces the same FQN-keyed row shapes
  * the downstream layers consume.
  *
- * Identity is by **key string** (type FQN, member key `<owner>#<sig>`, or a synthetic package/artifact
- * key), never by object reference. Updates replace a type's *owned subgraph* (members + outgoing refs)
- * but never delete the type node itself while it still has incoming edges — those are instead downgraded
- * to placeholders so references from unchanged classes stay valid.
+ * **Identity is artifact-scoped.** A type node's [Node.key] is `type:<artifact>:<fqn>`, not the bare FQN,
+ * because the same fully-qualified name can be defined in more than one artifact (shaded jars, duplicate
+ * classes); each becomes a distinct node under its own artifact. Packages (`pkg:<artifact>:<fqn>`) and
+ * modules (the artifact key) were already artifact-scoped. A reference, however, carries only a bare FQN,
+ * so it is **resolved** to a concrete type node via [resolver] (classpath shadowing; see [TypeResolver]) —
+ * the two query shapes expose this both ways: [typeDependencies] projects FQN endpoints (for diffing and
+ * display), [typeDependencyEdges] the resolved artifact-scoped node keys (for the hierarchical graph).
+ *
+ * Updates replace a type's *owned subgraph* (members + outgoing refs) but never delete the type node
+ * itself while it still has incoming edges — those are instead downgraded to placeholders so references
+ * from unchanged classes stay valid.
  *
  * The in-memory graph is **type-level**: modules, packages, types and type-to-type refs. Members are
  * *not* materialized here — they live in the snapshot and are a strictly on-demand (detail) concern, so
@@ -41,12 +48,20 @@ import java.util.EnumSet
  *
  * Not thread-safe; callers coordinate read/write batches (see the spec's concurrency decision).
  */
-class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderPolicy.ALL) {
+class GraphStore(
+    private val placeholderPolicy: PlaceholderPolicy = PlaceholderPolicy.ALL,
+    private val resolver: TypeResolver = TypeResolver.OWNER_FIRST,
+) {
 
     private val nodesByKey = LinkedHashMap<String, Node>()
     private val childKeys = HashMap<String, MutableSet<String>>()
-    private val refsByOwner = HashMap<String, List<Ref>>()
-    private val incomingOwners = HashMap<String, MutableSet<String>>()
+    private val refsByOwner = LinkedHashMap<String, OwnedRefs>()
+    private val incomingByFqn = HashMap<String, MutableSet<String>>()
+    private val definersByFqn = HashMap<String, MutableSet<String>>()
+    private val typeKeysByFqn = HashMap<String, MutableSet<String>>()
+
+    /** A scanned type's owning artifact plus its outgoing refs (targets are bare-FQN/member-key facts). */
+    private class OwnedRefs(val artifactKey: String, val refs: List<Ref>)
 
     init {
         // Synthetic module owning every placeholder; replaces jQAssistant's :Virtual:Artifact.
@@ -64,43 +79,39 @@ class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderP
 
     /**
      * Replaces the owned subgraph of [facts].fqn under [artifactKey]: removes the type's previous
-     * outgoing refs, ensures the package path, upserts the type node (upgrading a placeholder in place),
-     * stores refs, and creates placeholders for unscanned ref targets. [ClassFacts.members] are
-     * intentionally **not** materialized — the in-memory graph is type-level; members are served on
-     * demand from the snapshot.
+     * outgoing refs, ensures the package path, upserts the type node, stores refs, and creates
+     * placeholders for unscanned ref targets. [ClassFacts.members] are intentionally **not** materialized
+     * — the in-memory graph is type-level; members are served on demand from the snapshot.
      */
     fun applyClass(artifactKey: String, facts: ClassFacts) {
-        removeOwned(facts.fqn)
+        val ownerKey = typeKey(artifactKey, facts.fqn)
+        removeOwned(ownerKey)
         val parentKey = ensurePackagePath(artifactKey, packageOf(facts.fqn))
-        upsertType(facts.fqn, facts.kind, parentKey)
-        storeRefs(facts.fqn, facts.refs)
+        upsertType(artifactKey, facts.fqn, facts.kind, parentKey)
+        storeRefs(ownerKey, artifactKey, facts.refs)
     }
 
     /**
-     * Removes a scanned type's owned subgraph. If the type is still referenced it is downgraded to a
-     * placeholder under the external module; otherwise the node is removed outright.
+     * Removes a scanned type's owned subgraph. If the FQN is still referenced and no other artifact
+     * defines it, an external placeholder stands in; otherwise the node is removed outright.
      */
-    fun removeClass(fqn: String) {
-        removeOwned(fqn)
-        val node = nodesByKey[fqn] ?: return
-        if (!incomingOwners[fqn].isNullOrEmpty()) {
-            val pkgKey = ensurePackagePath(EXTERNAL_ARTIFACT_KEY, packageOf(fqn))
-            reparent(fqn, node.parent, pkgKey)
-            nodesByKey[fqn] = node.copy(kind = JavaKinds.EXTERNAL_TYPE, parent = pkgKey, placeholder = true)
-        } else {
-            node.parent?.let { childKeys[it]?.remove(fqn) }
-            nodesByKey.remove(fqn)
-        }
+    fun removeClass(artifactKey: String, fqn: String) {
+        val key = typeKey(artifactKey, fqn)
+        removeOwned(key)
+        val node = nodesByKey[key] ?: return
+        removeNode(node)
+        definersByFqn[fqn]?.let { it.remove(artifactKey); if (it.isEmpty()) definersByFqn.remove(fqn) }
+        if (incomingByFqn[fqn]?.isNotEmpty() == true && definersByFqn[fqn].isNullOrEmpty()) ensurePlaceholder(fqn)
     }
 
     /**
      * Reconciles placeholders after a bulk load that added refs before all types were present: any ref
-     * target without a node becomes a placeholder. Idempotent; the incremental [applyClass] path already
-     * creates placeholders inline, so this is a no-op there.
+     * target without a scanned definer becomes a placeholder. Idempotent; the incremental [applyClass]
+     * path already creates placeholders inline, so this is a no-op there.
      */
     fun resolvePlaceholders() {
-        val targets = refsByOwner.values.asSequence().flatten().map { typeOf(it.toKey) }.toCollection(HashSet())
-        targets.forEach { if (it !in nodesByKey) ensurePlaceholder(it) }
+        val targets = refsByOwner.values.asSequence().flatMap { it.refs }.map { typeOf(it.toKey) }.toCollection(HashSet())
+        targets.forEach { if (definersByFqn[it].isNullOrEmpty()) ensurePlaceholder(it) }
     }
 
     // ── queries ────────────────────────────────────────────────────────
@@ -116,27 +127,20 @@ class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderP
         }
 
     /**
-     * Aggregated type-to-type dependencies, grouping each owner's refs by target type and summing
-     * weights. Self-edges are excluded. See [TypeDependency] for the `other`-flag semantics.
+     * Aggregated type-to-type dependencies as **FQN** endpoints, for diffing against the jQAssistant
+     * projection and for display. Each ref target is resolved to a concrete type node first, then its FQN
+     * is reported — so in the common (no duplicated FQN) case this is identical to grouping by target FQN.
      */
     fun typeDependencies(): Sequence<TypeDependency> =
-        refsByOwner.asSequence().flatMap { (owner, refs) ->
-            refs.groupBy { typeOf(it.toKey) }
-                .asSequence()
-                .filter { (target, _) -> target != owner }
-                .map { (target, rs) ->
-                    val kinds = rs.mapTo(EnumSet.noneOf(RefKind::class.java)) { it.kind }
-                    TypeDependency(
-                        from = owner,
-                        to = target,
-                        weight = rs.sumOf { it.count ?: 1 },
-                        extends = RefKind.EXTENDS in kinds,
-                        implements = RefKind.IMPLEMENTS in kinds,
-                        annotatedBy = RefKind.ANNOTATED_BY in kinds,
-                        other = kinds.any { it !in RefKind.STRUCTURAL },
-                    )
-                }
-        }
+        aggregatedEdges().map { TypeDependency(it.fromFqn, it.toFqn, it.weight, it.extends, it.implements, it.annotatedBy, it.other) }
+
+    /**
+     * The same aggregated dependencies as [typeDependencies], but with endpoints resolved to
+     * artifact-scoped **node keys** ([TypeEdge]). This is what the hierarchical-graph bridge consumes so
+     * edges connect the correct distinct nodes when an FQN is defined in more than one artifact.
+     */
+    fun typeDependencyEdges(): Sequence<TypeEdge> =
+        aggregatedEdges().map { TypeEdge(it.fromKey, it.toKey, it.weight, it.extends, it.implements, it.annotatedBy, it.other) }
 
     // ── read access (mainly for tests and diagnostics) ─────────────────
 
@@ -146,57 +150,90 @@ class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderP
     fun contains(key: String): Boolean = key in nodesByKey
     fun childKeysOf(key: String): Set<String> = childKeys[key].orEmpty()
     fun nodeCount(): Int = nodesByKey.size
-    fun incomingOwnersOf(fqn: String): Set<String> = incomingOwners[fqn].orEmpty()
+    fun incomingOwnersOf(fqn: String): Set<String> =
+        incomingByFqn[fqn].orEmpty().mapNotNullTo(linkedSetOf()) { nodesByKey[it]?.fqn }
+
+    /** The artifact-scoped key of a type node (`type:<artifact>:<fqn>`). */
+    fun typeKey(artifactKey: String, fqn: String): String = "type:${artifactKey.length}:$artifactKey:$fqn"
+
+    /** A type (or external-type placeholder) node by FQN; the first when an FQN is defined more than once. */
+    fun typeByFqn(fqn: String): Node? = typeKeysByFqn[fqn]?.firstOrNull()?.let { nodesByKey[it] }
+
+    /** Every type (or external-type placeholder) node with this FQN — more than one only across artifacts. */
+    fun typesWithFqn(fqn: String): List<Node> = typeKeysByFqn[fqn].orEmpty().mapNotNull { nodesByKey[it] }
 
     // ── internals ──────────────────────────────────────────────────────
+
+    private fun externalTypeKey(fqn: String) = typeKey(EXTERNAL_ARTIFACT_KEY, fqn)
+
+    private fun isTypeNode(kind: Any): Boolean = JavaKinds.isTypeKind(kind) || kind == JavaKinds.EXTERNAL_TYPE
 
     private fun putNode(node: Node) {
         nodesByKey[node.key] = node
         node.parent?.let { childKeys.getOrPut(it) { linkedSetOf() } += node.key }
+        if (isTypeNode(node.kind)) typeKeysByFqn.getOrPut(node.fqn) { linkedSetOf() } += node.key
     }
 
-    /** Upserts a scanned type, upgrading a placeholder in place and re-homing it under [parentKey]. */
-    private fun upsertType(fqn: String, kind: Any, parentKey: String) {
-        val existing = nodesByKey[fqn]
+    /** Removes [node] from the key map, its parent's child set, and the by-FQN type index. */
+    private fun removeNode(node: Node) {
+        nodesByKey.remove(node.key)
+        node.parent?.let { childKeys[it]?.remove(node.key) }
+        if (isTypeNode(node.kind)) typeKeysByFqn[node.fqn]?.let { it.remove(node.key); if (it.isEmpty()) typeKeysByFqn.remove(node.fqn) }
+    }
+
+    /** Upserts a scanned type under [parentKey] and records its defining artifact. */
+    private fun upsertType(artifactKey: String, fqn: String, kind: Any, parentKey: String) {
+        val key = typeKey(artifactKey, fqn)
+        val existing = nodesByKey[key]
         if (existing == null) {
-            putNode(Node(fqn, kind, simpleName(fqn), fqn, parent = parentKey, placeholder = false))
+            putNode(Node(key, kind, simpleName(fqn), fqn, parent = parentKey, placeholder = false))
         } else {
-            reparent(fqn, existing.parent, parentKey)
-            nodesByKey[fqn] = existing.copy(kind = kind, name = simpleName(fqn), parent = parentKey, placeholder = false)
+            reparent(key, existing.parent, parentKey)
+            nodesByKey[key] = existing.copy(kind = kind, name = simpleName(fqn), parent = parentKey, placeholder = false)
         }
+        definersByFqn.getOrPut(fqn) { mutableSetOf() } += artifactKey
+        // Now that a real artifact defines this FQN, the external stand-in (if any) is redundant.
+        removeExternalPlaceholder(fqn)
+    }
+
+    private fun removeExternalPlaceholder(fqn: String) {
+        val node = nodesByKey[externalTypeKey(fqn)] ?: return
+        if (node.placeholder) removeNode(node)
     }
 
     private fun ensurePlaceholder(fqn: String) {
-        if (fqn in nodesByKey) return
+        if (!definersByFqn[fqn].isNullOrEmpty()) return
+        val key = externalTypeKey(fqn)
+        if (key in nodesByKey) return
         if (!placeholderPolicy.shouldMaterialize(fqn)) return
         val pkgKey = ensurePackagePath(EXTERNAL_ARTIFACT_KEY, packageOf(fqn))
-        putNode(Node(fqn, JavaKinds.EXTERNAL_TYPE, simpleName(fqn), fqn, parent = pkgKey, placeholder = true))
+        putNode(Node(key, JavaKinds.EXTERNAL_TYPE, simpleName(fqn), fqn, parent = pkgKey, placeholder = true))
     }
 
-    private fun storeRefs(ownerFqn: String, refs: List<Ref>) {
-        refsByOwner[ownerFqn] = refs
+    private fun storeRefs(ownerKey: String, artifactKey: String, refs: List<Ref>) {
+        refsByOwner[ownerKey] = OwnedRefs(artifactKey, refs)
         for (r in refs) {
             val target = typeOf(r.toKey)
-            if (target !in nodesByKey) ensurePlaceholder(target)
-            incomingOwners.getOrPut(target) { mutableSetOf() } += ownerFqn
+            if (definersByFqn[target].isNullOrEmpty()) ensurePlaceholder(target)
+            incomingByFqn.getOrPut(target) { mutableSetOf() } += ownerKey
         }
     }
 
-    /** Removes [fqn]'s members and outgoing refs (and their incoming bookkeeping); keeps the type node. */
-    private fun removeOwned(fqn: String) {
-        childKeys.remove(fqn)?.toList()?.forEach { removeNodeCascade(it) }
-        refsByOwner.remove(fqn)?.forEach { r ->
+    /** Removes [ownerKey]'s children and outgoing refs (and their incoming bookkeeping); keeps the node. */
+    private fun removeOwned(ownerKey: String) {
+        childKeys.remove(ownerKey)?.toList()?.forEach { removeNodeCascade(it) }
+        refsByOwner.remove(ownerKey)?.refs?.forEach { r ->
             val target = typeOf(r.toKey)
-            incomingOwners[target]?.let { owners ->
-                owners.remove(fqn)
-                if (owners.isEmpty()) incomingOwners.remove(target)
+            incomingByFqn[target]?.let { owners ->
+                owners.remove(ownerKey)
+                if (owners.isEmpty()) incomingByFqn.remove(target)
             }
         }
     }
 
     private fun removeNodeCascade(key: String) {
         childKeys.remove(key)?.forEach { removeNodeCascade(it) }
-        nodesByKey.remove(key)
+        nodesByKey.remove(key)?.let { removeNode(it) }
     }
 
     /** Moves [key] from [oldParent]'s child set to [newParent]'s, if they differ. */
@@ -224,11 +261,58 @@ class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderP
         return parentKey
     }
 
+    /** Aggregates each owner's refs by resolved target node, summing weights and collecting ref kinds. */
+    private fun aggregatedEdges(): Sequence<Agg> =
+        refsByOwner.asSequence().flatMap { (ownerKey, owned) ->
+            val ownerFqn = nodesByKey[ownerKey]?.fqn ?: return@flatMap emptySequence<Agg>()
+            owned.refs.groupBy { resolveTargetKey(owned.artifactKey, typeOf(it.toKey)) }
+                .asSequence()
+                .filter { (targetKey, _) -> targetKey != ownerKey }
+                .map { (targetKey, rs) ->
+                    val kinds = rs.mapTo(EnumSet.noneOf(RefKind::class.java)) { it.kind }
+                    Agg(
+                        fromKey = ownerKey,
+                        toKey = targetKey,
+                        fromFqn = ownerFqn,
+                        toFqn = typeOf(rs.first().toKey),
+                        weight = rs.sumOf { it.count ?: 1 },
+                        extends = RefKind.EXTENDS in kinds,
+                        implements = RefKind.IMPLEMENTS in kinds,
+                        annotatedBy = RefKind.ANNOTATED_BY in kinds,
+                        other = kinds.any { it !in RefKind.STRUCTURAL },
+                    )
+                }
+        }
+
+    /**
+     * Resolves a reference's target FQN to a concrete type node key: the defining artifact chosen by
+     * [resolver] (classpath shadowing) when the FQN is scanned, else the external placeholder key. The
+     * returned key may name a node that was not materialized (placeholder policy excluded it); callers
+     * that need a node treat a miss as "unresolved".
+     */
+    private fun resolveTargetKey(ownerArtifactKey: String, targetFqn: String): String {
+        val definers = definersByFqn[targetFqn]
+        return if (definers.isNullOrEmpty()) externalTypeKey(targetFqn)
+        else typeKey(resolver.resolve(ownerArtifactKey, targetFqn, definers), targetFqn)
+    }
+
+    private class Agg(
+        val fromKey: String,
+        val toKey: String,
+        val fromFqn: String,
+        val toFqn: String,
+        val weight: Int,
+        val extends: Boolean,
+        val implements: Boolean,
+        val annotatedBy: Boolean,
+        val other: Boolean,
+    )
+
     private fun packageKey(artifactKey: String, pkgFqn: String) = "pkg:$artifactKey:$pkgFqn"
     private fun packageOf(fqn: String) = fqn.substringBeforeLast('.', "")
     private fun simpleName(fqn: String) = fqn.substringAfterLast('.')
 
-    /** The owning type key of a ref endpoint: the part before '#' for a member key, else the key itself. */
+    /** The owning type FQN of a ref endpoint: the part before '#' for a member key, else the key itself. */
     private fun typeOf(key: String) = key.substringBefore('#')
 
     companion object {

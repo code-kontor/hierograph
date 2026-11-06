@@ -22,6 +22,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 
 /**
@@ -30,10 +31,11 @@ import io.hierograph.mcp.javaspec.JavaEdgeAttributes
  *
  * It mirrors what `DefaultMappingService.convert` does from the Neo4j side (root → top-level modules →
  * parent/child → type dependencies, using the same `HGGraphFactory` / `HierarchyFactory`), but reads
- * everything from the in-memory GraphStore and needs no bolt client. GraphStore **keys** become the
- * `HGNode` identifiers (`HGModel` keys on `Any`, so no synthetic longs are required); each node's `fqn`
- * and `name` are stashed in the [DefaultNodeSource] properties for a metadata provider to read, and the
- * type-dependency flags are encoded into the [JavaEdgeAttributes] bitmap exactly as the Java provider expects.
+ * everything from the in-memory GraphStore and needs no bolt client. Each `HGNode`'s identifier is a
+ * content-addressed [NodeHandle] derived from its stable GraphStore key (so handles survive rescans and
+ * restarts), while the key itself is carried as `fqn`/`name` on the node source for the metadata provider
+ * and detail lookups to read; the type-dependency flags are encoded into the [JavaEdgeAttributes] bitmap
+ * exactly as the Java provider expects.
  */
 object GraphStoreToHGModel {
 
@@ -41,16 +43,24 @@ object GraphStoreToHGModel {
     private const val DEPENDS_ON = "DEPENDS_ON"
 
     fun build(store: GraphStore): HGModel {
+        // Content-addressed handles: a node's identifier is a pure function of its stable GraphStore key
+        // (see NodeHandle), which is already artifact-scoped — so it survives rescans/restarts, is
+        // identical across backends, and two same-FQN types in different artifacts get distinct handles.
+        // We assign the handles here and check for the (vanishingly rare) hash collision, failing fast.
+        val handles = HashMap<Long, String>()
+        fun handle(key: String): Long =
+            NodeHandle.of(key).also { NodeHandle.assertNoCollision(key, it, handles) }
+
         val coreGraph = HGGraphFactory.createHGGraph()
-        val rootNode = HGGraphFactory.createNode(coreGraph) { DefaultNodeSource(ROOT_ID) }
+        val rootNode = HGGraphFactory.createNode(coreGraph) { DefaultNodeSource(handle(ROOT_ID)) }
         val hierarchy = HierarchyFactory.createHierarchy(coreGraph, rootNode)
 
-        // One HGNode per GraphStore node; identifier = the GraphStore key, with name/fqn carried on the
-        // node source so the metadata provider resolves them without bolt.
+        // One HGNode per GraphStore node; identifier = the content-addressed handle, with the stable key as
+        // name/fqn on the node source so the metadata provider (and detail lookups) resolve them without bolt.
         val byKey = HashMap<String, HGNode>()
         for (n in store.nodes()) {
             val hg = HGGraphFactory.createNode(coreGraph) {
-                GraphStoreNodeSource(n.key, n.name, n.fqn)
+                GraphStoreNodeSource(handle(n.key), n.name, n.fqn)
             }
             hg.kind = n.kind
             byKey[n.key] = hg
@@ -63,12 +73,13 @@ object GraphStoreToHGModel {
             HierarchyFactory.addChild(hierarchy, parent, child)
         }
 
-        // Type-to-type dependencies, with the attribute bitmap the Java edge model expects.
-        for (dep in store.typeDependencies()) {
-            val from = byKey[dep.from] ?: continue
-            val to = byKey[dep.to] ?: continue
+        // Type-to-type dependencies, keyed on resolved artifact-scoped node keys (so edges connect the
+        // correct distinct nodes when an FQN is defined in more than one artifact).
+        for (dep in store.typeDependencyEdges()) {
+            val from = byKey[dep.fromKey] ?: continue
+            val to = byKey[dep.toKey] ?: continue
             val coreDep = HGGraphFactory.createCoreDependency(from, to, DEPENDS_ON) {
-                DefaultDependencySource("${dep.from} -> ${dep.to}")
+                DefaultDependencySource("${dep.fromKey} -> ${dep.toKey}")
             }
             coreDep.weight = dep.weight
             coreDep.attributesBitmap = bitmapOf(dep.extends, dep.implements, dep.annotatedBy, dep.other)
