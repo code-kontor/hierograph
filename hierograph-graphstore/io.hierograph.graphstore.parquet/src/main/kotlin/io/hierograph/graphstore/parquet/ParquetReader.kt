@@ -26,6 +26,7 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Origin
+import io.hierograph.graphstore.model.ParameterFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.mcp.javaspec.JavaNodeKind
@@ -131,15 +132,48 @@ class ParquetReader {
         }
 
     private fun readMembers(path: Path): Map<String, List<MemberFacts>> =
-        readRows(path) { r ->
-            r.string(ParquetSchema.Members.OWNER_FQN) to MemberFacts(
-                key = r.string(ParquetSchema.Members.MEMBER_KEY),
-                kind = JavaNodeKind.valueOf(r.string(ParquetSchema.Members.KIND)),
-                signature = r.string(ParquetSchema.Members.SIGNATURE),
-                lineFrom = r.intOrNull(ParquetSchema.Members.LINE_FROM),
-                lineTo = r.intOrNull(ParquetSchema.Members.LINE_TO),
+        readRows(path) { r -> r.string(ParquetSchema.Members.OWNER_FQN) to memberFacts(r) }
+            .groupBy({ it.first }, { it.second })
+
+    private fun memberFacts(r: RowCursor): MemberFacts =
+        MemberFacts(
+            key = r.string(ParquetSchema.Members.MEMBER_KEY),
+            kind = JavaNodeKind.valueOf(r.string(ParquetSchema.Members.KIND)),
+            signature = r.string(ParquetSchema.Members.SIGNATURE),
+            name = r.stringOrNull(ParquetSchema.Members.NAME).orEmpty(),
+            modifiers = r.intOrNull(ParquetSchema.Members.MODIFIERS) ?: 0,
+            lineFrom = r.intOrNull(ParquetSchema.Members.LINE_FROM),
+            lineTo = r.intOrNull(ParquetSchema.Members.LINE_TO),
+        )
+
+    /**
+     * Reads a single member by its key (`<owner fqn>#<signature>`) from `members.parquet`, with its
+     * declared parameters attached from `parameters.parquet`. Returns `null` when no such member exists.
+     * The detail tools use this to serve `method_details` / `field_details` straight from the snapshot.
+     */
+    fun readMember(parquetDir: Path, memberKey: String): MemberFacts? {
+        val member = readRows(parquetDir.resolve(ParquetSchema.MEMBERS_FILE), FilterPredicate.eq(ParquetSchema.Members.MEMBER_KEY, memberKey)) { memberFacts(it) }
+            .firstOrNull() ?: return null
+        return member.copy(parameters = readParameters(parquetDir, memberKey))
+    }
+
+    /** Every member key in the snapshot (for building a handle→key index). */
+    fun readMemberKeys(parquetDir: Path): List<String> =
+        readRows(parquetDir.resolve(ParquetSchema.MEMBERS_FILE)) { it.string(ParquetSchema.Members.MEMBER_KEY) }
+
+    /** Every member in the snapshot (no parameters attached); for enumeration/diagnostics. */
+    fun readAllMembers(parquetDir: Path): List<MemberFacts> =
+        readRows(parquetDir.resolve(ParquetSchema.MEMBERS_FILE)) { memberFacts(it) }
+
+    /** Reads a method's declared parameters (ordered by index) from `parameters.parquet`. */
+    fun readParameters(parquetDir: Path, methodKey: String): List<ParameterFacts> =
+        readRows(parquetDir.resolve(ParquetSchema.PARAMETERS_FILE), FilterPredicate.eq(ParquetSchema.Parameters.METHOD_KEY, methodKey)) { r ->
+            ParameterFacts(
+                index = r.int(ParquetSchema.Parameters.INDEX),
+                name = r.string(ParquetSchema.Parameters.NAME),
+                typeFqn = r.string(ParquetSchema.Parameters.TYPE_FQN),
             )
-        }.groupBy({ it.first }, { it.second })
+        }.sortedBy { it.index }
 
     private fun readRefs(path: Path): Map<String, List<Ref>> =
         readRows(path) { r ->
@@ -179,6 +213,8 @@ class ParquetReader {
             indexByName[name] ?: error("Column '$name' not present in snapshot schema")
 
         fun string(name: String): String = reader.getString(index(name))
+
+        fun int(name: String): Int = reader.getInt(index(name))
 
         fun stringOrNull(name: String): String? =
             index(name).let { if (reader.isNull(it)) null else reader.getString(it) }

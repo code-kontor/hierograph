@@ -25,7 +25,10 @@ import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
 
 @Component
-class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService) {
+class MethodDetailsTool(
+    graphService: HierarchicalGraphService,
+    private val parquet: ParquetMethodDetails,
+) : AbstractDetailTool(graphService) {
 
     @Tool(
         name = "method_details",
@@ -58,7 +61,11 @@ class MethodDetailsTool(graphService: HierarchicalGraphService) : AbstractDetail
                     "(java.method or java.constructor). Typically obtained from list_methods or detail_dependencies."
         )
         methodId: Long
-    ): Map<String, Any?> {
+    ): Map<String, Any?> =
+        if (graphService.isParquetBacked) parquet.methodDetails(methodId) else cypherMethodDetails(methodId)
+
+    /** The Neo4j/Cypher implementation, used when the graph is served from jQAssistant. */
+    private fun cypherMethodDetails(methodId: Long): Map<String, Any?> {
 
         val cypher = buildMethodDetailsCypher()
         val queryResult = graphService.boltClient.syncExecCypherQuery(

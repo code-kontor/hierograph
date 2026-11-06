@@ -34,5 +34,11 @@ data class GraphSnapshot(
     val model: HGModel,
     val searchIndex: NodeSearchIndex,
     val dataHash: String,
-    val graphStore: GraphStore? = null
+    val graphStore: GraphStore? = null,
+    /**
+     * Reverse index `node handle → member key` for the Parquet detail tools (`parquet` mode only).
+     * Members are not nodes in the bridged model, so their content-addressed handles cannot be looked up
+     * via the model; this maps a handle back to the `<owner fqn>#<signature>` key to read from Parquet.
+     */
+    val memberHandles: Map<Long, String> = emptyMap()
 )

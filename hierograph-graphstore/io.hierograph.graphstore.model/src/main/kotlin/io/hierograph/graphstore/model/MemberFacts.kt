@@ -29,7 +29,10 @@ data class MemberFacts(
     val signature: String,
     /** The member's simple name (`place`, `log`, `<init>`), for display — distinct from [signature]. */
     val name: String = "",
+    /** Packed access flags; see [MemberModifiers] for the bit layout and decoding. */
     val modifiers: Int = 0,
     val lineFrom: Int? = null,
     val lineTo: Int? = null,
+    /** Declared parameters, ordered by [ParameterFacts.index]; empty for fields and no-arg methods. */
+    val parameters: List<ParameterFacts> = emptyList(),
 )

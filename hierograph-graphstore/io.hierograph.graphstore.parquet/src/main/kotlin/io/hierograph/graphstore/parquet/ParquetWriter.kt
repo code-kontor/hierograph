@@ -55,8 +55,20 @@ object ParquetWriter {
             sb.setString(ParquetSchema.Members.KIND, m.kind.name)
             sb.setString(ParquetSchema.Members.NAME, m.name)
             sb.setString(ParquetSchema.Members.SIGNATURE, m.signature)
+            sb.setNullableInt(ParquetSchema.Members.MODIFIERS, m.modifiers.takeIf { it != 0 })
             sb.setNullableInt(ParquetSchema.Members.LINE_FROM, m.lineFrom)
             sb.setNullableInt(ParquetSchema.Members.LINE_TO, m.lineTo)
+        }
+
+        // One row per parameter, keyed by the owning member; sorted so a scoped read skips row groups.
+        val parameters = classes.flatMap { c -> c.facts.members }
+            .flatMap { m -> m.parameters.map { m.key to it } }
+            .sortedWith(compareBy({ it.first }, { it.second.index }))
+        writeTable(dir.resolve(ParquetSchema.PARAMETERS_FILE), ParquetSchema.parametersSchema(), codec, parameters) { sb, (methodKey, p) ->
+            sb.setString(ParquetSchema.Parameters.METHOD_KEY, methodKey)
+            sb.setInt(ParquetSchema.Parameters.INDEX, p.index)
+            sb.setString(ParquetSchema.Parameters.NAME, p.name)
+            sb.setString(ParquetSchema.Parameters.TYPE_FQN, p.typeFqn)
         }
 
         val refs = classes.flatMap { c -> c.facts.refs.map { c.facts.fqn to it } }

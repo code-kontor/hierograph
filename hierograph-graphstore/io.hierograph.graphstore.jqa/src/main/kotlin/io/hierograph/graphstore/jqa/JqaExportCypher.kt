@@ -46,8 +46,27 @@ object JqaExportCypher {
                CASE WHEN m:Field THEN 'FIELD' WHEN m:Constructor THEN 'CONSTRUCTOR' ELSE 'METHOD' END AS kind,
                m.name AS name,
                m.signature AS signature,
+               m.visibility AS visibility,
+               coalesce(m.static, false) AS is_static,
+               coalesce(m.final, false) AS is_final,
+               coalesce(m.abstract, false) AS is_abstract,
+               coalesce(m.synchronized, false) AS is_synchronized,
+               coalesce(m.native, false) AS is_native,
+               coalesce(m.default, false) AS is_default,
+               coalesce(m.transient, false) AS is_transient,
+               coalesce(m.volatile, false) AS is_volatile,
                m.firstLineNumber AS line_from,
                m.lastLineNumber AS line_to
+    """.trimIndent()
+
+    /** One row per method/constructor parameter (spec §4), feeding `parameters.parquet`. */
+    val PARAMETERS = """
+        MATCH (a:Artifact)-[:CONTAINS]->(t:Type)-[:DECLARES]->(m:Method)-[:HAS]->(p:Parameter)-[:OF_TYPE]->(pt:Type)
+        WHERE NOT t:Virtual
+        RETURN t.fqn + '#' + m.signature AS method_key,
+               p.index AS index,
+               coalesce(p.name, 'arg' + toString(p.index)) AS name,
+               pt.fqn AS type_fqn
     """.trimIndent()
 
     val REFS = """

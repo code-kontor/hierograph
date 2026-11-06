@@ -213,6 +213,21 @@ message member {
 }
 ```
 
+### parameters.parquet (sorted by `method_key, index`)
+
+Method/constructor parameters, one row per parameter — the 1:N companion to `members.parquet` that
+`method_details` reads for named, ordered parameters. (MVP-implemented; parameter *types* are also
+reachable as `parameter_type` edges in `detail_refs`, but names/positions live only here.)
+
+```
+message parameter {
+  required binary method_key   (STRING);   // owning member key: owner#signature
+  required int32  index;                   // 0-based position
+  required binary name         (STRING);   // 'argN' when javac -parameters was absent
+  required binary type_fqn     (STRING);   // erased parameter type
+}
+```
+
 ### refs.parquet (sorted by `from_type, kind`)
 
 Type-level references only — both endpoints are types:
@@ -521,9 +536,10 @@ Decisions taken: GraphStore lives in its own top-level module group (parallel to
 - `io.hierograph.graphstore.hgmodel` — `GraphStoreToHGModel.build(store)` bridges a GraphStore to a production `HGModel` (root → modules → packages → types; type dependencies as core edges with the `JavaEdgeAttributes` bitmap), via a `GraphStoreNodeSource` that carries name/fqn so the existing `JQAssistantNodeMetadataProvider` resolves metadata off `INodeSource` — no bolt.
 - **Node handles** (`NodeHandle`, in `hierarchicalgraph.core.model`): the `HGNode` identifier is a content-addressed hash of the GraphStore key (SHA-256 → 53-bit, JSON-safe), replacing Neo4j's allocation-order `id()`. Durable across rescans/restarts/backends; distinct per artifact because the key is; collision-checked at build.
 - **Artifact-scoped type keys + `TypeResolver` seam** (see §3): type nodes are `type:<artifact>:<fqn>`; references resolve through the seam (owner-first stand-in for classpath order). `typeDependencyEdges()` added for the bridge; the FQN projections (`hierarchyRows`, `typeDependencies`) are unchanged, so the jQA diff and the detail engine are untouched.
-- **Server switch:** `HierarchicalGraphService` gains `hierograph.graph.source=jqa|parquet` (+ `parquetDir`); in `parquet` mode it builds the model from files and never touches Neo4j. `ParquetModeServerIT` boots the service in parquet mode with bolt pointed at a dead port and drives real MCP tools (`graph_overview`, `find_node`, `list_children`, `outgoing_dependencies`) end to end — the id-taking tools work because handles round-trip.
+- **Server switch:** `HierarchicalGraphService` gains `hierograph.graph.source=jqa|parquet` (+ `parquetDir`); in `parquet` mode it builds the model from files and never touches Neo4j. `ParquetModeServerIT` boots the service in parquet mode with bolt pointed at a dead port and drives real MCP tools end to end — the id-taking tools work because handles round-trip.
+- **Detail tools on Parquet:** `detail_dependencies` (via a `@Primary` `DetailDependenciesRouter` over the `DetailQueryEngine`) and the single-entity `method_details` / `field_details` (each `@Tool` branches to a Parquet impl when `isParquetBacked`) now serve from `detail_refs.parquet` / `members.parquet` / `parameters.parquet` with no Neo4j. Member endpoints use `NodeHandle.of(memberKey)`; the service builds a `handle → member key` reverse index at load (members aren't nodes in the bridged model). To support full parity, the member schema gained a packed `modifiers` column (`MemberModifiers`) and a new `parameters.parquet` table (owner, index, name, type_fqn), both exported from jQA. Parquet-mode detail limitations: scopes for `detail_dependencies` must be containers (no member-as-scope); member endpoint handles are stable but not navigable via the type-level hierarchy.
 
-**How close is a fully Neo4j-free MVP?** The **type-level serving path is fully Parquet** (proved by the dead-bolt IT). Two Neo4j ties remain: (1) **snapshot origin** — the Parquet files are still produced by exporting the existing jQA/Neo4j DB (`JqaParquetExporter`); the own ASM scanner (step 2) is not built yet, so Neo4j is still the data *source*. (2) **detail tools** — the detail-level MCP tools still issue Cypher via the server's bolt client; the Parquet `DetailQueryEngine` is validated but not yet wired into the server. Closing both (scanner + detail-engine wiring) gives an end-to-end Neo4j-free MVP.
+**How close is a fully Neo4j-free MVP?** The **entire serving path is now Parquet** — type-level navigation/dependencies and all three detail tools (`detail_dependencies`, `method_details`, `field_details`), proved by `ParquetModeServerIT` with bolt pointed at a dead port. The **one remaining tie is the snapshot origin**: the Parquet files are still produced by exporting the existing jQA/Neo4j DB (`JqaParquetExporter` / `JqaDetailExporter`); the own ASM scanner (step 2) is not built yet, so Neo4j is still the data *source*. Building that scanner is what makes the MVP end-to-end Neo4j-free.
 
 ### Implementation order
 

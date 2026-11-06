@@ -22,6 +22,7 @@ import io.hierograph.graphstore.PlaceholderPolicy
 import io.hierograph.graphstore.hgmodel.GraphStoreToHGModel
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
 import io.hierograph.mcp.server.core.pagination.DataHash
@@ -67,6 +68,9 @@ class HierarchicalGraphService {
 
     /** The type-level GraphStore backing the current snapshot in `parquet` mode, else `null`. */
     val graphStore: GraphStore? get() = snapshotRef.get()?.graphStore
+
+    /** Reverse index `node handle → member key` for the Parquet detail tools; empty in `jqa` mode. */
+    val memberHandleIndex: Map<Long, String> get() = snapshotRef.get()?.memberHandles ?: emptyMap()
 
     lateinit var boltClient: IBoltClient
 
@@ -163,7 +167,7 @@ class HierarchicalGraphService {
      * in tests; production code loads via [init] / [reload].
      */
     fun seed(model: HGModel) {
-        snapshotRef.set(buildSnapshotFrom(model, graphStore = null))
+        snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap()))
     }
 
     /** Build a fresh snapshot from the configured source, logging progress and writing the dump. */
@@ -208,16 +212,20 @@ class HierarchicalGraphService {
      */
     private fun buildSnapshot(): GraphSnapshot =
         if (useParquet) {
+            val dir = Path.of(parquetDir)
             val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
-            ParquetReader().load(Path.of(parquetDir), store)
-            buildSnapshotFrom(GraphStoreToHGModel.build(store), store)
+            val reader = ParquetReader()
+            reader.load(dir, store)
+            // Reverse index for the detail tools: members aren't nodes, so map their handle back to the key.
+            val memberHandles = reader.readMemberKeys(dir).associateBy({ NodeHandle.of(it) }, { it })
+            buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles)
         } else {
-            buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null)
+            buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null, memberHandles = emptyMap())
         }
 
     /** Bundle a model with its (freshly built) search index and data hash. Pure — no I/O, no logging. */
-    private fun buildSnapshotFrom(model: HGModel, graphStore: GraphStore?): GraphSnapshot =
-        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model), graphStore)
+    private fun buildSnapshotFrom(model: HGModel, graphStore: GraphStore?, memberHandles: Map<Long, String>): GraphSnapshot =
+        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model), graphStore, memberHandles)
 
     @PreDestroy
     fun shutdown() {

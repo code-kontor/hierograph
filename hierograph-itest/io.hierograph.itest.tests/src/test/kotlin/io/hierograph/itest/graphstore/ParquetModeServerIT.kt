@@ -18,6 +18,8 @@ package io.hierograph.itest.graphstore
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.jqa.JqaParquetExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
+import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import io.hierograph.itest.fwk.HierographImageContainer
 import io.hierograph.mcp.javaspec.JavaKinds
@@ -29,11 +31,16 @@ import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
 import io.hierograph.mcp.server.tools.detail.DetailDependenciesComponent
 import io.hierograph.mcp.server.tools.detail.DetailDependenciesRouter
+import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
+import io.hierograph.mcp.server.tools.detail.MethodDetailsTool
 import io.hierograph.mcp.server.tools.detail.ParquetDetailDependencies
+import io.hierograph.mcp.server.tools.detail.ParquetFieldDetails
+import io.hierograph.mcp.server.tools.detail.ParquetMethodDetails
 import io.hierograph.mcp.server.tools.navigation.FindNodeTool
 import io.hierograph.mcp.server.tools.navigation.GraphOverviewTool
 import io.hierograph.mcp.server.tools.navigation.ListChildrenTool
+import java.nio.file.Path
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -69,6 +76,10 @@ import java.util.concurrent.Executors
         DetailDependenciesComponent::class,
         ParquetDetailDependencies::class,
         DetailDependenciesRouter::class,
+        ParquetMethodDetails::class,
+        ParquetFieldDetails::class,
+        MethodDetailsTool::class,
+        FieldDetailsTool::class,
     ]
 )
 class ParquetModeServerIT : AbstractIntegrationTest() {
@@ -91,6 +102,12 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
     /** The @Primary router; in parquet mode it routes to the Parquet detail engine (no Neo4j). */
     @Autowired
     private lateinit var detailDependencies: IDetailDependencies
+
+    @Autowired
+    private lateinit var methodDetailsTool: MethodDetailsTool
+
+    @Autowired
+    private lateinit var fieldDetailsTool: FieldDetailsTool
 
     @Test
     fun `serves a hierarchical graph from Parquet with no reachable Neo4j`() {
@@ -220,6 +237,39 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
             .isInstanceOf(Throwable::class.java)
     }
 
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `method_details runs off members+parameters+detail_refs parquet`() {
+        // A real method's handle, resolved exactly as the service's handle index does.
+        val methodKey = snapshotMembers().first { it.kind == JavaNodeKind.METHOD }.key
+        val response = methodDetailsTool.methodDetails(NodeHandle.of(methodKey))
+
+        assertThat(response).doesNotContainKey("error")
+        assertThat(response).containsKeys("method", "declaring_type", "modifiers", "return_type", "parameters", "throws", "annotations")
+        // modifiers always carry a visibility token; parameters match the parameters.parquet arity.
+        assertThat(response["modifiers"] as List<String>).isNotEmpty()
+        val method = response["method"] as Map<String, Any?>
+        assertThat(method["id"]).isEqualTo(NodeHandle.of(methodKey))
+        assertThat(method["qualified_name"]).isEqualTo(methodKey)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `field_details runs off members+detail_refs parquet`() {
+        val fieldKey = snapshotMembers().first { it.kind == JavaNodeKind.FIELD }.key
+        val response = fieldDetailsTool.fieldDetails(NodeHandle.of(fieldKey))
+
+        assertThat(response).doesNotContainKey("error")
+        assertThat(response).containsKeys("nodes", "field", "declaring_type", "modifiers", "type_name", "read_access", "write_access")
+        assertThat(response["field"]).isEqualTo(NodeHandle.of(fieldKey))
+        assertThat(response["modifiers"] as List<String>).isNotEmpty()
+        val readAccess = response["read_access"] as Map<String, Any?>
+        assertThat(readAccess).containsKeys("method_count", "methods_sample", "by_declaring_type")
+    }
+
+    /** The members of the exported snapshot (the same files the service loaded). */
+    private fun snapshotMembers() = ParquetReader().readAllMembers(SNAPSHOT_DIR)
+
     /** The top-level node with the most children and its handle — a node that certainly has children. */
     private fun richestTopLevel(): Pair<Long, Int> {
         val hierarchy = graphService.model.hierarchy
@@ -237,6 +287,9 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
 
     companion object {
 
+        /** The on-disk Parquet snapshot the service loads and the tests read back. */
+        private val SNAPSHOT_DIR: Path = Paths.get("target", "parquet-mode-it").toAbsolutePath()
+
         /** Pagination policy for the detail call (mirrors the dependency tools' detail spec). */
         private val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 250, bytesPerItem = 550)
 
@@ -247,12 +300,11 @@ class ParquetModeServerIT : AbstractIntegrationTest() {
             // shared container is up, export its jQA store to a Parquet snapshot, and point the service at it.
             HierographImageContainer.instance.start()
 
-            val parquetDir = Paths.get("target", "parquet-mode-it").toAbsolutePath()
-            Files.createDirectories(parquetDir)
-            exportSnapshot(parquetDir)
+            Files.createDirectories(SNAPSHOT_DIR)
+            exportSnapshot(SNAPSHOT_DIR)
 
             registry.add("hierograph.graph.source") { "parquet" }
-            registry.add("hierograph.graph.parquetDir") { parquetDir.toString() }
+            registry.add("hierograph.graph.parquetDir") { SNAPSHOT_DIR.toString() }
             registry.add("hierograph.graph.dumpFile") { "target/parquet-mode-it-graph.txt" }
             // Deliberately unreachable: proves the Parquet path needs no live database. The service's
             // best-effort connect fails and is logged, then the graph builds from files regardless.

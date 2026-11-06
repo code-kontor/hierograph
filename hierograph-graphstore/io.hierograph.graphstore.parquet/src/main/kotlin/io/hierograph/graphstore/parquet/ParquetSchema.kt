@@ -33,6 +33,7 @@ object ParquetSchema {
 
     const val TYPES_FILE = "types.parquet"
     const val MEMBERS_FILE = "members.parquet"
+    const val PARAMETERS_FILE = "parameters.parquet"
     const val REFS_FILE = "refs.parquet"
     const val DETAIL_REFS_FILE = "detail_refs.parquet"
 
@@ -50,8 +51,17 @@ object ParquetSchema {
         const val KIND = "kind"                 // JavaNodeKind name: FIELD | METHOD | CONSTRUCTOR
         const val NAME = "name"
         const val SIGNATURE = "signature"
+        const val MODIFIERS = "modifiers"       // packed access flags; see MemberModifiers
         const val LINE_FROM = "line_from"
         const val LINE_TO = "line_to"
+    }
+
+    /** Declared method/constructor parameters, one row per parameter, sorted by `method_key, index`. */
+    object Parameters {
+        const val METHOD_KEY = "method_key"     // the owning member's key: owner_fqn + '#' + signature
+        const val INDEX = "index"               // 0-based position
+        const val NAME = "name"
+        const val TYPE_FQN = "type_fqn"         // fully-qualified (erased) parameter type
     }
 
     object Refs {
@@ -96,8 +106,17 @@ object ParquetSchema {
             .string(Members.KIND, RepetitionType.REQUIRED)
             .string(Members.NAME, RepetitionType.REQUIRED)
             .string(Members.SIGNATURE, RepetitionType.REQUIRED)
+            .addColumn(Members.MODIFIERS, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .addColumn(Members.LINE_FROM, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .addColumn(Members.LINE_TO, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .build()
+
+    fun parametersSchema(): FileSchema =
+        FileSchema.builder("parameter")
+            .string(Parameters.METHOD_KEY, RepetitionType.REQUIRED)
+            .addColumn(Parameters.INDEX, PhysicalType.INT32, RepetitionType.REQUIRED)
+            .string(Parameters.NAME, RepetitionType.REQUIRED)
+            .string(Parameters.TYPE_FQN, RepetitionType.REQUIRED)
             .build()
 
     fun refsSchema(): FileSchema =

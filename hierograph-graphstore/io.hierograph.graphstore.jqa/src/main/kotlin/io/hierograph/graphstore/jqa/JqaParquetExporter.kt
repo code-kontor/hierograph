@@ -19,6 +19,8 @@ import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.boltclient.IBoltClient
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
+import io.hierograph.graphstore.model.MemberModifiers
+import io.hierograph.graphstore.model.ParameterFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.parquet.ParquetWriter
@@ -40,14 +42,36 @@ class JqaParquetExporter(private val boltClient: IBoltClient) {
 
     /** Reads the jQAssistant store and assembles the scanned classes, grouped members and refs included. */
     fun exportClasses(): List<ArtifactClass> {
+        // Parameters first (keyed by member), so each member carries its declared parameters.
+        val parametersByMember = query(JqaExportCypher.PARAMETERS) { r ->
+            r.string("method_key") to ParameterFacts(
+                index = r.intOrNull("index") ?: 0,
+                name = r.string("name"),
+                typeFqn = r.string("type_fqn"),
+            )
+        }.groupBy({ it.first }, { it.second })
+
         val membersByOwner = query(JqaExportCypher.MEMBERS) { r ->
+            val memberKey = r.string("member_key")
             r.string("owner_fqn") to MemberFacts(
-                key = r.string("member_key"),
+                key = memberKey,
                 kind = JavaNodeKind.valueOf(r.string("kind")),
                 signature = r.string("signature"),
                 name = r.stringOrNull("name").orEmpty(),
+                modifiers = MemberModifiers.pack(
+                    visibility = r.stringOrNull("visibility"),
+                    static = r.bool("is_static"),
+                    final = r.bool("is_final"),
+                    abstract = r.bool("is_abstract"),
+                    synchronized = r.bool("is_synchronized"),
+                    native = r.bool("is_native"),
+                    default = r.bool("is_default"),
+                    transient = r.bool("is_transient"),
+                    volatile = r.bool("is_volatile"),
+                ),
                 lineFrom = r.intOrNull("line_from"),
                 lineTo = r.intOrNull("line_to"),
+                parameters = parametersByMember[memberKey].orEmpty().sortedBy { it.index },
             )
         }.groupBy({ it.first }, { it.second })
 
@@ -90,5 +114,6 @@ class JqaParquetExporter(private val boltClient: IBoltClient) {
         fun string(column: String): String = record.get(column).asString()
         fun stringOrNull(column: String): String? = record.get(column).let { if (it.isNull) null else it.asString() }
         fun intOrNull(column: String): Int? = record.get(column).let { if (it.isNull) null else it.asInt() }
+        fun bool(column: String): Boolean = record.get(column).let { if (it.isNull) false else it.asBoolean() }
     }
 }
