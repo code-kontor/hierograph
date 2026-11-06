@@ -21,15 +21,9 @@ object JQAssistantNodeMetadataProvider {
 
     val scannerName: String = "jqassistant"
 
-    fun getName(node: HGNode): String {
-        val src = node.nodeSource as? ExtendedGraphDbNodeSource ?: return ""
-        return src.name
-    }
+    fun getName(node: HGNode): String = node.nodeSource.name
 
-    fun getQualifiedName(node: HGNode): String {
-        val src = node.nodeSource as? ExtendedGraphDbNodeSource ?: return ""
-        return src.fqn
-    }
+    fun getQualifiedName(node: HGNode): String = node.nodeSource.qualifiedName
 
     /**
      * Returns the node's semantic kind. Defers to the authoritative [HGNode.kind] assigned during

@@ -26,4 +26,12 @@ interface INodeSource {
      * a concrete, store-specific [INodeSource] implementation.
      */
     val labels: List<String> get() = emptyList()
+
+    /**
+     * Display name and fully-qualified name of the underlying node, independent of the backing store.
+     * Node-metadata providers read these off the source so they need not downcast to a concrete,
+     * store-specific implementation; sources that carry no such metadata return empty strings.
+     */
+    val name: String get() = ""
+    val qualifiedName: String get() = ""
 }

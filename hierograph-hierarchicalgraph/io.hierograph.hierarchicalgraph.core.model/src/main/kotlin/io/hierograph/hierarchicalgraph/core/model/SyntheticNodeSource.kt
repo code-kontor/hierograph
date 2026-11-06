@@ -17,8 +17,8 @@ package io.hierograph.hierarchicalgraph.core.model
 
 class SyntheticNodeSource(
     override val identifier: Any,
-    val name: String,
-    val qualifiedName: String = name,
+    override val name: String,
+    override val qualifiedName: String = name,
 ) : INodeSource {
     override var node: HGNode? = null
 }

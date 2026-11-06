@@ -45,11 +45,12 @@ object GraphStoreToHGModel {
         val rootNode = HGGraphFactory.createNode(coreGraph) { DefaultNodeSource(ROOT_ID) }
         val hierarchy = HierarchyFactory.createHierarchy(coreGraph, rootNode)
 
-        // One HGNode per GraphStore node; identifier = the GraphStore key.
+        // One HGNode per GraphStore node; identifier = the GraphStore key, with name/fqn carried on the
+        // node source so the metadata provider resolves them without bolt.
         val byKey = HashMap<String, HGNode>()
         for (n in store.nodes()) {
             val hg = HGGraphFactory.createNode(coreGraph) {
-                DefaultNodeSource(n.key, mutableMapOf("fqn" to n.fqn, "name" to n.name))
+                GraphStoreNodeSource(n.key, n.name, n.fqn)
             }
             hg.kind = n.kind
             byKey[n.key] = hg

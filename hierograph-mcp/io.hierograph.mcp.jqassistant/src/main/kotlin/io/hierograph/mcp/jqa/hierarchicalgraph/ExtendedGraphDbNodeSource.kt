@@ -17,5 +17,10 @@ package io.hierograph.mcp.jqa.hierarchicalgraph
 
 import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
 
-class ExtendedGraphDbNodeSource(identifier: Any, val name: String , val fqn: String) : GraphDbNodeSource(identifier) {
+class ExtendedGraphDbNodeSource(
+    identifier: Any,
+    override val name: String,
+    val fqn: String,
+) : GraphDbNodeSource(identifier) {
+    override val qualifiedName: String get() = fqn
 }

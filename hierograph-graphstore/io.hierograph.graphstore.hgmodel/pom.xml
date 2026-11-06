@@ -34,6 +34,13 @@
             <artifactId>io.hierograph.mcp.javaspec</artifactId>
         </dependency>
 
+        <!-- Test-only: verify the hardcoded jQAssistant node-metadata provider resolves name/fqn/kind
+             off the GraphStore-backed node source (the adapter seam). -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.mcp.jqassistant</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test-junit5</artifactId>
