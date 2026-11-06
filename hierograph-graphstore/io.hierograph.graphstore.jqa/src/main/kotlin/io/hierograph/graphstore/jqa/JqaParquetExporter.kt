@@ -21,8 +21,8 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
-import io.hierograph.graphstore.parquet.SnapshotWriter
-import io.hierograph.graphstore.parquet.SnapshotWriter.ArtifactClass
+import io.hierograph.graphstore.parquet.ParquetWriter
+import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import org.neo4j.driver.Record
 import java.nio.file.Path
@@ -33,10 +33,10 @@ import java.nio.file.Path
  * code is involved yet.
  *
  * The resulting classes can be written to a Parquet snapshot ([exportTo]) and then loaded with
- * `ParquetSnapshotLoader`, or fed straight into a GraphStore ([exportClasses]) when the Parquet hop is
+ * `ParquetReader`, or fed straight into a GraphStore ([exportClasses]) when the Parquet hop is
  * not needed.
  */
-class JqaSnapshotExporter(private val boltClient: IBoltClient) {
+class JqaParquetExporter(private val boltClient: IBoltClient) {
 
     /** Reads the jQAssistant store and assembles the scanned classes, grouped members and refs included. */
     fun exportClasses(): List<ArtifactClass> {
@@ -77,9 +77,9 @@ class JqaSnapshotExporter(private val boltClient: IBoltClient) {
         }
     }
 
-    /** Exports the store and writes a Parquet snapshot (types/members/refs) under [snapshotDir]. */
-    fun exportTo(snapshotDir: Path, codec: CompressionCodec = CompressionCodec.ZSTD) {
-        SnapshotWriter.writeClassFacts(snapshotDir, exportClasses(), codec)
+    /** Exports the store and writes a Parquet snapshot (types/members/refs) under [parquetDir]. */
+    fun exportTo(parquetDir: Path, codec: CompressionCodec = CompressionCodec.ZSTD) {
+        ParquetWriter.writeClassFacts(parquetDir, exportClasses(), codec)
     }
 
     private fun <T> query(cypher: String, map: (RecordView) -> T): List<T> =

@@ -20,7 +20,7 @@ import dev.hardwood.reader.FilterPredicate
 import dev.hardwood.reader.ParquetFileReader
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.SnapshotSchema
+import io.hierograph.graphstore.parquet.ParquetSchema
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import java.nio.file.Files
@@ -91,17 +91,17 @@ internal object MemberDisplayReader {
     data class MemberDisplay(val name: String, val kind: String)
 
     fun readByKeys(membersDir: Path, keys: Collection<String>): Map<String, MemberDisplay> {
-        val path = membersDir.resolve(SnapshotSchema.MEMBERS_FILE)
+        val path = membersDir.resolve(ParquetSchema.MEMBERS_FILE)
         if (keys.isEmpty() || !Files.exists(path)) return emptyMap()
         val out = HashMap<String, MemberDisplay>(keys.size * 2)
         ParquetFileReader.open(InputFile.of(path)).use { reader ->
             reader.buildRowReader()
-                .filter(FilterPredicate.`in`(SnapshotSchema.Members.MEMBER_KEY, *keys.toTypedArray()))
+                .filter(FilterPredicate.`in`(ParquetSchema.Members.MEMBER_KEY, *keys.toTypedArray()))
                 .build().use { rowReader ->
                     val schema = reader.fileSchema
-                    val iKey = schema.getColumn(SnapshotSchema.Members.MEMBER_KEY).columnIndex()
-                    val iName = schema.getColumn(SnapshotSchema.Members.NAME).columnIndex()
-                    val iKind = schema.getColumn(SnapshotSchema.Members.KIND).columnIndex()
+                    val iKey = schema.getColumn(ParquetSchema.Members.MEMBER_KEY).columnIndex()
+                    val iName = schema.getColumn(ParquetSchema.Members.NAME).columnIndex()
+                    val iKind = schema.getColumn(ParquetSchema.Members.KIND).columnIndex()
                     while (rowReader.hasNext()) {
                         rowReader.next()
                         out[rowReader.getString(iKey)] = MemberDisplay(rowReader.getString(iName), rowReader.getString(iKind))

@@ -18,7 +18,7 @@ package io.hierograph.graphstore.jqa.detail
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.boltclient.IBoltClient
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.DetailRefs
+import io.hierograph.graphstore.parquet.ParquetWriter
 import java.nio.file.Path
 
 /**
@@ -45,7 +45,7 @@ class JqaDetailExporter(private val boltClient: IBoltClient) {
         }
 
     fun exportTo(dir: Path, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
-        DetailRefs.write(dir, exportClasses(), codec)
+        ParquetWriter.writeDetailRefs(dir, exportClasses(), codec)
     }
 
     companion object {

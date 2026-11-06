@@ -22,12 +22,11 @@ import io.hierograph.graphstore.detail.DetailEnricher
 import io.hierograph.graphstore.detail.DetailQuery
 import io.hierograph.graphstore.detail.DetailQueryEngine
 import io.hierograph.graphstore.detail.DetailScope
-import io.hierograph.graphstore.jqa.JqaSnapshotExporter
+import io.hierograph.graphstore.jqa.JqaParquetExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
 import io.hierograph.graphstore.jqa.detail.JqaDetailReference
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.DetailRefs
-import io.hierograph.graphstore.parquet.ParquetSnapshotLoader
+import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -57,16 +56,16 @@ class DetailDiffAndBenchmarkIT : AbstractIntegrationTest() {
         boltClient.connect()
         try {
             // Type-level snapshot → GraphStore (for scope resolution); detail-refs snapshot (for edges).
-            JqaSnapshotExporter(boltClient).exportTo(typeDir)
+            JqaParquetExporter(boltClient).exportTo(typeDir)
             val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
-            ParquetSnapshotLoader().load(typeDir, store)
+            ParquetReader().load(typeDir, store)
             JqaDetailExporter(boltClient).exportTo(detailDir)
 
             val engine = DetailQueryEngine(detailDir)
             val reference = JqaDetailReference(boltClient)
 
             // Scopes: the busiest source types that are present in the type graph (so scope resolves).
-            val scopes = DetailRefs.read(detailDir)
+            val scopes = ParquetReader().readDetailRefs(detailDir)
                 .groupingBy { it.fromType }.eachCount()
                 .entries.sortedByDescending { it.value }
                 .map { it.key }.filter { store.node(it) != null }

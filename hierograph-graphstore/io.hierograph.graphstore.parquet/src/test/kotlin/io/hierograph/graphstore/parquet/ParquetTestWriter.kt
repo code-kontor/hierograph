@@ -24,11 +24,11 @@ import dev.hardwood.writer.WriterConfig
 import java.nio.file.Path
 
 /**
- * Writes [SnapshotSchema] Parquet fixtures using Hardwood's writer, uncompressed so the tests need no
- * compression codec on the classpath. Test-only scaffolding for exercising [ParquetSnapshotLoader]; the
+ * Writes [ParquetSchema] Parquet fixtures using Hardwood's writer, uncompressed so the tests need no
+ * compression codec on the classpath. Test-only scaffolding for exercising [ParquetReader]; the
  * production snapshot writer is a separate, later concern.
  */
-object SnapshotTestWriter {
+object ParquetTestWriter {
 
     data class TypeFixture(
         val artifact: String,
@@ -57,34 +57,34 @@ object SnapshotTestWriter {
     )
 
     fun writeTypes(dir: Path, rows: List<TypeFixture>) {
-        write(dir.resolve(SnapshotSchema.TYPES_FILE), SnapshotSchema.typesSchema(), rows) { sb, t ->
-            sb.setString(SnapshotSchema.Types.ARTIFACT, t.artifact)
-            sb.setString(SnapshotSchema.Types.FQN, t.fqn)
-            sb.setString(SnapshotSchema.Types.KIND, t.kind)
-            sb.setNullable(SnapshotSchema.Types.SOURCE_FILE, t.sourceFile)
-            sb.setNullable(SnapshotSchema.Types.CLASS_HASH, t.classHash)
+        write(dir.resolve(ParquetSchema.TYPES_FILE), ParquetSchema.typesSchema(), rows) { sb, t ->
+            sb.setString(ParquetSchema.Types.ARTIFACT, t.artifact)
+            sb.setString(ParquetSchema.Types.FQN, t.fqn)
+            sb.setString(ParquetSchema.Types.KIND, t.kind)
+            sb.setNullable(ParquetSchema.Types.SOURCE_FILE, t.sourceFile)
+            sb.setNullable(ParquetSchema.Types.CLASS_HASH, t.classHash)
         }
     }
 
     fun writeMembers(dir: Path, rows: List<MemberFixture>) {
-        write(dir.resolve(SnapshotSchema.MEMBERS_FILE), SnapshotSchema.membersSchema(), rows) { sb, m ->
-            sb.setString(SnapshotSchema.Members.OWNER_FQN, m.ownerFqn)
-            sb.setString(SnapshotSchema.Members.MEMBER_KEY, m.memberKey)
-            sb.setString(SnapshotSchema.Members.KIND, m.kind)
-            sb.setString(SnapshotSchema.Members.NAME, m.name)
-            sb.setString(SnapshotSchema.Members.SIGNATURE, m.signature)
-            sb.setNullableInt(SnapshotSchema.Members.LINE_FROM, m.lineFrom)
-            sb.setNullableInt(SnapshotSchema.Members.LINE_TO, m.lineTo)
+        write(dir.resolve(ParquetSchema.MEMBERS_FILE), ParquetSchema.membersSchema(), rows) { sb, m ->
+            sb.setString(ParquetSchema.Members.OWNER_FQN, m.ownerFqn)
+            sb.setString(ParquetSchema.Members.MEMBER_KEY, m.memberKey)
+            sb.setString(ParquetSchema.Members.KIND, m.kind)
+            sb.setString(ParquetSchema.Members.NAME, m.name)
+            sb.setString(ParquetSchema.Members.SIGNATURE, m.signature)
+            sb.setNullableInt(ParquetSchema.Members.LINE_FROM, m.lineFrom)
+            sb.setNullableInt(ParquetSchema.Members.LINE_TO, m.lineTo)
         }
     }
 
     fun writeRefs(dir: Path, rows: List<RefFixture>) {
-        write(dir.resolve(SnapshotSchema.REFS_FILE), SnapshotSchema.refsSchema(), rows) { sb, r ->
-            sb.setString(SnapshotSchema.Refs.FROM_KEY, r.fromKey)
-            sb.setString(SnapshotSchema.Refs.FROM_TYPE, r.fromType)
-            sb.setString(SnapshotSchema.Refs.TO_KEY, r.toKey)
-            sb.setString(SnapshotSchema.Refs.KIND, r.kind)
-            sb.setNullableInt(SnapshotSchema.Refs.COUNT, r.count)
+        write(dir.resolve(ParquetSchema.REFS_FILE), ParquetSchema.refsSchema(), rows) { sb, r ->
+            sb.setString(ParquetSchema.Refs.FROM_KEY, r.fromKey)
+            sb.setString(ParquetSchema.Refs.FROM_TYPE, r.fromType)
+            sb.setString(ParquetSchema.Refs.TO_KEY, r.toKey)
+            sb.setString(ParquetSchema.Refs.KIND, r.kind)
+            sb.setNullableInt(ParquetSchema.Refs.COUNT, r.count)
         }
     }
 

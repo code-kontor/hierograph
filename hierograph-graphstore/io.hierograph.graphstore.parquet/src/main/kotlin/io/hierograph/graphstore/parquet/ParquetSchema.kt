@@ -29,11 +29,12 @@ import dev.hardwood.schema.FileSchema
  * the jQAssistant CSV export produces and makes snapshots human-readable. A single snapshot can mix
  * artifacts, so `types` carries an explicit `artifact` column.
  */
-object SnapshotSchema {
+object ParquetSchema {
 
     const val TYPES_FILE = "types.parquet"
     const val MEMBERS_FILE = "members.parquet"
     const val REFS_FILE = "refs.parquet"
+    const val DETAIL_REFS_FILE = "detail_refs.parquet"
 
     object Types {
         const val ARTIFACT = "artifact"
@@ -59,6 +60,21 @@ object SnapshotSchema {
         const val TO_KEY = "to_key"
         const val KIND = "kind"                 // RefKind name
         const val COUNT = "count"
+    }
+
+    /**
+     * Member-level ("detail") references. Prototype table (written to its own `detail_refs.parquet`) so
+     * the validated type-level snapshot stays untouched; in the production model these rows merge into
+     * [Refs] (with `to_type` / `line` added, distinguished by kind). Sorted by `from_type` so scoped
+     * reads skip row groups.
+     */
+    object DetailRefs {
+        const val FROM_KEY = "from_key"
+        const val FROM_TYPE = "from_type"
+        const val TO_KEY = "to_key"
+        const val TO_TYPE = "to_type"
+        const val RELATIONSHIP = "relationship" // Hierograph detail vocabulary: calls | reads_field | …
+        const val LINE = "line"
     }
 
     fun typesSchema(): FileSchema =
@@ -88,6 +104,16 @@ object SnapshotSchema {
             .string(Refs.TO_KEY, RepetitionType.REQUIRED)
             .string(Refs.KIND, RepetitionType.REQUIRED)
             .addColumn(Refs.COUNT, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .build()
+
+    fun detailRefsSchema(): FileSchema =
+        FileSchema.builder("detail_ref")
+            .string(DetailRefs.FROM_KEY, RepetitionType.REQUIRED)
+            .string(DetailRefs.FROM_TYPE, RepetitionType.REQUIRED)
+            .string(DetailRefs.TO_KEY, RepetitionType.REQUIRED)
+            .string(DetailRefs.TO_TYPE, RepetitionType.REQUIRED)
+            .string(DetailRefs.RELATIONSHIP, RepetitionType.REQUIRED)
+            .addColumn(DetailRefs.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .build()
 
     private fun FileSchema.Builder.string(name: String, repetition: RepetitionType): FileSchema.Builder =

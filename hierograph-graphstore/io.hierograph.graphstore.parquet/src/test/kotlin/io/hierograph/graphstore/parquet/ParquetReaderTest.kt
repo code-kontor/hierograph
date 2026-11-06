@@ -17,34 +17,34 @@ package io.hierograph.graphstore.parquet
 
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.HierarchyRow
-import io.hierograph.graphstore.parquet.SnapshotTestWriter.MemberFixture
-import io.hierograph.graphstore.parquet.SnapshotTestWriter.RefFixture
-import io.hierograph.graphstore.parquet.SnapshotTestWriter.TypeFixture
+import io.hierograph.graphstore.parquet.ParquetTestWriter.MemberFixture
+import io.hierograph.graphstore.parquet.ParquetTestWriter.RefFixture
+import io.hierograph.graphstore.parquet.ParquetTestWriter.TypeFixture
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
-class ParquetSnapshotLoaderTest {
+class ParquetReaderTest {
 
     @Test
     fun `loads types members and refs into the GraphStore via the applyClass path`(@TempDir dir: Path) {
-        SnapshotTestWriter.writeTypes(
+        ParquetTestWriter.writeTypes(
             dir,
             listOf(
                 TypeFixture("app", "com.foo.A", "CLASS", sourceFile = "A.java", classHash = "h1"),
                 TypeFixture("app", "com.foo.B", "INTERFACE", classHash = "h2"),
             ),
         )
-        SnapshotTestWriter.writeMembers(
+        ParquetTestWriter.writeMembers(
             dir,
             listOf(
                 MemberFixture("com.foo.A", "com.foo.A#a()V", "METHOD", "a", "a()V", lineFrom = 1, lineTo = 3),
                 MemberFixture("com.foo.A", "com.foo.A#x", "FIELD", "x", "x"),
             ),
         )
-        SnapshotTestWriter.writeRefs(
+        ParquetTestWriter.writeRefs(
             dir,
             listOf(
                 RefFixture("com.foo.A", "com.foo.B", "IMPLEMENTS", count = 1),
@@ -53,7 +53,7 @@ class ParquetSnapshotLoaderTest {
         )
 
         val store = GraphStore()
-        ParquetSnapshotLoader().load(dir, store)
+        ParquetReader().load(dir, store)
 
         // scanned types
         val a = store.node("com.foo.A")!!
@@ -90,10 +90,10 @@ class ParquetSnapshotLoaderTest {
 
     @Test
     fun `missing members and refs tables load the types only`(@TempDir dir: Path) {
-        SnapshotTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
+        ParquetTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
 
         val store = GraphStore()
-        ParquetSnapshotLoader().load(dir, store)
+        ParquetReader().load(dir, store)
 
         assertThat(store.node("com.foo.A")!!.placeholder).isFalse
         assertThat(store.childKeysOf("com.foo.A")).isEmpty()

@@ -16,7 +16,7 @@
 package io.hierograph.graphstore.detail
 
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.DetailRefs
+import io.hierograph.graphstore.parquet.ParquetReader
 import java.nio.file.Path
 
 /**
@@ -57,7 +57,9 @@ data class DetailQueryResult(
  * Not yet implemented (next increments): member display enrichment (join to `members.parquet`) and
  * keyset cursors in place of offset paging.
  */
-class DetailQueryEngine(private val snapshotDir: Path) {
+class DetailQueryEngine(private val parquetDir: Path) {
+
+    private val loader = ParquetReader()
 
     fun query(q: DetailQuery): DetailQueryResult {
         val reverseStored = REVERSE[q.relationship]
@@ -79,7 +81,7 @@ class DetailQueryEngine(private val snapshotDir: Path) {
 
     /** Forward relationships: the scope is the source; `from_type` (sorted) drives row-group skipping. */
     private fun forwardEdges(q: DetailQuery): List<DetailRef> =
-        DetailRefs.read(snapshotDir, fromTypes = q.fromTypes, toTypes = q.toTypes, relationship = q.relationship)
+        loader.readDetailRefs(parquetDir, fromTypes = q.fromTypes, toTypes = q.toTypes, relationship = q.relationship)
 
     /**
      * Reverse relationships (`read_by` / `written_by`): the scope anchors on the field side, so it maps
@@ -87,7 +89,7 @@ class DetailQueryEngine(private val snapshotDir: Path) {
      * swapped on the way out so the result reads field → reading/writing method under the requested kind.
      */
     private fun reverseEdges(q: DetailQuery, stored: String): List<DetailRef> =
-        DetailRefs.read(snapshotDir, fromTypes = q.toTypes, toTypes = q.fromTypes, relationship = stored)
+        loader.readDetailRefs(parquetDir, fromTypes = q.toTypes, toTypes = q.fromTypes, relationship = stored)
             .map {
                 DetailRef(
                     fromKey = it.toKey, fromType = it.toType,

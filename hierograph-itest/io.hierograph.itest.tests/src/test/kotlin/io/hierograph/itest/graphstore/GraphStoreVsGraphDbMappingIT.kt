@@ -20,9 +20,9 @@ import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.PlaceholderPolicy
 import io.hierograph.graphstore.jqa.DiffOptions
 import io.hierograph.graphstore.jqa.GraphDbMappingReference
-import io.hierograph.graphstore.jqa.JqaSnapshotExporter
+import io.hierograph.graphstore.jqa.JqaParquetExporter
 import io.hierograph.graphstore.jqa.SnapshotDiff
-import io.hierograph.graphstore.parquet.ParquetSnapshotLoader
+import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
@@ -53,15 +53,15 @@ import java.util.concurrent.Executors
 class GraphStoreVsGraphDbMappingIT : AbstractIntegrationTest() {
 
     @Test
-    fun `GraphStore projection matches GraphDbMapping modulo documented differences`(@TempDir snapshotDir: Path) {
+    fun `GraphStore projection matches GraphDbMapping modulo documented differences`(@TempDir parquetDir: Path) {
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val boltClient = IBoltClientFactory.newInstance(executor).createBoltClient(container.boltUri)
         boltClient.connect()
         try {
             // GraphStore side: jQA export -> Parquet snapshot -> load (the real write + read path).
-            JqaSnapshotExporter(boltClient).exportTo(snapshotDir)
+            JqaParquetExporter(boltClient).exportTo(parquetDir)
             val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
-            ParquetSnapshotLoader().load(snapshotDir, store)
+            ParquetReader().load(parquetDir, store)
 
             // Reference side: the existing GraphDbMapping projection of the same store.
             val reference = GraphDbMappingReference(boltClient).build()

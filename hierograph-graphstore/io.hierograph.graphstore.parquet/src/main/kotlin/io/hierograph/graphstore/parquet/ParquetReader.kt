@@ -16,12 +16,14 @@
 package io.hierograph.graphstore.parquet
 
 import dev.hardwood.InputFile
+import dev.hardwood.reader.FilterPredicate
 import dev.hardwood.reader.ParquetFileReader
 import dev.hardwood.reader.RowReader
 import dev.hardwood.schema.FileSchema
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.Ref
@@ -31,7 +33,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Loads a GraphStore Parquet snapshot (the [SnapshotSchema] tables) back into a [GraphStore].
+ * Loads a GraphStore Parquet snapshot (the [ParquetSchema] tables) back into a [GraphStore].
  *
  * The loader reconstructs one [ClassFacts] per type from the flat `types` / `members` / `refs` tables
  * and feeds it through [GraphStore.applyClass] — the *same* ingest path a live scan uses — then calls
@@ -39,13 +41,13 @@ import java.nio.file.Path
  * that were never exported) surface as placeholders through their incoming refs, so snapshots stay
  * composable and never duplicate external nodes.
  */
-class ParquetSnapshotLoader {
+class ParquetReader {
 
-    /** Loads every table found under [snapshotDir] into [store]. Missing tables are treated as empty. */
-    fun load(snapshotDir: Path, store: GraphStore) {
-        val types = readTypes(snapshotDir.resolve(SnapshotSchema.TYPES_FILE))
-        val membersByOwner = readMembers(snapshotDir.resolve(SnapshotSchema.MEMBERS_FILE))
-        val refsByOwner = readRefs(snapshotDir.resolve(SnapshotSchema.REFS_FILE))
+    /** Loads every table found under [parquetDir] into [store]. Missing tables are treated as empty. */
+    fun load(parquetDir: Path, store: GraphStore) {
+        val types = readTypes(parquetDir.resolve(ParquetSchema.TYPES_FILE))
+        val membersByOwner = readMembers(parquetDir.resolve(ParquetSchema.MEMBERS_FILE))
+        val refsByOwner = readRefs(parquetDir.resolve(ParquetSchema.REFS_FILE))
 
         val registered = HashSet<String>()
         for (t in types) {
@@ -69,6 +71,46 @@ class ParquetSnapshotLoader {
         store.resolvePlaceholders()
     }
 
+    /**
+     * Scoped read of the member-level `detail_refs` table with predicate push-down: returns the rows
+     * whose `from_type` is in [fromTypes] (unconstrained when null/empty), whose `to_type` is in
+     * [toTypes] (likewise), and whose `relationship` matches [relationship] (any when null). Hardwood
+     * skips row groups outside the `from_type` range via column statistics; `to_type` filters rows but,
+     * not being the sort key, does not drive row-group skipping.
+     */
+    fun readDetailRefs(
+        parquetDir: Path,
+        fromTypes: Collection<String>? = null,
+        toTypes: Collection<String>? = null,
+        relationship: String? = null,
+    ): List<DetailRef> {
+        val cols = ParquetSchema.DetailRefs
+        return readRows(parquetDir.resolve(ParquetSchema.DETAIL_REFS_FILE), detailRefsFilter(fromTypes, toTypes, relationship)) { r ->
+            DetailRef(
+                fromKey = r.string(cols.FROM_KEY),
+                fromType = r.string(cols.FROM_TYPE),
+                toKey = r.string(cols.TO_KEY),
+                toType = r.string(cols.TO_TYPE),
+                relationship = r.string(cols.RELATIONSHIP),
+                line = r.intOrNull(cols.LINE),
+            )
+        }
+    }
+
+    private fun detailRefsFilter(fromTypes: Collection<String>?, toTypes: Collection<String>?, relationship: String?): FilterPredicate? {
+        val cols = ParquetSchema.DetailRefs
+        val preds = buildList {
+            if (!fromTypes.isNullOrEmpty()) add(FilterPredicate.`in`(cols.FROM_TYPE, *fromTypes.toTypedArray()))
+            if (!toTypes.isNullOrEmpty()) add(FilterPredicate.`in`(cols.TO_TYPE, *toTypes.toTypedArray()))
+            if (relationship != null) add(FilterPredicate.eq(cols.RELATIONSHIP, relationship))
+        }
+        return when (preds.size) {
+            0 -> null
+            1 -> preds[0]
+            else -> FilterPredicate.and(*preds.toTypedArray())
+        }
+    }
+
     private data class TypeRow(
         val artifact: String,
         val fqn: String,
@@ -80,40 +122,42 @@ class ParquetSnapshotLoader {
     private fun readTypes(path: Path): List<TypeRow> =
         readRows(path) { r ->
             TypeRow(
-                artifact = r.string(SnapshotSchema.Types.ARTIFACT),
-                fqn = r.string(SnapshotSchema.Types.FQN),
-                kind = r.string(SnapshotSchema.Types.KIND),
-                sourceFile = r.stringOrNull(SnapshotSchema.Types.SOURCE_FILE),
-                classHash = r.stringOrNull(SnapshotSchema.Types.CLASS_HASH),
+                artifact = r.string(ParquetSchema.Types.ARTIFACT),
+                fqn = r.string(ParquetSchema.Types.FQN),
+                kind = r.string(ParquetSchema.Types.KIND),
+                sourceFile = r.stringOrNull(ParquetSchema.Types.SOURCE_FILE),
+                classHash = r.stringOrNull(ParquetSchema.Types.CLASS_HASH),
             )
         }
 
     private fun readMembers(path: Path): Map<String, List<MemberFacts>> =
         readRows(path) { r ->
-            r.string(SnapshotSchema.Members.OWNER_FQN) to MemberFacts(
-                key = r.string(SnapshotSchema.Members.MEMBER_KEY),
-                kind = JavaNodeKind.valueOf(r.string(SnapshotSchema.Members.KIND)),
-                signature = r.string(SnapshotSchema.Members.SIGNATURE),
-                lineFrom = r.intOrNull(SnapshotSchema.Members.LINE_FROM),
-                lineTo = r.intOrNull(SnapshotSchema.Members.LINE_TO),
+            r.string(ParquetSchema.Members.OWNER_FQN) to MemberFacts(
+                key = r.string(ParquetSchema.Members.MEMBER_KEY),
+                kind = JavaNodeKind.valueOf(r.string(ParquetSchema.Members.KIND)),
+                signature = r.string(ParquetSchema.Members.SIGNATURE),
+                lineFrom = r.intOrNull(ParquetSchema.Members.LINE_FROM),
+                lineTo = r.intOrNull(ParquetSchema.Members.LINE_TO),
             )
         }.groupBy({ it.first }, { it.second })
 
     private fun readRefs(path: Path): Map<String, List<Ref>> =
         readRows(path) { r ->
-            r.string(SnapshotSchema.Refs.FROM_TYPE) to Ref(
-                fromKey = r.string(SnapshotSchema.Refs.FROM_KEY),
-                toKey = r.string(SnapshotSchema.Refs.TO_KEY),
-                kind = RefKind.valueOf(r.string(SnapshotSchema.Refs.KIND)),
-                count = r.intOrNull(SnapshotSchema.Refs.COUNT),
+            r.string(ParquetSchema.Refs.FROM_TYPE) to Ref(
+                fromKey = r.string(ParquetSchema.Refs.FROM_KEY),
+                toKey = r.string(ParquetSchema.Refs.TO_KEY),
+                kind = RefKind.valueOf(r.string(ParquetSchema.Refs.KIND)),
+                count = r.intOrNull(ParquetSchema.Refs.COUNT),
             )
         }.groupBy({ it.first }, { it.second })
 
-    private fun <T> readRows(path: Path, map: (RowCursor) -> T): List<T> {
+    private fun <T> readRows(path: Path, filter: FilterPredicate? = null, map: (RowCursor) -> T): List<T> {
         if (!Files.exists(path)) return emptyList()
         val out = ArrayList<T>()
         ParquetFileReader.open(InputFile.of(path)).use { reader ->
-            reader.rowReader().use { rowReader ->
+            val builder = reader.buildRowReader()
+            filter?.let { builder.filter(it) }
+            builder.build().use { rowReader ->
                 val cursor = RowCursor(rowReader, reader.fileSchema)
                 while (rowReader.hasNext()) {
                     rowReader.next()

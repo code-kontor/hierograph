@@ -21,14 +21,14 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
-import io.hierograph.graphstore.parquet.SnapshotWriter.ArtifactClass
+import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
-class SnapshotWriterTest {
+class ParquetWriterTest {
 
     private val classes = listOf(
         ArtifactClass(
@@ -51,19 +51,19 @@ class SnapshotWriterTest {
 
     @Test
     fun `writeClassFacts round-trips through the loader uncompressed`(@TempDir dir: Path) {
-        SnapshotWriter.writeClassFacts(dir, classes, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeClassFacts(dir, classes, CompressionCodec.UNCOMPRESSED)
         assertRoundTrip(dir)
     }
 
     @Test
     fun `writeClassFacts round-trips through the loader with zstd`(@TempDir dir: Path) {
-        SnapshotWriter.writeClassFacts(dir, classes) // default ZSTD
+        ParquetWriter.writeClassFacts(dir, classes) // default ZSTD
         assertRoundTrip(dir)
     }
 
     private fun assertRoundTrip(dir: Path) {
         val store = GraphStore()
-        ParquetSnapshotLoader().load(dir, store)
+        ParquetReader().load(dir, store)
 
         assertThat(store.node("com.foo.A")!!.placeholder).isFalse
         assertThat(store.contains("com.foo.A#a()V")).isFalse   // members not materialized (type-level graph)

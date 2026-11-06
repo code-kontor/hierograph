@@ -16,8 +16,8 @@
 package io.hierograph.graphstore.jqa
 
 /**
- * The jQAssistant export queries (spec §7 step 1). Each query is read by [JqaSnapshotExporter] and the
- * columns map 1:1 onto the [io.hierograph.graphstore.parquet.SnapshotSchema] tables; the kind strings
+ * The jQAssistant export queries (spec §7 step 1). Each query is read by [JqaParquetExporter] and the
+ * columns map 1:1 onto the [io.hierograph.graphstore.parquet.ParquetSchema] tables; the kind strings
  * are the enum names expected by the loader (`CLASS`, `METHOD`, `EXTENDS`, …).
  *
  * The `artifact` identity is aligned with the module FQN the jQAssistant `GraphDbMapping` top-level

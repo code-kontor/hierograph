@@ -17,7 +17,8 @@ package io.hierograph.itest.graphstore
 
 import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
-import io.hierograph.graphstore.parquet.DetailRefs
+import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.parquet.ParquetSchema
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -43,13 +44,13 @@ class DetailExportIT : AbstractIntegrationTest() {
             JqaDetailExporter(boltClient).exportTo(dir)
 
             // read everything back (no predicate)
-            val all = DetailRefs.read(dir)
+            val all = ParquetReader().readDetailRefs(dir)
             val byRel = all.groupingBy { it.relationship }.eachCount().toSortedMap()
             val topType = all.groupingBy { it.fromType }.eachCount().maxByOrNull { it.value }!!
 
             println(buildString {
                 appendLine("=== detail_refs export ===")
-                appendLine("file bytes : %,d".format(Files.size(dir.resolve(DetailRefs.FILE))))
+                appendLine("file bytes : %,d".format(Files.size(dir.resolve(ParquetSchema.DETAIL_REFS_FILE))))
                 appendLine("total edges: ${all.size}")
                 appendLine("by relationship:")
                 byRel.forEach { (rel, n) -> appendLine("  %-22s %,d".format(rel, n)) }
@@ -64,13 +65,13 @@ class DetailExportIT : AbstractIntegrationTest() {
             assertThat(all.map { it.fromType }).isSorted
 
             // scoped read with predicate push-down returns exactly that type's edges
-            val scoped = DetailRefs.read(dir, fromTypes = setOf(topType.key))
+            val scoped = ParquetReader().readDetailRefs(dir, fromTypes = setOf(topType.key))
             assertThat(scoped).isNotEmpty
             assertThat(scoped).allMatch { it.fromType == topType.key }
             assertThat(scoped.size).isEqualTo(all.count { it.fromType == topType.key })
 
             // relationship filter composes with the scope filter
-            val scopedCalls = DetailRefs.read(dir, fromTypes = setOf(topType.key), relationship = "calls")
+            val scopedCalls = ParquetReader().readDetailRefs(dir, fromTypes = setOf(topType.key), relationship = "calls")
             assertThat(scopedCalls).allMatch { it.fromType == topType.key && it.relationship == "calls" }
         } finally {
             boltClient.disconnect()

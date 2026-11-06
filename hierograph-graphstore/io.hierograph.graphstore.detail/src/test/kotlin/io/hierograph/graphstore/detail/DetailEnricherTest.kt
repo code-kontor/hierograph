@@ -22,8 +22,8 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.SnapshotWriter
-import io.hierograph.graphstore.parquet.SnapshotWriter.ArtifactClass
+import io.hierograph.graphstore.parquet.ParquetWriter
+import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -50,7 +50,7 @@ class DetailEnricherTest {
         store.applyClass("app", ClassFacts("com.shop.OrderService", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
         store.applyClass("app", ClassFacts("com.shop.PaymentGateway", JavaKinds.INTERFACE, 0, emptyList(), emptyList(), "h2"))
 
-        SnapshotWriter.writeClassFacts(
+        ParquetWriter.writeClassFacts(
             membersDir,
             listOf(
                 ArtifactClass(

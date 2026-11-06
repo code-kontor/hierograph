@@ -22,7 +22,7 @@ import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.DetailRefs
+import io.hierograph.graphstore.parquet.ParquetWriter
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -51,7 +51,7 @@ class DetailQueryEngineTest {
         store.applyClass("app", type("com.foo.Other"))
 
         // Member edges.
-        DetailRefs.write(
+        ParquetWriter.writeDetailRefs(
             dir,
             listOf(
                 DetailRef("com.foo.Base#m()V", "com.foo.Base", "com.foo.Other#x()V", "com.foo.Other", "calls", 10),

@@ -19,9 +19,9 @@ import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.PlaceholderPolicy
 import io.hierograph.graphstore.jqa.GraphDbMappingReference
-import io.hierograph.graphstore.jqa.JqaSnapshotExporter
-import io.hierograph.graphstore.parquet.ParquetSnapshotLoader
-import io.hierograph.graphstore.parquet.SnapshotSchema
+import io.hierograph.graphstore.jqa.JqaParquetExporter
+import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.parquet.ParquetSchema
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -37,7 +37,7 @@ import kotlin.system.measureNanoTime
  * graph from a Parquet snapshot versus from the Neo4j database?**
  *
  * Both paths produce the equivalent type-level graph (proven by [GraphStoreVsGraphDbMappingIT]):
- *  - **Parquet:** `ParquetSnapshotLoader` reads the `types`/`members`/`refs` tables into a [GraphStore].
+ *  - **Parquet:** `ParquetReader` reads the `types`/`members`/`refs` tables into a [GraphStore].
  *  - **Neo4j:** `GraphDbMappingReference` runs the existing `jQAssistantMapping` Cypher over Bolt and
  *    assembles the same hierarchy + type-dependency rows.
  *
@@ -48,21 +48,21 @@ import kotlin.system.measureNanoTime
 class GraphStoreReadPerformanceIT : AbstractIntegrationTest() {
 
     @Test
-    fun `build the in-memory graph from Parquet vs from Neo4j`(@TempDir snapshotDir: Path) {
+    fun `build the in-memory graph from Parquet vs from Neo4j`(@TempDir parquetDir: Path) {
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val boltClient = IBoltClientFactory.newInstance(executor).createBoltClient(container.boltUri)
         boltClient.connect()
         try {
             // ── one-time: export the Neo4j store to a Parquet snapshot ────────────────────
-            val exportNanos = measureNanoTime { JqaSnapshotExporter(boltClient).exportTo(snapshotDir) }
+            val exportNanos = measureNanoTime { JqaParquetExporter(boltClient).exportTo(parquetDir) }
 
             // ── warm up both paths (JVM JIT, Neo4j page cache, driver) ────────────────────
-            repeat(WARMUP) { loadFromParquet(snapshotDir) }
+            repeat(WARMUP) { loadFromParquet(parquetDir) }
             repeat(WARMUP) { GraphDbMappingReference(boltClient).build() }
 
             // ── measure ───────────────────────────────────────────────────────────────────
             var parquetGraph: GraphStore? = null
-            val parquetNanos = LongArray(RUNS) { measureNanoTime { parquetGraph = loadFromParquet(snapshotDir) } }
+            val parquetNanos = LongArray(RUNS) { measureNanoTime { parquetGraph = loadFromParquet(parquetDir) } }
 
             var neo4jTypes = 0
             var neo4jDeps = 0
@@ -82,8 +82,8 @@ class GraphStoreReadPerformanceIT : AbstractIntegrationTest() {
             println(buildString {
                 appendLine("=== GraphStore read performance: Parquet vs Neo4j ===")
                 appendLine("snapshot files (bytes):")
-                for (file in listOf(SnapshotSchema.TYPES_FILE, SnapshotSchema.MEMBERS_FILE, SnapshotSchema.REFS_FILE)) {
-                    appendLine(String.format(Locale.ROOT, "  %-16s %,12d", file, Files.size(snapshotDir.resolve(file))))
+                for (file in listOf(ParquetSchema.TYPES_FILE, ParquetSchema.MEMBERS_FILE, ParquetSchema.REFS_FILE)) {
+                    appendLine(String.format(Locale.ROOT, "  %-16s %,12d", file, Files.size(parquetDir.resolve(file))))
                 }
                 appendLine("one-time Neo4j -> Parquet export: ${exportNanos.ms()} ms")
                 appendLine("graph size: Parquet nodes=${store.nodeCount()}, type-deps=${store.typeDependencies().count()}; " +
@@ -105,7 +105,7 @@ class GraphStoreReadPerformanceIT : AbstractIntegrationTest() {
 
     private fun loadFromParquet(dir: Path): GraphStore {
         val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
-        ParquetSnapshotLoader().load(dir, store)
+        ParquetReader().load(dir, store)
         return store
     }
 
