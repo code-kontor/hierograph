@@ -37,18 +37,20 @@ class GraphStoreTest {
         ClassFacts(fqn = fqn, kind = JavaKinds.CLASS, modifiers = 0, members = members, refs = refs, classHash = "h:$fqn")
 
     @Test
-    fun `applyClass builds the artifact-package-type-member hierarchy`() {
+    fun `applyClass builds the type-level hierarchy and does not materialize members`() {
         val store = GraphStore()
         store.registerArtifact(artifact("app"))
         store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
 
         val rows = store.hierarchyRows().toList()
-        // module (top-level), package chain com -> com.foo, the type, and its member
+        // module (top-level), package chain com -> com.foo, the type
         assertThat(rows).contains(HierarchyRow(JavaKinds.MODULE, "app", null))
         assertThat(rows).contains(HierarchyRow(JavaKinds.PACKAGE, "com", "app"))
         assertThat(rows).contains(HierarchyRow(JavaKinds.PACKAGE, "com.foo", "com"))
         assertThat(rows).contains(HierarchyRow(JavaKinds.CLASS, "com.foo.A", "com.foo"))
-        assertThat(rows).contains(HierarchyRow(JavaKinds.METHOD, "com.foo.A#a()V", "com.foo.A"))
+        // members are an on-demand concern: they are carried in ClassFacts but never enter the graph
+        assertThat(rows.map { it.kind }).doesNotContain(JavaKinds.METHOD, JavaKinds.FIELD)
+        assertThat(store.contains("com.foo.A#a()V")).isFalse
     }
 
     @Test
@@ -142,16 +144,25 @@ class GraphStoreTest {
     }
 
     @Test
-    fun `re-applying a class replaces its owned subgraph`() {
+    fun `re-applying a class replaces its owned refs`() {
         val store = GraphStore()
         store.registerArtifact(artifact("app"))
-        store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"), method("com.foo.A", "b()V"))))
-        assertThat(store.childKeysOf("com.foo.A")).containsExactlyInAnyOrder("com.foo.A#a()V", "com.foo.A#b()V")
+        store.applyClass(
+            "app",
+            classFacts(
+                "com.foo.A",
+                refs = listOf(
+                    Ref("com.foo.A", "com.foo.B", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.foo.A", "com.foo.C", RefKind.DEPENDS_ON, count = 1),
+                ),
+            ),
+        )
+        assertThat(store.typeDependencies().map { it.to }.toList()).containsExactlyInAnyOrder("com.foo.B", "com.foo.C")
 
-        // recompile drops method b
-        store.applyClass("app", classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
-        assertThat(store.childKeysOf("com.foo.A")).containsExactly("com.foo.A#a()V")
-        assertThat(store.contains("com.foo.A#b()V")).isFalse
+        // recompile drops the ref to C
+        store.applyClass("app", classFacts("com.foo.A", refs = listOf(Ref("com.foo.A", "com.foo.B", RefKind.DEPENDS_ON, count = 1))))
+        assertThat(store.typeDependencies().map { it.to }.toList()).containsExactly("com.foo.B")
+        assertThat(store.incomingOwnersOf("com.foo.C")).doesNotContain("com.foo.A")
     }
 
     @Test
@@ -172,6 +183,40 @@ class GraphStoreTest {
         // C has no incoming edges -> removed outright
         store.removeClass("com.foo.C")
         assertThat(store.contains("com.foo.C")).isFalse
+    }
+
+    @Test
+    fun `JQA_ALIGNED policy excludes primitives arrays and ubiquitous types from placeholders`() {
+        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+        store.registerArtifact(artifact("app"))
+        store.applyClass(
+            "app",
+            classFacts(
+                "com.foo.A",
+                refs = listOf(
+                    Ref("com.foo.A", "int", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.foo.A", "[I", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.foo.A", "Task", RefKind.DEPENDS_ON, count = 1),            // default package (no dot)
+                    Ref("com.foo.A", "java.lang.String", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.foo.A", "kotlin.Unit", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.foo.A", "com.other.Lib", RefKind.DEPENDS_ON, count = 1),   // normal external -> placeholder
+                ),
+            ),
+        )
+        // excluded targets: no placeholder node, and no external package chain
+        assertThat(store.contains("int")).isFalse
+        assertThat(store.contains("[I")).isFalse
+        assertThat(store.contains("Task")).isFalse
+        assertThat(store.contains("java.lang.String")).isFalse
+        assertThat(store.contains("kotlin.Unit")).isFalse
+        assertThat(store.hierarchyRows().map { it.fqn }.toList()).doesNotContain("java.lang", "kotlin")
+
+        // a normal external type still becomes a placeholder
+        assertThat(store.node("com.other.Lib")!!.placeholder).isTrue
+
+        // the refs are still facts: every target remains a type dependency even without a node
+        assertThat(store.typeDependencies().map { it.to }.toList())
+            .contains("int", "[I", "Task", "java.lang.String", "kotlin.Unit", "com.other.Lib")
     }
 
     @Test

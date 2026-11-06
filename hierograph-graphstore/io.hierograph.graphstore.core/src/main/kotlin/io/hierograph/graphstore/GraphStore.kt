@@ -17,7 +17,6 @@ package io.hierograph.graphstore
 
 import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
-import io.hierograph.graphstore.model.MemberFacts
 import io.hierograph.graphstore.model.Node
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
@@ -35,9 +34,14 @@ import java.util.EnumSet
  * but never delete the type node itself while it still has incoming edges — those are instead downgraded
  * to placeholders so references from unchanged classes stay valid.
  *
+ * The in-memory graph is **type-level**: modules, packages, types and type-to-type refs. Members are
+ * *not* materialized here — they live in the snapshot and are a strictly on-demand (detail) concern, so
+ * the live graph stays small. [placeholderPolicy] decides which unscanned ref targets become in-memory
+ * placeholder nodes; it is a projection policy only and never affects what the snapshot persists.
+ *
  * Not thread-safe; callers coordinate read/write batches (see the spec's concurrency decision).
  */
-class GraphStore {
+class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderPolicy.ALL) {
 
     private val nodesByKey = LinkedHashMap<String, Node>()
     private val childKeys = HashMap<String, MutableSet<String>>()
@@ -59,15 +63,16 @@ class GraphStore {
     }
 
     /**
-     * Replaces the owned subgraph of [facts].fqn under [artifactKey]: removes any previous members and
+     * Replaces the owned subgraph of [facts].fqn under [artifactKey]: removes the type's previous
      * outgoing refs, ensures the package path, upserts the type node (upgrading a placeholder in place),
-     * stores members and refs, and creates placeholders for unscanned ref targets.
+     * stores refs, and creates placeholders for unscanned ref targets. [ClassFacts.members] are
+     * intentionally **not** materialized — the in-memory graph is type-level; members are served on
+     * demand from the snapshot.
      */
     fun applyClass(artifactKey: String, facts: ClassFacts) {
         removeOwned(facts.fqn)
         val parentKey = ensurePackagePath(artifactKey, packageOf(facts.fqn))
         upsertType(facts.fqn, facts.kind, parentKey)
-        facts.members.forEach { putMember(facts.fqn, it) }
         storeRefs(facts.fqn, facts.refs)
     }
 
@@ -148,10 +153,6 @@ class GraphStore {
         node.parent?.let { childKeys.getOrPut(it) { linkedSetOf() } += node.key }
     }
 
-    private fun putMember(ownerFqn: String, m: MemberFacts) {
-        putNode(Node(m.key, m.kind, m.signature, m.key, parent = ownerFqn))
-    }
-
     /** Upserts a scanned type, upgrading a placeholder in place and re-homing it under [parentKey]. */
     private fun upsertType(fqn: String, kind: Any, parentKey: String) {
         val existing = nodesByKey[fqn]
@@ -165,6 +166,7 @@ class GraphStore {
 
     private fun ensurePlaceholder(fqn: String) {
         if (fqn in nodesByKey) return
+        if (!placeholderPolicy.shouldMaterialize(fqn)) return
         val pkgKey = ensurePackagePath(EXTERNAL_ARTIFACT_KEY, packageOf(fqn))
         putNode(Node(fqn, JavaKinds.EXTERNAL_TYPE, simpleName(fqn), fqn, parent = pkgKey, placeholder = true))
     }

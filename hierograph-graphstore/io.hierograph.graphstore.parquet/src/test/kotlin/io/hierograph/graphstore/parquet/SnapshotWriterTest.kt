@@ -66,7 +66,7 @@ class SnapshotWriterTest {
         ParquetSnapshotLoader().load(dir, store)
 
         assertThat(store.node("com.foo.A")!!.placeholder).isFalse
-        assertThat(store.childKeysOf("com.foo.A")).containsExactly("com.foo.A#a()V")
+        assertThat(store.contains("com.foo.A#a()V")).isFalse   // members not materialized (type-level graph)
         assertThat(store.node("java.util.List")!!.placeholder).isTrue
 
         val deps = store.typeDependencies().associateBy { it.to }

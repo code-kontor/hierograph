@@ -18,6 +18,7 @@ package io.hierograph.graphstore.jqa
 import io.hierograph.boltclient.IBoltClient
 import io.hierograph.graphstore.HierarchyRow
 import io.hierograph.graphstore.TypeDependency
+import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.fwk.GraphDbMapping
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMapping
 
@@ -41,10 +42,19 @@ data class ReferenceProjection(
 class GraphDbMappingReference(
     private val boltClient: IBoltClient,
     private val mapping: GraphDbMapping = jQAssistantMapping,
+    /**
+     * When false (the default) the FIELD / METHOD parent-child rules are skipped, so the projection is
+     * type-level — matching the GraphStore's type-level in-memory graph (members are an on-demand concern).
+     */
+    private val includeMembers: Boolean = false,
 ) {
 
     fun build(): ReferenceProjection {
         val idToFqn = HashMap<Long, String>()
+
+        val parentChildRules = mapping.parentChildRules.filter {
+            includeMembers || it.childKind != JavaKinds.FIELD && it.childKind != JavaKinds.METHOD
+        }
 
         // Top-level nodes: id -> fqn, emitted as roots (no parent).
         data class TopLevel(val kind: Any, val fqn: String)
@@ -60,7 +70,7 @@ class GraphDbMappingReference(
         // Parent-child edges: capture child id -> fqn first, resolve parents afterwards so every parent
         // id (artifact or package) is already known.
         data class ParentChild(val kind: Any, val childFqn: String, val parentId: Long)
-        val parentChild = mapping.parentChildRules.flatMap { rule ->
+        val parentChild = parentChildRules.flatMap { rule ->
             records(rule.cypher).map { r ->
                 val childId = r.long(1)
                 val childFqn = r.string(3)

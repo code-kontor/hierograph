@@ -61,8 +61,10 @@ class ParquetSnapshotLoaderTest {
         assertThat(a.placeholder).isFalse
         assertThat(store.node("com.foo.B")!!.kind).isEqualTo(JavaKinds.INTERFACE)
 
-        // members
-        assertThat(store.childKeysOf("com.foo.A")).containsExactlyInAnyOrder("com.foo.A#a()V", "com.foo.A#x")
+        // members are not materialized in the type-level graph (they round-trip through Parquet but
+        // stay an on-demand concern)
+        assertThat(store.contains("com.foo.A#a()V")).isFalse
+        assertThat(store.childKeysOf("com.foo.A")).isEmpty()
 
         // external ref target became a placeholder under the external module
         val list = store.node("java.util.List")!!
