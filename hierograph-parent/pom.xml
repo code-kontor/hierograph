@@ -59,6 +59,8 @@
         <junit-jupiter.version>6.1.1</junit-jupiter.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <slf4j.version>2.0.18</slf4j.version>
+        <hardwood.version>1.1.0.Beta3</hardwood.version>
+        <zstd-jni.version>1.5.7-9</zstd-jni.version>
     </properties>
 
     <build>
@@ -235,6 +237,22 @@ limitations under the License.]]></inlineHeader>
             </dependency>
 
             <!-- ==================== -->
+            <!-- Parquet (Hardwood)   -->
+            <!-- ==================== -->
+            <dependency>
+                <groupId>dev.hardwood</groupId>
+                <artifactId>hardwood-core</artifactId>
+                <version>${hardwood.version}</version>
+            </dependency>
+            <!-- Hardwood's compression codecs are optional; ZSTD is declared explicitly so
+                 snapshots written with ZSTD (the spec's default) can be read. -->
+            <dependency>
+                <groupId>com.github.luben</groupId>
+                <artifactId>zstd-jni</artifactId>
+                <version>${zstd-jni.version}</version>
+            </dependency>
+
+            <!-- ==================== -->
             <!-- Test                 -->
             <!-- ==================== -->
             <!-- junit-jupiter version is managed by the junit-bom import above. -->
@@ -324,6 +342,11 @@ limitations under the License.]]></inlineHeader>
             <dependency>
                 <groupId>io.hierograph</groupId>
                 <artifactId>io.hierograph.graphstore.core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.graphstore.parquet</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

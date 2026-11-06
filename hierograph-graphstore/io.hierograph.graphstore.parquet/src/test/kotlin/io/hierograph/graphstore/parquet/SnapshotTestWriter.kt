@@ -1,0 +1,109 @@
+/*
+ * Copyright 2026 Gerd Wuetherich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.hierograph.graphstore.parquet
+
+import dev.hardwood.OutputFile
+import dev.hardwood.metadata.CompressionCodec
+import dev.hardwood.schema.FileSchema
+import dev.hardwood.writer.ParquetFileWriter
+import dev.hardwood.writer.StructBuilder
+import dev.hardwood.writer.WriterConfig
+import java.nio.file.Path
+
+/**
+ * Writes [SnapshotSchema] Parquet fixtures using Hardwood's writer, uncompressed so the tests need no
+ * compression codec on the classpath. Test-only scaffolding for exercising [ParquetSnapshotLoader]; the
+ * production snapshot writer is a separate, later concern.
+ */
+object SnapshotTestWriter {
+
+    data class TypeFixture(
+        val artifact: String,
+        val fqn: String,
+        val kind: String,
+        val sourceFile: String? = null,
+        val classHash: String? = null,
+    )
+
+    data class MemberFixture(
+        val ownerFqn: String,
+        val memberKey: String,
+        val kind: String,
+        val name: String,
+        val signature: String,
+        val lineFrom: Int? = null,
+        val lineTo: Int? = null,
+    )
+
+    data class RefFixture(
+        val fromType: String,
+        val toKey: String,
+        val kind: String,
+        val count: Int? = null,
+        val fromKey: String = fromType,
+    )
+
+    fun writeTypes(dir: Path, rows: List<TypeFixture>) {
+        write(dir.resolve(SnapshotSchema.TYPES_FILE), SnapshotSchema.typesSchema(), rows) { sb, t ->
+            sb.setString(SnapshotSchema.Types.ARTIFACT, t.artifact)
+            sb.setString(SnapshotSchema.Types.FQN, t.fqn)
+            sb.setString(SnapshotSchema.Types.KIND, t.kind)
+            sb.setNullable(SnapshotSchema.Types.SOURCE_FILE, t.sourceFile)
+            sb.setNullable(SnapshotSchema.Types.CLASS_HASH, t.classHash)
+        }
+    }
+
+    fun writeMembers(dir: Path, rows: List<MemberFixture>) {
+        write(dir.resolve(SnapshotSchema.MEMBERS_FILE), SnapshotSchema.membersSchema(), rows) { sb, m ->
+            sb.setString(SnapshotSchema.Members.OWNER_FQN, m.ownerFqn)
+            sb.setString(SnapshotSchema.Members.MEMBER_KEY, m.memberKey)
+            sb.setString(SnapshotSchema.Members.KIND, m.kind)
+            sb.setString(SnapshotSchema.Members.NAME, m.name)
+            sb.setString(SnapshotSchema.Members.SIGNATURE, m.signature)
+            sb.setNullableInt(SnapshotSchema.Members.LINE_FROM, m.lineFrom)
+            sb.setNullableInt(SnapshotSchema.Members.LINE_TO, m.lineTo)
+        }
+    }
+
+    fun writeRefs(dir: Path, rows: List<RefFixture>) {
+        write(dir.resolve(SnapshotSchema.REFS_FILE), SnapshotSchema.refsSchema(), rows) { sb, r ->
+            sb.setString(SnapshotSchema.Refs.FROM_KEY, r.fromKey)
+            sb.setString(SnapshotSchema.Refs.FROM_TYPE, r.fromType)
+            sb.setString(SnapshotSchema.Refs.TO_KEY, r.toKey)
+            sb.setString(SnapshotSchema.Refs.KIND, r.kind)
+            sb.setNullableInt(SnapshotSchema.Refs.COUNT, r.count)
+        }
+    }
+
+    private fun <T> write(path: Path, schema: FileSchema, rows: List<T>, set: (StructBuilder, T) -> Unit) {
+        val config = WriterConfig.builder().codec(CompressionCodec.UNCOMPRESSED).build()
+        ParquetFileWriter.create(OutputFile.of(path), schema, config).use { writer ->
+            val rowWriter = writer.rowWriter()
+            for (row in rows) {
+                rowWriter.writeRow { sb -> set(sb, row) }
+            }
+            writer.endRowGroup()
+        }
+    }
+
+    private fun StructBuilder.setNullable(name: String, value: String?) {
+        if (value == null) setNull(name) else setString(name, value)
+    }
+
+    private fun StructBuilder.setNullableInt(name: String, value: Int?) {
+        if (value == null) setNull(name) else setInt(name, value)
+    }
+}

@@ -20,5 +20,6 @@
     <modules>
         <module>io.hierograph.graphstore.model</module>
         <module>io.hierograph.graphstore.core</module>
+        <module>io.hierograph.graphstore.parquet</module>
     </modules>
 </project>
