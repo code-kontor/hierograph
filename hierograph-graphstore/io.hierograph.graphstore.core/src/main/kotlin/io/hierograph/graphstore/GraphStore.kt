@@ -141,6 +141,8 @@ class GraphStore(private val placeholderPolicy: PlaceholderPolicy = PlaceholderP
     // ── read access (mainly for tests and diagnostics) ─────────────────
 
     fun node(key: String): Node? = nodesByKey[key]
+    /** All nodes (modules, packages, types, placeholders), in insertion order. */
+    fun nodes(): Collection<Node> = nodesByKey.values
     fun contains(key: String): Boolean = key in nodesByKey
     fun childKeysOf(key: String): Set<String> = childKeys[key].orEmpty()
     fun nodeCount(): Int = nodesByKey.size
