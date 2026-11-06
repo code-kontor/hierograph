@@ -50,10 +50,9 @@ object ParquetTestWriter {
 
     data class RefFixture(
         val fromType: String,
-        val toKey: String,
+        val toType: String,
         val kind: String,
         val count: Int? = null,
-        val fromKey: String = fromType,
     )
 
     fun writeTypes(dir: Path, rows: List<TypeFixture>) {
@@ -80,9 +79,8 @@ object ParquetTestWriter {
 
     fun writeRefs(dir: Path, rows: List<RefFixture>) {
         write(dir.resolve(ParquetSchema.REFS_FILE), ParquetSchema.refsSchema(), rows) { sb, r ->
-            sb.setString(ParquetSchema.Refs.FROM_KEY, r.fromKey)
             sb.setString(ParquetSchema.Refs.FROM_TYPE, r.fromType)
-            sb.setString(ParquetSchema.Refs.TO_KEY, r.toKey)
+            sb.setString(ParquetSchema.Refs.TO_TYPE, r.toType)
             sb.setString(ParquetSchema.Refs.KIND, r.kind)
             sb.setNullableInt(ParquetSchema.Refs.COUNT, r.count)
         }

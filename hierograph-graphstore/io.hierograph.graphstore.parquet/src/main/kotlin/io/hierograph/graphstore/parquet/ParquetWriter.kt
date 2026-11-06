@@ -61,9 +61,8 @@ object ParquetWriter {
 
         val refs = classes.flatMap { c -> c.facts.refs.map { c.facts.fqn to it } }
         writeTable(dir.resolve(ParquetSchema.REFS_FILE), ParquetSchema.refsSchema(), codec, refs) { sb, (fromType, r) ->
-            sb.setString(ParquetSchema.Refs.FROM_KEY, r.fromKey)
             sb.setString(ParquetSchema.Refs.FROM_TYPE, fromType)
-            sb.setString(ParquetSchema.Refs.TO_KEY, r.toKey)
+            sb.setString(ParquetSchema.Refs.TO_TYPE, r.toKey)
             sb.setString(ParquetSchema.Refs.KIND, r.kind.name)
             sb.setNullableInt(ParquetSchema.Refs.COUNT, r.count)
         }

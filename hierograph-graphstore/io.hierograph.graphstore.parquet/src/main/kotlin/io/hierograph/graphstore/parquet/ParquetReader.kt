@@ -143,12 +143,14 @@ class ParquetReader {
 
     private fun readRefs(path: Path): Map<String, List<Ref>> =
         readRows(path) { r ->
-            r.string(ParquetSchema.Refs.FROM_TYPE) to Ref(
-                fromKey = r.string(ParquetSchema.Refs.FROM_KEY),
-                toKey = r.string(ParquetSchema.Refs.TO_KEY),
-                kind = RefKind.valueOf(r.string(ParquetSchema.Refs.KIND)),
-                count = r.intOrNull(ParquetSchema.Refs.COUNT),
-            )
+            r.string(ParquetSchema.Refs.FROM_TYPE).let { fromType ->
+                fromType to Ref(
+                    fromKey = fromType, // type-level refs are type→type: source key == owning type
+                    toKey = r.string(ParquetSchema.Refs.TO_TYPE),
+                    kind = RefKind.valueOf(r.string(ParquetSchema.Refs.KIND)),
+                    count = r.intOrNull(ParquetSchema.Refs.COUNT),
+                )
+            }
         }.groupBy({ it.first }, { it.second })
 
     private fun <T> readRows(path: Path, filter: FilterPredicate? = null, map: (RowCursor) -> T): List<T> {

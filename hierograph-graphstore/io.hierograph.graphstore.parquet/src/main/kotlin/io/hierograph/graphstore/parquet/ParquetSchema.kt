@@ -55,9 +55,12 @@ object ParquetSchema {
     }
 
     object Refs {
-        const val FROM_KEY = "from_key"         // type fqn or member key
-        const val FROM_TYPE = "from_type"       // owning type, denormalized
-        const val TO_KEY = "to_key"
+        // Type-level refs are type→type: both endpoints are types, so the columns are `from_type` /
+        // `to_type`. The member-grained `from_key` / `to_key` of the full §4 schema are omitted (they
+        // would equal the type FQNs); member-grained refs live in [DetailRefs] until the two merge
+        // (see the "type-level vs detail refs" decision).
+        const val FROM_TYPE = "from_type"
+        const val TO_TYPE = "to_type"
         const val KIND = "kind"                 // RefKind name
         const val COUNT = "count"
     }
@@ -99,9 +102,8 @@ object ParquetSchema {
 
     fun refsSchema(): FileSchema =
         FileSchema.builder("ref")
-            .string(Refs.FROM_KEY, RepetitionType.REQUIRED)
             .string(Refs.FROM_TYPE, RepetitionType.REQUIRED)
-            .string(Refs.TO_KEY, RepetitionType.REQUIRED)
+            .string(Refs.TO_TYPE, RepetitionType.REQUIRED)
             .string(Refs.KIND, RepetitionType.REQUIRED)
             .addColumn(Refs.COUNT, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .build()

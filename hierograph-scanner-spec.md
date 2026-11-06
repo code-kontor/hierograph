@@ -210,19 +210,43 @@ message member {
 }
 ```
 
-### refs.parquet (sorted by `from_type, from_key, kind`; by far the largest table)
+### refs.parquet (sorted by `from_type, kind`)
+
+Type-level references only — both endpoints are types:
 
 ```
 message ref {
-  required binary from_key     (STRING);   // type fqn or member key
-  required binary from_type    (STRING);   // owning type, denormalized
-  required binary to_key       (STRING);
-  required binary to_type      (STRING);   // target type, denormalized
-  required int32  kind;                    // RefKind
-  optional int32  line;                    // FULL only
+  required binary from_type    (STRING);   // owning type
+  required binary to_type      (STRING);   // target type
+  required int32  kind;                    // RefKind: EXTENDS | IMPLEMENTS | ANNOTATED_BY | DEPENDS_ON
   optional int32  count;                   // pre-aggregated duplicates / jQA weight
 }
 ```
+
+The member-grained `from_key` / `to_key` / `line` of the original §4 superset are **not** in this table — type→type edges have no member source, so `from_key`/`to_key` would just repeat the type FQNs. Member-level references live in a separate `detail_refs.parquet` (see below).
+
+### detail_refs.parquet (member-level; sorted by `from_type`)
+
+```
+message detail_ref {
+  required binary from_key      (STRING);   // member key (owner#signature), or type fqn for a type source
+  required binary from_type     (STRING);   // owning type (sort key → scoped row-group skipping)
+  required binary to_key        (STRING);   // member key, or type fqn for a type-reference target
+  required binary to_type       (STRING);   // target type
+  required binary relationship  (STRING);   // calls | reads_field | writes_field | overrides | throws | …
+  optional int32  line;                     // FULL-mode source line
+}
+```
+
+### Decision: type-level vs detail refs — unify the concept, partition the storage
+
+Keep **two physical ref tables** (`refs.parquet` type-level, `detail_refs.parquet` member-level) rather than one:
+
+- **Access patterns diverge and should drive physical layout.** `refs` is *fully loaded* into the in-memory graph at cold start and must stay small/fast (the ~80 ms cold start / ~0.6 MB); `detail_refs` is *scoped, on-demand, never fully loaded* and is ~8× larger. Merging would make cold start read or row-group-filter member data it never uses.
+- **Incremental updates favour separate files** — rewrite only the partition whose granularity changed.
+- **In the MVP they are distinct sources, not two views of one.** jQAssistant's type-level `DEPENDS_ON` is pre-aggregated over usages the member export doesn't fully capture, so it is *not* today a roll-up of the member edges.
+
+The **end state** (with the ASM FULL scanner) unifies the *logical model* — one reference concept at finest granularity, with type dependencies as a derived aggregation (`GROUP BY from_type, to_type`) over member edges plus the intrinsically type-level structural edges — while still materializing the type-level roll-up as its own file for the cheap cold-start load. So: **one concept, two materializations.** Until then the two tables stay separate in both schema and file.
 
 ### annotations.parquet (optional)
 
