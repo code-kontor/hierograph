@@ -313,6 +313,20 @@ limitations under the License.]]></inlineHeader>
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- ==================== -->
+            <!-- GraphStore           -->
+            <!-- ==================== -->
+            <dependency>
+                <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.graphstore.model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.graphstore.core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 

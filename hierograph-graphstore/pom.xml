@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.hierograph</groupId>
+        <artifactId>hierograph-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../hierograph-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>hierograph-graphstore</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Hierograph GraphStore</name>
+    <description>In-memory GraphStore backed by Parquet snapshots; backend-neutral replacement for the jQA/Neo4j read path.</description>
+
+    <modules>
+        <module>io.hierograph.graphstore.model</module>
+        <module>io.hierograph.graphstore.core</module>
+    </modules>
+</project>

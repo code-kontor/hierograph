@@ -18,6 +18,7 @@
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-mcp</module>
         <module>hierograph-jqassistant</module>
+        <module>hierograph-graphstore</module>
     </modules>
 
     <properties>
