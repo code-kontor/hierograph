@@ -1,0 +1,32 @@
+/*
+ * Copyright 2026 Gerd Wuetherich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.hierograph.hierarchicalgraph.model
+
+interface HGNode {
+    val identifier: Any
+    val nodeSource: INodeSource
+    var kind: Any?
+    val outgoingCoreDependencies: List<HGCoreDependency>
+    val incomingCoreDependencies: List<HGCoreDependency>
+    fun <T : Any> getNodeSource(clazz: Class<T>): T?
+
+    /**
+     * Store-backed labels of this node, delegated from its [nodeSource] (e.g. the Neo4j labels of a
+     * graph-DB-backed node). Empty when the source carries no classification. Lets callers classify a
+     * node without knowing — or importing — the concrete node-source type.
+     */
+    val labels: List<String> get() = nodeSource.labels
+}

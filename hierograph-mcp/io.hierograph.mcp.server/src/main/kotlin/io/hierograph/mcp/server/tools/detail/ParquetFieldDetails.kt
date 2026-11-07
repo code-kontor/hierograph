@@ -18,7 +18,7 @@ package io.hierograph.mcp.server.tools.detail
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.model.MemberModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.javaspec.JavaKinds
 import io.hierograph.javaspec.JavaNodeKind
 import io.hierograph.graphservice.HierarchicalGraphService

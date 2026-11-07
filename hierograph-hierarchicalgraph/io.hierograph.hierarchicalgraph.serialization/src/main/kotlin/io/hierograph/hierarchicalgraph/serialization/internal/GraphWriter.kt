@@ -15,10 +15,10 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.Hierarchy
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.Hierarchy
 
 /**
  * Projects an [HGModel] to a [GraphSnapshot] by one pre-order walk of the

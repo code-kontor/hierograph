@@ -16,7 +16,7 @@
 package io.hierograph.graphql.controller
 
 import io.hierograph.graphql.HierarchicalGraphProvider
-import io.hierograph.hierarchicalgraph.core.model.Hierarchy
+import io.hierograph.hierarchicalgraph.model.Hierarchy
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 

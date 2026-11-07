@@ -17,7 +17,7 @@ package io.hierograph.graphservice
 
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HGModel
 
 /**
  * An immutable bundle of the loaded graph and everything derived from it.

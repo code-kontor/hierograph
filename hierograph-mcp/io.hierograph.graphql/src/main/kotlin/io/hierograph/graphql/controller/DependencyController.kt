@@ -15,8 +15,8 @@
  */
 package io.hierograph.graphql.controller
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGNode
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 

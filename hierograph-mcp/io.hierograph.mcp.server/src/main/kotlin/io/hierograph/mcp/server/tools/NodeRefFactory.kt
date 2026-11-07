@@ -15,9 +15,9 @@
  */
 package io.hierograph.mcp.server.tools
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.javaspec.JavaKinds
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component

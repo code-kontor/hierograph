@@ -15,13 +15,13 @@
  */
 package io.hierograph.mcp.server
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
-import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
-import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
+import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
+import io.hierograph.hierarchicalgraph.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.model.internal.HGGraphImpl
 import io.hierograph.javaspec.JavaEdgeAttributes
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

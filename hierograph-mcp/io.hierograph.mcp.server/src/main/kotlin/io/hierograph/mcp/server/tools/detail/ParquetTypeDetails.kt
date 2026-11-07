@@ -19,11 +19,11 @@ import io.hierograph.graphstore.hgmodel.GraphStoreNodeSource
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.javaspec.JavaKinds
 import io.hierograph.javaspec.JavaNodeKind
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component

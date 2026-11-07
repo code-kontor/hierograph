@@ -15,11 +15,11 @@
  */
 package io.hierograph.graphservice
 
-import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
+import io.hierograph.hierarchicalgraph.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.graphservice.pagination.DataHash
 import io.hierograph.graphservice.pagination.DataHashProvider
 import org.assertj.core.api.Assertions.assertThat

@@ -20,10 +20,10 @@ import io.hierograph.graphservice.NodePropertiesProvider
 import io.hierograph.graphql.model.MapEntryModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.graphql.model.NodesToConsider
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.Hierarchy
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.Hierarchy
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping

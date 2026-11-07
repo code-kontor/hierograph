@@ -16,7 +16,7 @@
 package io.hierograph.itest.hierarchicalgraph
 
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 

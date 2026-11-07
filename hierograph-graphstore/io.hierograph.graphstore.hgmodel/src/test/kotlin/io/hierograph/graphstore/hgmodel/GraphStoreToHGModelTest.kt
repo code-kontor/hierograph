@@ -21,7 +21,7 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.javaspec.JavaEdgeAttributes
 import io.hierograph.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat

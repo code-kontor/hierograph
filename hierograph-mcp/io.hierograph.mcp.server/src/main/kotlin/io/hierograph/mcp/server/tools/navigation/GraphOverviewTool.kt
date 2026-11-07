@@ -20,7 +20,7 @@ import io.hierograph.javaspec.JavaEdgeAttributes
 import io.hierograph.javaspec.JavaKinds
 import io.hierograph.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component
 

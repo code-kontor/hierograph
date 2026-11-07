@@ -15,9 +15,9 @@
  */
 package io.hierograph.graphservice
 
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 
 /**
  * Immutable, precomputed search index over the hierarchical model, used by `find_node`.

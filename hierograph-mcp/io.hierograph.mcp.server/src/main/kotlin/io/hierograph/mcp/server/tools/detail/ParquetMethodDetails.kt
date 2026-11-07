@@ -17,10 +17,10 @@ package io.hierograph.mcp.server.tools.detail
 
 import io.hierograph.graphstore.model.MemberModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.javaspec.JavaKinds
 import io.hierograph.javaspec.JavaNodeKind
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
 import java.nio.file.Path

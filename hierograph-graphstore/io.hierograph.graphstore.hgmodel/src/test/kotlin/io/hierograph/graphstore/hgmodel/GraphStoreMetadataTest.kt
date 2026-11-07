@@ -19,10 +19,10 @@ import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Origin
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.javaspec.JavaKinds
 import io.hierograph.javaspec.JavaNodeKind
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

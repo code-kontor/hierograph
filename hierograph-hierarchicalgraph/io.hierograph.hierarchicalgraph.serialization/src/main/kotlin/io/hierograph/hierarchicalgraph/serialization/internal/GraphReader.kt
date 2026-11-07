@@ -15,10 +15,10 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 
 /**
  * Rebuilds an [HGModel] from a [GraphSnapshot]. Two linear passes:

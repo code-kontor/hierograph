@@ -18,10 +18,10 @@ package io.hierograph.graphql.controller
 import io.hierograph.graphql.HierarchicalGraphProvider
 import io.hierograph.graphservice.NodePropertiesProvider
 import io.hierograph.graphql.model.MapEntryModel
-import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
+import io.hierograph.hierarchicalgraph.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

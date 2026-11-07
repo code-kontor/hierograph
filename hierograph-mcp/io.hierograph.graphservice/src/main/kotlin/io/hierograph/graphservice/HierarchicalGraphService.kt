@@ -19,8 +19,8 @@ import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.PlaceholderPolicy
 import io.hierograph.graphstore.hgmodel.GraphStoreToHGModel
 import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.javaspec.JavaKinds
 import io.hierograph.javaspec.JavaNodeKind

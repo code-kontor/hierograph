@@ -15,9 +15,9 @@
  */
 package io.hierograph.graphservice
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.Hierarchy
-import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.Hierarchy
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 
 /**
  * Dumps a node and its descendants as an indented tree, one line per node.

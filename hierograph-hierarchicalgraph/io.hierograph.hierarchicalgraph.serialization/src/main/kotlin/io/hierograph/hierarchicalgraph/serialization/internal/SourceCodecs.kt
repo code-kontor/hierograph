@@ -15,8 +15,8 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.IDependencySource
-import io.hierograph.hierarchicalgraph.core.model.INodeSource
+import io.hierograph.hierarchicalgraph.model.IDependencySource
+import io.hierograph.hierarchicalgraph.model.INodeSource
 
 /**
  * Encodes a concrete `INodeSource` implementation as a string-keyed payload

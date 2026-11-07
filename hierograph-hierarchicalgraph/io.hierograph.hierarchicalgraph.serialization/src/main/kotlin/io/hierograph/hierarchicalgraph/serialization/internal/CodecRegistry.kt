@@ -15,8 +15,8 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.IDependencySource
-import io.hierograph.hierarchicalgraph.core.model.INodeSource
+import io.hierograph.hierarchicalgraph.model.IDependencySource
+import io.hierograph.hierarchicalgraph.model.INodeSource
 
 /**
  * Holds the per-impl codecs the serializer dispatches to. Lookup by class

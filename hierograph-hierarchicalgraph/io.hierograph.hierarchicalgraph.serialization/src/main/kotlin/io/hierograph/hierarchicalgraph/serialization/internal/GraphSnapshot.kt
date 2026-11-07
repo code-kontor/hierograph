@@ -16,7 +16,7 @@
 package io.hierograph.hierarchicalgraph.serialization.internal
 
 /**
- * Wire-format root for a serialized [io.hierograph.hierarchicalgraph.core.model.HGModel].
+ * Wire-format root for a serialized [io.hierograph.hierarchicalgraph.model.HGModel].
  *
  * The shape is intentionally flat — nodes refer to one another by `id`
  * strings — so the snapshot has no object cycles regardless of how

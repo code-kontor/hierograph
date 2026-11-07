@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphql
 
-import io.hierograph.hierarchicalgraph.core.model.Hierarchy
+import io.hierograph.hierarchicalgraph.model.Hierarchy
 
 /**
  * Supplies the [Hierarchy] the GraphQL layer operates on. Structural navigation —

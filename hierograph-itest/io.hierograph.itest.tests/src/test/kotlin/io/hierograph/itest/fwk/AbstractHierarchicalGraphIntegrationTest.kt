@@ -15,8 +15,8 @@
  */
 package io.hierograph.itest.fwk
 
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.HierarchyScope
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HierarchyScope
 import io.hierograph.graphservice.HierarchicalGraphService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest

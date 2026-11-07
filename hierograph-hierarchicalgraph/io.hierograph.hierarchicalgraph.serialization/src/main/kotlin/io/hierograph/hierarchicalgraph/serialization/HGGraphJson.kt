@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.serialization.internal.CodecRegistry
 import io.hierograph.hierarchicalgraph.serialization.internal.GraphReader
 import io.hierograph.hierarchicalgraph.serialization.internal.GraphSnapshot

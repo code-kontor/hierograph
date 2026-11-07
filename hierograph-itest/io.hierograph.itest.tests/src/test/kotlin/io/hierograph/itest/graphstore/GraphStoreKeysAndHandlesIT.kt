@@ -17,7 +17,7 @@ package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

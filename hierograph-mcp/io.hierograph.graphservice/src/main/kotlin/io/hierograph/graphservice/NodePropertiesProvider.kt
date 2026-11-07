@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphservice
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGNode
 
 /**
  * Supplies `Node.properties` for nodes that carry no store-backed properties of their own (i.e. not a

@@ -15,13 +15,13 @@
  */
 package io.hierograph.hierarchicalgraph.serialization
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
-import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
-import io.hierograph.hierarchicalgraph.core.model.HGModel
-import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
+import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
+import io.hierograph.hierarchicalgraph.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -172,7 +172,7 @@ class HGGraphJsonTest {
         val root: HGNode
         val model: HGModel
         private val coreGraph = HGGraphFactory.createHGGraph()
-        private val hierarchy: io.hierograph.hierarchicalgraph.core.model.Hierarchy
+        private val hierarchy: io.hierograph.hierarchicalgraph.model.Hierarchy
         private var nextId = 1L
         private val depSource = { DefaultDependencySource(identifier = nextId++) }
 
@@ -202,7 +202,7 @@ class HGGraphJsonTest {
     private fun allDescendants(model: HGModel): List<HGNode> =
         allDescendants(model.hierarchy, model.hierarchy.rootNode)
 
-    private fun allDescendants(hierarchy: io.hierograph.hierarchicalgraph.core.model.Hierarchy, node: HGNode): List<HGNode> = buildList {
+    private fun allDescendants(hierarchy: io.hierograph.hierarchicalgraph.model.Hierarchy, node: HGNode): List<HGNode> = buildList {
         add(node)
         for (c in hierarchy.childrenOf(node)) addAll(allDescendants(hierarchy, c))
     }

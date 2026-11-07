@@ -15,10 +15,10 @@
  */
 package io.hierograph.mcp.server.core
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGNode
 
 /**
- * Defines the API for converting [io.hierograph.hierarchicalgraph.core.model.HGNode] instances into the map-based
+ * Defines the API for converting [io.hierograph.hierarchicalgraph.model.HGNode] instances into the map-based
  * representations used in MCP tool responses.
  *
  * Three flavours of node representation:

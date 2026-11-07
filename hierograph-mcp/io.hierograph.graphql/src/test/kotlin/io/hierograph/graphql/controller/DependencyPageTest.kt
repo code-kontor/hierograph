@@ -21,7 +21,7 @@ import graphql.execution.MergedField
 import graphql.execution.ResultPath
 import graphql.language.Field
 import graphql.schema.DataFetchingEnvironmentImpl
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test

@@ -21,8 +21,8 @@ import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.graphql.model.NodesToConsider
 import io.hierograph.graphql.model.OrderedAdjacencyMatrixModel
 import io.hierograph.graphql.model.StronglyConnectedComponentModel
-import io.hierograph.hierarchicalgraph.core.algorithms.GraphUtils
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
+import io.hierograph.hierarchicalgraph.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller

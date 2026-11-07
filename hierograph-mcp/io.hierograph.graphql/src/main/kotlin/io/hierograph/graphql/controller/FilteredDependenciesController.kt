@@ -19,8 +19,8 @@ import io.hierograph.graphql.HierarchicalGraphProvider
 import io.hierograph.graphql.model.DependencyPageModel
 import io.hierograph.graphql.model.FilteredDependenciesModel
 import io.hierograph.graphql.model.NodeType
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller

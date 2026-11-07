@@ -15,11 +15,11 @@
  */
 package io.hierograph.graphstore.hgmodel
 
-import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.hierarchicalgraph.core.model.INodeSource
+import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.INodeSource
 
 /**
- * The node source for a GraphStore-backed [io.hierograph.hierarchicalgraph.core.model.HGModel]. It
+ * The node source for a GraphStore-backed [io.hierograph.hierarchicalgraph.model.HGModel]. It
  * carries the node's display [name] and [qualifiedName] eagerly (from the GraphStore), so the existing
  * node-metadata provider resolves them off [INodeSource] without any Neo4j / bolt client — the
  * GraphStore counterpart of jQAssistant's `ExtendedGraphDbNodeSource`. [key] is the node's stable

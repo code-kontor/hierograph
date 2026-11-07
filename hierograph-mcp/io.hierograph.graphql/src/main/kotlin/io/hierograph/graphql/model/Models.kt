@@ -15,8 +15,8 @@
  */
 package io.hierograph.graphql.model
 
-import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
-import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.model.HGCoreDependency
+import io.hierograph.hierarchicalgraph.model.HGNode
 
 data class NodeSetModel(val nodeList: List<HGNode>)
 

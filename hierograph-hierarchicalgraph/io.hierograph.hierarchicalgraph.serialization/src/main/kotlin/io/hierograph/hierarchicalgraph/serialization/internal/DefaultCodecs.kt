@@ -15,8 +15,8 @@
  */
 package io.hierograph.hierarchicalgraph.serialization.internal
 
-import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
-import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
+import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
+import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 
 // The payload key under which identifier type metadata is stored.
 internal const val ID_TYPE_KEY = "_idType"

@@ -17,7 +17,7 @@ package io.hierograph.graphservice.pagination
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import io.hierograph.hierarchicalgraph.core.model.HGModel
+import io.hierograph.hierarchicalgraph.model.HGModel
 import java.security.MessageDigest
 import java.util.Base64
 
