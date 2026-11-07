@@ -72,10 +72,14 @@ import java.util.concurrent.Executors
  * placeholder types as virtual-dispatch fan roots in [HierarchyResolution] — previously a call to a JDK
  * interface like `java.util.Iterator#hasNext()` fanned out across every scanned implementation, inventing
  * ~164k spurious calls; a regression guard asserts the only-scanner `calls` residual stays <10% of jQA's.
- * Open convergence items (reported, not asserted): `throws` — jQA records exceptions beyond the declared
- * clause (likely body-thrown); small residuals (~a few %) on calls / returns / has_type / parameter_type /
- * overrides (narrower virtual-dispatch choices, self-calls, array/covariant notation). Detail-level parity
- * is close but **not yet** exact, so jQA is retained for now.
+ * jQA folds body-thrown exceptions into `throws`; the scanner splits them into `throws` (the declared
+ * clause) + `raises` (`throw new X(...)`, detected as an `invokespecial <init>` immediately before
+ * `athrow`). `throws`∪`raises` is asserted to be a subset of jQA's `throws` (the scanner invents none);
+ * the ~1k jQA-only remainder is exceptions rethrown / factory-produced / field-held rather than
+ * constructor-thrown, deliberately outside `raises`. Open items (reported, not asserted): small residuals
+ * (~a few %) on calls / returns / has_type / parameter_type / overrides (narrower virtual-dispatch choices,
+ * self-calls, array/covariant notation). Detail-level parity is close but **not yet** exact, so jQA is
+ * retained for now.
  *
  * Opt-in (needs Docker **and** network): run with
  * `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=ScannerVsJqaDiffIT -Dhierograph.scanner.validate=1`.
@@ -205,6 +209,28 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         println("  only-scanner detail (<=15): ${onlyScannerDetail.take(15)}")
         println("  only-jQA detail (<=15): ${onlyJqaDetail.take(15)}")
 
+        // jQA folds body-thrown exceptions into `throws`; the scanner splits them into `throws` (the
+        // declared clause) + `raises` (`throw new X(...)`). Validate that the union matches jQA's `throws`.
+        val scannerThrowsUnion = scannerDetail.asSequence()
+            .filter { it.third == "throws" || it.third == "raises" }
+            .mapTo(HashSet()) { Triple(it.first, it.second, "throws") }
+        val jqaThrows = jqaDetail.filter { it.third == "throws" }.toHashSet()
+        val onlyScannerThrows = scannerThrowsUnion - jqaThrows
+        val onlyJqaThrows = jqaThrows - scannerThrowsUnion
+        println(
+            "throws∪raises vs jQA throws: scanner=${scannerThrowsUnion.size}, jQA=${jqaThrows.size}, " +
+                "only-scanner=${onlyScannerThrows.size}, only-jQA=${onlyJqaThrows.size}",
+        )
+        println("  only-scanner throws∪raises (<=15): ${onlyScannerThrows.take(15)}")
+        println("  only-jQA throws (<=15): ${onlyJqaThrows.take(15)}")
+        // The scanner never invents a throws/raises edge jQA lacks: `throws`∪`raises` ⊆ jQA `throws`.
+        // The jQA-only remainder (~1k) is exceptions that are rethrown / factory-produced / field-held /
+        // cast rather than `throw new X(...)` — jQA folds those into `throws`; they are deliberately
+        // outside `raises` (constructor-thrown only).
+        assertThat(onlyScannerThrows)
+            .withFailMessage { "scanner throws∪raises must be a subset of jQA throws; invented: ${onlyScannerThrows.take(30)}" }
+            .isEmpty()
+
         assertThat(scannerDetail).isNotEmpty()
         assertThat(jqaDetail).isNotEmpty()
         // Member-level facts needing no hierarchy inference match jQA exactly.
@@ -225,7 +251,6 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         // NOT asserted (open detail-convergence items, reported above):
         //  - `calls`: residual ~3% each way — the scanner fans virtual dispatch (incl. Object methods and
         //    self-calls) on scanned types a little more eagerly than jQA's VIRTUAL_INVOKES;
-        //  - `throws`: jQA records exceptions beyond the declared throws clause (likely body-thrown);
         //  - small residuals on returns / has_type / parameter_type / overrides (array/covariant notation).
     }
 

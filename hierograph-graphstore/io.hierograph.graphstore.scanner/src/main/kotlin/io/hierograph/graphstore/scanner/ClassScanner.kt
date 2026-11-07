@@ -57,8 +57,8 @@ internal class ScannedClass(
  *
  * Type-level [Ref]s are aggregated per (target, kind) with a **count** of individual references, so the
  * dependency weight is "number of references". Member-level [DetailRef]s use the snapshot's detail
- * vocabulary (`calls`, `reads_field`, `writes_field`, `throws`, `returns`, `has_type`, `parameter_type`,
- * `annotated_by`) — the **direct** edges only; `overrides` and virtual/resolved calls need the type
+ * vocabulary (`calls`, `reads_field`, `writes_field`, `throws`, `raises`, `returns`, `has_type`,
+ * `parameter_type`, `annotated_by`) — the **direct** edges only; `overrides` and virtual/resolved calls need the type
  * hierarchy and are derived at load (see `HierarchyResolution` in the graph service). Annotation *values*
  * (enum constants, class values, nested annotations) count as [RefKind.ANNOTATION_VALUE].
  */
@@ -237,6 +237,12 @@ internal object ClassScanner {
             private val annotations = ArrayList<Type>()
             private val bodyRefs = ArrayList<DetailRef>()
             private var bridgeTarget: String? = null
+            // The type whose constructor was the last real bytecode instruction — i.e. a freshly-built
+            // object sitting on the stack top. `throw new X(...)` ends `...; invokespecial X.<init>; athrow`,
+            // so an ATHROW seen while this is set is throwing that new object. Any other instruction clears
+            // it, so an exception that is stored, returned, or rethrown is not mistaken for a `throw new`.
+            private var constructed: String? = null
+            private val raised = LinkedHashSet<String>()
 
             override fun visitLineNumber(line: Int, start: Label) {
                 this.line = line
@@ -265,15 +271,28 @@ internal object ClassScanner {
             /** The default value of an annotation type's element. */
             override fun visitAnnotationDefault(): AnnotationVisitor = AnnotationValues()
 
-            override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) =
+            override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) {
                 call(owner, name, descriptor)
+                // A constructor call leaves the built object on the stack; anything else consumes the stack.
+                constructed = if (opcode == Opcodes.INVOKESPECIAL && name == "<init>") JavaNames.fqn(owner) else null
+            }
 
             override fun visitInvokeDynamicInsn(name: String, descriptor: String, bootstrap: Handle, vararg arguments: Any?) {
+                constructed = null
                 // A lambda or method reference: link to its implementation method, as jQA does.
                 if (bootstrap.owner == "java/lang/invoke/LambdaMetafactory") {
                     (arguments.getOrNull(1) as? Handle)?.let { call(it.owner, it.name, it.desc) }
                 }
             }
+
+            // Any instruction other than the throw itself means the freshly-built object (if any) was
+            // consumed, so it is no longer a `throw new` candidate.
+            override fun visitVarInsn(opcode: Int, varIndex: Int) { constructed = null }
+            override fun visitIntInsn(opcode: Int, operand: Int) { constructed = null }
+            override fun visitJumpInsn(opcode: Int, label: Label) { constructed = null }
+            override fun visitIincInsn(varIndex: Int, increment: Int) { constructed = null }
+            override fun visitTableSwitchInsn(min: Int, max: Int, dflt: Label, vararg labels: Label) { constructed = null }
+            override fun visitLookupSwitchInsn(dflt: Label, keys: IntArray?, labels: Array<out Label>?) { constructed = null }
 
             private fun call(owner: String, name: String, descriptor: String) {
                 if (owner.startsWith("[")) return // array pseudo-methods (clone) have no owner type
@@ -287,6 +306,7 @@ internal object ClassScanner {
             }
 
             override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
+                constructed = null
                 val write = opcode == Opcodes.PUTFIELD || opcode == Opcodes.PUTSTATIC
                 refInternal(owner, if (write) RefKind.WRITES else RefKind.READS)
                 val ownerFqn = JavaNames.fqn(owner)
@@ -297,15 +317,28 @@ internal object ClassScanner {
             }
 
             override fun visitTypeInsn(opcode: Int, type: String) {
+                constructed = null // NEW leaves an *uninitialized* ref; it becomes a candidate only after its <init>
                 when (opcode) {
                     Opcodes.NEW, Opcodes.ANEWARRAY -> refInternal(type, RefKind.INSTANTIATES)
                     Opcodes.CHECKCAST, Opcodes.INSTANCEOF -> refInternal(type, RefKind.CAST)
                 }
             }
 
-            override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) = ref(Type.getType(descriptor), RefKind.INSTANTIATES)
+            override fun visitInsn(opcode: Int) {
+                // `raises`: the body-level counterpart of the declared `throws` clause. A `throw new X(...)`
+                // ends with `invokespecial X.<init>; athrow`, so an ATHROW with `constructed` still set is
+                // throwing that freshly-built object. Any other instruction has cleared it, so a rethrown,
+                // stored, returned or factory-produced exception is not counted (that is not a `throw new`).
+                if (opcode == Opcodes.ATHROW) constructed?.let { raised += it } else constructed = null
+            }
+
+            override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) {
+                constructed = null
+                ref(Type.getType(descriptor), RefKind.INSTANTIATES)
+            }
 
             override fun visitLdcInsn(value: Any?) {
+                constructed = null
                 if (value is Type && (value.sort == Type.OBJECT || value.sort == Type.ARRAY)) ref(value, RefKind.CLASS_LITERAL)
             }
 
@@ -343,6 +376,7 @@ internal object ClassScanner {
                 detail(key, typeTarget(methodType.returnType), "returns", minLine)
                 argumentTypes.map { typeTarget(it) }.distinct().forEach { detail(key, it, "parameter_type", minLine) }
                 exceptions.forEach { detail(key, JavaNames.fqn(it), "throws", minLine) }
+                raised.forEach { detail(key, it, "raises", minLine) }
                 annotations.forEach { detail(key, typeTarget(it), "annotated_by", null) }
                 detailRefs += bodyRefs
             }

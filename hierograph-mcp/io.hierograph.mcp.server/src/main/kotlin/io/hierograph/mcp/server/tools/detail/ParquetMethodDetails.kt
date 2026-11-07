@@ -71,6 +71,8 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
             else -> edges.firstOrNull { it.relationship == "returns" }?.let { typeRef(it.toType) } ?: primitiveRef("void")
         }
         val throwsList = edges.filter { it.relationship == "throws" }.map { it.toType }.distinct().map { typeRef(it) }
+        // `throws` is the declared clause; `raises` is the body-thrown `throw new X(...)` (see ClassScanner).
+        val raisesList = edges.filter { it.relationship == "raises" }.map { it.toType }.distinct().map { typeRef(it) }
         val annotations = edges.filter { it.relationship == "annotated_by" }.map { it.toType }.distinct()
             .map { linkedMapOf<String, Any?>("type" to typeRef(it)) }
         val overrides = edges.firstOrNull { it.relationship == "overrides" }?.let { methodRefFor(reader, dir, it.toKey, it.toType) }
@@ -93,6 +95,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
             "return_type" to returnType,
             "parameters" to parameters,
             "throws" to throwsList,
+            "raises" to raisesList,
             "annotations" to annotations,
             "overrides" to overrides,
             "location" to location,

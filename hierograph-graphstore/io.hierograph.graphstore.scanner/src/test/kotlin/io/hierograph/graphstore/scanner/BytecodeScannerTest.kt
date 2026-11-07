@@ -99,7 +99,12 @@ class BytecodeScannerTest {
         """,
         "fix/Animal.java" to """
             package fix;
-            public class Animal { public Object self() { return this; } }
+            public class Animal {
+                public Object self() { return this; }
+                void boom() { throw new IllegalStateException("x"); }          // raises, not declared
+                void declared() throws java.io.IOException {}                  // declared, never thrown
+                void rethrow() { try { boom(); } catch (RuntimeException e) { throw e; } } // rethrow: no new
+            }
         """,
         "fix/Dog.java" to """
             package fix;
@@ -247,6 +252,20 @@ class BytecodeScannerTest {
         assertThat(details(ctor, "writes_field").map { it.toKey }).contains("fix.Circle#double r")
         assertThat(details("fix.Circle#byte[] data", "has_type").map { it.toType }).containsExactly("byte")
         assertThat(details("fix.Circle#void lambda\$tags\$0(int[])", "calls").map { it.toKey }).contains("fix.Circle#void helper(int)")
+    }
+
+    @Test
+    fun `raises captures body-thrown exceptions while throws stays the declared clause`() {
+        val boom = "fix.Animal#void boom()"
+        assertThat(details(boom, "raises").map { it.toType }).containsExactly("java.lang.IllegalStateException")
+        assertThat(details(boom, "throws")).isEmpty()
+
+        val declared = "fix.Animal#void declared()"
+        assertThat(details(declared, "throws").map { it.toType }).containsExactly("java.io.IOException")
+        assertThat(details(declared, "raises")).isEmpty()
+
+        // A rethrow of a caught exception constructs nothing, so it raises nothing (no false positive).
+        assertThat(details("fix.Animal#void rethrow()", "raises")).isEmpty()
     }
 
     @Test

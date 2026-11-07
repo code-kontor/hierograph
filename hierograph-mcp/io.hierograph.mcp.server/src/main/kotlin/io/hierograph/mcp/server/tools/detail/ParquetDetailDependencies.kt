@@ -257,7 +257,7 @@ class ParquetDetailDependencies(
     private companion object {
         /** The detail relationship vocabulary (mirrors DetailDependenciesComponent's BRANCHES kinds). */
         private val RELATIONSHIP_KINDS = setOf(
-            "throws", "returns", "has_type", "calls", "overrides", "reads_field", "writes_field",
+            "throws", "raises", "returns", "has_type", "calls", "overrides", "reads_field", "writes_field",
             "read_by", "written_by", "annotated_by", "parameter_type", "parameter_annotated_by",
         )
     }
