@@ -23,6 +23,7 @@ import dev.hardwood.writer.StructBuilder
 import dev.hardwood.writer.WriterConfig
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.DetailRef
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Arrays
 import java.util.concurrent.Callable
@@ -54,6 +55,35 @@ object ParquetWriter {
     /** Writes a complete snapshot — the four type-level tables plus `detail_refs` — all five in parallel. */
     fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) =
         runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDetailRefs(dir, detailRefs, codec) }))
+
+    /**
+     * Writes a project snapshot as **one `.hierograph` archive per artifact** under [outDir]: the classes
+     * are grouped by [ArtifactClass.artifactKey], the [detailRefs] by the artifact that owns their `from`
+     * side (its declaring type's artifact), and each group becomes `<artifact>.hierograph` (a STORED ZIP of
+     * that artifact's five Parquet tables). This is the scanner's output shape; the loader reads such a
+     * directory back across all archives. (A reference's `from` type is always one this snapshot scanned,
+     * so it maps to an artifact; if an FQN is defined by several artifacts the first wins — a rare, documented
+     * duplicate-FQN case.)
+     */
+    fun writeArtifacts(outDir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) {
+        Files.createDirectories(outDir)
+        val artifactByFqn = classes.associate { it.facts.fqn to it.artifactKey }
+        val detailByArtifact = detailRefs.groupBy { artifactByFqn[it.fromType] }
+        for ((artifactKey, artifactClasses) in classes.groupBy { it.artifactKey }) {
+            val staging = Files.createTempDirectory("hierograph-write-")
+            try {
+                writeSnapshot(staging, artifactClasses, detailByArtifact[artifactKey].orEmpty(), codec)
+                HierographArchive.zip(staging, outDir.resolve(HierographArchive.fileName(artifactKey)))
+            } finally {
+                deleteRecursively(staging)
+            }
+        }
+    }
+
+    private fun deleteRecursively(dir: Path) {
+        if (!Files.exists(dir)) return
+        Files.walk(dir).use { paths -> paths.sorted { a, b -> b.compareTo(a) }.forEach(Files::delete) }
+    }
 
     private fun classFactsTasks(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec): List<() -> Unit> = listOf(
         { writeTypes(dir, classes, codec) },

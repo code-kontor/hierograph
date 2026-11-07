@@ -44,33 +44,58 @@ import java.nio.file.Path
  */
 class ParquetReader {
 
-    /** Loads every table found under [parquetDir] into [store]. Missing tables are treated as empty. */
+    /**
+     * Loads a snapshot into [store]. [parquetDir] is either a directory of per-artifact `.hierograph`
+     * archives (the scanner's output — each loaded in turn) or a single combined table directory
+     * (the legacy jQA export). Missing tables are treated as empty; [GraphStore.resolvePlaceholders] runs
+     * once after all artifacts are in, so cross-artifact references resolve against the full set.
+     */
     fun load(parquetDir: Path, store: GraphStore) {
-        val types = readTypes(parquetDir.resolve(ParquetSchema.TYPES_FILE))
-        val membersByOwner = readMembers(parquetDir.resolve(ParquetSchema.MEMBERS_FILE))
-        val refsByOwner = readRefs(parquetDir.resolve(ParquetSchema.REFS_FILE))
+        for (dir in snapshotDirs(parquetDir)) {
+            val types = readTypes(dir.resolve(ParquetSchema.TYPES_FILE))
+            val membersByOwner = readMembers(dir.resolve(ParquetSchema.MEMBERS_FILE))
+            val refsByOwner = readRefs(dir.resolve(ParquetSchema.REFS_FILE))
 
-        val registered = HashSet<String>()
-        for (t in types) {
-            if (registered.add(t.artifact)) {
-                // MVP: the artifact column is a bare name; origin is not needed by the row projections.
-                store.registerArtifact(ArtifactInfo(t.artifact, t.artifact, t.artifact, Origin.MODULE_MAIN))
+            val registered = HashSet<String>()
+            for (t in types) {
+                if (registered.add(t.artifact)) {
+                    // MVP: the artifact column is a bare name; origin is not needed by the row projections.
+                    store.registerArtifact(ArtifactInfo(t.artifact, t.artifact, t.artifact, Origin.MODULE_MAIN))
+                }
+                store.applyClass(
+                    t.artifact,
+                    ClassFacts(
+                        fqn = t.fqn,
+                        kind = JavaNodeKind.valueOf(t.kind),
+                        modifiers = t.modifiers ?: 0,
+                        members = membersByOwner[t.fqn].orEmpty(),
+                        refs = refsByOwner[t.fqn].orEmpty(),
+                        classHash = t.classHash.orEmpty(),
+                        sourceFile = t.sourceFile,
+                    ),
+                )
             }
-            store.applyClass(
-                t.artifact,
-                ClassFacts(
-                    fqn = t.fqn,
-                    kind = JavaNodeKind.valueOf(t.kind),
-                    modifiers = t.modifiers ?: 0,
-                    members = membersByOwner[t.fqn].orEmpty(),
-                    refs = refsByOwner[t.fqn].orEmpty(),
-                    classHash = t.classHash.orEmpty(),
-                    sourceFile = t.sourceFile,
-                ),
-            )
         }
         store.resolvePlaceholders()
     }
+
+    /**
+     * The table directories to read a snapshot from: the extracted dir of each `*.hierograph` archive in
+     * [parquetDir] (one per artifact), or just [parquetDir] itself when it holds the tables directly (the
+     * legacy combined layout) or is not a directory. Archives are extracted once and cached
+     * (see [HierographArchive.extracted]).
+     */
+    private fun snapshotDirs(parquetDir: Path): List<Path> {
+        if (!Files.isDirectory(parquetDir)) return listOf(parquetDir)
+        val archives = Files.list(parquetDir).use { stream ->
+            stream.filter { it.fileName.toString().endsWith(HierographArchive.EXTENSION) }.sorted().toList()
+        }
+        return if (archives.isEmpty()) listOf(parquetDir) else archives.map { HierographArchive.extracted(it) }
+    }
+
+    /** Reads [file] across every snapshot dir under [parquetDir] and concatenates the mapped rows. */
+    private fun <T> readAcross(parquetDir: Path, file: String, filter: FilterPredicate? = null, map: (RowCursor) -> T): List<T> =
+        snapshotDirs(parquetDir).flatMap { readRows(it.resolve(file), filter, map) }
 
     /**
      * Scoped read of the member-level `detail_refs` table with predicate push-down: returns the rows
@@ -86,7 +111,7 @@ class ParquetReader {
         relationship: String? = null,
     ): List<DetailRef> {
         val cols = ParquetSchema.DetailRefs
-        return readRows(parquetDir.resolve(ParquetSchema.DETAIL_REFS_FILE), detailRefsFilter(fromTypes, toTypes, relationship)) { r ->
+        return readAcross(parquetDir, ParquetSchema.DETAIL_REFS_FILE, detailRefsFilter(fromTypes, toTypes, relationship)) { r ->
             DetailRef(
                 fromKey = r.string(cols.FROM_KEY),
                 fromType = r.string(cols.FROM_TYPE),
@@ -127,27 +152,37 @@ class ParquetReader {
      * Scoped read of `types.parquet`: the rows whose `fqn` is in [fqns] (one per defining artifact).
      * Used to serve per-type properties on demand without keeping them in the in-memory graph.
      */
-    fun readTypeRows(parquetDir: Path, fqns: Collection<String>): List<TypeRow> =
-        if (fqns.isEmpty()) emptyList()
-        else readTypes(parquetDir.resolve(ParquetSchema.TYPES_FILE), FilterPredicate.`in`(ParquetSchema.Types.FQN, *fqns.toTypedArray()))
+    fun readTypeRows(parquetDir: Path, fqns: Collection<String>): List<TypeRow> {
+        if (fqns.isEmpty()) return emptyList()
+        val filter = FilterPredicate.`in`(ParquetSchema.Types.FQN, *fqns.toTypedArray())
+        return snapshotDirs(parquetDir).flatMap { readTypes(it.resolve(ParquetSchema.TYPES_FILE), filter) }
+    }
 
     /**
      * Scoped read of `members.parquet`, grouped by owner FQN, for the owners in [ownerFqns] (no
      * parameters attached). Members are keyed by owner FQN only, so same-FQN types from different
      * artifacts share one entry.
      */
-    fun readMembersByOwner(parquetDir: Path, ownerFqns: Collection<String>): Map<String, List<MemberFacts>> =
-        if (ownerFqns.isEmpty()) emptyMap()
-        else readMembers(parquetDir.resolve(ParquetSchema.MEMBERS_FILE), FilterPredicate.`in`(ParquetSchema.Members.OWNER_FQN, *ownerFqns.toTypedArray()))
+    fun readMembersByOwner(parquetDir: Path, ownerFqns: Collection<String>): Map<String, List<MemberFacts>> {
+        if (ownerFqns.isEmpty()) return emptyMap()
+        val filter = FilterPredicate.`in`(ParquetSchema.Members.OWNER_FQN, *ownerFqns.toTypedArray())
+        return snapshotDirs(parquetDir)
+            .flatMap { readMembers(it.resolve(ParquetSchema.MEMBERS_FILE), filter).entries }
+            .groupBy({ it.key }, { it.value }).mapValues { (_, lists) -> lists.flatten() }
+    }
 
     /**
      * Scoped read of the type-level `refs.parquet`: the outgoing refs (extends / implements / annotated_by /
      * depends_on) of the types in [fromTypes], grouped by source type FQN. Targets are bare FQNs, kept even
      * when the placeholder policy keeps them out of the in-memory graph (e.g. `java.lang.Object`).
      */
-    fun readRefsFrom(parquetDir: Path, fromTypes: Collection<String>): Map<String, List<Ref>> =
-        if (fromTypes.isEmpty()) emptyMap()
-        else readRefs(parquetDir.resolve(ParquetSchema.REFS_FILE), FilterPredicate.`in`(ParquetSchema.Refs.FROM_TYPE, *fromTypes.toTypedArray()))
+    fun readRefsFrom(parquetDir: Path, fromTypes: Collection<String>): Map<String, List<Ref>> {
+        if (fromTypes.isEmpty()) return emptyMap()
+        val filter = FilterPredicate.`in`(ParquetSchema.Refs.FROM_TYPE, *fromTypes.toTypedArray())
+        return snapshotDirs(parquetDir)
+            .flatMap { readRefs(it.resolve(ParquetSchema.REFS_FILE), filter).entries }
+            .groupBy({ it.key }, { it.value }).mapValues { (_, lists) -> lists.flatten() }
+    }
 
     private fun readTypes(path: Path, filter: FilterPredicate? = null): List<TypeRow> =
         readRows(path, filter) { r ->
@@ -182,22 +217,24 @@ class ParquetReader {
      * The detail tools use this to serve `method_details` / `field_details` straight from the snapshot.
      */
     fun readMember(parquetDir: Path, memberKey: String): MemberFacts? {
-        val member = readRows(parquetDir.resolve(ParquetSchema.MEMBERS_FILE), FilterPredicate.eq(ParquetSchema.Members.MEMBER_KEY, memberKey)) { memberFacts(it) }
-            .firstOrNull() ?: return null
+        val filter = FilterPredicate.eq(ParquetSchema.Members.MEMBER_KEY, memberKey)
+        val member = snapshotDirs(parquetDir).firstNotNullOfOrNull { dir ->
+            readRows(dir.resolve(ParquetSchema.MEMBERS_FILE), filter) { memberFacts(it) }.firstOrNull()
+        } ?: return null
         return member.copy(parameters = readParameters(parquetDir, memberKey))
     }
 
     /** Every member key in the snapshot (for building a handle→key index). */
     fun readMemberKeys(parquetDir: Path): List<String> =
-        readRows(parquetDir.resolve(ParquetSchema.MEMBERS_FILE)) { it.string(ParquetSchema.Members.MEMBER_KEY) }
+        readAcross(parquetDir, ParquetSchema.MEMBERS_FILE) { it.string(ParquetSchema.Members.MEMBER_KEY) }
 
     /** Every member in the snapshot (no parameters attached); for enumeration/diagnostics. */
     fun readAllMembers(parquetDir: Path): List<MemberFacts> =
-        readRows(parquetDir.resolve(ParquetSchema.MEMBERS_FILE)) { memberFacts(it) }
+        readAcross(parquetDir, ParquetSchema.MEMBERS_FILE) { memberFacts(it) }
 
     /** Reads a method's declared parameters (ordered by index) from `parameters.parquet`. */
     fun readParameters(parquetDir: Path, methodKey: String): List<ParameterFacts> =
-        readRows(parquetDir.resolve(ParquetSchema.PARAMETERS_FILE), FilterPredicate.eq(ParquetSchema.Parameters.METHOD_KEY, methodKey)) { r ->
+        readAcross(parquetDir, ParquetSchema.PARAMETERS_FILE, FilterPredicate.eq(ParquetSchema.Parameters.METHOD_KEY, methodKey)) { r ->
             ParameterFacts(
                 index = r.int(ParquetSchema.Parameters.INDEX),
                 name = r.string(ParquetSchema.Parameters.NAME),

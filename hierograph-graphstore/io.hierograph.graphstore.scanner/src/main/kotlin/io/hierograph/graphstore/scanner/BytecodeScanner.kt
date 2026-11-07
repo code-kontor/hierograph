@@ -42,10 +42,10 @@ data class ScanArtifact(val key: String, val path: Path) {
 /** The scanned classes (type level) and their member-level references. */
 data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<DetailRef>) {
 
-    /** Writes the result as a Parquet snapshot (`types` / `members` / `parameters` / `refs` + `detail_refs`, in parallel). */
+    /** Writes the result as one `.hierograph` archive per artifact under [dir] (types/members/parameters/refs/detail_refs). */
     fun writeTo(dir: Path, codec: CompressionCodec = CompressionCodec.ZSTD) {
         Files.createDirectories(dir)
-        ParquetWriter.writeSnapshot(dir, classes, detailRefs, codec)
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, codec)
     }
 }
 
