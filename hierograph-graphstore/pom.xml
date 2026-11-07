@@ -22,7 +22,6 @@
         <module>io.hierograph.graphstore.model</module>
         <module>io.hierograph.graphstore.core</module>
         <module>io.hierograph.graphstore.parquet</module>
-        <module>io.hierograph.graphstore.detail</module>
         <module>io.hierograph.graphstore.hgmodel</module>
         <module>io.hierograph.graphstore.scanner</module>
     </modules>
