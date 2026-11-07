@@ -192,6 +192,7 @@ internal object ClassScanner {
                     final = access and Opcodes.ACC_FINAL != 0,
                     transient = access and Opcodes.ACC_TRANSIENT != 0,
                     volatile = access and Opcodes.ACC_VOLATILE != 0,
+                    synthetic = access and Opcodes.ACC_SYNTHETIC != 0,
                 ),
             )
             val type = Type.getType(descriptor)
@@ -329,6 +330,8 @@ internal object ClassScanner {
                         synchronized = access and Opcodes.ACC_SYNCHRONIZED != 0,
                         native = access and Opcodes.ACC_NATIVE != 0,
                         default = isInterface && !isAbstract && !isStatic && access and Opcodes.ACC_PRIVATE == 0 && name != "<clinit>",
+                        bridge = access and Opcodes.ACC_BRIDGE != 0,
+                        synthetic = access and Opcodes.ACC_SYNTHETIC != 0,
                     ),
                     lineFrom = minLine,
                     lineTo = maxLine,

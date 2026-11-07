@@ -37,6 +37,14 @@ object MemberModifiers {
     const val VOLATILE = 1 shl 9
     const val DEFAULT = 1 shl 10
 
+    /**
+     * Compiler-generated flags. Not user-facing modifiers (kept out of [methodModifiers] / [fieldModifiers]),
+     * but needed by the hierarchy resolver to get covariant-return overrides right: a covariant override
+     * compiles to a [BRIDGE] method forwarding to the real one, and both must be reasoned about.
+     */
+    const val BRIDGE = 1 shl 11
+    const val SYNTHETIC = 1 shl 12
+
     /** Packs the given flags into a bitmap. [visibility] is one of public/protected/private (else package-private). */
     fun pack(
         visibility: String?,
@@ -48,6 +56,8 @@ object MemberModifiers {
         default: Boolean = false,
         transient: Boolean = false,
         volatile: Boolean = false,
+        bridge: Boolean = false,
+        synthetic: Boolean = false,
     ): Int {
         var bits = when (visibility?.lowercase()) {
             "public" -> PUBLIC
@@ -63,8 +73,13 @@ object MemberModifiers {
         if (default) bits = bits or DEFAULT
         if (transient) bits = bits or TRANSIENT
         if (volatile) bits = bits or VOLATILE
+        if (bridge) bits = bits or BRIDGE
+        if (synthetic) bits = bits or SYNTHETIC
         return bits
     }
+
+    fun isBridge(bits: Int): Boolean = bits and BRIDGE != 0
+    fun isSynthetic(bits: Int): Boolean = bits and SYNTHETIC != 0
 
     fun visibility(bits: Int): String = when {
         bits and PUBLIC != 0 -> "public"

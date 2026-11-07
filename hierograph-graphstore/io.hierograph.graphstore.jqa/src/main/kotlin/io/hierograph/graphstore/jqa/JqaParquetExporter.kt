@@ -69,6 +69,9 @@ class JqaParquetExporter(private val boltClient: IBoltClient) {
                     default = r.bool("is_default"),
                     transient = r.bool("is_transient"),
                     volatile = r.bool("is_volatile"),
+                    // jQAssistant exposes `synthetic` but not a bridge flag; bridge stays false on
+                    // jQA-sourced snapshots (the scanner sets it from the ACC_BRIDGE bytecode flag).
+                    synthetic = r.bool("is_synthetic"),
                 ),
                 lineFrom = r.intOrNull("line_from"),
                 lineTo = r.intOrNull("line_to"),

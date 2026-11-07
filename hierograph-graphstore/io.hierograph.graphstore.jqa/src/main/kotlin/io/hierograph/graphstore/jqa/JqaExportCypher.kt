@@ -59,6 +59,7 @@ object JqaExportCypher {
                coalesce(m.default, false) AS is_default,
                coalesce(m.transient, false) AS is_transient,
                coalesce(m.volatile, false) AS is_volatile,
+               coalesce(m.synthetic, false) AS is_synthetic,
                m.firstLineNumber AS line_from,
                m.lastLineNumber AS line_to
     """.trimIndent()
