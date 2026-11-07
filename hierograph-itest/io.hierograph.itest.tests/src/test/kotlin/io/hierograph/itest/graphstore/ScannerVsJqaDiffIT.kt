@@ -68,10 +68,14 @@ import java.util.concurrent.Executors
  * **Detail (member-level) edges.** The scanner's direct edges plus the load-derived overrides/virtual/
  * resolved calls ([HierarchyResolution]) are diffed against jQA's full member-edge export by
  * `(fromKey,toKey,relationship)` (line ignored). `annotated_by` / `reads_field` / `writes_field` match
- * exactly (asserted). Open convergence items (reported, not asserted): `calls` — the virtual-dispatch
- * fan-out is much broader than jQA's `VIRTUAL_INVOKES` (scanner over-approximates); `throws` — jQA
- * records exceptions beyond the declared clause; and small residuals on returns / has_type /
- * parameter_type / overrides. Detail-level parity is therefore **not yet** sufficient to retire jQA.
+ * exactly (asserted). `calls` is now at parity (scanner 198k vs jQA 196k) after excluding external
+ * placeholder types as virtual-dispatch fan roots in [HierarchyResolution] — previously a call to a JDK
+ * interface like `java.util.Iterator#hasNext()` fanned out across every scanned implementation, inventing
+ * ~164k spurious calls; a regression guard asserts the only-scanner `calls` residual stays <10% of jQA's.
+ * Open convergence items (reported, not asserted): `throws` — jQA records exceptions beyond the declared
+ * clause (likely body-thrown); small residuals (~a few %) on calls / returns / has_type / parameter_type /
+ * overrides (narrower virtual-dispatch choices, self-calls, array/covariant notation). Detail-level parity
+ * is close but **not yet** exact, so jQA is retained for now.
  *
  * Opt-in (needs Docker **and** network): run with
  * `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=ScannerVsJqaDiffIT -Dhierograph.scanner.validate=1`.
@@ -176,6 +180,7 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
             HierarchyResolution.Type(
                 n.fqn, superByFqn[n.fqn].orEmpty(),
                 methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom) },
+                external = n.kind == JavaKinds.EXTERNAL_TYPE,
             )
         }.toList()
         val derived = HierarchyResolution.resolve(types, scannerDirect.filter { it.relationship == "calls" })
@@ -207,11 +212,21 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         assertThat((onlyScannerDetail + onlyJqaDetail).filter { it.third in cleanRelationships })
             .withFailMessage { "detail edges for $cleanRelationships must match jQA exactly; diffs: ${(onlyScannerDetail + onlyJqaDetail).filter { it.third in cleanRelationships }.take(30)}" }
             .isEmpty()
+        // Regression guard for the external-type virtual-dispatch over-fan: a call to a JDK interface
+        // such as java.util.Iterator#hasNext() must not fan out to every scanned implementation of it.
+        // Before the fix the scanner invented ~164k such calls (84% of jQA's total); with external types
+        // excluded as fan roots the only-scanner residual is a few % (narrower virtual-dispatch choices on
+        // *scanned* types plus self-calls). 10% cleanly separates fixed (~3%) from the old bug (~84%).
+        val jqaCalls = jqaDetail.count { it.third == "calls" }
+        val onlyScannerCalls = onlyScannerDetail.count { it.third == "calls" }
+        assertThat(onlyScannerCalls.toDouble() / jqaCalls)
+            .withFailMessage { "scanner invents too many 'calls' ($onlyScannerCalls vs jQA $jqaCalls) — virtual-dispatch over-fan regressed?" }
+            .isLessThan(0.10)
         // NOT asserted (open detail-convergence items, reported above):
-        //  - `calls`: the load-time virtual-dispatch fan-out is far broader than jQA's VIRTUAL_INVOKES
-        //    (scanner over-approximates — needs reconciling);
+        //  - `calls`: residual ~3% each way — the scanner fans virtual dispatch (incl. Object methods and
+        //    self-calls) on scanned types a little more eagerly than jQA's VIRTUAL_INVOKES;
         //  - `throws`: jQA records exceptions beyond the declared throws clause (likely body-thrown);
-        //  - small residuals on returns / has_type / parameter_type / overrides.
+        //  - small residuals on returns / has_type / parameter_type / overrides (array/covariant notation).
     }
 
     private fun definedTypes(rows: List<HierarchyRow>): Set<String> =

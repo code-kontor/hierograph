@@ -30,7 +30,10 @@ import io.hierograph.graphstore.model.MemberModifiers
  *   bridge method carries the exact parent signature and is matched directly). Constructors, static
  *   initializers, static and private methods take no part.
  * - **virtual calls** — a call to `T#m` may dispatch to any implementation of `m` in a subtype of `T`, so
- *   each such implementation also gets a `calls` edge. Only for a scanned `T`. No self edges.
+ *   each such implementation also gets a `calls` edge. Only for a scanned `T` — **external/placeholder
+ *   types are not scanned**: we know only the arbitrary handful of their implementations that happen to be
+ *   in the set, so fanning a call to e.g. `java.util.Iterator#hasNext()` across them is both unsound and
+ *   explosive. No self edges.
  * - **resolved calls** — a call naming a receiver's static type that only *inherits* the method is also
  *   linked to the declaration in the nearest scanned supertype.
  *
@@ -43,8 +46,12 @@ object HierarchyResolution {
     /** A scanned method/constructor: its node key, signature, packed [MemberModifiers], and declaration line. */
     class Method(val key: String, val signature: String, val modifiers: Int, val lineFrom: Int?)
 
-    /** A scanned type: its FQN, the FQNs of its direct supertypes (super + interfaces), and its methods. */
-    class Type(val fqn: String, val directSupertypes: List<String>, val methods: List<Method>)
+    /**
+     * A type in the assembled graph: its FQN, the FQNs of its direct supertypes (super + interfaces), and
+     * its methods. [external] marks a placeholder/stub type (referenced but not scanned, so its real
+     * subtype set is unknown) — such a type never acts as a virtual-dispatch fan root.
+     */
+    class Type(val fqn: String, val directSupertypes: List<String>, val methods: List<Method>, val external: Boolean = false)
 
     fun resolve(types: List<Type>, directCalls: List<DetailRef>): List<DetailRef> {
         val hierarchy = Hierarchy(types)
@@ -97,6 +104,7 @@ object HierarchyResolution {
     /** Supertype/subtype navigation and per-type method tables over the scanned set (first definer per FQN). */
     private class Hierarchy(types: List<Type>) {
         private val byFqn = HashMap<String, Type>().apply { types.forEach { putIfAbsent(it.fqn, it) } }
+        private val externalFqns = types.asSequence().filter { it.external }.mapTo(HashSet()) { it.fqn }
         private val directSubtypes = HashMap<String, MutableList<String>>().apply {
             byFqn.values.forEach { c -> c.directSupertypes.forEach { getOrPut(it) { ArrayList() } += c.fqn } }
         }
@@ -115,7 +123,7 @@ object HierarchyResolution {
             byFqn[fqn]?.methods.orEmpty().filter { overridable(it) }.groupBy { nameAndParameters(it.signature) }
         }
 
-        fun isScanned(fqn: String): Boolean = fqn in byFqn
+        fun isScanned(fqn: String): Boolean = fqn in byFqn && fqn !in externalFqns
 
         fun inheritedDeclaration(fqn: String, signature: String): Pair<String, Method>? =
             supertypesOf(fqn).firstNotNullOfOrNull { s ->

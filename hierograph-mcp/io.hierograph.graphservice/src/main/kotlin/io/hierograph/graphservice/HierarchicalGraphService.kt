@@ -266,6 +266,7 @@ class HierarchicalGraphService {
                     fqn = n.fqn,
                     directSupertypes = superByFqn[n.fqn].orEmpty(),
                     methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom) },
+                    external = n.kind == JavaKinds.EXTERNAL_TYPE,
                 )
             }.toList()
         val directCalls = reader.readDetailRefs(dir, relationship = "calls")
