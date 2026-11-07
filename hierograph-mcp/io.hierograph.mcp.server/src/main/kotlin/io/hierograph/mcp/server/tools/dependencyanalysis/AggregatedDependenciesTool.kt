@@ -17,8 +17,8 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.graphservice.HierarchicalGraphService
-import io.hierograph.javaspec.JavaEdgeAttributes
-import io.hierograph.javaspec.JavaKinds
+import io.hierograph.graphstore.model.JavaEdgeAttributes
+import io.hierograph.graphstore.model.JavaKinds
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam

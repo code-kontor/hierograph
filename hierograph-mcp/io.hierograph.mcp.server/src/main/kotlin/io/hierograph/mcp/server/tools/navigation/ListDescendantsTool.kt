@@ -23,8 +23,8 @@ import io.hierograph.graphservice.pagination.PageResult
 import io.hierograph.graphservice.pagination.PaginationSpec
 import io.hierograph.graphservice.pagination.Paginator
 import io.hierograph.graphservice.pagination.QueryHash
-import io.hierograph.javaspec.JavaKinds
-import io.hierograph.javaspec.JavaNodeKind
+import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam

@@ -18,7 +18,7 @@ package io.hierograph.mcp.server.tools.reachability
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.javaspec.JavaKinds
+import io.hierograph.graphstore.model.JavaKinds
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component

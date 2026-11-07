@@ -16,7 +16,7 @@
 package io.hierograph.graphstore.detail
 
 import io.hierograph.graphstore.GraphStore
-import io.hierograph.javaspec.JavaKinds
+import io.hierograph.graphstore.model.JavaKinds
 
 /**
  * Resolves a detail-query scope against the **type-level** GraphStore — the in-memory half of the

@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphstore
 
-import io.hierograph.javaspec.JavaKinds
+import io.hierograph.graphstore.model.JavaKinds
 
 /**
  * Decides which referenced-but-unscanned types the [GraphStore] materializes as in-memory placeholder

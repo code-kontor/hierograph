@@ -29,10 +29,6 @@
             <artifactId>io.hierograph.graphstore</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.javaspec</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
         </dependency>

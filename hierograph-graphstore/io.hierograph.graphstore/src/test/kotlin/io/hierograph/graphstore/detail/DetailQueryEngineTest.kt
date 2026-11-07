@@ -23,7 +23,7 @@ import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.ParquetWriter
-import io.hierograph.javaspec.JavaKinds
+import io.hierograph.graphstore.model.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

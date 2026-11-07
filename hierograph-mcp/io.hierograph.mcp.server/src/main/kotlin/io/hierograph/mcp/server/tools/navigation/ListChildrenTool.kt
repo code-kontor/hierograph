@@ -18,8 +18,8 @@ package io.hierograph.mcp.server.tools.navigation
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.javaspec.JavaKinds
-import io.hierograph.javaspec.JavaNodeKind
+import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam

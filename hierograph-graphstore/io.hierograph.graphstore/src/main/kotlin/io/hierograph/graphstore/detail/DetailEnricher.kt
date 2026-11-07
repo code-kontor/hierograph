@@ -21,8 +21,8 @@ import dev.hardwood.reader.ParquetFileReader
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.ParquetSchema
-import io.hierograph.javaspec.JavaKinds
-import io.hierograph.javaspec.JavaNodeKind
+import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.model.JavaNodeKind
 import java.nio.file.Files
 import java.nio.file.Path
 

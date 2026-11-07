@@ -28,10 +28,6 @@
         <!-- hierograph -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.javaspec</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.model</artifactId>
         </dependency>
         <dependency>

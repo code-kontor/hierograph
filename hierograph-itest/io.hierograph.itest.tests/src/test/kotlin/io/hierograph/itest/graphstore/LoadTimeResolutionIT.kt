@@ -21,8 +21,8 @@ import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.model.MemberModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
-import io.hierograph.javaspec.JavaKinds
-import io.hierograph.javaspec.JavaNodeKind
+import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

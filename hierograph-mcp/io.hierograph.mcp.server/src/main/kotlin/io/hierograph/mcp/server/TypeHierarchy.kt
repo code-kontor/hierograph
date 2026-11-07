@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.javaspec.JavaEdgeAttributes
+import io.hierograph.graphstore.model.JavaEdgeAttributes
 
 /**
  * Returns the transitive supertype closure of this type node — every type reachable

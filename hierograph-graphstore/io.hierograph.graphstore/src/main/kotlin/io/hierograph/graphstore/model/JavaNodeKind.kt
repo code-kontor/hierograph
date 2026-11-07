@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.javaspec
+package io.hierograph.graphstore.model
 
 /**
  * The set of Java-specific node kinds used throughout Hierograph's tool surface.

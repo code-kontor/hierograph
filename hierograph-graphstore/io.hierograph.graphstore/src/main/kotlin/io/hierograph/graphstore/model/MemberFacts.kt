@@ -15,8 +15,6 @@
  */
 package io.hierograph.graphstore.model
 
-import io.hierograph.javaspec.JavaNodeKind
-
 /**
  * One declared member of a type.
  *

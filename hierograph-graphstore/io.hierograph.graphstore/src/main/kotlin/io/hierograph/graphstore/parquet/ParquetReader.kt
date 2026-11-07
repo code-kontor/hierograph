@@ -30,7 +30,7 @@ import io.hierograph.graphstore.model.Origin
 import io.hierograph.graphstore.model.ParameterFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
-import io.hierograph.javaspec.JavaNodeKind
+import io.hierograph.graphstore.model.JavaNodeKind
 import java.nio.file.Files
 import java.nio.file.Path
 
