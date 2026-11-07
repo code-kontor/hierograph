@@ -15,6 +15,21 @@ extend type HierarchicalGraph {
     # Returns the nodes with the given ids
     nodes(ids: [ID!]!): NodeSet!
 
+    """
+    Finds nodes by name — the name-based entry point (every other field takes ids). Case-insensitive
+    substring match on the node's simple name and fully-qualified name, ranked best first: exact name,
+    exact fully-qualified name, name prefix, then substring anywhere; ties go to the shorter
+    fully-qualified name. Same matching and ranking as the MCP find_node tool.
+
+    `kinds` restricts the result to node kinds (e.g. "java.class", "java.method", "java.package",
+    "java.module") and/or the group aliases "types", "members", "packages". Without `kinds`, only
+    modules, packages and types are searched — methods and fields only when requested. An unknown
+    kind is a BAD_REQUEST listing the valid values.
+
+    `limit` caps the result (1..200, default 50); the result is the top `limit` matches, not a page.
+    """
+    findNodes(name: String!, kinds: [String!], limit: Int = 50): [Node!]!
+
     # Returns the node with the given id
     dependency(id: ID!): Dependency
 

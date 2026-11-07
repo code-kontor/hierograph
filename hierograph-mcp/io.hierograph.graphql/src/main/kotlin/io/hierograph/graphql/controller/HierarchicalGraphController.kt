@@ -15,6 +15,7 @@
  */
 package io.hierograph.graphql.controller
 
+import io.hierograph.graphql.NodeSearchProvider
 import io.hierograph.graphql.model.DependencySetModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
@@ -29,7 +30,21 @@ import org.springframework.stereotype.Controller
  * now owns root, node lookup, and structural navigation).
  */
 @Controller
-class HierarchicalGraphController {
+class HierarchicalGraphController(private val searchProvider: NodeSearchProvider? = null) {
+
+    /** Name search, delegated to the host's [NodeSearchProvider]; see the schema for matching and ranking. */
+    @SchemaMapping(typeName = "HierarchicalGraph")
+    fun findNodes(
+        hierarchy: Hierarchy,
+        @Argument name: String,
+        @Argument kinds: List<String>?,
+        @Argument limit: Int,
+    ): List<HGNode> {
+        if (limit !in 1..MAX_FIND_LIMIT) throw InvalidArgumentException("limit must be between 1 and $MAX_FIND_LIMIT, was $limit")
+        if (name.isBlank()) throw InvalidArgumentException("name must not be blank")
+        val provider = searchProvider ?: throw InvalidArgumentException("findNodes is not available: no search index is configured")
+        return provider.findNodes(name, kinds, limit)
+    }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun identifier(hierarchy: Hierarchy): String = hierarchy.rootNode.identifier.toString()
@@ -76,6 +91,9 @@ class HierarchicalGraphController {
     }
 
     companion object {
+        /** Upper bound for `findNodes(limit:)`; the result is a top-N, not a page. */
+        const val MAX_FIND_LIMIT = 200
+
         fun coreDependencyId(dep: HGCoreDependency): String =
             "${dep.from.identifier}_${dep.to.identifier}_${dep.type}"
 
