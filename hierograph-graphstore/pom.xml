@@ -24,5 +24,6 @@
         <module>io.hierograph.graphstore.detail</module>
         <module>io.hierograph.graphstore.hgmodel</module>
         <module>io.hierograph.graphstore.jqa</module>
+        <module>io.hierograph.graphstore.scanner</module>
     </modules>
 </project>

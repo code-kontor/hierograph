@@ -28,9 +28,17 @@ enum class RefKind {
 
     // signature
     FIELD_TYPE, PARAM_TYPE, RETURN_TYPE, THROWS,
+    /** An annotation on a member or parameter (a type's own annotations are [ANNOTATED_BY]). */
+    MEMBER_ANNOTATED_BY,
+    /** A type argument or bound in a generic signature (`List<Foo>` → `Foo`), invisible to erased descriptors. */
+    TYPE_ARGUMENT,
+    /** A type used in an annotation's value: an enum constant, a class value, or a nested annotation. */
+    ANNOTATION_VALUE,
 
     // body (FULL mode only)
     INVOKES, READS, WRITES, INSTANTIATES, CAST, CATCHES,
+    /** A class literal (`Foo.class`, an `ldc` of a type constant). */
+    CLASS_LITERAL,
 
     // MVP only: coarse, pre-aggregated by jQAssistant
     DEPENDS_ON;
