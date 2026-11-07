@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.mcp.javaspec
+package io.hierograph.javaspec
 
 /**
  * The set of Java-specific node kinds used throughout Hierograph's tool surface.

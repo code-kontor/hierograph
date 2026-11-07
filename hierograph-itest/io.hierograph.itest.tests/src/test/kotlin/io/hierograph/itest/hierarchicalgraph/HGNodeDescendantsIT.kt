@@ -16,8 +16,8 @@
 package io.hierograph.itest.hierarchicalgraph
 
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaNodeKind
 import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test

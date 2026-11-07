@@ -17,7 +17,6 @@
     <name>Hierograph MCP</name>
 
     <modules>
-        <module>io.hierograph.mcp.javaspec</module>
         <module>io.hierograph.graphservice</module>
         <module>io.hierograph.mcp.server</module>
         <module>io.hierograph.graphql</module>

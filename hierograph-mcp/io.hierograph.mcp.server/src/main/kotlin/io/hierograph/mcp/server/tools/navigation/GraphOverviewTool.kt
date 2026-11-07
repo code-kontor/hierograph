@@ -16,9 +16,9 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.graphservice.HierarchicalGraphService
-import io.hierograph.mcp.javaspec.JavaEdgeAttributes
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaEdgeAttributes
+import io.hierograph.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool

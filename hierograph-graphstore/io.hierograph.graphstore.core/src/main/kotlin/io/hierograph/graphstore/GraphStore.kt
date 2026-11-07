@@ -20,8 +20,8 @@ import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.Node
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaNodeKind
 import java.util.EnumSet
 
 /**

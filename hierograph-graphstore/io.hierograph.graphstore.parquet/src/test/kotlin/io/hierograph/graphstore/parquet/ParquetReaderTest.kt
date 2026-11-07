@@ -20,7 +20,7 @@ import io.hierograph.graphstore.HierarchyRow
 import io.hierograph.graphstore.parquet.ParquetTestWriter.MemberFixture
 import io.hierograph.graphstore.parquet.ParquetTestWriter.RefFixture
 import io.hierograph.graphstore.parquet.ParquetTestWriter.TypeFixture
-import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

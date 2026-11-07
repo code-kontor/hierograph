@@ -31,7 +31,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.mcp.javaspec</artifactId>
+            <artifactId>io.hierograph.javaspec</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.hardwood</groupId>

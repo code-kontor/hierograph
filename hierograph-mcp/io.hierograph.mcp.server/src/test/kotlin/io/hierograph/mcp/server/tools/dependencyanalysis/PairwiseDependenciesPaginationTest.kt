@@ -21,7 +21,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaNodeKind
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.graphservice.pagination.DataHashProvider

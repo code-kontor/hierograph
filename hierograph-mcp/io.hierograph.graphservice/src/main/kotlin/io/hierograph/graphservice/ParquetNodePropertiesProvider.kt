@@ -22,8 +22,8 @@ import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaNodeKind
 import org.springframework.stereotype.Component
 import java.nio.file.Path
 

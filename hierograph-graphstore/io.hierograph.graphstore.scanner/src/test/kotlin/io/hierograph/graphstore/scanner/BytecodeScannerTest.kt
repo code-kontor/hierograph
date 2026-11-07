@@ -23,7 +23,7 @@ import io.hierograph.graphstore.model.MemberModifiers
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

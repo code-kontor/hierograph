@@ -22,8 +22,8 @@ import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaNodeKind
 import io.hierograph.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory

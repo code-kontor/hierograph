@@ -23,7 +23,7 @@ import io.hierograph.graphstore.model.ParameterFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.TypeModifiers
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaNodeKind
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor

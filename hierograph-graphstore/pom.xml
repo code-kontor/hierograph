@@ -18,6 +18,7 @@
     <description>In-memory GraphStore backed by Parquet snapshots; backend-neutral replacement for the jQA/Neo4j read path.</description>
 
     <modules>
+        <module>io.hierograph.javaspec</module>
         <module>io.hierograph.graphstore.model</module>
         <module>io.hierograph.graphstore.core</module>
         <module>io.hierograph.graphstore.parquet</module>

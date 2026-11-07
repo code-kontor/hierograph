@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.mcp.javaspec
+package io.hierograph.javaspec
 
 /**
  * Bit positions and helpers for the Java provider's type-level edge attributes,
- * stored as a bitmap in `HGCoreDependency.attributesBitmap`.
+ * stored as a bitmap on the dependency's attribute field.
  *
  * Each constant defines one bit position. Use the helper methods to read/write
  * individual flags or to convert between the bitmap and a `Map<String, Boolean>`

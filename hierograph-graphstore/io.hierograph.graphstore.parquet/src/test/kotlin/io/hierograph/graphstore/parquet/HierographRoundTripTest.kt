@@ -26,8 +26,8 @@ import io.hierograph.graphstore.model.ParameterFacts
 import io.hierograph.graphstore.model.Ref
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

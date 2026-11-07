@@ -23,7 +23,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
-import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test

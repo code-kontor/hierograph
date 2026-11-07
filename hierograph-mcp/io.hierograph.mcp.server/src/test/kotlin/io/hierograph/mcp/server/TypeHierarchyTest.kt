@@ -22,7 +22,7 @@ import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
-import io.hierograph.mcp.javaspec.JavaEdgeAttributes
+import io.hierograph.javaspec.JavaEdgeAttributes
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

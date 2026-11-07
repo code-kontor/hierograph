@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphstore.model
 
-import io.hierograph.mcp.javaspec.JavaNodeKind
+import io.hierograph.javaspec.JavaNodeKind
 
 /**
  * The central contract: one immutable record per class file.

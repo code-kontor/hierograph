@@ -23,7 +23,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
-import io.hierograph.mcp.javaspec.JavaEdgeAttributes
+import io.hierograph.javaspec.JavaEdgeAttributes
 
 /**
  * Builds the production hierarchical graph ([HGModel]) directly from a [GraphStore] — the bridge that

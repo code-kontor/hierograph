@@ -23,8 +23,8 @@ import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.hierarchicalgraph.core.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
-import io.hierograph.mcp.javaspec.JavaEdgeAttributes
-import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaEdgeAttributes
+import io.hierograph.javaspec.JavaKinds
 import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.graphservice.pagination.DataHashProvider

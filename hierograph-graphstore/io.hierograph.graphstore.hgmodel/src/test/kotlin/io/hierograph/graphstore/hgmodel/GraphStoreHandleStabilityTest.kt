@@ -22,7 +22,7 @@ import io.hierograph.graphstore.model.Origin
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
-import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

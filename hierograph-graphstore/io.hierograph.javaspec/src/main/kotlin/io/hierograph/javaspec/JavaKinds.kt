@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.mcp.javaspec
+package io.hierograph.javaspec
 
 /**
  * Canonical constants for Java-specific node kinds, relationship kinds,
