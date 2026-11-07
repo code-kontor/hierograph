@@ -26,11 +26,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.model</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.parquet</artifactId>
+            <artifactId>io.hierograph.graphstore</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
@@ -47,11 +43,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.core</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test-junit5</artifactId>

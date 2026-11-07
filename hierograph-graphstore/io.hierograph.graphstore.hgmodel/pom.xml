@@ -23,7 +23,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.core</artifactId>
+            <artifactId>io.hierograph.graphstore</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>

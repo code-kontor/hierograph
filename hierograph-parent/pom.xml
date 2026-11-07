@@ -307,17 +307,7 @@ limitations under the License.]]></inlineHeader>
             <!-- ==================== -->
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore.model</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore.core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore.parquet</artifactId>
+                <artifactId>io.hierograph.graphstore</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

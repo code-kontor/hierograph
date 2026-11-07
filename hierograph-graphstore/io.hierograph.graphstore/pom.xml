@@ -11,10 +11,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>io.hierograph.graphstore.core</artifactId>
+    <artifactId>io.hierograph.graphstore</artifactId>
     <packaging>jar</packaging>
-    <name>Hierograph GraphStore Core</name>
-    <description>In-memory GraphStore: applyClass / removeClass ingest and the hierarchy + type-dependency query surface.</description>
+    <name>Hierograph GraphStore</name>
+    <description>In-memory GraphStore: the scanned-fact model, applyClass / removeClass ingest, the hierarchy + type-dependency query surface, Parquet snapshot I/O (via Hardwood), and the detail-dependency query engine.</description>
 
     <dependencies>
         <dependency>
@@ -23,11 +23,17 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.model</artifactId>
+            <artifactId>io.hierograph.javaspec</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.javaspec</artifactId>
+            <groupId>dev.hardwood</groupId>
+            <artifactId>hardwood-core</artifactId>
+        </dependency>
+        <!-- ZSTD codec for reading snapshots written with compression (spec default). -->
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>
