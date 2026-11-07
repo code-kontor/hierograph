@@ -54,21 +54,22 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
             "org.springframework.util.StringUtils",
         )
 
-        // the subtree has the exact expected size ...
-        Assertions.assertThat(descendants).hasSize(14_160)
+        // the subtree has the exact expected size (scanner-derived; differs from the old jQA numbers —
+        // the scanner materializes fewer synthetic members and nested types, see the scanner-vs-jQA notes) ...
+        Assertions.assertThat(descendants).hasSize(13_824)
 
         // ... broken down per Java node kind (packages, the five type kinds, and both members)
         val countsByKind = descendants.groupingBy { NodeMetadata.getKind(it) }.eachCount()
         Assertions.assertThat(countsByKind).containsExactlyInAnyOrderEntriesOf(
             mapOf(
                 JavaKinds.PACKAGE.value to 62,
-                JavaKinds.CLASS.value to 941,
+                JavaKinds.CLASS.value to 947,
                 JavaKinds.INTERFACE.value to 215,
                 JavaKinds.ENUM.value to 29,
                 JavaKinds.ANNOTATION.value to 13,
-                JavaKinds.RECORD.value to 15,
-                JavaKinds.METHOD.value to 9_477,
-                JavaKinds.FIELD.value to 3_408,
+                JavaKinds.RECORD.value to 17,
+                JavaKinds.METHOD.value to 9_180,
+                JavaKinds.FIELD.value to 3_361,
             )
         )
     }
@@ -76,13 +77,13 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
     @ParameterizedTest(name = "{0} -> {1}")
     @CsvSource(
         "java.package,      62",
-        "java.class,       941",
+        "java.class,       947",
         "java.interface,   215",
         "java.enum,         29",
         "java.annotation,   13",
-        "java.record,       15",
-        "java.method,     9477",
-        "java.field,      3408",
+        "java.record,       17",
+        "java.method,     9180",
+        "java.field,      3361",
     )
     fun `descendants can be filtered to a single kind`(kind: String, expectedCount: Int): Unit = withHierarchyScope {
         val springCore = hierarchy.rootNode.children.single {

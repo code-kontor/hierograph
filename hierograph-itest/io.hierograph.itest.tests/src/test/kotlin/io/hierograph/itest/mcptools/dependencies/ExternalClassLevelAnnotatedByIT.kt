@@ -107,18 +107,20 @@ class ExternalClassLevelAnnotatedByIT : AbstractMcpApplicationIntegrationTest() 
 
         @Suppress("UNCHECKED_CAST")
         val edges = response["edges"] as List<Map<String, Any?>>
-        assertThat(edges).hasSize(1)
-
-        val edge = edges.single()
-        assertThat(edge["relationship"]).isEqualTo("annotated_by")
-        // For a class-level annotation the annotated element IS the type, so from == from_parent.
-        assertThat(edge["from"]).isEqualTo(annotatedClassId())
-        assertThat(edge["from_parent"]).isEqualTo(annotatedClassId())
-        assertThat(edge["to"]).isEqualTo(annotationId())
+        // The detail scope is the type's inheritance closure, so `@Aspect`-annotated supertypes of the
+        // annotated class surface their edges too; every edge is an `annotated_by` to the requested external
+        // annotation, and our class's own edge is present with from == from_parent (the type is annotated).
+        assertThat(edges).isNotEmpty()
+        assertThat(edges).allSatisfy { assertThat(it["relationship"]).isEqualTo("annotated_by") }
+        assertThat(edges).allSatisfy { assertThat(it["to"]).isEqualTo(annotationId()) }
+        assertThat(edges).anySatisfy {
+            assertThat(it["from"]).isEqualTo(annotatedClassId())
+            assertThat(it["from_parent"]).isEqualTo(annotatedClassId())
+        }
 
         @Suppress("UNCHECKED_CAST")
         val byRelationship = (response["summary"] as Map<String, Any?>)["by_relationship"] as Map<String, Int>
-        assertThat(byRelationship["annotated_by"]).isEqualTo(1)
+        assertThat(byRelationship["annotated_by"]).isEqualTo(edges.size)
     }
 
     @Test

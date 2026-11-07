@@ -46,28 +46,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- GraphStore MVP: export the jQA store to a snapshot and diff it against GraphDbMapping. -->
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.jqa</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.detail</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- ASM scanner: validate its output against the jQAssistant baseline. -->
+        <!-- ASM scanner: produces the Spring 7.0.8 `.hierograph` fixture the ITs boot against. -->
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.graphstore.scanner</artifactId>
@@ -91,37 +70,11 @@
     </dependencies>
 
     <build>
-        <!-- Filter itest.properties so the image coordinate carries the reactor version;
-             everything else is copied verbatim. -->
-        <testResources>
-            <testResource>
-                <directory>src/test/resources</directory>
-                <filtering>true</filtering>
-                <includes>
-                    <include>itest.properties</include>
-                </includes>
-            </testResource>
-            <testResource>
-                <directory>src/test/resources</directory>
-                <filtering>false</filtering>
-                <excludes>
-                    <exclude>itest.properties</exclude>
-                </excludes>
-            </testResource>
-        </testResources>
-
         <plugins>
             <!-- Integration tests (*IT) run via Failsafe at the integration-test/verify phases. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <configuration>
-                    <!-- This module starts/stops the container explicitly, so the Ryuk
-                         reaper (which would need its own image) is not required. -->
-                    <environmentVariables>
-                        <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
-                    </environmentVariables>
-                </configuration>
                 <executions>
                     <execution>
                         <id>integration-tests</id>

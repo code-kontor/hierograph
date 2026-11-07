@@ -196,6 +196,11 @@ class ParquetDetailDependencies(
     private fun expandScope(node: HGNode): Set<String> {
         val hierarchy = graphService.model.hierarchy
         val seed = ArrayList<HGNode>()
+        // Include the scope node itself when it is a type: `traverse` visits descendants only, so a scope
+        // that *is* a single type (a class whose children are members, or a childless annotation/interface)
+        // would otherwise collect nothing. Container scopes (module/package) still gather their descendant
+        // types via the traversal below.
+        if (JavaKinds.isTypeKind(node.kind)) seed.add(node)
         hierarchy.traverse(node) { if (JavaKinds.isTypeKind(it.kind)) seed.add(it) }
         val fqns = linkedSetOf<String>()
         val visited = HashSet<Any?>()

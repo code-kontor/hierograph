@@ -160,7 +160,13 @@ internal object ClassScanner {
         }
 
         override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor {
-            ref(Type.getType(descriptor), RefKind.ANNOTATED_BY)
+            val annotation = Type.getType(descriptor)
+            ref(annotation, RefKind.ANNOTATED_BY)
+            // Class-level annotation: also emit a member-level detail edge from the type to the annotation
+            // (mirroring member annotations below), so `detail_dependencies(annotated_by)` surfaces
+            // class-level annotations. The annotated element IS the type, so from_key == the type fqn.
+            val target = JavaNames.display(JavaNames.element(annotation))
+            detailRefs += DetailRef(fqn, fqn, target, target, "annotated_by", null)
             return AnnotationValues()
         }
 

@@ -19,26 +19,24 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 
 /**
- * Base for Spring-based integration tests: wires the running container's Bolt endpoint into the
- * Spring [org.springframework.core.env.Environment]. It deliberately carries no `@SpringBootTest`
- * itself — a subclass declares which part of the application to boot (e.g.
+ * Base for Spring-based integration tests: points the server at the shared scanner-produced Spring 7.0.8
+ * `.hierograph` snapshot ([SpringFixture]) via `hierograph.graph.parquetDir`. It deliberately carries no
+ * `@SpringBootTest` itself — a subclass declares which part of the application to boot (e.g.
  * [AbstractHierarchicalGraphIntegrationTest]).
  *
- * Keeping the `@DynamicPropertySource` here (rather than per test class) means every subclass
- * shares an identical context configuration, so Spring's test-context cache creates the
+ * Keeping the `@DynamicPropertySource` here (rather than per test class) means every subclass shares an
+ * identical context configuration, so Spring's test-context cache creates the
  * [org.springframework.context.ApplicationContext] only once for the whole run.
  */
-abstract class AbstractSpringIntegrationTest : AbstractIntegrationTest() {
+abstract class AbstractSpringIntegrationTest {
 
     companion object {
 
         @JvmStatic
         @DynamicPropertySource
-        fun boltProperties(registry: DynamicPropertyRegistry) {
-            // Ensure the container is up before the Spring context reads the property
-            // (start() is idempotent; the shared lifecycle is owned by HierographImageExtension).
-            HierographImageContainer.instance.start()
-            registry.add("hierograph.bolt.uri") { HierographImageContainer.boltUri }
+        fun fixtureProperties(registry: DynamicPropertyRegistry) {
+            // Build the scanner snapshot (once) before the Spring context reads the property.
+            registry.add("hierograph.graph.parquetDir") { SpringFixture.directory.toAbsolutePath().toString() }
         }
     }
 }

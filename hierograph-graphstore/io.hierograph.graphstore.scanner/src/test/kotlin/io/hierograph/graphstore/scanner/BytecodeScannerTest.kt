@@ -252,6 +252,9 @@ class BytecodeScannerTest {
         assertThat(details(ctor, "writes_field").map { it.toKey }).contains("fix.Circle#double r")
         assertThat(details("fix.Circle#byte[] data", "has_type").map { it.toType }).containsExactly("byte")
         assertThat(details("fix.Circle#void lambda\$tags\$0(int[])", "calls").map { it.toKey }).contains("fix.Circle#void helper(int)")
+        // A class-level annotation emits a detail `annotated_by` edge keyed by the type itself (from == type fqn).
+        assertThat(details("fix.Circle\$Marker", "annotated_by").map { it.toType })
+            .containsExactly("java.lang.annotation.Retention")
     }
 
     @Test

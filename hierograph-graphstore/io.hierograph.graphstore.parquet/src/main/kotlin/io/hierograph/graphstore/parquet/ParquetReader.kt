@@ -111,7 +111,20 @@ class ParquetReader {
         relationship: String? = null,
     ): List<DetailRef> {
         val cols = ParquetSchema.DetailRefs
-        return readAcross(parquetDir, ParquetSchema.DETAIL_REFS_FILE, detailRefsFilter(fromTypes, toTypes, relationship)) { r ->
+        val from = fromTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
+        val to = toTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
+        // Push down exactly ONE predicate (prefer the sorted `from_type` for row-group skipping) and apply
+        // the rest in memory. hardwood 1.1.0.Beta3 mis-prunes pages when several detail-ref predicates are
+        // AND-ed, silently dropping valid rows — notably class-level edges whose `from_key` is a bare type
+        // fqn (they sort first in a `from_type` group). Each predicate alone is correct, so we combine in
+        // memory rather than via FilterPredicate.and.
+        val pushdown = when {
+            from != null -> FilterPredicate.`in`(cols.FROM_TYPE, *from.toTypedArray())
+            to != null -> FilterPredicate.`in`(cols.TO_TYPE, *to.toTypedArray())
+            relationship != null -> FilterPredicate.eq(cols.RELATIONSHIP, relationship)
+            else -> null
+        }
+        return readAcross(parquetDir, ParquetSchema.DETAIL_REFS_FILE, pushdown) { r ->
             DetailRef(
                 fromKey = r.string(cols.FROM_KEY),
                 fromType = r.string(cols.FROM_TYPE),
@@ -120,22 +133,13 @@ class ParquetReader {
                 relationship = r.string(cols.RELATIONSHIP),
                 line = r.intOrNull(cols.LINE),
             )
+        }.filter {
+            (from == null || it.fromType in from) &&
+                (to == null || it.toType in to) &&
+                (relationship == null || it.relationship == relationship)
         }
     }
 
-    private fun detailRefsFilter(fromTypes: Collection<String>?, toTypes: Collection<String>?, relationship: String?): FilterPredicate? {
-        val cols = ParquetSchema.DetailRefs
-        val preds = buildList {
-            if (!fromTypes.isNullOrEmpty()) add(FilterPredicate.`in`(cols.FROM_TYPE, *fromTypes.toTypedArray()))
-            if (!toTypes.isNullOrEmpty()) add(FilterPredicate.`in`(cols.TO_TYPE, *toTypes.toTypedArray()))
-            if (relationship != null) add(FilterPredicate.eq(cols.RELATIONSHIP, relationship))
-        }
-        return when (preds.size) {
-            0 -> null
-            1 -> preds[0]
-            else -> FilterPredicate.and(*preds.toTypedArray())
-        }
-    }
 
     /** One row of `types.parquet`: a scanned type's identity plus its per-class snapshot facts. */
     data class TypeRow(

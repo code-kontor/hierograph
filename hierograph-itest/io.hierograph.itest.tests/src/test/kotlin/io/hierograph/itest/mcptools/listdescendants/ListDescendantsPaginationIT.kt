@@ -35,7 +35,7 @@ class ListDescendantsPaginationIT : AbstractListDescendantsIT() {
 
         @Suppress("UNCHECKED_CAST")
         val firstSummary = firstPage["summary"] as Map<String, Any?>
-        assertThat(firstSummary["total"]).isEqualTo(145)
+        assertThat(firstSummary["total"]).isEqualTo(140)
         assertThat(firstSummary["truncated"]).isEqualTo(true)
 
         @Suppress("UNCHECKED_CAST")
