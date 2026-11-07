@@ -42,11 +42,10 @@ data class ScanArtifact(val key: String, val path: Path) {
 /** The scanned classes (type level) and their member-level references. */
 data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<DetailRef>) {
 
-    /** Writes the result as a Parquet snapshot: `types` / `members` / `parameters` / `refs` + `detail_refs`. */
+    /** Writes the result as a Parquet snapshot (`types` / `members` / `parameters` / `refs` + `detail_refs`, in parallel). */
     fun writeTo(dir: Path, codec: CompressionCodec = CompressionCodec.ZSTD) {
         Files.createDirectories(dir)
-        ParquetWriter.writeClassFacts(dir, classes, codec)
-        ParquetWriter.writeDetailRefs(dir, detailRefs, codec)
+        ParquetWriter.writeSnapshot(dir, classes, detailRefs, codec)
     }
 }
 

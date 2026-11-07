@@ -24,6 +24,11 @@ import dev.hardwood.writer.WriterConfig
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.DetailRef
 import java.nio.file.Path
+import java.util.Arrays
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Writes the GraphStore Parquet files (the [ParquetSchema] tables) from [ClassFacts], the same unit
@@ -33,13 +38,31 @@ import java.nio.file.Path
  * Tables are ZSTD-compressed by default (the spec's choice; [ParquetSchema]'s dictionary encoding
  * absorbs the repeated FQNs). Pass [CompressionCodec.UNCOMPRESSED] to avoid needing a codec on the
  * classpath (e.g. in tests).
+ *
+ * The tables are independent files, so they are written **in parallel**, one task per file; each file's
+ * content (and row order) is the same as a sequential write.
  */
 object ParquetWriter {
 
     /** One scanned class together with the key of the artifact that owns it. */
     data class ArtifactClass(val artifactKey: String, val facts: ClassFacts)
 
-    fun writeClassFacts(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec = CompressionCodec.ZSTD) {
+    /** Writes the four type-level tables (`types`, `members`, `parameters`, `refs`) in parallel. */
+    fun writeClassFacts(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec = CompressionCodec.ZSTD) =
+        runInParallel(classFactsTasks(dir, classes, codec))
+
+    /** Writes a complete snapshot — the four type-level tables plus `detail_refs` — all five in parallel. */
+    fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) =
+        runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDetailRefs(dir, detailRefs, codec) }))
+
+    private fun classFactsTasks(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec): List<() -> Unit> = listOf(
+        { writeTypes(dir, classes, codec) },
+        { writeMembers(dir, classes, codec) },
+        { writeParameters(dir, classes, codec) },
+        { writeRefs(dir, classes, codec) },
+    )
+
+    private fun writeTypes(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
         writeTable(dir.resolve(ParquetSchema.TYPES_FILE), ParquetSchema.typesSchema(), codec, classes) { sb, c ->
             sb.setString(ParquetSchema.Types.ARTIFACT, c.artifactKey)
             sb.setString(ParquetSchema.Types.FQN, c.facts.fqn)
@@ -50,7 +73,9 @@ object ParquetWriter {
             // older snapshot without type modifiers.
             sb.setInt(ParquetSchema.Types.MODIFIERS, c.facts.modifiers)
         }
+    }
 
+    private fun writeMembers(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
         val members = classes.flatMap { c -> c.facts.members.map { c.facts.fqn to it } }
         writeTable(dir.resolve(ParquetSchema.MEMBERS_FILE), ParquetSchema.membersSchema(), codec, members) { sb, (owner, m) ->
             sb.setString(ParquetSchema.Members.OWNER_FQN, owner)
@@ -62,7 +87,9 @@ object ParquetWriter {
             sb.setNullableInt(ParquetSchema.Members.LINE_FROM, m.lineFrom)
             sb.setNullableInt(ParquetSchema.Members.LINE_TO, m.lineTo)
         }
+    }
 
+    private fun writeParameters(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
         // One row per parameter, keyed by the owning member; sorted so a scoped read skips row groups.
         val parameters = classes.flatMap { c -> c.facts.members }
             .flatMap { m -> m.parameters.map { m.key to it } }
@@ -73,7 +100,9 @@ object ParquetWriter {
             sb.setString(ParquetSchema.Parameters.NAME, p.name)
             sb.setString(ParquetSchema.Parameters.TYPE_FQN, p.typeFqn)
         }
+    }
 
+    private fun writeRefs(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
         val refs = classes.flatMap { c -> c.facts.refs.map { c.facts.fqn to it } }
         writeTable(dir.resolve(ParquetSchema.REFS_FILE), ParquetSchema.refsSchema(), codec, refs) { sb, (fromType, r) ->
             sb.setString(ParquetSchema.Refs.FROM_TYPE, fromType)
@@ -86,11 +115,14 @@ object ParquetWriter {
     /**
      * Writes member-level ("detail") refs to the `detail_refs` table, sorted by `from_type` (then
      * `from_key`) so a scoped read via [ParquetReader.readDetailRefs] skips row groups. Defaults to
-     * uncompressed (callers that want ZSTD pass it explicitly).
+     * uncompressed (callers that want ZSTD pass it explicitly). The sort runs in parallel; it is stable,
+     * so rows equal in all sort keys keep their input order and the file is the same as a sequential write.
      */
     fun writeDetailRefs(dir: Path, refs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
         val cols = ParquetSchema.DetailRefs
-        val sorted = refs.sortedWith(compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }))
+        val sorted = refs.toTypedArray()
+            .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship })) }
+            .asList()
         writeTable(dir.resolve(ParquetSchema.DETAIL_REFS_FILE), ParquetSchema.detailRefsSchema(), codec, sorted) { sb, r ->
             sb.setString(cols.FROM_KEY, r.fromKey)
             sb.setString(cols.FROM_TYPE, r.fromType)
@@ -98,6 +130,22 @@ object ParquetWriter {
             sb.setString(cols.TO_TYPE, r.toType)
             sb.setString(cols.RELATIONSHIP, r.relationship)
             sb.setNullableInt(cols.LINE, r.line)
+        }
+    }
+
+    /** Runs [tasks] concurrently, one thread each; rethrows the first failure after all have finished. */
+    private fun runInParallel(tasks: List<() -> Unit>) {
+        if (tasks.size <= 1) return tasks.forEach { it() }
+        val counter = AtomicInteger()
+        val pool = Executors.newFixedThreadPool(tasks.size) { task ->
+            Thread(task, "hierograph-parquet-write-${counter.incrementAndGet()}").apply { isDaemon = true }
+        }
+        try {
+            val futures = tasks.map { task -> pool.submit(Callable { task() }) }
+            val failures = futures.mapNotNull { f -> runCatching { f.get() }.exceptionOrNull() }
+            failures.firstOrNull()?.let { throw (it as? ExecutionException)?.cause ?: it }
+        } finally {
+            pool.shutdownNow()
         }
     }
 
