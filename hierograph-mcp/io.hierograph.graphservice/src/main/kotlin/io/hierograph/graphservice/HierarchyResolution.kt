@@ -37,14 +37,22 @@ import io.hierograph.graphstore.model.MemberModifiers
  * - **resolved calls** — a call naming a receiver's static type that only *inherits* the method is also
  *   linked to the declaration in the nearest scanned supertype.
  *
- * The algorithm keys off method signatures plus the `static`/`private` flags (from [MemberModifiers]); it
- * does not need the bridge flag, because a covariant override's bridge method is present in its own right
- * with the exact parent signature.
+ * The algorithm keys off method signatures plus the `static`/`private` flags (from [MemberModifiers]). A
+ * covariant/generic override resolves by the bridge method's exact parent signature, but any edge that
+ * would point *at* a bridge is re-pointed at the real method it forwards to ([Method.bridgeTarget]) — the
+ * bridge is a synthetic cast-and-forward trampoline, so the real method is the meaningful dependency.
  */
 object HierarchyResolution {
 
-    /** A scanned method/constructor: its node key, signature, packed [MemberModifiers], and declaration line. */
-    class Method(val key: String, val signature: String, val modifiers: Int, val lineFrom: Int?)
+    /**
+     * A scanned method/constructor: its node key, signature, packed [MemberModifiers], and declaration
+     * line. [bridgeTarget] is set for a synthetic bridge method — the key of the real method it forwards
+     * to on the same type — so a derived edge whose target is a bridge is re-pointed at the real method.
+     */
+    class Method(val key: String, val signature: String, val modifiers: Int, val lineFrom: Int?, val bridgeTarget: String? = null)
+
+    /** The real target key for an edge pointing at [m]: a bridge forwards to [Method.bridgeTarget]; else itself. */
+    private fun realKey(m: Method): String = m.bridgeTarget ?: m.key
 
     /**
      * A type in the assembled graph: its FQN, the FQNs of its direct supertypes (super + interfaces), and
@@ -67,7 +75,7 @@ object HierarchyResolution {
             for (m in candidates) for (s in supertypes) {
                 val exact = hierarchy.declaredMethod(s, m.signature)?.takeIf { overridable(it) }
                 val overridden = if (exact != null) listOf(exact) else hierarchy.overridableMethods(s)[nameAndParameters(m.signature)].orEmpty()
-                overridden.forEach { out += DetailRef(m.key, c.fqn, it.key, s, "overrides", m.lineFrom) }
+                overridden.forEach { out += DetailRef(m.key, c.fqn, realKey(it), s, "overrides", m.lineFrom) }
             }
         }
         return out.toList()
@@ -80,7 +88,7 @@ object HierarchyResolution {
             val signature = call.toKey.substringAfter('#')
             if (hierarchy.declaredMethod(call.toType, signature) == null) {
                 hierarchy.inheritedDeclaration(call.toType, signature)?.let { (declarer, m) ->
-                    if (m.key != call.fromKey) out += DetailRef(call.fromKey, call.fromType, m.key, declarer, "calls", call.line)
+                    if (realKey(m) != call.fromKey) out += DetailRef(call.fromKey, call.fromType, realKey(m), declarer, "calls", call.line)
                 }
             }
             if (signature.contains(" <init>(")) continue
@@ -88,7 +96,7 @@ object HierarchyResolution {
             if (hierarchy.declaredMethod(call.toType, signature)?.let { it.modifiers and MemberModifiers.STATIC != 0 } == true) continue
             for (sub in hierarchy.subtypesOf(call.toType)) {
                 val impl = hierarchy.declaredMethod(sub, signature)?.takeIf { overridable(it) } ?: continue
-                if (impl.key != call.fromKey) out += DetailRef(call.fromKey, call.fromType, impl.key, sub, "calls", call.line)
+                if (realKey(impl) != call.fromKey) out += DetailRef(call.fromKey, call.fromType, realKey(impl), sub, "calls", call.line)
             }
         }
         return out.toList()

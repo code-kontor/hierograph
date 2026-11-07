@@ -369,6 +369,7 @@ internal object ClassScanner {
                     lineFrom = minLine,
                     lineTo = maxLine,
                     parameters = parameters(isStatic),
+                    bridgeTarget = bridgeTarget,
                 )
                 methods += ScannedClass.MethodInfo(key, signature, access, minLine, bridgeTarget)
 

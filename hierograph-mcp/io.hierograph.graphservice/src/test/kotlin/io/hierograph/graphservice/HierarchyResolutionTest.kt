@@ -50,6 +50,29 @@ class HierarchyResolutionTest {
     }
 
     @Test
+    fun `a virtual-call target that is a bridge is redirected to the real method`() {
+        // com.A#self() returns Object; com.B covariantly narrows it to com.B, so javac emits a real
+        // `com.B self()` plus a synthetic bridge `java.lang.Object self()` forwarding to it.
+        val a = Type("com.A", emptyList(), listOf(method("com.A", "java.lang.Object self()")))
+        val b = Type(
+            "com.B", listOf("com.A"),
+            listOf(
+                method("com.B", "com.B self()"),
+                Method("com.B#java.lang.Object self()", "java.lang.Object self()", modifiers = 0, lineFrom = 1, bridgeTarget = "com.B#com.B self()"),
+            ),
+        )
+        val call = DetailRef("com.C#void run()", "com.C", "com.A#java.lang.Object self()", "com.A", "calls", 5)
+
+        val derived = HierarchyResolution.resolve(listOf(a, b), listOf(call))
+
+        // the virtual dispatch resolves to the real method, and no edge points at the synthetic bridge
+        assertThat(derived).contains(
+            DetailRef("com.C#void run()", "com.C", "com.B#com.B self()", "com.B", "calls", 5),
+        )
+        assertThat(derived).noneMatch { it.relationship == "calls" && it.toKey == "com.B#java.lang.Object self()" }
+    }
+
+    @Test
     fun `static and private methods take no part in overrides`() {
         val baseS = Type("com.B", emptyList(), listOf(method("com.B", "void s()", MemberModifiers.STATIC)))
         val subS = Type("com.S", listOf("com.B"), listOf(method("com.S", "void s()", MemberModifiers.STATIC)))

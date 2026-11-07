@@ -273,8 +273,11 @@ class BytecodeScannerTest {
         // Hierarchy-dependent edges are derived at load (HierarchyResolution), not by the scanner.
         assertThat(result.detailRefs.map { it.relationship }.toSet()).doesNotContain("overrides")
         // A covariant override's real + bridge methods are both scanned (the resolver relies on this).
-        assertThat(type("fix.Dog").members.map { it.key })
-            .contains("fix.Dog#fix.Dog self()", "fix.Dog#java.lang.Object self()")
+        val dogMembers = type("fix.Dog").members.associateBy { it.key }
+        assertThat(dogMembers.keys).contains("fix.Dog#fix.Dog self()", "fix.Dog#java.lang.Object self()")
+        // The bridge carries its real target so load-time resolution can redirect edges to it.
+        assertThat(dogMembers.getValue("fix.Dog#java.lang.Object self()").bridgeTarget).isEqualTo("fix.Dog#fix.Dog self()")
+        assertThat(dogMembers.getValue("fix.Dog#fix.Dog self()").bridgeTarget).isNull()
         // Direct calls name the static receiver type; they are not fanned out to subtype implementations.
         assertThat(details("fix.User#double use(fix.Shape)", "calls").map { it.toKey })
             .contains("fix.Shape#double area()")

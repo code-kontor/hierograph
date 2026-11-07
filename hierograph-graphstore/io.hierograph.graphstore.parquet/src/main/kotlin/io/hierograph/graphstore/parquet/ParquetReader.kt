@@ -209,6 +209,7 @@ class ParquetReader {
             modifiers = r.intOrNull(ParquetSchema.Members.MODIFIERS) ?: 0,
             lineFrom = r.intOrNull(ParquetSchema.Members.LINE_FROM),
             lineTo = r.intOrNull(ParquetSchema.Members.LINE_TO),
+            bridgeTarget = r.stringOrNull(ParquetSchema.Members.BRIDGE_TARGET),
         )
 
     /**

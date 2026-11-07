@@ -76,10 +76,13 @@ import java.util.concurrent.Executors
  * clause) + `raises` (`throw new X(...)`, detected as an `invokespecial <init>` immediately before
  * `athrow`). `throws`∪`raises` is asserted to be a subset of jQA's `throws` (the scanner invents none);
  * the ~1k jQA-only remainder is exceptions rethrown / factory-produced / field-held rather than
- * constructor-thrown, deliberately outside `raises`. Open items (reported, not asserted): small residuals
- * (~a few %) on calls / returns / has_type / parameter_type / overrides (narrower virtual-dispatch choices,
- * self-calls, array/covariant notation). Detail-level parity is close but **not yet** exact, so jQA is
- * retained for now.
+ * constructor-thrown, deliberately outside `raises`. Derived `calls`/`overrides` targets that would land on
+ * a synthetic bridge method are re-pointed at the real method it forwards to ([HierarchyResolution] via the
+ * persisted `bridgeTarget`), so edges name the developer's method, not the compiler trampoline. Open items
+ * (reported, not asserted): small residuals (~a few %) on calls / returns / has_type / parameter_type /
+ * overrides — narrower-or-broader virtual-dispatch target sets, self-calls, array element-vs-`Object`
+ * notation, and jQA's own inconsistent bridge-vs-real target keying. Detail-level parity is close but **not
+ * yet** exact, so jQA is retained for now.
  *
  * Opt-in (needs Docker **and** network): run with
  * `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=ScannerVsJqaDiffIT -Dhierograph.scanner.validate=1`.
@@ -183,7 +186,7 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         val types = scanner.nodes().asSequence().filter { JavaKinds.isTypeKind(it.kind) }.map { n ->
             HierarchyResolution.Type(
                 n.fqn, superByFqn[n.fqn].orEmpty(),
-                methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom) },
+                methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom, it.bridgeTarget) },
                 external = n.kind == JavaKinds.EXTERNAL_TYPE,
             )
         }.toList()
@@ -258,8 +261,11 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         //  - `overrides`: the scanner records the transitive override closure (a method overrides the
         //    matching method in *every* supertype) where jQA records the direct override and relies on
         //    chaining; the jQA-only remainder is `<clinit>` pseudo-overrides (the scanner excludes static
-        //    initializers) and covariant/generic overrides that jQA keys to the user method against the
-        //    erased-`Object` parent signature while the scanner keys them to the compiler bridge method.
+        //    initializers) and covariant/generic overrides keyed to the erased parent signature.
+        //  - bridge targets: derived `calls`/`overrides` are re-pointed from synthetic bridge methods to the
+        //    real method (verified in HierarchyResolutionTest). This does not move the jQA residual much —
+        //    jQA itself inconsistently keys such targets to either the real or the erased/bridge form — but
+        //    it makes the served graph name the developer's method rather than a compiler trampoline.
     }
 
     private fun definedTypes(rows: List<HierarchyRow>): Set<String> =

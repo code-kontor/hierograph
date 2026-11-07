@@ -265,7 +265,7 @@ class HierarchicalGraphService {
                 HierarchyResolution.Type(
                     fqn = n.fqn,
                     directSupertypes = superByFqn[n.fqn].orEmpty(),
-                    methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom) },
+                    methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom, it.bridgeTarget) },
                     external = n.kind == JavaKinds.EXTERNAL_TYPE,
                 )
             }.toList()

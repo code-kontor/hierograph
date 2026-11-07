@@ -55,6 +55,7 @@ object ParquetSchema {
         const val MODIFIERS = "modifiers"       // packed access flags; see MemberModifiers
         const val LINE_FROM = "line_from"
         const val LINE_TO = "line_to"
+        const val BRIDGE_TARGET = "bridge_target" // for a synthetic bridge: the real method it forwards to. Absent in older snapshots.
     }
 
     /** Declared method/constructor parameters, one row per parameter, sorted by `method_key, index`. */
@@ -111,6 +112,7 @@ object ParquetSchema {
             .addColumn(Members.MODIFIERS, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .addColumn(Members.LINE_FROM, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .addColumn(Members.LINE_TO, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .string(Members.BRIDGE_TARGET, RepetitionType.OPTIONAL)
             .build()
 
     fun parametersSchema(): FileSchema =

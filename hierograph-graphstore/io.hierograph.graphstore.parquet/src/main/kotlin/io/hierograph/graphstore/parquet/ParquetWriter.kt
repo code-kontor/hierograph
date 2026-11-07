@@ -116,6 +116,7 @@ object ParquetWriter {
             sb.setNullableInt(ParquetSchema.Members.MODIFIERS, m.modifiers.takeIf { it != 0 })
             sb.setNullableInt(ParquetSchema.Members.LINE_FROM, m.lineFrom)
             sb.setNullableInt(ParquetSchema.Members.LINE_TO, m.lineTo)
+            sb.setNullable(ParquetSchema.Members.BRIDGE_TARGET, m.bridgeTarget)
         }
     }
 
