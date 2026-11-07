@@ -39,6 +39,10 @@ import java.util.TreeMap
  * optional filtering by Hierograph relationship kind. The Hierograph vocabulary is mapped
  * to jQAssistant edge labels by the [BRANCHES] table -- the single place to look
  * when adding, renaming, or remapping a relationship kind.
+ *
+ * **Legacy (Neo4j/Cypher).** Used only when `hierograph.graph.source=jqa`; the default Parquet path is
+ * served by [ParquetDetailDependencies] (see [DetailDependenciesRouter]). Retained to validate/bootstrap
+ * the Parquet path until the ASM scanner is proven equivalent, then removed with the `graphstore.jqa` module.
  */
 @Component
 class DetailDependenciesComponent(

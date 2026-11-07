@@ -51,8 +51,12 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.dumpFile:hierarchical-graph.txt}")
     private lateinit var graphDumpFile: String
 
-    /** Where the hierarchical graph is built from: `jqa` (Neo4j via GraphDbMapping) or `parquet`. */
-    @Value("\${hierograph.graph.source:jqa}")
+    /**
+     * Where the hierarchical graph is built from: `parquet` (default — from snapshot files, no Neo4j) or
+     * the **legacy** `jqa` source (Neo4j via `GraphDbMapping`, retained for validation/bootstrapping until
+     * the ASM scanner is proven equivalent).
+     */
+    @Value("\${hierograph.graph.source:parquet}")
     private lateinit var graphSource: String
 
     /** Directory holding the Parquet tables, used when `hierograph.graph.source=parquet`. */
@@ -215,9 +219,13 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Builds a snapshot from the configured source: `parquet` reads the Parquet tables into a
-     * [GraphStore] and bridges to an [HGModel] (no Neo4j), carrying the store so the detail path can
-     * read it; `jqa` projects the model from the connected Bolt store via `GraphDbMapping`.
+     * Builds a snapshot from the configured source. The default `parquet` path reads the Parquet tables
+     * into a [GraphStore] and bridges to an [HGModel] (no Neo4j), carrying the store so the detail path
+     * can read it.
+     *
+     * The `else` branch is the **legacy jQAssistant/Neo4j path** (`GraphDbMapping` over Bolt), retained
+     * only to validate/bootstrap the Parquet path until the ASM scanner is proven equivalent; it will be
+     * removed together with the `graphstore.jqa` module and the Cypher tool implementations.
      */
     private fun buildSnapshot(): GraphSnapshot =
         if (useParquet) {
@@ -231,6 +239,7 @@ class HierarchicalGraphService {
                 .associateBy({ NodeHandle.of(it.key) }, { it.fqn })
             buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles)
         } else {
+            // Legacy: Neo4j/jQAssistant projection (see the KDoc above).
             buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null, memberHandles = emptyMap())
         }
 

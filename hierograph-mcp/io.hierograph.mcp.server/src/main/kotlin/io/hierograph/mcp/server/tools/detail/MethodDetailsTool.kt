@@ -64,7 +64,11 @@ class MethodDetailsTool(
     ): Map<String, Any?> =
         if (graphService.isParquetBacked) parquet.methodDetails(methodId) else cypherMethodDetails(methodId)
 
-    /** The Neo4j/Cypher implementation, used when the graph is served from jQAssistant. */
+    /**
+     * Legacy Neo4j/Cypher implementation, used only when `hierograph.graph.source=jqa`. The default
+     * Parquet path is [ParquetMethodDetails]; this is retained for validation until the ASM scanner is
+     * proven equivalent, then removed with the `graphstore.jqa` module.
+     */
     private fun cypherMethodDetails(methodId: Long): Map<String, Any?> {
 
         val cypher = buildMethodDetailsCypher()
