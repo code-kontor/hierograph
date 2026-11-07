@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.mcp.javaspec
+package io.hierograph.mcp.server
 
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
@@ -22,6 +22,7 @@ import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.core.model.internal.HGGraphImpl
+import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

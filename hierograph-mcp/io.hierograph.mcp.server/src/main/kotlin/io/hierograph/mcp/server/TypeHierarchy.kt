@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.mcp.javaspec
+package io.hierograph.mcp.server
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 
 /**
  * Returns the transitive supertype closure of this type node — every type reachable
