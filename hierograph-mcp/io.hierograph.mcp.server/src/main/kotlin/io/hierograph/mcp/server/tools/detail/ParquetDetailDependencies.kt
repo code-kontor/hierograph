@@ -89,9 +89,11 @@ class ParquetDetailDependencies(
         // types are materialized in the model — matching the Cypher path, which drops inheritance-reached
         // types that aren't hierarchy nodes so the detail layer never surfaces a non-navigable type.
         val typeHandle: (String) -> Long? = { fqn -> store.typeByFqn(fqn)?.key?.let { NodeHandle.of(it) } }
+        // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
+        // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val raw = DetailQueryEngine(parquetDir)
             .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, relationship = effectiveRel, limit = Int.MAX_VALUE))
-            .edges
+            .edges + graphService.derivedDetailRefs(fromTypes, toTypes, effectiveRel)
         val edges = raw.filter { typeHandle(it.fromType) != null && typeHandle(it.toType) != null }
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.

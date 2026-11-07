@@ -23,7 +23,9 @@ import io.hierograph.graphstore.hgmodel.GraphStoreToHGModel
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.mcp.javaspec.JavaKinds
+import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.hierarchicalgraph.graphdb.mapping.service.DefaultMappingService
 import io.hierograph.mcp.jqa.hierarchicalgraph.jQAssistantMappingProvider
 import io.hierograph.graphservice.pagination.DataHash
@@ -180,7 +182,7 @@ class HierarchicalGraphService {
      * in tests; production code loads via [init] / [reload].
      */
     fun seed(model: HGModel) {
-        snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap()))
+        snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), derivedDetailRefs = emptyList()))
     }
 
     /** Build a fresh snapshot from the configured source, logging progress and writing the dump. */
@@ -237,15 +239,61 @@ class HierarchicalGraphService {
             val memberHandles = store.nodes().asSequence()
                 .filter { it.kind in JavaKinds.MEMBER_KINDS }
                 .associateBy({ NodeHandle.of(it.key) }, { it.fqn })
-            buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles)
+            buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles, deriveDetailRefs(dir, store, reader))
         } else {
             // Legacy: Neo4j/jQAssistant projection (see the KDoc above).
-            buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null, memberHandles = emptyMap())
+            buildSnapshotFrom(DefaultMappingService().convert(jQAssistantMappingProvider(), boltClient), graphStore = null, memberHandles = emptyMap(), derivedDetailRefs = emptyList())
         }
 
+    /**
+     * Hierarchy-dependent member edges (overrides / virtual + resolved calls) computed over the full
+     * assembled graph — the load-time home of what the scanner cannot derive across independently-scanned
+     * artifacts. Keeps only the edges not already in the snapshot's `detail_refs`, so a single-shot or jQA
+     * snapshot (already complete) contributes nothing and a per-artifact snapshot gains its cross-artifact
+     * edges. See [HierarchyResolution].
+     */
+    private fun deriveDetailRefs(dir: Path, store: GraphStore, reader: ParquetReader): List<DetailRef> {
+        val methodsByOwner = reader.readAllMembers(dir)
+            .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
+            .groupBy { it.key.substringBefore('#') }
+        val superByFqn = store.typeDependencies()
+            .filter { it.extends || it.implements }
+            .groupBy({ it.from }, { it.to })
+        val types = store.nodes().asSequence()
+            .filter { JavaKinds.isTypeKind(it.kind) }
+            .map { n ->
+                HierarchyResolution.Type(
+                    fqn = n.fqn,
+                    directSupertypes = superByFqn[n.fqn].orEmpty(),
+                    methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom) },
+                )
+            }.toList()
+        val directCalls = reader.readDetailRefs(dir, relationship = "calls")
+        val resolved = HierarchyResolution.resolve(types, directCalls)
+
+        val existing = reader.readDetailRefs(dir).mapTo(HashSet()) { Triple(it.fromKey, it.toKey, it.relationship) }
+        return resolved.filterNot { Triple(it.fromKey, it.toKey, it.relationship) in existing }
+    }
+
+    /**
+     * The load-derived member edges matching the given scope (same semantics as
+     * [ParquetReader.readDetailRefs]): `from_type` in [fromTypes], `to_type` in [toTypes], `relationship`
+     * equal to [relationship] — each ignored when null/empty. The detail tools union this with the
+     * Parquet `detail_refs`.
+     */
+    fun derivedDetailRefs(fromTypes: Collection<String>? = null, toTypes: Collection<String>? = null, relationship: String? = null): List<DetailRef> {
+        val from = fromTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
+        val to = toTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
+        return current().derivedDetailRefs.filter { edge ->
+            (from == null || edge.fromType in from) &&
+                (to == null || edge.toType in to) &&
+                (relationship == null || edge.relationship == relationship)
+        }
+    }
+
     /** Bundle a model with its (freshly built) search index and data hash. Pure — no I/O, no logging. */
-    private fun buildSnapshotFrom(model: HGModel, graphStore: GraphStore?, memberHandles: Map<Long, String>): GraphSnapshot =
-        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model), graphStore, memberHandles)
+    private fun buildSnapshotFrom(model: HGModel, graphStore: GraphStore?, memberHandles: Map<Long, String>, derivedDetailRefs: List<DetailRef>): GraphSnapshot =
+        GraphSnapshot(model, NodeSearchIndex.build(model), DataHash.fingerprint(model), graphStore, memberHandles, derivedDetailRefs)
 
     @PreDestroy
     fun shutdown() {

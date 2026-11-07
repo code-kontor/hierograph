@@ -16,6 +16,7 @@
 package io.hierograph.graphservice
 
 import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 
 /**
@@ -40,5 +41,13 @@ data class GraphSnapshot(
      * Members are not nodes in the bridged model, so their content-addressed handles cannot be looked up
      * via the model; this maps a handle back to the `<owner fqn>#<signature>` key to read from Parquet.
      */
-    val memberHandles: Map<Long, String> = emptyMap()
+    val memberHandles: Map<Long, String> = emptyMap(),
+    /**
+     * Member-level edges derived at load from the full type hierarchy (overrides / virtual + resolved
+     * calls; see [HierarchyResolution]) that are **not already present** in the snapshot's `detail_refs`.
+     * For a single-shot scan or a jQA export (already complete) this is empty; for per-artifact
+     * `.hierograph` snapshots it carries the cross-artifact edges no single artifact scan could see. The
+     * detail tools union it with the Parquet `detail_refs`.
+     */
+    val derivedDetailRefs: List<DetailRef> = emptyList()
 )

@@ -62,7 +62,9 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
             "parent_kind" to declaringTypeRef["kind"],
         )
 
-        val edges = reader.readDetailRefs(dir, fromTypes = listOf(ownerFqn)).filter { it.fromKey == memberKey }
+        // Parquet direct edges for this owner + the load-derived ones (overrides/calls), then this member's.
+        val edges = (reader.readDetailRefs(dir, fromTypes = listOf(ownerFqn)) + graphService.derivedDetailRefs(fromTypes = listOf(ownerFqn)))
+            .filter { it.fromKey == memberKey }
 
         val returnType: Map<String, Any?> = when {
             isConstructor -> declaringTypeRef
