@@ -67,6 +67,12 @@
             <artifactId>io.hierograph.graphstore.detail</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- ASM scanner: validate its output against the jQAssistant baseline. -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.scanner</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test-junit5</artifactId>
