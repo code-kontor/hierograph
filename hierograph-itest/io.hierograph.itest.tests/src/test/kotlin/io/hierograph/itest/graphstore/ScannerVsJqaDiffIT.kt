@@ -248,10 +248,18 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         assertThat(onlyScannerCalls.toDouble() / jqaCalls)
             .withFailMessage { "scanner invents too many 'calls' ($onlyScannerCalls vs jQA $jqaCalls) — virtual-dispatch over-fan regressed?" }
             .isLessThan(0.10)
-        // NOT asserted (open detail-convergence items, reported above):
+        // NOT asserted — reported above, all understood to be jQA lossiness/artifacts, not scanner gaps:
         //  - `calls`: residual ~3% each way — the scanner fans virtual dispatch (incl. Object methods and
         //    self-calls) on scanned types a little more eagerly than jQA's VIRTUAL_INVOKES;
-        //  - small residuals on returns / has_type / parameter_type / overrides (array/covariant notation).
+        //  - `returns` / `has_type` / `parameter_type`: for array types the scanner records the element
+        //    type (e.g. `Class` for `Class[]`) where jQA collapses to `java.lang.Object`; the scanner also
+        //    keeps synthetic enum/anonymous-constructor params that jQA strips; a few jQA targets are
+        //    package-less nested-name bugs (`ReferenceManager`). The scanner is the more precise side.
+        //  - `overrides`: the scanner records the transitive override closure (a method overrides the
+        //    matching method in *every* supertype) where jQA records the direct override and relies on
+        //    chaining; the jQA-only remainder is `<clinit>` pseudo-overrides (the scanner excludes static
+        //    initializers) and covariant/generic overrides that jQA keys to the user method against the
+        //    erased-`Object` parent signature while the scanner keys them to the compiler bridge method.
     }
 
     private fun definedTypes(rows: List<HierarchyRow>): Set<String> =
