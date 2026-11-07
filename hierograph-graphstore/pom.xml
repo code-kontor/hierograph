@@ -20,7 +20,6 @@
     <modules>
         <module>io.hierograph.javaspec</module>
         <module>io.hierograph.graphstore</module>
-        <module>io.hierograph.graphstore.hgmodel</module>
         <module>io.hierograph.graphstore.scanner</module>
     </modules>
 </project>
