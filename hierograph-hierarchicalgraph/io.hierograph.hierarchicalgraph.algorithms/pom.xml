@@ -11,14 +11,14 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>io.hierograph.hierarchicalgraph.core.algorithms</artifactId>
+    <artifactId>io.hierograph.hierarchicalgraph.algorithms</artifactId>
     <packaging>jar</packaging>
-    <name>Hierograph Hierarchical Graph Core Algorithms</name>
+    <name>Hierograph Hierarchical Graph Algorithms</name>
 
     <dependencies>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
+            <artifactId>io.hierograph.hierarchicalgraph.model</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

@@ -27,7 +27,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
+            <artifactId>io.hierograph.hierarchicalgraph.model</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>

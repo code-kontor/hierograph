@@ -11,9 +11,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
+    <artifactId>io.hierograph.hierarchicalgraph.model</artifactId>
     <packaging>jar</packaging>
-    <name>Hierograph Hierarchical Graph Core Model</name>
+    <name>Hierograph Hierarchical Graph Model</name>
 
     <dependencies>
         <dependency>
