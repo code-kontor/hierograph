@@ -17,9 +17,12 @@ package io.hierograph.itest.fwk
 
 import io.hierograph.graphstore.scanner.BytecodeScanner
 import io.hierograph.graphstore.scanner.ScanArtifact
+import org.slf4j.LoggerFactory
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * The shared integration-test data source: a Spring 7.0.8 `.hierograph` snapshot produced by the ASM
@@ -28,6 +31,8 @@ import java.nio.file.Path
  * via `hierograph.graph.parquetDir`. This replaces the retired jQAssistant/Neo4j Testcontainers image.
  */
 object SpringFixture {
+
+    private val log = LoggerFactory.getLogger(SpringFixture::class.java)
 
     const val SPRING_VERSION = "7.0.8"
     private const val MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
@@ -46,13 +51,19 @@ object SpringFixture {
         val base = Files.createTempDirectory("hierograph-spring-fixture")
         val jarsDir = Files.createDirectories(base.resolve("jars"))
         val snapshotDir = Files.createDirectories(base.resolve("hierograph"))
-        val jars = SPRING_MODULES.map { module ->
-            val jar = jarsDir.resolve("$module-$SPRING_VERSION.jar")
-            URI("$MAVEN_CENTRAL/org/springframework/$module/$SPRING_VERSION/$module-$SPRING_VERSION.jar").toURL()
-                .openStream().use { Files.copy(it, jar) }
-            jar
+        val (jars, downloadTime) = measureTimedValue {
+            SPRING_MODULES.map { module ->
+                val jar = jarsDir.resolve("$module-$SPRING_VERSION.jar")
+                URI("$MAVEN_CENTRAL/org/springframework/$module/$SPRING_VERSION/$module-$SPRING_VERSION.jar").toURL()
+                    .openStream().use { Files.copy(it, jar) }
+                jar
+            }
         }
-        BytecodeScanner().scan(jars.map { ScanArtifact.of(it) }).writeTo(snapshotDir)
+        val scanTime = measureTime { BytecodeScanner().scan(jars.map { ScanArtifact.of(it) }).writeTo(snapshotDir) }
+        log.info(
+            "SpringFixture built: downloaded {} Spring {} jars in {}, scanned to .hierograph in {} (total {})",
+            jars.size, SPRING_VERSION, downloadTime, scanTime, downloadTime + scanTime,
+        )
         return snapshotDir
     }
 }

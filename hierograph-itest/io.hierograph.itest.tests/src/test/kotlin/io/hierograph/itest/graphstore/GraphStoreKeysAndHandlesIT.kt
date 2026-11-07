@@ -22,6 +22,8 @@ import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.slf4j.LoggerFactory
+import kotlin.time.measureTimedValue
 
 /**
  * Artifact-scoped keys and content-addressed [NodeHandle] stability over the real Spring snapshot. The
@@ -31,8 +33,13 @@ import org.junit.jupiter.api.TestInstance
 class GraphStoreKeysAndHandlesIT {
 
     private val dir = SpringFixture.directory
+    private val log = LoggerFactory.getLogger(GraphStoreKeysAndHandlesIT::class.java)
 
-    private fun freshStore() = GraphStore().also { ParquetReader().load(dir, it) }
+    private fun freshStore(): GraphStore {
+        val (store, elapsed) = measureTimedValue { GraphStore().also { ParquetReader().load(dir, it) } }
+        log.info("freshStore: loaded GraphStore ({} nodes) from the snapshot in {}", store.nodeCount(), elapsed)
+        return store
+    }
 
     @Test
     fun `type node keys are artifact-scoped and end with the fqn`() {
