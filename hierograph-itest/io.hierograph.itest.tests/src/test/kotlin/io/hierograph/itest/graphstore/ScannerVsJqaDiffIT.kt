@@ -19,12 +19,16 @@ import io.hierograph.boltclient.IBoltClientFactory
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.HierarchyRow
 import io.hierograph.graphstore.PlaceholderPolicy
+import io.hierograph.graphservice.HierarchyResolution
 import io.hierograph.graphstore.jqa.DiffOptions
 import io.hierograph.graphstore.jqa.JqaParquetExporter
 import io.hierograph.graphstore.jqa.SnapshotDiff
+import io.hierograph.graphstore.jqa.detail.JqaDetailExporter
+import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.graphstore.scanner.BytecodeScanner
 import io.hierograph.graphstore.scanner.ScanArtifact
+import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.itest.fwk.AbstractIntegrationTest
 import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
@@ -61,6 +65,14 @@ import java.util.concurrent.Executors
  *  - synthetic Kotlin `…Kt` / DSL classes.
  * No real scanner gap has been found; the scanner deliberately produces the cleaner graph.
  *
+ * **Detail (member-level) edges.** The scanner's direct edges plus the load-derived overrides/virtual/
+ * resolved calls ([HierarchyResolution]) are diffed against jQA's full member-edge export by
+ * `(fromKey,toKey,relationship)` (line ignored). `annotated_by` / `reads_field` / `writes_field` match
+ * exactly (asserted). Open convergence items (reported, not asserted): `calls` — the virtual-dispatch
+ * fan-out is much broader than jQA's `VIRTUAL_INVOKES` (scanner over-approximates); `throws` — jQA
+ * records exceptions beyond the declared clause; and small residuals on returns / has_type /
+ * parameter_type / overrides. Detail-level parity is therefore **not yet** sufficient to retire jQA.
+ *
  * Opt-in (needs Docker **and** network): run with
  * `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=ScannerVsJqaDiffIT -Dhierograph.scanner.validate=1`.
  */
@@ -72,6 +84,7 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         @TempDir jarsDir: Path,
         @TempDir scannerDir: Path,
         @TempDir jqaDir: Path,
+        @TempDir jqaDetailDir: Path,
     ) {
         val jars = downloadSpringJars(jarsDir)
         assertThat(jars).hasSize(SPRING_MODULES.size)
@@ -80,12 +93,14 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         BytecodeScanner().scan(jars.map { ScanArtifact.of(it) }).writeTo(scannerDir)
         val scanner = GraphStore(PlaceholderPolicy.JQA_ALIGNED).also { ParquetReader().load(scannerDir, it) }
 
-        // jQA side: export the container's store of the same jars -> Parquet -> GraphStore.
+        // jQA side: export the container's store of the same jars -> Parquet -> GraphStore, and its
+        // member-level detail edges (direct + jQA's own overrides/virtual) for the detail diff.
         val executor = Executors.newVirtualThreadPerTaskExecutor()
         val bolt = IBoltClientFactory.newInstance(executor).createBoltClient(container.boltUri)
         bolt.connect()
         try {
             JqaParquetExporter(bolt).exportTo(jqaDir)
+            JqaDetailExporter(bolt).exportTo(jqaDetailDir)
         } finally {
             bolt.disconnect(); executor.shutdownNow()
         }
@@ -147,6 +162,56 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         assertThat(onlyScannerDeps)
             .withFailMessage { "Non-primitive type dependencies invented by the scanner (should be none): ${onlyScannerDeps.take(50)}" }
             .isEmpty()
+
+        // === detail (member-level) edges ===========================================================
+        // Scanner detail = its direct edges + the load-derived overrides/virtual/resolved calls
+        // (HierarchyResolution over the scanned hierarchy), vs jQA's full member-edge export.
+        val reader = ParquetReader()
+        val scannerDirect = reader.readDetailRefs(scannerDir)
+        val methodsByOwner = reader.readAllMembers(scannerDir)
+            .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
+            .groupBy { it.key.substringBefore('#') }
+        val superByFqn = scanner.typeDependencies().filter { it.extends || it.implements }.groupBy({ it.from }, { it.to })
+        val types = scanner.nodes().asSequence().filter { JavaKinds.isTypeKind(it.kind) }.map { n ->
+            HierarchyResolution.Type(
+                n.fqn, superByFqn[n.fqn].orEmpty(),
+                methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom) },
+            )
+        }.toList()
+        val derived = HierarchyResolution.resolve(types, scannerDirect.filter { it.relationship == "calls" })
+
+        fun edgeKey(d: DetailRef) = Triple(d.fromKey, d.toKey, d.relationship)   // line ignored: numbers differ
+        val scannerDetail = (scannerDirect + derived).mapTo(HashSet()) { edgeKey(it) }
+        val jqaDetail = reader.readDetailRefs(jqaDetailDir).mapTo(HashSet()) { edgeKey(it) }
+        val onlyScannerDetail = scannerDetail - jqaDetail
+        val onlyJqaDetail = jqaDetail - scannerDetail
+
+        println("=== detail edges (member-level) ===")
+        println("scanner detail=${scannerDetail.size} (direct ${scannerDirect.size} + derived ${derived.size}), jQA detail=${jqaDetail.size}")
+        println("per-relationship  scanner / jQA / only-scanner / only-jQA:")
+        (scannerDetail.map { it.third } + jqaDetail.map { it.third }).toSortedSet().forEach { rel ->
+            println(
+                "    %-24s %-7d %-7d %-7d %d".format(
+                    rel, scannerDetail.count { it.third == rel }, jqaDetail.count { it.third == rel },
+                    onlyScannerDetail.count { it.third == rel }, onlyJqaDetail.count { it.third == rel },
+                ),
+            )
+        }
+        println("  only-scanner detail (<=15): ${onlyScannerDetail.take(15)}")
+        println("  only-jQA detail (<=15): ${onlyJqaDetail.take(15)}")
+
+        assertThat(scannerDetail).isNotEmpty()
+        assertThat(jqaDetail).isNotEmpty()
+        // Member-level facts needing no hierarchy inference match jQA exactly.
+        val cleanRelationships = setOf("annotated_by", "reads_field", "writes_field")
+        assertThat((onlyScannerDetail + onlyJqaDetail).filter { it.third in cleanRelationships })
+            .withFailMessage { "detail edges for $cleanRelationships must match jQA exactly; diffs: ${(onlyScannerDetail + onlyJqaDetail).filter { it.third in cleanRelationships }.take(30)}" }
+            .isEmpty()
+        // NOT asserted (open detail-convergence items, reported above):
+        //  - `calls`: the load-time virtual-dispatch fan-out is far broader than jQA's VIRTUAL_INVOKES
+        //    (scanner over-approximates — needs reconciling);
+        //  - `throws`: jQA records exceptions beyond the declared throws clause (likely body-thrown);
+        //  - small residuals on returns / has_type / parameter_type / overrides.
     }
 
     private fun definedTypes(rows: List<HierarchyRow>): Set<String> =
