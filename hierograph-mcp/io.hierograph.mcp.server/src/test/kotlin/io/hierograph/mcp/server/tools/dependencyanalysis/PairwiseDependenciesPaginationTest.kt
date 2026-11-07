@@ -22,9 +22,9 @@ import io.hierograph.hierarchicalgraph.core.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.mcp.server.core.pagination.DataHashProvider
+import io.hierograph.graphservice.pagination.DataHashProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

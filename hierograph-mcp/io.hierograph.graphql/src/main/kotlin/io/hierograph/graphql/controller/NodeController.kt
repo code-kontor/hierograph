@@ -16,7 +16,7 @@
 package io.hierograph.graphql.controller
 
 import io.hierograph.graphql.HierarchicalGraphProvider
-import io.hierograph.graphql.NodePropertiesProvider
+import io.hierograph.graphservice.NodePropertiesProvider
 import io.hierograph.graphql.model.MapEntryModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.graphql.model.NodesToConsider

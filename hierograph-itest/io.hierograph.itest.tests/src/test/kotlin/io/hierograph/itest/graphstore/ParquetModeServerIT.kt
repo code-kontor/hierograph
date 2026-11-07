@@ -26,11 +26,11 @@ import io.hierograph.itest.fwk.AbstractIntegrationTest
 import io.hierograph.itest.fwk.HierographImageContainer
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.server.core.HierarchicalGraphService
-import io.hierograph.mcp.server.core.NodeSearch
-import io.hierograph.mcp.server.core.ParquetNodePropertiesProvider
-import io.hierograph.mcp.server.core.pagination.DataHashProvider
-import io.hierograph.mcp.server.core.pagination.PaginationSpec
+import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.graphservice.NodeSearch
+import io.hierograph.graphservice.ParquetNodePropertiesProvider
+import io.hierograph.graphservice.pagination.DataHashProvider
+import io.hierograph.graphservice.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
 import io.hierograph.mcp.server.tools.detail.DetailDependenciesComponent

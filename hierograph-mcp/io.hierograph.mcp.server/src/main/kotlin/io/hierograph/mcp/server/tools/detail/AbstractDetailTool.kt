@@ -20,7 +20,7 @@ import org.neo4j.driver.Value
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.graphservice.HierarchicalGraphService
 
 
 /**

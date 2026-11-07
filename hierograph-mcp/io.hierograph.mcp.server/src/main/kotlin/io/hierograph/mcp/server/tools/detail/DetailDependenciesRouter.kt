@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.mcp.server.core.HierarchicalGraphService
-import io.hierograph.mcp.server.core.pagination.PaginationSpec
+import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.graphservice.pagination.PaginationSpec
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Component
 

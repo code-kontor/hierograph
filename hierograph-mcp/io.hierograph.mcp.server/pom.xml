@@ -82,6 +82,10 @@
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.graphql</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphservice</artifactId>
+        </dependency>
         <!-- Parquet-backed graph source (hierograph.graph.source=parquet). -->
         <dependency>
             <groupId>io.hierograph</groupId>

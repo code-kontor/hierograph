@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.mcp.server.core.NodeSearch
+import io.hierograph.graphservice.NodeSearch
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component

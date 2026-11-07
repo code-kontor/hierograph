@@ -15,7 +15,7 @@
  */
 package io.hierograph.graphql.controller
 
-import io.hierograph.graphql.NodeSearchProvider
+import io.hierograph.graphservice.NodeSearch
 import io.hierograph.graphql.model.DependencySetModel
 import io.hierograph.graphql.model.NodeSetModel
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
@@ -30,9 +30,9 @@ import org.springframework.stereotype.Controller
  * now owns root, node lookup, and structural navigation).
  */
 @Controller
-class HierarchicalGraphController(private val searchProvider: NodeSearchProvider? = null) {
+class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
 
-    /** Name search, delegated to the host's [NodeSearchProvider]; see the schema for matching and ranking. */
+    /** Name search via the shared [NodeSearch] (same matching and ranking as `find_node`); see the schema. */
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun findNodes(
         hierarchy: Hierarchy,
@@ -42,8 +42,16 @@ class HierarchicalGraphController(private val searchProvider: NodeSearchProvider
     ): List<HGNode> {
         if (limit !in 1..MAX_FIND_LIMIT) throw InvalidArgumentException("limit must be between 1 and $MAX_FIND_LIMIT, was $limit")
         if (name.isBlank()) throw InvalidArgumentException("name must not be blank")
-        val provider = searchProvider ?: throw InvalidArgumentException("findNodes is not available: no search index is configured")
-        return provider.findNodes(name, kinds, limit)
+        val search = nodeSearch ?: throw InvalidArgumentException("findNodes is not available: no search index is configured")
+        val invalid = search.invalidKinds(kinds)
+        if (invalid.isNotEmpty()) {
+            throw InvalidArgumentException(
+                "Unknown kind${if (invalid.size > 1) "s" else ""}: ${invalid.joinToString(", ") { "'$it'" }}. " +
+                    "Valid kinds: ${search.validKindValues.joinToString(", ")}. " +
+                    "Group aliases: ${search.validAliases.joinToString(", ")}."
+            )
+        }
+        return search.search(name, kinds, limit)
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")

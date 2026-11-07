@@ -28,7 +28,7 @@ configuration lives in `hierograph-parent`.
 | `hierograph-parent`           | Parent POM: dependency management, plugin config, Java/Kotlin versions |
 | `hierograph-core`             | Core utilities (e.g. `io.hierograph.boltclient`)                  |
 | `hierograph-hierarchicalgraph`| The in-memory hierarchical graph model, algorithms, serialization, and graph-db mapping |
-| `hierograph-mcp`              | MCP server, jQAssistant/Java-spec bindings, GraphQL                |
+| `hierograph-mcp`              | MCP server, jQAssistant/Java-spec bindings, GraphQL, and the graph service they share (`io.hierograph.graphservice`: loading/reload, search, node properties, pagination) |
 | `hierograph-jqassistant`      | Hierograph's jQAssistant rules plugin                             |
 | `hierograph-itest`            | Integration tests (opt-in, see below)                            |
 

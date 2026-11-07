@@ -18,7 +18,7 @@ package io.hierograph.mcp.server.tools.detail
 import org.neo4j.driver.Value
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.graphservice.HierarchicalGraphService
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component

@@ -16,13 +16,13 @@
 package io.hierograph.mcp.server.tools.reachability
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.mcp.server.core.pagination.DataHashProvider
-import io.hierograph.mcp.server.core.pagination.PageResult
-import io.hierograph.mcp.server.core.pagination.PaginationSpec
-import io.hierograph.mcp.server.core.pagination.Paginator
-import io.hierograph.mcp.server.core.pagination.QueryHash
+import io.hierograph.graphservice.pagination.DataHashProvider
+import io.hierograph.graphservice.pagination.PageResult
+import io.hierograph.graphservice.pagination.PaginationSpec
+import io.hierograph.graphservice.pagination.Paginator
+import io.hierograph.graphservice.pagination.QueryHash
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider

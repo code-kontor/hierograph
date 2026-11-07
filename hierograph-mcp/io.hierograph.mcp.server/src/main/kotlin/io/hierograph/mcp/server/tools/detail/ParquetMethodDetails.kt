@@ -21,7 +21,7 @@ import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
 import java.nio.file.Path
 

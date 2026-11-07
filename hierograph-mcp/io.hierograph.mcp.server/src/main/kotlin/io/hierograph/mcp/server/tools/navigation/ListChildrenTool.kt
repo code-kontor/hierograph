@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.mcp.server.core.HierarchicalGraphService
+import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind

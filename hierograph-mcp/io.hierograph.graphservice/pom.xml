@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.hierograph</groupId>
+        <artifactId>hierograph-mcp</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>io.hierograph.graphservice</artifactId>
+    <packaging>jar</packaging>
+    <name>Hierograph Graph Service</name>
+    <description>
+        The served hierarchical graph, shared by the API adapters (MCP tools, GraphQL): loading it from
+        jQAssistant/Neo4j or a Parquet snapshot, snapshot lifecycle and reload, name search, node
+        properties, and the pagination/data-hash support.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- hierograph -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.mcp.javaspec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.mcp.jqassistant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.boltclient</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.parquet</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
+        </dependency>
+
+        <!-- jackson 2 (pagination cursors / data hash) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+        </dependency>
+
+        <!-- kotlin -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+        </dependency>
+        <!-- jackson-module-kotlin pulls kotlin-reflect; pin to the project's Kotlin version. -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-reflect</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+
+        <!-- test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <configuration>
+                    <compilerPlugins>
+                        <plugin>spring</plugin>
+                    </compilerPlugins>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-allopen</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

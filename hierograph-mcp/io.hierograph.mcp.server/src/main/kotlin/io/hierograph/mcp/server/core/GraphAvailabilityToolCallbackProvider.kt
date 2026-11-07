@@ -16,6 +16,7 @@
 package io.hierograph.mcp.server.core
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.hierograph.graphservice.HierarchicalGraphService
 import org.springframework.ai.chat.model.ToolContext
 import org.springframework.ai.tool.ToolCallback
 import org.springframework.ai.tool.ToolCallbackProvider

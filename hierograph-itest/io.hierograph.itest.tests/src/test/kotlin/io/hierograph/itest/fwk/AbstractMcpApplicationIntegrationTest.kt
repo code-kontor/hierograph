@@ -28,7 +28,7 @@ import org.springframework.test.context.DynamicPropertySource
  * [McpApplication] and are not present in the graph-only slice
  * ([AbstractHierarchicalGraphIntegrationTest]).
  *
- * The hierarchical graph (via [io.hierograph.mcp.server.core.HierarchicalGraphService]) is also
+ * The hierarchical graph (via [io.hierograph.graphservice.HierarchicalGraphService]) is also
  * built here, so the dump-file location is redirected into `target/` as well.
  */
 @SpringBootTest(classes = [McpApplication::class])

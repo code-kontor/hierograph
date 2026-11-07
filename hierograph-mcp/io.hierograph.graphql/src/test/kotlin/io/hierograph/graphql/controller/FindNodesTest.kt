@@ -15,11 +15,15 @@
  */
 package io.hierograph.graphql.controller
 
-import io.hierograph.graphql.NodeSearchProvider
+import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.graphservice.NodeSearch
+import io.hierograph.graphstore.hgmodel.GraphStoreNodeSource
 import io.hierograph.hierarchicalgraph.core.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.core.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.HierarchyFactory
+import io.hierograph.mcp.javaspec.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -27,25 +31,37 @@ import org.junit.jupiter.api.Test
 class FindNodesTest {
 
     private val graph = HGGraphFactory.createHGGraph()
-    private val root = HGGraphFactory.createNode(graph) { DefaultNodeSource(identifier = 1L) }
+    private var nextId = 1L
+    private val root = HGGraphFactory.createNode(graph) { DefaultNodeSource(identifier = nextId++) }
     private val hierarchy = HierarchyFactory.createHierarchy(graph, root)
-    private val hit = HGGraphFactory.createNode(graph) { DefaultNodeSource(identifier = 2L) }
+
+    private fun add(parent: HGNode, kind: Any, name: String, fqn: String): HGNode =
+        HGGraphFactory.createNode(graph) { GraphStoreNodeSource(nextId++, name, fqn, fqn) }.also {
+            it.kind = kind
+            HierarchyFactory.addChild(hierarchy, parent, it)
+        }
+
+    private val module = add(root, JavaKinds.MODULE, "app.jar", "app.jar") // the real top level is always modules
+    private val pkg = add(module, JavaKinds.PACKAGE, "handler", "com.foo.handler")
+    private val handler = add(pkg, JavaKinds.CLASS, "Handler", "com.foo.handler.Handler")
+    private val textHandler = add(pkg, JavaKinds.CLASS, "TextHandler", "com.foo.handler.TextHandler")
+
+    private val controller = HierarchicalGraphController(
+        NodeSearch(HierarchicalGraphService().also { it.seed(HGModel(graph, hierarchy)) })
+    )
 
     @Test
-    fun `delegates name, kinds and limit to the search provider`() {
-        val calls = mutableListOf<Triple<String, List<String>?, Int>>()
-        val provider = NodeSearchProvider { name, kinds, limit -> calls += Triple(name, kinds, limit); listOf<HGNode>(hit) }
-
-        val result = HierarchicalGraphController(provider).findNodes(hierarchy, "Handler", listOf("types"), 10)
-
-        assertThat(result).containsExactly(hit)
-        assertThat(calls).containsExactly(Triple("Handler", listOf("types"), 10))
+    fun `searches through the shared NodeSearch, honouring kinds and limit`() {
+        assertThat(controller.findNodes(hierarchy, "handler", null, 50)).containsExactly(pkg, handler, textHandler)
+        assertThat(controller.findNodes(hierarchy, "handler", listOf("types"), 1)).containsExactly(handler)
     }
 
     @Test
-    fun `rejects an out-of-range limit, a blank name, and a missing search index`() {
-        val controller = HierarchicalGraphController { _, _, _ -> emptyList() }
-
+    fun `rejects unknown kinds, an out-of-range limit, a blank name, and a missing search index`() {
+        assertThatThrownBy { controller.findNodes(hierarchy, "handler", listOf("classes"), 10) }
+            .isInstanceOf(InvalidArgumentException::class.java)
+            .hasMessageContaining("'classes'")
+            .hasMessageContaining("java.class")
         assertThatThrownBy { controller.findNodes(hierarchy, "x", null, 0) }
             .isInstanceOf(InvalidArgumentException::class.java).hasMessageContaining("limit")
         assertThatThrownBy { controller.findNodes(hierarchy, "x", null, HierarchicalGraphController.MAX_FIND_LIMIT + 1) }
