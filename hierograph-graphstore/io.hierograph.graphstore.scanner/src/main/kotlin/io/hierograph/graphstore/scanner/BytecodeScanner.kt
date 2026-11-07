@@ -21,6 +21,10 @@ import io.hierograph.graphstore.parquet.ParquetWriter
 import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import kotlin.io.path.extension
@@ -53,18 +57,49 @@ data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<Det
  * class is scanned once, in its newest version (`META-INF/versions/<n>/…` overrides the base — what runs on
  * a current JDK); `package-info` and nested/anonymous classes are types. Overrides and virtual calls need
  * the type hierarchy and are added over the whole scanned set by [HierarchyResolver].
+ *
+ * Artifacts are scanned in parallel, one task per artifact on up to [parallelism] threads; the results are
+ * collected in input order, so the output is identical to a sequential scan. The hierarchy pass runs after
+ * all artifacts are scanned.
  */
-class BytecodeScanner {
+class BytecodeScanner(private val parallelism: Int = Runtime.getRuntime().availableProcessors()) {
+
+    init {
+        require(parallelism >= 1) { "parallelism must be >= 1, was $parallelism" }
+    }
 
     fun scan(artifacts: List<ScanArtifact>): ScanResult {
-        val scanned = ArrayList<Pair<String, ScannedClass>>()
-        for (artifact in artifacts) {
-            classFiles(artifact.path) { bytes -> scanned += artifact.key to ClassScanner.scan(bytes) }
-        }
+        val scanned = scanArtifacts(artifacts).flatMap { (artifact, classes) -> classes.map { artifact.key to it } }
         val classes = scanned.map { (key, c) -> ArtifactClass(key, c.facts) }
         val direct = scanned.flatMap { it.second.detailRefs }
         val detailRefs = direct + HierarchyResolver.resolve(scanned.map { it.second }, direct.filter { it.relationship == "calls" })
         return ScanResult(classes, detailRefs)
+    }
+
+    /** Scans each artifact as its own task; returns the per-artifact results in input order. */
+    private fun scanArtifacts(artifacts: List<ScanArtifact>): List<Pair<ScanArtifact, List<ScannedClass>>> {
+        fun scanOne(artifact: ScanArtifact): List<ScannedClass> =
+            ArrayList<ScannedClass>().also { out -> classFiles(artifact.path) { bytes -> out += ClassScanner.scan(bytes) } }
+
+        val threads = minOf(parallelism, artifacts.size)
+        if (threads <= 1) return artifacts.map { it to scanOne(it) }
+
+        val counter = AtomicInteger()
+        val pool = Executors.newFixedThreadPool(threads) { task ->
+            Thread(task, "hierograph-scan-${counter.incrementAndGet()}").apply { isDaemon = true }
+        }
+        try {
+            val futures = artifacts.map { artifact -> pool.submit(Callable { scanOne(artifact) }) }
+            return artifacts.zip(futures).map { (artifact, future) ->
+                try {
+                    artifact to future.get()
+                } catch (e: ExecutionException) {
+                    throw IllegalStateException("Scanning ${artifact.path} failed: ${e.cause?.message}", e.cause)
+                }
+            }
+        } finally {
+            pool.shutdownNow()
+        }
     }
 
     private fun classFiles(path: Path, consume: (ByteArray) -> Unit) {
@@ -103,22 +138,31 @@ class BytecodeScanner {
 }
 
 /**
- * CLI: `scan --out <snapshot-dir> <jar-or-class-dir>...` — scans the artifacts and writes a Parquet
- * snapshot that the server loads with `hierograph.graph.source=parquet`.
+ * CLI: `scan --out <snapshot-dir> [--threads <n>] <jar-or-class-dir>...` — scans the artifacts (in parallel,
+ * `--threads` defaulting to the number of cores) and writes a Parquet snapshot that the server loads with
+ * `hierograph.graph.source=parquet`.
  */
 fun main(args: Array<String>) {
-    val outIndex = args.indexOf("--out")
-    require(outIndex >= 0 && outIndex + 1 < args.size) { "usage: scan --out <snapshot-dir> <jar-or-class-dir>..." }
-    val out = Path.of(args[outIndex + 1])
-    val inputs = args.filterIndexed { i, _ -> i != outIndex && i != outIndex + 1 }.map { ScanArtifact.of(Path.of(it)) }
-    require(inputs.isNotEmpty()) { "usage: scan --out <snapshot-dir> <jar-or-class-dir>..." }
+    val usage = "usage: scan --out <snapshot-dir> [--threads <n>] <jar-or-class-dir>..."
+    fun option(name: String): Pair<Int, String>? {
+        val i = args.indexOf(name)
+        if (i < 0) return null
+        require(i + 1 < args.size) { usage }
+        return i to args[i + 1]
+    }
+    val out = option("--out") ?: throw IllegalArgumentException(usage)
+    val threads = option("--threads")
+    val optionIndexes = listOfNotNull(out, threads).flatMap { (i, _) -> listOf(i, i + 1) }.toSet()
+    val inputs = args.filterIndexed { i, _ -> i !in optionIndexes }.map { ScanArtifact.of(Path.of(it)) }
+    require(inputs.isNotEmpty()) { usage }
+    val parallelism = threads?.second?.toIntOrNull() ?: Runtime.getRuntime().availableProcessors()
 
     val started = System.nanoTime()
-    val result = BytecodeScanner().scan(inputs)
-    result.writeTo(out)
+    val result = BytecodeScanner(parallelism).scan(inputs)
+    result.writeTo(Path.of(out.second))
     println(
-        "Scanned ${inputs.size} artifacts: ${result.classes.size} types, " +
+        "Scanned ${inputs.size} artifacts on $parallelism threads: ${result.classes.size} types, " +
             "${result.classes.sumOf { it.facts.members.size }} members, ${result.detailRefs.size} detail refs " +
-            "→ $out in ${(System.nanoTime() - started) / 1_000_000} ms"
+            "→ ${out.second} in ${(System.nanoTime() - started) / 1_000_000} ms"
     )
 }

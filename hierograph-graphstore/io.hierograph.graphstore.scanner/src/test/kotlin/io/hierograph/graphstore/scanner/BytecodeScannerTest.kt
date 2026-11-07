@@ -308,6 +308,25 @@ class BytecodeScannerTest {
     }
 
     @Test
+    fun `a parallel scan gives exactly the sequential result, in input order`(@TempDir tmp: Path) {
+        // three artifacts (the same classes under three keys: also covers same-FQN types across artifacts)
+        fun copyOf(name: String): Path = tmp.resolve(name).also { target ->
+            Files.walk(classesDir).filter { Files.isRegularFile(it) }.forEach { file ->
+                val dest = target.resolve(classesDir.relativize(file).toString())
+                Files.createDirectories(dest.parent)
+                Files.copy(file, dest)
+            }
+        }
+        val artifacts = listOf(ScanArtifact.of(classesDir), ScanArtifact.of(copyOf("lib-a")), ScanArtifact.of(copyOf("lib-b")))
+
+        val sequential = BytecodeScanner(parallelism = 1).scan(artifacts)
+        val parallel = BytecodeScanner(parallelism = 4).scan(artifacts)
+
+        assertThat(parallel).isEqualTo(sequential)
+        assertThat(parallel.classes.map { it.artifactKey }.distinct()).containsExactly("classes", "lib-a", "lib-b")
+    }
+
+    @Test
     fun `the result round-trips through a Parquet snapshot into the GraphStore`(@TempDir tmp: Path) {
         result.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
 
