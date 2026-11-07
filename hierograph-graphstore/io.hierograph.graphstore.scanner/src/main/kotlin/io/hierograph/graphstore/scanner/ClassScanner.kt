@@ -58,9 +58,9 @@ internal class ScannedClass(
  * Type-level [Ref]s are aggregated per (target, kind) with a **count** of individual references, so the
  * dependency weight is "number of references". Member-level [DetailRef]s use the snapshot's detail
  * vocabulary (`calls`, `reads_field`, `writes_field`, `throws`, `returns`, `has_type`, `parameter_type`,
- * `annotated_by`); `overrides` and virtual calls need the type hierarchy and are added afterwards by
- * [HierarchyResolver]. Annotation *values* (enum constants, class values, nested annotations) count as
- * [RefKind.ANNOTATION_VALUE].
+ * `annotated_by`) — the **direct** edges only; `overrides` and virtual/resolved calls need the type
+ * hierarchy and are derived at load (see `HierarchyResolution` in the graph service). Annotation *values*
+ * (enum constants, class values, nested annotations) count as [RefKind.ANNOTATION_VALUE].
  */
 internal object ClassScanner {
 

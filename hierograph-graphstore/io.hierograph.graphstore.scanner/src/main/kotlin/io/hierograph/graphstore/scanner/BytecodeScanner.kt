@@ -54,12 +54,15 @@ data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<Det
  * ASM into `ClassFacts` and member-level `DetailRef`s — the replacement for the jQAssistant export, with
  * the same snapshot shape and key conventions. `module-info` is skipped; of a multi-release JAR, each
  * class is scanned once, in its newest version (`META-INF/versions/<n>/…` overrides the base — what runs on
- * a current JDK); `package-info` and nested/anonymous classes are types. Overrides and virtual calls need
- * the type hierarchy and are added over the whole scanned set by [HierarchyResolver].
+ * a current JDK); `package-info` and nested/anonymous classes are types.
+ *
+ * The scanner emits only **direct** member edges — those a single class file answers (calls, field
+ * reads/writes, return/parameter/throws types, annotations). The hierarchy-dependent edges (overrides,
+ * virtual + resolved calls) are **not** derived here: a per-artifact scan cannot see across artifacts, so
+ * they are computed at load over the fully-assembled graph (`HierarchyResolution` in the graph service).
  *
  * Artifacts are scanned in parallel, one task per artifact on up to [parallelism] threads; the results are
- * collected in input order, so the output is identical to a sequential scan. The hierarchy pass runs after
- * all artifacts are scanned.
+ * collected in input order, so the output is identical to a sequential scan.
  */
 class BytecodeScanner(private val parallelism: Int = Runtime.getRuntime().availableProcessors()) {
 
@@ -70,8 +73,8 @@ class BytecodeScanner(private val parallelism: Int = Runtime.getRuntime().availa
     fun scan(artifacts: List<ScanArtifact>): ScanResult {
         val scanned = scanArtifacts(artifacts).flatMap { (artifact, classes) -> classes.map { artifact.key to it } }
         val classes = scanned.map { (key, c) -> ArtifactClass(key, c.facts) }
-        val direct = scanned.flatMap { it.second.detailRefs }
-        val detailRefs = direct + HierarchyResolver.resolve(scanned.map { it.second }, direct.filter { it.relationship == "calls" })
+        // Direct edges only; overrides / virtual + resolved calls are derived at load (see the class doc).
+        val detailRefs = scanned.flatMap { it.second.detailRefs }
         return ScanResult(classes, detailRefs)
     }
 

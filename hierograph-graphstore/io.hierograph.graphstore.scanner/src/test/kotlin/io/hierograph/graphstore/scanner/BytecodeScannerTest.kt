@@ -250,34 +250,16 @@ class BytecodeScannerTest {
     }
 
     @Test
-    fun `calls are resolved through the scanned hierarchy - virtual dispatch and inherited declarations`() {
-        // a call through an interface also reaches the scanned implementations
+    fun `the scanner emits only direct member edges - no overrides or virtual dispatch`() {
+        // Hierarchy-dependent edges are derived at load (HierarchyResolution), not by the scanner.
+        assertThat(result.detailRefs.map { it.relationship }.toSet()).doesNotContain("overrides")
+        // A covariant override's real + bridge methods are both scanned (the resolver relies on this).
+        assertThat(type("fix.Dog").members.map { it.key })
+            .contains("fix.Dog#fix.Dog self()", "fix.Dog#java.lang.Object self()")
+        // Direct calls name the static receiver type; they are not fanned out to subtype implementations.
         assertThat(details("fix.User#double use(fix.Shape)", "calls").map { it.toKey })
-            .containsExactlyInAnyOrder("fix.Shape#double area()", "fix.Circle#double area()")
-        // a call naming a type that only inherits the method also reaches its declaration
-        assertThat(details("fix.User#java.lang.String label(fix.Circle)", "calls").map { it.toKey })
-            .containsExactlyInAnyOrder("fix.Circle#java.lang.String label()", "fix.Shape#java.lang.String label()")
-        // calls on unscanned owners are not expanded (List#add has no scanned implementations to fan out to)
-        assertThat(details("fix.Circle#java.util.List tags(int[],java.lang.String[])", "calls").map { it.toType }.toSet())
-            .doesNotContain("fix.Base")
-    }
-
-    @Test
-    fun `a covariant override and its bridge method both override the supertype method`() {
-        val dogMethods = type("fix.Dog").members.map { it.key }
-        assertThat(dogMethods).contains("fix.Dog#fix.Dog self()", "fix.Dog#java.lang.Object self()") // real + bridge
-        assertThat(details("fix.Dog#fix.Dog self()", "overrides").map { it.toKey }).containsExactly("fix.Animal#java.lang.Object self()")
-        assertThat(details("fix.Dog#java.lang.Object self()", "overrides").map { it.toKey }).containsExactly("fix.Animal#java.lang.Object self()")
-    }
-
-    @Test
-    fun `overrides point to the same signature in scanned supertypes only`() {
-        assertThat(details("fix.Circle#java.lang.String name()", "overrides").map { it.toKey })
-            .containsExactly("fix.Base#java.lang.String name()")
-        assertThat(details("fix.Circle#double area()", "overrides").map { it.toKey })
-            .containsExactly("fix.Shape#double area()")
-        assertThat(details("fix.Base#void run()", "overrides")).isEmpty() // java.lang.Runnable was not scanned
-        assertThat(result.detailRefs.filter { it.relationship == "overrides" && it.fromKey.contains("<init>") }).isEmpty()
+            .contains("fix.Shape#double area()")
+            .doesNotContain("fix.Circle#double area()")
     }
 
     @Test
