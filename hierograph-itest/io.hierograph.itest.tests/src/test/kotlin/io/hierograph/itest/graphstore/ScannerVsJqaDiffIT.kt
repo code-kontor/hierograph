@@ -51,10 +51,15 @@ import java.util.concurrent.Executors
  *    param/return/throws types, …) as type-level refs, so `typeDependencies()` is as dense as jQA's.
  *
  * The reverse residual (edges only in jQA, ~5k on Spring) is **reported, not asserted**: it is jQA
- * over-including *compilation artifacts* the scanner cleanly omits — invokedynamic bootstrap
- * (`java.lang.invoke.MethodHandles$Lookup`, ~50%), primitive arrays, and synthetic Kotlin classes. The
- * scanner deliberately produces the cleaner graph; a few small categories (e.g. `java.lang.Enum` on enum
- * supertypes, some nested types) are worth a later look as possible minor scanner gaps.
+ * over-including *compilation artifacts* the scanner cleanly omits, and in every category checked the
+ * scanner records the more precise fact:
+ *  - invokedynamic bootstrap (`java.lang.invoke.MethodHandles$Lookup`, ~50%) — not a design dependency;
+ *  - primitive arrays (`[I`) — the scanner records the element type;
+ *  - `java.lang.Enum` (204, all from annotations) — the scanner records the *concrete* enum type of the
+ *    annotation element/meta-annotation (e.g. `RetentionPolicy`, `ElementType`) and omits jQA's
+ *    additional edge to the `java.lang.Enum` supertype;
+ *  - synthetic Kotlin `…Kt` / DSL classes.
+ * No real scanner gap has been found; the scanner deliberately produces the cleaner graph.
  *
  * Opt-in (needs Docker **and** network): run with
  * `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=ScannerVsJqaDiffIT -Dhierograph.scanner.validate=1`.
