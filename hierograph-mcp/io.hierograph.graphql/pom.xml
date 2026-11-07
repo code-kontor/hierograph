@@ -35,14 +35,6 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.model</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.mcp.jqassistant</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.graphservice</artifactId>
         </dependency>
 

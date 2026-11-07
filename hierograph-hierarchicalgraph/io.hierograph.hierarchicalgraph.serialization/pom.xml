@@ -24,10 +24,6 @@
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.model</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

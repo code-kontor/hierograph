@@ -18,7 +18,7 @@ package io.hierograph.itest.hierarchicalgraph
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -35,14 +35,14 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
     @Test
     fun `the spring-core module exposes its full descendant subtree`(): Unit = withHierarchyScope {
         val springCore = hierarchy.rootNode.children.single {
-            JQAssistantNodeMetadataProvider.getName(it) == "spring-core-7.0.8.jar"
+            NodeMetadata.getName(it) == "spring-core-7.0.8.jar"
         }
 
         val descendants = springCore.descendants()
-        val fqns = descendants.map { JQAssistantNodeMetadataProvider.getQualifiedName(it) }.toSet()
+        val fqns = descendants.map { NodeMetadata.getQualifiedName(it) }.toSet()
 
         // the module's single top-level package
-        Assertions.assertThat(springCore.children.map { JQAssistantNodeMetadataProvider.getName(it) })
+        Assertions.assertThat(springCore.children.map { NodeMetadata.getName(it) })
             .containsExactly("org")
 
         // representative packages and types of the spring-core jar are reachable as descendants
@@ -58,7 +58,7 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
         Assertions.assertThat(descendants).hasSize(14_160)
 
         // ... broken down per Java node kind (packages, the five type kinds, and both members)
-        val countsByKind = descendants.groupingBy { JQAssistantNodeMetadataProvider.getKind(it) }.eachCount()
+        val countsByKind = descendants.groupingBy { NodeMetadata.getKind(it) }.eachCount()
         Assertions.assertThat(countsByKind).containsExactlyInAnyOrderEntriesOf(
             mapOf(
                 JavaKinds.PACKAGE.value to 62,
@@ -86,7 +86,7 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
     )
     fun `descendants can be filtered to a single kind`(kind: String, expectedCount: Int): Unit = withHierarchyScope {
         val springCore = hierarchy.rootNode.children.single {
-            JQAssistantNodeMetadataProvider.getName(it) == "spring-core-7.0.8.jar"
+            NodeMetadata.getName(it) == "spring-core-7.0.8.jar"
         }
 
         val filtered = springCore.descendants(JavaNodeKind.fromValue(kind)!!)
@@ -94,7 +94,7 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
 
         Assertions.assertThat(filtered)
             .hasSize(expectedCount)
-            .allMatch { JQAssistantNodeMetadataProvider.getKind(it) == kind }
-            .isEqualTo(allDescendants.filter { JQAssistantNodeMetadataProvider.getKind(it) == kind })
+            .allMatch { NodeMetadata.getKind(it) == kind }
+            .isEqualTo(allDescendants.filter { NodeMetadata.getKind(it) == kind })
     }
 }

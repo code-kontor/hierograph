@@ -15,11 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import org.neo4j.driver.Value
 import io.hierograph.graphservice.HierarchicalGraphService
-import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -27,14 +23,12 @@ import org.springframework.stereotype.Component
 /**
  * MCP tool: `type_details`
  *
- * Returns full structural details for a single type: modifiers, superclass,
- * interfaces, annotations, member counts, inner types, and source location.
- * Uses inline NodeRefs (not slim encoding). In `parquet` mode it is served by [ParquetTypeDetails].
+ * Returns full structural details for a single type: modifiers, superclass, interfaces, annotations,
+ * member counts, inner types, and source location, served from the Parquet snapshot by [ParquetTypeDetails].
  */
 @Component
 class TypeDetailsTool(
     graphService: HierarchicalGraphService,
-    private val nodeRefFactory: INodeRefFactory,
     private val parquet: ParquetTypeDetails,
 ) : AbstractDetailTool(graphService) {
 
@@ -53,229 +47,5 @@ class TypeDetailsTool(
     fun typeDetails(
         @ToolParam(description = "The node ID of the type to inspect.")
         typeId: Long
-    ): Map<String, Any?> =
-        if (graphService.isParquetBacked) parquet.typeDetails(typeId) else cypherTypeDetails(typeId)
-
-    /**
-     * Legacy Neo4j/Cypher implementation, used only when `hierograph.graph.source=jqa`. The default
-     * Parquet path is [ParquetTypeDetails]; this is retained for validation until the ASM scanner is
-     * proven equivalent, then removed with the `graphstore.jqa` module.
-     */
-    private fun cypherTypeDetails(typeId: Long): Map<String, Any?> {
-
-        // ── query Neo4j ────────────────────────────────────────────────
-        val cypher = buildTypeDetailsCypher()
-        val queryResult = graphService.boltClient.syncExecCypherQuery(
-            cypher, mapOf<String, Any>("typeId" to typeId)
-        )
-
-        val records = queryResult.records()
-        if (records.isEmpty()) {
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "NODE_NOT_FOUND",
-                    "message" to "No node with id $typeId exists in the graph.",
-                    "recovery" to "Use find_node to look up the correct node ID."
-                )
-            )
-        }
-
-        val record = records[0]
-        val typeLabels = record.get("typeLabels").asList { it.asString() }
-
-        // ── validate kind ──────────────────────────────────────────────
-        val typeKindLabels = setOf("Class", "Interface", "Enum", "Annotation", "Record")
-        if (typeKindLabels.none { it in typeLabels }) {
-            val actualKind = JQAssistantNodeMetadataProvider.getKindFromLabels(typeLabels)
-            val hierarchy = graphService.model.hierarchy
-            val hgNode = graphService.model.lookupNode(typeId)
-            val declaringType = hgNode?.let { hierarchy.parentOf(it) }
-
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "WRONG_NODE_KIND",
-                    "message" to "Node $typeId is a '$actualKind', not a type. " +
-                            "type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation).",
-                    "actual_kind" to actualKind,
-                    "declaring_type" to if (declaringType != null && declaringType != hierarchy.rootNode)
-                        nodeRefFactory.minimalNodeRef(declaringType) else null,
-                    "recovery" to when {
-                        "Method" in typeLabels -> "To inspect the method itself, use method_details(method_id: $typeId)."
-                        "Field" in typeLabels -> "To inspect the field itself, use field_details(field_id: $typeId)."
-                        else -> "Use list_children or list_descendants to find type nodes."
-                    }
-                )
-            )
-        }
-
-        // ── build type NodeRef ─────────────────────────────────────────
-        val typeName = record.get("typeName").asString("")
-        val typeFqn = record.get("typeFqn").asString("")
-        val typeKind = JQAssistantNodeMetadataProvider.getKindFromLabels(typeLabels)
-
-        val hgNode = graphService.model.lookupNode(typeId)
-        val hierarchy = graphService.model.hierarchy
-        val hgParent = hgNode?.let { hierarchy.parentOf(it) }
-
-        val typeRef = linkedMapOf<String, Any?>(
-            "id" to typeId,
-            "name" to typeName,
-            "qualified_name" to typeFqn,
-            "kind" to typeKind,
-            "parent_id" to hgParent?.identifier,
-            "parent_kind" to hgParent?.kind?.toString()
-        )
-
-        // ── parent container ───────────────────────────────────────────
-        val parentNode = hgParent
-        val parentContainer = if (parentNode != null && parentNode !== hierarchy.rootNode) {
-            nodeRefFactory.minimalNodeRef(parentNode)
-        } else null
-
-        // ── modifiers ──────────────────────────────────────────────────
-        val modifiers = buildList {
-            val visibility = record.get("visibility").asString(null)
-            add(visibility?.lowercase() ?: "package-private")
-            if (record.get("isAbstract").asBoolean(false)) add("abstract")
-            if (record.get("isFinal").asBoolean(false)) add("final")
-            if (record.get("isStatic").asBoolean(false)) add("static")
-        }
-
-        val isAbstract = record.get("isAbstract").asBoolean(false)
-        val isGeneric = record.get("isGeneric").asBoolean(false)
-
-        // ── superclass ─────────────────────────────────────────────────
-        val superclass = if (!record.get("superclassId").isNull) {
-            val scId = record.get("superclassId").asLong()
-            val scName = record.get("superclassName").asString("")
-            val scFqn = record.get("superclassFqn").asString("")
-            val scLabels = record.get("superclassLabels").asList { it.asString() }
-            linkedMapOf<String, Any?>(
-                "id" to scId,
-                "name" to scName,
-                "qualified_name" to scFqn,
-                "kind" to JQAssistantNodeMetadataProvider.getKindFromLabels(scLabels)
-            )
-        } else null
-
-        // ── interfaces ─────────────────────────────────────────────────
-        val interfaces = buildTypeRefList(record.get("interfaces"))
-
-        // ── annotations ────────────────────────────────────────────────
-        val annotationsRaw = buildTypeRefList(record.get("annotations"))
-        val annotations = annotationsRaw.map { ref ->
-            linkedMapOf<String, Any?>("type" to ref)
-        }
-
-        // ── member counts (from in-memory model) ───────────────────────
-        val memberSummary = if (hgNode != null) {
-            val children = hierarchy.childrenOf(hgNode)
-            val methods = children.count { it.kind == JavaKinds.METHOD }
-            val constructors = children.count { it.kind == JavaKinds.CONSTRUCTOR }
-            val fields = children.count { it.kind == JavaKinds.FIELD }
-            linkedMapOf<String, Any?>(
-                "method_count" to (methods - constructors),
-                "field_count" to fields,
-                "constructor_count" to constructors
-            )
-        } else {
-            linkedMapOf<String, Any?>(
-                "method_count" to 0,
-                "field_count" to 0,
-                "constructor_count" to 0
-            )
-        }
-
-        // ── inner types (from in-memory model) ─────────────────────────
-        val innerTypes: List<LinkedHashMap<String, Any?>> = if (hgNode != null) {
-            hierarchy.childrenOf(hgNode)
-                .filter { it.kind in JavaKinds.TYPE_KINDS }
-                .map { nodeRefFactory.minimalNodeRef(it) }
-        } else emptyList()
-
-        // ── location ───────────────────────────────────────────────────
-        val lineNumber = record.get("lineNumber").asLong(-1)
-        val sourceFile = record.get("sourceFile").asString(null)
-        val location = if (lineNumber > 0 || sourceFile != null) {
-            linkedMapOf<String, Any?>().apply {
-                if (sourceFile != null) put("source_file", sourceFile)
-                if (lineNumber > 0) put("line_number", lineNumber)
-            }
-        } else null
-
-        // ── assemble response ──────────────────────────────────────────
-        return linkedMapOf<String, Any?>(
-            "type" to typeRef,
-            "parent_container" to parentContainer,
-            "modifiers" to modifiers,
-            "is_abstract" to isAbstract,
-            "is_generic" to isGeneric,
-            "superclass" to superclass,
-            "interfaces" to interfaces,
-            "annotations" to annotations,
-            "member_summary" to memberSummary,
-            "inner_types" to innerTypes,
-            "location" to location
-        )
-    }
-
-    // ── helpers ─────────────────────────────────────────────────────────
-
-    private fun buildTypeRefList(value: Value?): List<Map<String, Any?>> {
-        if (value == null || value.isNull) return emptyList()
-        val raw = value.values()
-            .map { it.asMap() }
-            .filter { asLong(it["id"]) != null }
-        return dedupeExternalTypeMaps(raw)
-            .map { m ->
-                val id = asLong(m["id"])!!
-                val name = m["name"]?.toString() ?: ""
-                val fqn = m["fqn"]?.toString() ?: ""
-                @Suppress("UNCHECKED_CAST")
-                val labels = (m["labels"] as? List<String>) ?: emptyList()
-                linkedMapOf<String, Any?>(
-                    "id" to id,
-                    "name" to name,
-                    "qualified_name" to fqn,
-                    "kind" to JQAssistantNodeMetadataProvider.getKindFromLabels(labels)
-                )
-            }
-    }
-
-    private fun buildTypeDetailsCypher(): String = """
-        MATCH (t) WHERE id(t) = ${'$'}typeId
-        CALL {
-            WITH t
-            // A class has a single superclass, but resolution leaves both the raw stub EXTENDS edge
-            // and the canonical edge tagged resolved=true; prefer the resolved (canonical) one.
-            OPTIONAL MATCH (t)-[ext:EXTENDS]->(sc:Type)
-            RETURN sc ORDER BY CASE WHEN ext.resolved THEN 0 ELSE 1 END LIMIT 1
-        }
-        CALL {
-            WITH t
-            OPTIONAL MATCH (t)-[impl:IMPLEMENTS]->(iface:Type)
-            RETURN collect(DISTINCT {id: id(iface), name: iface.name, fqn: iface.fqn, labels: labels(iface), resolved: coalesce(impl.resolved, false)}) AS interfaces
-        }
-        CALL {
-            WITH t
-            OPTIONAL MATCH (t)-[:ANNOTATED_BY]->(a)-[of:OF_TYPE]->(at:Type)
-            RETURN collect(DISTINCT {id: id(at), name: at.name, fqn: at.fqn, labels: labels(at), resolved: coalesce(of.resolved, false)}) AS annotations
-        }
-        RETURN labels(t) AS typeLabels,
-               t.name AS typeName,
-               t.fqn AS typeFqn,
-               t.visibility AS visibility,
-               t.abstract AS isAbstract,
-               t.final AS isFinal,
-               t.static AS isStatic,
-               t.generic AS isGeneric,
-               t.firstLineNumber AS lineNumber,
-               t.fileName AS sourceFile,
-               id(sc) AS superclassId,
-               sc.name AS superclassName,
-               sc.fqn AS superclassFqn,
-               labels(sc) AS superclassLabels,
-               interfaces,
-               annotations
-    """.trimIndent()
+    ): Map<String, Any?> = parquet.typeDetails(typeId)
 }

@@ -24,8 +24,7 @@ import io.hierograph.hierarchicalgraph.core.model.INodeSource
  *
  * The read return type is the SPI base [INodeSource], not [S], so a codec can
  * legitimately write one impl and read back a plain copy of a different impl
- * (e.g. the graphdb codec writes `GraphDbNodeSource` and reads
- * `DefaultNodeSource`).
+ * (e.g. a codec may write one impl and read back `DefaultNodeSource`).
  *
  * Implementations are responsible for round-tripping the source's
  * `identifier`. The wire stores it as a `String`; codecs that need the

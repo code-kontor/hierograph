@@ -22,7 +22,7 @@ import io.hierograph.graphstore.model.Origin
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test
 class GraphStoreMetadataTest {
 
     @Test
-    fun `JQAssistantNodeMetadataProvider resolves name, fqn and kind from the bridged model`() {
+    fun `NodeMetadata resolves name, fqn and kind from the bridged model`() {
         val store = GraphStore()
         store.registerArtifact(ArtifactInfo("app", "app", "app", Origin.MODULE_MAIN))
         store.applyClass("app", ClassFacts("com.foo.Service", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
@@ -42,13 +42,13 @@ class GraphStoreMetadataTest {
         // Nodes are identified by the content-addressed handle of their artifact-scoped GraphStore key.
         val node = model.lookupNode(NodeHandle.of(store.typeKey("app", "com.foo.Service")))!!
 
-        assertThat(JQAssistantNodeMetadataProvider.getName(node)).isEqualTo("Service")
-        assertThat(JQAssistantNodeMetadataProvider.getQualifiedName(node)).isEqualTo("com.foo.Service")
-        assertThat(JQAssistantNodeMetadataProvider.getKind(node)).isEqualTo(JavaNodeKind.CLASS.value)
+        assertThat(NodeMetadata.getName(node)).isEqualTo("Service")
+        assertThat(NodeMetadata.getQualifiedName(node)).isEqualTo("com.foo.Service")
+        assertThat(NodeMetadata.getKind(node)).isEqualTo(JavaNodeKind.CLASS.value)
 
         // a package node resolves too (package keys are already artifact-scoped)
         val pkg = model.lookupNode(NodeHandle.of("pkg:app:com.foo"))!!
-        assertThat(JQAssistantNodeMetadataProvider.getName(pkg)).isEqualTo("foo")
-        assertThat(JQAssistantNodeMetadataProvider.getQualifiedName(pkg)).isEqualTo("com.foo")
+        assertThat(NodeMetadata.getName(pkg)).isEqualTo("foo")
+        assertThat(NodeMetadata.getQualifiedName(pkg)).isEqualTo("com.foo")
     }
 }

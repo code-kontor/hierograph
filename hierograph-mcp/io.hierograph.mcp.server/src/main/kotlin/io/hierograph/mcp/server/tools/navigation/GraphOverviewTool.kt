@@ -20,7 +20,7 @@ import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component
 
@@ -161,7 +161,7 @@ class GraphOverviewTool(
 
         // ── scan metadata ──────────────────────────────────────────────
         val scanMetadata = mapOf<String, Any?>(
-            "scanner" to JQAssistantNodeMetadataProvider.scannerName
+            "scanner" to "hierograph"
         )
 
         // ── assemble response ──────────────────────────────────────────

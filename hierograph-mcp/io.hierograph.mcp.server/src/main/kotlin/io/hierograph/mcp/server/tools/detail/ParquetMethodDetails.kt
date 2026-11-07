@@ -20,7 +20,7 @@ import io.hierograph.graphstore.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
 import java.nio.file.Path
@@ -125,8 +125,8 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         return if (node != null) {
             linkedMapOf(
                 "id" to handle,
-                "name" to JQAssistantNodeMetadataProvider.getName(node),
-                "qualified_name" to JQAssistantNodeMetadataProvider.getQualifiedName(node),
+                "name" to NodeMetadata.getName(node),
+                "qualified_name" to NodeMetadata.getQualifiedName(node),
                 "kind" to node.kind?.toString(),
             )
         } else {

@@ -52,10 +52,6 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.boltclient</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
         </dependency>
         <dependency>
@@ -64,19 +60,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.service</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.hierarchicalgraph.serialization</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.mcp.jqassistant</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>

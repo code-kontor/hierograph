@@ -17,7 +17,7 @@ package io.hierograph.graphservice
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 
 /**
  * Dumps a node and its descendants as an indented tree, one line per node.
@@ -25,7 +25,7 @@ import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
  * Each line is `{indent*depth}[id] name (fqn)`, with the `name` and `(fqn)`
  * segments omitted when their value is unknown. This mirrors the output of
  * `io.hierograph.mcp.javaspec.printTree`, but resolves name/fqn through the
- * server's [JQAssistantNodeMetadataProvider] (i.e. from the
+ * server's [NodeMetadata] (i.e. from the
  * `ExtendedGraphDbNodeSource` attached to each node).
  *
  * Output goes through [sink], defaulting to [println]. Override [nameAndFqn]
@@ -90,8 +90,8 @@ object TreeTraverser {
     }
 
     private fun defaultNameAndFqn(node: HGNode): Pair<String?, String?> {
-        val name = JQAssistantNodeMetadataProvider.getName(node).ifEmpty { null }
-        val fqn = JQAssistantNodeMetadataProvider.getQualifiedName(node).ifEmpty { null }
+        val name = NodeMetadata.getName(node).ifEmpty { null }
+        val fqn = NodeMetadata.getQualifiedName(node).ifEmpty { null }
         return name to fqn
     }
 }

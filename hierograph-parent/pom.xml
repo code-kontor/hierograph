@@ -51,8 +51,6 @@
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
 
-        <jqassistant.version>2.9.1</jqassistant.version>
-        <neo4j-java-driver.version>6.2.0</neo4j-java-driver.version>
         <spring-boot.version>4.1.0</spring-boot.version>
         <spring-ai.version>2.0.0</spring-ai.version>
         <assertj.version>3.27.7</assertj.version>
@@ -229,15 +227,6 @@ limitations under the License.]]></inlineHeader>
             </dependency>
 
             <!-- ==================== -->
-            <!-- Neo4j java driver    -->
-            <!-- ==================== -->
-            <dependency>
-                <groupId>org.neo4j.driver</groupId>
-                <artifactId>neo4j-java-driver</artifactId>
-                <version>${neo4j-java-driver.version}</version>
-            </dependency>
-
-            <!-- ==================== -->
             <!-- Parquet (Hardwood)   -->
             <!-- ==================== -->
             <dependency>
@@ -279,32 +268,12 @@ limitations under the License.]]></inlineHeader>
             <!-- ==================== -->
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.boltclient</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
                 <artifactId>io.hierograph.hierarchicalgraph.core.model</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.hierograph</groupId>
                 <artifactId>io.hierograph.hierarchicalgraph.core.algorithms</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.hierarchicalgraph.graphdb.model</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.hierarchicalgraph.graphdb.mapping.service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -319,17 +288,7 @@ limitations under the License.]]></inlineHeader>
             </dependency>
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.mcp.jqassistant</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
                 <artifactId>io.hierograph.mcp.server</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.jqassistant.rules</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -369,11 +328,6 @@ limitations under the License.]]></inlineHeader>
             <dependency>
                 <groupId>io.hierograph</groupId>
                 <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore.jqa</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -481,31 +435,6 @@ limitations under the License.]]></inlineHeader>
                                 <excludeArtifact>io.hierograph.mcp.server</excludeArtifact>
                             </excludeArtifacts>
                         </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <!--
-            jQAssistant scan/analyze is opt-in: it is not part of the default build.
-            Activate with `-Pjqassistant` (e.g. `mvn -Pjqassistant verify`) to run it.
-        -->
-        <profile>
-            <id>jqassistant</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.buschmais.jqassistant</groupId>
-                        <artifactId>jqassistant-maven-plugin</artifactId>
-                        <version>${jqassistant.version}</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>scan</goal>
-                                    <goal>analyze</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
                 </plugins>
             </build>

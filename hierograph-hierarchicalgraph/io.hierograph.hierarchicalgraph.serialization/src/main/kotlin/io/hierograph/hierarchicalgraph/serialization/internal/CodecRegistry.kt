@@ -72,12 +72,9 @@ class CodecRegistry {
     }
 
     companion object {
-        /** Registry preloaded with codecs for the default and graphdb `INodeSource` / `IDependencySource` impls. */
+        /** Registry preloaded with codecs for the default `INodeSource` / `IDependencySource` impls. */
         fun defaults(): CodecRegistry = CodecRegistry()
             .register(DefaultNodeSourceCodec)
             .register(DefaultDependencySourceCodec)
-            .register(GraphDbRootNodeSourceCodec)
-            .register(GraphDbNodeSourceCodec)
-            .register(GraphDbDependencySourceCodec)
     }
 }

@@ -15,21 +15,17 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import org.neo4j.driver.Record
-import org.neo4j.driver.Value
 import io.hierograph.hierarchicalgraph.core.model.HGNode
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
 import io.hierograph.graphservice.HierarchicalGraphService
 
-
 /**
- * Shared base for the detail-level MCP tools (list_methods, list_fields, detail_dependencies,
- * method_details, field_details). Holds Java-specific helpers used by 2+ of these tools so
- * each concrete tool class can focus on its own logic.
+ * Shared base for the detail-level MCP tools (method_details, field_details, type_details,
+ * detail_dependencies). Holds the slim-node and primitive-ref helpers used by 2+ of these tools so each
+ * concrete tool class can focus on its own logic.
  *
- * This class is intentionally not a Spring `@Component`; only the concrete subclasses
- * are. Spring sees one bean per tool.
+ * This class is intentionally not a Spring `@Component`; only the concrete subclasses are.
  */
 abstract class AbstractDetailTool(
     protected val graphService: HierarchicalGraphService
@@ -47,18 +43,7 @@ abstract class AbstractDetailTool(
 
     protected fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
         val id = (node.identifier as? Number)?.toLong() ?: 0L
-        putSlimNode(nodes, id, JQAssistantNodeMetadataProvider.getName(node), JQAssistantNodeMetadataProvider.getQualifiedName(node), JQAssistantNodeMetadataProvider.getKind(node))
-    }
-
-    companion object {
-        @JvmStatic
-        protected val JAVA_PRIMITIVES: Set<String> = JavaKinds.JAVA_PRIMITIVES
-
-        @JvmStatic
-        protected fun asLong(o: Any?): Long? = (o as? Number)?.toLong()
-
-        @JvmStatic
-        protected fun asString(o: Any?): String = o?.toString() ?: ""
+        putSlimNode(nodes, id, NodeMetadata.getName(node), NodeMetadata.getQualifiedName(node), NodeMetadata.getKind(node))
     }
 
     /** Inline NodeRef used by single-entity tools (e.g. method_details) for primitive type slots. */
@@ -69,84 +54,8 @@ abstract class AbstractDetailTool(
         "kind" to JavaKinds.PRIMITIVE.value
     )
 
-    /** Derives a Hierograph-normalized kind string from Neo4j node labels for detail-level entities. */
-    protected fun deriveDetailKind(labels: List<String>): String = when {
-        "Constructor" in labels -> JavaKinds.CONSTRUCTOR.value
-        "Method" in labels -> JavaKinds.METHOD.value
-        "Field" in labels -> JavaKinds.FIELD.value
-        "Interface" in labels -> JavaKinds.INTERFACE.value
-        "Enum" in labels -> JavaKinds.ENUM.value
-        "Annotation" in labels -> JavaKinds.ANNOTATION.value
-        "Class" in labels -> JavaKinds.CLASS.value
-        "Type" in labels -> JavaKinds.CLASS.value
-        else -> "unknown"
+    companion object {
+        @JvmStatic
+        protected val JAVA_PRIMITIVES: Set<String> = JavaKinds.JAVA_PRIMITIVES
     }
-
-    /**
-     * Extracts a method's modifiers in canonical order (visibility first, then storage modifiers).
-     * Expects the Record to expose `visibility, isStatic, isFinal, isAbstract, isSynchronized,
-     * isNative, isDefault`.
-     */
-    protected fun extractModifiers(record: Record): List<String> = buildList {
-        val visibility = record.get("visibility").asString(null)
-        add(visibility?.lowercase() ?: "package-private")
-        if (record.get("isStatic").asBoolean(false)) add("static")
-        if (record.get("isFinal").asBoolean(false)) add("final")
-        if (record.get("isAbstract").asBoolean(false)) add("abstract")
-        if (record.get("isSynchronized").asBoolean(false)) add("synchronized")
-        if (record.get("isNative").asBoolean(false)) add("native")
-        if (record.get("isDefault").asBoolean(false)) add("default")
-    }
-
-    /**
-     * Extracts a field's modifiers in canonical order (visibility first, then storage modifiers).
-     * Expects the Record to expose `visibility, isStatic, isFinal, isTransient, isVolatile`.
-     */
-    protected fun extractFieldModifiers(record: Record): List<String> = buildList {
-        val visibility = record.get("visibility").asString(null)
-        add(visibility?.lowercase() ?: "package-private")
-        if (record.get("isStatic").asBoolean(false)) add("static")
-        if (record.get("isFinal").asBoolean(false)) add("final")
-        if (record.get("isTransient").asBoolean(false)) add("transient")
-        if (record.get("isVolatile").asBoolean(false)) add("volatile")
-    }
-
-    protected fun getVisibility(modifiers: List<String>): String = when {
-        modifiers.contains("public") -> "public"
-        modifiers.contains("protected") -> "protected"
-        modifiers.contains("private") -> "private"
-        else -> "package-private"
-    }
-
-    /** Extracts a list of map values from a Neo4j [Value]; returns empty for null. */
-    protected fun collectMaps(value: Value?): List<Map<String, Any>> {
-        if (value == null || value.isNull) return emptyList()
-        return value.values().map { it.asMap() }
-    }
-
-    /**
-     * Collapses raw+resolved duplicates that arise when a type reference is resolved: the scanner
-     * emits the raw stub edge, and a resolution concept additively adds a parallel canonical edge
-     * tagged `resolved = true`. This covers both jQAssistant's own java-classpath:Resolve (stub →
-     * real type) and hierograph's virtual-external lifts (stub → :Virtual type) for the
-     * extends / implements / depends-on / annotation relationships. The same type therefore appears
-     * twice — once via the raw edge and once via the resolved edge — with the same FQN. Keeps one
-     * entry per FQN, preferring the one reached through the `resolved` edge, so each type is reported
-     * once as its canonical node. Each map is expected to carry an `fqn` key and a boolean `resolved`
-     * key (the flag of the edge it was reached through); input order is otherwise preserved.
-     */
-    protected fun dedupeExternalTypeMaps(raw: List<Map<String, Any>>): List<Map<String, Any>> {
-        if (raw.size < 2) return raw
-        val byFqn = LinkedHashMap<String, Map<String, Any>>()
-        for (m in raw) {
-            val fqn = asString(m["fqn"])
-            val existing = byFqn[fqn]
-            if (existing == null || (isResolved(m) && !isResolved(existing))) {
-                byFqn[fqn] = m
-            }
-        }
-        return byFqn.values.toList()
-    }
-
-    private fun isResolved(m: Map<String, Any>): Boolean = m["resolved"] == true
 }

@@ -23,8 +23,7 @@ import io.hierograph.graphql.model.NodesToConsider
 import io.hierograph.hierarchicalgraph.core.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.Hierarchy
-import io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -45,7 +44,7 @@ class NodeController(
     fun id(node: HGNode): String = node.identifier.toString()
 
     @SchemaMapping(typeName = "Node")
-    fun text(node: HGNode): String = JQAssistantNodeMetadataProvider.getQualifiedName(node)
+    fun text(node: HGNode): String = NodeMetadata.getQualifiedName(node)
 
     @SchemaMapping(typeName = "Node")
     fun type(node: HGNode): String = node.kind?.toString() ?: "Unknown"
@@ -90,16 +89,13 @@ class NodeController(
 
     /**
      * Batched and on demand: runs only when `properties` is selected, once for all nodes of the response.
-     * Neo4j-backed nodes report their (lazily fetched) store properties; every other node is delegated
-     * to the optional [propertiesProvider] in a single call.
+     * Node properties are resolved by the optional [propertiesProvider] in a single call.
      */
     @BatchMapping(typeName = "Node", field = "properties")
     fun properties(nodes: List<HGNode>): Map<HGNode, List<MapEntryModel>> {
-        val delegated = nodes.filter { it.nodeSource !is GraphDbNodeSource }
-        val provided = if (delegated.isEmpty()) emptyMap() else propertiesProvider?.propertiesOf(delegated).orEmpty()
+        val provided = propertiesProvider?.propertiesOf(nodes).orEmpty()
         return nodes.associateWith { node ->
-            val props = (node.nodeSource as? GraphDbNodeSource)?.properties ?: provided[node].orEmpty()
-            props.map { (k, v) -> MapEntryModel(k, v) }
+            provided[node].orEmpty().map { (k, v) -> MapEntryModel(k, v) }
         }
     }
 

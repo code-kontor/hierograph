@@ -38,7 +38,7 @@ import java.nio.file.Path
 class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphService) : NodePropertiesProvider {
 
     override fun propertiesOf(nodes: List<HGNode>): Map<HGNode, Map<String, String?>> {
-        if (!graphService.isParquetBacked || !graphService.isGraphAvailable) return emptyMap()
+        if (!graphService.isGraphAvailable) return emptyMap()
         val hierarchy = graphService.model.hierarchy
         val dir = Path.of(graphService.parquetDirectory)
 

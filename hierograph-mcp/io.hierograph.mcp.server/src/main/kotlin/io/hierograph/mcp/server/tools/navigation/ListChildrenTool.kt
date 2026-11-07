@@ -20,7 +20,7 @@ import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -118,7 +118,7 @@ class ListChildrenTool(
 
             // 2. name pattern
             if (nameLower != null) {
-                val name = JQAssistantNodeMetadataProvider.getName(child) ?: ""
+                val name = NodeMetadata.getName(child) ?: ""
                 if (!name.lowercase().contains(nameLower)) continue
             }
 

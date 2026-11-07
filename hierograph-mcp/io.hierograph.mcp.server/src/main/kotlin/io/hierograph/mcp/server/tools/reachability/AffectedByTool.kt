@@ -25,7 +25,7 @@ import io.hierograph.graphservice.pagination.Paginator
 import io.hierograph.graphservice.pagination.QueryHash
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -258,7 +258,7 @@ class AffectedByTool(
             .filter { allowedKinds == null || it.node.kind in allowedKinds }
             .sortedWith(
                 compareBy<AffectedEntry> { it.distance }
-                    .thenBy { JQAssistantNodeMetadataProvider.getQualifiedName(it.node) }
+                    .thenBy { NodeMetadata.getQualifiedName(it.node) }
                     .thenBy { it.node.identifier.toString() }
             )
 

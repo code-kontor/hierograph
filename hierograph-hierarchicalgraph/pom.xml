@@ -20,9 +20,6 @@
     <modules>
         <module>io.hierograph.hierarchicalgraph.core.model</module>
         <module>io.hierograph.hierarchicalgraph.core.algorithms</module>
-        <module>io.hierograph.hierarchicalgraph.graphdb.model</module>
-        <module>io.hierograph.hierarchicalgraph.graphdb.mapping.spi</module>
-        <module>io.hierograph.hierarchicalgraph.graphdb.mapping.service</module>
         <module>io.hierograph.hierarchicalgraph.serialization</module>
     </modules>
 </project>

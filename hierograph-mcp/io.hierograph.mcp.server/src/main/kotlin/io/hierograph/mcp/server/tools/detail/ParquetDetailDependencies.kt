@@ -25,7 +25,7 @@ import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.hierarchicalgraph.core.model.NodeHandle
 import io.hierograph.mcp.javaspec.JavaEdgeAttributes
 import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.graphservice.pagination.DataHashProvider
 import io.hierograph.graphservice.pagination.PageResult
@@ -203,7 +203,7 @@ class ParquetDetailDependencies(
         while (queue.isNotEmpty()) {
             val t = queue.removeFirst()
             if (!visited.add(t.identifier)) continue
-            fqns += JQAssistantNodeMetadataProvider.getQualifiedName(t)
+            fqns += NodeMetadata.getQualifiedName(t)
             for (dep in t.outgoingCoreDependencies) {
                 val bm = dep.attributesBitmap
                 if (JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_EXTENDS) || JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_IMPLEMENTS)) {

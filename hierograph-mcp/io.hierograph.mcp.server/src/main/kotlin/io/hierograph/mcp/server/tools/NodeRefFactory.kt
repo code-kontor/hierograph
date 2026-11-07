@@ -17,7 +17,7 @@ package io.hierograph.mcp.server.tools
 
 import io.hierograph.hierarchicalgraph.core.model.HGNode
 import io.hierograph.mcp.javaspec.JavaKinds
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
@@ -44,8 +44,8 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         val parent = hierarchy.parentOf(node)
         return linkedMapOf(
             "id" to node.identifier,
-            "name" to JQAssistantNodeMetadataProvider.getName(node),
-            "qualified_name" to JQAssistantNodeMetadataProvider.getQualifiedName(node),
+            "name" to NodeMetadata.getName(node),
+            "qualified_name" to NodeMetadata.getQualifiedName(node),
             "kind" to node.kind?.toString(),
             "parent_id" to parent?.identifier,
             "parent_kind" to parent?.kind?.toString()
@@ -134,7 +134,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      */
     override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
         val id = (node.identifier as? Number)?.toLong() ?: 0L
-        putSlimNode(nodes, id, JQAssistantNodeMetadataProvider.getName(node), JQAssistantNodeMetadataProvider.getQualifiedName(node), JQAssistantNodeMetadataProvider.getKind(node))
+        putSlimNode(nodes, id, NodeMetadata.getName(node), NodeMetadata.getQualifiedName(node), NodeMetadata.getKind(node))
     }
 
     // ── primitive ref ──────────────────────────────────────────────────

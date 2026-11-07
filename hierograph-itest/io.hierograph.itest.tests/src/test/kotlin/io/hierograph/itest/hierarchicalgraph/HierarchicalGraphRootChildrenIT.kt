@@ -16,7 +16,7 @@
 package io.hierograph.itest.hierarchicalgraph
 
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 
@@ -32,7 +32,7 @@ class HierarchicalGraphRootChildrenIT : AbstractHierarchicalGraphIntegrationTest
     fun `the hierarchical graph root children have the expected names`(): Unit = withHierarchyScope {
         val children = hierarchy.rootNode.children
 
-        val names = children.map { JQAssistantNodeMetadataProvider.getName(it) }
+        val names = children.map { NodeMetadata.getName(it) }
         Assertions.assertThat(names).containsExactlyInAnyOrder(
             "spring-r2dbc-7.0.8.jar",
             "spring-messaging-7.0.8.jar",
@@ -63,7 +63,7 @@ class HierarchicalGraphRootChildrenIT : AbstractHierarchicalGraphIntegrationTest
     fun `the hierarchical graph root children have the expected fully qualified names`(): Unit = withHierarchyScope {
         val children = hierarchy.rootNode.children
 
-        val fullyQualifiedNames = children.map { JQAssistantNodeMetadataProvider.getQualifiedName(it) }
+        val fullyQualifiedNames = children.map { NodeMetadata.getQualifiedName(it) }
         Assertions.assertThat(fullyQualifiedNames).containsExactlyInAnyOrder(
             "spring-r2dbc-7.0.8.jar",
             "spring-messaging-7.0.8.jar",
@@ -94,7 +94,7 @@ class HierarchicalGraphRootChildrenIT : AbstractHierarchicalGraphIntegrationTest
     fun `the hierarchical graph root children have the expected kinds`(): Unit = withHierarchyScope {
         val children = hierarchy.rootNode.children
 
-        val kinds = children.map { JQAssistantNodeMetadataProvider.getKind(it) }
+        val kinds = children.map { NodeMetadata.getKind(it) }
         Assertions.assertThat(kinds)
             .hasSize(22)
             .containsOnly("java.module")

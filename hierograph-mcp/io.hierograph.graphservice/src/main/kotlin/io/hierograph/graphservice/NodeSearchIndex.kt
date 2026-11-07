@@ -17,7 +17,7 @@ package io.hierograph.graphservice
 
 import io.hierograph.hierarchicalgraph.core.model.HGModel
 import io.hierograph.hierarchicalgraph.core.model.HGNode
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 
 /**
  * Immutable, precomputed search index over the hierarchical model, used by `find_node`.
@@ -50,8 +50,8 @@ class NodeSearchIndex private constructor(val entries: List<Entry>) {
                     entries.add(
                         Entry(
                             node = node,
-                            nameLower = JQAssistantNodeMetadataProvider.getName(node).lowercase(),
-                            fqnLower = JQAssistantNodeMetadataProvider.getQualifiedName(node).lowercase(),
+                            nameLower = NodeMetadata.getName(node).lowercase(),
+                            fqnLower = NodeMetadata.getQualifiedName(node).lowercase(),
                         )
                     )
                 }

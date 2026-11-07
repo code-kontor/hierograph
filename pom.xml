@@ -14,10 +14,8 @@
 
     <modules>
         <module>hierograph-parent</module>
-        <module>hierograph-core</module>
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-mcp</module>
-        <module>hierograph-jqassistant</module>
         <module>hierograph-graphstore</module>
     </modules>
 

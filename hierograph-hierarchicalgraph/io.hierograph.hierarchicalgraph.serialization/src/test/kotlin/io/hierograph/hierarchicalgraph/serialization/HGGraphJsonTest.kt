@@ -132,56 +132,6 @@ class HGGraphJsonTest {
             .containsExactlyInAnyOrderElementsOf(allDescendants(g.model).map { it.identifier })
     }
 
-    // ── graphdb sources ────────────────────────────────────────────────
-
-    @Test
-    fun `GraphDb-backed graph round-trips into Default-backed graph`() {
-        // Build a small graph whose root, nodes, and dependency use the
-        // graphdb-flavored sources. We never touch their lazy `labels` /
-        // `properties` so Neo4j is never contacted.
-        var nextId = 1L
-        val coreGraph = HGGraphFactory.createHGGraph()
-        val root = HGGraphFactory.createNode(coreGraph) {
-            io.hierograph.hierarchicalgraph.graphdb.model.GraphDbRootNodeSource(identifier = nextId++)
-        }
-        val hierarchy = HierarchyFactory.createHierarchy(coreGraph, root)
-        val a = HGGraphFactory.createNode(coreGraph) {
-            io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource(identifier = nextId++)
-        }
-        HierarchyFactory.addChild(hierarchy, root, a)
-        val b = HGGraphFactory.createNode(coreGraph) {
-            io.hierograph.hierarchicalgraph.graphdb.model.GraphDbNodeSource(identifier = nextId++)
-        }
-        HierarchyFactory.addChild(hierarchy, root, b)
-        val dep = HGGraphFactory.createCoreDependency(a, b, "DEPENDS_ON") {
-            io.hierograph.hierarchicalgraph.graphdb.model.GraphDbDependencySource(
-                identifier = nextId++, type = "DEPENDS_ON"
-            )
-        }
-        dep.weight = 7
-        dep.attributesBitmap = 0b0101
-
-        val model = HGModel(coreGraph, hierarchy)
-        val restored = HGGraphJson.read(HGGraphJson.write(model))
-
-        // Identifiers and tree shape are preserved.
-        assertThat(restored.hierarchy.rootNode.identifier).isEqualTo(root.identifier)
-        assertThat(restored.hierarchy.childrenOf(restored.hierarchy.rootNode).map { it.identifier })
-            .containsExactlyElementsOf(hierarchy.childrenOf(root).map { it.identifier })
-
-        // Sources read back as the plain Default variants.
-        assertThat(restored.hierarchy.rootNode.nodeSource).isInstanceOf(DefaultNodeSource::class.java)
-        val aCopy = lookup(restored, a.identifier)
-        val depCopy = aCopy.outgoingCoreDependencies.single()
-        assertThat(aCopy.nodeSource).isInstanceOf(DefaultNodeSource::class.java)
-        assertThat(depCopy.dependencySource).isInstanceOf(DefaultDependencySource::class.java)
-
-        // Dependency type, weight and attributes survive.
-        assertThat(depCopy.type).isEqualTo("DEPENDS_ON")
-        assertThat(depCopy.weight).isEqualTo(7)
-        assertThat(depCopy.attributesBitmap).isEqualTo(0b0101)
-    }
-
     // ── error paths ────────────────────────────────────────────────────
 
     @Test

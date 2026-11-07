@@ -25,7 +25,7 @@ import io.hierograph.graphservice.pagination.Paginator
 import io.hierograph.graphservice.pagination.QueryHash
 import io.hierograph.mcp.javaspec.JavaKinds
 import io.hierograph.mcp.javaspec.JavaNodeKind
-import io.hierograph.mcp.jqa.hierarchicalgraph.JQAssistantNodeMetadataProvider
+import io.hierograph.hierarchicalgraph.core.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -145,7 +145,7 @@ class ListDescendantsTool(
 
         fun traverse(node: HGNode) {
             val orderedChildren = hierarchy.childrenOf(node).sortedWith(
-                compareBy({ JQAssistantNodeMetadataProvider.getQualifiedName(it) }, { it.identifier.toString() })
+                compareBy({ NodeMetadata.getQualifiedName(it) }, { it.identifier.toString() })
             )
             for (child in orderedChildren) {
                 // apply filters
@@ -158,7 +158,7 @@ class ListDescendantsTool(
 
                 // 2. name pattern
                 if (matches && nameLower != null) {
-                    val name = JQAssistantNodeMetadataProvider.getName(child) ?: ""
+                    val name = NodeMetadata.getName(child) ?: ""
                     if (!name.lowercase().contains(nameLower)) matches = false
                 }
 
