@@ -43,9 +43,18 @@ import java.util.concurrent.Executors
  * projection, every difference is scanner-facts vs jQA-facts.
  *
  * The jars are the 21 Spring 7.0.8 modules the container itself scanned (downloaded here from Maven
- * Central, identical coordinates), so the **set of defined types must be identical** — that is the hard
- * assertion. Dependency differences (the two models classify/weight edges differently) are reported for
- * investigation, not asserted, while we converge the scanner on jQA.
+ * Central, identical coordinates). Two hard assertions:
+ *  - **defined types match** — the scanner invents none, and every only-jQA type is a nested type jQA
+ *    over-materializes from references (nested classes of unscanned outer types).
+ *  - **type-dependency roll-up is sound** — comparing non-primitive type→type pairs, the scanner invents
+ *    no edge jQA lacks (`only-scanner = 0`). The scanner records member-level references (calls, field/
+ *    param/return/throws types, …) as type-level refs, so `typeDependencies()` is as dense as jQA's.
+ *
+ * The reverse residual (edges only in jQA, ~5k on Spring) is **reported, not asserted**: it is jQA
+ * over-including *compilation artifacts* the scanner cleanly omits — invokedynamic bootstrap
+ * (`java.lang.invoke.MethodHandles$Lookup`, ~50%), primitive arrays, and synthetic Kotlin classes. The
+ * scanner deliberately produces the cleaner graph; a few small categories (e.g. `java.lang.Enum` on enum
+ * supertypes, some nested types) are worth a later look as possible minor scanner gaps.
  *
  * Opt-in (needs Docker **and** network): run with
  * `mvn -Pitest -pl hierograph-itest/io.hierograph.itest.tests -am verify -Dit.test=ScannerVsJqaDiffIT -Dhierograph.scanner.validate=1`.
@@ -94,8 +103,23 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         println("defined types: scanner=${scannerTypes.size}, jQA=${jqaTypes.size}, only-scanner=${onlyScannerTypes.size}, only-jQA=${onlyJqaTypes.size}")
         if (onlyScannerTypes.isNotEmpty()) println("  only-scanner types (<=30): ${onlyScannerTypes.take(30)}")
         if (onlyJqaTypes.isNotEmpty()) println("  only-jQA types (<=30): ${onlyJqaTypes.take(30)}")
-        println("type-dependency diff: only-scanner=${diff.dependencies.onlyInGraphStore.size}, only-jQA=${diff.dependencies.onlyInReference.size}")
-        println(diff.render(limitPerSection = 40))
+        println("type-dependency diff (raw): only-scanner=${diff.dependencies.onlyInGraphStore.size}, only-jQA=${diff.dependencies.onlyInReference.size}")
+
+        // The raw diff is dominated by a modeling difference: jQA models primitives/void as DEPENDS_ON
+        // targets; the scanner skips them. Normalize to meaningful (non-primitive) type→type *pairs*
+        // (ignoring the structural-flag classification) to expose the true residual divergence.
+        fun meaningfulPairs(deps: List<io.hierograph.graphstore.TypeDependency>): Set<Pair<String, String>> =
+            deps.asSequence().filter { it.to !in TRIVIAL_TARGETS }.map { it.from to it.to }.toHashSet()
+        val scannerPairs = meaningfulPairs(scanner.typeDependencies().toList())
+        val jqaPairs = meaningfulPairs(jqa.typeDependencies().toList())
+        val onlyScannerDeps = (scannerPairs - jqaPairs)
+        val onlyJqaDeps = (jqaPairs - scannerPairs)
+        println("type-dependency diff (non-primitive pairs): scanner=${scannerPairs.size}, jQA=${jqaPairs.size}, only-scanner=${onlyScannerDeps.size}, only-jQA=${onlyJqaDeps.size}")
+        println("  only-scanner (<=20): ${onlyScannerDeps.take(20)}")
+        println("  only-jQA residual by target type (top 25):")
+        onlyJqaDeps.groupingBy { it.second }.eachCount().entries.sortedByDescending { it.value }.take(25)
+            .forEach { (target, n) -> println("    %5d  %s".format(n, target)) }
+        println(diff.render(limitPerSection = 20))
 
         // --- assertion: the scanner defines exactly the Spring types jQA does -----------
         // The scanner must invent nothing: every defined type it reports was really in the jars.
@@ -109,6 +133,15 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
         assertThat(onlyJqaTypes)
             .withFailMessage { "jQA-only *top-level* defined types (real gaps): ${onlyJqaTypes.filterNot { '$' in it }}" }
             .allMatch { '$' in it }
+
+        // Type-dependency roll-up is SOUND: the scanner invents no non-primitive type→type edge that jQA
+        // does not also have (comparing by (from,to) pair, ignoring the structural-flag classification).
+        // The reverse residual (only-jQA) is jQA over-including compilation artifacts the scanner omits —
+        // chiefly invokedynamic bootstrap (java.lang.invoke.MethodHandles$Lookup), primitive arrays, and
+        // synthetic Kotlin classes — printed above, not asserted.
+        assertThat(onlyScannerDeps)
+            .withFailMessage { "Non-primitive type dependencies invented by the scanner (should be none): ${onlyScannerDeps.take(50)}" }
+            .isEmpty()
     }
 
     private fun definedTypes(rows: List<HierarchyRow>): Set<String> =
@@ -125,6 +158,8 @@ class ScannerVsJqaDiffIT : AbstractIntegrationTest() {
     }
 
     private companion object {
+        /** Primitive/void dependency targets: the scanner skips them, jQA models them as DEPENDS_ON. */
+        val TRIVIAL_TARGETS = setOf("void", "boolean", "byte", "char", "short", "int", "long", "float", "double")
         const val SPRING_VERSION = "7.0.8"
         const val MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
         val SPRING_MODULES = listOf(
