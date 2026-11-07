@@ -139,7 +139,9 @@ class BytecodeScanner(private val parallelism: Int = Runtime.getRuntime().availa
 /**
  * CLI: `scan --out <snapshot-dir> [--threads <n>] <jar-or-class-dir>...` — scans the artifacts (in parallel,
  * `--threads` defaulting to the number of cores) and writes a Parquet snapshot that the server loads with
- * `hierograph.graph.source=parquet`.
+ * `hierograph.graph.source=parquet`. Inputs may be glob patterns in their last path segment (e.g. all
+ * `*.jar` files of a directory), expanded by the scanner itself — so they also work where no shell expands them
+ * (quoted arguments, `mvn exec:java -Dexec.args="…"`).
  */
 fun main(args: Array<String>) {
     val usage = "usage: scan --out <snapshot-dir> [--threads <n>] <jar-or-class-dir>..."
@@ -152,7 +154,7 @@ fun main(args: Array<String>) {
     val out = option("--out") ?: throw IllegalArgumentException(usage)
     val threads = option("--threads")
     val optionIndexes = listOfNotNull(out, threads).flatMap { (i, _) -> listOf(i, i + 1) }.toSet()
-    val inputs = args.filterIndexed { i, _ -> i !in optionIndexes }.map { ScanArtifact.of(Path.of(it)) }
+    val inputs = expandInputs(args.filterIndexed { i, _ -> i !in optionIndexes }).map { ScanArtifact.of(it) }
     require(inputs.isNotEmpty()) { usage }
     val parallelism = threads?.second?.toIntOrNull() ?: Runtime.getRuntime().availableProcessors()
 
@@ -164,4 +166,24 @@ fun main(args: Array<String>) {
             "${result.classes.sumOf { it.facts.members.size }} members, ${result.detailRefs.size} detail refs " +
             "→ ${out.second} in ${(System.nanoTime() - started) / 1_000_000} ms"
     )
+}
+
+/**
+ * Expands the CLI inputs: an argument with a glob in its last path segment (`*`, `?`, `[`, `{`) becomes the
+ * matching entries of its directory, sorted; any other argument is taken as is. Every resulting path must
+ * exist, and a pattern must match something — both fail with a message naming the argument.
+ */
+internal fun expandInputs(args: List<String>): List<Path> = args.flatMap { arg ->
+    val path = Path.of(arg)
+    val name = path.fileName?.toString().orEmpty()
+    if (name.none { it in "*?[{" }) {
+        require(Files.exists(path)) { "Input not found: $arg" }
+        return@flatMap listOf(path)
+    }
+    val dir = path.parent ?: Path.of(".")
+    require(Files.isDirectory(dir)) { "Input not found: $arg (no directory $dir)" }
+    val matcher = dir.fileSystem.getPathMatcher("glob:$name")
+    val matches = Files.list(dir).use { entries -> entries.filter { matcher.matches(it.fileName) }.sorted().toList() }
+    require(matches.isNotEmpty()) { "No input matches $arg" }
+    matches
 }

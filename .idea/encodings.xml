@@ -5,6 +5,22 @@
     <file url="file://$PROJECT_DIR$/hierograph-core/io.hierograph.boltclient/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-core/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.core/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.detail/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.detail/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.hgmodel/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.hgmodel/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jqa/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jqa/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.model/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.model/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.parquet/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.parquet/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.scanner/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.scanner/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.core.algorithms/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.core.algorithms/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.core.model/src/main/kotlin" charset="UTF-8" />
@@ -32,6 +48,8 @@
     <file url="file://$PROJECT_DIR$/hierograph-jqassistant/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.graphql/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.graphql/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.graphservice/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.graphservice/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.javaspec/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-mcp/io.hierograph.mcp.jqassistant/src/main/kotlin" charset="UTF-8" />
@@ -42,5 +60,7 @@
     <file url="file://$PROJECT_DIR$/hierograph-mcp/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-parent/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-parent/src/main/resources" charset="UTF-8" />
+    <file url="file:///src/main/java" charset="UTF-8" />
+    <file url="file:///src/main/resources" charset="UTF-8" />
   </component>
 </project>

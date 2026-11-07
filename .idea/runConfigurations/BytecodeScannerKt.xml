@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="BytecodeScannerKt" type="JetRunConfigurationType" nameIsGenerated="true">
+    <option name="MAIN_CLASS_NAME" value="io.hierograph.graphstore.scanner.BytecodeScannerKt" />
+    <module name="io.hierograph.graphstore.scanner" />
+    <option name="PROGRAM_PARAMETERS" value="--out jqa-parquet-export --threads 10 $ProjectFileDir$/example/*.jar" />
+    <shortenClasspath name="NONE" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
