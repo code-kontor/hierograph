@@ -40,7 +40,9 @@ object HierographArchive {
 
     /** The archive file name for an artifact key, dropping a trailing `.jar`/`.zip` (`spring-core-7.0.8.hierograph`). */
     fun fileName(artifactKey: String): String =
-        artifactKey.removeSuffix(".jar").removeSuffix(".zip") + EXTENSION
+        // The key may be a GAV (`g:a:v`) from the Maven plugin; `:` and path separators are not filesystem
+        // -safe, so sanitize them for the archive file name. The key itself (stored inside) is unchanged.
+        artifactKey.removeSuffix(".jar").removeSuffix(".zip").replace(Regex("[:/\\\\]"), "_") + EXTENSION
 
     /** Writes every regular file directly under [sourceDir] into [target] as a STORED ZIP. */
     fun zip(sourceDir: Path, target: Path) {

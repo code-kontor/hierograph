@@ -36,6 +36,7 @@ object ParquetSchema {
     const val PARAMETERS_FILE = "parameters.parquet"
     const val REFS_FILE = "refs.parquet"
     const val DETAIL_REFS_FILE = "detail_refs.parquet"
+    const val CLASSPATH_FILE = "classpath.parquet" // per-artifact classpath manifest; absent in CLI/legacy snapshots
 
     object Types {
         const val ARTIFACT = "artifact"
@@ -92,6 +93,19 @@ object ParquetSchema {
         const val LINE = "line"
     }
 
+    /**
+     * The owning artifact's classpath, one flat row per entry (the Maven plugin's manifest). `index 0` is
+     * the artifact itself, then its dependencies in resolution order; `artifact_key`/`name` repeat on every
+     * row. Drives load-time classpath-shadowing resolution (see `TypeResolver`); absent in CLI snapshots.
+     */
+    object Classpath {
+        const val ARTIFACT_KEY = "artifact_key" // the owning artifact's GAV (same on all its rows)
+        const val NAME = "name"                 // the owning artifact's display name (artifactId)
+        const val INDEX = "index"               // 0 = the artifact itself, then deps in resolution order
+        const val DEP_KEY = "dep_key"           // GAV of the classpath entry at this index
+        const val INTERNAL = "internal"         // true = a scanned reactor sibling, false = external dependency
+    }
+
     fun typesSchema(): FileSchema =
         FileSchema.builder("type")
             .string(Types.ARTIFACT, RepetitionType.REQUIRED)
@@ -139,6 +153,15 @@ object ParquetSchema {
             .string(DetailRefs.TO_TYPE, RepetitionType.REQUIRED)
             .string(DetailRefs.RELATIONSHIP, RepetitionType.REQUIRED)
             .addColumn(DetailRefs.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .build()
+
+    fun classpathSchema(): FileSchema =
+        FileSchema.builder("classpath")
+            .string(Classpath.ARTIFACT_KEY, RepetitionType.REQUIRED)
+            .string(Classpath.NAME, RepetitionType.REQUIRED)
+            .addColumn(Classpath.INDEX, PhysicalType.INT32, RepetitionType.REQUIRED)
+            .string(Classpath.DEP_KEY, RepetitionType.REQUIRED)
+            .addColumn(Classpath.INTERNAL, PhysicalType.INT32, RepetitionType.REQUIRED) // 0 = external, 1 = internal
             .build()
 
     private fun FileSchema.Builder.string(name: String, repetition: RepetitionType): FileSchema.Builder =

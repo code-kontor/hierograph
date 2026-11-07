@@ -21,6 +21,7 @@ import dev.hardwood.reader.ParquetFileReader
 import dev.hardwood.reader.RowReader
 import dev.hardwood.schema.FileSchema
 import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.TypeResolver
 import io.hierograph.graphstore.model.ArtifactInfo
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.DetailRef
@@ -50,7 +51,31 @@ class ParquetReader {
      * (the legacy jQA export). Missing tables are treated as empty; [GraphStore.resolvePlaceholders] runs
      * once after all artifacts are in, so cross-artifact references resolve against the full set.
      */
+    /** An artifact's manifest: its display name and its classpath in order (index 0 = the artifact itself). */
+    data class ClasspathInfo(val name: String, val order: List<String>)
+
+    /**
+     * Reads the per-artifact `classpath.parquet` manifests (the Maven plugin's output) across the snapshot,
+     * keyed by the owning artifact. Empty when no archive carries a manifest (CLI/legacy snapshots).
+     */
+    fun readClasspath(parquetDir: Path): Map<String, ClasspathInfo> {
+        val cols = ParquetSchema.Classpath
+        data class Row(val artifactKey: String, val name: String, val index: Int, val depKey: String)
+        val rows = readAcross(parquetDir, ParquetSchema.CLASSPATH_FILE) { r ->
+            Row(r.string(cols.ARTIFACT_KEY), r.string(cols.NAME), r.int(cols.INDEX), r.string(cols.DEP_KEY))
+        }
+        return rows.groupBy { it.artifactKey }.mapValues { (_, rs) ->
+            ClasspathInfo(rs.first().name, rs.sortedBy { it.index }.map { it.depKey })
+        }
+    }
+
     fun load(parquetDir: Path, store: GraphStore) {
+        // Classpath-shadowing resolution: if the snapshot carries manifests, resolve references by each
+        // owner's real classpath order instead of the OWNER_FIRST stand-in. Must be installed before ingest.
+        val classpaths = readClasspath(parquetDir)
+        if (classpaths.isNotEmpty()) {
+            store.setTypeResolver(TypeResolver.classpathOrder(classpaths.mapValues { it.value.order }))
+        }
         for (dir in snapshotDirs(parquetDir)) {
             val types = readTypes(dir.resolve(ParquetSchema.TYPES_FILE))
             val membersByOwner = readMembers(dir.resolve(ParquetSchema.MEMBERS_FILE))
@@ -59,8 +84,10 @@ class ParquetReader {
             val registered = HashSet<String>()
             for (t in types) {
                 if (registered.add(t.artifact)) {
-                    // MVP: the artifact column is a bare name; origin is not needed by the row projections.
-                    store.registerArtifact(ArtifactInfo(t.artifact, t.artifact, t.artifact, Origin.MODULE_MAIN))
+                    // Display name from the classpath manifest when present (the plugin keys artifacts by GAV
+                    // but names them by artifactId); else the artifact key itself (CLI snapshots).
+                    val name = classpaths[t.artifact]?.name ?: t.artifact
+                    store.registerArtifact(ArtifactInfo(t.artifact, name, t.artifact, Origin.MODULE_MAIN))
                 }
                 store.applyClass(
                     t.artifact,

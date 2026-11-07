@@ -16,6 +16,7 @@
 package io.hierograph.graphstore.scanner
 
 import dev.hardwood.metadata.CompressionCodec
+import io.hierograph.graphstore.model.ArtifactClasspath
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.parquet.ParquetWriter
 import io.hierograph.graphstore.parquet.ParquetWriter.ArtifactClass
@@ -43,9 +44,13 @@ data class ScanArtifact(val key: String, val path: Path) {
 data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<DetailRef>) {
 
     /** Writes the result as one `.hierograph` archive per artifact under [dir] (types/members/parameters/refs/detail_refs). */
-    fun writeTo(dir: Path, codec: CompressionCodec = CompressionCodec.ZSTD) {
+    fun writeTo(
+        dir: Path,
+        codec: CompressionCodec = CompressionCodec.ZSTD,
+        classpaths: Map<String, ArtifactClasspath> = emptyMap(),
+    ) {
         Files.createDirectories(dir)
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, codec)
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, codec, classpaths)
     }
 }
 

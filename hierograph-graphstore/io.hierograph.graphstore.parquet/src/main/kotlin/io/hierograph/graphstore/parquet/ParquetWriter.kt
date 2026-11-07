@@ -21,6 +21,8 @@ import dev.hardwood.schema.FileSchema
 import dev.hardwood.writer.ParquetFileWriter
 import dev.hardwood.writer.StructBuilder
 import dev.hardwood.writer.WriterConfig
+import io.hierograph.graphstore.model.ArtifactClasspath
+import io.hierograph.graphstore.model.ClasspathEntry
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.DetailRef
 import java.nio.file.Files
@@ -65,7 +67,13 @@ object ParquetWriter {
      * so it maps to an artifact; if an FQN is defined by several artifacts the first wins — a rare, documented
      * duplicate-FQN case.)
      */
-    fun writeArtifacts(outDir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) {
+    fun writeArtifacts(
+        outDir: Path,
+        classes: List<ArtifactClass>,
+        detailRefs: List<DetailRef>,
+        codec: CompressionCodec = CompressionCodec.ZSTD,
+        classpaths: Map<String, ArtifactClasspath> = emptyMap(),
+    ) {
         Files.createDirectories(outDir)
         val artifactByFqn = classes.associate { it.facts.fqn to it.artifactKey }
         val detailByArtifact = detailRefs.groupBy { artifactByFqn[it.fromType] }
@@ -73,10 +81,27 @@ object ParquetWriter {
             val staging = Files.createTempDirectory("hierograph-write-")
             try {
                 writeSnapshot(staging, artifactClasses, detailByArtifact[artifactKey].orEmpty(), codec)
+                classpaths[artifactKey]?.let { writeClasspath(staging, it, codec) }
                 HierographArchive.zip(staging, outDir.resolve(HierographArchive.fileName(artifactKey)))
             } finally {
                 deleteRecursively(staging)
             }
+        }
+    }
+
+    /**
+     * Writes the artifact's classpath manifest (`classpath.parquet`): index 0 is the artifact itself, then
+     * its dependencies in resolution order. Drives load-time classpath-shadowing resolution.
+     */
+    fun writeClasspath(dir: Path, classpath: ArtifactClasspath, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
+        val self = ClasspathEntry(classpath.artifactKey, internal = true)
+        val rows = (listOf(self) + classpath.entries).mapIndexed { index, entry -> index to entry }
+        writeTable(dir.resolve(ParquetSchema.CLASSPATH_FILE), ParquetSchema.classpathSchema(), codec, rows) { sb, (index, entry) ->
+            sb.setString(ParquetSchema.Classpath.ARTIFACT_KEY, classpath.artifactKey)
+            sb.setString(ParquetSchema.Classpath.NAME, classpath.name)
+            sb.setInt(ParquetSchema.Classpath.INDEX, index)
+            sb.setString(ParquetSchema.Classpath.DEP_KEY, entry.depKey)
+            sb.setInt(ParquetSchema.Classpath.INTERNAL, if (entry.internal) 1 else 0)
         }
     }
 

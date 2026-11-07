@@ -17,6 +17,8 @@ package io.hierograph.graphstore.parquet
 
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.model.ArtifactClasspath
+import io.hierograph.graphstore.model.ClasspathEntry
 import io.hierograph.graphstore.model.ClassFacts
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.model.MemberFacts
@@ -94,6 +96,27 @@ class HierographRoundTripTest {
         val member = reader.readMember(dir, "com.a.A#foo(java.lang.String)")
         assertThat(member).isNotNull()
         assertThat(member!!.parameters.map { it.name }).containsExactly("x")
+    }
+
+    @Test
+    fun `classpath manifests round-trip and provide artifact display names on load`(@TempDir dir: Path) {
+        val classpaths = mapOf(
+            "a.jar" to ArtifactClasspath("a.jar", "A", emptyList()),
+            "b.jar" to ArtifactClasspath("b.jar", "B", listOf(ClasspathEntry("a.jar", internal = true))),
+        )
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED, classpaths)
+
+        val reader = ParquetReader()
+        val manifests = reader.readClasspath(dir)
+        assertThat(manifests.keys).containsExactlyInAnyOrder("a.jar", "b.jar")
+        assertThat(manifests.getValue("a.jar").name).isEqualTo("A")
+        assertThat(manifests.getValue("a.jar").order).containsExactly("a.jar")          // index 0 = self only
+        assertThat(manifests.getValue("b.jar").order).containsExactly("b.jar", "a.jar")  // self, then its dep
+
+        // load picks up the manifest's display name for the module node (vs the raw artifact key).
+        val store = GraphStore()
+        reader.load(dir, store)
+        assertThat(store.node("b.jar")?.name).isEqualTo("B")
     }
 
     @Test

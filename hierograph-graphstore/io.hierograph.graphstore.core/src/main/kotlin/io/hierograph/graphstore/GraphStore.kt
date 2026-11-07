@@ -53,8 +53,17 @@ import java.util.EnumSet
  */
 class GraphStore(
     private val placeholderPolicy: PlaceholderPolicy = PlaceholderPolicy.ALL,
-    private val resolver: TypeResolver = TypeResolver.OWNER_FIRST,
+    private var resolver: TypeResolver = TypeResolver.OWNER_FIRST,
 ) {
+
+    /**
+     * Installs the type-shadowing [resolver] used during ingestion (classpath-order resolution). Call
+     * before [applyClass]/[load]; the loader uses it to swap the [TypeResolver.OWNER_FIRST] stand-in for a
+     * classpath-order resolver built from a snapshot's `classpath.parquet` manifest.
+     */
+    fun setTypeResolver(resolver: TypeResolver) {
+        this.resolver = resolver
+    }
 
     private val nodesByKey = LinkedHashMap<String, Node>()
     private val childKeys = HashMap<String, MutableSet<String>>()

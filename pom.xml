@@ -17,6 +17,7 @@
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-mcp</module>
         <module>hierograph-graphstore</module>
+        <module>hierograph-maven-plugin</module>
     </modules>
 
     <properties>

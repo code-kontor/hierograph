@@ -45,5 +45,18 @@ fun interface TypeResolver {
         val OWNER_FIRST = TypeResolver { ownerArtifactKey, _, definers ->
             if (ownerArtifactKey in definers) ownerArtifactKey else definers.minOrNull()!!
         }
+
+        /**
+         * Real classpath-order resolution from the Maven plugin's manifest: [classpathByOwner] maps each
+         * owner artifact to its classpath in order (index 0 = the owner itself, then its dependencies). A
+         * reference binds to the first artifact on the owner's classpath that defines the FQN — exactly how
+         * the JVM picks a class. Falls back to [OWNER_FIRST] for an owner with no recorded classpath (e.g.
+         * a CLI snapshot, or an artifact the manifest did not cover).
+         */
+        fun classpathOrder(classpathByOwner: Map<String, List<String>>): TypeResolver =
+            TypeResolver { ownerArtifactKey, fqn, definers ->
+                classpathByOwner[ownerArtifactKey]?.firstOrNull { it in definers }
+                    ?: OWNER_FIRST.resolve(ownerArtifactKey, fqn, definers)
+            }
     }
 }
