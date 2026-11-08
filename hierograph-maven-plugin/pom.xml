@@ -16,11 +16,11 @@
 
     <name>Hierograph Maven Plugin</name>
     <description>
-        Records a Maven reactor's module layout for the Hierograph MCP server during the build: the
-        `create-descriptor` goal writes a per-module descriptor (GAV, compiled-output directories and the
-        resolved classpath), and the `merge-descriptors` goal merges them into one top-level
-        `.hierograph/manifest.json`. The server does the scanning — the plugin only reports what the build
-        tool knows, so it pulls in no scanner or Parquet dependencies.
+        Connects a Maven build to the Hierograph MCP server. The `create-descriptor` and `merge-descriptors`
+        goals report the reactor's module layout (GAV, compiled-output directories and the resolved
+        classpath) as a `.hierograph/manifest.json` for a watching server that does the scanning itself;
+        the `scan` goal instead scans a module's compiled classes into a per-module `.hierograph` archive
+        keyed by its GAV and attaches it so `mvn deploy` publishes it beside the jar.
     </description>
 
     <properties>
@@ -39,6 +39,16 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
+        </dependency>
+
+        <!-- The bytecode scanner + the Parquet writer/model it produces (for the `scan` goal). -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.scanner</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore</artifactId>
         </dependency>
 
         <!-- Maven plugin API (provided by the running Maven). -->
