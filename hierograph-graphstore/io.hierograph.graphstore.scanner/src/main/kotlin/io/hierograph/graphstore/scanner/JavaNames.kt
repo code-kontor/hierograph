@@ -18,8 +18,8 @@ package io.hierograph.graphstore.scanner
 import org.objectweb.asm.Type
 
 /**
- * The naming conventions of a snapshot, kept identical to the jQAssistant-sourced snapshots so keys (and
- * therefore node handles) stay stable: dotted FQNs with `$` for nested types, Java source spelling for
+ * The naming conventions of a snapshot, which every key (and therefore every node handle) is built from,
+ * so they must stay stable: dotted FQNs with `$` for nested types, Java source spelling for
  * types in signatures (`int`, `java.lang.String[]`), member signatures `<return> <name>(<arg>,<arg>)` /
  * `<type> <name>`, and **element types** (not array types) as reference targets.
  */

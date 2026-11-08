@@ -37,23 +37,14 @@ import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 import java.security.MessageDigest
 
-/** One scanned class file: its facts, its member-level refs, and what the overrides pass needs. */
+/** One scanned class file: its facts and its member-level refs. */
 internal class ScannedClass(
     val facts: ClassFacts,
     val detailRefs: List<DetailRef>,
-    val superFqn: String?,
-    val interfaceFqns: List<String>,
-    val methods: List<MethodInfo>,
-) {
-    /**
-     * A declared method as the hierarchy pass sees it. [bridgeTarget] is, for a compiler-generated bridge
-     * method (generics, covariant returns), the key of the real method it forwards to.
-     */
-    class MethodInfo(val key: String, val signature: String, val access: Int, val lineFrom: Int?, val bridgeTarget: String? = null)
-}
+)
 
 /**
- * Scans one class file (FULL mode: signatures and method bodies) into a [ScannedClass].
+ * Scans one class file — its declarations, signatures and method bodies — into a [ScannedClass].
  *
  * Type-level [Ref]s are aggregated per (target, kind) with a **count** of individual references, so the
  * dependency weight is "number of references". Member-level [DetailRef]s use the snapshot's detail
@@ -79,10 +70,8 @@ internal object ClassScanner {
         private var access = 0
         private var innerAccess: Int? = null
         private var superFqn: String? = null
-        private var interfaceFqns: List<String> = emptyList()
         private var sourceFile: String? = null
         private val members = ArrayList<MemberFacts>()
-        private val methods = ArrayList<ScannedClass.MethodInfo>()
         private val detailRefs = ArrayList<DetailRef>()
         private val refCounts = LinkedHashMap<Pair<String, RefKind>, Int>()
 
@@ -102,7 +91,7 @@ internal object ClassScanner {
                 classHash = classHash,
                 sourceFile = sourceFile,
             )
-            return ScannedClass(facts, detailRefs, superFqn, interfaceFqns, methods)
+            return ScannedClass(facts, detailRefs)
         }
 
         // ── type-level refs ──────────────────────────────────────────
@@ -146,7 +135,6 @@ internal object ClassScanner {
             this.fqn = JavaNames.fqn(name)
             this.access = access
             this.superFqn = superName?.let { JavaNames.fqn(it) }
-            this.interfaceFqns = interfaces.orEmpty().map { JavaNames.fqn(it) }
             superName?.let { refInternal(it, RefKind.EXTENDS) }
             interfaces.orEmpty().forEach { refInternal(it, RefKind.IMPLEMENTS) }
             genericRefs(signature)
@@ -285,7 +273,7 @@ internal object ClassScanner {
 
             override fun visitInvokeDynamicInsn(name: String, descriptor: String, bootstrap: Handle, vararg arguments: Any?) {
                 constructed = null
-                // A lambda or method reference: link to its implementation method, as jQA does.
+                // A lambda or method reference: link to its implementation method.
                 if (bootstrap.owner == "java/lang/invoke/LambdaMetafactory") {
                     (arguments.getOrNull(1) as? Handle)?.let { call(it.owner, it.name, it.desc) }
                 }
@@ -377,7 +365,6 @@ internal object ClassScanner {
                     parameters = parameters(isStatic),
                     bridgeTarget = bridgeTarget,
                 )
-                methods += ScannedClass.MethodInfo(key, signature, access, minLine, bridgeTarget)
 
                 val methodType = Type.getMethodType(descriptor)
                 detail(key, typeTarget(methodType.returnType), "returns", minLine)

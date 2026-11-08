@@ -35,7 +35,7 @@ import kotlin.io.path.name
 /** One scan input: a JAR file or a class directory. [key] becomes the module's artifact key. */
 data class ScanArtifact(val key: String, val path: Path) {
     companion object {
-        /** An artifact keyed by its file or directory name (`spring-web-7.0.8.jar`), as jQAssistant names JARs. */
+        /** An artifact keyed by its file or directory name (`spring-web-7.0.8.jar`). */
         fun of(path: Path): ScanArtifact = ScanArtifact(path.fileName.toString(), path)
     }
 }
@@ -55,9 +55,9 @@ data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<Det
 }
 
 /**
- * Hierograph's own bytecode scanner (FULL mode): reads every class file of the given [ScanArtifact]s with
- * ASM into `ClassFacts` and member-level `DetailRef`s — the replacement for the jQAssistant export, with
- * the same snapshot shape and key conventions. `module-info` is skipped; of a multi-release JAR, each
+ * Hierograph's bytecode scanner: reads every class file of the given [ScanArtifact]s with ASM — declarations,
+ * signatures and method bodies — into `ClassFacts` and member-level `DetailRef`s, using the snapshot's key
+ * conventions (see `spec/hierograph-graphstore-scanner.md`). `module-info` is skipped; of a multi-release JAR, each
  * class is scanned once, in its newest version (`META-INF/versions/<n>/…` overrides the base — what runs on
  * a current JDK); `package-info` and nested/anonymous classes are types.
  *
