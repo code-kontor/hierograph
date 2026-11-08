@@ -63,3 +63,9 @@ out/
 
 # Local Maven settings template with real Proton Pass ids (never commit)
 /release/settings.xml.template.local
+
+# Dev symlinks: canonical skills live in plugins/hierograph/skills/, symlinked
+# into .claude/skills/ for live loading in this repo's own session. Don't ship.
+.claude/skills/hierograph-structure
+.claude/skills/hierograph-extract
+.claude/skills/hierograph-bootstrap
