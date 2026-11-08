@@ -36,7 +36,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
+            <artifactId>io.hierograph.server.mapping</artifactId>
         </dependency>
 
         <!-- jackson 2 (pagination cursors / data hash) -->

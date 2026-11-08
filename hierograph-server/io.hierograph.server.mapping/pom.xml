@@ -11,9 +11,9 @@
         <relativePath>../../hierograph-graphstore/pom.xml</relativePath>
     </parent>
 
-    <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
+    <artifactId>io.hierograph.server.mapping</artifactId>
     <packaging>jar</packaging>
-    <name>Hierograph GraphStore HGModel Bridge</name>
+    <name>Hierograph Server Mapping</name>
     <description>Builds the production hierarchical graph (HGModel) from a GraphStore, so the existing API can run off Parquet instead of Neo4j.</description>
 
     <dependencies>

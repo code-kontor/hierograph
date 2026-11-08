@@ -307,7 +307,7 @@ limitations under the License.]]></inlineHeader>
             </dependency>
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
+                <artifactId>io.hierograph.server.mapping</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

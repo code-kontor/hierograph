@@ -73,7 +73,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.hgmodel</artifactId>
+            <artifactId>io.hierograph.server.mapping</artifactId>
         </dependency>
         <!-- kotlin -->
         <dependency>
