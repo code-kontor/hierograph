@@ -20,7 +20,7 @@
         <module>io.hierograph.graphstore.hgmodel</module>
         <module>io.hierograph.server.graphservice</module>
         <module>io.hierograph.mcp.server</module>
-        <module>io.hierograph.graphql</module>
+        <module>io.hierograph.server.graphql</module>
     </modules>
 
 </project>

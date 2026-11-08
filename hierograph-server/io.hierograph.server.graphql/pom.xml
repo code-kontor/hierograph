@@ -10,7 +10,7 @@
         <version>0.2.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>io.hierograph.graphql</artifactId>
+    <artifactId>io.hierograph.server.graphql</artifactId>
     <packaging>jar</packaging>
     <name>Hierograph GraphQL</name>
 
