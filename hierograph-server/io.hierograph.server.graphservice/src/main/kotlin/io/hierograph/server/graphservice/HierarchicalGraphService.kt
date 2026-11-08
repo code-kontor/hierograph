@@ -48,6 +48,10 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.dump.enabled:false}")
     private var graphDumpEnabled: Boolean = false
 
+    /** `manifest` mode only: also scan each module's test output (as a separate `<gav>:test` artifact). */
+    @Value("\${hierograph.graph.include-tests:false}")
+    private var includeTests: Boolean = false
+
     @Value("\${hierograph.graph.dumpFile:hierarchical-graph.txt}")
     private lateinit var graphDumpFile: String
 
@@ -315,7 +319,7 @@ class HierarchicalGraphService {
      * lands, [readyDetailDir] withholds detail rather than serving the previous scan's.
      */
     private fun buildFromManifest(): Built {
-        val scanned = manifestGraphSource.scan(Path.of(manifestFile))
+        val scanned = manifestGraphSource.scan(Path.of(manifestFile), includeTests)
         currentScanned = scanned
         return buildManifestSnapshot(scanned)
     }

@@ -52,13 +52,22 @@ import kotlin.time.measureTimedValue
  */
 class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner()) {
 
-    /** One module's scan: its GAV, display name, (local) compiled-output directory, and scanned classes. */
-    data class ModuleScan(val gav: String, val name: String, val mainOutputDir: Path, val result: ScanResult)
+    /**
+     * One scanned artifact: its GAV (a module's tests carry a `:test` suffix), display name, the (local)
+     * compiled-output directory scanned, the scanned classes, and whether it is main or test output.
+     */
+    data class ModuleScan(
+        val gav: String,
+        val name: String,
+        val outputDir: Path,
+        val result: ScanResult,
+        val origin: Origin = Origin.MODULE_MAIN,
+    )
 
     /** A parsed manifest: the per-module scans plus each module's resolved classpath (keyed by GAV). */
     data class Scanned(val modules: Map<String, ModuleScan>, val classpaths: Map<String, ArtifactClasspath>) {
-        /** gav → (local) main-output directory, for the file watcher. */
-        val moduleDirs: Map<String, Path> get() = modules.mapValues { it.value.mainOutputDir }
+        /** gav → (local) compiled-output directory (main or test), for the file watcher. */
+        val moduleDirs: Map<String, Path> get() = modules.mapValues { it.value.outputDir }
 
         /** The union of every module's classes and detail refs — for [ingest] and [writeSnapshot]. */
         fun combined(): ScanResult = ScanResult(
@@ -87,7 +96,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     )
 
     /** Reads [manifestPath] and scans every module's compiled main output into per-module [ModuleScan]s. */
-    fun scan(manifestPath: Path): Scanned {
+    fun scan(manifestPath: Path, includeTests: Boolean = false): Scanned {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:manifest`)" }
         val manifest = MAPPER.readValue<ManifestDto>(manifestPath.toFile())
         val remap = PathRemap(manifestPath, manifest.reactorRoot)
@@ -96,20 +105,34 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val modules = LinkedHashMap<String, ModuleScan>()
         for (module in manifest.modules) {
             val name = module.name.ifEmpty { module.gav }
-            classpaths[module.gav] = ArtifactClasspath(
-                module.gav, name, module.classpath.map { ClasspathEntry(it.gav, it.internal) },
-            )
+            val mainCp = module.classpath.map { ClasspathEntry(it.gav, it.internal) }
+            classpaths[module.gav] = ArtifactClasspath(module.gav, name, mainCp)
             val dir = module.mainOutputDir?.let { remap.map(Path.of(it)) }
             if (dir == null || !dir.isDirectory()) {
                 log.warn("Manifest module {} has no scannable main output ({}); skipping", module.gav, dir ?: module.mainOutputDir)
                 continue
             }
-            modules[module.gav] = ModuleScan(module.gav, name, dir, scanModule(module.gav, dir))
+            modules[module.gav] = ModuleScan(module.gav, name, dir, scanModule(module.gav, dir), Origin.MODULE_MAIN)
+
+            if (includeTests) {
+                val testDir = module.testOutputDir?.let { remap.map(Path.of(it)) }
+                if (testDir != null && testDir.isDirectory()) {
+                    val testKey = "${module.gav}:test"
+                    val testName = "$name (test)"
+                    // Test types resolve against their own output first, then the module's main output, then
+                    // its compile+runtime deps. Test-scope deps (JUnit, …) aren't in the manifest classpath,
+                    // so references to them fall out as external types until the plugin emits a test classpath.
+                    classpaths[testKey] = ArtifactClasspath(
+                        testKey, testName, listOf(ClasspathEntry(module.gav, internal = true)) + mainCp,
+                    )
+                    modules[testKey] = ModuleScan(testKey, testName, testDir, scanModule(testKey, testDir), Origin.MODULE_TEST)
+                }
+            }
         }
         require(modules.isNotEmpty()) {
             "Manifest $manifestPath lists no module with compiled output to scan (did the reactor build run?)"
         }
-        log.info("Scanned {} module(s) from manifest {}", modules.size, manifestPath)
+        log.info("Scanned {} artifact(s) from manifest {} (includeTests={})", modules.size, manifestPath, includeTests)
         return Scanned(modules, classpaths)
     }
 
@@ -121,11 +144,11 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val modules = LinkedHashMap(previous.modules)
         for (gav in changedGavs) {
             val prev = previous.modules[gav] ?: continue
-            if (!prev.mainOutputDir.isDirectory()) {
+            if (!prev.outputDir.isDirectory()) {
                 modules.remove(gav)
                 continue
             }
-            modules[gav] = prev.copy(result = scanModule(gav, prev.mainOutputDir))
+            modules[gav] = prev.copy(result = scanModule(gav, prev.outputDir))
         }
         return Scanned(modules, previous.classpaths)
     }
@@ -153,7 +176,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
                 val key = artifactClass.artifactKey
                 if (registered.add(key)) {
                     val name = scanned.classpaths[key]?.name ?: key
-                    store.registerArtifact(ArtifactInfo(key, name, key, Origin.MODULE_MAIN))
+                    store.registerArtifact(ArtifactInfo(key, name, key, module.origin))
                 }
                 store.applyClass(key, artifactClass.facts)
             }
