@@ -19,10 +19,10 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.graphservice.pagination.DataHashProvider
-import io.hierograph.graphservice.pagination.PageResult
-import io.hierograph.graphservice.pagination.PaginationSpec
-import io.hierograph.graphservice.pagination.Paginator
-import io.hierograph.graphservice.pagination.QueryHash
+import io.hierograph.mcp.server.pagination.PageResult
+import io.hierograph.mcp.server.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.Paginator
+import io.hierograph.mcp.server.pagination.QueryHash
 import io.hierograph.graphstore.model.JavaKinds
 import io.hierograph.graphstore.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata

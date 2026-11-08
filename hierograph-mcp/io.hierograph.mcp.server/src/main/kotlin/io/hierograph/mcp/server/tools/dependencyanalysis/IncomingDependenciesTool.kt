@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.graphservice.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam

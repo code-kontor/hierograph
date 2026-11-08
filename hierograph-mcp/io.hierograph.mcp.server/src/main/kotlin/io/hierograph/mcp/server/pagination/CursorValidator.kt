@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphservice.pagination
+package io.hierograph.mcp.server.pagination
 
 /**
  * Decides whether a structurally valid [Cursor] may be used to resume the current request.

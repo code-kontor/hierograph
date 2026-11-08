@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphservice.pagination
+package io.hierograph.mcp.server.pagination
 
 /**
  * Thrown by [CursorCodec.decode] when a cursor string cannot be turned back into a [Cursor] —

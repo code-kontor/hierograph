@@ -13,21 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphservice.pagination
+package io.hierograph.mcp.server.pagination
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import io.hierograph.hierarchicalgraph.model.HGModel
 import java.security.MessageDigest
 import java.util.Base64
-
-/**
- * The two hashes a cursor carries: the query hash (`qh`) and the data hash (`dh`).
- *
- * Both are produced in the same compact shape — the first 12 bytes of a SHA-256 digest, base64-URL
- * encoded without padding (a 16-character string) — so cursors stay small. Twelve bytes is ample
- * collision resistance for distinguishing one query or data snapshot from another.
- */
 
 /** SHA-256 of [input], truncated to its first 12 bytes and base64-URL encoded without padding. */
 private fun shortHash(input: ByteArray): String {
@@ -58,43 +49,5 @@ object QueryHash {
     fun of(params: Map<String, Any?>): String {
         val canonical = params.filterValues { it != null }
         return shortHash(mapper.writeValueAsBytes(canonical))
-    }
-}
-
-/**
- * Computes the data hash (`dh`) — an identifier for a snapshot of the underlying graph.
- *
- * This is what makes cursors stateless across restarts: if the server reloads and the data is
- * unchanged, the fingerprint is identical, so cursors from before the restart still resume correctly;
- * if a rescan changed the graph, the fingerprint differs and stale cursors are rejected.
- *
- * jQAssistant exposes no scan id or timestamp here, so this is the spec's computed-fingerprint
- * fallback: it combines the total node count, the total leaf-level edge count, and an
- * order-independent accumulation of per-node identity (identifier + kind). Using order-independent
- * aggregation means the fingerprint doesn't depend on traversal order — only on *what* is in the
- * graph, not the order it happens to be visited. It is a fingerprint, not a cryptographic guarantee:
- * two genuinely different scans could in principle collide, but in practice this reliably distinguishes
- * one loaded graph from another.
- */
-object DataHash {
-
-    /** Computes the data-snapshot fingerprint for the loaded [model]. */
-    fun fingerprint(model: HGModel): String {
-        val hierarchy = model.hierarchy
-        var nodeCount = 0L
-        var edgeCount = 0L
-        var identityAccumulator = 0L
-
-        hierarchy.traverse(hierarchy.rootNode) { node ->
-            nodeCount++
-            edgeCount += node.outgoingCoreDependencies.size
-            val idHash = node.identifier.toString().hashCode().toLong()
-            val kindHash = (node.kind?.hashCode() ?: 0).toLong()
-            // Addition is commutative, so the total is independent of visitation order.
-            identityAccumulator += idHash * 31 + kindHash
-        }
-
-        val canonical = "$nodeCount:$edgeCount:$identityAccumulator"
-        return shortHash(canonical.toByteArray(Charsets.UTF_8))
     }
 }

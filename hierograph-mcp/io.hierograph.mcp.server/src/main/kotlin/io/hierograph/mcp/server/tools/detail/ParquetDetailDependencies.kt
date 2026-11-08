@@ -28,10 +28,10 @@ import io.hierograph.graphstore.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.graphservice.pagination.DataHashProvider
-import io.hierograph.graphservice.pagination.PageResult
-import io.hierograph.graphservice.pagination.PaginationSpec
-import io.hierograph.graphservice.pagination.Paginator
-import io.hierograph.graphservice.pagination.QueryHash
+import io.hierograph.mcp.server.pagination.PageResult
+import io.hierograph.mcp.server.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.Paginator
+import io.hierograph.mcp.server.pagination.QueryHash
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.nio.file.Path

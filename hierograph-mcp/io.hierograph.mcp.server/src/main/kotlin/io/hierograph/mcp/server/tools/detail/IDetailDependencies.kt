@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphservice.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.PaginationSpec
 
 interface IDetailDependencies {
 

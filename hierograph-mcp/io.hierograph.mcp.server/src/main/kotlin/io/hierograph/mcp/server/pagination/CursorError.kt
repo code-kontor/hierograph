@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphservice.pagination
+package io.hierograph.mcp.server.pagination
 
 /**
  * The ways a paginated request can be rejected, each carrying the data needed to render the

@@ -25,7 +25,7 @@ import io.hierograph.graphstore.model.JavaNodeKind
 import io.hierograph.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.graphservice.pagination.DataHashProvider
-import io.hierograph.graphservice.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.tools.detail.IDetailDependencies
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

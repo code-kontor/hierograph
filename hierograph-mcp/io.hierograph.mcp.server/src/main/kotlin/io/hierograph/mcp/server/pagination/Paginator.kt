@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphservice.pagination
+package io.hierograph.mcp.server.pagination
 
 /**
  * Per-tool pagination configuration: the tool's name (stamped into issued cursors and checked on
