@@ -256,6 +256,11 @@ def main():
             print(f"    {arrow} {names[a]} (L{level[a]}) -> {names[b]} (L{level[b]})  w={w}")
     else:
         print("  no layering violations - every edge still points downward")
+    # Per-level roster (level 0 = foundation at the bottom), heaviest in-weight first.
+    # Printed so the caller can describe the layering without re-reading graphdata.json.
+    for lvl in range(data["maxLevel"], -1, -1):
+        band = sorted((n for n in data["nodes"] if n["l"] == lvl), key=lambda n: -n["iw"])
+        print(f"  level {lvl}: " + ", ".join(f"{n['n']}(in={n['iw']},out={n['ow']})" for n in band))
     if dropped:
         print(f"dropped {dropped} edge(s) - self-loop or endpoint not in nodes")
     if n_cycles:

@@ -228,4 +228,16 @@ These are deliberate; change them only with a reason.
   and no `<html>`/`<head>` wrapper, so it can serve as an artifact body too.
   Palette tokens sit at the top; both light and dark are defined explicitly.
 - `scripts/make_data.py` — edges in, page data out. Levels, degrees, cycles.
+  It prints a per-level roster after the summary, so you can describe the
+  layering straight from stdout without re-reading `graphdata.json`.
 - `scripts/build_page.py` — inlines the data and wraps it into a real document.
+
+The `graphdata.json` it writes is minified with single-letter keys (read it only
+if you must — the stdout roster usually suffices):
+
+- top level: `title`, `project`, `scanned`, `source`, `unit`, `maxLevel`,
+  `cycles`, `violations`, `internal`, `levelNames`, `nodes`, `edges`.
+- each node (`nodes[]`): `n` name, `l` level (0 = foundation), `t` is-test,
+  `c` in-a-cycle, `g` pin-group, `iw`/`ow` in/out coupling weight, `id`/`od`
+  in/out degree.
+- each edge (`edges[]`): `[from_index, to_index, weight]`, indices into `nodes`.
