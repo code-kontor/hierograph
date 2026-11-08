@@ -112,8 +112,7 @@ script:
 ```
 
 It reports what it changed and prints a `git diff --stat`; review before committing. (It
-deliberately skips `RELEASING.md` and `docs/todos/*`, whose version strings are examples / sample
-data — see the script header.)
+deliberately skips `RELEASING.md`, whose version strings are examples — see the script header.)
 
 Sanity-check the build before publishing anything:
 

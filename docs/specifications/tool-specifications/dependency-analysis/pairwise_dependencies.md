@@ -221,7 +221,7 @@ End-to-end cost of building and serving a request, where `V` is the node-set siz
 | Ordering assembly | `O(V)` |
 | Edge ordering + `min_weight` filter + page slice | `O(E log E)` + `O(page)` |
 
-The only super-linear term is the per-SCC `O(sccᵢ²)` layering, confined to actual cycle clusters; for the common (mostly acyclic) case it is negligible, and a heavily entangled set is surfaced by `has_cycles` / a large SCC in the summary before any matrix is rendered. This is why the node set scales to the ~1000 soft cap on real, sparse graphs. The algorithm internals (adjacency bucketing, Tarjan SCC, the greedy FAS layering, and the cached weight matrix) are specified in `hierarchicalgraph-specifications/hierarchicalgraph-core-spec.md`.
+The only super-linear term is the per-SCC `O(sccᵢ²)` layering, confined to actual cycle clusters; for the common (mostly acyclic) case it is negligible, and a heavily entangled set is surfaced by `has_cycles` / a large SCC in the summary before any matrix is rendered. This is why the node set scales to the ~1000 soft cap on real, sparse graphs. The algorithm internals (adjacency bucketing, Tarjan SCC, the greedy FAS layering, and the cached weight matrix) are specified in the [hierarchical graph algorithms specification](../../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md).
 
 ## Pagination
 

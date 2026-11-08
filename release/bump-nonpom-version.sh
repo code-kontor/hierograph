@@ -26,7 +26,6 @@
 # Deliberately EXCLUDED:
 #   * pom.xml            — owned by mvn versions:set
 #   * RELEASING.md       — its version strings are release-process examples
-#   * docs/todos/*       — contain OTHER projects' snapshot versions (sample data)
 #
 set -euo pipefail
 
@@ -79,14 +78,13 @@ bump_release_pointers() {
 }
 
 # Curated list of non-POM files that reference the Hierograph version.
-# Add new ones here as they appear; keep RELEASING.md / docs/todos OUT.
+# Add new ones here as they appear; keep RELEASING.md OUT.
 FILES=(
   ".jqassistant.yml"
   "hierograph-itest/io.hierograph.itest.image/Dockerfile"
   "hierograph-itest/io.hierograph.itest.image/README.md"
   "BUILD.md"
   "docs/getting-started.md"
-  "docs/specifications/jqassistant/rule-plugin-packaging.md"
 )
 
 echo "Replacing '${OLD}' -> '${NEW}' in non-POM files:"
