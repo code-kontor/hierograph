@@ -20,6 +20,5 @@
     <modules>
         <module>io.hierograph.hierarchicalgraph.model</module>
         <module>io.hierograph.hierarchicalgraph.algorithms</module>
-        <module>io.hierograph.hierarchicalgraph.serialization</module>
     </modules>
 </project>
