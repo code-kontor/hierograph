@@ -95,8 +95,8 @@ class HierarchicalGraphService {
 
     /**
      * Base directory for the Parquet snapshot the detail tools read: [parquetDir] in `parquet` mode, or
-     * the `snapshot` directory beside the manifest in `manifest` mode (async writes land in `gen-<n>`
-     * subdirectories of it).
+     * the `snapshot` directory beside the manifest in `manifest` mode (async writes land in zero-padded
+     * `gen-<nnnn>` subdirectories of it).
      */
     private fun snapshotDir(): Path =
         if (manifestMode) Path.of(manifestFile).toAbsolutePath().normalize().parent.resolve("snapshot")
@@ -398,7 +398,7 @@ class HierarchicalGraphService {
     private fun scheduleDetailWrite(scanned: ManifestGraphSource.Scanned, store: GraphStore, generation: Long) {
         detailWriter.submit {
             val base = snapshotDir()
-            val genDir = base.resolve("gen-$generation")
+            val genDir = base.resolve("gen-%04d".format(generation))
             try {
                 val elapsed = kotlin.time.measureTime {
                     manifestGraphSource.writeSnapshot(scanned, genDir)
