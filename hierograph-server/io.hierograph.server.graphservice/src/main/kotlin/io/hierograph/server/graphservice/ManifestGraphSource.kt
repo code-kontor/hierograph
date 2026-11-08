@@ -40,19 +40,32 @@ import kotlin.time.measureTimedValue
  * — the server-owned replacement for the former plugin-side scan. The plugin only records what the build
  * tool knows (module layout + resolved classpath); the server runs the ASM [BytecodeScanner] itself.
  *
- * Three steps the caller composes (see [HierarchicalGraphService]):
+ * Scans are held **per module** ([Scanned]) so a file-watch can rescan only what changed and the whole set
+ * be rebuilt from the cached union. The caller composes the steps:
  *  - [scan] reads the manifest and parses every module's compiled output in memory;
- *  - [ingest] feeds that straight into a [GraphStore] (the fast path — no Parquet round trip), so the
- *    hierarchical graph can go live immediately;
- *  - [writeSnapshot] writes the same scan as a Parquet snapshot the detail tools read — done off the hot
- *    path so the live graph never waits on it.
+ *  - [rescan] re-parses only the given modules, returning an updated [Scanned];
+ *  - [ingest] feeds the union straight into a [GraphStore] (the fast path — no Parquet round trip);
+ *  - [writeSnapshot] writes the union as a Parquet snapshot the detail tools read — off the hot path.
  *
- * Only app (reactor) modules are scanned; libraries stay unresolved placeholders as today.
+ * Host paths recorded in the manifest are remapped onto the local workspace (see [PathRemap]) so the same
+ * manifest works whether the server runs on the build host or in a container with the workspace mounted.
  */
 class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner()) {
 
-    /** A parsed manifest: the scan result plus each module's resolved classpath (keyed by GAV). */
-    data class Scanned(val result: ScanResult, val classpaths: Map<String, ArtifactClasspath>)
+    /** One module's scan: its GAV, display name, (local) compiled-output directory, and scanned classes. */
+    data class ModuleScan(val gav: String, val name: String, val mainOutputDir: Path, val result: ScanResult)
+
+    /** A parsed manifest: the per-module scans plus each module's resolved classpath (keyed by GAV). */
+    data class Scanned(val modules: Map<String, ModuleScan>, val classpaths: Map<String, ArtifactClasspath>) {
+        /** gav → (local) main-output directory, for the file watcher. */
+        val moduleDirs: Map<String, Path> get() = modules.mapValues { it.value.mainOutputDir }
+
+        /** The union of every module's classes and detail refs — for [ingest] and [writeSnapshot]. */
+        fun combined(): ScanResult = ScanResult(
+            modules.values.flatMap { it.result.classes },
+            modules.values.flatMap { it.result.detailRefs },
+        )
+    }
 
     private data class ClasspathEntryDto(val gav: String, val internal: Boolean = false, val jar: String? = null)
 
@@ -73,42 +86,61 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val modules: List<ModuleDto> = emptyList(),
     )
 
-    /** Reads [manifestPath] and scans every module's compiled main output into an in-memory [Scanned]. */
+    /** Reads [manifestPath] and scans every module's compiled main output into per-module [ModuleScan]s. */
     fun scan(manifestPath: Path): Scanned {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:manifest`)" }
         val manifest = MAPPER.readValue<ManifestDto>(manifestPath.toFile())
+        val remap = PathRemap(manifestPath, manifest.reactorRoot)
 
-        val artifacts = ArrayList<ScanArtifact>()
         val classpaths = LinkedHashMap<String, ArtifactClasspath>()
+        val modules = LinkedHashMap<String, ModuleScan>()
         for (module in manifest.modules) {
+            val name = module.name.ifEmpty { module.gav }
             classpaths[module.gav] = ArtifactClasspath(
-                module.gav,
-                module.name.ifEmpty { module.gav },
-                module.classpath.map { ClasspathEntry(it.gav, it.internal) },
+                module.gav, name, module.classpath.map { ClasspathEntry(it.gav, it.internal) },
             )
-            val mainDir = module.mainOutputDir?.let(Path::of)
-            if (mainDir == null || !mainDir.isDirectory()) {
-                log.warn("Manifest module {} has no scannable main output ({}); skipping", module.gav, module.mainOutputDir)
+            val dir = module.mainOutputDir?.let { remap.map(Path.of(it)) }
+            if (dir == null || !dir.isDirectory()) {
+                log.warn("Manifest module {} has no scannable main output ({}); skipping", module.gav, dir ?: module.mainOutputDir)
                 continue
             }
-            artifacts += ScanArtifact(module.gav, mainDir)
+            modules[module.gav] = ModuleScan(module.gav, name, dir, scanModule(module.gav, dir))
         }
-        require(artifacts.isNotEmpty()) {
+        require(modules.isNotEmpty()) {
             "Manifest $manifestPath lists no module with compiled output to scan (did the reactor build run?)"
         }
+        log.info("Scanned {} module(s) from manifest {}", modules.size, manifestPath)
+        return Scanned(modules, classpaths)
+    }
 
-        log.info("Scanning {} module(s) from manifest {}", artifacts.size, manifestPath)
-        val (result, elapsed) = measureTimedValue { scanner.scan(artifacts) }
-        log.info("Scanned {} types, {} detail refs in {}", result.classes.size, result.detailRefs.size, elapsed)
-        return Scanned(result, classpaths)
+    /**
+     * Rescans only [changedGavs], returning a new [Scanned] with those modules replaced. A module whose
+     * output directory has disappeared is dropped (its classes then vanish from the rebuilt graph).
+     */
+    fun rescan(previous: Scanned, changedGavs: Set<String>): Scanned {
+        val modules = LinkedHashMap(previous.modules)
+        for (gav in changedGavs) {
+            val prev = previous.modules[gav] ?: continue
+            if (!prev.mainOutputDir.isDirectory()) {
+                modules.remove(gav)
+                continue
+            }
+            modules[gav] = prev.copy(result = scanModule(gav, prev.mainOutputDir))
+        }
+        return Scanned(modules, previous.classpaths)
+    }
+
+    private fun scanModule(gav: String, dir: Path): ScanResult {
+        val (result, elapsed) = measureTimedValue { scanner.scan(listOf(ScanArtifact(gav, dir))) }
+        log.info("Scanned {}: {} types, {} detail refs in {}", gav, result.classes.size, result.detailRefs.size, elapsed)
+        return result
     }
 
     /**
      * Ingests a [Scanned] straight into [store] — the same ingest path a Parquet load uses
      * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass] / [resolvePlaceholders]
-     * [GraphStore.resolvePlaceholders]), but fed from memory so the graph never waits on Parquet I/O.
-     * Installs the real per-owner classpath-order [TypeResolver] from the manifest (index 0 = the owner
-     * itself, then its dependencies) before ingest, so reference resolution matches the Parquet load.
+     * [GraphStore.resolvePlaceholders]), fed from memory. Installs the real per-owner classpath-order
+     * [TypeResolver] from the manifest (index 0 = the owner itself, then its deps) before ingest.
      */
     fun ingest(scanned: Scanned, store: GraphStore) {
         if (scanned.classpaths.isNotEmpty()) {
@@ -116,22 +148,24 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             store.setTypeResolver(TypeResolver.classpathOrder(order))
         }
         val registered = HashSet<String>()
-        for (artifactClass in scanned.result.classes) {
-            val key = artifactClass.artifactKey
-            if (registered.add(key)) {
-                val name = scanned.classpaths[key]?.name ?: key
-                store.registerArtifact(ArtifactInfo(key, name, key, Origin.MODULE_MAIN))
+        for (module in scanned.modules.values) {
+            for (artifactClass in module.result.classes) {
+                val key = artifactClass.artifactKey
+                if (registered.add(key)) {
+                    val name = scanned.classpaths[key]?.name ?: key
+                    store.registerArtifact(ArtifactInfo(key, name, key, Origin.MODULE_MAIN))
+                }
+                store.applyClass(key, artifactClass.facts)
             }
-            store.applyClass(key, artifactClass.facts)
         }
         store.resolvePlaceholders()
     }
 
-    /** Writes [scanned] as a Parquet snapshot into [dir] (replacing any previous contents). */
+    /** Writes the union of [scanned] as a Parquet snapshot into [dir] (replacing any previous contents). */
     fun writeSnapshot(scanned: Scanned, dir: Path) {
         deleteRecursively(dir)
         Files.createDirectories(dir)
-        scanned.result.writeTo(dir, classpaths = scanned.classpaths)
+        scanned.combined().writeTo(dir, classpaths = scanned.classpaths)
     }
 
     /** Convenience for one-shot use (and tests): [scan] then [writeSnapshot]; returns [snapshotDir]. */
@@ -143,6 +177,27 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     private fun deleteRecursively(dir: Path) {
         if (!dir.exists()) return
         Files.walk(dir).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+    }
+
+    /**
+     * Remaps a host path recorded in the manifest onto the local workspace. The manifest always lives at
+     * `<reactorRoot>/.hierograph/manifest.json`, so the local reactor root is where the manifest was
+     * actually read (`manifest.parent.parent`); a recorded path under the recorded reactor root is
+     * re-rooted there. On the build host the two roots are equal → identity; in a container with the
+     * workspace mounted they differ and the re-root makes the recorded paths resolve. A path outside the
+     * reactor tree is left as recorded.
+     */
+    private class PathRemap(manifestPath: Path, recordedReactorRoot: String) {
+        private val localRoot: Path? = manifestPath.toAbsolutePath().normalize().parent?.parent
+        private val recordedRoot: Path? =
+            recordedReactorRoot.takeIf { it.isNotEmpty() }?.let { runCatching { Path.of(it) }.getOrNull() }
+
+        fun map(recorded: Path): Path {
+            val local = localRoot ?: return recorded
+            val root = recordedRoot ?: return recorded
+            if (local == root) return recorded
+            return if (recorded.startsWith(root)) local.resolve(root.relativize(recorded)) else recorded
+        }
     }
 
     private companion object {

@@ -26,6 +26,7 @@ import io.hierograph.graphstore.model.JavaKinds
 import io.hierograph.graphstore.model.JavaNodeKind
 import io.hierograph.server.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
+import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -64,7 +65,30 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.manifest:.hierograph/manifest.json}")
     private lateinit var manifestFile: String
 
+    /** Watch mode (`manifest` mode only): `off` | `polling` | `native`. `native` falls back to polling for now. */
+    @Value("\${hierograph.graph.watch.mode:polling}")
+    private lateinit var watchMode: String
+
+    @Value("\${hierograph.graph.watch.interval:1000}")
+    private var watchIntervalMs: Long = 1000
+
+    @Value("\${hierograph.graph.watch.settle:400}")
+    private var watchSettleMs: Long = 400
+
     private val manifestGraphSource = ManifestGraphSource()
+
+    /** The cached per-module scans backing the live `manifest`-mode graph; incremental updates rescan into it. */
+    @Volatile
+    private var currentScanned: ManifestGraphSource.Scanned? = null
+
+    /** The running file watcher, if any. */
+    @Volatile
+    private var watcher: GraphWatcher? = null
+
+    /** Single thread that applies watch-triggered updates, kept off the watcher's own poll/event thread. */
+    private val updateExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "hierograph-graph-updater").apply { isDaemon = true }
+    }
 
     /** True when [graphSource] selects the manifest (server-side scan) flow. */
     private val manifestMode: Boolean get() = graphSource.equals("manifest", ignoreCase = true)
@@ -155,6 +179,7 @@ class HierarchicalGraphService {
             val built = loadSnapshot()
             snapshotRef.set(built.snapshot)
             built.publishDetail()
+            startWatchingIfEnabled()
         } catch (e: Exception) {
             log.warn(
                 "No hierarchical graph loaded at startup: {}. The server is starting empty; tools will " +
@@ -162,6 +187,13 @@ class HierarchicalGraphService {
                 e.message,
             )
         }
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        stopWatcher()
+        updateExecutor.shutdownNow()
+        detailWriter.shutdownNow()
     }
 
     /**
@@ -179,6 +211,7 @@ class HierarchicalGraphService {
             val (built, elapsed) = measureTimedValue { loadSnapshot() }
             snapshotRef.set(built.snapshot)
             built.publishDetail()
+            startWatchingIfEnabled()
             val snapshot = built.snapshot
             val rootChildren = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
             log.info("Reload complete: {} root children, hash {} in {}.", rootChildren, snapshot.dataHash, elapsed)
@@ -278,12 +311,85 @@ class HierarchicalGraphService {
      */
     private fun buildFromManifest(): Built {
         val scanned = manifestGraphSource.scan(Path.of(manifestFile))
+        currentScanned = scanned
+        return buildManifestSnapshot(scanned)
+    }
+
+    /** Build the nav snapshot from a (cached) set of per-module scans; detail is published post-swap. */
+    private fun buildManifestSnapshot(scanned: ManifestGraphSource.Scanned): Built {
         val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
         manifestGraphSource.ingest(scanned, store)
         val model = GraphStoreToHGModel.build(store)
         val generation = graphGen.incrementAndGet()
         val snapshot = buildSnapshotFrom(model, store, memberHandles(store), generation)
         return Built(snapshot) { scheduleDetailWrite(scanned, store, generation) }
+    }
+
+    // ---- File watch & incremental updates (manifest mode) --------------------------------------------
+
+    /** Start (or restart) watching the current module set, if `manifest` mode and watching is enabled. */
+    private fun startWatchingIfEnabled() {
+        if (!manifestMode) return
+        val mode = watchMode.lowercase()
+        if (mode == "off") return
+        val scanned = currentScanned ?: return
+        stopWatcher()
+        val w = when (mode) {
+            "native" -> {
+                log.warn("hierograph.graph.watch.mode=native is not available yet; using polling")
+                PollingGraphWatcher(watchIntervalMs, watchSettleMs)
+            }
+            else -> PollingGraphWatcher(watchIntervalMs, watchSettleMs)
+        }
+        w.start(
+            WatchTargets(Path.of(manifestFile).toAbsolutePath().normalize(), scanned.moduleDirs),
+            onChange = { gavs -> updateExecutor.submit { applyIncremental(gavs) } },
+            onManifestChange = { updateExecutor.submit { reloadFromManifest() } },
+        )
+        watcher = w
+        log.info(
+            "Watching {} module(s) for changes (mode={}, interval={}ms, settle={}ms)",
+            scanned.moduleDirs.size, mode, watchIntervalMs, watchSettleMs,
+        )
+    }
+
+    private fun stopWatcher() {
+        watcher?.let { runCatching { it.close() } }
+        watcher = null
+    }
+
+    /** Rescan only the changed modules, rebuild the graph from the cached union, and swap it in. */
+    private fun applyIncremental(changedGavs: Set<String>) {
+        val previous = currentScanned ?: return
+        try {
+            val (built, elapsed) = measureTimedValue {
+                val rescanned = manifestGraphSource.rescan(previous, changedGavs)
+                currentScanned = rescanned
+                buildManifestSnapshot(rescanned)
+            }
+            snapshotRef.set(built.snapshot)
+            built.publishDetail()
+            val rootChildren = built.snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
+            log.info(
+                "Incremental update for {} module(s) in {}: {} root children, hash {}",
+                changedGavs.size, elapsed, rootChildren, built.snapshot.dataHash,
+            )
+        } catch (e: Exception) {
+            log.error("Incremental update failed for {}; keeping the previous graph.", changedGavs, e)
+        }
+    }
+
+    /** The manifest file itself changed (module set / classpath): re-read it fully and re-target the watcher. */
+    private fun reloadFromManifest() {
+        try {
+            log.info("Manifest changed; reloading and re-targeting the watcher")
+            val built = loadSnapshot() // re-scans the manifest, refreshes currentScanned
+            snapshotRef.set(built.snapshot)
+            built.publishDetail()
+            startWatchingIfEnabled()
+        } catch (e: Exception) {
+            log.error("Manifest reload failed; keeping the previous graph.", e)
+        }
     }
 
     /**
