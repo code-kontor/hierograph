@@ -1,0 +1,776 @@
+<title>Module Dependency Graph</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --surface-0: #f4f2ee;
+    --surface-1: #fcfcfb;
+    --surface-2: #eeece7;
+    --line:      #d9d6cf;
+    --line-soft: #e7e4dd;
+    --ink:       #0b0b0b;
+    --ink-2:     #52514e;
+    --ink-3:     #86837c;
+
+    --w1: #9ec5f4; --w2: #6da7ec; --w3: #3987e5;
+    --w4: #256abf; --w5: #184f95; --w6: #0d366b;
+
+    --out:     #4a3aa7;   /* depends on - violet, kept clear of the red status hue */
+    --out-soft:#e6e2f5;
+    --in:      #1baf7a;   /* depended on by */
+    --in-soft: #d6f0e5;
+    --sel:     #0d366b;
+
+    --bad:     #e34948;
+    --grp:     #e8e2f3;
+    --band:    #f0eee9;
+    --focus:   #2a78d6;
+    --radius: 7px;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-0: #141413;
+      --surface-1: #1a1a19;
+      --surface-2: #242422;
+      --line:      #383835;
+      --line-soft: #2c2c2a;
+      --ink:       #ffffff;
+      --ink-2:     #c3c2b7;
+      --ink-3:     #8a887f;
+
+      --w1: #1c5cab; --w2: #256abf; --w3: #3987e5;
+      --w4: #6da7ec; --w5: #9ec5f4; --w6: #cde2fb;
+
+      --out:     #9085e9; --out-soft:#241f3d;
+      --in:      #199e70; --in-soft: #122e25;
+      --sel:     #cde2fb;
+      --bad:     #e66767;
+    --grp:     #2b2740;
+      --grp:     #2b2740;
+      --band:    #201f1e;
+      --focus:   #3987e5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface-0: #141413;
+    --surface-1: #1a1a19;
+    --surface-2: #242422;
+    --line:      #383835;
+    --line-soft: #2c2c2a;
+    --ink:       #ffffff;
+    --ink-2:     #c3c2b7;
+    --ink-3:     #8a887f;
+
+    --w1: #1c5cab; --w2: #256abf; --w3: #3987e5;
+    --w4: #6da7ec; --w5: #9ec5f4; --w6: #cde2fb;
+
+    --out:     #9085e9; --out-soft:#241f3d;
+    --in:      #199e70; --in-soft: #122e25;
+    --sel:     #cde2fb;
+    --bad:     #e66767;
+    --grp:     #2b2740;
+    --band:    #201f1e;
+    --focus:   #3987e5;
+  }
+
+  body {
+    background: var(--surface-0);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  * { box-sizing: border-box; }
+  .wrap { padding-inline: 16px; padding-block: 20px 40px; max-width: 1560px; margin: 0 auto; }
+
+  header h1 {
+    font-size: clamp(20px, 3.4vw, 27px);
+    font-weight: 600; letter-spacing: -0.02em;
+    margin: 0 0 4px; text-wrap: balance;
+  }
+  header p { margin: 0; color: var(--ink-2); max-width: 66ch; }
+  .meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 6px; }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 14px; }
+  .stat {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 8px 13px; min-width: 96px;
+  }
+  .stat b { display: block; font-family: var(--mono); font-size: 19px; font-weight: 500;
+            font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.07em; }
+  .stat.ok b { color: var(--in); }
+  .stat.bad b { color: var(--bad); }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end;
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field > label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); }
+  input[type="search"] {
+    font: 400 13px/1.4 var(--mono); padding: 6px 9px; min-width: 190px;
+    background: var(--surface-0); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 5px;
+  }
+  input[type="range"] { width: 168px; accent-color: var(--focus); }
+  .rangerow { display: flex; align-items: center; gap: 9px; }
+  .rangerow output { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums;
+                     color: var(--ink-2); min-width: 42px; }
+  .check { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); padding-bottom: 5px; }
+  .check input { accent-color: var(--focus); width: 15px; height: 15px; }
+  .btn {
+    font: 500 12.5px var(--sans); padding: 7px 12px; cursor: pointer;
+    background: var(--surface-0); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 5px;
+  }
+  .btn:hover { border-color: var(--ink-3); }
+  .btn[aria-pressed="true"] { background: var(--ink); color: var(--surface-1); border-color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+            font-size: 12px; color: var(--ink-2); margin: 0 0 10px; }
+  .key { display: inline-flex; align-items: center; gap: 6px; }
+  .key i { width: 22px; height: 0; border-top-width: 2.5px; border-top-style: solid; display: inline-block; }
+  .ramp { display: inline-flex; gap: 2px; align-items: center; }
+  .ramp b { width: 15px; height: 9px; border-radius: 1.5px; display: inline-block; }
+
+  .main { display: grid; grid-template-columns: minmax(0,1fr) 312px; gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .main { grid-template-columns: minmax(0,1fr); } }
+
+  .canvas {
+    position: relative; background: var(--surface-1);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; touch-action: none;
+  }
+  #g { display: block; width: 100%; height: clamp(460px, 66vh, 760px); cursor: grab; }
+  #g.dragging { cursor: grabbing; }
+  #g:not(.near) .node text { display: none; }
+  .hint {
+    position: absolute; left: 10px; bottom: 9px; font-size: 11.5px; color: var(--ink-3);
+    background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+    padding: 3px 8px; border-radius: 5px; pointer-events: none;
+  }
+  .hint[hidden] { display: none !important; }
+  .zoombar { position: absolute; right: 9px; top: 9px; display: flex; gap: 5px; z-index: 4; }
+  .zoombar .btn { padding: 4px 9px; font-family: var(--mono); }
+  .zoombar .btn.wide { font-family: var(--sans); padding: 4px 11px; }
+
+  .canvas:fullscreen,
+  .canvas:-webkit-full-screen {
+    border: 0; border-radius: 0; background: var(--surface-1);
+    width: 100vw; height: 100vh;
+  }
+  .canvas:fullscreen #g { height: 100vh; }
+  .canvas:-webkit-full-screen #g { height: 100vh; }
+
+  .bandrect { fill: var(--band); }
+  .bandlabel { font: 400 10.5px var(--mono); fill: var(--ink-3); letter-spacing: 0.05em; }
+  .bandlabel.named { font-weight: 500; fill: var(--ink-2); letter-spacing: 0.1em; }
+  .node.grp rect { fill: var(--grp); }
+  .edge { fill: none; stroke-linecap: round; }
+  .node rect { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.1px; }
+  .node text { font: 400 11.5px var(--mono); fill: var(--ink); dominant-baseline: middle; text-anchor: middle; }
+  .node.test rect { stroke-dasharray: 3 2.5; }
+  .node.cyc rect { stroke: var(--bad); stroke-width: 2px; }
+  .node.sel rect { stroke: var(--sel); stroke-width: 2.2px; fill: var(--surface-1); }
+  .node.dim { opacity: 0.22; }
+  /* The other end of a highlighted edge is tinted as well as outlined, so the
+     direction survives at a zoom where a 2px outline is a grey hairline - and
+     on a red violation edge, where the line itself gives up its role colour. */
+  .node.hasout rect { stroke: var(--out); stroke-width: 2px; fill: var(--out-soft); }
+  .node.hasin  rect { stroke: var(--in);  stroke-width: 2px; fill: var(--in-soft); }
+  .node { cursor: pointer; }
+
+  #tip {
+    position: absolute; pointer-events: none; z-index: 5; max-width: 250px;
+    background: var(--surface-0); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 10px; font-size: 12px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.14);
+  }
+  #tip[hidden] { display: none !important; }
+  #tip .t { font-family: var(--mono); font-weight: 500; margin-bottom: 4px; }
+  #tip dl { display: grid; grid-template-columns: auto auto; gap: 1px 12px; margin: 0; color: var(--ink-2); }
+  #tip dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+  aside {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 13px; position: sticky; top: 10px;
+  }
+  aside h2 { font-family: var(--mono); font-size: 14px; font-weight: 500; margin: 0; word-break: break-all; }
+  .lvl { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.07em; margin: 3px 0 11px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 13px; }
+  .mini { border-radius: 5px; padding: 7px 9px; }
+  .mini.o { background: var(--out-soft); }
+  .mini.i { background: var(--in-soft); }
+  .mini b { font-family: var(--mono); font-size: 16px; font-weight: 500; display: block;
+            font-variant-numeric: tabular-nums; }
+  .mini.o b { color: var(--out); } .mini.i b { color: var(--in); }
+  .mini span { font-size: 10.5px; color: var(--ink-2); }
+  aside h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+    margin: 12px 0 6px; display: flex; align-items: center; gap: 6px; color: var(--ink-2);
+  }
+  aside h3 i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .deps { list-style: none; margin: 0; padding: 0; max-height: 178px; overflow-y: auto; }
+  .deps li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0;
+             border-bottom: 1px solid var(--line-soft); }
+  .deps button {
+    font: 400 12px var(--mono); background: none; border: 0; padding: 0; cursor: pointer;
+    color: var(--ink); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .deps button:hover { text-decoration: underline; }
+  .deps em { font-family: var(--mono); font-style: normal; font-variant-numeric: tabular-nums;
+             color: var(--ink-3); font-size: 12px; }
+  .empty { color: var(--ink-3); font-size: 12.5px; margin: 4px 0 0; }
+
+  .tablewrap { margin-top: 16px; }
+  .tablewrap[hidden] { display: none !important; }
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-1); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 11px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3);
+       position: sticky; top: 0; background: var(--surface-1); }
+  td.m { font-family: var(--mono); }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .cap { font-size: 12px; color: var(--ink-3); margin: 8px 0 0; }
+  @media (prefers-reduced-motion: no-preference) { .edge, .node { transition: opacity .12s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 id="h1"></h1>
+    <p id="intro"></p>
+    <p class="meta" id="meta"></p>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <div class="field">
+      <label for="q">Find module</label>
+      <input type="search" id="q" placeholder="e.g. graphstore" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="minw">Minimum coupling</label>
+      <div class="rangerow">
+        <input type="range" id="minw" min="1" max="500" value="1" step="1">
+        <output id="minwv">all</output>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="showtest" checked> Test &amp; tooling modules</label>
+    <label class="check"><input type="checkbox" id="fade" checked> Dim unrelated on select</label>
+    <button class="btn" id="fit" type="button">Fit</button>
+    <button class="btn" id="tbtn" type="button" aria-pressed="false">Table view</button>
+  </div>
+
+  <div class="legend">
+    <span class="key"><i style="border-color:var(--out)"></i> depends on</span>
+    <span class="key"><i style="border-color:var(--in)"></i> depended on by</span>
+    <span class="key">coupling
+      <span class="ramp">
+        <b style="background:var(--w1)"></b><b style="background:var(--w2)"></b><b style="background:var(--w3)"></b><b style="background:var(--w4)"></b><b style="background:var(--w5)"></b><b style="background:var(--w6)"></b>
+      </span>
+      <span style="font-family:var(--mono);font-size:11px">1 &rarr; 8350</span>
+    </span>
+    <span class="key" style="font-size:11.5px">dashed outline = test / tooling</span>
+    <span class="key" id="intkey" hidden style="font-size:11.5px">dotted = dependency inside one layer</span>
+    <span class="key" id="violkey" hidden style="font-size:11.5px;color:var(--bad)">red = points up (long dash) or sits flat between layers (dotted)</span>
+    <span class="key" id="cyckey" hidden style="font-size:11.5px;color:var(--bad)">red outline = part of a dependency cycle</span>
+  </div>
+
+  <div class="main">
+    <div class="canvas">
+      <svg id="g" role="img" aria-label="Layered dependency graph"></svg>
+      <div class="zoombar">
+        <button class="btn" id="zin" type="button" aria-label="Zoom in">+</button>
+        <button class="btn" id="zout" type="button" aria-label="Zoom out">&minus;</button>
+        <button class="btn wide" id="fs" type="button" aria-pressed="false" hidden>Full screen</button>
+      </div>
+      <div id="tip" hidden></div>
+      <div class="hint" id="hint">Zoom in for module names &middot; drag to pan &middot; click a module to trace it</div>
+    </div>
+
+    <aside aria-live="polite">
+      <h2 id="selname">&mdash;</h2>
+      <p class="lvl" id="sellvl"></p>
+      <div class="pair">
+        <div class="mini o"><b id="mo">0</b><span>depends on</span></div>
+        <div class="mini i"><b id="mi">0</b><span>dependents</span></div>
+      </div>
+      <h3><i style="background:var(--out)"></i> Depends on</h3>
+      <ul class="deps" id="outlist"></ul>
+      <p class="empty" id="outempty" hidden>Nothing &mdash; this is a core module.</p>
+      <h3><i style="background:var(--in)"></i> Depended on by</h3>
+      <ul class="deps" id="inlist"></ul>
+      <p class="empty" id="inempty" hidden>Nothing in the repo depends on it.</p>
+    </aside>
+  </div>
+
+  <div class="tablewrap" id="tablewrap" hidden>
+    <div class="scroll" style="max-height:440px;overflow-y:auto">
+      <table>
+        <thead><tr><th>Dependent module</th><th>Depends on</th><th style="text-align:right">Coupling</th><th style="text-align:right">Levels</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="cap" id="tcap"></p>
+  </div>
+</div>
+
+<script>
+const DATA = __DATA__;
+
+const N = DATA.nodes, E = DATA.edges, MAXL = DATA.maxLevel;
+N.forEach((n, i) => { n.i = i; n.out = []; n.in = []; });
+E.forEach(([s, t, w]) => { N[s].out.push({ t, w }); N[t].in.push({ t: s, w }); });
+N.forEach(n => { n.out.sort((a, b) => b.w - a.w); n.in.sort((a, b) => b.w - a.w); });
+
+const MAXW = Math.max(...E.map(e => e[2]));
+const LOGMAX = Math.log(MAXW);
+
+const $ = id => document.getElementById(id);
+const svg = $('g'), NS = 'http://www.w3.org/2000/svg';
+const el = (k, a) => { const e = document.createElementNS(NS, k); for (const p in a) e.setAttribute(p, a[p]); return e; };
+
+/* ---------- state ---------- */
+let sel = N.findIndex(n => n.n === 'backend-common');
+let minw = 1, showTest = true, dimming = true;
+let view = { x: 0, y: 0, k: 1 };
+
+/* ---------- geometry ---------- */
+const H = 30, VGAP = 112, GAPX = 16, CH = 8;
+// Level labels sit in the left gutter, so the gutter has to be wide enough for
+// the longest one - a pinned group's name makes it longer than 'level 0 - core'.
+function bandText(l) {
+  const nm = DATA.levelNames && DATA.levelNames[l];
+  return nm ? nm.toUpperCase() + ' \u00b7 level ' + l
+    : (l === 0 ? 'level 0 \u00b7 core' : (l === MAXL ? 'level ' + l + ' \u00b7 top' : 'level ' + l));
+}
+const PADX = (() => {
+  let longest = 0;
+  for (let l = 0; l <= MAXL; l++) longest = Math.max(longest, bandText(l).length);
+  return Math.max(92, Math.round(longest * 6.9) + 34);
+})();
+const charW = 6.95, FS = 11.5;
+const widthOf = n => Math.max(74, Math.round(n.n.length * charW) + 20);
+
+let visible = [], pos = [], layout = { w: 0, h: 0 };
+
+function computeLayout() {
+  const vis = N.filter(n => showTest || !n.t);
+  const visSet = new Set(vis.map(n => n.i));
+  visible = vis;
+
+  const layers = Array.from({ length: MAXL + 1 }, () => []);
+  vis.forEach(n => layers[n.l].push(n));
+  layers.forEach(L => L.sort((a, b) => a.n.localeCompare(b.n)));
+
+  const centres = () => {
+    const c = {};
+    layers.forEach(L => {
+      const total = L.reduce((s, n) => s + widthOf(n), 0) + GAPX * Math.max(0, L.length - 1);
+      let x = -total / 2;
+      L.forEach(n => { c[n.i] = x + widthOf(n) / 2; x += widthOf(n) + GAPX; });
+    });
+    return c;
+  };
+
+  for (let pass = 0; pass < 10; pass++) {
+    const c = centres(), down = pass % 2 === 0;
+    const order = down ? [...layers.keys()].slice(1) : [...layers.keys()].slice(0, -1).reverse();
+    for (const li of order) {
+      const bar = n => {
+        const link = down ? n.out : n.in;
+        let sw = 0, s = 0;
+        for (const e of link) if (visSet.has(e.t) && c[e.t] !== undefined) { s += c[e.t] * e.w; sw += e.w; }
+        return sw ? s / sw : 0;
+      };
+      const keyed = layers[li].map(n => [bar(n), n]);
+      keyed.sort((a, b) => a[0] - b[0]);
+      layers[li] = keyed.map(p => p[1]);
+    }
+  }
+
+  const c = centres();
+  pos = [];
+  let minx = Infinity, maxx = -Infinity;
+  vis.forEach(n => {
+    const w = widthOf(n);
+    pos[n.i] = { x: c[n.i], y: -n.l * VGAP, w };
+    minx = Math.min(minx, c[n.i] - w / 2);
+    maxx = Math.max(maxx, c[n.i] + w / 2);
+  });
+  layout.w = (maxx - minx) + PADX * 2;
+  layout.h = MAXL * VGAP + VGAP;
+  layout.minx = minx - PADX;
+  layout.miny = -MAXL * VGAP - VGAP / 2;
+}
+
+/* ---------- drawing ---------- */
+const bandsG = el('g'), edgesG = el('g'), nodesG = el('g');
+const root = el('g');
+root.append(bandsG, edgesG, nodesG);
+
+// Arrowheads. Without them an edge's direction is only implied by the colour it
+// takes on selection, so the moment a violation turns red the same line reads as
+// 'depends on' from one end and 'depended on by' from the other. The head states
+// which it is, independently of hue.
+const defs = el('defs');
+for (const [id, col] of [['out', 'var(--out)'], ['in', 'var(--in)'], ['bad', 'var(--bad)']]) {
+  const m = el('marker', {
+    id: 'ah-' + id, viewBox: '0 0 10 7', refX: '9.2', refY: '3.5',
+    // Scale the head with the stroke. A fixed-size head is a few pixels at the
+    // zoom that fits a whole graph - present in the DOM, useless on screen - and
+    // direction is exactly what the reader needs at that zoom.
+    markerWidth: '3.4', markerHeight: '2.8',
+    markerUnits: 'strokeWidth', orient: 'auto'
+  });
+  m.append(el('path', { d: 'M0 0 L10 3.5 L0 7 z', fill: col }));
+  defs.append(m);
+}
+svg.append(defs);
+svg.append(root);
+
+function wClass(w) {
+  const t = Math.log(w) / LOGMAX;
+  return 'var(--w' + Math.min(6, Math.max(1, Math.ceil(t * 6) || 1)) + ')';
+}
+function wWidth(w) { return (0.6 + 2.6 * (Math.log(w) / LOGMAX)).toFixed(2); }
+function wOpacity(w) { return (0.16 + 0.62 * (Math.log(w) / LOGMAX)).toFixed(2); }
+
+let edgeEls = [], nodeEls = [];
+
+function draw() {
+  computeLayout();
+  bandsG.textContent = ''; edgesG.textContent = ''; nodesG.textContent = '';
+  edgeEls = []; nodeEls = [];
+
+  for (let l = 0; l <= MAXL; l++) {
+    const y = -l * VGAP;
+    if (l % 2 === 0) {
+      bandsG.append(el('rect', {
+        class: 'bandrect', x: layout.minx, y: y - VGAP / 2,
+        width: layout.w, height: VGAP
+      }));
+    }
+    const tx = el('text', { class: 'bandlabel', x: layout.minx + 10, y: y + 4 });
+    tx.textContent = bandText(l);
+    if (DATA.levelNames && DATA.levelNames[l]) tx.setAttribute('class', 'bandlabel named');
+    bandsG.append(tx);
+  }
+
+  const visSet = new Set(visible.map(n => n.i));
+  const viol = [];
+  for (const [s, t, w, v] of E) {
+    if (!visSet.has(s) || !visSet.has(t) || w < minw) continue;
+    const a = pos[s], b = pos[t];
+    // Attach to the side of the box the edge actually leaves and arrives on.
+    // A normal edge runs down, a violation runs up, and one inside a layer runs
+    // across - taking the downward case for all three would drive the upward and
+    // flat ones straight through their own boxes and put the arrowhead inside.
+    let x1 = a.x, x2 = b.x, y1, y2;
+    if (a.y < b.y)      { y1 = a.y + H / 2; y2 = b.y - H / 2; }
+    else if (a.y > b.y) { y1 = a.y - H / 2; y2 = b.y + H / 2; }
+    else {
+      const dir = b.x > a.x ? 1 : -1;
+      y1 = a.y; y2 = b.y;
+      x1 = a.x + dir * a.w / 2; x2 = b.x - dir * b.w / 2;
+    }
+    const path = el('path', {
+      class: 'edge', 'data-s': s, 'data-t': t,
+      d: `M${x1.toFixed(1)} ${y1.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}`,
+      stroke: wClass(w), 'stroke-width': wWidth(w), opacity: wOpacity(w)
+    });
+    path._w = w; path._s = s; path._t = t; path._v = v || 0;
+    if (v === 3) {
+      path.setAttribute('stroke-dasharray', '2 3');
+      edgesG.append(path);
+    } else if (v) {
+      path.setAttribute('stroke', 'var(--bad)');
+      path.setAttribute('stroke-width', Math.max(1.6, +wWidth(w)).toFixed(2));
+      path.setAttribute('opacity', '0.9');
+      path.setAttribute('stroke-dasharray', v === 2 ? '2 3' : '7 3');
+      path.setAttribute('marker-end', 'url(#ah-bad)');
+      viol.push(path);
+    } else { edgesG.append(path); }
+    edgeEls.push(path);
+  }
+
+  viol.forEach(p => edgesG.append(p));
+
+  for (const n of visible) {
+    const p = pos[n.i];
+    const g = el('g', { class: 'node' + (n.t ? ' test' : '') + (n.c ? ' cyc' : '') + (n.g ? ' grp' : ''), 'data-i': n.i, tabindex: '0', role: 'button' });
+    g.append(el('rect', { x: p.x - p.w / 2, y: p.y - H / 2, width: p.w, height: H, rx: 5 }));
+    const t = el('text', { x: p.x, y: p.y + 0.5 });
+    t.textContent = n.n;
+    g.append(t);
+    const ttl = el('title'); ttl.textContent = n.n; g.append(ttl);
+    nodesG.append(g); nodeEls.push(g);
+  }
+  applyHighlight();
+}
+
+/* ---------- viewport ---------- */
+function applyView() {
+  root.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.k})`);
+  const near = view.k >= 0.45;
+  svg.classList.toggle('near', near);
+  const h = document.getElementById('hint');
+  if (h) h.hidden = near;
+}
+function fit() {
+  const r = svg.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  // Measure what is actually drawn rather than trusting the layout numbers -
+  // getBBox reports the content's own bounds, ignoring the group transform.
+  let b;
+  try { b = root.getBBox(); } catch (e) { return; }
+  if (!b || !b.width || !b.height) return;
+  view.k = Math.min(r.width / b.width, r.height / b.height) * 0.93;
+  view.x = r.width / 2 - (b.x + b.width / 2) * view.k;
+  view.y = r.height / 2 - (b.y + b.height / 2) * view.k;
+  applyView();
+}
+function zoomBy(f, cx, cy) {
+  const r = svg.getBoundingClientRect();
+  cx = cx ?? r.width / 2; cy = cy ?? r.height / 2;
+  const k2 = Math.min(6, Math.max(0.12, view.k * f));
+  view.x = cx - (cx - view.x) * (k2 / view.k);
+  view.y = cy - (cy - view.y) * (k2 / view.k);
+  view.k = k2; applyView();
+}
+$('zin').onclick = () => zoomBy(1.3);
+$('zout').onclick = () => zoomBy(1 / 1.3);
+$('fit').onclick = () => fit();
+
+/* ---------- full screen ---------- */
+const canvasEl = document.querySelector('.canvas');
+const fsBtn = $('fs');
+const canFS = !!(canvasEl.requestFullscreen || canvasEl.webkitRequestFullscreen);
+fsBtn.hidden = !canFS;
+const fsOn = () => (document.fullscreenElement || document.webkitFullscreenElement) === canvasEl;
+fsBtn.addEventListener('click', () => {
+  if (fsOn()) {
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else {
+    (canvasEl.requestFullscreen || canvasEl.webkitRequestFullscreen).call(canvasEl);
+  }
+});
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev =>
+  document.addEventListener(ev, () => {
+    const on = fsOn();
+    fsBtn.textContent = on ? 'Exit full screen' : 'Full screen';
+    fsBtn.setAttribute('aria-pressed', String(on));
+  }));
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+let drag = null;
+svg.addEventListener('pointerdown', e => {
+  if (e.target.closest('.node')) return;
+  drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+  svg.classList.add('dragging'); svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointermove', e => {
+  if (!drag) return;
+  view.x = drag.vx + (e.clientX - drag.x); view.y = drag.vy + (e.clientY - drag.y); applyView();
+});
+svg.addEventListener('pointerup', e => { drag = null; svg.classList.remove('dragging'); });
+svg.addEventListener('pointercancel', () => { drag = null; svg.classList.remove('dragging'); });
+
+/* ---------- highlight & inspector ---------- */
+function applyHighlight() {
+  const outT = new Set(), inS = new Set();
+  if (sel >= 0) {
+    N[sel].out.forEach(e => { if (e.w >= minw) outT.add(e.t); });
+    N[sel].in.forEach(e => { if (e.w >= minw) inS.add(e.t); });
+  }
+  for (const p of edgeEls) {
+    const isOut = p._s === sel, isIn = p._t === sel;
+    if (isOut || isIn) {
+      // A violation stays red even on the selected node's own edges: losing
+      // the marking exactly when you inspect the node would hide the finding.
+      // Direction is still carried by the node outlines and the side panel.
+      const bad = p._v && p._v !== 3;
+      p.setAttribute('stroke', bad ? 'var(--bad)' : (isOut ? 'var(--out)' : 'var(--in)'));
+      p.setAttribute('opacity', '0.95');
+      // A violation keeps red, which costs it the out/in hue - so weight has to
+      // carry the fact that it belongs to the selection. An unselected violation
+      // sits near 1.6, so go well past that rather than a hair above it.
+      p.setAttribute('stroke-width', bad
+        ? Math.max(4.2, +wWidth(p._w) * 1.8).toFixed(2)
+        : Math.max(1.4, +wWidth(p._w)).toFixed(2));
+      p.setAttribute('marker-end', bad ? 'url(#ah-bad)' : (isOut ? 'url(#ah-out)' : 'url(#ah-in)'));
+    } else {
+      const bad = p._v && p._v !== 3;
+      p.setAttribute('stroke', bad ? 'var(--bad)' : wClass(p._w));
+      // Emphasis belongs to the selection. A violation that does not touch the
+      // selected node keeps its red but drops back to its own coupling weight,
+      // so the only heavy red lines on screen are the selected node's own. With
+      // nothing selected there is no such competition, so the floor stands and
+      // every violation stays findable.
+      p.setAttribute('stroke-width', (bad && sel < 0)
+        ? Math.max(1.6, +wWidth(p._w)).toFixed(2) : wWidth(p._w));
+      p.setAttribute('marker-end', bad ? 'url(#ah-bad)' : 'none');
+      const base = (p._v && p._v !== 3) ? 0.9 : +wOpacity(p._w);
+      p.setAttribute('opacity', sel >= 0 && dimming ? (base * 0.22).toFixed(3) : base);
+    }
+  }
+  for (const g of nodeEls) {
+    const i = +g.dataset.i;
+    g.classList.toggle('sel', i === sel);
+    g.classList.toggle('hasout', outT.has(i));
+    g.classList.toggle('hasin', inS.has(i));
+    g.classList.toggle('dim', sel >= 0 && dimming && i !== sel && !outT.has(i) && !inS.has(i));
+  }
+  renderAside();
+}
+
+function renderAside() {
+  if (sel < 0) return;
+  const n = N[sel];
+  $('selname').textContent = n.n;
+  $('sellvl').textContent = `level ${n.l}${n.l === 0 ? ' \u00b7 core' : ''}${n.t ? ' \u00b7 test / tooling' : ''}`;
+  const os = n.out.filter(e => e.w >= minw && (showTest || !N[e.t].t));
+  const is = n.in.filter(e => e.w >= minw && (showTest || !N[e.t].t));
+  $('mo').textContent = os.length; $('mi').textContent = is.length;
+
+  const fill = (ul, arr, emptyEl) => {
+    ul.textContent = '';
+    arr.forEach(e => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = N[e.t].n;
+      b.onclick = () => { sel = e.t; applyHighlight(); centreOn(e.t); };
+      const em = document.createElement('em'); em.textContent = e.w.toLocaleString();
+      li.append(b, em); ul.append(li);
+    });
+    ul.hidden = arr.length === 0;
+    emptyEl.hidden = arr.length > 0;
+  };
+  fill($('outlist'), os, $('outempty'));
+  fill($('inlist'), is, $('inempty'));
+}
+
+function centreOn(i) {
+  const p = pos[i]; if (!p) return;
+  const r = svg.getBoundingClientRect();
+  view.x = r.width / 2 - p.x * view.k;
+  view.y = r.height / 2 - p.y * view.k;
+  applyView();
+}
+
+/* ---------- pointer on nodes ---------- */
+const tip = $('tip');
+function showTip(i, ev) {
+  const n = N[i];
+  tip.innerHTML = `<div class="t">${n.n}</div><dl>
+    <dt>level</dt><dd>${n.l}</dd>
+    <dt>depends on</dt><dd>${n.od}</dd>
+    <dt>dependents</dt><dd>${n.id}</dd>
+    <dt>coupling out</dt><dd>${n.ow.toLocaleString()}</dd>
+    <dt>coupling in</dt><dd>${n.iw.toLocaleString()}</dd></dl>`;
+  tip.hidden = false;
+  const r = svg.getBoundingClientRect();
+  let x = ev.clientX - r.left + 14, y = ev.clientY - r.top + 14;
+  if (x + 260 > r.width) x = Math.max(6, x - 274);
+  if (y + tip.offsetHeight + 10 > r.height) y = Math.max(6, y - tip.offsetHeight - 26);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+svg.addEventListener('pointermove', e => {
+  const g = e.target.closest('.node');
+  if (g && !drag) showTip(+g.dataset.i, e); else tip.hidden = true;
+});
+svg.addEventListener('pointerleave', () => { tip.hidden = true; });
+svg.addEventListener('click', e => {
+  const g = e.target.closest('.node');
+  if (!g) return;
+  const i = +g.dataset.i;
+  sel = (sel === i) ? -1 : i;
+  if (sel < 0) { $('selname').textContent = '\u2014'; $('sellvl').textContent = 'no module selected'; }
+  applyHighlight();
+});
+svg.addEventListener('keydown', e => {
+  const g = e.target.closest('.node');
+  if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); sel = +g.dataset.i; applyHighlight(); }
+});
+
+/* ---------- controls ---------- */
+$('minw').addEventListener('input', e => {
+  minw = +e.target.value;
+  $('minwv').textContent = minw === 1 ? 'all' : '\u2265 ' + minw;
+  draw();
+});
+$('showtest').addEventListener('change', e => {
+  showTest = e.target.checked;
+  if (sel >= 0 && !showTest && N[sel].t) sel = -1;
+  draw(); fit();
+});
+$('fade').addEventListener('change', e => { dimming = e.target.checked; applyHighlight(); });
+$('q').addEventListener('input', e => {
+  const v = e.target.value.trim().toLowerCase();
+  if (!v) return;
+  const hit = visible.find(n => n.n.toLowerCase().includes(v));
+  if (hit) { sel = hit.i; applyHighlight(); centreOn(hit.i); }
+});
+$('tbtn').addEventListener('click', e => {
+  const on = $('tablewrap').hidden;
+  $('tablewrap').hidden = !on;
+  e.currentTarget.setAttribute('aria-pressed', String(on));
+});
+
+/* ---------- summary + table ---------- */
+(function summary() {
+  const cores = N.filter(n => n.l === 0).length;
+  const heaviest = E.reduce((a, b) => (b[2] > a[2] ? b : a));
+  const cyc = DATA.cycles || 0;
+  if (cyc) $('cyckey').hidden = false;
+  const rows = [
+    [String(N.length), DATA.unit || 'modules'],
+    [String(E.length), 'dependencies'],
+    [String(MAXL + 1), 'levels'],
+    [String(cores), 'core ' + (DATA.unit || 'modules')],
+    [String(cyc), cyc === 1 ? 'cycle' : 'cycles', cyc ? 'bad' : 'ok'],
+  ];
+  const nv = DATA.violations || 0;
+  if (DATA.levelNames && Object.keys(DATA.levelNames).length) {
+    rows.push([String(nv), nv === 1 ? 'layering violation' : 'layering violations', nv ? 'bad' : 'ok']);
+    if (DATA.internal) { rows.push([String(DATA.internal), 'inside a layer']); $('intkey').hidden = false; }
+    $('violkey').hidden = false;
+  }
+  $('stats').innerHTML = rows.map(r =>
+    `<div class="stat${r[2] ? ' ' + r[2] : ''}"><b>${r[0]}</b><span>${r[1]}</span></div>`).join('');
+  document.title = DATA.title || 'Module Dependency Graph';
+  $('h1').textContent = DATA.title || 'Module dependencies';
+  $('intro').textContent = DATA.subtitle ||
+    'Every dependency between the project\u2019s modules, laid out by depth. Level 0 depends on nothing else; '
+    + 'every arrow points downward. Select one to trace what it pulls in and what pulls it in.';
+  $('meta').textContent = [DATA.project, DATA.scanned && ('scanned ' + DATA.scanned), DATA.source,
+    `heaviest edge ${N[heaviest[0]].n} \u2192 ${N[heaviest[1]].n} (${heaviest[2].toLocaleString()})`]
+    .filter(Boolean).join(' \u00b7 ');
+
+  const sorted = [...E].sort((a, b) => b[2] - a[2]);
+  $('tbody').innerHTML = sorted.map(([s, t, w]) =>
+    `<tr><td class="m">${N[s].n}</td><td class="m">${N[t].n}</td><td class="num">${w.toLocaleString()}</td><td class="num">${N[s].l}\u2192${N[t].l}</td></tr>`).join('');
+  $('tcap').textContent = `All ${E.length} dependencies, heaviest first. Coupling counts type-level references between the two modules.`;
+})();
+
+draw();
+requestAnimationFrame(fit);
+
+/* Refit whenever the canvas box actually changes size - covers window resize,
+   entering and leaving full screen, and the sidebar stacking at phone width.
+   A timeout after fullscreenchange is not enough: it can fire before the
+   browser has finished resizing, and the graph ends up clipped. */
+let rt;
+const refit = () => { clearTimeout(rt); rt = setTimeout(fit, 60); };
+if (window.ResizeObserver) new ResizeObserver(refit).observe(canvasEl);
+window.addEventListener('resize', refit);
+</script>
