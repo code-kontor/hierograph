@@ -55,10 +55,11 @@ across modules, and models multiple versions of the same library on one
 classpath. The `artifactId` alone is kept as the human-readable display name.
 
 **Artifact type.** A published archive is stored under a dedicated Maven type,
-`hierograph`, with the file extension `.hierograph`. The plugin contributes an
-artifact handler for it, so `mvn deploy`, repositories, and consumers treat it as
-a first-class type alongside `jar` and `pom` — resolvable by type, with no
-classifier needed to tell a module's archive apart from its jar.
+`hierograph`, with the file extension `.hierograph`. Maven maps the type to that
+extension by default, so `mvn deploy` publishes the archive with the right name and
+no classifier is needed to tell a module's archive apart from its jar. Making
+`hierograph` a fully first-class type for consumer-side, *type-aware* resolution
+needs a dedicated artifact handler, which is deferred (§10).
 
 **Archive.** The scan of one artifact's bytecode, written as a `.hierograph`
 file: a set of Parquet tables holding **facts** — types, members, parameters,
@@ -194,7 +195,6 @@ into a second archive carrying the `tests` classifier
 | `archiveDirectory` | `hierograph.archiveDir` | `${project.build.directory}/hierograph` | Where the archive is written before it is attached. |
 | `attach` | `hierograph.attach` | `true` | Attach the archive (and thus deploy it). When `false`, the archive is written but not published. |
 | `includeTestClasses` | `hierograph.includeTestClasses` | `false` | Also scan `testOutputDirectory` into a second archive classified `tests`. |
-| `scanDependencies` | `hierograph.scanDependencies` | `false` | Also scan the module's resolved dependency jars as their own archives, so references resolve into third-party code instead of stopping at a placeholder. |
 | `threads` | `hierograph.threads` | available processors | Scanner parallelism. |
 | `skip` | `hierograph.skip` | `false` | Skip the goal. |
 
@@ -213,7 +213,7 @@ once at the root and attaches the result to the top-level project. It is a
 container of the per-module archives, not a content merge.
 
 - **Binding:** `verify` (aggregator)
-- **Inputs:** each module's `<artifactId>.hierograph` (and, with `scanDependencies`, the dependency archives). A dependency scanned by several modules is included once.
+- **Inputs:** each module's `<artifactId>.hierograph` archive (and its `tests` archive, when present). A duplicate archive name from two modules is kept once (first wins).
 
 **Output** — one attached artifact for the reactor:
 
@@ -428,7 +428,6 @@ To hand a single file to a server instead, add `collect`:
 | `hierograph.archiveDir` | `scan` | `${project.build.directory}/hierograph` | Archive staging directory. |
 | `hierograph.attach` | `scan`, `collect` | `true` | Attach (and deploy) the produced artifact. |
 | `hierograph.includeTestClasses` | `scan` | `false` | Also scan test output. |
-| `hierograph.scanDependencies` | `scan` | `false` | Also scan dependency jars. |
 | `hierograph.threads` | `scan` | available processors | Scanner parallelism. |
 | `hierograph.collectDir` | `collect` | `${session.topLevelProject.build.directory}/hierograph-collect` | Combined-archive assembly directory. |
 
@@ -436,9 +435,15 @@ To hand a single file to a server instead, add `collect`:
 
 ## 9. The `hierograph` artifact type
 
-Publishing archives under a dedicated type keeps them first-class in the
-repository without borrowing the `jar` or `zip` type. The plugin registers the
-type by contributing an artifact handler:
+Archives publish under a dedicated Maven type, `hierograph`, rather than borrowing
+`jar` or `zip`. Today this works through Maven's default behavior: an unregistered
+type's extension defaults to the type name, so `mvn deploy` uploads the archive as
+`…-<version>.hierograph` and a repository stores and serves it by that extension —
+no handler is required to produce or deploy it.
+
+Making the type fully first-class — so a consumer resolves it *by type* (like `jar`
+or `pom`) rather than by extension — needs a dedicated artifact handler with these
+facets:
 
 | Facet | Value |
 |-------|-------|
@@ -448,8 +453,22 @@ type by contributing an artifact handler:
 | added to classpath | no |
 | includes dependencies | no |
 
-Because the handler is contributed by the plugin, simply having the plugin on the
-build is enough for `mvn deploy` to upload an archive with the correct extension,
-and for a consumer that has the plugin (or the handler) available to resolve it by
-type. A repository that does not know the type still stores and serves the file by
-its extension; only type-aware resolution needs the handler.
+Contributing that handler (which also makes the plugin a build extension) is
+deferred (§10); the default-extension behavior above is sufficient for publishing
+and deploying.
+
+---
+
+## 10. Deferred
+
+Two capabilities are specified by intent but **not yet implemented**:
+
+- **`scanDependencies`** (a `scan` option) — also scan a module's resolved
+  dependency jars as their own archives, so references resolve into third-party
+  code instead of stopping at an external placeholder. Deferred pending a decision
+  on how those archives are published: a dependency's archive does not belong under
+  the depending module's coordinates.
+- **The `hierograph` artifact handler** (§9) — a dedicated handler that makes the
+  type first-class for consumer-side, type-aware resolution. Producing and
+  deploying archives already work via Maven's default type→extension mapping, so
+  this is an enhancement, not a prerequisite.
