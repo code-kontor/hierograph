@@ -86,7 +86,7 @@ class HierographSelfScanBenchmark {
         val writeTime = measureTime { scan.writeTo(snapshotDir) }
 
         // 2b) HIERARCHICAL-GRAPH CREATION — load into a GraphStore, then build the HGModel.
-        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         val loadTime = measureTime { ParquetReader().load(snapshotDir, store) }
         val (model, modelTime) = measureTimedValue { GraphStoreToHGModel.build(store) }
         val graphTime = loadTime + modelTime

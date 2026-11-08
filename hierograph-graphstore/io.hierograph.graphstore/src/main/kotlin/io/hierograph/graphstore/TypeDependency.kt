@@ -19,12 +19,10 @@ package io.hierograph.graphstore
  * An aggregated type-to-type dependency: all refs from [from] to [to] collapsed into one row with a
  * summed [weight] and the structural classification flags.
  *
- * **Open semantic decision (see the scanner spec):** [other] here means "this dependency *also* has a
- * non-structural ref" (`kinds.any { it !in STRUCTURAL }`). The current jQAssistant `DependencyRule`
- * instead sets its fourth flag to "*none* of extends / implements / annotatedBy". The two differ
- * whenever a structural edge coexists with a `DEPENDS_ON`/other edge, which is the documented expected
- * difference when diffing the two backends. Resolve which semantic Hierograph exposes before relying
- * on this flag across backends.
+ * The flags are not mutually exclusive: [extends] / [implements] / [annotatedBy] mark the structural ref
+ * kinds, and [other] means the dependency *also* has at least one non-structural (signature or body) ref
+ * (`kinds.any { it !in STRUCTURAL }`). A class that extends `Base` and calls one of its methods has both
+ * [extends] and [other] set.
  */
 data class TypeDependency(
     val from: String,

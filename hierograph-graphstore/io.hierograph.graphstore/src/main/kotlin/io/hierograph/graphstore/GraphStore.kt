@@ -25,31 +25,32 @@ import io.hierograph.graphstore.model.JavaNodeKind
 import java.util.EnumSet
 
 /**
- * Hierograph's in-memory model, built directly from [ClassFacts] during ingest. It replaces the
- * jQAssistant `GraphDbMapping` projection: every former Cypher rule becomes a few lines of construction
- * logic here, and the hierarchy + type-dependency query surface produces the same FQN-keyed row shapes
- * the downstream layers consume.
+ * Hierograph's in-memory structural model, built directly from [ClassFacts] during ingest: the
+ * hierarchy of modules, packages, types and members, plus the type-to-type refs between them. The
+ * hierarchy and type-dependency projections are what the downstream layers (hierarchical graph, detail
+ * scoping, load-time resolution) consume. See `spec/hierograph-graphstore.md`.
  *
- * **Identity is artifact-scoped.** A type node's [Node.key] is `type:<artifact>:<fqn>`, not the bare FQN,
- * because the same fully-qualified name can be defined in more than one artifact (shaded jars, duplicate
- * classes); each becomes a distinct node under its own artifact. Packages (`pkg:<artifact>:<fqn>`) and
- * modules (the artifact key) were already artifact-scoped. A reference, however, carries only a bare FQN,
- * so it is **resolved** to a concrete type node via [resolver] (classpath shadowing; see [TypeResolver]) —
- * the two query shapes expose this both ways: [typeDependencies] projects FQN endpoints (for diffing and
- * display), [typeDependencyEdges] the resolved artifact-scoped node keys (for the hierarchical graph).
+ * **Identity is artifact-scoped.** A type node's [Node.key] is `type:<n>:<artifact>:<fqn>` (see
+ * [typeKey]; `<n>` is the artifact key's length, which keeps the key unambiguous although a GAV contains
+ * `:`), not the bare FQN, because the same fully-qualified name can be defined in more than one artifact
+ * (shaded jars, duplicate classes); each becomes a distinct node under its own artifact. Packages
+ * (`pkg:<artifact>:<fqn>`) and modules (the artifact key) are artifact-scoped too. A reference, however,
+ * carries only a bare FQN, so it is **resolved** to a concrete type node via [resolver] (classpath
+ * shadowing; see [TypeResolver]) when dependencies are read — the two query shapes expose this both ways:
+ * [typeDependencies] projects FQN endpoints (for display and name-level reasoning), [typeDependencyEdges]
+ * the resolved artifact-scoped node keys (for the hierarchical graph).
  *
- * Updates replace a type's *owned subgraph* (members + outgoing refs) but never delete the type node
- * itself while it still has incoming edges — those are instead downgraded to placeholders so references
- * from unchanged classes stay valid.
+ * Updates replace a type's *owned subgraph* (members + outgoing refs). Removing a type that is still
+ * referenced, and defined by no other artifact, leaves a placeholder in its place so references from
+ * unchanged classes stay valid.
  *
- * The in-memory graph holds modules, packages, types, **members** and type-to-type refs. Members are
- * materialized as children of their declaring type (`member:<artifact>:<owner fqn>#<signature>`, so they
- * are artifact-scoped like types) for navigation; their *dependencies* are not — member-level refs stay
- * in the snapshot as a strictly on-demand (detail) concern. [placeholderPolicy] decides which unscanned
- * ref targets become in-memory placeholder nodes; it is a projection policy only and never affects what
- * the snapshot persists.
+ * Members are materialized as children of their declaring type (`member:<n>:<artifact>:<owner fqn>#<signature>`,
+ * see [memberKey]) for navigation; their *dependencies* are not — member-level refs stay in the snapshot
+ * as a strictly on-demand (detail) concern. [placeholderPolicy] decides which unscanned ref targets
+ * become in-memory placeholder nodes; it is a projection policy only and never affects what the snapshot
+ * persists.
  *
- * Not thread-safe; callers coordinate read/write batches (see the spec's concurrency decision).
+ * Not thread-safe: build a store on one thread, then publish it and treat it as read-only.
  */
 class GraphStore(
     private val placeholderPolicy: PlaceholderPolicy = PlaceholderPolicy.ALL,
@@ -57,9 +58,10 @@ class GraphStore(
 ) {
 
     /**
-     * Installs the type-shadowing [resolver] used during ingestion (classpath-order resolution). Call
-     * before [applyClass]/[load]; the loader uses it to swap the [TypeResolver.OWNER_FIRST] stand-in for a
-     * classpath-order resolver built from a snapshot's `classpath.parquet` manifest.
+     * Installs the type-shadowing [resolver] that binds ref targets to defining artifacts. It is consulted
+     * when dependencies are read ([typeDependencies] / [typeDependencyEdges]), so a change takes effect at
+     * the next query; by convention it is installed before ingest. `ParquetReader.load` uses it to replace
+     * [TypeResolver.OWNER_FIRST] with a classpath-order resolver built from a snapshot's `classpath.parquet`.
      */
     fun setTypeResolver(resolver: TypeResolver) {
         this.resolver = resolver
@@ -77,7 +79,7 @@ class GraphStore(
     private class OwnedRefs(val artifactKey: String, val refs: List<Ref>)
 
     init {
-        // Synthetic module owning every placeholder; replaces jQAssistant's :Virtual:Artifact.
+        // Synthetic module owning every external-type placeholder.
         putNode(Node(EXTERNAL_ARTIFACT_KEY, JavaKinds.MODULE, EXTERNAL_ARTIFACT_NAME, EXTERNAL_ARTIFACT_NAME, parent = null))
     }
 
@@ -145,8 +147,8 @@ class GraphStore(
         }
 
     /**
-     * Aggregated type-to-type dependencies as **FQN** endpoints, for diffing against the jQAssistant
-     * projection and for display. Each ref target is resolved to a concrete type node first, then its FQN
+     * Aggregated type-to-type dependencies as **FQN** endpoints, for display and name-level reasoning
+     * (including targets the placeholder policy keeps out of the graph). Each ref target is resolved to a concrete type node first, then its FQN
      * is reported — so in the common (no duplicated FQN) case this is identical to grouping by target FQN.
      */
     fun typeDependencies(): Sequence<TypeDependency> =
@@ -227,7 +229,7 @@ class GraphStore(
             nodesByKey[key] = existing.copy(kind = kind, name = simpleName(fqn), parent = parentKey, placeholder = false)
         }
         definersByFqn.getOrPut(fqn) { mutableSetOf() } += artifactKey
-        // Now that a real artifact defines this FQN, the external stand-in (if any) is redundant.
+        // Now that a real artifact defines this FQN, the external placeholder (if any) is redundant.
         removeExternalPlaceholder(fqn)
     }
 

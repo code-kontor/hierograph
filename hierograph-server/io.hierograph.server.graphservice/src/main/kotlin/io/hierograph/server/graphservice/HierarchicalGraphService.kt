@@ -303,7 +303,7 @@ class HierarchicalGraphService {
      */
     private fun buildFromParquet(): Built {
         val dir = snapshotDir()
-        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         val reader = ParquetReader()
         reader.load(dir, store)
         val generation = graphGen.incrementAndGet()
@@ -326,7 +326,7 @@ class HierarchicalGraphService {
 
     /** Build the nav snapshot from a (cached) set of per-module scans; detail is published post-swap. */
     private fun buildManifestSnapshot(scanned: ManifestGraphSource.Scanned): Built {
-        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         manifestGraphSource.ingest(scanned, store)
         val model = GraphStoreToHGModel.build(store)
         val generation = graphGen.incrementAndGet()

@@ -33,13 +33,13 @@ fun interface PlaceholderPolicy {
         val ALL: PlaceholderPolicy = PlaceholderPolicy { true }
 
         /**
-         * Mirrors jQAssistant's virtual-type exclusions (see `virtual-external-types-spec-v2`): the
-         * types below are referenced almost everywhere and carry no analytical value as graph nodes, so
-         * they stay out of the in-memory hierarchy (their refs remain in the snapshot regardless). A
-         * genuinely *scanned* `java.lang.String` — one with its own type row — is unaffected: this gates
-         * only placeholder synthesis for unscanned targets.
+         * Excludes the types that are referenced almost everywhere and carry no analytical value as graph
+         * nodes: primitives, JVM array descriptors, default-package names, `java.lang.*`, `kotlin.*` and
+         * the JetBrains nullability annotations. They stay out of the in-memory hierarchy; their refs
+         * remain in the snapshot regardless. A genuinely *scanned* `java.lang.String` — one with its own
+         * type row — is unaffected: this gates only placeholder synthesis for unscanned targets.
          */
-        val JQA_ALIGNED: PlaceholderPolicy = PlaceholderPolicy { fqn ->
+        val EXCLUDE_UBIQUITOUS: PlaceholderPolicy = PlaceholderPolicy { fqn ->
             fqn !in JavaKinds.JAVA_PRIMITIVES &&                 // primitives: int, boolean, void, …
                 !fqn.startsWith("[") &&                          // JVM array descriptors: [I, [D, …
                 fqn.contains('.') &&                             // default-package names

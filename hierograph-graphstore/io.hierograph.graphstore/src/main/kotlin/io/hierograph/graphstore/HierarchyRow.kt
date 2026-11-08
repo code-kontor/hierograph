@@ -17,8 +17,8 @@ package io.hierograph.graphstore
 
 /**
  * One row of the hierarchy projection: a node's [kind] and [fqn], plus the [parentFqn] of its parent
- * (`null` for top-level modules). This is the FQN-keyed shape used to diff the GraphStore against the
- * jQAssistant `GraphDbMapping`, which has no equivalent of Neo4j's internal ids.
+ * (`null` for top-level modules). It expresses the hierarchy purely in qualified names, independent of
+ * node keys, so two stores can be compared and the hierarchy displayed without decoding keys.
  */
 data class HierarchyRow(
     val kind: Any,

@@ -288,8 +288,8 @@ class GraphStoreTest {
     }
 
     @Test
-    fun `JQA_ALIGNED policy excludes primitives arrays and ubiquitous types from placeholders`() {
-        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+    fun `EXCLUDE_UBIQUITOUS policy excludes primitives arrays and ubiquitous types from placeholders`() {
+        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         store.registerArtifact(artifact("app"))
         store.applyClass(
             "app",

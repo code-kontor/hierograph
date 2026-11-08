@@ -22,10 +22,9 @@ package io.hierograph.graphstore
  * choose the binding. In the JVM that "something" is classpath order — the first artifact on the
  * consumer's classpath that defines the FQN wins.
  *
- * Phase 1 ships a deterministic stand-in ([OWNER_FIRST]) because the real per-module classpath order is
- * not yet sourced from the build. The seam is shaped for it: a later phase supplies a resolver that
- * orders [definers] by the *owner's* classpath and returns the first — the call site does not change.
- * With no duplicated FQN (the common case) every policy agrees, so this is behaviour-neutral today.
+ * [classpathOrder] implements exactly that rule from each owner's recorded classpath; [OWNER_FIRST] is
+ * the deterministic default when no classpath is known. With no duplicated FQN (the common case) every
+ * resolver agrees.
  */
 fun interface TypeResolver {
 
@@ -37,10 +36,9 @@ fun interface TypeResolver {
 
     companion object {
         /**
-         * Owner-first stand-in for classpath order: a reference binds to the owner's own artifact when it
-         * defines the FQN (its own output is first on its classpath), otherwise to the lexicographically
-         * smallest definer so the choice is deterministic across runs. Replaced by a real classpath-order
-         * resolver once per-module dependency order is available.
+         * Owner-first approximation of classpath order, for when no classpath is known: a reference binds
+         * to the owner's own artifact when it defines the FQN (its own output is first on its classpath),
+         * otherwise to the lexicographically smallest definer so the choice is deterministic across runs.
          */
         val OWNER_FIRST = TypeResolver { ownerArtifactKey, _, definers ->
             if (ownerArtifactKey in definers) ownerArtifactKey else definers.minOrNull()!!

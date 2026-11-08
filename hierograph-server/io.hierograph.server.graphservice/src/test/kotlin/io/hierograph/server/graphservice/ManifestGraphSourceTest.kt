@@ -66,7 +66,7 @@ class ManifestGraphSourceTest {
         assertThat(Files.list(snapshotDir).use { it.count() }).isGreaterThan(0L)
 
         // …and it loads back into a GraphStore with this class present as a scanned type.
-        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         ParquetReader().load(snapshotDir, store)
         val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSource")
@@ -116,7 +116,7 @@ class ManifestGraphSourceTest {
         assertThat(test.result.classes).`as`("test output scanned").isNotEmpty()
 
         // The ingested graph carries a test type (this very class) that the tests-off scan does not.
-        val store = GraphStore(PlaceholderPolicy.JQA_ALIGNED)
+        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         ManifestGraphSource().ingest(scanned, store)
         val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSourceTest")
