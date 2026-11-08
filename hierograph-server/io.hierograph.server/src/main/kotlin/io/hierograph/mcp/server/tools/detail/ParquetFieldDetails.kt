@@ -38,7 +38,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
     fun fieldDetails(fieldId: Long): Map<String, Any?> {
         val memberKey = graphService.memberHandleIndex[fieldId]
             ?: return notFound(fieldId)
-        val dir = Path.of(graphService.parquetDirectory)
+        val dir = readyDetailDir() ?: return detailRebuilding()
         val reader = ParquetReader()
         val member = reader.readMember(dir, memberKey) ?: return notFound(fieldId)
         if (member.kind != JavaNodeKind.FIELD) {

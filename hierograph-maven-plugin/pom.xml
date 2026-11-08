@@ -16,25 +16,25 @@
 
     <name>Hierograph Maven Plugin</name>
     <description>
-        Scans a Maven project's compiled modules into Hierograph `.hierograph` snapshots during the build:
-        the `scan` goal scans each module keyed by its GAV (capturing its dependency classpath), and the
-        `aggregate` goal collects the reactor's archives into one snapshot directory the MCP server consumes.
+        Records a Maven reactor's module layout for the Hierograph MCP server during the build: the `register`
+        goal writes a per-module fragment (GAV, compiled-output directories and the resolved classpath), and
+        the `manifest` goal merges them into one top-level `.hierograph/manifest.json`. The server does the
+        scanning — the plugin only reports what the build tool knows, so it pulls in no scanner or Parquet
+        dependencies.
     </description>
 
     <properties>
         <maven.api.version>3.9.9</maven.api.version>
         <maven.plugin.tools.version>3.13.1</maven.plugin.tools.version>
+        <gson.version>2.11.0</gson.version>
     </properties>
 
     <dependencies>
-        <!-- The scanner + the Parquet writer/model it produces. -->
+        <!-- JSON read/write for the manifest (self-contained, no transitive dependencies). -->
         <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.scanner</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore</artifactId>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

@@ -34,6 +34,11 @@
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.graphstore</artifactId>
         </dependency>
+        <!-- Server-owned scanning: ManifestGraphSource runs the ASM scanner over the manifest's modules. -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.scanner</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.server.mapping</artifactId>

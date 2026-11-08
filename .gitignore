@@ -6,6 +6,12 @@ target/
 reports/
 logs/
 
+# Hierograph build manifest (written by hierograph:manifest for the local MCP server)
+.hierograph/
+
+# Hierograph graph dump (written by the server on each load)
+hierarchical-graph.txt
+
 # Manual Parquet export (ExportParquetManualIT)
 jqa-parquet-export/
 

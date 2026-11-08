@@ -35,6 +35,9 @@ abstract class AbstractSpringIntegrationTest {
         @JvmStatic
         @DynamicPropertySource
         fun fixtureProperties(registry: DynamicPropertyRegistry) {
+            // These tests ship a pre-built Parquet fixture, so pin the Parquet source explicitly —
+            // independent of the production default (which is `manifest`).
+            registry.add("hierograph.graph.source") { "parquet" }
             // Build the scanner snapshot (once) before the Spring context reads the property.
             registry.add("hierograph.graph.parquetDir") { SpringFixture.directory.toAbsolutePath().toString() }
         }

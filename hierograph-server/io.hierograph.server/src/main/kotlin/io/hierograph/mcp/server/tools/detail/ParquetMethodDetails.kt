@@ -38,7 +38,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
     fun methodDetails(methodId: Long): Map<String, Any?> {
         val memberKey = graphService.memberHandleIndex[methodId]
             ?: return notFound(methodId)
-        val dir = Path.of(graphService.parquetDirectory)
+        val dir = readyDetailDir() ?: return detailRebuilding()
         val reader = ParquetReader()
         val member = reader.readMember(dir, memberKey) ?: return notFound(methodId)
         if (member.kind != JavaNodeKind.METHOD && member.kind != JavaNodeKind.CONSTRUCTOR) {

@@ -19,6 +19,7 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphstore.model.JavaKinds
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import java.nio.file.Path
 
 /**
  * Shared base for the detail-level MCP tools (method_details, field_details, type_details,
@@ -45,6 +46,20 @@ abstract class AbstractDetailTool(
         val id = (node.identifier as? Number)?.toLong() ?: 0L
         putSlimNode(nodes, id, NodeMetadata.getName(node), NodeMetadata.getQualifiedName(node), NodeMetadata.getKind(node))
     }
+
+    /**
+     * The Parquet detail directory for the live graph, or `null` when the detail snapshot is still being
+     * written after a `manifest`-mode rescan. Detail engines must treat `null` as [detailRebuilding] and
+     * never read a previous directory — so a query during the write window gets no *stale* data.
+     */
+    protected fun readyDetailDir(): Path? = graphService.readyDetailDir()
+
+    /** Uniform error returned when detail is queried before its snapshot for the live graph is ready. */
+    protected fun detailRebuilding(): Map<String, Any?> = linkedMapOf(
+        "error" to "DETAIL_REBUILDING",
+        "code" to "DETAIL_REBUILDING",
+        "message" to "Detail data is being rebuilt after a rescan; retry in a moment.",
+    )
 
     /** Inline NodeRef used by single-entity tools (e.g. method_details) for primitive type slots. */
     protected fun primitiveRef(name: String): Map<String, Any?> = linkedMapOf(

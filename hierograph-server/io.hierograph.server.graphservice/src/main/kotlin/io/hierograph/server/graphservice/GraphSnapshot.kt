@@ -16,7 +16,6 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.hierarchicalgraph.model.HGModel
 
 /**
@@ -27,9 +26,14 @@ import io.hierograph.hierarchicalgraph.model.HGModel
  * the whole set atomically on a reload, so a concurrent tool call sees a consistent old-or-new
  * snapshot and never a torn mix of a new model with a stale index or hash.
  *
- * [graphStore] is the type-level GraphStore the model was bridged from in `parquet` mode (`null` in
- * `jqa` mode); the Parquet-backed detail path reads it for scope expansion and type display so it stays
- * in lock-step with the served model.
+ * [graphStore] is the type-level GraphStore the model was bridged from; the Parquet-backed detail path
+ * reads it for scope expansion and type display so it stays in lock-step with the served model.
+ *
+ * [generation] is a monotonically increasing build id. The Parquet detail source
+ * ([HierarchicalGraphService] couples a dir + derived edges to a generation) is only served when its
+ * generation matches the live snapshot's — so during a `manifest`-mode rescan, while the new graph is
+ * live but its Parquet is still being written, detail queries report "rebuilding" rather than returning
+ * data from the previous scan.
  */
 data class GraphSnapshot(
     val model: HGModel,
@@ -37,17 +41,10 @@ data class GraphSnapshot(
     val dataHash: String,
     val graphStore: GraphStore? = null,
     /**
-     * Reverse index `node handle → member key` for the Parquet detail tools (`parquet` mode only).
-     * Members are not nodes in the bridged model, so their content-addressed handles cannot be looked up
-     * via the model; this maps a handle back to the `<owner fqn>#<signature>` key to read from Parquet.
+     * Reverse index `node handle → member key` for the Parquet detail tools. Members are not nodes in the
+     * bridged model, so their content-addressed handles cannot be looked up via the model; this maps a
+     * handle back to the `<owner fqn>#<signature>` key to read from Parquet.
      */
     val memberHandles: Map<Long, String> = emptyMap(),
-    /**
-     * Member-level edges derived at load from the full type hierarchy (overrides / virtual + resolved
-     * calls; see [HierarchyResolution]) that are **not already present** in the snapshot's `detail_refs`.
-     * For a single-shot scan or a jQA export (already complete) this is empty; for per-artifact
-     * `.hierograph` snapshots it carries the cross-artifact edges no single artifact scan could see. The
-     * detail tools union it with the Parquet `detail_refs`.
-     */
-    val derivedDetailRefs: List<DetailRef> = emptyList()
+    val generation: Long = 0,
 )

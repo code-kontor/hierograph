@@ -55,7 +55,7 @@ class ParquetTypeDetails(
         val fqn = source.qualifiedName
         val parent = hierarchy.parentOf(node)
         val artifact = owningArtifact(node)
-        val dir = Path.of(graphService.parquetDirectory)
+        val dir = readyDetailDir() ?: return detailRebuilding()
         val reader = ParquetReader()
 
         val typeRow = reader.readTypeRows(dir, listOf(fqn)).firstOrNull { it.artifact == artifact }

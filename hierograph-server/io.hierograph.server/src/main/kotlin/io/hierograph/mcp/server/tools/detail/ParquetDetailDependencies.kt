@@ -72,7 +72,7 @@ class ParquetDetailDependencies(
 
         val store = graphService.graphStore
             ?: return error("DETAIL_UNAVAILABLE", "Parquet detail engine requires graph.source=parquet.")
-        val parquetDir = Path.of(graphService.parquetDirectory)
+        val parquetDir = readyDetailDir() ?: return detailRebuilding()
 
         val fromNode = resolveNodeOrRoot(fromId)
             ?: return error("NODE_NOT_FOUND", "Source node not found: $fromId. Re-resolve via find_node.")
