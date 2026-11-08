@@ -103,8 +103,8 @@ mvn versions:set -DnewVersion=0.1.0 -DprocessAllModules=true
 mvn versions:commit          # once happy; removes the *.versionsBackup files
 ```
 
-`versions:set` only rewrites POMs. A handful of non-POM files (`.jqassistant.yml`, the itest
-image `Dockerfile`/`README.md`, and the docs) also carry the version — bump those with the helper
+`versions:set` only rewrites POMs. A handful of non-POM files (the itest image
+`Dockerfile`/`README.md` and `BUILD.md`) also carry the version — bump those with the helper
 script:
 
 ```bash

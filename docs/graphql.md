@@ -11,8 +11,8 @@ GraphQL client can query.
 | `http://localhost:8080/graphql` | GraphQL API |
 | `http://localhost:8080/graphiql/index.html` | Interactive GraphiQL explorer |
 
-Both are available as soon as the MCP server is running (see [Getting Started](getting-started.md),
-Steps 4–5).
+Both are available as soon as the MCP server is running (see
+[Running the MCP server](../BUILD.md#running-the-mcp-server)).
 
 ## Using GraphiQL
 
@@ -182,7 +182,7 @@ curl -X POST http://localhost:8080/graphql \
 
 ## Schema overview
 
-The full schema is defined in `hierograph-mcp/io.hierograph.graphql/src/main/resources/graphql/`. The
+The full schema is defined in `hierograph-server/io.hierograph.server.graphql/src/main/resources/graphql/`. The
 `Query` root exposes a single field, `hierarchicalGraph`, from which everything else is reachable.
 
 **`HierarchicalGraph`** — the entry point:

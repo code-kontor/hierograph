@@ -23,17 +23,17 @@ mvn -version
 Hierograph is a multi-module Maven reactor. The root `pom.xml` is an aggregator; the actual
 configuration lives in `hierograph-parent`.
 
-| Module group                  | Contents                                                          |
-| ----------------------------- | ----------------------------------------------------------------- |
-| `hierograph-parent`           | Parent POM: dependency management, plugin config, Java/Kotlin versions |
-| `hierograph-core`             | Core utilities (e.g. `io.hierograph.boltclient`)                  |
-| `hierograph-hierarchicalgraph`| The in-memory hierarchical graph model, algorithms, serialization, and graph-db mapping |
-| `hierograph-mcp`              | MCP server, jQAssistant/Java-spec bindings, GraphQL, and the graph service they share (`io.hierograph.graphservice`: loading/reload, search, node properties, pagination) |
-| `hierograph-jqassistant`      | Hierograph's jQAssistant rules plugin                             |
-| `hierograph-itest`            | Integration tests (opt-in, see below)                            |
+| Module group                   | Contents                                                          |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `hierograph-parent`            | Parent POM: dependency management, plugin config, Java/Kotlin versions |
+| `hierograph-graphstore`        | The GraphStore and its Parquet snapshot format (`io.hierograph.graphstore.jvm`), and the bytecode scanner (`io.hierograph.graphstore.jvm.scanner`) |
+| `hierograph-hierarchicalgraph` | The in-memory hierarchical graph model and its algorithms         |
+| `hierograph-server`            | MCP server (`io.hierograph.server`), GraphQL (`io.hierograph.server.graphql`), the graph service they share (`io.hierograph.server.graphservice`: loading/reload, search, node properties, pagination), and the GraphStore-to-model mapping (`io.hierograph.server.mapping`) |
+| `hierograph-maven-plugin`      | Maven plugin that records build facts and scans modules into `.hierograph` archives |
+| `hierograph-itest`             | Integration tests (opt-in, see below)                            |
 
 The runnable artifact is the Spring Boot MCP server in
-`hierograph-mcp/io.hierograph.mcp.server` (main class `io.hierograph.mcp.server.McpApplicationKt`).
+`hierograph-server/io.hierograph.server` (main class `io.hierograph.mcp.server.McpApplicationKt`).
 
 ## Standard build
 
@@ -49,8 +49,8 @@ Notes:
   `401` and only slow the build down; everything needed should already be in your local `~/.m2`.
   Drop `-o` only the first time, if you still need to populate the local repository.
 - **`install` (not just `package`)** places the Hierograph artifacts — including the
-  `io.hierograph.jqassistant.rules` plugin — into `~/.m2`, where jQAssistant and downstream
-  modules can resolve them. After changing a module's dependencies, run
+  `hierograph-maven-plugin` — into `~/.m2`, where Maven builds and downstream modules can
+  resolve them. After changing a module's dependencies, run
   `mvn -o install -DskipTests` on the changed module before testing anything downstream;
   stale jars in `~/.m2` cause spurious "Unresolved reference" errors.
 
@@ -68,7 +68,7 @@ A license header check (`license-maven-plugin`) runs in the `validate` phase. If
 
 ## Optional profiles
 
-Two pieces of work are deliberately kept out of the default build and enabled via profiles.
+The integration tests are deliberately kept out of the default build and enabled via a profile.
 
 ### Integration tests — `-Pitest`
 
@@ -79,45 +79,33 @@ They require Docker (Testcontainers spins up Neo4j).
 mvn -o -Pitest verify
 ```
 
-### jQAssistant scan/analyze — `-Pjqassistant`
-
-Scanning the codebase into a Neo4j graph and running the analysis rules is opt-in. Defined in
-`hierograph-parent/pom.xml`; configuration comes from `.jqassistant.yml` in the project root.
-
-```bash
-mvn -o -Pjqassistant verify
-```
-
-> The scan needs the `io.hierograph.jqassistant.rules` plugin in `~/.m2`, so run a standard
-> `mvn -o install -DskipTests` first.
-
 ## Running the MCP server
 
 After a successful build, the runnable server jar is at:
 
 ```
-hierograph-mcp/io.hierograph.mcp.server/target/io.hierograph.mcp.server-0.2.0-SNAPSHOT-exec.jar
+hierograph-server/io.hierograph.server/target/io.hierograph.server-0.2.0-SNAPSHOT-exec.jar
 ```
 
 Run it with:
 
 ```bash
-java -jar hierograph-mcp/io.hierograph.mcp.server/target/io.hierograph.mcp.server-0.2.0-SNAPSHOT-exec.jar
+java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.2.0-SNAPSHOT-exec.jar
 ```
 
 > The repackaged (self-contained) jar carries the `exec` classifier so the plain
-> `io.hierograph.mcp.server-0.2.0-SNAPSHOT.jar` remains the module's main artifact —
+> `io.hierograph.server-0.2.0-SNAPSHOT.jar` remains the module's main artifact —
 > downstream modules (e.g. the integration tests) compile against the server's classes,
 > which a Spring Boot fat jar hides under `BOOT-INF/classes`.
 
 or, during development, via the Spring Boot plugin:
 
 ```bash
-mvn -o -pl hierograph-mcp/io.hierograph.mcp.server spring-boot:run
+mvn -o -pl hierograph-server/io.hierograph.server spring-boot:run
 ```
 
-For end-to-end setup (scanning a target project and wiring the server into an MCP client), see
-[`docs/getting-started.md`](docs/getting-started.md).
+For end-to-end setup (preparing a target project for a watching server), see the
+[usage guide of the Hierograph Maven plugin](hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
 
 > The `spring-boot:repackage` goal runs as part of the server module's `package` phase and attaches
 > the self-contained, runnable Spring Boot jar under the `exec` classifier (the `-exec.jar` above).
@@ -132,7 +120,7 @@ Docker API v1.24, which Docker Engine 29+ rejects.)
 
 ```bash
 # Docker daemon must be running first (e.g. start Docker Desktop / colima).
-mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker package -DskipTests
+mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package -DskipTests
 ```
 
 This produces the image:
@@ -168,7 +156,7 @@ Pushing is **opt-in** — a plain `-Pdocker package` only builds locally. The pu
 # One-time: log in to GitHub Container Registry with a PAT that has `write:packages`.
 echo "$GHCR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
 
-mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker deploy -Ddocker.push.skip=false
+mvn -o -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.skip=false
 ```
 
 > Single-arch: this builds for your host architecture. For multi-arch (amd64 + arm64) pulls you'd
@@ -183,8 +171,7 @@ mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker deploy -Ddocker.push
 | Rebuild a single module                 | `mvn -o -pl <module-path> install`                       |
 | Rebuild a module **and its dependents** | `mvn -o -pl <module-path> -amd install`                  |
 | Integration tests (needs Docker)        | `mvn -o -Pitest verify`                                  |
-| Build MCP server Docker image (needs Docker) | `mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker package` |
-| Build **and push** the image (needs `docker login`) | `mvn -o -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker deploy -Ddocker.push.skip=false` |
-| jQAssistant scan + analyze              | `mvn -o -Pjqassistant verify`                            |
+| Build MCP server Docker image (needs Docker) | `mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package` |
+| Build **and push** the image (needs `docker login`) | `mvn -o -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.skip=false` |
 | Apply license headers                   | `mvn -o license:format`                                  |
 | Clean                                   | `mvn -o clean`                                           |

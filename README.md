@@ -94,7 +94,7 @@ An **agentic AI** — Claude (via Claude Code or Claude Desktop), Cursor, or any
 
 The whole model fits in memory: on a Spring Framework-sized codebase, the full hierarchy plus 115,906 type-level dependency edges load in 38 milliseconds and occupy 64 MB. Aggregation, blast-radius, and reachability queries run in microseconds — which is exactly what makes free-form, any-level aggregation practical rather than a slow database round-trip. Everything stays local; your code never leaves your machine.
 
-For detailed explanations, see the [Hierograph Architecture Overview](docs/architecture-overview.md).
+For detailed explanations, see the specifications of the [bytecode scanner](hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md), the [GraphStore](hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md) and the [hierarchical graph model](hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md).
 
 ---
 
@@ -114,7 +114,7 @@ The first answer tells you whether this is the missing piece.
 
 Hierograph's core is scanner-agnostic: it derives its hierarchical model from any structural graph, and jQAssistant provides that for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
 
-For a detailed step-by-step description, see the [Get started](docs/getting-started.md) guide.
+For a step-by-step description, see the [usage guide of the Hierograph Maven plugin](hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
 
 Open source. Self-hosted.
 

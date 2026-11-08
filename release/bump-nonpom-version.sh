@@ -80,11 +80,9 @@ bump_release_pointers() {
 # Curated list of non-POM files that reference the Hierograph version.
 # Add new ones here as they appear; keep RELEASING.md OUT.
 FILES=(
-  ".jqassistant.yml"
   "hierograph-itest/io.hierograph.itest.image/Dockerfile"
   "hierograph-itest/io.hierograph.itest.image/README.md"
   "BUILD.md"
-  "docs/getting-started.md"
 )
 
 echo "Replacing '${OLD}' -> '${NEW}' in non-POM files:"
@@ -139,10 +137,6 @@ fi
 if [[ "${NEW}" == "${NEW_REL}" ]]; then
   echo
   echo "Advancing 'latest release' doc pointers -> '${NEW_REL}':"
-  # NB: docs/getting-started.md is deliberately NOT here. Its MCP image tag runs
-  # the image you just built locally (`mvn -Pdocker package`), so it tracks the
-  # WORKING version and is bumped verbatim via the FILES list above — not as a
-  # published-release pointer. Only the bootstrap skill pulls from Maven Central.
   bump_release_pointers "plugins/hierograph/skills/hierograph-bootstrap/SKILL.md" \
     's/(currently \x60)\d+\.\d+\.\d+(\x60)/$1$ENV{NEW_REL}$2/g' \
     's/(returns \x60)\d+\.\d+\.\d+(\x60)/$1$ENV{NEW_REL}$2/g' \
