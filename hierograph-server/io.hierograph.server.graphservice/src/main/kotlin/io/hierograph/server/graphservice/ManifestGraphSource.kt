@@ -97,7 +97,12 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val modules: List<ModuleDto> = emptyList(),
     )
 
-    /** Reads [manifestPath] and scans every module's compiled main output into per-module [ModuleScan]s. */
+    /**
+     * Reads [manifestPath] and scans each module's compiled output into per-module [ModuleScan]s: main
+     * output always, and test output additionally when [includeTests]. A test-only module (no main output,
+     * e.g. an integration-test harness) is scanned from its test output when [includeTests] is set, instead
+     * of being skipped.
+     */
     fun scan(manifestPath: Path, includeTests: Boolean = false): Scanned {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:create-descriptor hierograph:merge-descriptors`)" }
         val manifest = MAPPER.readValue<ManifestDto>(manifestPath.toFile())
@@ -109,27 +114,34 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             val name = module.name.ifEmpty { module.gav }
             val mainCp = module.classpath.map { ClasspathEntry(it.gav, it.internal) }
             classpaths[module.gav] = ArtifactClasspath(module.gav, name, mainCp)
-            val dir = module.mainOutputDir?.let { remap.map(Path.of(it)) }
-            if (dir == null || !dir.isDirectory()) {
-                log.warn("Manifest module {} has no scannable main output ({}); skipping", module.gav, dir ?: module.mainOutputDir)
-                continue
+            val mainDir = module.mainOutputDir?.let { remap.map(Path.of(it)) }?.takeIf { it.isDirectory() }
+            if (mainDir != null) {
+                modules[module.gav] = ModuleScan(module.gav, name, mainDir, scanModule(module.gav, mainDir), Origin.MODULE_MAIN)
             }
-            modules[module.gav] = ModuleScan(module.gav, name, dir, scanModule(module.gav, dir), Origin.MODULE_MAIN)
 
+            var testScanned = false
             if (includeTests) {
                 val testDir = module.testOutputDir?.let { remap.map(Path.of(it)) }
                 if (testDir != null && testDir.isDirectory()) {
                     val testKey = "${module.gav}:test"
                     val testName = "$name (test)"
-                    // Test types resolve against their own output first, then the module's main output, then
-                    // the module's full test classpath (all scopes). An older manifest without testClasspath
-                    // falls back to the main classpath, so test-scope deps (JUnit, …) resolve as external types.
+                    // Test types resolve against their own main output first (when the module has one), then the
+                    // module's full test classpath (all scopes). An older manifest without testClasspath falls back
+                    // to the main classpath, so test-scope deps (JUnit, …) resolve as external types. A test-only
+                    // module (no main output — e.g. an integration-test harness) simply has no self-main entry.
                     val testCp = module.testClasspath?.map { ClasspathEntry(it.gav, it.internal) } ?: mainCp
-                    classpaths[testKey] = ArtifactClasspath(
-                        testKey, testName, listOf(ClasspathEntry(module.gav, internal = true)) + testCp,
-                    )
+                    val selfMain = if (mainDir != null) listOf(ClasspathEntry(module.gav, internal = true)) else emptyList()
+                    classpaths[testKey] = ArtifactClasspath(testKey, testName, selfMain + testCp)
                     modules[testKey] = ModuleScan(testKey, testName, testDir, scanModule(testKey, testDir), Origin.MODULE_TEST)
+                    testScanned = true
                 }
+            }
+
+            if (mainDir == null && !testScanned) {
+                log.warn(
+                    "Manifest module {} has no scannable output (main={}); skipping. A test-only module is ingested only with includeTests=true.",
+                    module.gav, module.mainOutputDir,
+                )
             }
         }
         require(modules.isNotEmpty()) {

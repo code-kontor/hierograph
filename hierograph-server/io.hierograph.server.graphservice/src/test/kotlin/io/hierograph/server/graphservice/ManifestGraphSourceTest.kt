@@ -121,4 +121,57 @@ class ManifestGraphSourceTest {
         val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSourceTest")
     }
+
+    /** A test-only module (no main output) is skipped by default but, with includeTests, scanned as `<gav>:test` only. */
+    @Test
+    fun `test-only module is scanned from test output under includeTests`(@TempDir tmp: Path) {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        val testClassesDir = Path.of("target/test-classes").toAbsolutePath()
+        assertThat(Files.isDirectory(classesDir)).`as`("main classes compiled").isTrue()
+        assertThat(Files.isDirectory(testClassesDir)).`as`("test classes compiled before the test runs").isTrue()
+
+        val mainGav = "io.hierograph:test-graphservice:0"
+        val itestGav = "io.hierograph:test-itest:0"
+        val manifest = tmp.resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """
+            {
+              "schemaVersion": 1,
+              "generator": "test",
+              "generatedAt": "2026-01-01T00:00:00Z",
+              "reactorRoot": "${tmp.toUri().path}",
+              "modules": [
+                {
+                  "gav": "$mainGav",
+                  "name": "graphservice",
+                  "mainOutputDir": "${classesDir.toUri().path}",
+                  "testOutputDir": null,
+                  "sourceRoots": [],
+                  "classpath": []
+                },
+                {
+                  "gav": "$itestGav",
+                  "name": "itest",
+                  "mainOutputDir": null,
+                  "testOutputDir": "${testClassesDir.toUri().path}",
+                  "sourceRoots": [],
+                  "classpath": []
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        // Default (tests off): the test-only module has no main output and is skipped entirely.
+        assertThat(ManifestGraphSource().scan(manifest).modules.keys).containsExactly(mainGav)
+
+        // Tests on: the test-only module appears only as `<gav>:test` (MODULE_TEST), never as a main `<gav>`.
+        val scanned = ManifestGraphSource().scan(manifest, includeTests = true)
+        assertThat(scanned.modules.keys).contains("$itestGav:test")
+        assertThat(scanned.modules.keys).doesNotContain(itestGav)
+        val itest = scanned.modules.getValue("$itestGav:test")
+        assertThat(itest.origin).isEqualTo(Origin.MODULE_TEST)
+        assertThat(itest.result.classes).`as`("test-only output scanned").isNotEmpty()
+    }
 }
