@@ -47,7 +47,6 @@ Maven plugin snapshot. Weight should mean "how much" (reference count), not
 ```json
 {
   "title":    "Hierograph module dependencies",
-  "subtitle": "Every compiled dependency between the Hierograph reactor's Maven modules...",
   "project":  "Hierograph 0.2.0-SNAPSHOT",
   "scanned":  "2026-11-07",
   "source":   "Hierograph Maven plugin",
@@ -108,7 +107,7 @@ script does not hide that. If a non-member sits between two members in the
 dependency order, it gets pulled onto the same band, and the edges that no
 longer point downward are counted, listed in the script's output, and drawn in
 red on the page — solid for an upward edge, dashed for one that stays within a
-layer. A stat tile reports the total.
+layer.
 
 That makes the layer a hypothesis you can test rather than a decoration. Zero
 violations means the grouping is real; a handful names exactly which

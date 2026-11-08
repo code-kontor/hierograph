@@ -5,7 +5,6 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
 
   {
     "title":    "Hierograph module dependencies",   # optional, becomes the <h1>
-    "subtitle": "...",                              # optional intro line
     "project":  "Hierograph 0.2.0-SNAPSHOT",        # optional meta line fragments
     "scanned":  "2026-11-07",
     "source":   "Hierograph Maven plugin",
@@ -220,7 +219,7 @@ def main():
     violation = classify
 
     data = {
-        "title": spec.get("title"), "subtitle": spec.get("subtitle"),
+        "title": spec.get("title"),
         "project": spec.get("project"), "scanned": spec.get("scanned"),
         "source": spec.get("source"), "unit": spec.get("unit", "modules"),
         "maxLevel": max(level.values()) if level else 0,
