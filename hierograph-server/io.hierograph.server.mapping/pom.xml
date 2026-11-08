@@ -6,9 +6,9 @@
 
     <parent>
         <groupId>io.hierograph</groupId>
-        <artifactId>hierograph-graphstore</artifactId>
+        <artifactId>hierograph-server</artifactId>
         <version>0.2.0-SNAPSHOT</version>
-        <relativePath>../../hierograph-graphstore/pom.xml</relativePath>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>io.hierograph.server.mapping</artifactId>
