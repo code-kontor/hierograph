@@ -45,6 +45,9 @@ class HierarchicalGraphService {
         private val log = LoggerFactory.getLogger(HierarchicalGraphService::class.java)
     }
 
+    @Value("\${hierograph.graph.dump.enabled:false}")
+    private var graphDumpEnabled: Boolean = false
+
     @Value("\${hierograph.graph.dumpFile:hierarchical-graph.txt}")
     private lateinit var graphDumpFile: String
 
@@ -242,7 +245,7 @@ class HierarchicalGraphService {
         snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), generation = graphGen.incrementAndGet()))
     }
 
-    /** Build a fresh snapshot, logging progress and writing the dump. Detail is published by the caller. */
+    /** Build a fresh snapshot, logging progress (and the debug dump if enabled). Detail is published by the caller. */
     private fun loadSnapshot(): Built {
         log.info("Creating hierarchical graph ({} source)...", graphSource)
         val (built, elapsed) = measureTimedValue {
@@ -268,12 +271,14 @@ class HierarchicalGraphService {
             .forEach { (kind, count) -> log.info("  {}: {}", kind, count) }
         log.info("Total nodes: {}", kindCounts.values.sum())
 
-        // Dump the hierarchical graph to a file: one indented line per node, with name/fqn.
-        val outputFile = File(graphDumpFile)
-        outputFile.bufferedWriter().use { writer ->
-            TreeTraverser.dumpTree(hierarchy.rootNode, hierarchy, sink = { writer.appendLine(it) })
+        // Optional debug dump: one indented line per node, with name/fqn. Off by default.
+        if (graphDumpEnabled) {
+            val outputFile = File(graphDumpFile)
+            outputFile.bufferedWriter().use { writer ->
+                TreeTraverser.dumpTree(hierarchy.rootNode, hierarchy, sink = { writer.appendLine(it) })
+            }
+            log.info("Hierarchical graph written to: {}", outputFile.absolutePath)
         }
-        log.info("Hierarchical graph written to: {}", outputFile.absolutePath)
 
         return built
     }
