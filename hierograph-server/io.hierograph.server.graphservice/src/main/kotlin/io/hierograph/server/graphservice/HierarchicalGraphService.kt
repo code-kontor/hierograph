@@ -406,7 +406,7 @@ class HierarchicalGraphService {
                 val derived = deriveDetailRefs(genDir, store, ParquetReader())
                 if (graphGen.get() == generation) {
                     detailSource.set(DetailSource(generation, genDir, derived))
-                    pruneGenerations(base, keep = genDir)
+                    pruneSnapshotDir(base, keep = genDir)
                     log.info("Detail snapshot ready (generation {}) at {} ({} write)", generation, genDir, elapsed)
                 } else {
                     deleteRecursively(genDir) // a newer rescan superseded this one
@@ -424,13 +424,16 @@ class HierarchicalGraphService {
             .filter { it.kind in JavaKinds.MEMBER_KINDS }
             .associateBy({ NodeHandle.of(it.key) }, { it.fqn })
 
-    /** Delete every `gen-*` snapshot directory under [base] except [keep]; best-effort. */
-    private fun pruneGenerations(base: Path, keep: Path) {
+    /**
+     * Keep only [keep] under [base], deleting every other entry — superseded `gen-*` directories and any
+     * stray files left in the snapshot root (e.g. archives written there by an earlier implementation).
+     * Best-effort: the live detail source already points at [keep], and nothing served reads the rest.
+     */
+    private fun pruneSnapshotDir(base: Path, keep: Path) {
         if (!Files.isDirectory(base)) return
         runCatching {
             Files.list(base).use { entries ->
-                entries.filter { Files.isDirectory(it) && it.fileName.toString().startsWith("gen-") && it != keep }
-                    .forEach { runCatching { deleteRecursively(it) } }
+                entries.filter { it != keep }.forEach { runCatching { deleteRecursively(it) } }
             }
         }
     }
