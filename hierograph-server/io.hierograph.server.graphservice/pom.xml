@@ -15,9 +15,14 @@
     <name>Hierograph Graph Service</name>
     <description>
         The served hierarchical graph, shared by the API adapters (MCP tools, GraphQL): loading it from
-        jQAssistant/Neo4j or a Parquet snapshot, snapshot lifecycle and reload, name search, node
-        properties, and the pagination/data-hash support.
+        a Parquet snapshot or a build manifest (server-side scan), snapshot lifecycle and reload, the
+        file watch and incremental updates, name search, node properties, and the pagination/data-hash
+        support.
     </description>
+
+    <properties>
+        <directory-watcher.version>0.18.0</directory-watcher.version>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -38,6 +43,13 @@
         <dependency>
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.graphstore.scanner</artifactId>
+        </dependency>
+
+        <!-- Native, event-driven file watching (macOS FSEvents / Linux inotify via JNA); opt-in watch mode. -->
+        <dependency>
+            <groupId>io.methvin</groupId>
+            <artifactId>directory-watcher</artifactId>
+            <version>${directory-watcher.version}</version>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>

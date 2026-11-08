@@ -335,10 +335,7 @@ class HierarchicalGraphService {
         val scanned = currentScanned ?: return
         stopWatcher()
         val w = when (mode) {
-            "native" -> {
-                log.warn("hierograph.graph.watch.mode=native is not available yet; using polling")
-                PollingGraphWatcher(watchIntervalMs, watchSettleMs)
-            }
+            "native" -> NativeGraphWatcher(watchSettleMs)
             else -> PollingGraphWatcher(watchIntervalMs, watchSettleMs)
         }
         w.start(
