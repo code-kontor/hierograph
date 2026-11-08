@@ -32,6 +32,7 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesToo
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
@@ -47,6 +48,7 @@ class McpApplication {
 
     @Bean
     fun graphToolCallbackProvider(
+        @Value("\${hierograph.tool-call-logger.enabled:false}") logToolCalls: Boolean,
         graphService: HierarchicalGraphService,
         findNodeTool: FindNodeTool,
         graphOverviewTool: GraphOverviewTool,
@@ -80,7 +82,7 @@ class McpApplication {
             graphService,
             toolsAllowedWithoutGraph = setOf("reload_graph")
         )
-        return LoggingToolCallbackProvider(guarded)
+        return if (logToolCalls) LoggingToolCallbackProvider(guarded) else guarded
     }
 }
 
