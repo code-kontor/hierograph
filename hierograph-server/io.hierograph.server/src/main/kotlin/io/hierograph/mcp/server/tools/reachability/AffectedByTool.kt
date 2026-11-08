@@ -16,9 +16,9 @@
 package io.hierograph.mcp.server.tools.reachability
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.graphservice.pagination.DataHashProvider
+import io.hierograph.server.graphservice.pagination.DataHashProvider
 import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator

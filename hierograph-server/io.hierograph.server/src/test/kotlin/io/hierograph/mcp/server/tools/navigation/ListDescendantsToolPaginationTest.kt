@@ -20,9 +20,9 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.graphservice.pagination.DataHashProvider
+import io.hierograph.server.graphservice.pagination.DataHashProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

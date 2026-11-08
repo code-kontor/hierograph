@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.hgmodel.GraphStoreNodeSource
+import io.hierograph.server.mapping.GraphStoreNodeSource
 import io.hierograph.graphstore.model.RefKind
 import io.hierograph.graphstore.model.TypeModifiers
 import io.hierograph.graphstore.parquet.ParquetReader
@@ -24,7 +24,7 @@ import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.model.JavaKinds
 import io.hierograph.graphstore.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
 import java.nio.file.Path

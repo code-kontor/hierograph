@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server
 
 import io.hierograph.mcp.server.core.GraphAvailabilityToolCallbackProvider
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.logging.LoggingToolCallbackProvider
 import io.hierograph.mcp.server.tools.detail.FieldDetailsTool
 import io.hierograph.mcp.server.tools.detail.MethodDetailsTool
@@ -42,7 +42,7 @@ import org.springframework.ai.tool.method.MethodToolCallbackProvider
 
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = ["io.hierograph.mcp.server", "io.hierograph.graphservice", "io.hierograph.graphql"])
+@ComponentScan(basePackages = ["io.hierograph.mcp.server", "io.hierograph.server.graphservice", "io.hierograph.server.graphql"])
 class McpApplication {
 
     @Bean

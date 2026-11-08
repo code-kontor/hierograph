@@ -16,7 +16,7 @@
 package io.hierograph.mcp.server.core
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel

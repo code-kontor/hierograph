@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.admin
 
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component
 

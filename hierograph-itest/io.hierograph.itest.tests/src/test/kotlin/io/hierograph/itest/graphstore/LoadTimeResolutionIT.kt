@@ -15,7 +15,7 @@
  */
 package io.hierograph.itest.graphstore
 
-import io.hierograph.graphservice.HierarchyResolution
+import io.hierograph.server.graphservice.HierarchyResolution
 import io.hierograph.graphstore.GraphStore
 import io.hierograph.graphstore.model.DetailRef
 import io.hierograph.graphstore.model.MemberModifiers

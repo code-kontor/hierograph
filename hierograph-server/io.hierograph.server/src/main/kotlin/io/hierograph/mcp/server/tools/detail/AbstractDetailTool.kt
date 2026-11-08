@@ -18,7 +18,7 @@ package io.hierograph.mcp.server.tools.detail
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.HierarchicalGraphService
 
 /**
  * Shared base for the detail-level MCP tools (method_details, field_details, type_details,
