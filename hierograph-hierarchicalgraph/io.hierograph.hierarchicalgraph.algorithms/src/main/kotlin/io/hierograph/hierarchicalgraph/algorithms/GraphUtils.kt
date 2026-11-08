@@ -42,8 +42,9 @@ object GraphUtils {
      *
      * Computed by a single linear bucketing pass — one walk of each subtree's accumulated outgoing
      * edges, each charged to the cell of the selected node that contains its target. This is defined for
-     * disjoint-subtree inputs; nested inputs (a selected node inside another) attribute each contained
-     * node to the innermost-by-input-order selected node.
+     * disjoint-subtree inputs; with nested inputs (a selected node inside another), a dependency is
+     * charged to the row of every selected node whose subtree contains its source, and its target is
+     * attributed to the later (higher-index) selected node that contains it.
      */
     fun computeAdjacencyMatrix(nodes: List<HGNode>, hierarchy: Hierarchy): Array<IntArray> {
         val n = nodes.size
