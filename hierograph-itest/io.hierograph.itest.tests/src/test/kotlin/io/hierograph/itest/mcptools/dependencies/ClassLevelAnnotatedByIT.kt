@@ -86,7 +86,7 @@ class ClassLevelAnnotatedByIT : AbstractMcpApplicationIntegrationTest() {
 
         // TEMP diagnostic
         run {
-            val reader = io.hierograph.graphstore.parquet.ParquetReader()
+            val reader = io.hierograph.graphstore.jvm.parquet.ParquetReader()
             val all = reader.readDetailRefs(io.hierograph.itest.fwk.SpringFixture.directory, relationship = "annotated_by")
             val mine = all.filter { it.fromKey == annotatedClassFqn }
             println("TEMPDIAG annotated_by edges with fromKey=$annotatedClassFqn: ${mine.map { it.fromKey + " -> " + it.toKey }}")

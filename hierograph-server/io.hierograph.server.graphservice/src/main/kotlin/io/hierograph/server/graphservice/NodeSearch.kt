@@ -16,8 +16,8 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphstore.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import org.springframework.stereotype.Component
 
 /**

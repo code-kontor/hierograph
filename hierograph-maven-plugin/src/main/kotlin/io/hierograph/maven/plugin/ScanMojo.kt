@@ -15,11 +15,11 @@
  */
 package io.hierograph.maven.plugin
 
-import io.hierograph.graphstore.model.ArtifactClasspath
-import io.hierograph.graphstore.model.ClasspathEntry
-import io.hierograph.graphstore.parquet.HierographArchive
-import io.hierograph.graphstore.scanner.BytecodeScanner
-import io.hierograph.graphstore.scanner.ScanArtifact
+import io.hierograph.graphstore.jvm.model.ArtifactClasspath
+import io.hierograph.graphstore.jvm.model.ClasspathEntry
+import io.hierograph.graphstore.jvm.parquet.HierographArchive
+import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
+import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import org.apache.maven.execution.MavenSession
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugins.annotations.Component

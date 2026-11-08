@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.mapping
 
-import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
@@ -23,7 +23,7 @@ import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.model.JavaEdgeAttributes
+import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 
 /**
  * Builds the production hierarchical graph ([HGModel]) directly from a [GraphStore] — the bridge that

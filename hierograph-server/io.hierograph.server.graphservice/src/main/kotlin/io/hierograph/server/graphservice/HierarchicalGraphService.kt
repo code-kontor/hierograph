@@ -15,15 +15,15 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.PlaceholderPolicy
 import io.hierograph.server.mapping.GraphStoreToHGModel
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphstore.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.server.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy

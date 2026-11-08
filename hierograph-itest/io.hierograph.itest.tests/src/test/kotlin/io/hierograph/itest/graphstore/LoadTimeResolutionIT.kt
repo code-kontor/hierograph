@@ -16,13 +16,13 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.server.graphservice.HierarchyResolution
-import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.model.MemberModifiers
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
-import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphstore.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

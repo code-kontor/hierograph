@@ -15,12 +15,12 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.model.MemberModifiers
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphstore.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
 import java.nio.file.Path

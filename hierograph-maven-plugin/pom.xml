@@ -44,11 +44,11 @@
         <!-- The bytecode scanner + the Parquet writer/model it produces (for the `scan` goal). -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.scanner</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm.scanner</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm</artifactId>
         </dependency>
 
         <!-- Maven plugin API (provided by the running Maven). -->

@@ -15,8 +15,8 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.model.MemberModifiers
+import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.MemberModifiers
 
 /**
  * The member-level relationships no single class file can answer — they need the whole type hierarchy —

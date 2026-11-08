@@ -309,7 +309,7 @@ limitations under the License.]]></inlineHeader>
             <!-- ==================== -->
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore</artifactId>
+                <artifactId>io.hierograph.graphstore.jvm</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -319,7 +319,7 @@ limitations under the License.]]></inlineHeader>
             </dependency>
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>io.hierograph.graphstore.scanner</artifactId>
+                <artifactId>io.hierograph.graphstore.jvm.scanner</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

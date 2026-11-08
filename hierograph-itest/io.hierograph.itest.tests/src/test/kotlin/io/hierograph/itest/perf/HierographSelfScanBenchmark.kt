@@ -19,11 +19,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.PlaceholderPolicy
-import io.hierograph.graphstore.parquet.ParquetReader
-import io.hierograph.graphstore.scanner.BytecodeScanner
-import io.hierograph.graphstore.scanner.ScanArtifact
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
+import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

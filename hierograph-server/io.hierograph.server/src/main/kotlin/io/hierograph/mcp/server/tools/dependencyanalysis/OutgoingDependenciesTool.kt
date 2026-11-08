@@ -17,8 +17,8 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
-import io.hierograph.graphstore.model.JavaEdgeAttributes
-import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider

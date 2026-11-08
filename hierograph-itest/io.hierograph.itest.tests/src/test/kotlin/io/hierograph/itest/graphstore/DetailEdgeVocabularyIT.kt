@@ -15,10 +15,10 @@
  */
 package io.hierograph.itest.graphstore
 
-import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
-import io.hierograph.graphstore.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

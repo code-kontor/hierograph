@@ -17,8 +17,8 @@ package io.hierograph.server.graphservice
 
 import io.hierograph.server.graphservice.HierarchyResolution.Method
 import io.hierograph.server.graphservice.HierarchyResolution.Type
-import io.hierograph.graphstore.model.DetailRef
-import io.hierograph.graphstore.model.MemberModifiers
+import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.MemberModifiers
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

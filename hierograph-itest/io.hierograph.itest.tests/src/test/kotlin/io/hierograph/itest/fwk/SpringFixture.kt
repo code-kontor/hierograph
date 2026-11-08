@@ -15,8 +15,8 @@
  */
 package io.hierograph.itest.fwk
 
-import io.hierograph.graphstore.scanner.BytecodeScanner
-import io.hierograph.graphstore.scanner.ScanArtifact
+import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
+import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.nio.file.Files

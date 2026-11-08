@@ -49,7 +49,7 @@
         <!-- ASM scanner: produces the Spring 7.0.8 `.hierograph` fixture the ITs boot against. -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.scanner</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm.scanner</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

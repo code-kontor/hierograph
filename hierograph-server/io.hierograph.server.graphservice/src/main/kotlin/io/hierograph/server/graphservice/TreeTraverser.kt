@@ -24,7 +24,7 @@ import io.hierograph.hierarchicalgraph.model.NodeMetadata
  *
  * Each line is `{indent*depth}[id] name (fqn)`, with the `name` and `(fqn)`
  * segments omitted when their value is unknown. This mirrors the output of
- * `io.hierograph.graphstore.model.printTree`, but resolves name/fqn through the
+ * `io.hierograph.graphstore.jvm.model.printTree`, but resolves name/fqn through the
  * server's [NodeMetadata] (i.e. from the
  * `ExtendedGraphDbNodeSource` attached to each node).
  *

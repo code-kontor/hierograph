@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.hierarchicalgraph.model.HGModel
 
 /**

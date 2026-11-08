@@ -15,9 +15,9 @@
  */
 package io.hierograph.itest.graphstore
 
-import io.hierograph.graphstore.detail.DetailQuery
-import io.hierograph.graphstore.detail.DetailQueryEngine
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.detail.DetailQuery
+import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

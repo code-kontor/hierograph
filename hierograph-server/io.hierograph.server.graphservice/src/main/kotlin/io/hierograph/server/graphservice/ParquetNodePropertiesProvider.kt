@@ -15,15 +15,15 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.GraphStore
+import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.server.mapping.GraphStoreNodeSource
-import io.hierograph.graphstore.model.MemberModifiers
-import io.hierograph.graphstore.model.TypeModifiers
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.model.TypeModifiers
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
-import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphstore.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import org.springframework.stereotype.Component
 import java.nio.file.Path
 

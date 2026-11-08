@@ -69,7 +69,7 @@
         <!-- Parquet-backed graph source (hierograph.graph.source=parquet). -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>

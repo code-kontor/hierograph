@@ -37,12 +37,12 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm</artifactId>
         </dependency>
         <!-- Server-owned scanning: ManifestGraphSource runs the ASM scanner over the manifest's modules. -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.scanner</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm.scanner</artifactId>
         </dependency>
 
         <!-- Native, event-driven file watching (macOS FSEvents / Linux inotify via JNA); opt-in watch mode. -->

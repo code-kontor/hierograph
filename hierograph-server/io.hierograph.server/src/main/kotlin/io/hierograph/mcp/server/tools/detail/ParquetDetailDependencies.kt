@@ -15,16 +15,16 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.detail.DetailEnricher
-import io.hierograph.graphstore.detail.DetailQuery
-import io.hierograph.graphstore.detail.DetailQueryEngine
-import io.hierograph.graphstore.detail.NodeDisplay
-import io.hierograph.graphstore.model.DetailRef
+import io.hierograph.graphstore.jvm.detail.DetailEnricher
+import io.hierograph.graphstore.jvm.detail.DetailQuery
+import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
+import io.hierograph.graphstore.jvm.detail.NodeDisplay
+import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.hierarchicalgraph.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.model.JavaEdgeAttributes
-import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.graphservice.pagination.DataHashProvider

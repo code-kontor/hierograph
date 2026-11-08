@@ -15,14 +15,14 @@
  */
 package io.hierograph.server.mapping
 
-import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.model.ArtifactInfo
-import io.hierograph.graphstore.model.ClassFacts
-import io.hierograph.graphstore.model.Origin
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.model.ArtifactInfo
+import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

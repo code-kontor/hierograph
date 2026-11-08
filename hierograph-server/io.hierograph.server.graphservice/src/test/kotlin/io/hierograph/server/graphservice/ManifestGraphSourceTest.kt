@@ -15,11 +15,11 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.GraphStore
-import io.hierograph.graphstore.PlaceholderPolicy
-import io.hierograph.graphstore.model.JavaKinds
-import io.hierograph.graphstore.model.Origin
-import io.hierograph.graphstore.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.Origin
+import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -51,7 +51,7 @@ class ManifestGraphSourceTest {
                   "testOutputDir": null,
                   "sourceRoots": [],
                   "classpath": [
-                    { "gav": "io.hierograph:io.hierograph.graphstore:0", "internal": true, "jar": null }
+                    { "gav": "io.hierograph:io.hierograph.graphstore.jvm:0", "internal": true, "jar": null }
                   ]
                 }
               ]
