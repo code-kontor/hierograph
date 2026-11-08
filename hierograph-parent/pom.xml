@@ -128,6 +128,13 @@
                 </dependencies>
                 <configuration>
                     <jvmTarget>${java.version}</jvmTarget>
+                    <!-- Retain method parameter names in the bytecode (MethodParameters attribute).
+                         Spring AI MCP derives tool-parameter schema keys from the reflective parameter
+                         names; without this the @Tool methods expose arg0/arg1/... instead of their real
+                         names (nodeIds, direction, ...), so callers cannot pass named arguments. -->
+                    <args>
+                        <arg>-java-parameters</arg>
+                    </args>
                     <compilerPlugins>
                         <plugin>spring</plugin>
                     </compilerPlugins>
