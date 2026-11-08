@@ -1,8 +1,9 @@
 # Hierarchical Graph — Core Specification
 
 This document specifies the hierarchical graph that forms the core of hierograph: its data
-model, the multiple-hierarchies design, the graph algorithms, and JSON serialization. It is
-the single contract for the `io.hierograph.hierarchicalgraph.*` modules.
+model, the multiple-hierarchies design, and the graph algorithms. JSON serialization is
+specified separately, in the serialization module's
+[`spec/hierarchicalgraph-serialization.md`](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.serialization/spec/hierarchicalgraph-serialization.md).
 
 It covers:
 
@@ -10,8 +11,6 @@ It covers:
   hierarchies, and their factories.
 - **`io.hierograph.hierarchicalgraph.core.algorithms`** — DSM construction, SCC detection
   (Tarjan), feedback-arc-set ordering (FastFAS), and adjacency representations.
-- **`io.hierograph.hierarchicalgraph.serialization`** — a flat, ID-keyed JSON snapshot
-  serializer for `HGModel`.
 
 ---
 
@@ -730,274 +729,7 @@ Upward dependencies are always `AggregatedDependency` instances, obtained via
 
 ---
 
-## 5. Serialization
-
-The `io.hierograph.hierarchicalgraph.serialization` module provides a flat, ID-keyed JSON
-serializer for `HGModel` instances using Jackson.
-
-The HG model has cyclic structure (`from/to ↔ outgoing/incoming` references), parent/child
-structure held in a `Hierarchy`, polymorphic `INodeSource` / `IDependencySource` SPIs, and
-several derived caches on the hierarchy that would bloat output. Rather than configure a
-generic object-graph serializer for all of this, the module projects the model to a flat
-record stream — nodes by id, core dependencies referencing nodes by id — and round-trips it
-via `HGGraphFactory` / `HierarchyFactory`. Caches are derived and rebuild lazily after load.
-
-### 5.1 Public API
-
-A single entry-point object, `HGGraphJson`. Everything else is in the `.internal`
-subpackage and is not part of the public API.
-
-```kotlin
-object HGGraphJson {
-    fun write(model: HGModel, prettyPrint: Boolean = false): String
-    fun write(model: HGModel, sink: OutputStream, prettyPrint: Boolean = false)
-
-    fun read(json: String): HGModel
-    fun read(source: InputStream): HGModel
-}
-```
-
-Out of the box, graphs whose nodes / dependencies use any of the following sources
-round-trip:
-
-- `DefaultNodeSource` / `DefaultDependencySource` — round-trip into the same type,
-  preserving `properties` and identifier type.
-- `GraphDbRootNodeSource` / `GraphDbNodeSource` / `GraphDbDependencySource` — round-trip
-  into `DefaultNodeSource` / `DefaultDependencySource` (no Bolt at read time). The snapshot
-  stores **identifier only** — lazy `labels` / `properties` are not force-loaded from Neo4j
-  on write, and `GraphDbDependencySource.type` is dropped (the relationship type is already
-  carried by `HGCoreDependency.type` and stored on the `DepRecord`).
-
-Other `INodeSource` / `IDependencySource` impls fail fast on `write`. There is no public
-hook to register custom codecs; the internal registry is promoted to public API when that
-need arises.
-
-`read` rejects snapshots whose `schemaVersion` differs from the current version with an
-`IllegalArgumentException`.
-
-### 5.2 Wire format (internal)
-
-The on-disk shape, written by Jackson via the internal data classes:
-
-```kotlin
-data class GraphSnapshot(
-    val schemaVersion: Int = SCHEMA_VERSION,   // SCHEMA_VERSION == 1
-    val root: NodeRecord,
-    val nodes: List<NodeRecord>,    // every non-root node, parents before children
-    val deps:  List<DepRecord>      // every core dependency, deduplicated by identity
-)
-
-data class NodeRecord(
-    val id: String,                 // String form of nodeSource.identifier
-    val parentId: String?,          // null only for the root
-    val kind: KindRef?,             // null when HGNode.kind is null
-    val source: SourceRef
-)
-
-data class DepRecord(
-    val id: String,                 // String form of dependencySource.identifier
-    val fromId: String,
-    val toId:   String,
-    val type:   String,             // HGCoreDependency.type, e.g. "DEPENDS_ON"
-    val weight: Int,
-    val attributesBitmap: Int,      // raw bits; decode via JavaEdgeAttributes
-    val source: SourceRef
-)
-
-data class KindRef(val type: String, val value: String)
-data class SourceRef(val type: String, val payload: Map<String, String> = emptyMap())
-```
-
-Design choices baked in:
-
-- **IDs as `String`.** `HGNode.identifier` / `dependencySource.identifier` are `Any` (in
-  practice `Long`, `Int`, or `String`). Stringifying gives a stable wire form; per-source
-  codecs own the coercion back.
-- **`KindRef` carries `(type, value)`.** `HGNode.kind` is `Any?`. The pair stores the fully
-  qualified class name and the string form, so any enum kind round-trips without the
-  serialization module having to know about the enum class.
-- **`SourceRef` is a discriminated `Map<String, String>` payload.** This keeps the snapshot
-  open: it does not have to know every `INodeSource` / `IDependencySource` impl statically.
-
-### 5.3 Codec SPI and registry (internal)
-
-The serializer never reflects on `INodeSource` or `IDependencySource` directly — it defers
-per-impl encoding to codecs registered in a `CodecRegistry`. A codec's `read` return type is
-the SPI base (`INodeSource` / `IDependencySource`), not the type parameter `S`; this lets a
-codec write one impl and read back a plain copy of a different impl (the graphdb codecs use
-this to round-trip `GraphDb*Source` → `Default*Source` without a Bolt client at read time).
-
-```kotlin
-interface NodeSourceCodec<S : INodeSource> {
-    val typeId: String                              // written to SourceRef.type
-    val sourceClass: Class<S>
-    fun write(source: S): Map<String, String>
-    fun read(identifier: String, payload: Map<String, String>): INodeSource   // not S
-}
-
-interface DepSourceCodec<S : IDependencySource> { /* mirror */ }
-
-class CodecRegistry {
-    fun register(codec: NodeSourceCodec<*>): CodecRegistry
-    fun register(codec: DepSourceCodec<*>): CodecRegistry
-
-    fun nodeCodecFor(source: INodeSource): NodeSourceCodec<INodeSource>
-    fun nodeCodecFor(typeId: String):      NodeSourceCodec<INodeSource>
-    fun depCodecFor(source: IDependencySource): DepSourceCodec<IDependencySource>
-    fun depCodecFor(typeId: String):            DepSourceCodec<IDependencySource>
-
-    companion object {
-        /** Registry preloaded with codecs for the default and graphdb sources. */
-        fun defaults(): CodecRegistry
-    }
-}
-```
-
-Lookup by class matches the exact class first, then walks the source's superclasses, so
-codecs registered for `DefaultNodeSource` also handle simple subclasses unless overridden by
-an exact-class codec. Lookup by `typeId` is exact. Both lookups raise an error when no codec
-matches.
-
-**Codecs shipped out of the box.** `HGGraphJson` uses `CodecRegistry.defaults()`, which
-preloads:
-
-| typeId          | Writes                                                            | Reads back into                       |
-|-----------------|-------------------------------------------------------------------|---------------------------------------|
-| `default-node`  | `DefaultNodeSource.properties` plus `_idType`                     | `DefaultNodeSource(id, props)`        |
-| `default-dep`   | `DefaultDependencySource.properties` plus `_idType`               | `DefaultDependencySource(id, props)`  |
-| `graphdb-root`  | identifier + `_idType` only (no Bolt I/O, no `labels`/`properties`) | `DefaultNodeSource(id)`             |
-| `graphdb-node`  | identifier + `_idType` only (no Bolt I/O, no `labels`/`properties`) | `DefaultNodeSource(id)`             |
-| `graphdb-dep`   | identifier + `_idType` only (no Bolt I/O, drops `type`)           | `DefaultDependencySource(id)`         |
-
-The `_idType` payload key (`long` / `int` / `string`) lets the reader coerce the wire string
-back to the original identifier type via the shared `coerceIdentifier()` helper; adding new
-identifier types is a codec-only change. Identifiers of any other type raise an
-`UnsupportedOperationException` on write.
-
-The three `graphdb-*` codecs are deliberately identifier-only: the read side has no Bolt
-client, so all graphdb sources hydrate as plain `Default*Source` copies. To preserve
-`labels` / `properties` in a future revision, extend the graphdb codecs to materialize them
-on write and bump `GraphSnapshot.SCHEMA_VERSION`.
-
-### 5.4 Kind round-trip
-
-`HGNode.kind` is `Any?`. The serializer writes `KindRef(type, value)` where `type` is the
-kind class's FQCN and `value` is its string form (via the internal `encodeKind` /
-`decodeKind` helpers):
-
-- **`null` kind** → `KindRef` is null in the wire record.
-- **Enum kind** (e.g. `JavaNodeKind`) → `value = enum.name`. The reader resolves via
-  `Class.forName(type).enumConstants.first { (it as Enum<*>).name == value }`.
-- **String kind** → `type = "java.lang.String"`, `value = kindString`.
-
-No codec registration is needed for these cases. Other kind classes raise an
-`UnsupportedOperationException` on write.
-
-### 5.5 Writer (internal)
-
-`GraphWriter` performs one pre-order traversal of the hierarchy tree plus one identity-dedup
-pass for dependencies:
-
-```kotlin
-class GraphWriter(private val codecs: CodecRegistry) {
-    fun write(model: HGModel): GraphSnapshot
-}
-```
-
-It reads the tree from `model.hierarchy`: it starts at `hierarchy.rootNode` and recurses
-through `hierarchy.childrenOf(node)`, emitting the root into `GraphSnapshot.root` and all
-other nodes into `nodes` in pre-order.
-
-Invariants:
-
-- **Traverse only `outgoingCoreDependencies`.** Every dependency appears in exactly one
-  `outgoing` list and one `incoming` list (by `HGGraphFactory`'s construction); picking the
-  outgoing side, accumulated across every visited node into a `LinkedHashSet`, avoids
-  duplicates without identity-equality machinery on the wire.
-- **Never touch derived caches.** `accumulatedOutgoing/Incoming`, `predecessorsOf(...)`,
-  `getAggregatedDependency(...)` etc. on the `Hierarchy` are derived; touching them on the
-  write path would force pointless work.
-
-### 5.6 Reader (internal)
-
-`GraphReader` performs two passes: create nodes (parents before children), then attach
-dependencies:
-
-```kotlin
-class GraphReader(private val codecs: CodecRegistry) {
-    fun read(snapshot: GraphSnapshot): HGModel
-}
-```
-
-It rebuilds the model from its parts: creates an empty graph with
-`HGGraphFactory.createHGGraph()`, materializes the root with
-`HGGraphFactory.createNode(graph) { ... }`, then opens a `Hierarchy` via
-`HierarchyFactory.createHierarchy(coreGraph, root)`. Each non-root node is created the same
-way and attached with `HierarchyFactory.addChild(hierarchy, parent, node)`. Dependencies are
-created with `HGGraphFactory.createCoreDependency(from, to, type) { ... }`. The result is
-wrapped as `HGModel(coreGraph, hierarchy)`.
-
-Invariants:
-
-- **Parents before children.** `HierarchyFactory.addChild` requires the parent to already
-  exist in the `byId` map; the writer's pre-order layout satisfies this in one linear pass.
-  A non-root record with a `null` or unknown `parentId` is rejected with an
-  `IllegalArgumentException`.
-- **Caches stay cold.** The factories never populate the hierarchy's derived caches, so the
-  deserialized model is clean — first access to `accumulatedOutgoing/Incoming` etc. rebuilds
-  lazily.
-- **`weight` and `attributesBitmap` are settable post-construction** on `HGCoreDependency`,
-  which is why they are not part of `createCoreDependency`'s signature; the reader sets them
-  from the `DepRecord` after creating each dependency.
-
-### 5.7 Jackson configuration
-
-`HGGraphJson` holds two long-lived `ObjectMapper` singletons (compact + pretty), both built
-from `jacksonObjectMapper()` (the Kotlin module) with:
-
-- `SerializationFeature.INDENT_OUTPUT` toggled per mapper.
-- `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES` disabled — leaving forward-compat room
-  for schema fields added by later writers; combined with the explicit `schemaVersion` check
-  for hard breaks.
-
-`GraphReader.read` enforces `schemaVersion == GraphSnapshot.SCHEMA_VERSION` and throws
-`IllegalArgumentException` otherwise.
-
-### 5.8 Module layout
-
-```
-io.hierograph.hierarchicalgraph.serialization/
-├── HGGraphJson.kt              ← public entry point
-└── internal/
-    ├── CodecRegistry.kt
-    ├── DefaultCodecs.kt        (DefaultNodeSourceCodec, DefaultDependencySourceCodec; plus shared identifier helpers ID_TYPE_KEY, identifierTypeKey(), coerceIdentifier())
-    ├── GraphDbCodecs.kt        (GraphDbRootNodeSourceCodec, GraphDbNodeSourceCodec, GraphDbDependencySourceCodec)
-    ├── GraphReader.kt
-    ├── GraphSnapshot.kt        (GraphSnapshot, NodeRecord, DepRecord, KindRef, SourceRef)
-    ├── GraphWriter.kt
-    ├── KindReferences.kt       (encodeKind / decodeKind)
-    └── SourceCodecs.kt         (NodeSourceCodec, DepSourceCodec)
-```
-
-The `.internal` subpackage is kept off the public surface so it can evolve freely.
-
-### 5.9 What serialization does NOT preserve
-
-| Thing                                                | Behavior                                              |
-|------------------------------------------------------|-------------------------------------------------------|
-| Identity equality across round-trip                  | Broken; `node1 === node2` won't hold. Equality on `identifier` does. |
-| `HGGraph` extensions (`registerExtension(...)`)      | Skipped. Runtime hooks (Spring beans, bolt clients) are caller-owned. |
-| `AggregatedDependency`                               | Not serialized; the hierarchy regenerates it on demand from core deps. |
-| `GraphDbDependencySource.userObject`                 | Not serialized; runtime-only annotation.              |
-| `INodeSource.node` / `IDependencySource.dependency`  | Set automatically by `HGGraphFactory` on read.        |
-
-**Approximate cost:** O(N + E) on both write and read. Wire size (gzipped JSON, rough):
-~50–80 bytes per node, ~30–50 bytes per core dep. A 100k-node / 500k-edge graph lands
-~30–60 MB uncompressed, ~5–15 MB gzipped.
-
----
-
-## 6. Structural invariants
+## 5. Structural invariants
 
 These invariants hold at all times after a factory function returns. Structural invariants
 (parent/child, predecessors, accumulated, aggregated) are stated **relative to a hierarchy
@@ -1025,7 +757,7 @@ These invariants hold at all times after a factory function returns. Structural 
 
 ---
 
-## 7. Test model
+## 6. Test model
 
 The following graph structure (one core graph with a single hierarchy `H`) serves as the
 canonical test model:
@@ -1076,7 +808,7 @@ root
 
 ---
 
-## 8. Scope exclusions
+## 7. Scope exclusions
 
 - **Proxy dependencies** — there is no lazy proxy-dependency resolution mechanism.
 - **GraphDB mapping** — populating the graph from Neo4j/Cypher is a separate concern.
