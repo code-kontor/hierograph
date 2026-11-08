@@ -28,12 +28,13 @@ import java.io.InputStream
 import java.io.OutputStream
 
 /**
- * JSON serializer for [HGModel] instances. See the design at
- * `docs/specifications/hierarchicalgraph-specifications/hierarchicalgraph-serialization-spec.md`.
+ * JSON serializer for [HGModel] instances: writes the hierarchy's tree and the
+ * core dependencies as one flat document and rebuilds an equivalent model from
+ * it. The format is specified in this module's
+ * `spec/hierarchicalgraph-serialization.md`.
  *
- * Out of the box, `DefaultNodeSource` and `DefaultDependencySource` are
- * supported. Graphs backed by other `INodeSource` / `IDependencySource` impls
- * will fail fast on [write].
+ * Only `DefaultNodeSource` and `DefaultDependencySource` are supported. Writing a
+ * model that contains any other `INodeSource` / `IDependencySource` type fails.
  */
 object HGGraphJson {
 
