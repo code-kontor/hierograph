@@ -18,11 +18,11 @@ package io.hierograph.maven.plugin
 /** Current manifest schema version; bump on any incompatible shape change. */
 internal const val SCHEMA_VERSION = 1
 
-/** Per-module fragment location, relative to a module's `target` directory (`hierograph:register` writes it). */
-internal const val FRAGMENT_SUBDIR = "hierograph"
-internal const val FRAGMENT_FILE = "module.json"
+/** Per-module descriptor location, relative to a module's `target` directory (`hierograph:create-descriptor` writes it). */
+internal const val DESCRIPTOR_SUBDIR = "hierograph"
+internal const val DESCRIPTOR_FILE = "module.json"
 
-/** The merged manifest file name written into the top-level `.hierograph` directory (`hierograph:manifest`). */
+/** The merged manifest file name written into the top-level `.hierograph` directory (`hierograph:merge-descriptors`). */
 internal const val MANIFEST_FILE = "manifest.json"
 
 /**
@@ -30,31 +30,32 @@ internal const val MANIFEST_FILE = "manifest.json"
  * reactor sibling (scanned from its own output directory, so [jar] is irrelevant); [jar] is the resolved
  * local path of an external dependency, which lets the server API-scan libraries it has not yet cached.
  */
-internal data class ClasspathEntryManifest(
+internal data class ClasspathEntry(
     val gav: String,
     val internal: Boolean,
     val jar: String?,
 )
 
 /**
- * A single reactor module — the fragment `hierograph:register` writes per module and `hierograph:manifest`
- * merges. Only the build tool knows these facts (module layout + the already-resolved classpath), so the
- * plugin reports them and the server never has to resolve dependencies itself.
+ * A single reactor module's descriptor — written per module by `hierograph:create-descriptor` and merged
+ * into the manifest by `hierograph:merge-descriptors`. Only the build tool knows these facts (module layout
+ * + the already-resolved classpath), so the plugin reports them and the server never has to resolve
+ * dependencies itself.
  */
-internal data class ModuleManifest(
+internal data class ModuleDescriptor(
     val gav: String,
     val name: String,
     val mainOutputDir: String?,
     val testOutputDir: String?,
     val sourceRoots: List<String>,
-    val classpath: List<ClasspathEntryManifest>,
+    val classpath: List<ClasspathEntry>,
 )
 
-/** The merged top-level manifest `hierograph:manifest` writes and the local MCP server reads. */
+/** The merged top-level manifest `hierograph:merge-descriptors` writes and the local MCP server reads. */
 internal data class Manifest(
     val schemaVersion: Int,
     val generator: String,
     val generatedAt: String,
     val reactorRoot: String,
-    val modules: List<ModuleManifest>,
+    val modules: List<ModuleDescriptor>,
 )

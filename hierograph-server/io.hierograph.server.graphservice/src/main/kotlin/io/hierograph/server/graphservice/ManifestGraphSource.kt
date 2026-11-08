@@ -36,7 +36,7 @@ import kotlin.io.path.isDirectory
 import kotlin.time.measureTimedValue
 
 /**
- * Scans the reactor modules named in a build manifest (`hierograph:manifest` → `.hierograph/manifest.json`)
+ * Scans the reactor modules named in a build manifest (`hierograph:merge-descriptors` → `.hierograph/manifest.json`)
  * — the server-owned replacement for the former plugin-side scan. The plugin only records what the build
  * tool knows (module layout + resolved classpath); the server runs the ASM [BytecodeScanner] itself.
  *
@@ -97,7 +97,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
 
     /** Reads [manifestPath] and scans every module's compiled main output into per-module [ModuleScan]s. */
     fun scan(manifestPath: Path, includeTests: Boolean = false): Scanned {
-        require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:manifest`)" }
+        require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:create-descriptor hierograph:merge-descriptors`)" }
         val manifest = MAPPER.readValue<ManifestDto>(manifestPath.toFile())
         val remap = PathRemap(manifestPath, manifest.reactorRoot)
 

@@ -68,7 +68,7 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.parquetDir:parquet}")
     private lateinit var parquetDir: String
 
-    /** Build manifest the server scans in `manifest` mode (written by `hierograph:manifest`). */
+    /** Build manifest the server scans in `manifest` mode (written by `hierograph:merge-descriptors`). */
     @Value("\${hierograph.graph.manifest:.hierograph/manifest.json}")
     private lateinit var manifestFile: String
 

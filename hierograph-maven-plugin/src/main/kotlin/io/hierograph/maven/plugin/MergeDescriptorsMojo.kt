@@ -26,16 +26,16 @@ import java.io.File
 import java.time.Instant
 
 /**
- * `hierograph:manifest` — merges every reactor module's `module.json` fragment (written by
- * `hierograph:register` into each module's `target/hierograph/`) into one top-level `manifest.json`. By
- * default it is written to the reactor root's `.hierograph/` directory, which the local MCP server reads
+ * `hierograph:merge-descriptors` — merges every reactor module's `module.json` descriptor (written by
+ * `hierograph:create-descriptor` into each module's `target/hierograph/`) into one top-level `manifest.json`.
+ * By default it is written to the reactor root's `.hierograph/` directory, which the local MCP server reads
  * to scan each module's compiled output itself and observe the output directories for live updates.
  *
  * An aggregator goal: runs once on the top-level build. On a duplicate module (same GAV from two
- * fragments) it warns and keeps the first.
+ * descriptors) it warns and keeps the first.
  */
-@Mojo(name = "manifest", defaultPhase = LifecyclePhase.VERIFY, aggregator = true, threadSafe = true)
-class ManifestMojo : AbstractMojo() {
+@Mojo(name = "merge-descriptors", defaultPhase = LifecyclePhase.VERIFY, aggregator = true, threadSafe = true)
+class MergeDescriptorsMojo : AbstractMojo() {
 
     @Parameter(defaultValue = "\${session}", readonly = true, required = true)
     private lateinit var session: MavenSession
@@ -56,24 +56,24 @@ class ManifestMojo : AbstractMojo() {
 
     override fun execute() {
         if (skip) {
-            log.info("hierograph:manifest skipped (hierograph.skip=true)")
+            log.info("hierograph:merge-descriptors skipped (hierograph.skip=true)")
             return
         }
 
         val seen = HashMap<String, String>() // gav -> the module that provided it
-        val modules = ArrayList<ModuleManifest>()
+        val modules = ArrayList<ModuleDescriptor>()
         for (project in session.allProjects) {
-            val fragment = File(File(project.build.directory, FRAGMENT_SUBDIR), FRAGMENT_FILE)
-            if (!fragment.isFile) continue
+            val descriptorFile = File(File(project.build.directory, DESCRIPTOR_SUBDIR), DESCRIPTOR_FILE)
+            if (!descriptorFile.isFile) continue
             val module = try {
-                GSON.fromJson(fragment.readText(), ModuleManifest::class.java)
+                GSON.fromJson(descriptorFile.readText(), ModuleDescriptor::class.java)
             } catch (e: Exception) {
-                log.warn("hierograph:manifest: could not read fragment $fragment: ${e.message}")
+                log.warn("hierograph:merge-descriptors: could not read descriptor $descriptorFile: ${e.message}")
                 continue
             } ?: continue
             val first = seen.putIfAbsent(module.gav, project.artifactId)
             if (first != null) {
-                log.warn("hierograph:manifest: duplicate module '${module.gav}' from ${project.artifactId}; keeping the one from $first")
+                log.warn("hierograph:merge-descriptors: duplicate module '${module.gav}' from ${project.artifactId}; keeping the one from $first")
             } else {
                 modules += module
             }
@@ -91,9 +91,9 @@ class ManifestMojo : AbstractMojo() {
         manifestDir.mkdirs()
         val out = File(manifestDir, MANIFEST_FILE)
         out.writeText(GSON.toJson(manifest) + "\n")
-        log.info("hierograph:manifest: ${modules.size} module(s) → $out")
+        log.info("hierograph:merge-descriptors: ${modules.size} module(s) → $out")
         if (modules.isEmpty()) {
-            log.warn("hierograph:manifest: no module fragments found — did `hierograph:register` run for the modules?")
+            log.warn("hierograph:merge-descriptors: no module descriptors found — did `hierograph:create-descriptor` run for the modules?")
         }
     }
 

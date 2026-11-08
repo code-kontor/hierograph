@@ -6,7 +6,7 @@ target/
 reports/
 logs/
 
-# Hierograph build manifest (written by hierograph:manifest for the local MCP server)
+# Hierograph build manifest (written by hierograph:merge-descriptors for the local MCP server)
 .hierograph/
 
 # Hierograph graph dump (written by the server on each load)

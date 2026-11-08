@@ -16,11 +16,11 @@
 
     <name>Hierograph Maven Plugin</name>
     <description>
-        Records a Maven reactor's module layout for the Hierograph MCP server during the build: the `register`
-        goal writes a per-module fragment (GAV, compiled-output directories and the resolved classpath), and
-        the `manifest` goal merges them into one top-level `.hierograph/manifest.json`. The server does the
-        scanning — the plugin only reports what the build tool knows, so it pulls in no scanner or Parquet
-        dependencies.
+        Records a Maven reactor's module layout for the Hierograph MCP server during the build: the
+        `create-descriptor` goal writes a per-module descriptor (GAV, compiled-output directories and the
+        resolved classpath), and the `merge-descriptors` goal merges them into one top-level
+        `.hierograph/manifest.json`. The server does the scanning — the plugin only reports what the build
+        tool knows, so it pulls in no scanner or Parquet dependencies.
     </description>
 
     <properties>

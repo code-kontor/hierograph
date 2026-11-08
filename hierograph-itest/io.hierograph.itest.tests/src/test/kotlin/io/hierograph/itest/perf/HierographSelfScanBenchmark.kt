@@ -40,7 +40,7 @@ import kotlin.time.measureTimedValue
 
 /**
  * Performance benchmark for scanning the **Hierograph project itself**. It first creates the build
- * manifest with the real plugin (`hierograph:register` per module → `hierograph:manifest`), then measures:
+ * manifest with the real plugin (`hierograph:create-descriptor` per module → `hierograph:merge-descriptors`), then measures:
  *
  *   a) **parsing** — the ASM [BytecodeScanner] over every module's compiled output into `ClassFacts`
  *      and member-level detail refs (what the server does in `manifest` mode); and
@@ -134,11 +134,11 @@ class HierographSelfScanBenchmark {
         error("Could not locate the Hierograph reactor root from ${Path.of("").toAbsolutePath()}")
     }
 
-    /** Run `mvn … hierograph:register hierograph:manifest` at [root] to (re)create `.hierograph/manifest.json`. */
+    /** Run `mvn … hierograph:create-descriptor hierograph:merge-descriptors` at [root] to (re)create `.hierograph/manifest.json`. */
     private fun createManifest(root: Path) {
         val version = projectVersion(root)
         val plugin = "io.hierograph:io.hierograph.maven.plugin:$version"
-        val cmd = listOf("mvn", "-q", "-B", "process-classes", "$plugin:register", "$plugin:manifest")
+        val cmd = listOf("mvn", "-q", "-B", "process-classes", "$plugin:create-descriptor", "$plugin:merge-descriptors")
         log.info("Creating manifest: {}", cmd.joinToString(" "))
         val process = ProcessBuilder(cmd).directory(root.toFile()).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()
