@@ -204,15 +204,13 @@ scanned facts, only the inputs the server needs to produce them.
 
 ## 7. Conformance
 
-The format above is the target contract. Current status:
+The format above is implemented end to end: the envelope, `classpath` (all non-test
+scopes) and `testClasspath` (the full test classpath), the path-portability rule,
+lenient parsing, main/test scanning, the classpath-order resolver, and directory
+watching. The producer resolves test scope, emits `testClasspath` and
+`testSourceRoots`, and widens the main classpath to `provided`/`system`; the
+consumer resolves `<gav>:test` against `testClasspath`, falling back to the main
+classpath for a manifest from an older producer that omits it.
 
-- **Implemented:** the envelope, `classpath` (main), the path-portability rule,
-  lenient parsing, main/test scanning, the classpath-order resolver, and
-  directory watching.
-- **Pending (this spec's additions):** `testClasspath` — the producer must emit it
-  (resolving test scope) and the consumer must resolve `<gav>:test` against it
-  instead of reusing the main classpath; widening the **main** `classpath` to
-  include `provided`/`system` scopes; and emitting `testSourceRoots` (from the
-  module's test source roots) alongside the existing `sourceRoots`. Until then,
-  test references to test-scope dependencies and main references to `provided`
-  types resolve to external placeholders, and no test source roots are recorded.
+The only fields produced but **not yet consumed** are the reserved ones (§5):
+`jar`, `sourceRoots`, and `testSourceRoots`.

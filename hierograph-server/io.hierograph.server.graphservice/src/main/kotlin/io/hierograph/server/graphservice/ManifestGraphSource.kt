@@ -84,7 +84,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val mainOutputDir: String? = null,
         val testOutputDir: String? = null,
         val sourceRoots: List<String> = emptyList(),
+        val testSourceRoots: List<String> = emptyList(),
         val classpath: List<ClasspathEntryDto> = emptyList(),
+        val testClasspath: List<ClasspathEntryDto>? = null,
     )
 
     private data class ManifestDto(
@@ -120,10 +122,11 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
                     val testKey = "${module.gav}:test"
                     val testName = "$name (test)"
                     // Test types resolve against their own output first, then the module's main output, then
-                    // its compile+runtime deps. Test-scope deps (JUnit, …) aren't in the manifest classpath,
-                    // so references to them fall out as external types until the plugin emits a test classpath.
+                    // the module's full test classpath (all scopes). An older manifest without testClasspath
+                    // falls back to the main classpath, so test-scope deps (JUnit, …) resolve as external types.
+                    val testCp = module.testClasspath?.map { ClasspathEntry(it.gav, it.internal) } ?: mainCp
                     classpaths[testKey] = ArtifactClasspath(
-                        testKey, testName, listOf(ClasspathEntry(module.gav, internal = true)) + mainCp,
+                        testKey, testName, listOf(ClasspathEntry(module.gav, internal = true)) + testCp,
                     )
                     modules[testKey] = ModuleScan(testKey, testName, testDir, scanModule(testKey, testDir), Origin.MODULE_TEST)
                 }

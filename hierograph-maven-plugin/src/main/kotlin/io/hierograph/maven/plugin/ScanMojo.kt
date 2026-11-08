@@ -45,7 +45,7 @@ import java.io.File
 @Mojo(
     name = "scan",
     defaultPhase = LifecyclePhase.PACKAGE,
-    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME,
+    requiresDependencyResolution = ResolutionScope.TEST,
     threadSafe = true,
 )
 class ScanMojo : AbstractMojo() {
@@ -100,20 +100,20 @@ class ScanMojo : AbstractMojo() {
 
         val key = gav(project.groupId, project.artifactId, project.version)
         val reactorGavs = session.allProjects.mapTo(HashSet()) { gav(it.groupId, it.artifactId, it.version) }
-        val classpathEntries = project.artifacts
-            .filter { it.scope == "compile" || it.scope == "runtime" }
+        fun entries(include: (String) -> Boolean) = project.artifacts
+            .filter { include(it.scope) }
             .map { val g = gav(it.groupId, it.artifactId, it.version); ClasspathEntry(g, internal = g in reactorGavs) }
 
-        // Main output: the module itself, classpath = its resolved dependencies.
-        scanAndAttach(key, project.artifactId, outputDirectory, ArtifactClasspath(key, project.artifactId, classpathEntries), classifier = null)
+        // Main output: the module itself, classpath = its non-test dependencies (compile/runtime/provided/system).
+        scanAndAttach(key, project.artifactId, outputDirectory, ArtifactClasspath(key, project.artifactId, entries { it != "test" }), classifier = null)
 
         if (includeTestClasses) {
             if (testOutputDirectory.isDirectory) {
-                // Test output keyed `<gav>:test`; it depends on the main module, then the main classpath
-                // (test-scope dependencies are not resolved here) — the same shape the server's manifest scan uses.
+                // Test output keyed `<gav>:test`; it depends on the main module, then the full test classpath
+                // (all scopes) — the same shape the server's manifest scan uses.
                 val testKey = "$key:test"
                 val testName = "${project.artifactId} (test)"
-                val testClasspath = ArtifactClasspath(testKey, testName, listOf(ClasspathEntry(key, internal = true)) + classpathEntries)
+                val testClasspath = ArtifactClasspath(testKey, testName, listOf(ClasspathEntry(key, internal = true)) + entries { true })
                 scanAndAttach(testKey, testName, testOutputDirectory, testClasspath, classifier = "tests")
             } else {
                 log.info("hierograph:scan: no compiled test classes at $testOutputDirectory; skipping test archive")

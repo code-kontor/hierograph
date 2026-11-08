@@ -28,8 +28,8 @@ import java.io.File
 /**
  * `hierograph:create-descriptor` — records this module's build facts into a per-module *descriptor*. It does
  * **not** scan bytecode: it writes a small `module.json` to the module's `target/hierograph/` describing the
- * GAV, the compiled-output directories (main/test), the source roots, and the resolved compile+runtime
- * classpath — each entry flagged internal (a reactor sibling) or external, with its resolved jar path.
+ * GAV, the compiled-output directories and source roots (main/test), and the resolved main and test
+ * classpaths — each entry flagged internal (a reactor sibling) or external, with its resolved jar path.
  * `hierograph:merge-descriptors` later folds every module's descriptor into one top-level manifest that the
  * local MCP server scans and observes.
  *
@@ -39,7 +39,7 @@ import java.io.File
 @Mojo(
     name = "create-descriptor",
     defaultPhase = LifecyclePhase.PROCESS_CLASSES,
-    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME,
+    requiresDependencyResolution = ResolutionScope.TEST,
     threadSafe = true,
 )
 class CreateDescriptorMojo : AbstractMojo() {
@@ -71,12 +71,15 @@ class CreateDescriptorMojo : AbstractMojo() {
         }
 
         val reactorGavs = session.allProjects.mapTo(HashSet()) { gav(it.groupId, it.artifactId, it.version) }
-        val classpath = project.artifacts
-            .filter { it.scope == "compile" || it.scope == "runtime" }
+        fun entries(include: (String) -> Boolean) = project.artifacts
+            .filter { include(it.scope) }
             .map {
                 val g = gav(it.groupId, it.artifactId, it.version)
                 ClasspathEntry(gav = g, internal = g in reactorGavs, jar = it.file?.absolutePath)
             }
+        // Main classpath = every non-test scope (compile/runtime/provided/system); test classpath = all scopes.
+        val classpath = entries { it != "test" }
+        val testClasspath = if (testDir != null) entries { true } else null
 
         val descriptor = ModuleDescriptor(
             gav = gav(project.groupId, project.artifactId, project.version),
@@ -84,7 +87,9 @@ class CreateDescriptorMojo : AbstractMojo() {
             mainOutputDir = mainDir?.absolutePath,
             testOutputDir = testDir?.absolutePath,
             sourceRoots = project.compileSourceRoots.toList(),
+            testSourceRoots = project.testCompileSourceRoots.toList(),
             classpath = classpath,
+            testClasspath = testClasspath,
         )
 
         val descriptorDir = File(project.build.directory, DESCRIPTOR_SUBDIR).apply { mkdirs() }

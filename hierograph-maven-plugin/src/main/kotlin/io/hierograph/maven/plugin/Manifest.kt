@@ -39,8 +39,9 @@ internal data class ClasspathEntry(
 /**
  * A single reactor module's descriptor — written per module by `hierograph:create-descriptor` and merged
  * into the manifest by `hierograph:merge-descriptors`. Only the build tool knows these facts (module layout
- * + the already-resolved classpath), so the plugin reports them and the server never has to resolve
- * dependencies itself.
+ * + the already-resolved classpaths), so the plugin reports them and the server never has to resolve
+ * dependencies itself. [classpath] is the module's non-test scopes; [testClasspath] the full test classpath
+ * (all scopes), omitted when the module has no test output.
  */
 internal data class ModuleDescriptor(
     val gav: String,
@@ -48,7 +49,9 @@ internal data class ModuleDescriptor(
     val mainOutputDir: String?,
     val testOutputDir: String?,
     val sourceRoots: List<String>,
+    val testSourceRoots: List<String>,
     val classpath: List<ClasspathEntry>,
+    val testClasspath: List<ClasspathEntry>? = null,
 )
 
 /** The merged top-level manifest `hierograph:merge-descriptors` writes and the local MCP server reads. */
