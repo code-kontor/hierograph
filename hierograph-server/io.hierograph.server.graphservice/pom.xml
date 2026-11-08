@@ -10,7 +10,7 @@
         <version>0.2.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>io.hierograph.graphservice</artifactId>
+    <artifactId>io.hierograph.server.graphservice</artifactId>
     <packaging>jar</packaging>
     <name>Hierograph Graph Service</name>
     <description>

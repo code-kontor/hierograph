@@ -35,7 +35,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphservice</artifactId>
+            <artifactId>io.hierograph.server.graphservice</artifactId>
         </dependency>
 
         <!-- kotlin -->
