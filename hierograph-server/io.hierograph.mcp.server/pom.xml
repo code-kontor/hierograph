@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>io.hierograph</groupId>
-        <artifactId>hierograph-mcp</artifactId>
+        <artifactId>hierograph-server</artifactId>
         <version>0.2.0-SNAPSHOT</version>
     </parent>
 

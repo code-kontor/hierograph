@@ -15,7 +15,7 @@
     <modules>
         <module>hierograph-parent</module>
         <module>hierograph-hierarchicalgraph</module>
-        <module>hierograph-mcp</module>
+        <module>hierograph-server</module>
         <module>hierograph-graphstore</module>
         <module>hierograph-maven-plugin</module>
     </modules>

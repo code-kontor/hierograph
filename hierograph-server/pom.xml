@@ -11,10 +11,10 @@
         <relativePath>../hierograph-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>hierograph-mcp</artifactId>
+    <artifactId>hierograph-server</artifactId>
     <packaging>pom</packaging>
 
-    <name>Hierograph MCP</name>
+    <name>Hierograph Server</name>
 
     <modules>
         <module>io.hierograph.graphstore.hgmodel</module>
