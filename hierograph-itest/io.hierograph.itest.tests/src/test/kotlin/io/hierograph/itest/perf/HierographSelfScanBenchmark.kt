@@ -137,7 +137,7 @@ class HierographSelfScanBenchmark {
     /** Run `mvn … hierograph:create-descriptor hierograph:merge-descriptors` at [root] to (re)create `.hierograph/manifest.json`. */
     private fun createManifest(root: Path) {
         val version = projectVersion(root)
-        val plugin = "io.hierograph:io.hierograph.maven.plugin:$version"
+        val plugin = "io.hierograph:hierograph-maven-plugin:$version"
         val cmd = listOf("mvn", "-q", "-B", "process-classes", "$plugin:create-descriptor", "$plugin:merge-descriptors")
         log.info("Creating manifest: {}", cmd.joinToString(" "))
         val process = ProcessBuilder(cmd).directory(root.toFile()).redirectErrorStream(true).start()

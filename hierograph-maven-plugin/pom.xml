@@ -11,7 +11,7 @@
         <relativePath>../hierograph-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>io.hierograph.maven.plugin</artifactId>
+    <artifactId>hierograph-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
 
     <name>Hierograph Maven Plugin</name>

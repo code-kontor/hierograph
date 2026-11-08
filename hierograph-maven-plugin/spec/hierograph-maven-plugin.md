@@ -12,7 +12,7 @@ deliberate: a build stays fast and side-effect-free, and a scanned graph becomes
 something you can version, deploy, and resolve by coordinates like any other
 artifact.
 
-- **Group ID / Artifact ID:** `io.hierograph` / `io.hierograph.maven.plugin`
+- **Group ID / Artifact ID:** `io.hierograph` / `hierograph-maven-plugin`
 - **Goal prefix:** `hierograph`
 - **Requires:** Maven 3.9+, Java 21
 - **Thread-safe:** yes (all goals)
@@ -372,7 +372,7 @@ Bind `create-descriptor` per module and `merge-descriptors` once at the root:
 ```xml
 <plugin>
   <groupId>io.hierograph</groupId>
-  <artifactId>io.hierograph.maven.plugin</artifactId>
+  <artifactId>hierograph-maven-plugin</artifactId>
   <version>${hierograph.version}</version>
   <executions>
     <execution>
@@ -395,7 +395,7 @@ Bind `scan` so each module's scan is attached and deployed:
 ```xml
 <plugin>
   <groupId>io.hierograph</groupId>
-  <artifactId>io.hierograph.maven.plugin</artifactId>
+  <artifactId>hierograph-maven-plugin</artifactId>
   <version>${hierograph.version}</version>
   <executions>
     <execution>
