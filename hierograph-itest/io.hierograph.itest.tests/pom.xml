@@ -22,7 +22,7 @@
     <dependencies>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.mcp.server</artifactId>
+            <artifactId>io.hierograph.server</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
