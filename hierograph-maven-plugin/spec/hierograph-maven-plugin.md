@@ -67,15 +67,15 @@ reads/writes, return/parameter/throws types, annotations). An archive describes
 one artifact in isolation.
 
 **Descriptor.** A small per-module file (`module.json`) recording the build-only
-facts about a module — its coordinates, compiled-output directories, and resolved
-classpath in Maven order. It carries no scanned bytecode; it is the input a
-watching server needs to scan the module itself.
+facts about a module — its coordinates, compiled-output directories, source roots,
+and resolved main and test classpaths in Maven order. It carries no scanned
+bytecode; it is the input a watching server needs to scan the module itself.
 
-**Classpath manifest.** The ordered list of dependencies a module compiles
-against, captured from the build in Maven resolution order. It lets Hierograph
-resolve a bare type name to the right artifact when several define it, exactly as
-the classpath would at runtime. It appears in a descriptor as JSON and inside an
-archive as `classpath.parquet`.
+**Classpath manifest.** The ordered lists of dependencies a module compiles
+against — one for main code, one for test — captured from the build in Maven
+resolution order. They let Hierograph resolve a bare type name to the right
+artifact when several define it, exactly as the classpath would at runtime. They
+appear in a descriptor as JSON and inside an archive as `classpath.parquet`.
 
 **Manifest.** A single JSON file describing every module of a reactor — produced
 by merging the per-module descriptors — written for a local server that scans the
@@ -101,8 +101,8 @@ Only the build tool knows a module's layout and its already-resolved classpath.
 scanning cost, so it can run on every build.
 
 - **Binding:** `process-classes`
-- **Dependency resolution:** `compile + runtime`
-- **Inputs:** `project.build.outputDirectory`, `project.build.testOutputDirectory`, `project.compileSourceRoots`, and `project.artifacts` (compile + runtime scope).
+- **Dependency resolution:** `test` (so the test classpath is available; the main classpath is its non-test subset)
+- **Inputs:** `project.build.outputDirectory`, `project.build.testOutputDirectory`, `project.compileSourceRoots`, `project.testCompileSourceRoots`, and `project.artifacts` (all scopes).
 - **Skips:** modules with `pom` packaging, and modules with no compiled output (logged, not a failure).
 
 **Output** — one descriptor per module:
@@ -170,8 +170,8 @@ consumer can build a graph of a module, or a whole application, from the
 repository without ever seeing its source.
 
 - **Binding:** `package` (the primary artifact exists, so attachment is well-defined; the classes to scan are already compiled).
-- **Dependency resolution:** `compile + runtime`
-- **Inputs:** `project.build.outputDirectory` (the classes), and `project.artifacts` (compile + runtime) for the classpath manifest.
+- **Dependency resolution:** `test` (the main archive records the non-test classpath; a test archive records the full test classpath)
+- **Inputs:** `project.build.outputDirectory` (and `project.build.testOutputDirectory` with `includeTestClasses`), and `project.artifacts` for the classpath manifests.
 - **Skips:** `pom` packaging and modules with no compiled output.
 
 **Output** — one attached artifact per module:
@@ -259,17 +259,26 @@ and are never deployed.
   "mainOutputDir": "/ws/billing/billing-core/target/classes",
   "testOutputDir": "/ws/billing/billing-core/target/test-classes",
   "sourceRoots": ["/ws/billing/billing-core/src/main/java"],
+  "testSourceRoots": ["/ws/billing/billing-core/src/test/java"],
   "classpath": [
-    { "gav": "com.example:billing-core:1.4.0",     "internal": true,  "jar": null },
-    { "gav": "com.example:billing-api:1.4.0",       "internal": true,  "jar": null },
-    { "gav": "com.google.guava:guava:33.0.0-jre",   "internal": false, "jar": "/home/u/.m2/…/guava-33.0.0-jre.jar" }
+    { "gav": "com.example:billing-api:1.4.0",          "internal": true,  "jar": null },
+    { "gav": "com.google.guava:guava:33.0.0-jre",      "internal": false, "jar": "/home/u/.m2/…/guava-33.0.0-jre.jar" }
+  ],
+  "testClasspath": [
+    { "gav": "com.example:billing-api:1.4.0",          "internal": true,  "jar": null },
+    { "gav": "com.google.guava:guava:33.0.0-jre",      "internal": false, "jar": "/home/u/.m2/…/guava-33.0.0-jre.jar" },
+    { "gav": "org.junit.jupiter:junit-jupiter:5.11.0", "internal": false, "jar": "/home/u/.m2/…/junit-jupiter-5.11.0.jar" }
   ]
 }
 ```
 
-`classpath` is in Maven resolution order. An `internal` entry is a reactor
-sibling (scanned from its own output, so `jar` is null); an external entry carries
-the resolved jar path, which lets a server scan a library it has not yet cached.
+Both classpaths are in Maven resolution order and list **dependencies only** — the
+module itself is implicit (the consumer prepends it). `classpath` holds the
+module's non-test scopes (compile + runtime + provided + system); `testClasspath`
+the full test classpath. An `internal` entry is a reactor sibling (scanned from its
+own output, so `jar` is null); an external entry carries the resolved jar path. The
+authoritative, field-level definition of this object and the merged manifest is the
+**build-manifest specification** (`hierograph-server/io.hierograph.server.graphservice/spec`).
 
 ### 5.2 `manifest.json` — the merged reactor manifest
 
@@ -282,6 +291,10 @@ the resolved jar path, which lets a server scan a library it has not yet cached.
   "modules": [ /* one module.json object per module, sorted by gav */ ]
 }
 ```
+
+The server reads this in manifest mode; its fields, the path-portability rule and
+the compatibility contract are specified in the **build-manifest specification**
+(`hierograph-server/io.hierograph.server.graphservice/spec`).
 
 ### 5.3 The `.hierograph` archive
 
