@@ -18,6 +18,7 @@ package io.hierograph.mcp.server.tools.reachability
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
+import io.hierograph.mcp.server.tools.detail.NestedTypes
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -205,6 +206,8 @@ class FindDependencyPathTool(
                 ids.add(n.identifier)
             }
         }
+        // A type stands for its source: its nested types sit beside it in the package but belong to it.
+        if (node.kind in JavaKinds.TYPE_KINDS) NestedTypes.allNested(hierarchy, node).forEach { ids.add(it.identifier) }
         return ids
     }
 

@@ -18,6 +18,7 @@ package io.hierograph.mcp.server.tools.reachability
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
+import io.hierograph.mcp.server.tools.detail.NestedTypes
 import io.hierograph.server.graphservice.pagination.DataHashProvider
 import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
@@ -173,6 +174,8 @@ class AffectedByTool(
                 sourceTypeIds.add(n.identifier)
             }
         }
+        // A type stands for its source: its nested types sit beside it in the package but belong to it.
+        if (node.kind in JavaKinds.TYPE_KINDS) NestedTypes.allNested(hierarchy, node).forEach { sourceTypeIds.add(it.identifier) }
 
         // ── BFS over type-level dependency graph ───────────────────────
         // BFS state

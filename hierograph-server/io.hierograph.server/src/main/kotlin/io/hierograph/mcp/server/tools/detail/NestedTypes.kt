@@ -55,5 +55,16 @@ object NestedTypes {
         }
     }
 
+    /**
+     * Every type nested in [type] at any depth, anonymous and local classes included: the siblings named
+     * `<type>$…`. These are compiled from the type's own source, so a scope that stands for the type also
+     * stands for them.
+     */
+    fun allNested(hierarchy: Hierarchy, type: HGNode): List<HGNode> {
+        val prefix = NodeMetadata.getName(type) + '$'
+        val parent = hierarchy.parentOf(type) ?: return emptyList()
+        return hierarchy.childrenOf(parent).filter { isType(it) && NodeMetadata.getName(it).startsWith(prefix) }
+    }
+
     private fun isType(node: HGNode) = node.kind in JavaKinds.TYPE_KINDS
 }

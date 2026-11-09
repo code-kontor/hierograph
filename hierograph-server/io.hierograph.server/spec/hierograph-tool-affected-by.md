@@ -114,11 +114,13 @@ ever affected.
 ### 3.1 Scope expansion
 
 The tool first collects the **source types**: the input node itself when it is a type
-or an external type, plus every type and external type in its subtree. Nested types
-sit beside their enclosing type in the package (see
+or an external type, plus every type and external type in its subtree. Nested types sit beside their enclosing type in the package (see
 [Nodes and the containment tree](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)),
-so the scope of `Invoice` does not contain `Invoice$Line`; the scope of the package
-`com.example.billing` contains both.
+but they are compiled from the enclosing type's source, so a type's scope includes
+them: the scope of `Invoice` contains `Invoice$Line`, `Invoice$Line$Tax` and the
+anonymous and local classes `Invoice$1`, `Invoice$1Draft`, all the types of the
+package named `Invoice$…`. So `affected_by(Invoice)` never reports `Invoice$Line`; a type that uses
+`Invoice$Line` is affected by `Invoice` directly.
 
 Source types are never reported. A dependency between two source types is internal to
 the scope and does not count as impact.
