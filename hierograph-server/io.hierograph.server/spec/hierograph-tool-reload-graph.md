@@ -137,7 +137,7 @@ A failed reload on a server that has no graph yet:
 |-------|---------|---------|-----|
 | `status` | always | `"reloaded"` or `"error"` | the outcome, for the caller to act on |
 | `root_children` | on success | number of modules, `External Types` included | a quick check that the expected modules were found |
-| `search_index_entries` | on success | number of nodes in the graph, modules included, root excluded | the size of the rebuilt graph: `graph_overview`'s `total_nodes` plus the modules |
+| `search_index_entries` | on success | number of nodes in the graph, modules included, root excluded | the size of the rebuilt graph; equals `graph_overview`'s `total_nodes` |
 | `data_hash` | always | the data hash of the graph now served; `null` when none is loaded | tells the caller whether earlier cursors are still valid |
 | `reload_millis` | on success | duration of the build in milliseconds | the cost of a reload on this codebase |
 | `message` | on error | the cause of the failure | what to fix before retrying |

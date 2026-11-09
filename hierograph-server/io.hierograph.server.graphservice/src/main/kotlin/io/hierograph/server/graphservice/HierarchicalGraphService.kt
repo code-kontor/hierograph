@@ -155,8 +155,12 @@ class HierarchicalGraphService {
         Thread(r, "hierograph-graph-updater").apply { isDaemon = true }
     }
 
-    /** True when [graphSource] selects the manifest (server-side scan) flow. */
-    private val manifestMode: Boolean get() = graphSource.equals("manifest", ignoreCase = true)
+    /**
+     * True when [graphSource] selects the manifest (server-side scan) flow. A service built without Spring
+     * and filled by [seed] has no source configured and is not in manifest mode.
+     */
+    private val manifestMode: Boolean
+        get() = ::graphSource.isInitialized && graphSource.equals("manifest", ignoreCase = true)
 
     /**
      * Base directory for the Parquet snapshot the detail tools read: [parquetDir] in `parquet` mode, or

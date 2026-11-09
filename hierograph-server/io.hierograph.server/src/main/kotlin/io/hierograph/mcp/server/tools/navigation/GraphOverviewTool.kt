@@ -55,14 +55,14 @@ class GraphOverviewTool(
         val rootNode = hierarchy.rootNode
 
         // ── stats: count nodes by kind ─────────────────────────────────
+        // traverse visits the descendants of its start node, so starting at the root counts every node
+        // except the root itself, modules included.
         val nodesByKind = linkedMapOf<String, Int>()
         var totalNodes = 0
-        for (child in hierarchy.childrenOf(rootNode)) {
-            hierarchy.traverse(child) { node ->
-                val kindStr = node.kind?.toString() ?: "unknown"
-                nodesByKind.merge(kindStr, 1) { a, b -> a + b }
-                totalNodes++
-            }
+        hierarchy.traverse(rootNode) { node ->
+            val kindStr = node.kind?.toString() ?: "unknown"
+            nodesByKind.merge(kindStr, 1) { a, b -> a + b }
+            totalNodes++
         }
 
         // ── stats: count type-level edges by attribute ────────────────
@@ -96,7 +96,12 @@ class GraphOverviewTool(
                 kindEntry(JavaNodeKind.RECORD, "Record (Java 14+)"),
                 kindEntry(JavaNodeKind.ANNOTATION, "Annotation type"),
                 kindEntry(JavaNodeKind.METHOD, "Method (includes constructors)"),
-                kindEntry(JavaNodeKind.FIELD, "Field")
+                kindEntry(JavaNodeKind.FIELD, "Field"),
+                mapOf(
+                    "kind" to JavaKinds.EXTERNAL_TYPE,
+                    "description" to "Type referenced by the scanned code but not scanned itself; " +
+                            "lives under the 'External Types' module, has no members, and is not a kindFilter value"
+                )
             ),
             "group_aliases" to mapOf(
                 JavaKinds.ALIAS_TYPES to JavaKinds.TYPE_KINDS.map { it.value },
@@ -112,6 +117,7 @@ class GraphOverviewTool(
             },
             "detail_level" to listOf(
                 detailRelEntry("throws", "method", "Method declares it throws this exception type"),
+                detailRelEntry("raises", "method", "Method body constructs and throws this exception type (throw new X(...))"),
                 detailRelEntry("calls", "method", "Method invokes a method"),
                 detailRelEntry("returns", "method", "Method's return type"),
                 detailRelEntry("parameter_type", "method", "Method has a parameter of this type"),
@@ -119,7 +125,6 @@ class GraphOverviewTool(
                 detailRelEntry("writes_field", "method", "Method writes a field"),
                 detailRelEntry("overrides", "method", "Method overrides another method"),
                 detailRelEntry("annotated_by", "method/field", "Entity has this annotation type"),
-                detailRelEntry("parameter_annotated_by", "method", "Method has a parameter with this annotation type"),
                 detailRelEntry("has_type", "field", "Field is of this type"),
                 detailRelEntry("read_by", "field", "Field is read by this method"),
                 detailRelEntry("written_by", "field", "Field is written by this method")

@@ -74,11 +74,12 @@ navigation tools that follow.
 
 ## 3. Behaviour
 
-The tool walks the containment tree once for counts and once more for edges, below
-each module. The synthetic root and the modules themselves are not visited, so:
+The tool walks the containment tree once for counts and once more for edges, from the
+synthetic root. The root itself is not counted, so:
 
-- `total_nodes` and `nodes_by_kind` count packages, types, members and external types,
-  but not modules. The module count is the length of `hierarchy`.
+- `total_nodes` and `nodes_by_kind` count every node: modules (including the synthetic
+  `External Types` module), packages, types, members and external types. The counts
+  add up to `total_nodes`.
 - `nodes_by_kind` includes `external.type` and the packages under `External Types`.
 - `total_type_level_edges` counts every type-level dependency once, at its source.
   `type_level_edges_by_attribute` counts each edge once per attribute flag it carries,
@@ -123,9 +124,9 @@ for every graph.
 ```json
 {
   "stats": {
-    "total_nodes": 26,
+    "total_nodes": 28,
     "nodes_by_kind": {
-      "java.package": 7, "external.type": 2, "java.class": 2, "java.method": 9,
+      "java.module": 2, "java.package": 7, "external.type": 2, "java.class": 2, "java.method": 9,
       "java.field": 4, "java.interface": 1, "java.record": 1
     },
     "total_type_level_edges": 7,
@@ -151,7 +152,7 @@ for every graph.
       …
     ],
     "detail_level": [
-      { "kind": "calls", "source": "method", "description": "Method invokes a method" },
+      { "kind": "throws", "source": "method", "description": "Method declares it throws this exception type" },
       …
     ]
   },
@@ -178,29 +179,31 @@ for every graph.
 }
 ```
 
-The 26 nodes are the seven packages `com`, `example`, `billing`, `money`, `java`,
+The 28 nodes are the modules `billing-core` and `External Types`; the seven packages `com`, `example`, `billing`, `money`, `java`,
 `math` and `util`; the types `Invoice`, `Invoice$Line`, `Ledger` and `Money`; nine
 methods and four fields; and the external types `BigDecimal` and `List`. The synthetic
 root has id `4600`.
 
 | Field | Content | Why |
 |-------|---------|-----|
-| `stats.total_nodes` | nodes below the modules | the size of the codebase in one number |
+| `stats.total_nodes` | every node except the synthetic root | the size of the codebase in one number |
 | `stats.nodes_by_kind` | node count per kind, in order of first occurrence | shows the mix: a codebase of records reads differently from one of interfaces |
 | `stats.total_type_level_edges` | number of type-level dependencies | the density of the graph |
 | `stats.type_level_edges_by_attribute` | edge count per attribute flag, every flag present | how much coupling is inheritance or annotation rather than use |
-| `kinds.structural` | the nine `java.*` node kinds with a description | defines the `kind` values of node references |
+| `kinds.structural` | the nine `java.*` node kinds and `external.type`, each with a description | defines the `kind` values of node references |
 | `kinds.group_aliases` | each alias with its expansion | tells the caller what `types`, `members` and `packages` select in a kind filter |
 | `relationships.type_level_attributes` | the four attribute flags with a description | defines the flags on type-level and aggregated edges |
-| `relationships.detail_level` | the twelve detail-level relationships with their source kind | defines the `relationship` values of detail-level edges |
+| `relationships.detail_level` | the twelve detail-level relationships with their source kind | defines the `relationship` values of detail-level edges; each one occurs in the snapshot (ten) or is a reverse view of one (`read_by`, `written_by`) |
 | `hierarchy` | every module as an enriched node reference plus `outgoing_dep_count` and `incoming_dep_count` | the ids and sizes needed to start navigating, and a first impression of coupling |
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |
 | `build_state` | present only when the server reads a build manifest | tells the caller whether the graph still matches the build files |
 
-**`kinds.structural`** lists the nine kinds of [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds)
-that start with `java.`. `external.type` appears in `nodes_by_kind` and in node
-references but not in this list.
+**`kinds.structural`** lists the ten node kinds of
+[§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): the nine
+`java.*` kinds and `external.type`, so every `kind` a node reference or
+`nodes_by_kind` can carry is defined here. The description of `external.type` says
+that it is not a `kindFilter` value.
 
 **`build_state`** has the shape and status values defined in the
 [hierarchical graph service specification](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md#build-files):

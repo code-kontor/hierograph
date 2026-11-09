@@ -1,0 +1,70 @@
+/*
+ * Copyright 2026 Gerd Wuetherich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.hierograph.mcp.server.tools.navigation
+
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.model.ArtifactInfo
+import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.Origin
+import io.hierograph.graphstore.jvm.model.Ref
+import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.mcp.server.tools.NodeRefFactory
+import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.mapping.GraphStoreToHGModel
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+
+/** Verifies the stats and vocabularies of [GraphOverviewTool]. */
+@Suppress("UNCHECKED_CAST")
+class GraphOverviewToolTest {
+
+    private val store = GraphStore().apply {
+        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core", Origin.MODULE_MAIN))
+        applyClass(
+            "billing-core",
+            ClassFacts(
+                "com.example.billing.Invoice", JavaKinds.CLASS, 0, emptyList(),
+                refs = listOf(Ref("com.example.billing.Invoice", "org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1)),
+                classHash = "h",
+            ),
+        )
+    }
+    private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }
+    private val overview = GraphOverviewTool(graphService, NodeRefFactory(graphService)).graphOverview()
+
+    @Test
+    fun `node counts include the modules and every node below the root`() {
+        val stats = overview["stats"] as Map<String, Any?>
+        val byKind = stats["nodes_by_kind"] as Map<String, Int>
+        assertThat(byKind["java.module"]).isEqualTo(2) // billing-core and External Types
+        assertThat(byKind["external.type"]).isEqualTo(1)
+        assertThat(stats["total_nodes"]).isEqualTo(store.nodeCount())
+        assertThat(byKind.values.sum()).isEqualTo(stats["total_nodes"])
+    }
+
+    @Test
+    fun `the kinds vocabulary names external types`() {
+        val structural = (overview["kinds"] as Map<String, Any?>)["structural"] as List<Map<String, Any?>>
+        assertThat(structural.map { it["kind"] }).contains("java.module", "external.type")
+    }
+
+    @Test
+    fun `the detail vocabulary lists the relationships the snapshot holds`() {
+        val detail = (overview["relationships"] as Map<String, Any?>)["detail_level"] as List<Map<String, Any?>>
+        assertThat(detail.map { it["kind"] }).contains("raises", "throws").doesNotContain("parameter_annotated_by")
+    }
+}
