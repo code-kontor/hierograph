@@ -175,6 +175,7 @@ data class Node(
     val fqn: String,          // qualified name, the human-facing identity
     val parent: String?,      // parent node's key; null for top-level modules
     val placeholder: Boolean, // true for an external-type placeholder (§6)
+    val modifiers: Int,       // a member's packed access flags; 0 for every other node
 )
 ```
 
@@ -189,6 +190,12 @@ data class Node(
 
 Constructors and static initializers are `METHOD` nodes. In the hierarchy, a
 type's methods include its constructors.
+
+**`modifiers`** is the one detail a member node carries beyond its identity: the
+packed access flags of `MemberModifiers` (visibility, `static`, `final`, …), taken from
+the member's `MemberFacts`. It is `0` on every other node. Navigation filters on it:
+`list_children` and `list_descendants` select members by modifier without reading the
+snapshot, which a filter over a large subtree could not afford per node.
 
 Nested types are **not** nested in the hierarchy. `Invoice$Line` is a sibling of
 `Invoice` in package `com.example.billing`. This mirrors the class-file view, in
@@ -559,7 +566,7 @@ What the GraphStore deliberately does **not** do, and where it happens instead:
 |------------------------|----------------|
 | Persistence | the Parquet snapshot, written by `ParquetWriter` and read by `ParquetReader` |
 | Member-level references (calls, field access, line numbers) | the snapshot's `detail_refs` table, read on demand |
-| Parameters, modifiers, source files, line ranges | the snapshot's `members`, `parameters` and `types` tables, read on demand |
+| Parameters, type modifiers, source files, line ranges | the snapshot's `members`, `parameters` and `types` tables, read on demand |
 | Overrides and virtual-call targets | load-time resolution, computed from the store's supertype edges together with the snapshot's members |
 | Rolling dependencies up to packages and modules | the hierarchical graph built from the store's projections |
 | A query language | Hierograph's tool surface (MCP tools, GraphQL), built on the projections |

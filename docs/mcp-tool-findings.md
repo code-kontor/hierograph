@@ -50,7 +50,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 2.1 | High | `modifierFilter` in `list_children` and `list_descendants` is accepted and described as AND matching, but it is ignored (the code is commented out). In `list_descendants` it is still part of the query hash, so changing it between pages gives `STALE_CURSOR_QUERY`. | `tools/navigation/ListChildrenTool.kt:125-129`, `ListDescendantsTool.kt:132,165-166` |
+| 2.1 | Fixed | `modifierFilter` in `list_children` and `list_descendants` was accepted but ignored. Member nodes now keep their packed access flags in memory (`Node.modifiers`, `GraphStoreNodeSource.modifiers`), and both tools keep the methods and fields that have every listed modifier. Unknown values give `INVALID_PARAMETER`. | `tools/navigation/ModifierFilter.kt` |
 | 2.2 | High | `find_node` never returns modules. `NodeSearchIndex.build` traverses from each top-level node, and `traverse` skips the start node, so modules are never indexed. `kindFilter ["java.module"]` always returns nothing, even though the description lists it. GraphQL `findNodes` has the same problem. | `io.hierograph.server.graphservice/.../NodeSearchIndex.kt:48-49` |
 | 2.3 | Medium | An empty `kindFilter: []` in `list_children` and `list_descendants` returns `INVALID_KIND` "Unknown kind . …". `find_node` treats `[]` as no filter. | `ListChildrenTool.kt:95`, `ListDescendantsTool.kt:112` |
 | 2.4 | Medium | `find_node` hides truncation. `summary.total` is the capped count (at most 50) and there is no `truncated` flag. | `tools/navigation/FindNodeTool.kt:79-85` |

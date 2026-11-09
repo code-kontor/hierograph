@@ -65,7 +65,7 @@ linked by cursors (see [§7 of the MCP tools specification](hierograph-mcp-tools
 | `nodeId` | integer | yes | — | the node whose subtree to search; not itself reported |
 | `kindFilter` | string[] | no | none | kinds and group aliases to report |
 | `namePattern` | string | no | none | case-insensitive substring of the node's name |
-| `modifierFilter` | string[] | no | none | accepted; has no effect on the result |
+| `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
 | `limit` | integer | no | `150` | items per page, clamped to 1–500 |
 | `cursor` | string | no | none | `next_cursor` of the previous page |
 
@@ -84,10 +84,18 @@ member's signature. Because member names are signatures, `namePattern = "Money"`
 `kindFilter = ["members"]` finds every member whose signature mentions a type whose name
 contains `Money`, such as `com.example.money.Money total()`.
 
-**`modifierFilter`** is part of the schema and its description promises an AND match on
-modifiers, but the traversal ignores it: the result is the same with or without it.
-Modifiers are not part of the navigation model. The value still enters the query hash
-(§3.3), so changing it between pages invalidates the cursor.
+**`modifierFilter`** reports the methods and fields whose modifiers include every
+listed value. It exists for questions across a whole subtree, such as every public
+static method of a module. Values are matched ignoring case against the member modifier vocabulary:
+a visibility (`public`, `protected`, `private`, `package-private`), then `static`,
+`final`, `abstract`, `synchronized`, `native` and `default` for methods (constructors
+included) and `static`, `final`, `transient` and `volatile` for fields. Every member
+has exactly one visibility, so `["package-private"]` finds the members without a
+visibility keyword. An unknown value is rejected with `INVALID_PARAMETER` (§5); an
+empty list is no filter.
+Like `kindFilter`, it selects what is reported, not what is traversed: packages and
+types are still walked but, carrying no member modifiers, never reported while the
+filter is set.
 
 **`limit`** sets the page size. The default of 150 fits the response budget; values
 from 1 to 500 are accepted, but a page of more than 200 items exceeds the budget and
@@ -136,8 +144,9 @@ The tool pages the result as described in
   page of a multi-page walk.
 - `next_cursor` is present when more items follow and absent on the last page.
 - The query hash covers `nodeId`, the sorted `kindFilter`, `namePattern` as given and
-  the sorted `modifierFilter`. Reordering a filter list keeps a cursor valid; changing
-  the case of `namePattern` or writing an alias instead of its kinds does not.
+  `modifierFilter` in lower case, without duplicates and sorted. Reordering a filter
+  list or changing the case of a modifier keeps a cursor valid; changing the case of
+  `namePattern` or writing an alias instead of its kinds does not.
 - Each item counts as 250 bytes against the 50,000-byte
   [response budget](hierograph-mcp-tools.md#73-the-response-budget), so a page holds at
   most 200 items. A `limit` above 200 succeeds only when 200 or fewer items remain.
@@ -231,11 +240,12 @@ Members and external types in `results` carry no counts beyond the minimal field
 | `nodeId` names no node | `NODE_NOT_FOUND` | `No node with id 9999 exists in the graph.` | `Use find_node to look up the correct node ID.` |
 | `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use valid kind values or group aliases.` |
 | `kindFilter` is `[]` | `INVALID_KIND` | `Unknown kind . Valid kinds: …` | omit `kindFilter` instead |
+| `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
 | `cursor` is malformed, from another tool, or issued for other parameters or another graph | `INVALID_CURSOR_FORMAT`, `STALE_CURSOR_VERSION`, `WRONG_TOOL_CURSOR`, `STALE_CURSOR_QUERY`, `STALE_CURSOR_DATA` | see [§7.2](hierograph-mcp-tools.md#72-cursors) | restart without `cursor`, or restore the original parameters |
 | The page exceeds the response budget | `RESULT_TOO_LARGE` | see [§7.3](hierograph-mcp-tools.md#73-the-response-budget) | retry with `suggested_limit` (`200`), or `limit = 1` for the summary |
 | No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
 
-The checks run in this order: node, kind filter, cursor, budget. `NODE_NOT_FOUND` and
+The checks run in this order: node, kind filter, modifier filter, cursor, budget. `NODE_NOT_FOUND` and
 `INVALID_KIND` use the nested shape of [§8.1](hierograph-mcp-tools.md#81-error-shapes)
 with `code`, `message` and `recovery` and no further fields. The cursor and budget errors
 carry the extra fields described in §7 of the MCP tools specification.

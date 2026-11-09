@@ -25,10 +25,6 @@ import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
 
-// TODO: modifier_filter requires property materialisation (modifiers are not yet
-//       available in the in-memory model). Once INodeMetadataProvider exposes
-//       getModifiers(node), re-enable the modifier filtering below.
-
 /**
  * MCP tool: `list_children`
  *
@@ -69,8 +65,9 @@ class ListChildrenTool(
         )
         namePattern: String?,
         @ToolParam(
-            description = "Restricts to children whose modifiers include ALL listed values (AND logic). " +
-                    "Only meaningful for methods and fields; silently ignored for other input kinds. " +
+            description = "Restricts to methods and fields whose modifiers include ALL listed values (AND logic); " +
+                    "other children are excluded while the filter is set. Values: public, protected, private, " +
+                    "package-private, static, final, abstract, synchronized, native, default, transient, volatile. " +
                     "Examples: ['public'], ['static', 'final'], ['private'].",
             required = false
         )
@@ -104,6 +101,13 @@ class ListChildrenTool(
             )
         }
 
+        // ── resolve modifier filter ───────────────────────────────────
+        val modifiers = when (val parsed = ModifierFilter.parse(modifierFilter)) {
+            null -> null
+            is ModifierFilter.Valid -> parsed.filter
+            is ModifierFilter.Invalid -> return ModifierFilter.invalidResponse(parsed.values)
+        }
+
         val effectiveLimit = (limit ?: 200).coerceIn(1, 1000)
         val nameLower = namePattern?.lowercase()
 
@@ -122,11 +126,8 @@ class ListChildrenTool(
                 if (!name.lowercase().contains(nameLower)) continue
             }
 
-            // 3. modifier filter — currently a no-op; modifiers are not yet in the in-memory model
-            // if (modifierFilter != null && modifierFilter.isNotEmpty()) {
-            //     val modifiers = mp.getModifiers(child)
-            //     if (modifiers == null || !modifiers.containsAll(modifierFilter)) continue
-            // }
+            // 3. modifier filter (methods and fields only)
+            if (modifiers != null && !modifiers.matches(child)) continue
 
             // passed all filters
             val kindStr = child.kind?.toString() ?: "unknown"

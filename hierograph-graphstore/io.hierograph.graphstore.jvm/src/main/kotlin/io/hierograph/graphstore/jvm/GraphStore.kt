@@ -106,7 +106,7 @@ class GraphStore(
         for (m in facts.members) {
             // Constructors are java.method nodes, as in the hierarchy vocabulary ("includes constructors").
             val kind = if (m.kind == JavaNodeKind.CONSTRUCTOR) JavaKinds.METHOD else m.kind
-            putNode(Node(memberKey(artifactKey, m.key), kind, m.signature, m.key, parent = ownerKey))
+            putNode(Node(memberKey(artifactKey, m.key), kind, m.signature, m.key, parent = ownerKey, modifiers = m.modifiers))
         }
         storeRefs(ownerKey, artifactKey, facts.refs)
     }

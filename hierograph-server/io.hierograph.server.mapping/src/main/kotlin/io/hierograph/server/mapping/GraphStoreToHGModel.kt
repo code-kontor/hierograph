@@ -60,7 +60,7 @@ object GraphStoreToHGModel {
         val byKey = HashMap<String, HGNode>()
         for (n in store.nodes()) {
             val hg = HGGraphFactory.createNode(coreGraph) {
-                GraphStoreNodeSource(handle(n.key), n.name, n.fqn, n.key)
+                GraphStoreNodeSource(handle(n.key), n.name, n.fqn, n.key, n.modifiers)
             }
             hg.kind = n.kind
             byKey[n.key] = hg

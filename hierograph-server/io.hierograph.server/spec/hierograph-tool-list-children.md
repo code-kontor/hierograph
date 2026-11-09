@@ -61,7 +61,7 @@ call.
 | `nodeId` | integer | yes | — | the node whose children to list |
 | `kindFilter` | string[] | no | none | kinds and group aliases to keep |
 | `namePattern` | string | no | none | case-insensitive substring of the child's name |
-| `modifierFilter` | string[] | no | none | accepted; has no effect |
+| `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
 | `limit` | integer | no | `200` | maximum children to return, clamped to 1–1000 |
 
 **`nodeId`** is any node id, including the synthetic root's, which lists the modules.
@@ -81,10 +81,18 @@ matches the name, not the qualified name: a package's last segment, a type's sim
 name, a member's signature such as `com.example.money.Money total()`. It exists to find
 a member in a large type (`get` lists the getters) without reading the full list.
 
-**`modifierFilter`** is part of the schema and its description promises an AND match
-on modifiers, but the tool ignores it: the result is the same with or without it.
-Modifiers are not part of the navigation model. To check a member's modifiers, use
-`method_details` or `field_details`.
+**`modifierFilter`** keeps the methods and fields whose modifiers include every listed
+value. It exists to answer questions about a type's surface in one call:
+`["public"]` lists its API, `["static", "final"]` its constants. Values are matched ignoring case against the member modifier vocabulary:
+a visibility (`public`, `protected`, `private`, `package-private`), then `static`,
+`final`, `abstract`, `synchronized`, `native` and `default` for methods (constructors
+included) and `static`, `final`, `transient` and `volatile` for fields. Every member
+has exactly one visibility, so `["package-private"]` finds the members without a
+visibility keyword. An unknown value is rejected with `INVALID_PARAMETER` (§5); an
+empty list is no filter.
+Packages and types carry no member modifiers, so while the filter is set they never
+match. To read a single member's full modifier list, use `method_details` or
+`field_details`.
 
 **`limit`** bounds the response. The default of 200 covers the children of almost any
 package or type; a larger value up to 1000 is accepted for the rare type with hundreds
@@ -94,9 +102,10 @@ of members. A value below 1 becomes 1, a value above 1000 becomes 1000.
 
 ## 3. Behaviour
 
-The tool resolves `nodeId`, validates `kindFilter`, then visits the node's children in
-the model's child order. A child is kept when its kind passes `kindFilter` and its name
-contains `namePattern`. The kept children are counted into `summary.total` and
+The tool resolves `nodeId`, validates `kindFilter` and `modifierFilter`, then visits the
+node's children in the model's child order. A child is kept when its kind passes
+`kindFilter`, its name contains `namePattern` and, with `modifierFilter` set, it is a
+method or field with all the listed modifiers. The kept children are counted into `summary.total` and
 `summary.by_kind`; then the first `limit` of them are returned.
 
 **Order.** Children appear in the order the model holds them. The order is stable for
@@ -164,12 +173,15 @@ The members of a type carry no counts beyond the minimal fields
 | `nodeId` names no node | `NODE_NOT_FOUND` | `No node with id 9999 exists in the graph.` | `Use find_node to look up the correct node ID.` |
 | `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use valid kind values or group aliases.` |
 | `kindFilter` is `[]` | `INVALID_KIND` | `Unknown kind . Valid kinds: …` | omit `kindFilter` instead |
+| `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
 | No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
 
 Errors use the nested shape of [§8.1](hierograph-mcp-tools.md#81-error-shapes) with
 `code`, `message` and `recovery` and no further fields. With several invalid values the
 message starts `Unknown kinds` and lists each one. A node is checked before the filter,
-so an unknown id reports `NODE_NOT_FOUND` whatever the filter holds.
+so an unknown id reports `NODE_NOT_FOUND` whatever the filters hold; `kindFilter` is
+checked before `modifierFilter`. With several unknown modifiers the message starts
+`Unknown modifiers`.
 
 The empty-list case reports an `INVALID_KIND` whose message names no kind. A caller
 that wants no filter omits the parameter.

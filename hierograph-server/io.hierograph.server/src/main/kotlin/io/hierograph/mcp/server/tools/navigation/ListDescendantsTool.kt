@@ -30,10 +30,6 @@ import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
 
-// TODO: modifier_filter requires property materialisation (modifiers are not yet
-//       available in the in-memory model). Once INodeMetadataProvider exposes
-//       getModifiers(node), re-enable the modifier filtering below.
-
 /**
  * MCP tool: `list_descendants`
  *
@@ -78,8 +74,9 @@ class ListDescendantsTool(
         )
         namePattern: String?,
         @ToolParam(
-            description = "Restricts to descendants whose modifiers include ALL listed values (AND logic). " +
-                    "Only meaningful for methods and fields.",
+            description = "Restricts to methods and fields whose modifiers include ALL listed values (AND logic); " +
+                    "other descendants are excluded while the filter is set. Values: public, protected, private, " +
+                    "package-private, static, final, abstract, synchronized, native, default, transient, volatile.",
             required = false
         )
         modifierFilter: List<String>?,
@@ -120,6 +117,13 @@ class ListDescendantsTool(
             )
         }
 
+        // ── resolve modifier filter ───────────────────────────────────
+        val modifiers = when (val parsed = ModifierFilter.parse(modifierFilter)) {
+            null -> null
+            is ModifierFilter.Valid -> parsed.filter
+            is ModifierFilter.Invalid -> return ModifierFilter.invalidResponse(parsed.values)
+        }
+
         val nameLower = namePattern?.lowercase()
 
         // Query hash covers the parameters that define the result set — not limit or cursor.
@@ -129,7 +133,7 @@ class ListDescendantsTool(
                 "nodeId" to nodeId,
                 "kindFilter" to kindFilter?.sorted(),
                 "namePattern" to namePattern,
-                "modifierFilter" to modifierFilter?.sorted()
+                "modifierFilter" to ModifierFilter.canonical(modifierFilter)
             )
         )
 
@@ -162,8 +166,8 @@ class ListDescendantsTool(
                     if (!name.lowercase().contains(nameLower)) matches = false
                 }
 
-                // 3. modifier filter — currently a no-op
-                // if (matches && modifierFilter != null && modifierFilter.isNotEmpty()) { ... }
+                // 3. modifier filter (methods and fields only)
+                if (matches && modifiers != null && !modifiers.matches(child)) matches = false
 
                 if (matches) {
                     val kindStr = child.kind?.toString() ?: "unknown"

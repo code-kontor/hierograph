@@ -24,12 +24,15 @@ import io.hierograph.hierarchicalgraph.model.INodeSource
  * node-metadata provider resolves them off [INodeSource] without any Neo4j / bolt client — the
  * GraphStore counterpart of jQAssistant's `ExtendedGraphDbNodeSource`. [key] is the node's stable
  * GraphStore key, so on-demand lookups (e.g. per-node properties from the snapshot) can map back to it.
+ * [modifiers] holds a member's packed access flags (see
+ * [io.hierograph.graphstore.jvm.model.MemberModifiers]); it is `0` for every other node.
  */
 class GraphStoreNodeSource(
     override val identifier: Any,
     override val name: String,
     override val qualifiedName: String,
     val key: String,
+    val modifiers: Int = 0,
 ) : INodeSource {
     override var node: HGNode? = null
 }
