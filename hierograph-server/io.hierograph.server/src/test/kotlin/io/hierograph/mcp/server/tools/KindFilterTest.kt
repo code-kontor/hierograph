@@ -50,4 +50,12 @@ class KindFilterTest {
         assertThat(error["message"] as String).startsWith("Unknown kind: 'classes'. Valid kinds: java.module, ")
         assertThat(error["valid_aliases"]).isEqualTo(listOf("types", "members", "packages"))
     }
+
+    @Test
+    fun `external types can be selected, and an allowed set narrows what is valid`() {
+        assertThat((KindFilter.parse(listOf("external.type")) as KindFilter.Valid).kinds).containsExactly(JavaKinds.EXTERNAL_TYPE)
+        val parsed = KindFilter.parse(listOf("types", "members", "java.package"), KindFilter.TYPE_RESULT_KINDS) as KindFilter.Invalid
+        assertThat(parsed.values).containsExactly("members", "java.package")
+        assertThat(KindFilter.validAliases(KindFilter.TYPE_RESULT_KINDS)).containsExactly("types")
+    }
 }

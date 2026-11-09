@@ -176,7 +176,7 @@ returned ones.
 `INVALID_KIND` is the shared kind-filter error of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): it carries
 `invalid_values`, `valid_kinds` and `valid_aliases` besides the `recovery`.
-`external.type` is not a valid filter value. A search for a name that matches nothing
+`external.type` is a valid filter value; `["external.type"]` finds library types. A search for a name that matches nothing
 is not an error: it returns empty `results` and a `total` of `0`.
 
 ---

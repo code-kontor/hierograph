@@ -75,8 +75,9 @@ graph. The node itself is never part of the result, because the caller already h
 **`kindFilter`** accepts the kind values and group aliases of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds), mixed freely.
 It selects what is reported, never what is traversed. Omitting it reports every
-descendant, and so does `[]`. An unknown value is rejected with `INVALID_KIND` (§5). External types
-cannot be selected by kind; they appear only without a filter.
+descendant, and so does `[]`. An unknown value is rejected with `INVALID_KIND` (§5).
+`["external.type"]` lists the library types below a node, typically under `External
+Types`.
 
 **`namePattern`** keeps nodes whose name contains the pattern, ignoring case. It matches
 the name, not the qualified name: a package's last segment, a type's simple name, a

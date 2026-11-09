@@ -202,8 +202,7 @@ root has id `4600`.
 **`kinds.structural`** lists the ten node kinds of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): the nine
 `java.*` kinds and `external.type`, so every `kind` a node reference or
-`nodes_by_kind` can carry is defined here. The description of `external.type` says
-that it is not a `kindFilter` value.
+`nodes_by_kind` can carry is defined here.
 
 **`build_state`** has the shape and status values defined in the
 [hierarchical graph service specification](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md#build-files):

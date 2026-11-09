@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component
 class NodeSearch(private val graphService: HierarchicalGraphService) {
 
     /** The `kindFilter` values that [search] accepts: the [JavaKinds.ALL_KINDS] values plus the group aliases. */
-    val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value }
+    val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value } + JavaKinds.EXTERNAL_TYPE
     val validAliases: List<String> get() = JavaKinds.ALL_ALIASES.toList()
 
     /** The entries of [kindFilter] that are neither a kind value nor a group alias. */
@@ -75,12 +75,16 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
     }
 
     /** Expands [kindFilter] into concrete kinds; `null` when no filter is supplied (structural-node default). */
-    private fun expandKindFilter(kindFilter: List<String>?): Set<JavaNodeKind>? {
+    private fun expandKindFilter(kindFilter: List<String>?): Set<Any>? {
         if (kindFilter.isNullOrEmpty()) return null
-        val result = mutableSetOf<JavaNodeKind>()
+        val result = mutableSetOf<Any>()
         for (entry in kindFilter) {
             val expanded = JavaKinds.expandAlias(entry)
-            if (expanded != null) result.addAll(expanded) else JavaNodeKind.fromValue(entry)?.let { result.add(it) }
+            when {
+                expanded != null -> result.addAll(expanded)
+                entry == JavaKinds.EXTERNAL_TYPE -> result.add(JavaKinds.EXTERNAL_TYPE)
+                else -> JavaNodeKind.fromValue(entry)?.let { result.add(it) }
+            }
         }
         return result
     }

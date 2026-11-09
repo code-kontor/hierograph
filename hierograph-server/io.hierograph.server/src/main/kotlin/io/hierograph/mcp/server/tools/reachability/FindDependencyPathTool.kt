@@ -58,21 +58,29 @@ class FindDependencyPathTool(
         )
         maxPaths: Int?,
         @ToolParam(
-            description = "Maximum path length in hops. Omit for unbounded.",
+            description = "Maximum path length in hops, at least 1. Omit for unbounded.",
             required = false
         )
         maxLength: Int?
     ): Map<String, Any?> {
 
-        // ── resolve nodes ──────────────────────────────────────────────
+        // ── resolve nodes: fromId completely, then toId ────────────────
         val fromNode = graphService.model.lookupNode(fromId)
             ?: return nodeNotFound(fromId)
+        validateNodeKind(fromNode)?.let { return it }
         val toNode = graphService.model.lookupNode(toId)
             ?: return nodeNotFound(toId)
-
-        // ── validate node kinds ────────────────────────────────────────
-        validateNodeKind(fromNode)?.let { return it }
         validateNodeKind(toNode)?.let { return it }
+
+        if (maxLength != null && maxLength < 1) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "Invalid maxLength: $maxLength. It must be at least 1, or omitted for unbounded.",
+                    "recovery" to "Use maxLength=1 for direct dependencies only, or omit maxLength."
+                )
+            )
+        }
 
         val effectiveMaxPaths = (maxPaths ?: 5).coerceIn(1, 20)
         val effectiveMaxLength = maxLength ?: Int.MAX_VALUE
@@ -81,11 +89,11 @@ class FindDependencyPathTool(
         val fromTypeIds = collectTypeIds(fromNode)
         val toTypeIds = collectTypeIds(toNode)
 
-        // No types on either side, or source and target are the same single type → no path
-        if (fromTypeIds.isEmpty() || toTypeIds.isEmpty() ||
-            (fromTypeIds.size == 1 && toTypeIds.size == 1 && fromTypeIds.first() == toTypeIds.first())
-        ) {
-            return noPathResult(fromId, toId)
+        // No types on either side → no path. Overlapping scopes need no special case: a path ends at a target
+        // type it reaches over at least one dependency, so a scope searched against itself yields its internal
+        // dependencies and its cycles, and a type without either yields nothing.
+        if (fromTypeIds.isEmpty() || toTypeIds.isEmpty()) {
+            return noPathResult(fromNode, toNode)
         }
 
         // ── layered search, keeping each node's best partial paths ─────
@@ -243,12 +251,15 @@ class FindDependencyPathTool(
         )
     )
 
-    private fun noPathResult(fromId: Long, toId: Long) = linkedMapOf<String, Any?>(
-        "nodes" to emptyMap<String, Any>(),
+    private fun noPathResult(fromNode: HGNode, toNode: HGNode) = linkedMapOf<String, Any?>(
+        "nodes" to linkedMapOf<String, Any>().also {
+            nodeRefFactory.putSlimNode(it, fromNode)
+            nodeRefFactory.putSlimNode(it, toNode)
+        },
         "paths" to emptyList<Any>(),
         "summary" to linkedMapOf<String, Any?>(
-            "from_scope" to fromId,
-            "to_scope" to toId,
+            "from_scope" to fromNode.identifier,
+            "to_scope" to toNode.identifier,
             "path_count" to 0,
             "shortest_length" to null,
             "exists" to false

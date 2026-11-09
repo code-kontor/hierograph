@@ -78,13 +78,14 @@ class AffectedByTool(
         )
         direction: String?,
         @ToolParam(
-            description = "Maximum traversal depth in dependency hops. Omit for unbounded.",
+            description = "Maximum traversal depth in dependency hops, at least 1. Omit for unbounded.",
             required = false
         )
         maxDepth: Int?,
         @ToolParam(
             description = "Optional list of kind filters for results. Accepts specific kinds " +
-                    "(e.g. 'java.class') and group aliases ('types'). Filters results, not traversal.",
+                    "(java.class, java.interface, java.enum, java.record, java.annotation, external.type) and the " +
+                    "alias 'types'; other kinds are rejected, since only types are affected. Filters results, not traversal.",
             required = false
         )
         kindFilter: List<String>?,
@@ -103,18 +104,6 @@ class AffectedByTool(
         )
         cursor: String?
     ): Map<String, Any?> {
-
-        // ── validate direction ─────────────────────────────────────────
-        val effectiveDirection = direction ?: "incoming"
-        if (effectiveDirection !in listOf("incoming", "outgoing")) {
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_PARAMETER",
-                    "message" to "Invalid direction: '$effectiveDirection'. Must be 'incoming' or 'outgoing'.",
-                    "recovery" to "Use direction='incoming' for blast radius or direction='outgoing' for transitive dependencies."
-                )
-            )
-        }
 
         // ── resolve node ───────────────────────────────────────────────
         val node = graphService.model.lookupNode(nodeId)
@@ -144,11 +133,34 @@ class AffectedByTool(
             )
         }
 
-        // ── resolve kind filter ────────────────────────────────────────
-        val allowedKinds: Set<JavaNodeKind>? = when (val parsed = KindFilter.parse(kindFilter)) {
+        // ── validate direction ─────────────────────────────────────────
+        val effectiveDirection = direction ?: "incoming"
+        if (effectiveDirection !in listOf("incoming", "outgoing")) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "Invalid direction: '$effectiveDirection'. Must be 'incoming' or 'outgoing'.",
+                    "recovery" to "Use direction='incoming' for blast radius or direction='outgoing' for transitive dependencies."
+                )
+            )
+        }
+
+        // ── validate maxDepth ──────────────────────────────────────────
+        if (maxDepth != null && maxDepth < 1) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "Invalid maxDepth: $maxDepth. It must be at least 1, or omitted for unbounded.",
+                    "recovery" to "Use maxDepth=1 for direct neighbours only, or omit maxDepth."
+                )
+            )
+        }
+
+        // ── resolve kind filter: only type kinds can be affected ───────
+        val allowedKinds: Set<Any>? = when (val parsed = KindFilter.parse(kindFilter, KindFilter.TYPE_RESULT_KINDS)) {
             null -> null
             is KindFilter.Valid -> parsed.kinds
-            is KindFilter.Invalid -> return KindFilter.invalidResponse(parsed.values)
+            is KindFilter.Invalid -> return KindFilter.invalidResponse(parsed)
         }
 
         val effectiveMaxDepth = maxDepth ?: Int.MAX_VALUE
@@ -272,8 +284,13 @@ class AffectedByTool(
             }
         }
 
+        // Highest count first; equal counts by module name, then id, so the order is deterministic.
         val byParentModule = moduleCountMap.entries
-            .sortedByDescending { it.value }
+            .sortedWith(
+                compareByDescending<Map.Entry<Any, Int>> { it.value }
+                    .thenBy { graphService.model.lookupNode(it.key)?.let(NodeMetadata::getName) ?: "" }
+                    .thenBy { it.key.toString() }
+            )
             .take(10)
             .map { (moduleId, count) ->
                 val moduleNode = graphService.model.lookupNode(moduleId)

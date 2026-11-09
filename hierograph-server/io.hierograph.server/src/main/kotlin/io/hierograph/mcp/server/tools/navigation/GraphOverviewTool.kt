@@ -100,7 +100,7 @@ class GraphOverviewTool(
                 mapOf(
                     "kind" to JavaKinds.EXTERNAL_TYPE,
                     "description" to "Type referenced by the scanned code but not scanned itself; " +
-                            "lives under the 'External Types' module, has no members, and is not a kindFilter value"
+                            "lives under the 'External Types' module and has no members"
                 )
             ),
             "group_aliases" to mapOf(

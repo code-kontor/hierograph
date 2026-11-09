@@ -73,8 +73,8 @@ on a type, its methods and fields. Methods, fields and external types have no ch
 exists because a package mixes sub-packages and types, and a type mixes methods and
 fields: `["types"]` on a package shows its types without the namespace segments below
 it. Omitting it, or passing `[]`, returns all children. An unknown value is rejected
-with `INVALID_KIND` (§5). External types cannot be selected by kind; they appear only
-without a filter.
+with `INVALID_KIND` (§5). `["external.type"]` keeps the external types of a package
+under `External Types`.
 
 **`namePattern`** keeps children whose name contains the pattern, ignoring case. It
 matches the name, not the qualified name: a package's last segment, a type's simple

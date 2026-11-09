@@ -92,7 +92,7 @@ class ListChildrenTool(
         val expandedKinds = when (val parsed = KindFilter.parse(kindFilter)) {
             null -> null
             is KindFilter.Valid -> parsed.kinds
-            is KindFilter.Invalid -> return KindFilter.invalidResponse(parsed.values)
+            is KindFilter.Invalid -> return KindFilter.invalidResponse(parsed)
         }
 
         // ── resolve modifier filter ───────────────────────────────────

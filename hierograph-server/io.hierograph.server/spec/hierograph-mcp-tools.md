@@ -164,7 +164,7 @@ Two further kinds appear only inside responses and never as tree nodes:
 `java.primitive` for primitive types such as `int` and `void` (always with `id: null`),
 and `java.constructor`, which the detail tools report for a `<init>` member.
 
-**Kind filters** accept the kind values above except `external.type`, plus three
+**Kind filters** accept the kind values above, `external.type` included, plus three
 **group aliases** that expand to several kinds:
 
 | Alias | Expands to |
@@ -173,8 +173,8 @@ and `java.constructor`, which the detail tools report for a `<init>` member.
 | `members` | `java.method`, `java.field` |
 | `packages` | `java.package` |
 
-The `types` alias does not include `external.type`. External types are kept out of
-kind-filtered results because they have no members or metadata to browse.
+The `types` alias does not include `external.type`: it selects the scanned types, which
+have members and declarations to browse. `["types", "external.type"]` selects both.
 
 Every tool with a `kindFilter` (`find_node`, `list_children`, `list_descendants`,
 `affected_by`) parses it the same way. An absent or empty filter is no filter. A value
@@ -185,14 +185,16 @@ without a second lookup:
 ```json
 { "error": {
     "code": "INVALID_KIND",
-    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field. Group aliases: types, members, packages.",
+    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field, external.type. Group aliases: types, members, packages.",
     "invalid_values": ["classes"],
-    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field"],
+    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field", "external.type"],
     "valid_aliases": ["types", "members", "packages"],
     "recovery": "Use values from valid_kinds or valid_aliases, or omit kindFilter." } }
 ```
 
-With several invalid values the message starts `Unknown kinds:`. The pseudo-kinds
+With several invalid values the message starts `Unknown kinds:`. A tool whose results
+can only have some kinds accepts only those: `affected_by` accepts the type kinds,
+`external.type` and the `types` alias, and rejects the rest, which could never match. The pseudo-kinds
 `java.primitive` and `java.constructor` are not valid filter values.
 
 ### 3.3 Two levels of dependency

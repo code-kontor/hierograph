@@ -46,7 +46,7 @@ class FindNodeTool(
                 "so you can inspect matches before proceeding. " +
                 "Use kindFilter to narrow results when names are ambiguous across node types. " +
                 "Accepts specific kinds (java.class, java.interface, java.enum, java.record, " +
-                "java.annotation, java.method, java.field, java.package, java.module) " +
+                "java.annotation, java.method, java.field, java.package, java.module, external.type) " +
                 "and group aliases (types, members, packages). " +
                 "Returns at most the 50 best matches; summary.total counts all matches and " +
                 "summary.truncated is true when more exist, in which case use a longer name or a kindFilter."
@@ -63,7 +63,7 @@ class FindNodeTool(
     ): Map<String, Any?> {
 
         // ── validate kindFilter ────────────────────────────────────────
-        (KindFilter.parse(kindFilter) as? KindFilter.Invalid)?.let { return KindFilter.invalidResponse(it.values) }
+        (KindFilter.parse(kindFilter) as? KindFilter.Invalid)?.let { return KindFilter.invalidResponse(it) }
 
         // ── search (shared with the GraphQL findNodes field) ───────────
         val found = nodeSearch.find(name, kindFilter, SERVER_SIDE_CAP)

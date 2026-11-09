@@ -87,8 +87,8 @@ hangs on one type or is spread out; twenty is the most a model can usefully comp
 Values outside 1–20 are clamped.
 
 **`maxLength`** answers "are these within *n* hops of each other?" and stops the
-search from wandering through long chains nobody would act on. A `maxLength` of `0`
-or below finds no path and returns `exists: false`.
+search from wandering through long chains nobody would act on. A `maxLength` below `1`
+is rejected with `INVALID_PARAMETER` (§5): no path is shorter than one dependency.
 
 ---
 
@@ -106,10 +106,11 @@ anonymous and local classes `Invoice$1`, `Invoice$1Draft`, all the types of the
 package named `Invoice$…`. A path into `Invoice` therefore also ends at a use of
 `Invoice$Line`.
 
-The tool returns no path, without searching, when either scope contains no types, or
-when both scopes are the same single type: a type does not depend on itself. Two
-identical *package* or *module* scopes are searched normally and yield the
-dependencies between types inside them (§3.4).
+The tool returns no path, without searching, when either scope contains no types.
+Overlapping scopes need no special case: a path ends at a target type it reaches over
+at least one dependency, and no type depends on itself. A scope searched against
+itself therefore yields the dependencies between its types and the cycles through them
+(`A → B → A`), and nothing when it has neither (§3.4).
 
 ### 3.2 Search
 
@@ -204,7 +205,8 @@ not extended (rule 4).
 **Within one package.** `find_dependency_path(fromId = 4702, toId = 4702)` makes every
 type both source and target. It returns the two internal edges, `Invoice →
 Invoice$Line` (weight 4) and `Invoice → Ledger` (weight 2), each a path of length `1`.
-`find_dependency_path(fromId = 4711, toId = 4711)` returns no path.
+`find_dependency_path(fromId = 4711, toId = 4711)` returns `Invoice → Invoice$Line`:
+the scope of `Invoice` includes its nested type (§3.1).
 
 ---
 
@@ -258,8 +260,7 @@ The response to `find_dependency_path(fromId = 4702, toId = 4800)` on the graph 
 **`nodes`** follows [Slim node map](hierograph-mcp-tools.md#63-slim-node-map). It lists
 the source scope first, then the target scope, then the types of each path in path
 order. The scopes are listed even when no path is found, so a caller can confirm what
-it asked about. The one exception is the case of §3.1 in which the tool returns
-without searching: then `nodes` is `{}`.
+it asked about.
 
 ### 4.3 Path fields
 
@@ -300,13 +301,14 @@ chain leads from any source type to any target type.
 ## 5. Errors
 
 Errors use the nested shape of [Error shapes](hierograph-mcp-tools.md#81-error-shapes).
-The tool checks first that both ids exist (`fromId`, then `toId`), then that both are
-of a valid kind (`fromId`, then `toId`), and reports the first failure.
+The tool checks `fromId` (that it exists, then its kind), then `toId` the same way, then
+`maxLength`, and reports the first failure.
 
 | Code | Situation | Extra fields | `recovery` |
 |------|-----------|--------------|------------|
 | `NODE_NOT_FOUND` | `fromId` or `toId` names no node | — | `Use find_node to look up the correct node ID.` |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or field | `actual_kind`, `declaring_type` (minimal NodeRef) | `Pass the declaring type's id (<id>) instead.` |
+| `INVALID_PARAMETER` | `maxLength` is below `1` | — | `Use maxLength=1 for direct dependencies only, or omit maxLength.` |
 
 For the method `Money total()` (id `4715`) of `Invoice` passed as `fromId`:
 

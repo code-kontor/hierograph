@@ -93,17 +93,17 @@ extracting a package into its own module. The value is case-sensitive.
 
 **`maxDepth`** bounds the walk. On a central type the unbounded closure can contain a
 large part of the codebase; "what is within two hops" is often the useful question.
-Direct neighbours are always reported, so a `maxDepth` of `0` or below behaves like `1`.
+A `maxDepth` below `1` is rejected with `INVALID_PARAMETER`: direct neighbours are the
+smallest blast radius there is.
 
 **`kindFilter`** narrows the *result*, not the walk. A type of a filtered-out kind is
 still traversed, so a class reached only through an interface keeps its true distance.
 The filter accepts the kind values and group aliases of
-[Kinds](hierograph-mcp-tools.md#32-kinds); `[]` is no filter, and an unknown value
-fails the call with `INVALID_KIND` (§5).
-`external.type` is not a known filter value, so external types cannot be selected on
-their own; the `types` alias excludes them. A filter that names only non-type kinds
-(`packages`, `members`, `java.module`) yields an empty result, because only types are
-ever affected.
+[Kinds](hierograph-mcp-tools.md#32-kinds) that a result can have: the five type kinds,
+`external.type` and the `types` alias. `[]` is no filter. Any other value, an unknown
+one or a kind that is never affected (`packages`, `members`, `java.module`), fails the
+call with `INVALID_KIND` (§5), whose `valid_kinds` and `valid_aliases` list the
+accepted values. `["external.type"]` lists the library types a scope reaches.
 
 **`limit`** and **`cursor`** page through the result (§3.5).
 
@@ -183,8 +183,8 @@ pagination, so they describe the full result on every page.
 
 **`by_parent_module`** attributes each type to its module: the ancestor that is a
 direct child of the root. External types count towards `External Types`. The list holds
-the ten modules with the most affected types, largest first. Modules with equal counts
-appear in no defined order.
+the ten modules with the most affected types, largest first; modules with equal counts
+are ordered by name, then id.
 
 ### 3.5 Pages and limits
 
@@ -375,10 +375,11 @@ The checks run in the order of the table; the first failure is reported.
 
 | Code | Situation | Extra fields | `recovery` |
 |------|-----------|--------------|------------|
-| `INVALID_PARAMETER` | `direction` is neither `"incoming"` nor `"outgoing"` | — | `Use direction='incoming' for blast radius or direction='outgoing' for transitive dependencies.` |
 | `NODE_NOT_FOUND` | `nodeId` names no node | — | `Use find_node to look up the correct node ID.` |
 | `INVALID_NODE_KIND` | `nodeId` names a method or field | `actual_kind`, `declaring_type` (minimal NodeRef) | `To query dependencies involving this <kind>'s declaring type, pass nodeId=<id>.` |
-| `INVALID_KIND` | `kindFilter` contains a value that is neither a kind nor an alias | `invalid_values`, `valid_kinds`, `valid_aliases` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
+| `INVALID_PARAMETER` | `direction` is neither `"incoming"` nor `"outgoing"` | — | `Use direction='incoming' for blast radius or direction='outgoing' for transitive dependencies.` |
+| `INVALID_PARAMETER` | `maxDepth` is below `1` | — | `Use maxDepth=1 for direct neighbours only, or omit maxDepth.` |
+| `INVALID_KIND` | `kindFilter` contains a value that is not a type kind, `external.type` or `types` | `invalid_values`, `valid_kinds`, `valid_aliases` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
 | cursor codes | the cursor is malformed or stale | per code | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
 | `RESULT_TOO_LARGE` | the page exceeds the response budget | `returned`, `estimated_bytes`, `budget_bytes`, `suggested_limit` | see [The response budget](hierograph-mcp-tools.md#73-the-response-budget) |
 
