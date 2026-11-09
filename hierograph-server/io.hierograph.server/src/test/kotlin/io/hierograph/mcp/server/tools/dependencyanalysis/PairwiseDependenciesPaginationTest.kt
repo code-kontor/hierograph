@@ -46,6 +46,7 @@ class PairwiseDependenciesPaginationTest {
     private var pA = 0L
     private var pB = 0L
     private var pC = 0L
+    private var rootId = 0L
 
     @BeforeEach
     fun setup() {
@@ -56,6 +57,7 @@ class PairwiseDependenciesPaginationTest {
         val graph = HGGraphFactory.createHGGraph()
         val root = HGGraphFactory.createNode(graph, nodeSource)
         val hierarchy = HierarchyFactory.createHierarchy(graph, root)
+        rootId = root.identifier as Long
 
         fun pkgWithClass(): Pair<HGNode, HGNode> {
             val pkg = HGGraphFactory.createNode(graph, nodeSource).also { it.kind = JavaNodeKind.PACKAGE }
@@ -230,6 +232,19 @@ class PairwiseDependenciesPaginationTest {
     fun `fewer than two nodes is rejected before any node lookup`() {
         val resp = tool.pairwiseDependencies(listOf(pA), null, null, null, null)
         assertThat(errorCode(resp)).isEqualTo("INPUT_TOO_SMALL")
+    }
+
+    @Test
+    fun `duplicate and nested ids are rejected as overlapping subtrees`() {
+        @Suppress("UNCHECKED_CAST")
+        val duplicate = tool.pairwiseDependencies(listOf(pA, pB, pA), null, null, null, null)["error"] as Map<String, Any?>
+        assertThat(duplicate["code"]).isEqualTo("INVALID_PARAMETER")
+        assertThat(duplicate["duplicates"]).isEqualTo(listOf(pA))
+
+        @Suppress("UNCHECKED_CAST")
+        val nested = tool.pairwiseDependencies(listOf(rootId, pA), null, null, null, null)["error"] as Map<String, Any?>
+        assertThat(nested["code"]).isEqualTo("INVALID_PARAMETER")
+        assertThat(nested["nested"]).isEqualTo(listOf(mapOf("node" to pA, "inside" to rootId)))
     }
 
     @Test

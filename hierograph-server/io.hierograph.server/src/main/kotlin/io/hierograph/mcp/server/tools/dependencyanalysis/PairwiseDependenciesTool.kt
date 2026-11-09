@@ -154,6 +154,7 @@ class PairwiseDependenciesTool(
             validateNodeKind(node)?.let { return it }
             resolvedNodes.add(node)
         }
+        overlapping(resolvedNodes)?.let { return it }
 
         // ── build DSM; analytics are computed over the FULL node set ────
         val dsm = GraphUtils.createDependencyStructureMatrix(resolvedNodes, hierarchy)
@@ -253,6 +254,37 @@ class PairwiseDependenciesTool(
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
+
+    /**
+     * The `INVALID_PARAMETER` error for a node set that is not disjoint, or `null` when it is. A matrix
+     * row stands for a whole subtree, so an id listed twice, or a node inside another listed node, would
+     * attribute the same dependencies to two rows; which row wins would depend on the input order, and a
+     * containing node can even look cyclic with the node inside it.
+     */
+    private fun overlapping(nodes: List<HGNode>): Map<String, Any?>? {
+        val hierarchy = graphService.model.hierarchy
+        val listed = nodes.map { it.identifier }.toSet()
+        val duplicates = nodes.groupingBy { it.identifier }.eachCount().filterValues { it > 1 }.keys.toList()
+        val nested = nodes.distinctBy { it.identifier }.mapNotNull { node ->
+            generateSequence(hierarchy.parentOf(node)) { hierarchy.parentOf(it) }
+                .firstOrNull { it.identifier in listed }
+                ?.let { ancestor -> linkedMapOf("node" to node.identifier, "inside" to ancestor.identifier) }
+        }
+        if (duplicates.isEmpty() && nested.isEmpty()) return null
+        val problems = buildList {
+            if (duplicates.isNotEmpty()) add("listed more than once: ${duplicates.joinToString()}")
+            if (nested.isNotEmpty()) add("inside another listed node: ${nested.joinToString { "${it["node"]} in ${it["inside"]}" }}")
+        }
+        return mapOf(
+            "error" to linkedMapOf(
+                "code" to "INVALID_PARAMETER",
+                "message" to "nodeIds must name disjoint subtrees; ${problems.joinToString("; ")}.",
+                "duplicates" to duplicates,
+                "nested" to nested,
+                "recovery" to "List each id once, and keep either a containing node or the nodes inside it, not both."
+            )
+        )
+    }
 
     private fun invalidParam(message: String, recovery: String): Map<String, Any?> = mapOf(
         "error" to mapOf(

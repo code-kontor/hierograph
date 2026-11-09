@@ -81,13 +81,13 @@ cell list follows it.
 
 **`nodeIds`** names the subtrees that become the rows and columns. Each id stands for
 the node and everything below it. Any node except a method or a field is accepted,
-including types, external types and the root. The nodes should be disjoint: the
-matrix is defined over subtrees that do not contain one another. The tool does not
-reject nested nodes. When one input lies inside another, a dependency into the inner
-node is attributed to whichever of the two comes later in `nodeIds`, so the cells
-depend on the input order and mean little. At least two nodes are needed for a
-matrix; more than 1,000 are refused, because the cycle analysis and the summary grow
-with the node count.
+including types, external types and the root. The nodes must be disjoint: each row
+stands for a whole subtree, so an id listed twice, or a node inside another listed
+node, would count the same dependencies in two rows. Which row got them would depend
+on the input order, and a package listed together with its module can even look
+cyclic with it. The tool therefore rejects such a set with `INVALID_PARAMETER` (§5).
+At least two nodes are needed for a matrix; more than 1,000 are refused, because the
+cycle analysis and the summary grow with the node count.
 
 **`edgeSort`** chooses the order of the edge list. `"dsm"` follows the matrix: by row,
 then by column, in the node order of §3.2, so an acyclic set lists only cells on one
@@ -334,6 +334,7 @@ is returned.
 | `INVALID_PARAMETER` | `edgeSort` outside its value set | — |
 | `NODE_NOT_FOUND` | an id names no node | — |
 | `INVALID_NODE_KIND` | an id names a method or a field | `actual_kind`, `declaring_type` |
+| `INVALID_PARAMETER` | `nodeIds` lists an id twice, or a node inside another listed node | `duplicates` (ids), `nested` (`{node, inside}` pairs) |
 | cursor codes | the cursor is malformed, from another tool, or stale | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
 | `RESULT_TOO_LARGE` | the page exceeds the response budget | see [The response budget](hierograph-mcp-tools.md#73-the-response-budget) |
 
