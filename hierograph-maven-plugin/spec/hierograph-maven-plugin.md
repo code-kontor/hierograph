@@ -27,7 +27,7 @@ The plugin exposes four goals that serve two workflows.
  Local development (the server scans and watches your build)
  ────────────────────────────────────────────────────────────
    hierograph:create-descriptor   per module   →  target/hierograph/module.json
-   hierograph:merge-descriptors   once (root)  →  .hierograph/manifest.json  ──►  MCP server (manifest mode)
+                                  + merge      →  .hierograph/manifest.json  ──►  MCP server (manifest mode)
 
  Publishing (a scanned archive travels as an artifact)
  ────────────────────────────────────────────────────────────
@@ -37,8 +37,8 @@ The plugin exposes four goals that serve two workflows.
 
 | Goal | Scope | Default phase | Scans bytecode? | Primary output |
 |------|-------|---------------|-----------------|----------------|
-| `create-descriptor` | per module | `process-classes` | no | `module.json` descriptor |
-| `merge-descriptors` | aggregator | `verify` | no | merged `manifest.json` |
+| `create-descriptor` | per module | `process-classes` | no | `module.json` descriptor and merged `manifest.json` |
+| `merge-descriptors` | aggregator | `verify` | no | merged `manifest.json` (optional) |
 | `scan` | per module | `package` | yes | attached `.hierograph` archive |
 | `collect` | aggregator | `verify` | yes (collects) | attached combined archive |
 
@@ -94,59 +94,103 @@ archive. This is what makes a library's archive reusable across projects.
 ### `hierograph:create-descriptor`
 
 > Record a module's build facts — coordinates, output directories, and resolved
-> classpath — into a per-module descriptor. **Does not scan bytecode.**
+> classpath — into a per-module descriptor, then merge every module's descriptor
+> into the reactor manifest. **Does not scan bytecode.**
 
 Only the build tool knows a module's layout and its already-resolved classpath.
-`create-descriptor` captures those facts into a small descriptor that
-`merge-descriptors` later folds into the reactor manifest. It is cheap and has no
-scanning cost, so it can run on every build.
+`create-descriptor` captures those facts into a small descriptor and folds all
+descriptors of the reactor into the manifest. It is cheap and has no scanning
+cost, so it runs on every build: any build that reaches `process-classes`,
+including a build narrowed with `-pl`, keeps the manifest in step with the module
+set. `mvn compile` stops one phase earlier and does not run it.
 
 - **Binding:** `process-classes`
 - **Dependency resolution:** `test` (so the test classpath is available; the main classpath is its non-test subset)
 - **Inputs:** `project.build.outputDirectory`, `project.build.testOutputDirectory`, `project.compileSourceRoots`, `project.testCompileSourceRoots`, and `project.artifacts` (all scopes).
-- **Skips:** modules with `pom` packaging, and modules with no compiled output (logged, not a failure).
+- **Skips:** modules with `pom` packaging.
 
-**Output** — one descriptor per module:
+**Modules without compiled output** get a descriptor too. The output directories
+are recorded as configured, whether or not they exist, and both classpaths are
+resolved. A watching server then observes the directories and scans the classes
+once they appear, for example after the IDE's first compile of a module created
+in the IDE.
+
+**Output** — one descriptor per module, and the reactor manifest:
 
 ```
 <module>/target/hierograph/module.json
+<reactor-root>/.hierograph/manifest.json
 ```
 
-A build-local file, consumed by `merge-descriptors`. It is not attached to the
-project and not deployed.
+Both are build-local files. They are not attached to the project and not
+deployed.
+
+#### The merge
+
+The merge reads the descriptors of **every project in the reactor**
+(`session.allProjects`), which is the full reactor even when the build is
+narrowed with `-pl`. This gives the manifest these properties:
+
+| Change | Effect on the manifest |
+|--------|------------------------|
+| A module is removed from `<modules>` | its entry disappears, even if its directory and descriptor remain on disk |
+| A module's `artifactId` changes | its descriptor is rewritten with the new GAV; the old GAV disappears |
+| A module is not built in this run | its last descriptor is used unchanged |
+| A module's descriptor is missing (after `mvn clean`, not rebuilt yet) | its entry from the existing manifest is kept |
+| Two modules report the same GAV | the first is kept and a warning is logged |
+
+Modules are sorted by GAV for a stable file.
+
+**Written only on change.** The merge compares the result with the existing
+manifest, ignoring `generatedAt`, and rewrites the file only when something else
+differs. A watching server treats a changed manifest as a module-set change, so a
+rebuild of an unchanged module set must not touch it. The descriptor follows the
+same rule.
+
+**Atomic and serialised.** Both files are written to a temporary file and moved
+into place atomically, so a reader never sees a partial file. Merges are
+serialised within one Maven process (parallel module builds with `-T`) and across
+processes by an exclusive lock on `.hierograph/manifest.lock` (a CLI build and an
+IDE build at the same time).
+
+The reactor root is the build's execution root (the directory Maven was launched
+in), so the manifest lands in the same place even when the build is narrowed with
+`-pl`. A build launched inside a module directory has that directory as its
+execution root and a reactor of that module only; it writes its own manifest
+below that directory and leaves the reactor's manifest untouched.
+
+A build narrowed with `-pl` resolves reactor siblings only when they are part of
+the build or installed: `mvn -pl billing-core process-classes` fails to resolve an
+uninstalled `billing-api`, while `mvn -pl billing-core -am process-classes`
+succeeds. This is Maven's resolution behaviour.
 
 **Parameters**
 
 | Parameter | Property | Default | Description |
 |-----------|----------|---------|-------------|
+| `manifestDir` | `hierograph.manifestDir` | `${session.executionRootDirectory}/.hierograph` | Directory the merged manifest is written to. |
 | `skip` | `hierograph.skip` | `false` | Skip the goal. |
 
 ---
 
 ### `hierograph:merge-descriptors`
 
-> Merge every module's descriptor into one reactor manifest for a watching server.
+> Merge every module's descriptor into one reactor manifest, without writing
+> descriptors.
 
-An aggregator goal: it runs once on the top-level build, collects each module's
-`module.json`, and merges them into a single manifest. The Hierograph MCP server
-reads that manifest, scans each module's compiled output itself, and observes the
-output directories for live updates — the fast inner loop for local analysis, with
-no artifacts to publish.
+An aggregator goal that runs the merge of `create-descriptor` once on the
+top-level build. Because `create-descriptor` already merges, a build does not need
+to bind it; it is there to merge explicitly, for example from the command line.
 
 - **Binding:** `verify` (aggregator)
 - **Inputs:** every reactor module's `target/hierograph/module.json`.
-- **Duplicate coordinates:** if two modules report the same GAV, the first is kept and a warning is logged.
-- **Ordering:** modules are sorted by GAV for a stable file.
+- **Behaviour:** identical to the merge of `create-descriptor` (duplicates, ordering, change detection, atomic write).
 
 **Output** — one manifest for the reactor:
 
 ```
 <reactor-root>/.hierograph/manifest.json
 ```
-
-The reactor root is the build's execution root (the directory Maven was launched
-in), so the manifest lands in the same place even when the build is narrowed with
-`-pl`.
 
 **Parameters**
 
@@ -237,7 +281,7 @@ artifact:  <root-groupId>:<root-artifactId>:<version>   ·   type hierograph   �
 | Produced by | Name | Form | Published? | Coordinates |
 |-------------|------|------|------------|-------------|
 | `create-descriptor` | `target/hierograph/module.json` | JSON descriptor | no (build-local) | — |
-| `merge-descriptors` | `.hierograph/manifest.json` | JSON manifest | no (build-local) | — |
+| `create-descriptor`, `merge-descriptors` | `.hierograph/manifest.json` | JSON manifest | no (build-local) | — |
 | `scan` | `<artifactId>.hierograph` | Parquet archive | yes | type `hierograph`, no classifier |
 | `scan` (tests) | `<artifactId>.hierograph` | Parquet archive | yes | type `hierograph`, classifier `tests` |
 | `collect` | `<artifactId>-collect.hierograph` | archive of archives | yes | type `hierograph`, classifier `collect` |
@@ -347,8 +391,8 @@ The Hierograph MCP server builds its graph from one of three sources, selected b
 `hierograph.graph.source`:
 
 - **`manifest`** — read `manifest.json`, scan each module's compiled output, and
-  watch the output directories for changes. Paired with `create-descriptor` +
-  `merge-descriptors`; the inner loop for local development.
+  watch the output directories for changes. Paired with `create-descriptor`;
+  the inner loop for local development.
 - **`repository`** — given a root GAV or an explicit classpath, resolve the
   `hierograph`-type archives across the dependency closure and assemble the link
   set. An artifact without a published archive is scanned on demand from its jar
@@ -367,7 +411,8 @@ correctly in any combination of dependencies.
 
 ### 7.1 Local development — a watching server
 
-Bind `create-descriptor` per module and `merge-descriptors` once at the root:
+Bind `create-descriptor`; it writes each module's descriptor and merges the
+manifest:
 
 ```xml
 <plugin>
@@ -378,15 +423,17 @@ Bind `create-descriptor` per module and `merge-descriptors` once at the root:
     <execution>
       <goals>
         <goal>create-descriptor</goal>   <!-- per module, process-classes -->
-        <goal>merge-descriptors</goal>   <!-- once at the root, verify -->
       </goals>
     </execution>
   </executions>
 </plugin>
 ```
 
-`mvn verify` writes `.hierograph/manifest.json`; start the server in manifest mode
-pointed at the reactor root.
+Any build reaching `process-classes` (`mvn compile` is not enough; `mvn
+process-classes`, `mvn test` or later) writes `.hierograph/manifest.json`; start
+the server in manifest mode pointed at the reactor root. After a POM change that
+adds, removes or renames a module or changes dependencies, run such a build once;
+class changes alone need no Maven run.
 
 ### 7.2 Publishing archives
 
@@ -424,7 +471,7 @@ To hand a single file to a server instead, add `collect`:
 | Property | Goal(s) | Default | Purpose |
 |----------|---------|---------|---------|
 | `hierograph.skip` | all | `false` | Skip the goal. |
-| `hierograph.manifestDir` | `merge-descriptors` | `${session.executionRootDirectory}/.hierograph` | Manifest output directory. |
+| `hierograph.manifestDir` | `create-descriptor`, `merge-descriptors` | `${session.executionRootDirectory}/.hierograph` | Manifest output directory. |
 | `hierograph.archiveDir` | `scan` | `${project.build.directory}/hierograph` | Archive staging directory. |
 | `hierograph.attach` | `scan`, `collect` | `true` | Attach (and deploy) the produced artifact. |
 | `hierograph.includeTestClasses` | `scan` | `false` | Also scan test output. |

@@ -128,19 +128,32 @@ reload (their data hash no longer matches).
 
 ## 6. Live updates (manifest mode)
 
-When watching is enabled, the service tracks the manifest file and each module's
-compiled-output directory, and applies changes on a dedicated single-thread
-updater (kept off the watcher's own event thread):
+When watching is enabled, the service tracks the manifest file and every output
+directory the manifest declares, including directories that do not exist yet, and
+applies changes on a dedicated single-thread updater (kept off the watcher's own
+event thread):
 
 - **A module's output changed** → rescan only the changed modules, rebuild the
   graph from the cached union of per-module scans, and swap it in. Unchanged
-  modules are not re-scanned.
+  modules are not re-scanned. An output directory that appears (a module compiled
+  for the first time) is scanned and added; one that disappears drops the
+  module's classes.
 - **The manifest itself changed** (module set or classpath) → re-read it fully,
   rebuild, and re-target the watcher at the new module set.
 
 Watch mode is `polling` (default), `native`, or `off`, with configurable poll
-interval and a settle delay that coalesces a burst of edits into one rebuild. An
-incremental update that fails logs and keeps the previous graph.
+interval and a settle delay that coalesces a burst of edits into one rebuild. The
+polling watcher sees a directory appear as a signature change. A native watch can
+only be registered on an existing directory, so the native watcher checks on each
+tick which declared directories exist, reports the ones that appeared or
+disappeared, and re-registers. An incremental update that fails logs and keeps
+the previous graph.
+
+**Starting without output.** When the manifest is readable but no declared output
+exists, or the graph cannot be built, the service starts without a graph and
+still starts the watcher; the first output that appears builds the graph. A
+failed `reload` or manifest reload also re-targets the watcher, so the service
+follows a new module set even before any of it is compiled.
 
 **Asynchronous detail.** Each manifest build schedules its Parquet detail write on
 a background writer. When the write for a generation finishes, it is published as

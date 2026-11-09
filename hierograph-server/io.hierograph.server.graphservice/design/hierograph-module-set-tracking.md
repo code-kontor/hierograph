@@ -12,6 +12,12 @@ makes to the plugin, the manifest and the server. It is a design document, not a
 specification: it describes intended behaviour. Once implemented, its content
 moves into the specifications listed in §9 and this file is deleted.
 
+**Status.** Parts A and B are implemented and specified in the
+[build manifest](../spec/hierograph-build-manifest.md),
+[hierarchical graph service](../spec/hierarchical-graph-service.md) and
+[Maven plugin](../../../hierograph-maven-plugin/spec/hierograph-maven-plugin.md)
+specifications. Parts C and D are open.
+
 ---
 
 ## Contents
@@ -148,6 +154,10 @@ modules excluded with `-pl`. Merging over it gives three properties:
 - A renamed module rewrites its descriptor in place with the new GAV, so the old
   GAV disappears.
 - A module not built in this run contributes its last descriptor unchanged.
+- A module whose descriptor is missing (deleted by `mvn clean`, not rebuilt yet)
+  keeps its entry from the existing manifest. Without this, a build after a
+  separate `mvn clean` drops every module not yet rebuilt from the manifest, and a
+  `-pl` build after `clean` drops them until they are built again.
 
 Searching the filesystem for descriptors has none of these properties: it finds
 stale descriptors and descriptors of projects outside the reactor.

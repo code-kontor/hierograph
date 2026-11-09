@@ -1,10 +1,10 @@
 # Hierograph Build Manifest — Specification
 
 The build manifest is the contract between a Maven build and the Hierograph MCP
-server's **manifest mode**. The Maven plugin's `hierograph:create-descriptor` and
-`hierograph:merge-descriptors` goals write it; the server's manifest-mode graph
-source reads it, scans each module's compiled output itself, and watches those
-output directories for changes.
+server's **manifest mode**. The Maven plugin's `hierograph:create-descriptor` goal
+writes it on every build that reaches `process-classes`; the server's
+manifest-mode graph source reads it, scans each module's compiled output itself,
+and watches those output directories for changes.
 
 The manifest records only what the build tool knows and the server cannot
 reconstruct on its own: each module's coordinates, its compiled-output
@@ -12,7 +12,7 @@ directories, and its **resolved dependency classpaths in Maven order**. The serv
 does the bytecode scanning; the manifest tells it *what* to scan and *against
 which classpath to resolve references*.
 
-- **Producer:** `hierograph:merge-descriptors` (merging per-module `module.json` descriptors)
+- **Producer:** `hierograph:create-descriptor`, which merges the per-module `module.json` descriptors after writing its own (`hierograph:merge-descriptors` runs the same merge on its own)
 - **Consumer:** the server's manifest-mode graph source (`hierograph.graph.source=manifest`)
 - **Location:** `<reactor-root>/.hierograph/manifest.json`
 - **Encoding:** UTF-8 JSON
@@ -58,7 +58,7 @@ which classpath to resolve references*.
 | `generator` | string | `io.hierograph.maven.plugin/<version>`; informational. |
 | `generatedAt` | string | ISO-8601 instant the manifest was written; informational. |
 | `reactorRoot` | string | Absolute path of the reactor root on the build host. The anchor for path portability (§3). |
-| `modules` | array | One entry per reactor module with compiled output, sorted by `gav`. |
+| `modules` | array | One entry per reactor module except `pom`-packaged ones, compiled or not, sorted by `gav`. |
 
 ### Module
 
@@ -66,12 +66,12 @@ which classpath to resolve references*.
 |-------|------|---------|
 | `gav` | string | `groupId:artifactId:version` — the module's artifact key and node identity. |
 | `name` | string | Display name (the `artifactId`). Falls back to `gav` if absent. |
-| `mainOutputDir` | string? | Absolute path of the compiled main classes (`target/classes`). |
-| `testOutputDir` | string? | Absolute path of the compiled test classes (`target/test-classes`). |
+| `mainOutputDir` | string? | Absolute path of the main output directory (`target/classes`). Need not exist yet. |
+| `testOutputDir` | string? | Absolute path of the test output directory (`target/test-classes`). Need not exist yet. |
 | `sourceRoots` | string[] | Absolute main source directories. Recorded; reserved (§5). |
 | `testSourceRoots` | string[] | Absolute test source directories. Recorded; reserved (§5). |
 | `classpath` | entry[] | The module's **main** classpath — its non-test dependencies in resolution order (§2). |
-| `testClasspath` | entry[] | The module's **test** classpath — all dependencies incl. test scope, in resolution order (§2). Omitted when there is no test output. |
+| `testClasspath` | entry[] | The module's **test** classpath — all dependencies incl. test scope, in resolution order (§2). |
 
 ### Classpath entry
 
@@ -186,21 +186,27 @@ them when it cheaply can.
 In manifest mode the server:
 
 1. Reads the manifest and builds the `PathRemap` from `reactorRoot` (§3).
-2. For each module: records its `classpath` (keyed by `gav`), re-roots and scans
-   `mainOutputDir` with the ASM bytecode scanner; a module whose output directory
-   is missing is skipped with a warning. (It is an error for *no* module to have
-   scannable output.)
-3. When test scanning is enabled: re-roots and scans `testOutputDir` as the
+2. For each module: records its `classpath` (keyed by `gav`), re-roots
+   `mainOutputDir` and **declares** it. A declared output directory that exists
+   is scanned with the ASM bytecode scanner; one that does not exist yet is
+   watched and scanned once it appears. It is an error for the manifest to
+   declare *no* output directory.
+3. When test scanning is enabled: re-roots and declares `testOutputDir` as the
    artifact `<gav>:test`, resolved against `testClasspath`. A manifest without
    `testClasspath` (§4) resolves test types against `classpath` instead, so
    test-scope dependencies appear as external types.
 4. Installs the per-owner classpath-order type resolver (§2) and ingests the
    scanned classes straight into the in-memory graph store; the Parquet detail
    snapshot is written separately, off the hot path.
-5. Watches each scanned output directory and re-scans only the modules whose
-   classes change, rebuilding the graph from the cached union. It also watches
-   the manifest file and, when it changes, re-reads it and re-targets the
-   watcher.
+5. Watches every declared output directory and re-scans only the modules whose
+   classes change, rebuilding the graph from the cached union. A directory that
+   appears is scanned and added; one that disappears (`mvn clean`) drops the
+   module's classes but keeps the declaration. It also watches the manifest file
+   and, when it changes, re-reads it and re-targets the watcher.
+
+When no declared output exists at startup (a fresh clone), the server starts
+without a graph but keeps watching, and builds the graph when the first output
+appears.
 
 The manifest is thus a *scan plan plus resolution context*: it never contains
 scanned facts, only the inputs the server needs to produce them.
