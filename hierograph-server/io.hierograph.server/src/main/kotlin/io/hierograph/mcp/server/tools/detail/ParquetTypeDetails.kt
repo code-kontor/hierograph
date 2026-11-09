@@ -38,6 +38,9 @@ import java.nio.file.Path
  *
  * Not in the snapshot, hence reported as unknown (`null`): `is_generic`, and the modifiers of a type
  * whose `types.parquet` row is missing or carries none. The source line of a type is not exported either.
+ *
+ * Nesting is derived from binary names, because a nested type sits beside its enclosing type in the
+ * package (see [NestedTypes]).
  */
 @Component
 class ParquetTypeDetails(
@@ -69,7 +72,8 @@ class ParquetTypeDetails(
             "parent_id" to parent?.identifier,
             "parent_kind" to parent?.kind?.toString(),
         )
-        val parentContainer = parent?.takeIf { it !== hierarchy.rootNode }?.let { nodeRefFactory.minimalNodeRef(it) }
+        val container = NestedTypes.enclosingType(hierarchy, node) ?: parent?.takeIf { it !== hierarchy.rootNode }
+        val parentContainer = container?.let { nodeRefFactory.minimalNodeRef(it) }
 
         val bits = typeRow?.modifiers
         val superclass = refs.firstOrNull { it.kind == RefKind.EXTENDS }?.let { typeRef(it.toKey) }
@@ -82,7 +86,7 @@ class ParquetTypeDetails(
             "field_count" to members.count { it.kind == JavaNodeKind.FIELD },
             "constructor_count" to members.count { it.kind == JavaNodeKind.CONSTRUCTOR },
         )
-        val innerTypes = hierarchy.childrenOf(node).filter { it.kind in JavaKinds.TYPE_KINDS }.map { nodeRefFactory.minimalNodeRef(it) }
+        val innerTypes = NestedTypes.memberTypes(hierarchy, node).map { nodeRefFactory.minimalNodeRef(it) }
         val location = typeRow?.sourceFile?.let { linkedMapOf<String, Any?>("source_file" to it) }
 
         return linkedMapOf(

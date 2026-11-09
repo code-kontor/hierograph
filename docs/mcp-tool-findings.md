@@ -107,7 +107,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 5.1 | High | `inner_types` in `type_details` is always empty, and `parent_container` is never the enclosing type, because nested types are package siblings. Either compute it (types named `Outer$…` in the package) or drop the field. | `tools/detail/ParquetTypeDetails.kt:85-86,98` |
+| 5.1 | Fixed | `inner_types` in `type_details` was always empty and `parent_container` never the enclosing type, because nested types are package siblings. Nesting is now derived from binary names (`NestedTypes`): the enclosing type of `Outer$Inner` is the sibling `Outer`, and `inner_types` lists the direct member types, without anonymous and local classes. | `tools/detail/NestedTypes.kt` |
 | 5.2 | High | `type_details` rejects `external.type` ids with `WRONG_NODE_KIND`, but returns those ids as `superclass` and `interfaces`, so following a supertype dead-ends. | `ParquetTypeDetails.kt:52` |
 | 5.3 | Medium | `is_generic` is hard-coded `null`. The scanner already sees the class signature. | `ParquetTypeDetails.kt:93-94` |
 | 5.4 | Medium | In `method_details` and `field_details`, a type, package or unknown id gives `NODE_NOT_FOUND` instead of `WRONG_NODE_KIND`, because the lookup uses only the member index. There is no `recovery`. | `ParquetMethodDetails.kt:38-40`, `ParquetFieldDetails.kt:38-39` |

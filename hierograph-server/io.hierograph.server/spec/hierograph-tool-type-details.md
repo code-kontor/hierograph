@@ -97,14 +97,14 @@ described in the
 
 | Response field | Source | Why there |
 |----------------|--------|-----------|
-| `type`, `parent_container` | the model | identity and tree position are the model's job |
+| `type`, `parent_container` | the model; nesting from binary names | identity and tree position are the model's job |
 | `modifiers`, `is_abstract` | `types.parquet`, column `modifiers` | the model keeps no declaration flags |
 | `location.source_file` | `types.parquet`, column `source_file` | same |
 | `superclass` | the type's `EXTENDS` row in `refs.parquet` | keeps targets the model leaves out (§3.2) |
 | `interfaces` | the type's `IMPLEMENTS` rows in `refs.parquet` | same |
 | `annotations` | the type's `ANNOTATED_BY` rows in `refs.parquet` | same |
 | `member_summary` | the type's rows in `members.parquet` | only the snapshot tells constructors from methods |
-| `inner_types` | the type's children in the model | see below |
+| `inner_types` | the type's siblings in the model, by binary name | see below |
 | `is_generic` | none | the snapshot does not record type parameters |
 
 The `types.parquet` row is the one filed under the artifact of the type's own module,
@@ -132,10 +132,23 @@ class carries `kotlin.Metadata`, which therefore appears here for Kotlin types.
 
 **Nested types.** A nested type is a sibling of its enclosing type in the package, with
 its binary name (`Invoice$Line`;
-[shared spec §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)). A
-type's children in the model are its members only, so `inner_types` is always an empty
-list and `parent_container` is always the type's package. To find the nested types of
-`Invoice`, list the package and look for names starting with `Invoice$`.
+[shared spec §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)). The
+tool derives nesting from those names, among the types of the same package:
+
+- The **enclosing type** of `Invoice$Line` is the type named `Invoice`: the name up to
+  the last `$`. It becomes `parent_container`. When no type of that name exists,
+  because the `$` belongs to a generated name such as `Ledger$$Proxy`, the type is
+  treated as top-level and `parent_container` is its package.
+- The **member types** of `Invoice` are the types named `Invoice$<Name>` where `<Name>`
+  contains no further `$` and does not start with a digit. They become `inner_types`.
+  `Invoice$Line$Tax` is a member type of `Invoice$Line`, not of `Invoice`. Anonymous
+  classes (`Invoice$1`) and local classes (`Invoice$1Draft`) are left out, as
+  `Class.getDeclaredClasses` leaves them out; their enclosing type is still
+  `Invoice`.
+
+The class files record nesting exactly, in their `InnerClasses` attribute, but the
+snapshot does not keep it; the names carry the same information for code compiled
+from Java or Kotlin.
 
 **Modifiers.** Modifiers are decoded from the
 [modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
@@ -215,8 +228,9 @@ which initialises `LOG`. `type_details` therefore reports `method_count` `4`,
 
 `Comparable` is in `java.lang`, so it has no node and comes back with `id: null`.
 `java.io.Serializable` has a placeholder node under `External Types` and comes back with
-its id. `Invoice$Line` is not listed in `inner_types`; it is a sibling of `Invoice` in
-package `com.example.billing`.
+its id. `Invoice$Line` is listed in `inner_types`. In the tree it is a sibling of
+`Invoice` in package `com.example.billing`; asked about `Invoice$Line`, `type_details`
+names `Invoice` as its `parent_container`.
 
 ---
 
@@ -246,7 +260,10 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
   ],
   "annotations": [],
   "member_summary": { "method_count": 4, "field_count": 3, "constructor_count": 1 },
-  "inner_types": [],
+  "inner_types": [
+    { "id": 4712, "name": "Invoice$Line", "qualified_name": "com.example.billing.Invoice$Line",
+      "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package" }
+  ],
   "location": { "source_file": "Invoice.java" }
 }
 ```
@@ -256,7 +273,7 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
 | Field | Type | Null? | Description |
 |-------|------|-------|-------------|
 | `type` | minimal NodeRef | no | The type itself. |
-| `parent_container` | minimal NodeRef | yes | The type's package. |
+| `parent_container` | minimal NodeRef | yes | The enclosing type of a nested type, otherwise the package. |
 | `modifiers` | list of strings | yes | Declared modifiers, visibility first (§3.1). |
 | `is_abstract` | boolean | yes | `true` when the `abstract` modifier is present. |
 | `is_generic` | boolean | always `null` | Whether the type declares type parameters; not recorded. |
@@ -264,16 +281,18 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
 | `interfaces` | list of type references | no | Directly implemented (or, for an interface, extended) interfaces. |
 | `annotations` | list of `{type}` | no | Annotations on the type itself; `type` is a type reference. |
 | `member_summary` | object | no | `method_count`, `field_count`, `constructor_count`. |
-| `inner_types` | list of minimal NodeRefs | no | Always empty (§3.1). |
+| `inner_types` | list of minimal NodeRefs | no | The member types declared directly in the type (§3.1). |
 | `location` | object | yes | `{source_file}`, the simple name of the source file. |
 
 **`type`** is a [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef). It echoes
 the input so a response can be read without the request, and its `parent_id` places the
 type in the tree.
 
-**`parent_container`** is the type's package as a minimal NodeRef, so a caller can
-browse the type's neighbours with `list_children` without another lookup. It is `null`
-only for a type whose parent is the root, which does not occur for scanned code.
+**`parent_container`** is where the type is declared: the enclosing type for a nested
+type, the package otherwise, as a minimal NodeRef. It answers "where does this type
+live" in source terms, which `type.parent_id` cannot, because the tree places every
+type directly in its package. It is `null` only for a type whose parent is the root,
+which does not occur for scanned code.
 
 **`modifiers`** and **`is_abstract`** answer the most common declaration questions
 ("can I subclass it?", "can I instantiate it?") without parsing source. `is_abstract`
@@ -294,8 +313,9 @@ than how it is used. They are type references (§3.2) so the caller can follow e
 separate because "how many ways can this be built" and "how much behaviour does it
 have" are different questions.
 
-**`inner_types`** is always `[]`, because nested types are not children of their
-enclosing type in the tree (§3.1).
+**`inner_types`** lists the member types declared directly in the type, in the
+package's child order, so a caller sees a type's nested API without listing the whole
+package (§3.1).
 
 **`location`** names the source file so a caller with file access can open it. It holds
 no line number, because the snapshot records lines for member code only. It is `null`
@@ -365,14 +385,15 @@ implements it. For the reverse question, use
 `is_implements`.
 
 **Open the source.** `location.source_file` is a simple file name. Combine it with
-`parent_container.qualified_name` (`com/example/billing/Invoice.java`) to locate the file
+the package part of `type.qualified_name` (`com/example/billing/Invoice.java`) to locate the file
 under a source root.
 
 **List the members.** `member_summary` only counts. Use
 `list_children(nodeId = 4711)` to get the members with ids, then `method_details` or
 `field_details` on the ones of interest.
 
-**Find nested types.** `inner_types` is empty by construction. Use
+**Find nested types.** `inner_types` lists the member types; pass their ids back to
+`type_details` to descend. Anonymous and local classes are not listed; find them with
 `list_children(nodeId = <package id>, namePattern = "Invoice$")`.
 
 ---
