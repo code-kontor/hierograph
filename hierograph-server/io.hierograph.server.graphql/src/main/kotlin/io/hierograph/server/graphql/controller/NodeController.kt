@@ -67,9 +67,9 @@ class NodeController(
         @Argument referencedNodeIds: List<String>
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
-        val targetIds = referencedNodeIds.map { it.toLong() }.toSet()
+        val targets = resolveIds(hierarchy, referencedNodeIds)
         val filtered = hierarchy.childrenOf(node).filter { child ->
-            hierarchy.accumulatedOutgoing(child).any { it.to.identifier in targetIds }
+            hierarchy.accumulatedOutgoing(child).any { isWithin(hierarchy, it.to, targets) }
         }
         return NodeSetModel(filtered)
     }
@@ -80,9 +80,9 @@ class NodeController(
         @Argument referencingNodeIds: List<String>
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
-        val sourceIds = referencingNodeIds.map { it.toLong() }.toSet()
+        val sources = resolveIds(hierarchy, referencingNodeIds)
         val filtered = hierarchy.childrenOf(node).filter { child ->
-            hierarchy.accumulatedIncoming(child).any { it.from.identifier in sourceIds }
+            hierarchy.accumulatedIncoming(child).any { isWithin(hierarchy, it.from, sources) }
         }
         return NodeSetModel(filtered)
     }
@@ -101,14 +101,16 @@ class NodeController(
 
     @SchemaMapping(typeName = "Node")
     fun dependenciesTo(node: HGNode, @Argument targetNodes: List<String>): List<HGCoreDependency> {
-        val targetIds = targetNodes.map { it.toLong() }.toSet()
-        return provider.hierarchy().accumulatedOutgoing(node).filter { it.to.identifier in targetIds }
+        val hierarchy = provider.hierarchy()
+        val targets = resolveIds(hierarchy, targetNodes)
+        return hierarchy.accumulatedOutgoing(node).filter { isWithin(hierarchy, it.to, targets) }
     }
 
     @SchemaMapping(typeName = "Node")
     fun dependenciesFrom(node: HGNode, @Argument sourceNodes: List<String>): List<HGCoreDependency> {
-        val sourceIds = sourceNodes.map { it.toLong() }.toSet()
-        return provider.hierarchy().accumulatedIncoming(node).filter { it.from.identifier in sourceIds }
+        val hierarchy = provider.hierarchy()
+        val sources = resolveIds(hierarchy, sourceNodes)
+        return hierarchy.accumulatedIncoming(node).filter { isWithin(hierarchy, it.from, sources) }
     }
 
     @SchemaMapping(typeName = "Node")
@@ -158,6 +160,33 @@ class NodeController(
     }
 
     companion object {
+        /** The identifiers of the nodes named by [ids]; ids that name no node are dropped. */
+        fun resolveIds(hierarchy: Hierarchy, ids: List<String>): Set<Any> =
+            ids.mapNotNullTo(HashSet()) { hierarchy.lookupNode(it.toLong())?.identifier }
+
+        /**
+         * Subtree matching: whether [node] is one of [anchors] or a descendant of one. Dependency endpoints
+         * are types, so this is what lets package and module ids match the dependencies of their types.
+         */
+        fun isWithin(hierarchy: Hierarchy, node: HGNode, anchors: Set<Any>): Boolean {
+            var current: HGNode? = node
+            while (current != null) {
+                if (current.identifier in anchors) return true
+                current = hierarchy.parentOf(current)
+            }
+            return false
+        }
+
+        /** The child of [parent] whose subtree contains [node], or `null` when [node] is not below [parent]. */
+        fun childContaining(hierarchy: Hierarchy, parent: HGNode, node: HGNode): HGNode? {
+            var current: HGNode = node
+            while (true) {
+                val up = hierarchy.parentOf(current) ?: return null
+                if (up == parent) return current
+                current = up
+            }
+        }
+
         fun collectReferencedNodes(
             hierarchy: Hierarchy,
             nodes: List<HGNode>,

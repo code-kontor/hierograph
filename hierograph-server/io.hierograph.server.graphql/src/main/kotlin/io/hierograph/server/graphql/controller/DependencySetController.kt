@@ -56,11 +56,12 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     ): List<HGNode> {
         val hierarchy = provider.hierarchy()
         val parent = hierarchy.lookupNode(parentNode.toLong()) ?: return emptyList()
-        val nodeIds = when (parentNodeType) {
-            NodeType.SOURCE -> depSet.dependencyList.map { it.from.identifier }.toSet()
-            NodeType.TARGET -> depSet.dependencyList.map { it.to.identifier }.toSet()
+        val endpoints = when (parentNodeType) {
+            NodeType.SOURCE -> depSet.dependencyList.map { it.from }
+            NodeType.TARGET -> depSet.dependencyList.map { it.to }
         }
-        return hierarchy.childrenOf(parent).filter { it.identifier in nodeIds }
+        val containing = endpoints.mapNotNullTo(HashSet()) { NodeController.childContaining(hierarchy, parent, it) }
+        return hierarchy.childrenOf(parent).filter { it in containing }
     }
 
     @SchemaMapping(typeName = "DependencySet")
@@ -83,7 +84,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         val targetIds = mutableSetOf<Any>()
 
         for (selection in nodeSelection) {
-            val ids = selection.selectedNodeIds.mapNotNull { hierarchy.lookupNode(it.toLong())?.identifier }
+            val ids = NodeController.resolveIds(hierarchy, selection.selectedNodeIds)
             when (selection.selectedNodesType) {
                 NodeType.SOURCE -> sourceIds.addAll(ids)
                 NodeType.TARGET -> targetIds.addAll(ids)
@@ -91,8 +92,8 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         }
 
         val filtered = depSet.dependencyList.filter { dep ->
-            (sourceIds.isEmpty() || dep.from.identifier in sourceIds) &&
-                (targetIds.isEmpty() || dep.to.identifier in targetIds)
+            (sourceIds.isEmpty() || NodeController.isWithin(hierarchy, dep.from, sourceIds)) &&
+                (targetIds.isEmpty() || NodeController.isWithin(hierarchy, dep.to, targetIds))
         }
 
         return FilteredDependenciesModel(filtered)

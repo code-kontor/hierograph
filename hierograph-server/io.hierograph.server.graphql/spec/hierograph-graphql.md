@@ -249,39 +249,39 @@ core dependencies (weight):  Invoice → Money   (3)
 
 ## 5. Matching nodes: subtrees and endpoints
 
-Fields that take node ids relate them to dependencies in one of two ways. Which one a
-field uses decides what ids are useful to pass.
+Only types are endpoints of core dependencies (§3), yet clients think in packages
+and modules. Fields that take node ids therefore relate them to dependencies by
+**subtree matching**: a node stands for everything below it, and a core dependency
+matches a node when its endpoint is the node or one of its descendants. A package id
+matches the dependencies of every type in the package and its sub-packages; a type id
+matches the type's own dependencies.
 
-**Subtree matching** treats a node as everything below it. A core dependency matches
-a node when its endpoint is the node or one of its descendants. The **accumulated**
-dependencies of a node (its subtree's outgoing or incoming core dependencies) and the
-**aggregated** dependency between two nodes (every core dependency from the first
-subtree into the second) are both subtree-matched; the model specification defines
-them. Package and module ids are meaningful here.
+The **accumulated** dependencies of a node (its subtree's outgoing or incoming core
+dependencies) and the **aggregated** dependency between two nodes (every core
+dependency from the first subtree into the second) are defined the same way; the
+model specification defines them.
 
-**Endpoint matching** compares a dependency's `sourceNode` or `targetNode` with the
-given ids directly. Since only types are endpoints (§3), only type ids can match. A
-package id matches nothing.
-
-| Field | Which side | Matching |
+| Field | Receiver | Given ids |
 |---|---|---|
-| `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | both | subtree on both sides |
-| `Node.dependenciesTo(targetNodes)` / `dependenciesFrom(sourceNodes)` | the node: subtree; the ids: endpoint | mixed |
-| `Node.childrenFilteredByReferencedNodes` / `…ByReferencingNodes` | each child: subtree; the ids: endpoint | mixed |
-| `Node` / `NodeSet` `filterReferencedNodes` / `filterReferencingNodes` | the receiver: subtree; the ids: endpoint after expansion | mixed, see below |
-| `DependencySet.filteredChildren` / `filteredChildrenIds` | endpoint | endpoint |
-| `DependencySet.filteredDependencies` | endpoint | endpoint |
+| `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | — | subtree, both sides |
+| `Node.dependenciesTo(targetNodes)` / `dependenciesFrom(sourceNodes)` | subtree | subtree |
+| `Node.childrenFilteredByReferencedNodes` / `…ByReferencingNodes` | each child: subtree | subtree |
+| `DependencySet.filteredChildren` / `filteredChildrenIds` | — | the child whose subtree contains an endpoint |
+| `DependencySet.filteredDependencies` | — | subtree, per selected side |
+| `Node` / `NodeSet` `filterReferencedNodes` / `filterReferencingNodes` | subtree | expanded by `NodesToConsider`, see below |
 
 With the example codebase:
 
 | Query | Result |
 |---|---|
 | `dependencySetForAggregatedDependency(billing, money)` | `Invoice → Money`, `Ledger → Money` |
+| `node(billing) { dependenciesTo(targetNodes: [money]) }` | `Invoice → Money`, `Ledger → Money` |
 | `node(billing) { dependenciesTo(targetNodes: [Money]) }` | `Invoice → Money`, `Ledger → Money` |
-| `node(billing) { dependenciesTo(targetNodes: [money]) }` | empty: the package is no endpoint |
+| `node(billing-core) { childrenFilteredByReferencedNodes(referencedNodeIds: [money]) }` | `com.example.billing` |
 
-**`NodesToConsider`** closes this gap for the `filter*` fields. Before matching, it
-expands each given id:
+**`NodesToConsider`** gives the `filter*` fields an explicit choice instead. They
+return referenced or referencing *nodes*, and keep a node only when it is in the
+given set after expansion:
 
 | Value | Expands a node to |
 |---|---|
@@ -509,11 +509,11 @@ served hierarchy.
 | `predecessors` | `[Node!]!` | The ancestors, nearest first, up to and including the root. |
 | `hasChildren` | `Boolean!` | Whether the node has children. Lets a tree view draw an expander without loading them. |
 | `children` | `NodeSet!` | The children, in insertion order. |
-| `childrenFilteredByReferencedNodes(referencedNodeIds)` | `NodeSet!` | The children whose subtree depends on at least one of the given nodes (endpoint match, §5). |
-| `childrenFilteredByReferencingNodes(referencingNodeIds)` | `NodeSet!` | The children whose subtree is depended on by at least one of the given nodes (endpoint match). |
+| `childrenFilteredByReferencedNodes(referencedNodeIds)` | `NodeSet!` | The children whose subtree depends on the subtree of at least one of the given nodes (§5). |
+| `childrenFilteredByReferencingNodes(referencingNodeIds)` | `NodeSet!` | The children whose subtree is depended on by the subtree of at least one of the given nodes. |
 | `properties` | `[MapEntry!]!` | Key–value facts about the node (§7). |
-| `dependenciesTo(targetNodes)` | `[Dependency!]!` | The core dependencies from this subtree whose target is one of the given nodes. |
-| `dependenciesFrom(sourceNodes)` | `[Dependency!]!` | The core dependencies into this subtree whose source is one of the given nodes. |
+| `dependenciesTo(targetNodes)` | `[Dependency!]!` | The core dependencies from this subtree whose target lies in the subtree of one of the given nodes. |
+| `dependenciesFrom(sourceNodes)` | `[Dependency!]!` | The core dependencies into this subtree whose source lies in the subtree of one of the given nodes. |
 | `referencedNodes(includePredecessors)` | `NodeSet!` | The targets of this subtree's outgoing core dependencies (§6). |
 | `referencingNodes(includePredecessors)` | `NodeSet!` | The sources of this subtree's incoming core dependencies (§6). |
 | `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessorsInResult)` | `NodeSet!` | The referenced nodes that lie in the expanded node set (§5). |
@@ -521,7 +521,7 @@ served hierarchy.
 
 **`childrenFilteredBy…`** answers the drill-down question "which of my children
 cause this dependency?". A UI that shows `billing → money` can ask
-`billing.childrenFilteredByReferencedNodes([Money])` and get `Invoice` and `Ledger`.
+`billing.childrenFilteredByReferencedNodes([money])` and get `Invoice` and `Ledger`.
 
 **`dependenciesTo` / `dependenciesFrom`** list the dependencies in the order of the
 node's accumulated dependencies, so they include internal ones when a target lies in
@@ -571,19 +571,21 @@ dependencies: the aggregated dependency's order for
 | `size` | `Int!` | The number of dependencies. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
-| `filteredChildren(parentNode, parentNodeType)` | `[Node!]!` | The children of `parentNode` that are a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set; empty when `parentNode` names no node. |
+| `filteredChildren(parentNode, parentNodeType)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; empty when `parentNode` names no node. |
 | `filteredChildrenIds(parentNode, parentNodeType)` | `[String!]!` | Their handles. |
-| `filteredDependencies(nodeSelection)` | `FilteredDependencies!` | The dependencies whose endpoints match the selection, see below. |
+| `filteredDependencies(nodeSelection)` | `FilteredDependencies!` | The dependencies whose endpoints lie in the selected subtrees, see below. |
 
-**`filteredChildren`** matches endpoints (§5): it returns children that are themselves
-a source or a target. Asked of a package whose types are the endpoints, it returns
-those types; asked of a module, whose children are packages, it returns nothing.
+**`filteredChildren`** drills a dependency set down one level (§5): it returns the
+children of `parentNode` that contain a source or a target. For the set behind
+`billing → money`, `filteredChildren(parentNode: billing-core, parentNodeType: SOURCE)`
+is `com.example.billing`, and with `parentNode: com.example.billing` it is `Invoice`
+and `Ledger`. A child is returned once, however many endpoints it contains.
 
 **`filteredDependencies`** narrows the set to the dependencies between a chosen group
 of sources and a chosen group of targets. Each `NodeSelection` contributes its ids to
 the source side (`SOURCE`) or the target side (`TARGET`). A dependency is kept when
-its source is in the source side **and** its target is in the target side, matching
-endpoints (§5); a side that ends up empty does not restrict. Ids that name no node
+its source lies in the subtree of a source-side node **and** its target lies in the
+subtree of a target-side node (§5); a side that ends up empty does not restrict. Ids that name no node
 are dropped before this rule applies, so a selection whose ids are all unknown leaves
 its side unrestricted.
 
@@ -749,7 +751,7 @@ anything in `com.example.money`?
       filterReferencedNodes(
         nodeIds: ["5501274918330269"], nodesToConsider: SELF_AND_SUCCESSORS
       ) { nodes { text } }
-      childrenFilteredByReferencedNodes(referencedNodeIds: ["4719020663158837"]) {
+      childrenFilteredByReferencedNodes(referencedNodeIds: ["5501274918330269"]) {
         nodes { text }
       }
     }
