@@ -1,14 +1,16 @@
 # Hierograph — Claude Code plugin
 
-Claude Code skills for setting up and analyzing JVM codebases with
-[jQAssistant](https://jqassistant.org) + the Hierograph MCP server.
+Claude Code skills for setting up and analyzing JVM codebases with the Hierograph MCP server.
 
 Skills included:
 
-- **`/hierograph:hierograph-bootstrap`** — first-time setup: add the jQAssistant scan profile and
-  `.jqassistant.yml`, scan the project, start the Bolt + MCP servers, and register the MCP server
-  with your client.
-- **`/hierograph:hierograph-dsm`** — render a Dependency Structure Matrix; layering / cycle analysis.
+- **`/hierograph:hierograph-bootstrap`** — first-time setup for a Maven project: hook the Hierograph
+  Maven plugin into the build (in the POM, or as a command without touching it), produce
+  `.hierograph/manifest.json`, start the Hierograph MCP server on it (local JVM or Docker), and
+  register the server with your client. Afterwards the server follows code, module and POM changes
+  on its own; there is no rescan step. Gradle builds are not supported yet.
+- **`/hierograph:hierograph-structure`** — dependency structure: DSM, layered dependency graph,
+  layering and cycle analysis.
 - **`/hierograph:hierograph-extract`** — plan a module / package extraction.
 
 ## Install
@@ -51,3 +53,6 @@ Re-run `/plugin marketplace update code-kontor` after editing a `SKILL.md` to re
 After installing, invoke a skill directly (`/hierograph:hierograph-bootstrap`) or just describe the
 task — e.g. *"bootstrap hierograph for this project"* or *"show these modules as a DSM"* — and the
 matching skill triggers automatically.
+
+The bootstrap needs a released Hierograph **0.2.0 or later** (Maven plugin and server on Maven
+Central, server image on GHCR) and Java 21.

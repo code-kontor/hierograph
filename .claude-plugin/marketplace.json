@@ -9,9 +9,9 @@
     {
       "name": "hierograph",
       "source": "./plugins/hierograph",
-      "description": "Bootstrap jQAssistant + the Hierograph MCP server against a JVM project, then render DSMs, detect cycles, and plan extractions.",
+      "description": "Set a Maven project up with the Hierograph MCP server, then explore dependency structure, detect cycles, and plan extractions.",
       "category": "architecture",
-      "keywords": ["jqassistant", "hierograph", "architecture", "dependency-analysis", "dsm", "jvm", "mcp"]
+      "keywords": ["hierograph", "architecture", "dependency-analysis", "dsm", "jvm", "maven", "mcp"]
     }
   ]
 }

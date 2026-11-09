@@ -1,286 +1,302 @@
 ---
 name: hierograph-bootstrap
-description: Set a JVM project up for architectural analysis with jQAssistant + the Hierograph MCP server — scan the project into an embedded Neo4j store, start the jQAssistant Bolt server and the Hierograph MCP server, and register the server with the MCP client. Handles the three project "shapes" — Maven, Gradle, and plain JARs / a classes directory (no build tool) — each via its own scan sub-skill. Trigger when the user says "bootstrap hierograph", "set up hierograph for this project", "get this project ready for hierograph", "set up jqassistant", "wire up the hierograph MCP server", "scan this project for dependency analysis", or "I want to analyze this codebase's architecture" (and hierograph is not yet running). Do NOT use once the hierograph MCP tools are already available — then just query them (see hierograph-dsm / hierograph-extract); this skill only performs first-time setup.
+description: Set a Maven project up for architectural analysis with the Hierograph MCP server — hook the Hierograph Maven plugin into the build so it writes `.hierograph/manifest.json`, start the Hierograph MCP server on that manifest (local JVM by default, Docker as alternative), and register the server with the MCP client. Trigger when the user says "bootstrap hierograph", "set up hierograph for this project", "get this project ready for hierograph", "wire up the hierograph MCP server", or "I want to analyze this codebase's architecture" (and hierograph is not yet running). Do NOT use once the hierograph MCP tools are already available — then just query them (see hierograph-structure / hierograph-extract); this skill only performs first-time setup.
 allowed-tools:
   - Bash(java -version)
+  - Bash(java -jar:*)
   - Bash(mvn:*)
   - Bash(./mvnw:*)
-  - Bash(gradle:*)
-  - Bash(./gradlew:*)
+  - Bash(curl -s:*)
+  - Bash(curl -fL:*)
   - Bash(nc -z:*)
-  - Bash(curl:*)
-  - Bash(sed:*)
   - Bash(docker run:*)
   - Bash(docker logs:*)
-  - Bash(docker ps:*)
+  - Bash(docker ps)
   - Bash(docker stop:*)
   - Bash(docker pull:*)
-  - Bash(docker login:*)
-  - Bash(docker version:*)
+  - Bash(docker version)
   - Bash(claude mcp add:*)
-  - Bash(claude mcp list:*)
+  - Bash(claude mcp list)
   - Read
+  - Glob
 ---
 
 # hierograph-bootstrap — set a project up for hierograph analysis
 
-This skill performs the one-time setup that makes the Hierograph MCP tools available against a
-**target JVM project**. It is the orchestrator: it handles the shared flow and delegates the hard,
-shape-dependent part — the jQAssistant scan — to a per-shape sub-skill.
-
-The pipeline you are wiring up:
+This skill performs the one-time setup that makes the Hierograph MCP tools available for a
+**target Maven project**. The pipeline it wires up:
 
 ```
-Target bytecode → jQAssistant (scan) → Neo4j store → jQAssistant Bolt server
-                                                          → Hierograph MCP server → this client
+target build ──(hierograph-maven-plugin: create-descriptor)──► .hierograph/manifest.json
+                                                                    │
+           Hierograph MCP server (manifest mode, watching) ◄────────┘ ──► MCP client
 ```
 
-Two long-running servers are involved (the jQAssistant Bolt server and the Hierograph MCP server).
-**Start each in the background** and keep it running for the rest of the session — do not block on
-them.
+The Maven plugin records what only the build knows — the modules, their compiled-output
+directories, their resolved classpaths, the POMs — in `.hierograph/manifest.json` at the build
+root. The server reads that manifest, scans the compiled classes itself, and then **follows the
+project on its own**: recompiled classes, added or removed modules and edited POMs reach the graph
+without another setup step. There is no database and no second server.
 
 **Open by setting expectations:** before Step 1, tell the user this is a one-time setup that takes
-a few minutes (a build/scan plus a Docker image pull) and that you'll report progress at each
-stage. See *Keep the user informed* below for how.
+a few minutes (a build, and a ~60 MB server download on first use) and that you'll report progress
+at each stage.
 
-## Project shapes
+## Supported projects
 
-The jQAssistant setup differs by how the project is built and where its bytecode lives. Detect the
-shape in Step 2, then follow the matching sub-skill (a file in this skill's directory) for the scan:
-
-| Shape | Detect by | Sub-skill |
+| Build | Supported | Detect by |
 |-------|-----------|-----------|
-| **Maven** | `pom.xml` at the root / target module | [`scan-maven.md`](scan-maven.md) |
-| **Gradle** | `build.gradle` or `build.gradle.kts` | [`scan-gradle.md`](scan-gradle.md) |
-| **Plain JARs / classes** | No build tool, or you only have prebuilt `.jar`s / a `classes/` dir | [`scan-jars.md`](scan-jars.md) |
+| **Maven** | yes | `pom.xml` at the build root |
+| **Gradle** | **not yet** | `settings.gradle(.kts)` / `build.gradle(.kts)`, no `pom.xml` |
 
-Each sub-skill takes you from bytecode to a **live jQAssistant Bolt server** on a populated store.
-This orchestrator then wires that store into the Hierograph MCP server and your client.
-
-## What every shape must produce (the scan invariant)
-
-However the scan is run, it must satisfy these Hierograph requirements — the sub-skills all
-implement them, but verify them if you deviate:
-
-1. **Bytecode scanned** into an embedded Neo4j store at `STORE_URI`. Hierograph analyzes compiled
-   bytecode, not source.
-2. The **`io.hierograph:io.hierograph.jqassistant.rules`** plugin (version `HIEROGRAPH_VERSION`) is
-   on jQAssistant's plugin path.
-3. **`analyze` is run** with group `hierograph:virtual-external` and the concepts below. This group
-   materializes the virtual external nodes/edges the MCP tools query; without it `analyze` fails
-   with *"Cannot find group"* and the graph lacks the shape Hierograph expects.
-   ```yaml
-   analyze:
-     groups:
-       - hierograph:virtual-external
-     concepts:
-       - java-classpath:Resolve
-       - java:TypeAssignableFrom
-       - java:MethodOverrides
-       - java:MemberInheritedFrom
-       - java:VirtualInvokes
-   scan:
-     reset: true
-   ```
-4. A **Bolt server** is started on that store (default `bolt://localhost:BOLT_PORT`).
+For a Gradle project, stop and tell the user that Hierograph supports Maven builds only for now;
+a Gradle producer is planned. Do not improvise a manifest by hand.
 
 ## Parameters — resolve these first, then echo them back to the user
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| `HIEROGRAPH_VERSION` | latest **release** (currently `0.1.0`) | Version of `io.hierograph:io.hierograph.jqassistant.rules` and the MCP server image. **Always use the latest released version — never a `-SNAPSHOT` build.** Discover it in Step 1; it resolves automatically from Maven Central, no local build required. |
-| `JQASSISTANT_VERSION` | `2.9.1` | jQAssistant version. Must match across the build-tool plugin / CLI, `.jqassistant.yml`, and the `server` command. |
-| `STORE_URI` | `file:.jqassistant-store` | Embedded Neo4j store location, relative to project root. Kept out of `target/` / `build/` so a clean does not wipe it between scan and serve. Add it to `.gitignore`. |
-| `BOLT_PORT` | `7687` | jQAssistant Bolt endpoint. |
-| `MCP_PORT` | `8080` | Hierograph MCP HTTP endpoint (`http://localhost:<MCP_PORT>/mcp`). |
+| `HIEROGRAPH_VERSION` | latest **release** | Version of the Maven plugin and the server. Determined in Step 1. Must be **0.2.0 or later** (earlier releases are the retired jQAssistant generation). Never a `-SNAPSHOT`. |
+| `BUILD_ROOT` | the current project directory | The directory holding the root `pom.xml` — where Maven is launched and where `.hierograph/` is written. |
+| `MAVEN` | `./mvnw` if `BUILD_ROOT/mvnw` exists, else `mvn` | Use the project's wrapper when it has one. |
+| `PROFILES` | none | Profiles the user's normal build activates (e.g. one that adds modules). Pass them to every Maven command here, or those modules are missing from the graph. Ask if the root POM has `<profiles>` with `<modules>`. |
+| `MAVEN_SETUP` | asked in Step 3 | `pom` (plugin bound in the POM) or `command` (no POM change). |
+| `RUN_MODE` | `jvm` | `jvm` (local Java process) or `docker`. |
+| `MCP_PORT` | `8080` | Hierograph MCP HTTP endpoint: `http://localhost:<MCP_PORT>/mcp`. |
 
 ## The procedure
 
 ### Run commands so they don't stall on approval
 
 Run every command below as a **single, plain invocation, exactly as written**. The harness cannot
-statically verify commands that contain shell expansions or chaining, so those force a manual
-permission prompt *every time* — regardless of any allowlist — which stalls an otherwise unattended
-setup. Do **not**:
+statically verify commands with shell expansions or chaining, so those force a permission prompt
+every time and stall the setup. Do **not**:
 
-- use shell expansions or command substitution — `${PIPESTATUS[0]}`, `$(...)`, `` `…` ``, `$VAR`
-  arithmetic;
-- chain with `;`, `&&`, or `||`;
-- pipe into `tail`/`grep`/`head` or redirect with `2>&1 | …` just to trim output;
-- pass quoted brace/template arguments — `docker ps --format '{{.Names}}'`,
-  `docker inspect -f '{{…}}'` — the quoted `{{ }}` reads as expansion obfuscation and always
-  prompts; use the command's plain default output instead;
-- write polling loops to wait for something — `for i in $(seq 1 20); do … sleep 2; done`,
-  `while … do sleep`. These bundle substitution + chaining and always prompt.
+- use expansions or command substitution — `$(...)`, `` `…` ``, `$VAR`, `~`;
+- chain with `;`, `&&` or `||`, or pipe into `tail` / `grep` / `head` / `sed` to trim output;
+- pass quoted template arguments such as `docker ps --format '{{.Names}}'`;
+- write polling loops (`for … sleep`, `while … sleep`).
 
-**Inspect files with the file tools, not Bash.** Use Read / List / Glob to look at `pom.xml`,
-`build.gradle`, `target/`, `.jqassistant-store/`, etc. — they never prompt. Don't reach for
-`head`/`cat`/`ls`/`tail` in a shell (and never bundle several with `;`, e.g.
-`head -60 pom.xml; ls target/; docker --version`). Reserve Bash for things only a shell can do —
-builds, servers, `java -version`, `docker --version` — each as its own single command.
-
-Run the action, then **verify in a separate command**. Two examples of what *not* to do, and the
-fix:
-
-- Scan: not `mvn … -Pjqassistant 2>&1 | tail -8; echo "EXIT=${PIPESTATUS[0]}"; ls -d .jqassistant-store/data`
-  — run `mvn clean install -Pjqassistant` on its own, then `ls .jqassistant-store` as its own step.
-- Wait for a server: not a `for`/`while` poll over `docker logs … | grep` and `docker ps --format`.
-  Instead run **one plain check** and, if it's not up yet, repeat that single command as a separate
-  step: `docker logs hierograph-mcp` to read status, then `nc -z localhost 8080` (or
-  `curl -s http://localhost:8080/mcp`) as its own command. Because the server runs in the
-  background, the harness also re-invokes you when the process changes state — you rarely need to
-  poll at all.
-
-The only multi-line commands that are fine are ones using plain `\` line-continuation with no
-expansion (e.g. the `docker run …` block in Step 3). Long output is fine — let it scroll rather than
-piping it through a filter.
+**Inspect files with the file tools** (Read, Glob), not with `cat` / `ls` / `head`. Reserve Bash for
+what only a shell can do — builds, downloads, servers, port checks — each as its own command. Run
+the action, then **verify in a separate step**. Long output is fine; let it scroll.
 
 ### Keep the user informed
 
-This is a multi-minute setup with slow steps (first scan downloads jQAssistant plugins; `docker
-pull` fetches the image) and two background servers. Don't run it silently:
-
-- **Track the pipeline as a task list** — create one task per stage (preflight, scan, Bolt server,
-  MCP server, register client, verify) and flip each to in-progress / completed as you go, so the
-  user sees the whole arc and where it currently is.
-- **Narrate the slow and background steps** before they run — say what's starting and the rough
-  wait (e.g. "first scan downloads plugins, ~1 min"; "pulling the MCP image"). A backgrounded
-  command that takes a while should be announced, not left to look hung.
-- **Confirm each server as it comes up** — echo the concrete endpoint and that it's listening
-  (`Bolt enabled on …:7687`; MCP up on `MCP_PORT`), not just "started".
-- **On failure, surface the actual error and which stage it belongs to** — don't retry silently.
+- **Track the pipeline as a task list** — one task per step (preflight, Maven setup, manifest,
+  server, register client, verify), flipped to in-progress / completed as you go.
+- **Announce slow or background steps** before they run, with the rough wait (first build
+  downloads plugins; the server jar is ~60 MB).
+- **Confirm the server with concrete facts** — the port it listens on and what it loaded (modules,
+  root children), not just "started".
+- **On failure, show the actual error and the step it belongs to** — don't retry silently.
 
 ### 1. Preflight
 
 - `java -version` → **21+**. If not, stop and tell the user.
-- Confirm the project's **bytecode is available**: for Maven/Gradle a green build
-  (`mvn`/`gradle` install/build) is a prerequisite for a meaningful scan; for the JARs shape the
-  built `.jar`s / `classes/` dir must already exist.
-- **Determine the latest release version.** Query Maven Central's metadata for the rules plugin and
-  use the `<release>` value as `HIEROGRAPH_VERSION` — **do not use a `-SNAPSHOT` version:**
+- Confirm the shape with the file tools: `BUILD_ROOT/pom.xml` exists (otherwise see *Supported
+  projects*). Note whether `BUILD_ROOT/mvnw` exists (→ `MAVEN`) and whether the root POM declares
+  profiles that add modules (→ ask about `PROFILES`).
+- **Determine `HIEROGRAPH_VERSION`** from Maven Central's metadata for the plugin, as one plain
+  command, and read the `<release>` element from the output:
   ```bash
-  curl -s https://repo1.maven.org/maven2/io/hierograph/io.hierograph.jqassistant.rules/maven-metadata.xml \
-    | sed -n 's:.*<release>\(.*\)</release>.*:\1:p'
+  curl -s https://repo1.maven.org/maven2/io/hierograph/hierograph-maven-plugin/maven-metadata.xml
   ```
-  (At time of writing this returns `0.1.0`.) If Maven Central is unreachable, ask the user for the
-  release version rather than falling back to a snapshot.
-- **The rules plugin resolves automatically.** `io.hierograph:io.hierograph.jqassistant.rules` at a
-  released version is on Maven Central, so jQAssistant fetches it during the scan — no local build
-  or `git clone` needed. (A missing plugin surfaces later as *"Cannot find group"* — see the
-  sub-skill's failure notes.)
+  - If the release is **0.2.0 or later**, use it.
+  - If the request returns 404 or the release is older than 0.2.0, **stop**: no released version
+    supports this setup yet. Tell the user; do not fall back to a `-SNAPSHOT`.
+  - If Maven Central is unreachable, ask the user for the version.
 
-### 2. Detect the shape and run the scan
+### 2. Make sure the build is green
 
-Determine the shape from the table above, confirm it with the user (and which module/artifacts to
-scan), then **read the matching sub-skill file and follow it**:
+Hierograph analyzes compiled bytecode. Run the user's normal build once from `BUILD_ROOT` (with
+`PROFILES`), e.g. `./mvnw -B install -DskipTests` or `mvn -B install -DskipTests`. A failing build
+must be fixed first; don't continue on a red build.
 
-- Maven → `scan-maven.md`
-- Gradle → `scan-gradle.md`
-- Plain JARs / classes → `scan-jars.md`
+### 3. Hook the Maven plugin into the build — ask the user
 
-Do not proceed until that sub-skill reports a **live Bolt server** on a populated store. (Smoke
-check: the Neo4j browser at `http://localhost:7474`, or the sub-skill's own verification note.)
+Present both options and let the user choose (`MAVEN_SETUP`):
 
-### 3. Start the Hierograph MCP server (background)
+**`pom` — bind the plugin in the POM (keeps the manifest current automatically).** Add this to the
+`<build><plugins>` of the POM **every module inherits from** — usually the root POM. If the modules
+have different parents, add it to each of those parents; if a module inherits from none of them,
+it will be missing from the graph (offer `command` instead).
 
-The server connects to the Bolt store and exposes the MCP tools over HTTP. It is distributed as a
-**Docker image** at the released `HIEROGRAPH_VERSION` — use that tag, not `latest` or a snapshot:
-
-```bash
-docker run --rm -p 8080:8080 \
-  -e HIEROGRAPH_BOLT_URI=bolt://host.docker.internal:7687 \
-  ghcr.io/code-kontor/hierograph-mcp-server:0.1.0
+```xml
+<plugin>
+  <groupId>io.hierograph</groupId>
+  <artifactId>hierograph-maven-plugin</artifactId>
+  <version>HIEROGRAPH_VERSION</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>create-descriptor</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
 ```
 
-- The image is on GHCR and may require authentication to pull — if `docker run` fails with a
-  manifest/`unauthorized` error, run `docker login ghcr.io` first (a GitHub PAT with
-  `read:packages`). If the package is **private**, `docker login` alone won't help without org
-  access: the maintainer must make the GHCR package public (or grant you access) before the pull
-  succeeds.
-- `host.docker.internal` lets the container reach the Bolt server on the host. On plain-Docker
-  Linux, add `--add-host=host.docker.internal:host-gateway`, or use the host's LAN IP.
-- The Bolt server listens only on loopback by default and will refuse the container's connection.
-  The sub-skills note how to bind it to all interfaces
-  (`-Djqassistant.store.embedded.listen-address=0.0.0.0`); apply that if you use Docker.
+The goal binds to `process-classes` by default, writes each module's descriptor and merges the
+manifest. From then on, **every build reaching `process-classes`** (`process-classes`, `test`,
+`install`, …) keeps the manifest current — including builds narrowed with `-pl`. `compile` alone
+stops one phase earlier and does not. This changes the user's POM: show the edit and get
+confirmation before applying it.
 
-If the user has a local Hierograph checkout instead of Docker, run the server from source (it then
-reaches `bolt://localhost:7687` directly, no host-networking notes):
+**`command` — no POM change.** The plugin is invoked by its full coordinates when needed:
 
 ```bash
-mvn -o -pl hierograph-mcp/io.hierograph.mcp.server spring-boot:run   # from the hierograph checkout
+mvn -B process-classes io.hierograph:hierograph-maven-plugin:HIEROGRAPH_VERSION:create-descriptor
 ```
 
-Wait until the MCP server logs that it is up on `MCP_PORT`.
+(`./mvnw` instead of `mvn` when the project has a wrapper; add `-P<PROFILES>` when needed.) The
+project stays untouched, but the manifest only changes when this command runs. Keep the
+`process-classes` phase in front of the goal: without a lifecycle phase, Maven 3 resolves sibling
+modules only from `~/.m2` and fails on uninstalled ones.
 
-### 4. Register the server with the client
+In both cases, **suggest adding `.hierograph/` to the project's `.gitignore`** (it holds the
+generated manifest, the server's snapshot and its logs). It is an edit to the user's file — ask.
+
+### 4. Produce the manifest
+
+From `BUILD_ROOT`, with `PROFILES`:
+
+- `pom`: `mvn -B process-classes` (or `./mvnw -B process-classes`).
+- `command`: the command from Step 3.
+
+Then **Read `BUILD_ROOT/.hierograph/manifest.json`** and check:
+
+- `schemaVersion` is `2`, and `buildTool` / `regenerate` are present;
+- `modules` lists the modules the user expects (all of them — a missing one usually means a
+  missing profile, or a module outside the POM the plugin was added to);
+- the `mainOutputDirs` of the modules point at existing `target/classes` directories.
+
+Always run Maven from `BUILD_ROOT`: a build launched inside a module directory writes its own
+manifest there and leaves the root manifest untouched.
+
+### 5. Start the Hierograph MCP server (background)
+
+Announce the start; run the server **in the background** and keep it running for the session.
+
+**`RUN_MODE=jvm` (default).** Download the server once into the project's `.hierograph/`, as one
+plain command (replace `VERSION`):
+
+```bash
+curl -fL --create-dirs -o .hierograph/server/io.hierograph.server-VERSION-exec.jar https://repo1.maven.org/maven2/io/hierograph/io.hierograph.server/VERSION/io.hierograph.server-VERSION-exec.jar
+```
+
+Then start it from `BUILD_ROOT` in the background:
+
+```bash
+java -jar .hierograph/server/io.hierograph.server-VERSION-exec.jar --server.port=8080
+```
+
+The defaults fit: manifest mode, reading `.hierograph/manifest.json` relative to the working
+directory, test classes included, polling file watch, POM edits reported as stale. Options worth
+offering:
+
+- `--hierograph.graph.watch.mode=native` — event-driven watching (faster on a local JVM).
+- `--hierograph.graph.watch.build-files=regenerate` — after a POM edit, the server runs the build
+  that rewrites the manifest itself. With `MAVEN_SETUP=pom` the manifest's own command does this.
+  With `command`, also pass the Step 3 command as
+  `--hierograph.graph.regenerate.command="mvn -q -B process-classes io.hierograph:hierograph-maven-plugin:VERSION:create-descriptor"`,
+  because the manifest's default command does not run an unbound plugin.
+
+**`RUN_MODE=docker`.** Mount the project at `/workspace`, the image's working directory (replace
+`ABSOLUTE_BUILD_ROOT` and `VERSION`):
+
+```bash
+docker run --rm --name hierograph-mcp -p 8080:8080 \
+  -v ABSOLUTE_BUILD_ROOT:/workspace \
+  ghcr.io/code-kontor/hierograph-mcp-server:VERSION
+```
+
+- The manifest records host paths; the server re-roots them onto `/workspace` automatically.
+- Watching uses polling, which works across the mount (native events do not cross a Docker Desktop
+  mount).
+- In a container the server **never runs a regeneration** (the host's Maven isn't there); edited
+  POMs are reported as stale, and the user runs the build on the host.
+- On Linux the server writes `.hierograph/snapshot/` as root unless the container runs with the
+  user's numeric uid/gid (`--user <uid>:<gid>`).
+- If the pull fails with `unauthorized`, the image may need `docker login ghcr.io`.
+
+**Wait for readiness** with a single check, repeated as its own step if needed:
+`nc -z localhost 8080`. Then read the server output (`docker logs hierograph-mcp` for Docker) and
+confirm these lines:
+
+- `Scanned N of M declared artifact(s) from manifest …` — M counts each module's main output and,
+  with test scanning on (the default), its test output; modules without tests have no compiled test
+  output, so N is usually smaller than M. Every module should have its main output among the N (a
+  declared output that is not compiled yet is watched and scanned once it appears);
+- `Hierarchical graph created with … root children` and the node counts by kind;
+- `Watching … module(s) and … build file(s) for changes`.
+
+### 6. Register the server with the client
 
 **Claude Code:**
 
 ```bash
-claude mcp add hierograph --transport streamable-http http://localhost:8080/mcp
+claude mcp add hierograph --transport http http://localhost:8080/mcp
 ```
 
-**Other JSON-config clients** (Claude Desktop, Cursor) — emit this for the user to add:
+**Other JSON-config clients** (Claude Desktop, Cursor) — give the user this to add:
 
 ```json
 {
   "mcpServers": {
     "hierograph": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "http://localhost:8080/mcp"
     }
   }
 }
 ```
 
-For Claude Code, the `hierograph` tools are **not callable in the session that ran `claude mcp
-add`** — even though `claude mcp list` reports the server as ✔ Connected. The tools load only after
-a **new session reconnects** to the server (start a fresh session, or reconnect via `/mcp`).
-"Connected" confirms the server is reachable, not that the tools are available in the current
-conversation.
+In Claude Code the `hierograph` tools are **not callable in the session that ran `claude mcp
+add`**, even when `claude mcp list` reports the server as connected. They load in a **new
+session** (or after reconnecting via `/mcp`).
 
-### 5. Verify
+### 7. Verify
 
-Because the client-side tools require a fresh session (Step 4), verify in two stages — and **do not
-hand-roll the streamable-HTTP JSON-RPC handshake in bash** (session-id capture via `$(…)`, header
-arrays like `H=(…)` / `"${H[@]}"`, `sed`/`grep`/`awk` pipes). That construct always trips a
-permission prompt and is brittle; prove the pipeline from the server's own signals instead.
+- **In this session:** the readiness check and log lines from Step 5 prove build → manifest →
+  server end to end. Don't hand-roll the MCP JSON-RPC handshake with `curl`.
+- **After reconnecting:** call `graph_overview`. It returns `stats` (node counts by kind), the
+  top-level `hierarchy` — one entry per module — and `build_state` with `status: "current"` and
+  `build_tool: "maven"`.
 
-**a) In-session smoke test (no reconnect needed)** — two plain commands prove the server is up and
-has loaded the graph from Bolt:
+Report what is running (server, port, run mode, how it was started), that a new session is needed
+before the tools are usable, and how the graph stays current (below).
 
-- `nc -z localhost 8080` — confirms the MCP server is listening (or `curl -s http://localhost:8080/mcp`
-  as a single command; a `400/406` still proves it's reachable).
-- `docker logs hierograph-mcp` — on startup the server connects to Bolt and loads the hierarchical
-  model; look for the model-load / node-count line and the **absence** of Bolt-connection errors.
-  That confirms scan → store → Bolt → MCP end to end. (For a source run, read the `spring-boot:run`
-  console instead.) An empty model or a Bolt error means the store is empty or the MCP server can't
-  reach Bolt — recheck the scan (Step 2) and the Bolt URI (Step 3).
+## Keeping the graph current
 
-**b) Functional verification (after reconnect)** — the real check is a **tool call, not curl**: in a
-fresh session the client lists a `hierograph` server (`graph_overview`, `find_node`,
-`pairwise_dependencies`, …); call `graph_overview` directly and confirm it returns a `stats` block
-(node counts by kind). If you ever must exercise the HTTP endpoint before a client is connected, use
-a purpose-built MCP client rather than a bash handshake.
+There is no rescan step.
 
-Report what is running (both servers, ports, store path), that a new session is needed before the
-tools are usable, and how to re-scan after code changes (the sub-skill's scan command).
+- **Code changes:** any compile — Maven or the IDE — rewrites `target/classes`; the server rescans
+  the changed modules within a second or two.
+- **Module or dependency changes (POM edits):** the server notices the edited POM and reports
+  `build_state: "stale"` in `graph_overview` / `reload_graph` until the manifest is rewritten. With
+  `MAVEN_SETUP=pom`, the next build reaching `process-classes` does that; with `command`, rerun the
+  Step 3 command. With `--hierograph.graph.watch.build-files=regenerate` the server runs it itself.
+- **Something the watcher can't see** (a profile activated in `settings.xml`, an updated SNAPSHOT
+  dependency): rebuild, then call the `reload_graph` tool.
+- **After a server restart:** start it again as in Step 5; it loads the current manifest.
 
 ## Handing off
 
-Once verified, point the user at the analysis skills — **hierograph-dsm** (DSM / layering / cycles)
-and **hierograph-extract** (plan a module extraction) — or just ask hierograph directly, e.g.
-*"use hierograph: what's the most fragile coupling in this codebase?"* If the AI starts reading
-source files instead of querying, nudge it with **"use hierograph"**.
+Once verified, point the user at the analysis skills — **hierograph-structure** (dependency
+structure, DSM, layering, cycles) and **hierograph-extract** (plan a module extraction) — or let
+them ask directly, e.g. *"use hierograph: what's the most fragile coupling in this codebase?"* If the
+AI starts reading source files instead of querying, nudge it with **"use hierograph"**.
 
-## Common failure modes (shared)
+## Common failure modes
 
-- **"Cannot find group hierograph:virtual-external"** — the rules plugin isn't resolvable (Step 1)
-  or wasn't added to the scan's plugin path (see the sub-skill).
-- **Empty `graph_overview()`** — scan didn't run / didn't populate the store, or the MCP server
-  points at a different store/Bolt URI than the running server.
-- **Container can't reach Bolt** — Bolt bound to loopback only; bind all interfaces with
-  `-Djqassistant.store.embedded.listen-address=0.0.0.0` (Step 3 / sub-skill).
-
-Shape-specific failures (wrong `server` invocation, plugin-declaration syntax, CLI download) live
-in each sub-skill.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Manifest not found: …/.hierograph/manifest.json` | Step 4 didn't run, or the server was started outside `BUILD_ROOT` | Produce the manifest; start the server from `BUILD_ROOT` (Docker: mount `BUILD_ROOT`) |
+| `Manifest … declares no module output directory` | The manifest comes from a plugin older than the server (schema version 1), or no module has output directories | Use the same `HIEROGRAPH_VERSION` for plugin and server; rerun Step 4 |
+| `No module of manifest … is compiled yet` | The build didn't compile | Run the build; the server keeps watching and builds the graph when classes appear |
+| `Could not resolve dependencies … (absent)` with `command` | The goal ran without a lifecycle phase, or `-pl` without `-am` | Keep `process-classes` in front of the goal; add `-am` to narrowed builds |
+| A module is missing from `graph_overview` | A profile wasn't passed, or the module doesn't inherit the plugin binding | Pass `PROFILES`; add the plugin to that module's parent, or use `command` |
+| `build_state: "stale"` | A POM changed after the last manifest | Run the build (`pom`) or the Step 3 command (`command`) |
+| `build_state: "regeneration-failed"` | The regeneration build failed; `message` holds the end of its output | Fix the build error; the next POM edit or `reload_graph` retries |
+| Port 8080 in use | Another process | Choose another `MCP_PORT` (`--server.port=…` / `-p <port>:8080`) and register that URL |
