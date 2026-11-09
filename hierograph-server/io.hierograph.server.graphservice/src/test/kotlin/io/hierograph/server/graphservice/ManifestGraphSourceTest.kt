@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.FileTime
 
 class ManifestGraphSourceTest {
 
@@ -242,4 +243,73 @@ class ManifestGraphSourceTest {
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessageContaining("declares no module output directory")
     }
+
+    /**
+     * A changed manifest is applied as a diff: an unchanged module keeps its scan (even when only its classpath
+     * changed), a renamed one is scanned under its new key, a removed one is dropped, and a kept module whose
+     * classes changed on disk since its scan is rescanned.
+     */
+    @Test
+    fun `reload applies a changed manifest as a diff`(@TempDir tmp: Path) {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        val testClassesDir = Path.of("target/test-classes").toAbsolutePath()
+        val apiDir = copyTree(classesDir, tmp.resolve("billing-api/target/classes"))
+        val coreDir = copyTree(testClassesDir, tmp.resolve("billing-core/target/classes"))
+        val manifest = Files.createDirectories(tmp.resolve(".hierograph")).resolve("manifest.json")
+
+        fun writeManifest(coreGav: String, apiClasspath: String) = Files.writeString(
+            manifest,
+            """
+            {
+              "reactorRoot": "${tmp.toUri().path}",
+              "modules": [
+                { "gav": "com.example:billing-api:1.4.0", "name": "billing-api", "mainOutputDir": "${apiDir.toUri().path}",
+                  "classpath": [ $apiClasspath ] },
+                { "gav": "$coreGav", "name": "billing-core", "mainOutputDir": "${coreDir.toUri().path}", "classpath": [] }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        // A reused scan keeps its result object; a rescan produces a new one.
+        val api = "com.example:billing-api:1.4.0"
+        val core = "com.example:billing-core:1.4.0"
+        val ledger = "com.example:billing-ledger:1.4.0"
+        val source = ManifestGraphSource()
+        writeManifest(core, "")
+        val first = source.scan(manifest)
+
+        // Classpath-only change: nothing is rescanned, the new classpath is taken.
+        writeManifest(core, """{ "gav": "org.slf4j:slf4j-api:2.0.16", "internal": false, "jar": null }""")
+        val second = source.reload(first, manifest)
+        assertThat(second.modules.getValue(api).result).isSameAs(first.modules.getValue(api).result)
+        assertThat(second.modules.getValue(core).result).isSameAs(first.modules.getValue(core).result)
+        assertThat(second.classpaths.getValue(api).entries.map { it.depKey })
+            .containsExactly("org.slf4j:slf4j-api:2.0.16")
+
+        // Rename billing-core → billing-ledger: only that module is scanned, under its new key; the old key is gone.
+        writeManifest(ledger, "")
+        val third = source.reload(second, manifest)
+        assertThat(third.modules.keys).containsExactlyInAnyOrder(api, ledger)
+        assertThat(third.declared.keys).doesNotContain(core)
+        assertThat(third.modules.getValue(api).result).isSameAs(first.modules.getValue(api).result)
+        assertThat(third.modules.getValue(ledger).result.classes).isNotEmpty()
+
+        // Classes of a kept module changed since its scan (compiled by the build that rewrote the manifest): rescanned.
+        Files.walk(apiDir).use { paths ->
+            val clazz = paths.filter { it.toString().endsWith(".class") }.findFirst().orElseThrow()
+            Files.setLastModifiedTime(clazz, FileTime.fromMillis(Files.getLastModifiedTime(clazz).toMillis() + 10_000))
+        }
+        val fourth = source.reload(third, manifest)
+        assertThat(fourth.modules.getValue(api).result).isNotSameAs(third.modules.getValue(api).result)
+        assertThat(fourth.modules.getValue(ledger).result).isSameAs(third.modules.getValue(ledger).result)
+    }
+
+    private fun copyTree(from: Path, to: Path): Path {
+        Files.walk(from).use { paths ->
+            paths.forEach { p -> Files.copy(p, to.resolve(from.relativize(p).toString()).also { Files.createDirectories(it.parent) }) }
+        }
+        return to
+    }
 }
+

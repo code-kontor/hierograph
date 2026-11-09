@@ -44,6 +44,7 @@ import kotlin.time.measureTimedValue
  * be rebuilt from the cached union. The caller composes the steps:
  *  - [scan] reads the manifest and parses every module's compiled output in memory;
  *  - [rescan] re-parses only the given modules, returning an updated [Scanned];
+ *  - [reload] applies a changed manifest as a diff, rescanning only added or changed modules;
  *  - [ingest] feeds the union straight into a [GraphStore] (the fast path — no Parquet round trip);
  *  - [writeSnapshot] writes the union as a Parquet snapshot the detail tools read — off the hot path.
  *
@@ -54,7 +55,8 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
 
     /**
      * One scanned artifact: its GAV (a module's tests carry a `:test` suffix), display name, the (local)
-     * compiled-output directory scanned, the scanned classes, and whether it is main or test output.
+     * compiled-output directory scanned, the scanned classes, whether it is main or test output, and the
+     * output directory's [signature] at scan time.
      */
     data class ModuleScan(
         val gav: String,
@@ -62,6 +64,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val outputDir: Path,
         val result: ScanResult,
         val origin: Origin = Origin.MODULE_MAIN,
+        val signature: Long = 0L, // outputSignature(outputDir) taken just before the scan; tells a stale scan apart
     )
 
     /**
@@ -122,6 +125,59 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      * least one output directory.
      */
     fun scan(manifestPath: Path, includeTests: Boolean = false): Scanned {
+        val plan = readPlan(manifestPath, includeTests)
+        val modules = LinkedHashMap<String, ModuleScan>()
+        for (output in plan.declared.values) {
+            if (output.dir.isDirectory()) {
+                modules[output.gav] = scanOutput(output)
+            } else {
+                log.info("Output of {} not compiled yet ({}); watching for it", output.gav, output.dir)
+            }
+        }
+        log.info(
+            "Scanned {} of {} declared artifact(s) from manifest {} (includeTests={})",
+            modules.size, plan.declared.size, manifestPath, includeTests,
+        )
+        return Scanned(modules, plan.classpaths, plan.declared)
+    }
+
+    /**
+     * Applies a changed manifest to [previous] as a **diff**, keyed by declared output: a removed output is
+     * dropped; an added one is scanned if its directory exists; a kept one is rescanned only when its output
+     * directory moved or its contents changed since the scan ([ModuleScan.signature]), and otherwise reused.
+     * Classpaths and names are taken from the new manifest. A classpath change alone needs no rescan: a scan
+     * depends only on the key and the directory, and classpaths are applied at [ingest].
+     *
+     * The signature check matters because the watcher re-baselines when it is re-targeted after a manifest
+     * change: classes the same build compiled before that point are never reported as a change.
+     */
+    fun reload(previous: Scanned, manifestPath: Path, includeTests: Boolean = false): Scanned {
+        val plan = readPlan(manifestPath, includeTests)
+        val modules = LinkedHashMap<String, ModuleScan>()
+        var reused = 0
+        for (output in plan.declared.values) {
+            val prev = previous.modules[output.gav]
+            when {
+                !output.dir.isDirectory() -> {}
+                prev != null && prev.outputDir == output.dir && prev.signature == outputSignature(output.dir) -> {
+                    modules[output.gav] = prev.copy(name = output.name, origin = output.origin)
+                    reused++
+                }
+                else -> modules[output.gav] = scanOutput(output)
+            }
+        }
+        val dropped = previous.declared.keys.count { it !in plan.declared }
+        log.info(
+            "Applied manifest {}: {} of {} declared artifact(s) present, {} reused, {} scanned, {} dropped",
+            manifestPath, modules.size, plan.declared.size, reused, modules.size - reused, dropped,
+        )
+        return Scanned(modules, plan.classpaths, plan.declared)
+    }
+
+    /** What a manifest declares: each output's classpath and its (re-rooted) output directory. */
+    private class Plan(val classpaths: Map<String, ArtifactClasspath>, val declared: Map<String, DeclaredOutput>)
+
+    private fun readPlan(manifestPath: Path, includeTests: Boolean): Plan {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:create-descriptor hierograph:merge-descriptors`)" }
         val manifest = MAPPER.readValue<ManifestDto>(manifestPath.toFile())
         val remap = PathRemap(manifestPath, manifest.reactorRoot)
@@ -154,20 +210,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         require(declared.isNotEmpty()) {
             "Manifest $manifestPath declares no module output directory (did `hierograph:create-descriptor` run?)"
         }
-
-        val modules = LinkedHashMap<String, ModuleScan>()
-        for (output in declared.values) {
-            if (output.dir.isDirectory()) {
-                modules[output.gav] = scanOutput(output)
-            } else {
-                log.info("Output of {} not compiled yet ({}); watching for it", output.gav, output.dir)
-            }
-        }
-        log.info(
-            "Scanned {} of {} declared artifact(s) from manifest {} (includeTests={})",
-            modules.size, declared.size, manifestPath, includeTests,
-        )
-        return Scanned(modules, classpaths, declared)
+        return Plan(classpaths, declared)
     }
 
     /**
@@ -188,13 +231,16 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
                 modules.remove(gav)
                 continue
             }
-            modules[gav] = prev.copy(result = scanModule(gav, prev.outputDir))
+            val signature = outputSignature(prev.outputDir)
+            modules[gav] = prev.copy(result = scanModule(gav, prev.outputDir), signature = signature)
         }
         return Scanned(modules, previous.classpaths, previous.declared)
     }
 
-    private fun scanOutput(output: DeclaredOutput): ModuleScan =
-        ModuleScan(output.gav, output.name, output.dir, scanModule(output.gav, output.dir), output.origin)
+    private fun scanOutput(output: DeclaredOutput): ModuleScan {
+        val signature = outputSignature(output.dir) // before the scan: a write during the scan then shows as stale
+        return ModuleScan(output.gav, output.name, output.dir, scanModule(output.gav, output.dir), output.origin, signature)
+    }
 
     private fun scanModule(gav: String, dir: Path): ScanResult {
         val (result, elapsed) = measureTimedValue { scanner.scan(listOf(ScanArtifact(gav, dir))) }

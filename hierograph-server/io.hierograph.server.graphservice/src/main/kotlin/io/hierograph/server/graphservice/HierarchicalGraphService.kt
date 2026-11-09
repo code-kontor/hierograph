@@ -324,10 +324,13 @@ class HierarchicalGraphService {
     private fun buildFromManifest(): Built {
         val scanned = manifestGraphSource.scan(Path.of(manifestFile), includeTests)
         currentScanned = scanned
-        check(scanned.modules.isNotEmpty()) {
-            "No module of manifest $manifestFile is compiled yet; watching ${scanned.declared.size} declared output(s)"
-        }
+        requireCompiled(scanned)
         return buildManifestSnapshot(scanned)
+    }
+
+    /** A graph needs at least one scanned module; with none, the caller keeps watching for the first output. */
+    private fun requireCompiled(scanned: ManifestGraphSource.Scanned) = check(scanned.modules.isNotEmpty()) {
+        "No module of manifest $manifestFile is compiled yet; watching ${scanned.declared.size} declared output(s)"
     }
 
     /** Build the nav snapshot from a (cached) set of per-module scans; detail is published post-swap. */
@@ -391,11 +394,26 @@ class HierarchicalGraphService {
         }
     }
 
-    /** The manifest file itself changed (module set / classpath): re-read it fully and re-target the watcher. */
+    /**
+     * The manifest file itself changed (module set / classpath): apply it as a diff against the cached scans
+     * ([ManifestGraphSource.reload]), so only added or changed modules are scanned, and re-target the watcher.
+     */
     private fun reloadFromManifest() {
         try {
-            log.info("Manifest changed; reloading and re-targeting the watcher")
-            val built = loadSnapshot() // re-scans the manifest, refreshes currentScanned
+            log.info("Manifest changed; applying it and re-targeting the watcher")
+            val previous = currentScanned
+            val built = if (previous == null) {
+                loadSnapshot() // nothing cached yet: a full scan, which also refreshes currentScanned
+            } else {
+                val (built, elapsed) = measureTimedValue {
+                    val scanned = manifestGraphSource.reload(previous, Path.of(manifestFile), includeTests)
+                    currentScanned = scanned
+                    requireCompiled(scanned)
+                    buildManifestSnapshot(scanned)
+                }
+                log.info("Manifest applied in {}: hash {}", elapsed, built.snapshot.dataHash)
+                built
+            }
             snapshotRef.set(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()

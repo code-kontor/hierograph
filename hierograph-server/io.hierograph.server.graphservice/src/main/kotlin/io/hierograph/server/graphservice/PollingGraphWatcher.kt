@@ -102,22 +102,7 @@ class PollingGraphWatcher(
         if (changed.isNotEmpty()) onChange(changed)
     }
 
-    /** Order-independent fold of `(path, size, mtime)` over the `.class` files under [dir]; 0 when absent. */
-    private fun signature(dir: Path): Long {
-        if (!Files.isDirectory(dir)) return 0L
-        var sig = 0L
-        runCatching {
-            Files.walk(dir).use { stream ->
-                stream.filter { Files.isRegularFile(it) && it.toString().endsWith(".class") }.forEach { p ->
-                    val attrs = runCatching { Files.readAttributes(p, BasicFileAttributes::class.java) }.getOrNull()
-                        ?: return@forEach
-                    sig += p.toString().hashCode().toLong() * 1_099_511_628_211L + attrs.size() * 31L +
-                        attrs.lastModifiedTime().toMillis()
-                }
-            }
-        }
-        return sig
-    }
+    private fun signature(dir: Path): Long = outputSignature(dir)
 
     private fun fileSignature(file: Path): Long {
         val attrs = runCatching { Files.readAttributes(file, BasicFileAttributes::class.java) }.getOrNull() ?: return 0L
