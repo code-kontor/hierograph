@@ -340,7 +340,7 @@ from `billing`, 6.
 
 The checks and shapes are those of
 [`outgoing_dependencies` §5](hierograph-tool-outgoing-dependencies.md#5-errors). Type
-level and parameter errors use the nested shape with `recovery`:
+All errors use the nested shape with `code`, `message` and `recovery`:
 
 | Code | Situation |
 |------|-----------|
@@ -349,14 +349,16 @@ level and parameter errors use the nested shape with `recovery`:
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field; carries `actual_kind` and `declaring_type` |
 | cursor codes, `RESULT_TOO_LARGE` | see [Pagination](hierograph-mcp-tools.md#7-pagination) |
 
-Detail-level errors use the flat shape `{"error": <code>, "message": …}`:
-`INVALID_RELATIONSHIP`, `DETAIL_UNAVAILABLE`, `DETAIL_REBUILDING` and
-`NODE_NOT_FOUND`. Because the scopes are exchanged, the detail-level node check
+The detail level adds `INVALID_RELATIONSHIP`, `DETAIL_UNAVAILABLE`,
+`DETAIL_REBUILDING` and its own `NODE_NOT_FOUND`. Because the scopes are exchanged, the detail-level node check
 looks at `toId` first and calls it the source: an unknown `toId` gives
 "Source node not found", an unknown `fromId` gives "Target node not found".
 
 ```json
-{ "error": "NODE_NOT_FOUND", "message": "Source node not found: 9999. Re-resolve via find_node." }
+{ "error": {
+    "code": "NODE_NOT_FOUND",
+    "message": "Source node not found: 9999.",
+    "recovery": "Use find_node to look up the correct node ID." } }
 ```
 
 While no graph is loaded the tool returns the

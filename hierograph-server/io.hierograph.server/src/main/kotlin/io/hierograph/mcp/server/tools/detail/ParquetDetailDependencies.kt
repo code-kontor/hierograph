@@ -67,17 +67,25 @@ class ParquetDetailDependencies(
 
         val effectiveRel = relationship?.takeIf { it.isNotBlank() }
         if (effectiveRel != null && effectiveRel !in RELATIONSHIP_KINDS) {
-            return error("INVALID_RELATIONSHIP", "Invalid relationship: '$effectiveRel'. Allowed values: $RELATIONSHIP_KINDS")
+            return errorResponse(
+                "INVALID_RELATIONSHIP",
+                "Invalid relationship: '$effectiveRel'. Allowed values: ${RELATIONSHIP_KINDS.joinToString()}.",
+                "Use one of the allowed relationship values, or omit relationship.",
+            )
         }
 
         val store = graphService.graphStore
-            ?: return error("DETAIL_UNAVAILABLE", "No detail-level data is available for the loaded graph.")
+            ?: return errorResponse(
+                "DETAIL_UNAVAILABLE",
+                "No detail-level data is available for the loaded graph.",
+                "Use detailLevel='type' for the type-level edges.",
+            )
         val parquetDir = readyDetailDir() ?: return detailRebuilding()
 
         val fromNode = resolveNodeOrRoot(fromId)
-            ?: return error("NODE_NOT_FOUND", "Source node not found: $fromId. Re-resolve via find_node.")
+            ?: return errorResponse("NODE_NOT_FOUND", "Source node not found: $fromId.", "Use find_node to look up the correct node ID.")
         val toNode = resolveNodeOrRoot(toId)
-            ?: return error("NODE_NOT_FOUND", "Target node not found: $toId. Re-resolve via find_node.")
+            ?: return errorResponse("NODE_NOT_FOUND", "Target node not found: $toId.", "Use find_node to look up the correct node ID.")
 
         val queryHash = QueryHash.of(mapOf("fromId" to fromId, "toId" to toId, "relationship" to effectiveRel, "detailLevel" to "detail"))
 
@@ -246,8 +254,6 @@ class ParquetDetailDependencies(
         )
     }
 
-    private fun error(code: String, message: String): Map<String, Any?> =
-        linkedMapOf("error" to code, "message" to message)
 
     internal companion object {
 

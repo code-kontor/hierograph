@@ -416,7 +416,7 @@ than the budget allows remain.
 
 ### 8.1 Error shapes
 
-Most tools return errors as a nested object:
+Every tool returns errors as a nested object:
 
 ```json
 { "error": {
@@ -425,23 +425,12 @@ Most tools return errors as a nested object:
     "recovery": "Use find_node to look up the correct node ID." } }
 ```
 
-Some errors add fields that help the caller recover, such as `actual_kind`,
-`declaring_type`, `invalid_values` or `suggested_limit`.
+`code` comes first and `recovery` last. Some errors add fields between them that help
+the caller recover, such as `actual_kind`, `declaring_type`, `invalid_values` or
+`suggested_limit`. A caller therefore tests one key, `error`, and always finds the
+same three fields inside it, whichever tool answered.
 
-The detail-level engine (`outgoing_dependencies` and `incoming_dependencies` with
-`detailLevel` `"detail"`), `method_details` and `field_details` return a flat shape
-instead, without `recovery`. `method_details` and `field_details` repeat the code in a
-`code` field; the detail-level engine does not:
-
-```json
-{ "error": "NODE_NOT_FOUND", "code": "NODE_NOT_FOUND", "message": "…" }
-{ "error": "INVALID_RELATIONSHIP", "message": "…" }
-```
-
-`DETAIL_REBUILDING` uses the first flat form in all three entity-detail tools,
-including `type_details`.
-
-Each tool specification lists its errors and their shape.
+Each tool specification lists its errors and their extra fields.
 
 ### 8.2 Common codes
 

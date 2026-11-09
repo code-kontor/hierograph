@@ -367,12 +367,10 @@ so it never returns `DETAIL_REBUILDING` for an external type.
 |------|-----------|-------|--------------|
 | `NODE_NOT_FOUND` | `typeId` names no node | nested | `recovery`: use `find_node` |
 | `WRONG_NODE_KIND` | `typeId` names a node that is neither one of the five type kinds nor an external type | nested | `actual_kind`, `declaring_type`, `recovery` |
-| `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | flat | none |
+| `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | nested | `recovery`: retry in a moment |
 
 Error shapes and the no-graph response are defined in the
-[shared spec §8](hierograph-mcp-tools.md#8-errors). `NODE_NOT_FOUND` and
-`WRONG_NODE_KIND` use the nested shape with `recovery`; `DETAIL_REBUILDING` uses the flat
-shape.
+[shared spec §8](hierograph-mcp-tools.md#8-errors). All three use the nested shape with `recovery`.
 
 **`WRONG_NODE_KIND`** tells the caller what it passed and where to go instead:
 

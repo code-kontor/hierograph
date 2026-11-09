@@ -559,23 +559,25 @@ The two levels report errors in different shapes, as described in
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef) and a recovery that names
 it, so the caller can retry with the type.
 
-**Detail level** checks use the flat shape `{"error": <code>, "message": …}`, without
-`recovery`. They run after the parameter checks above, in this order:
+**Detail level** checks use the same nested shape. They run after the parameter
+checks above, in this order:
 
-| `error` | Situation |
-|---------|-----------|
-| `INVALID_RELATIONSHIP` | `relationship` is not in the vocabulary of §3.2; the message lists the allowed values |
-| `DETAIL_UNAVAILABLE` | the loaded graph has no member-level data |
-| `DETAIL_REBUILDING` | the member-level data is being rewritten after a rescan; retry shortly |
-| `NODE_NOT_FOUND` | `fromId` ("Source node not found"), then `toId` ("Target node not found"), names no node |
+| Code | Situation | Recovery |
+|------|-----------|----------|
+| `INVALID_RELATIONSHIP` | `relationship` is not in the vocabulary of §3.2; the message lists the allowed values | use an allowed value, or omit `relationship` |
+| `DETAIL_UNAVAILABLE` | the loaded graph has no member-level data | use `detailLevel = "type"` |
+| `DETAIL_REBUILDING` | the member-level data is being rewritten after a rescan | retry in a moment |
+| `NODE_NOT_FOUND` | `fromId` ("Source node not found"), then `toId` ("Target node not found"), names no node | use `find_node` |
 
 ```json
-{ "error": "NODE_NOT_FOUND", "message": "Target node not found: 9999. Re-resolve via find_node." }
+{ "error": {
+    "code": "NODE_NOT_FOUND",
+    "message": "Target node not found: 9999.",
+    "recovery": "Use find_node to look up the correct node ID." } }
 ```
 
-`DETAIL_REBUILDING` also carries `"code": "DETAIL_REBUILDING"`. Cursor errors and
-`RESULT_TOO_LARGE` (more than 90 rows on a page) use the nested shape at this level
-too, because they come from the shared pagination.
+Cursor errors and `RESULT_TOO_LARGE` (more than 90 rows on a page) come from the
+shared pagination.
 
 While no graph is loaded the tool returns the
 [no-graph response](hierograph-mcp-tools.md#83-no-graph-loaded).

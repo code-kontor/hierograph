@@ -325,14 +325,20 @@ for fields it is always `null`.
 | `WRONG_NODE_KIND` | `fieldId` names a method or constructor | `actual_kind` (`"java.method"` or `"java.constructor"`) |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | none |
 
-All three use the flat shape without `recovery`
-([shared spec §8.1](hierograph-mcp-tools.md#81-error-shapes)):
+All three use the nested shape of
+[shared spec §8.1](hierograph-mcp-tools.md#81-error-shapes):
 
 ```json
-{ "error": "WRONG_NODE_KIND", "code": "WRONG_NODE_KIND",
-  "message": "Node 4715 is a 'java.method', not a field. field_details requires a field-kind node.",
-  "actual_kind": "java.method" }
+{ "error": {
+    "code": "WRONG_NODE_KIND",
+    "message": "Node 4715 is a 'java.method', not a field. field_details requires a field-kind node.",
+    "actual_kind": "java.method",
+    "recovery": "To inspect the method itself, use method_details(methodId: 4715)." } }
 ```
+
+`NODE_NOT_FOUND` recovers with "Look the field up again via list_children on its
+declaring type or find_node." and `DETAIL_REBUILDING` with "Retry the call in a
+moment."
 
 The tool looks ids up in the index of member ids only, so the id of a type or package is
 reported as `NODE_NOT_FOUND` rather than `WRONG_NODE_KIND`. A method id is found in the

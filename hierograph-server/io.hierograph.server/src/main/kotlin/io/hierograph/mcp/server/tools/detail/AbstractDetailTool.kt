@@ -55,11 +55,27 @@ abstract class AbstractDetailTool(
      */
     protected fun readyDetailDir(): Path? = graphService.readyDetailDir()
 
+    /**
+     * A structured error in the shape every tool uses: `{"error": {"code", "message", <extras>, "recovery"}}`.
+     * [extras] carry the fields that help the caller recover (e.g. `actual_kind`).
+     */
+    protected fun errorResponse(
+        code: String,
+        message: String,
+        recovery: String,
+        extras: Map<String, Any?> = emptyMap(),
+    ): Map<String, Any?> = mapOf(
+        "error" to linkedMapOf<String, Any?>("code" to code, "message" to message).apply {
+            putAll(extras)
+            put("recovery", recovery)
+        }
+    )
+
     /** Uniform error returned when detail is queried before its snapshot for the live graph is ready. */
-    protected fun detailRebuilding(): Map<String, Any?> = linkedMapOf(
-        "error" to "DETAIL_REBUILDING",
-        "code" to "DETAIL_REBUILDING",
-        "message" to "Detail data is being rebuilt after a rescan; retry in a moment.",
+    protected fun detailRebuilding(): Map<String, Any?> = errorResponse(
+        "DETAIL_REBUILDING",
+        "Detail data is being rebuilt after a rescan.",
+        "Retry the call in a moment.",
     )
 
     /** Inline NodeRef used by single-entity tools (e.g. method_details) for primitive type slots. */

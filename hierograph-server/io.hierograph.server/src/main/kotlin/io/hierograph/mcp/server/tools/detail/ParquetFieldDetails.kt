@@ -41,10 +41,11 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         val reader = ParquetReader()
         val member = reader.readMember(dir, memberKey) ?: return notFound(fieldId)
         if (member.kind != JavaNodeKind.FIELD) {
-            return linkedMapOf(
-                "error" to "WRONG_NODE_KIND", "code" to "WRONG_NODE_KIND",
-                "message" to "Node $fieldId is a '${member.kind.value}', not a field. field_details requires a field-kind node.",
-                "actual_kind" to member.kind.value,
+            return errorResponse(
+                "WRONG_NODE_KIND",
+                "Node $fieldId is a '${member.kind.value}', not a field. field_details requires a field-kind node.",
+                "To inspect the method itself, use method_details(methodId: $fieldId).",
+                mapOf("actual_kind" to member.kind.value),
             )
         }
 
@@ -139,8 +140,9 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         return handle
     }
 
-    private fun notFound(fieldId: Long): Map<String, Any?> = linkedMapOf(
-        "error" to "NODE_NOT_FOUND", "code" to "NODE_NOT_FOUND",
-        "message" to "Node not found: $fieldId. Look the field up again via list_children on its declaring type or find_node.",
+    private fun notFound(fieldId: Long): Map<String, Any?> = errorResponse(
+        "NODE_NOT_FOUND",
+        "Node not found: $fieldId.",
+        "Look the field up again via list_children on its declaring type or find_node.",
     )
 }

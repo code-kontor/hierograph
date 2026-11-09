@@ -328,13 +328,19 @@ overrides nothing in the scanned code (§3.1).
 | `WRONG_NODE_KIND` | `methodId` names a field | `actual_kind` (`"java.field"`) |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | none |
 
-All three use the flat shape without `recovery`
-([shared spec §8.1](hierograph-mcp-tools.md#81-error-shapes)):
+All three use the nested shape of
+[shared spec §8.1](hierograph-mcp-tools.md#81-error-shapes):
 
 ```json
-{ "error": "NODE_NOT_FOUND", "code": "NODE_NOT_FOUND",
-  "message": "Node not found: 4711. Look the method up again via list_children on its declaring type or find_node." }
+{ "error": {
+    "code": "NODE_NOT_FOUND",
+    "message": "Node not found: 4711.",
+    "recovery": "Look the method up again via list_children on its declaring type or find_node." } }
 ```
+
+`WRONG_NODE_KIND` recovers with "To inspect the field itself, use
+field_details(fieldId: …)." and `DETAIL_REBUILDING` with "Retry the call in a
+moment."
 
 The tool looks ids up in the index of member ids only. An id of a type or package is
 therefore reported as `NODE_NOT_FOUND`, not as `WRONG_NODE_KIND`; the id exists in the

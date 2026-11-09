@@ -42,10 +42,11 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         val reader = ParquetReader()
         val member = reader.readMember(dir, memberKey) ?: return notFound(methodId)
         if (member.kind != JavaNodeKind.METHOD && member.kind != JavaNodeKind.CONSTRUCTOR) {
-            return linkedMapOf(
-                "error" to "WRONG_NODE_KIND", "code" to "WRONG_NODE_KIND",
-                "message" to "Node $methodId is a '${member.kind.value}', not a method. method_details requires a method-kind node.",
-                "actual_kind" to member.kind.value,
+            return errorResponse(
+                "WRONG_NODE_KIND",
+                "Node $methodId is a '${member.kind.value}', not a method. method_details requires a method-kind node.",
+                "To inspect the field itself, use field_details(fieldId: $methodId).",
+                mapOf("actual_kind" to member.kind.value),
             )
         }
 
@@ -139,8 +140,9 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         }
     }
 
-    private fun notFound(methodId: Long): Map<String, Any?> = linkedMapOf(
-        "error" to "NODE_NOT_FOUND", "code" to "NODE_NOT_FOUND",
-        "message" to "Node not found: $methodId. Look the method up again via list_children on its declaring type or find_node.",
+    private fun notFound(methodId: Long): Map<String, Any?> = errorResponse(
+        "NODE_NOT_FOUND",
+        "Node not found: $methodId.",
+        "Look the method up again via list_children on its declaring type or find_node.",
     )
 }
