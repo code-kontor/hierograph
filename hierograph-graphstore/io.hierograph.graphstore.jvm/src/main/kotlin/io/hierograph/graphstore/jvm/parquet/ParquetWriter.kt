@@ -58,14 +58,27 @@ object ParquetWriter {
     fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) =
         runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDetailRefs(dir, detailRefs, codec) }))
 
+    /** How [writeArtifacts] packages each artifact's tables (`spec/hierograph-graphstore-format.md` §2). */
+    enum class Packaging {
+        /** A `<key>.hierograph` file: the tables as a STORED ZIP, the form for shipping. */
+        ARCHIVE,
+
+        /** A `<key>.hierograph/` directory holding the tables, the form for local work. */
+        EXPLODED,
+    }
+
     /**
-     * Writes a project snapshot as **one `.hierograph` archive per artifact** under [outDir]: the classes
-     * are grouped by [ArtifactClass.artifactKey], the [detailRefs] by the artifact that owns their `from`
-     * side (its declaring type's artifact), and each group becomes `<artifact>.hierograph` (a STORED ZIP of
-     * that artifact's five Parquet tables). This is the scanner's output shape; the loader reads such a
-     * directory back across all archives. (A reference's `from` type is always one this snapshot scanned,
-     * so it maps to an artifact; if an FQN is defined by several artifacts the first wins — a rare, documented
-     * duplicate-FQN case.)
+     * Writes a project snapshot as **one `.hierograph` artifact per artifact key** under [outDir], packaged
+     * as [packaging] decides: the classes are grouped by [ArtifactClass.artifactKey], the [detailRefs] by the
+     * artifact that owns their `from` side (its declaring type's artifact), and each group's tables become
+     * `<artifact>.hierograph` — an archive or an exploded directory, with identical tables. An artifact of
+     * the same name already in [outDir] is replaced, whichever its form. This is the scanner's output shape;
+     * the loader reads such a directory back across all artifacts. (A reference's `from` type is always one
+     * this snapshot scanned, so it maps to an artifact; if an FQN is defined by several artifacts the first
+     * wins — a rare, documented duplicate-FQN case.)
+     *
+     * Nothing is written outside [outDir]: an archive's tables are staged in `.staging-<artifact>` there and
+     * the staging directory is deleted once zipped; an exploded artifact needs no staging.
      */
     fun writeArtifacts(
         outDir: Path,
@@ -73,18 +86,27 @@ object ParquetWriter {
         detailRefs: List<DetailRef>,
         codec: CompressionCodec = CompressionCodec.ZSTD,
         classpaths: Map<String, ArtifactClasspath> = emptyMap(),
+        packaging: Packaging = Packaging.ARCHIVE,
     ) {
         Files.createDirectories(outDir)
         val artifactByFqn = classes.associate { it.facts.fqn to it.artifactKey }
         val detailByArtifact = detailRefs.groupBy { artifactByFqn[it.fromType] }
         for ((artifactKey, artifactClasses) in classes.groupBy { it.artifactKey }) {
-            val staging = Files.createTempDirectory("hierograph-write-")
+            val fileName = HierographArchive.fileName(artifactKey)
+            val target = outDir.resolve(fileName)
+            deleteRecursively(target)
+            val tablesDir = when (packaging) {
+                Packaging.EXPLODED -> target
+                Packaging.ARCHIVE -> outDir.resolve(".staging-" + fileName.removeSuffix(HierographArchive.EXTENSION))
+            }
+            deleteRecursively(tablesDir)
+            Files.createDirectories(tablesDir)
             try {
-                writeSnapshot(staging, artifactClasses, detailByArtifact[artifactKey].orEmpty(), codec)
-                classpaths[artifactKey]?.let { writeClasspath(staging, it, codec) }
-                HierographArchive.zip(staging, outDir.resolve(HierographArchive.fileName(artifactKey)))
+                writeSnapshot(tablesDir, artifactClasses, detailByArtifact[artifactKey].orEmpty(), codec)
+                classpaths[artifactKey]?.let { writeClasspath(tablesDir, it, codec) }
+                if (packaging == Packaging.ARCHIVE) HierographArchive.zip(tablesDir, target)
             } finally {
-                deleteRecursively(staging)
+                if (packaging == Packaging.ARCHIVE) deleteRecursively(tablesDir)
             }
         }
     }

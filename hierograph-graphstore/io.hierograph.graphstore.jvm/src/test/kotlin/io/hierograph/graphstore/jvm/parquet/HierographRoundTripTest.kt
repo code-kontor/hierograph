@@ -135,6 +135,52 @@ class HierographRoundTripTest {
     }
 
     @Test
+    fun `archive and exploded packaging write identical tables`(@TempDir dir: Path) {
+        val archives = dir.resolve("archives")
+        val exploded = dir.resolve("exploded")
+        ParquetWriter.writeArtifacts(archives, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeArtifacts(exploded, classes, detailRefs, CompressionCodec.UNCOMPRESSED,
+            packaging = ParquetWriter.Packaging.EXPLODED)
+
+        for (name in listOf("a.hierograph", "b.hierograph")) {
+            assertThat(exploded.resolve(name)).isDirectory()
+            val unzipped = dir.resolve("unzipped").resolve(name)
+            HierographArchive.unzip(archives.resolve(name), unzipped)
+            assertThat(tableBytes(exploded.resolve(name))).isEqualTo(tableBytes(unzipped))
+        }
+        assertReadsBoth(exploded, ParquetReader().readDetailRefs(archives).toSet())
+
+        // zipping an exploded artifact yields an archive that reads equal
+        val rezipped = Files.createDirectories(dir.resolve("rezipped"))
+        for (name in listOf("a.hierograph", "b.hierograph")) HierographArchive.zip(exploded.resolve(name), rezipped.resolve(name))
+        assertReadsBoth(rezipped, ParquetReader().readDetailRefs(archives).toSet())
+    }
+
+    @Test
+    fun `writing leaves nothing outside the output and replaces either form`(@TempDir dir: Path) {
+        val tmp = Path.of(System.getProperty("java.io.tmpdir"))
+        val tmpBefore = hierographEntries(tmp)
+
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        assertThat(Files.list(dir).use { s -> s.map { it.fileName.toString() }.sorted().toList() })
+            .containsExactly("a.hierograph", "b.hierograph")
+        assertThat(hierographEntries(tmp)).isEqualTo(tmpBefore)
+
+        // the archives become exploded directories of the same name, and back
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED,
+            packaging = ParquetWriter.Packaging.EXPLODED)
+        assertThat(dir.resolve("a.hierograph")).isDirectory()
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        assertThat(dir.resolve("a.hierograph")).isRegularFile()
+        assertThat(Files.list(dir).use { s -> s.map { it.fileName.toString() }.sorted().toList() })
+            .containsExactly("a.hierograph", "b.hierograph")
+        assertReadsBoth(dir, detailRefs.toSet())
+    }
+
+    private fun tableBytes(dir: Path): Map<String, List<Byte>> =
+        Files.list(dir).use { s -> s.toList() }.associate { it.fileName.toString() to Files.readAllBytes(it).toList() }
+
+    @Test
     fun `a collect container is read in place, in a snapshot directory or on its own`(@TempDir dir: Path) {
         val artifacts = dir.resolve("artifacts")
         ParquetWriter.writeArtifacts(artifacts, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
