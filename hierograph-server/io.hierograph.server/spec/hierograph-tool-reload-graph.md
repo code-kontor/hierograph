@@ -128,7 +128,7 @@ A failed reload on a server that has no graph yet:
   "status": "error",
   "message": "No module of manifest /work/billing/.hierograph/manifest.json is compiled yet; watching 2 declared output(s)",
   "data_hash": null,
-  "note": "The previously loaded graph is still being served; re-run the scan and retry.",
+  "note": "No graph is loaded; fix the cause and retry.",
   "build_state": { "status": "current", "changed_files": [], "build_tool": "maven" }
 }
 ```
@@ -141,14 +141,16 @@ A failed reload on a server that has no graph yet:
 | `data_hash` | always | the data hash of the graph now served; `null` when none is loaded | tells the caller whether earlier cursors are still valid |
 | `reload_millis` | on success | duration of the build in milliseconds | the cost of a reload on this codebase |
 | `message` | on error | the cause of the failure | what to fix before retrying |
-| `note` | on error | a fixed sentence saying the previous graph is still served | reminds the caller that queries still work |
+| `note` | on error | whether the previous graph is still served | tells the caller whether queries still work |
 | `build_state` | manifest mode | `status`, `changed_files`, `build_tool`, `message` | whether the manifest still matches the build files |
 
 **`data_hash`** is a 16-character base64url string. Comparing it with the hash before
 the call shows whether the reload changed the graph.
 
-**`note`** is the same sentence on every error, also when no graph was loaded before
-and `data_hash` is `null`. In that case no previous graph is served.
+**`note`** says what the failure leaves in place: "The previously loaded graph is still
+being served; fix the cause and retry." when a graph was loaded before, and "No graph
+is loaded; fix the cause and retry." when none was, which is also when `data_hash` is
+`null`.
 
 **`build_state`** has the status values `current`, `stale`, `regenerating` and
 `regeneration-failed`, defined in the
@@ -177,7 +179,8 @@ or not.
 ## 6. Working with the tool
 
 **Load the graph after the first build.** When a tool answers `no_graph_available`,
-build the project, then call `reload_graph`. Check `status` and `root_children`.
+make the source available (from a build manifest: build the project; from a Parquet
+snapshot: provide the snapshot directory), then call `reload_graph`. Check `status` and `root_children`.
 
 **Refresh a Parquet-mode server.** After the snapshot has been rewritten, call
 `reload_graph`. The server does not watch a snapshot.

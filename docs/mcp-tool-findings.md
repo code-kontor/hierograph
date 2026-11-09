@@ -128,8 +128,8 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 6.1 | Low | The error `note` from `reload_graph` always says "The previously loaded graph is still being served", even when there was none (`data_hash: null`). | `io.hierograph.server.graphservice/.../HierarchicalGraphService.kt:323` |
-| 6.2 | Low | `GraphUnavailable` and `reload_graph` describe recovery only for manifest mode. In Parquet mode, "build the project" does not apply. | `core/GraphUnavailable.kt` |
+| 6.1 | Fixed | The `reload_graph` error `note` always claimed a previous graph was still served. It now says so only when one is, and "No graph is loaded" otherwise. | `HierarchicalGraphService.reload` |
+| 6.2 | Fixed | The no-graph message described recovery for manifest mode only. It now names both sources: build the project for a manifest, provide the snapshot directory for Parquet. | `core/GraphUnavailable.kt` |
 
 ---
 

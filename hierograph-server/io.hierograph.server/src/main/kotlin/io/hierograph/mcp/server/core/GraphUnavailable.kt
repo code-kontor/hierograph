@@ -33,7 +33,8 @@ object GraphUnavailable {
     fun response(): Map<String, Any?> = linkedMapOf(
         "status" to STATUS,
         "message" to "No hierarchical graph is available. The Hierograph MCP server could not build " +
-                "a graph from its source (for example, the project has not been compiled yet), so the " +
-                "analysis tools cannot answer. Build the project, then call reload_graph to load the graph."
+                "a graph from its source, so the analysis tools cannot answer. Make the source available " +
+                "(from a build manifest: build the project so its classes are compiled; from a Parquet " +
+                "snapshot: provide the snapshot directory), then call reload_graph to load the graph."
     )
 }

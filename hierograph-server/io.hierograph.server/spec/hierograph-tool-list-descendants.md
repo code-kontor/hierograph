@@ -245,7 +245,7 @@ minimal fields only ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
 | `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
 | `cursor` is malformed, from another tool, or issued for other parameters or another graph | `INVALID_CURSOR_FORMAT`, `STALE_CURSOR_VERSION`, `WRONG_TOOL_CURSOR`, `STALE_CURSOR_QUERY`, `STALE_CURSOR_DATA` | see [§7.2](hierograph-mcp-tools.md#72-cursors) | restart without `cursor`, or restore the original parameters |
 | The page exceeds the response budget | `RESULT_TOO_LARGE` | see [§7.3](hierograph-mcp-tools.md#73-the-response-budget) | retry with `suggested_limit` (`200`), or `limit = 1` for the summary |
-| No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
+| No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | make the graph source available, then call `reload_graph` |
 
 The checks run in this order: node, kind filter, modifier filter, cursor, budget. `NODE_NOT_FOUND` and
 `INVALID_KIND` use the nested shape of [§8.1](hierograph-mcp-tools.md#81-error-shapes)

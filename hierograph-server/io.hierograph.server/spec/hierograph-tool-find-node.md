@@ -171,7 +171,7 @@ returned ones.
 | Situation | Code | Message | Recovery |
 |-----------|------|---------|----------|
 | `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
-| No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
+| No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | make the graph source available, then call `reload_graph` |
 
 `INVALID_KIND` is the shared kind-filter error of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): it carries

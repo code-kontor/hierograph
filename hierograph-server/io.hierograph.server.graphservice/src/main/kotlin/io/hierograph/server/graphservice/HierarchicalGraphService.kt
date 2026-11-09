@@ -351,7 +351,10 @@ class HierarchicalGraphService {
                 "status" to "error",
                 "message" to (e.message ?: e.javaClass.simpleName),
                 "data_hash" to snapshotRef.get()?.dataHash,
-                "note" to "The previously loaded graph is still being served; re-run the scan and retry."
+                "note" to if (snapshotRef.get() != null)
+                    "The previously loaded graph is still being served; fix the cause and retry."
+                else
+                    "No graph is loaded; fix the cause and retry."
             ).apply { buildState()?.let { put("build_state", it) } }
         }
     }

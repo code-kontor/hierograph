@@ -217,7 +217,7 @@ compare.
 
 | Situation | Response | Recovery |
 |-----------|----------|----------|
-| No graph is loaded | `{"status": "no_graph_available", …}` (see [§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
+| No graph is loaded | `{"status": "no_graph_available", …}` (see [§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | make the graph source available, then call `reload_graph` |
 
 The tool has no inputs to validate, so it has no other errors.
 
