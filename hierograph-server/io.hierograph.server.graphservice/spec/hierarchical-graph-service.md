@@ -328,7 +328,10 @@ All properties are optional; defaults suit a local server.
 
 In `manifest` mode the detail snapshot is written to a `snapshot/` directory in the
 state directory (one `gen-<nnnn>` subdirectory per build; superseded ones are
-pruned). The service writes nothing else outside the state directory.
+pruned). A generation holds one **exploded** artifact per scanned artifact — a
+`<artifact>.hierograph/` directory of tables, not an archive — so pruning it removes
+everything it holds. The service writes nothing outside the state directory, and
+reads snapshots in place without extracting them.
 
 **State directory and build root.** By default both follow from the manifest's
 location: the state directory is the manifest's directory, the build root its
