@@ -155,6 +155,11 @@ class HierarchicalGraphService {
         Thread(r, "hierograph-graph-updater").apply { isDaemon = true }
     }
 
+    /** Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each (see [UpdateCoalescer]). */
+    private val coalescer = UpdateCoalescer(updateExecutor) { reload, gavs ->
+        if (reload) reloadFromManifest() else applyIncremental(gavs)
+    }
+
     /**
      * True when [graphSource] selects the manifest (server-side scan) flow. A service built without Spring
      * and filled by [seed] has no source configured and is not in manifest mode.
@@ -492,8 +497,8 @@ class HierarchicalGraphService {
                 scanned.moduleDirs,
                 if (buildFileMonitor.watchesBuildFiles) scanned.buildFiles.keys else emptySet(),
             ),
-            onChange = { gavs -> updateExecutor.submit { applyIncremental(gavs) } },
-            onManifestChange = { updateExecutor.submit { reloadFromManifest() } },
+            onChange = { gavs -> coalescer.scheduleIncremental(gavs) },
+            onManifestChange = { coalescer.scheduleManifestReload() },
             onBuildFilesChange = { updateExecutor.submit { buildFileMonitor.refresh() } },
         )
         watcher = w
