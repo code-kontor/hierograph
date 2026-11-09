@@ -65,8 +65,13 @@ class ManifestGraphSourceTest {
         val snapshotDir = tmp.resolve("snapshot")
         ManifestGraphSource().materialize(manifest, snapshotDir)
 
-        // A snapshot was written…
-        assertThat(Files.list(snapshotDir).use { it.count() }).isGreaterThan(0L)
+        // A snapshot was written, one exploded artifact (a `.hierograph` directory) per artifact…
+        val artifacts = Files.list(snapshotDir).use { it.toList() }
+        assertThat(artifacts).isNotEmpty()
+        assertThat(artifacts).allSatisfy {
+            assertThat(it.fileName.toString()).endsWith(".hierograph")
+            assertThat(it).isDirectory()
+        }
 
         // …and it loads back into a GraphStore with this class present as a scanned type.
         val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)

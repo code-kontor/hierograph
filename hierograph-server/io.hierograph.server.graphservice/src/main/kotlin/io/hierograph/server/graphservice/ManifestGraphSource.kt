@@ -25,6 +25,7 @@ import io.hierograph.graphstore.jvm.model.ArtifactClasspath
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClasspathEntry
 import io.hierograph.graphstore.jvm.model.Origin
+import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import io.hierograph.graphstore.jvm.scanner.ScanResult
@@ -327,11 +328,15 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         store.resolvePlaceholders()
     }
 
-    /** Writes the union of [scanned] as a Parquet snapshot into [dir] (replacing any previous contents). */
+    /**
+     * Writes the union of [scanned] as a Parquet snapshot into [dir] (replacing any previous contents), one
+     * exploded artifact per artifact key: the snapshot stays local, so its tables are not zipped, and
+     * deleting [dir] removes everything it holds.
+     */
     fun writeSnapshot(scanned: Scanned, dir: Path) {
         deleteRecursively(dir)
         Files.createDirectories(dir)
-        scanned.combined().writeTo(dir, classpaths = scanned.classpaths)
+        scanned.combined().writeTo(dir, classpaths = scanned.classpaths, packaging = ParquetWriter.Packaging.EXPLODED)
     }
 
     /** Convenience for one-shot use (and tests): [scan] then [writeSnapshot]; returns [snapshotDir]. */
