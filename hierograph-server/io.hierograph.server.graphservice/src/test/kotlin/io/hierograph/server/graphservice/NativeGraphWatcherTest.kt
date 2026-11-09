@@ -44,7 +44,7 @@ class NativeGraphWatcherTest {
         val watcher = NativeGraphWatcher(settleMs = 150)
         try {
             watcher.start(
-                WatchTargets(manifest, mapOf(gav to tmp.resolve("app/target/classes"))),
+                WatchTargets(manifest, mapOf(gav to listOf(tmp.resolve("app/target/classes")))),
                 onChange = { changed += it },
                 onManifestChange = { manifestChanges.incrementAndGet() },
             )
@@ -67,7 +67,7 @@ class NativeGraphWatcherTest {
         val changed = ConcurrentHashMap.newKeySet<String>()
         val watcher = NativeGraphWatcher(settleMs = 150)
         try {
-            watcher.start(WatchTargets(manifest, mapOf(gav to moduleDir)), onChange = { changed += it }, onManifestChange = {})
+            watcher.start(WatchTargets(manifest, mapOf(gav to listOf(moduleDir))), onChange = { changed += it }, onManifestChange = {})
 
             // First compile: the directory appears → reported, and the native watch now covers it.
             Files.createDirectories(moduleDir.resolve("com/example"))

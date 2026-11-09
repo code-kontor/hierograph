@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit
  *
  * A native watch can only be registered on an existing directory. The flush tick therefore also checks
  * which module directories exist: when one appears (a module compiled for the first time) or disappears
- * (`mvn clean`), the module is reported as changed and the native watch is re-registered on the directories
+ * (a clean build), the module is reported as changed and the native watch is re-registered on the directories
  * that exist now.
  */
 class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
@@ -73,7 +73,7 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
         manifestPath = targets.manifest.toAbsolutePath().normalize()
         manifestSig = fileSignature(manifestPath)
         moduleByDir = targets.modules.entries
-            .map { it.value.toAbsolutePath().normalize() to it.key }
+            .flatMap { (gav, dirs) -> dirs.map { it.toAbsolutePath().normalize() to gav } }
             .sortedByDescending { it.first.toString().length }
 
         watchExec = Executors.newSingleThreadExecutor { r -> Thread(r, "hierograph-native-watcher").apply { isDaemon = true } }
@@ -114,7 +114,7 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
         val flipped = (existing - watchedRoots) + (watchedRoots - existing)
         log.info("Module output director(ies) appeared or disappeared: {}; re-registering the native watch", flipped)
         register(existing)
-        val gavs = moduleByDir.filter { it.first in flipped }.map { it.second }
+        val gavs = moduleByDir.filter { it.first in flipped }.map { it.second }.distinct()
         synchronized(lock) {
             pending += gavs
             lastEventAt = System.currentTimeMillis()

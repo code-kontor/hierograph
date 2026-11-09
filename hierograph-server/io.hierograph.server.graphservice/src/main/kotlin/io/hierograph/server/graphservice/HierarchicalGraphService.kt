@@ -58,7 +58,7 @@ class HierarchicalGraphService {
     /**
      * Where the graph's facts come from:
      * - `parquet` (default): load a pre-built Parquet snapshot directory ([parquetDir]) — the CI / push flow.
-     * - `manifest`: scan the reactor modules named in a build manifest ([manifestFile]) on the fly and
+     * - `manifest`: scan the modules named in a build manifest ([manifestFile]) on the fly and
      *   write the Parquet snapshot into `<manifest dir>/snapshot`, then load that — the local-dev flow.
      */
     @Value("\${hierograph.graph.source:parquet}")
@@ -86,7 +86,7 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.watch.build-files:notify}")
     private var buildFilesMode: String = "notify"
 
-    /** Regeneration command (whitespace-separated); empty selects `mvnw`/`mvn -q -B process-classes`. */
+    /** Regeneration command override (whitespace-separated); empty uses the command the manifest names. */
     @Value("\${hierograph.graph.regenerate.command:}")
     private var regenerateCommand: String = ""
 
@@ -95,20 +95,22 @@ class HierarchicalGraphService {
     private var regenerateTimeoutMs: Long = 600_000
 
     /**
-     * Whether the manifest still reflects the reactor's build files, and the regeneration runner. Created on
+     * Whether the manifest still reflects the build's build files, and the regeneration runner. Created on
      * first use, after the configuration is injected.
      */
     private val buildFileMonitor by lazy {
         BuildFileMonitor(
             mode = BuildFileMonitor.Mode.parse(buildFilesMode),
-            command = regenerateCommand.trim().takeIf { it.isNotEmpty() }?.split(Regex("\\s+")),
+            commandOverride = regenerateCommand.trim().takeIf { it.isNotEmpty() }?.split(Regex("\\s+")),
             timeoutMs = regenerateTimeoutMs,
             inspect = {
                 currentScanned?.let { scanned ->
                     BuildFileMonitor.Inspection(
                         staleFiles = manifestGraphSource.staleBuildFiles(scanned),
-                        reactorRoot = Path.of(manifestFile).toAbsolutePath().normalize().parent.parent,
+                        buildRoot = Path.of(manifestFile).toAbsolutePath().normalize().parent.parent,
                         relocated = scanned.relocated,
+                        buildTool = scanned.buildTool,
+                        command = scanned.regenerate,
                     )
                 }
             },
@@ -117,7 +119,7 @@ class HierarchicalGraphService {
 
     /**
      * The `build_state` reported by `reload_graph` and `graph_overview`: whether the manifest reflects the
-     * reactor's build files (`current`), a build file changed since (`stale`, with the changed files), or a
+     * build's build files (`current`), a build file changed since (`stale`, with the changed files), or a
      * regeneration is running or failed. `null` outside `manifest` mode.
      */
     fun buildState(): Map<String, Any?>? = if (manifestMode) buildFileMonitor.state.toMap() else null
@@ -357,7 +359,7 @@ class HierarchicalGraphService {
     }
 
     /**
-     * `manifest` mode: scan the reactor modules and ingest the result **straight into the GraphStore**, so
+     * `manifest` mode: scan the build's modules and ingest the result **straight into the GraphStore**, so
      * the hierarchical graph is live without waiting on Parquet I/O. The Parquet snapshot the detail tools
      * read is written **asynchronously** (see [scheduleDetailWrite]); until the write for this generation
      * lands, [readyDetailDir] withholds detail rather than serving the previous scan's.

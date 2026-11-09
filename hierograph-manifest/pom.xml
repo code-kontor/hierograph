@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.hierograph</groupId>
+        <artifactId>hierograph-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../hierograph-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>hierograph-manifest</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Hierograph Build Manifest</name>
+    <description>
+        The build-tool-independent side of producing a `.hierograph/manifest.json`: the manifest model, the merge
+        of per-module descriptors, write-only-on-change with atomic replacement and locking, and build-file hashing.
+        Shared by the build-tool plugins; it uses no Maven or Gradle API.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

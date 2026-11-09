@@ -35,7 +35,7 @@ class BuildFileMonitorTest {
     @Test
     fun `notify reports stale build files until the manifest catches up`(@TempDir tmp: Path) {
         var stale = emptyList<Path>()
-        BuildFileMonitor(Mode.NOTIFY, command = null, timeoutMs = 1_000, inspect = { Inspection(stale, tmp, relocated = false) }).use { monitor ->
+        BuildFileMonitor(Mode.NOTIFY, commandOverride = null, timeoutMs = 1_000, inspect = { Inspection(stale, tmp, relocated = false) }).use { monitor ->
             monitor.refresh()
             assertThat(monitor.state.status).isEqualTo(Status.CURRENT)
 
@@ -95,11 +95,35 @@ class BuildFileMonitorTest {
     }
 
     @Test
-    fun `the default command prefers the Maven wrapper`(@TempDir tmp: Path) {
-        assertThat(BuildFileMonitor.defaultCommand(tmp).first()).isIn("mvn", "mvn.cmd")
-        Files.writeString(tmp.resolve("mvnw"), "#!/bin/sh")
-        Files.writeString(tmp.resolve("mvnw.cmd"), "@echo off")
-        assertThat(BuildFileMonitor.defaultCommand(tmp).first()).startsWith(tmp.resolve("mvnw").toString())
-        assertThat(BuildFileMonitor.defaultCommand(tmp).drop(1)).containsExactly("-q", "-B", "process-classes")
+    @EnabledOnOs(OS.MAC, OS.LINUX)
+    fun `the manifest's command runs, with relative arguments resolved against the build root`(@TempDir tmp: Path) {
+        Files.writeString(tmp.resolve("regen.sh"), "touch ran-by-manifest.txt\n")
+        val inspection = Inspection(listOf(pom), tmp, relocated = false, buildTool = "gradle", command = listOf("sh", "./regen.sh"))
+        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, inspect = { inspection }).use { monitor ->
+            monitor.refresh()
+            assertThat(monitor.state.toMap()).containsEntry("build_tool", "gradle")
+            await().atMost(Duration.ofSeconds(10)).until { monitor.state.status != Status.REGENERATING }
+            assertThat(tmp.resolve("ran-by-manifest.txt")).exists()
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.MAC, OS.LINUX)
+    fun `a configured command overrides the manifest's`(@TempDir tmp: Path) {
+        val inspection = Inspection(listOf(pom), tmp, relocated = false, command = listOf("sh", "-c", "touch ran-by-manifest.txt"))
+        BuildFileMonitor(Mode.REGENERATE, listOf("sh", "-c", "touch ran-by-override.txt"), timeoutMs = 10_000, inspect = { inspection }).use { monitor ->
+            monitor.refresh()
+            await().atMost(Duration.ofSeconds(10)).until { monitor.state.status != Status.REGENERATING }
+            assertThat(tmp.resolve("ran-by-override.txt")).exists()
+            assertThat(tmp.resolve("ran-by-manifest.txt")).doesNotExist()
+        }
+    }
+
+    @Test
+    fun `without any command, regenerate behaves as notify`(@TempDir tmp: Path) {
+        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, inspect = { Inspection(listOf(pom), tmp, relocated = false) }).use { monitor ->
+            monitor.refresh()
+            assertThat(monitor.state.status).isEqualTo(Status.STALE)
+        }
     }
 }

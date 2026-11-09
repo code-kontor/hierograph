@@ -215,7 +215,7 @@ class ManifestGraphSourceTest {
         val before = source.scan(manifest)
         assertThat(before.modules).isEmpty()
         assertThat(before.declared.keys).containsExactly(gav)
-        assertThat(before.moduleDirs).containsEntry(gav, outputDir)
+        assertThat(before.moduleDirs).containsEntry(gav, listOf(outputDir))
 
         // The output appears (first compile) → rescan adds the module.
         Files.walk(classesDir).use { paths ->
@@ -339,6 +339,57 @@ class ManifestGraphSourceTest {
         val withGone = scanned.copy(buildFiles = scanned.buildFiles + (gone to sha))
         assertThat(source.staleBuildFiles(withGone)).containsExactly(gone)
     }
+
+    /**
+     * An output with several directories (a source set compiled by Java and Kotlin) is one artifact: every
+     * existing directory is scanned under the one key, the output is present while any directory exists, and a
+     * change in either directory makes a kept scan stale.
+     */
+    @Test
+    fun `an output with several directories is scanned as one artifact`(@TempDir tmp: Path) {
+        val javaDir = copyTree(Path.of("target/classes").toAbsolutePath(), tmp.resolve("billing-core/build/classes/java/main"))
+        val kotlinDir = copyTree(Path.of("target/test-classes").toAbsolutePath(), tmp.resolve("billing-core/build/classes/kotlin/main"))
+        val gav = "com.example:billing-core:1.4.0"
+        val manifest = Files.createDirectories(tmp.resolve(".hierograph")).resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """
+            {
+              "reactorRoot": "${tmp.toUri().path}",
+              "buildTool": { "name": "gradle", "version": "8.10" },
+              "regenerate": ["./gradlew", "-q", "hierographManifest"],
+              "modules": [ { "gav": "$gav", "name": "billing-core",
+                             "mainOutputDirs": ["${javaDir.toUri().path}", "${kotlinDir.toUri().path}"] } ]
+            }
+            """.trimIndent(),
+        )
+        val source = ManifestGraphSource()
+        val scanned = source.scan(manifest)
+        assertThat(scanned.buildTool).isEqualTo("gradle")
+        assertThat(scanned.regenerate).containsExactly("./gradlew", "-q", "hierographManifest")
+        assertThat(scanned.moduleDirs.getValue(gav)).containsExactly(javaDir, kotlinDir)
+        val typeFqns = scanned.modules.getValue(gav).result.classes.map { it.facts.fqn }
+        assertThat(typeFqns)
+            .contains("io.hierograph.server.graphservice.ManifestGraphSource") // from the first directory
+            .contains("io.hierograph.server.graphservice.ManifestGraphSourceTest") // from the second
+        assertThat(scanned.modules.getValue(gav).result.classes.map { it.artifactKey }.distinct()).containsExactly(gav)
+
+        // A change in the second directory makes the kept scan stale.
+        Files.walk(kotlinDir).use { paths ->
+            val clazz = paths.filter { it.toString().endsWith(".class") }.findFirst().orElseThrow()
+            Files.setLastModifiedTime(clazz, FileTime.fromMillis(Files.getLastModifiedTime(clazz).toMillis() + 10_000))
+        }
+        val reloaded = source.reload(scanned, manifest)
+        assertThat(reloaded.modules.getValue(gav).result).isNotSameAs(scanned.modules.getValue(gav).result)
+
+        // Present while one directory exists; dropped when none does.
+        deleteTree(kotlinDir)
+        assertThat(source.rescan(reloaded, setOf(gav)).modules.keys).containsExactly(gav)
+        deleteTree(javaDir)
+        assertThat(source.rescan(reloaded, setOf(gav)).modules).isEmpty()
+    }
+
+    private fun deleteTree(dir: Path) = Files.walk(dir).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
 
     private fun copyTree(from: Path, to: Path): Path {
         Files.walk(from).use { paths ->

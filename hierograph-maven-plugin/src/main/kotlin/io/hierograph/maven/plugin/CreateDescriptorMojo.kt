@@ -15,6 +15,9 @@
  */
 package io.hierograph.maven.plugin
 
+import io.hierograph.manifest.ClasspathEntry
+import io.hierograph.manifest.ManifestWriter
+import io.hierograph.manifest.ModuleDescriptor
 import org.apache.maven.execution.MavenSession
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.descriptor.PluginDescriptor
@@ -27,7 +30,7 @@ import java.io.File
 
 /**
  * `hierograph:create-descriptor` — records this module's build facts into a per-module *descriptor*, then
- * merges every reactor module's descriptor into the top-level manifest ([ManifestMerger]). It does **not**
+ * merges every reactor module's descriptor into the top-level manifest ([MavenManifest]). It does **not**
  * scan bytecode: it writes a small `module.json` to the module's `target/hierograph/` describing the GAV, the
  * compiled-output directories and source roots (main/test), and the resolved main and test classpaths — each
  * entry flagged internal (a reactor sibling) or external, with its resolved jar path.
@@ -87,27 +90,25 @@ class CreateDescriptorMojo : AbstractMojo() {
         val descriptor = ModuleDescriptor(
             gav = gav(project.groupId, project.artifactId, project.version),
             name = project.artifactId,
-            mainOutputDir = File(project.build.outputDirectory).absolutePath,
-            testOutputDir = File(project.build.testOutputDirectory).absolutePath,
+            mainOutputDirs = listOf(File(project.build.outputDirectory).absolutePath),
+            testOutputDirs = listOf(File(project.build.testOutputDirectory).absolutePath),
             sourceRoots = project.compileSourceRoots.toList(),
             testSourceRoots = project.testCompileSourceRoots.toList(),
             classpath = classpath,
             testClasspath = testClasspath,
         )
 
-        val descriptorFile = File(File(project.build.directory, DESCRIPTOR_SUBDIR), DESCRIPTOR_FILE)
-        val descriptorWritten = ManifestMerger.writeDescriptor(descriptor, descriptorFile)
+        val descriptorFile = descriptorFile(project)
+        val descriptorWritten = ManifestWriter.writeDescriptor(descriptor, descriptorFile.toPath())
         log.info(
             "hierograph:create-descriptor ${project.artifactId}: ${classpath.size} classpath entries → $descriptorFile" +
                 if (descriptorWritten) "" else " (unchanged)",
         )
 
-        val merged = ManifestMerger.merge(session, manifestDir, "io.hierograph.maven.plugin/${pluginDescriptor.version}", log)
+        val merged = MavenManifest.merge(session, manifestDir, pluginDescriptor.version, log)
         log.info(
             "hierograph:create-descriptor: ${merged.modules} module(s) → ${merged.file}" +
                 if (merged.written) "" else " (unchanged)",
         )
     }
-
-    private fun gav(groupId: String, artifactId: String, version: String) = "$groupId:$artifactId:$version"
 }

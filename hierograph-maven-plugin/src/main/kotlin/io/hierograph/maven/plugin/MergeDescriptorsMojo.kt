@@ -30,7 +30,7 @@ import java.io.File
  * to scan each module's compiled output itself and observe the output directories for live updates.
  *
  * `hierograph:create-descriptor` already merges after each module, so this goal is only needed to merge
- * explicitly (e.g. without running the lifecycle). Both share [ManifestMerger]. An aggregator goal: runs
+ * explicitly (e.g. without running the lifecycle). Both share [MavenManifest]. An aggregator goal: runs
  * once on the top-level build. On a duplicate module (same GAV from two descriptors) it warns and keeps
  * the first.
  */
@@ -60,7 +60,7 @@ class MergeDescriptorsMojo : AbstractMojo() {
             return
         }
 
-        val merged = ManifestMerger.merge(session, manifestDir, "io.hierograph.maven.plugin/${pluginDescriptor.version}", log)
+        val merged = MavenManifest.merge(session, manifestDir, pluginDescriptor.version, log)
         log.info("hierograph:merge-descriptors: ${merged.modules} module(s) → ${merged.file}" + if (merged.written) "" else " (unchanged)")
         if (merged.modules == 0) {
             log.warn("hierograph:merge-descriptors: no module descriptors found — did `hierograph:create-descriptor` run for the modules?")

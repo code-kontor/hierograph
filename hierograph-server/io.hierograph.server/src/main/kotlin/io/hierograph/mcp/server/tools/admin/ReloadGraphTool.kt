@@ -37,10 +37,10 @@ class ReloadGraphTool(
                 "and manifest changes on its own; call this when it seems out of date, or after changing " +
                 "something the watcher does not see. Returns a status ('reloaded' or 'error'), the " +
                 "refreshed root-child count, a new data-snapshot hash and, in manifest mode, the " +
-                "build_state: 'current', or 'stale' with the build files (POMs) edited since the manifest " +
-                "was written (run a Maven build reaching process-classes), 'regenerating', or " +
-                "'regeneration-failed' with the cause. Any pagination cursors obtained before the reload " +
-                "become stale and must be re-requested."
+                "build_state: 'current', or 'stale' with the build files edited since the manifest was " +
+                "written (run the build that writes the manifest), 'regenerating', or " +
+                "'regeneration-failed' with the cause; build_tool names the build tool. Any pagination " +
+                "cursors obtained before the reload become stale and must be re-requested."
     )
     fun reloadGraph(): Map<String, Any?> = graphService.reload()
 }

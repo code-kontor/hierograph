@@ -46,7 +46,7 @@ class GraphOverviewTool(
                 "tools relate to each other. Returns statistics (node counts by kind, edge " +
                 "counts by attribute), the kind and relationship vocabularies, top-level " +
                 "module structure, and the zoom-level model. In manifest mode it also returns the " +
-                "build_state ('current', or 'stale' with the POMs edited since the graph's manifest was " +
+                "build_state ('current', or 'stale' with the build files edited since the graph's manifest was " +
                 "written). No parameters needed. For known codebases, this can be skipped."
     )
     fun graphOverview(): Map<String, Any?> {

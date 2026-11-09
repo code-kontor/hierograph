@@ -24,7 +24,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
- * A dependency-free [GraphWatcher] that polls each module's class directory on a fixed interval, comparing
+ * A dependency-free [GraphWatcher] that polls each module's class directories on a fixed interval, comparing
  * a cheap per-file `(path, size, mtime)` signature. It works identically on every OS and across a mounted
  * volume (it only `stat`s files), which is why it is the default — notably on Docker Desktop, where native
  * file events do not reach the container.
@@ -61,8 +61,8 @@ class PollingGraphWatcher(
         onBuildFilesChange: (Set<Path>) -> Unit,
     ) {
         // Baseline = current state, so only changes after start are reported.
-        for ((gav, dir) in targets.modules) {
-            val sig = signature(dir)
+        for ((gav, dirs) in targets.modules) {
+            val sig = signature(dirs)
             reported[gav] = sig
             lastSig[gav] = sig
         }
@@ -103,8 +103,8 @@ class PollingGraphWatcher(
         buildFiles?.poll(now)?.takeIf { it.isNotEmpty() }?.let(onBuildFilesChange)
 
         val changed = HashSet<String>()
-        for ((gav, dir) in targets.modules) {
-            val sig = signature(dir)
+        for ((gav, dirs) in targets.modules) {
+            val sig = signature(dirs)
             val prev = lastSig[gav]
             if (sig != prev) {
                 lastSig[gav] = sig
@@ -117,7 +117,8 @@ class PollingGraphWatcher(
         if (changed.isNotEmpty()) onChange(changed)
     }
 
-    private fun signature(dir: Path): Long = outputSignature(dir)
+    /** One signature over all directories of a module, so a change in any of them reports the module. */
+    private fun signature(dirs: List<Path>): Long = dirs.sumOf { outputSignature(it) }
 
     private fun fileSignature(file: Path): Long {
         val attrs = runCatching { Files.readAttributes(file, BasicFileAttributes::class.java) }.getOrNull() ?: return 0L

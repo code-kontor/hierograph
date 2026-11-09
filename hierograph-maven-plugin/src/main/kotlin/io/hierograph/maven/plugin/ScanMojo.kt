@@ -141,7 +141,6 @@ class ScanMojo : AbstractMojo() {
         }
     }
 
-    private fun gav(groupId: String, artifactId: String, version: String) = "$groupId:$artifactId:$version"
 
     private companion object {
         /** The dedicated Maven artifact type / extension the archive is published under. */

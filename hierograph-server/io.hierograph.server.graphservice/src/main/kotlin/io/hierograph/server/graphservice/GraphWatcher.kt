@@ -18,13 +18,13 @@ package io.hierograph.server.graphservice
 import java.nio.file.Path
 
 /**
- * What a [GraphWatcher] observes: each module's compiled output, the manifest file, and the reactor's build
- * files (POMs and `.mvn` configuration) the manifest lists.
+ * What a [GraphWatcher] observes: each module's compiled-output directories (one or more per module), the
+ * manifest file, and the build files the manifest lists.
  */
-data class WatchTargets(val manifest: Path, val modules: Map<String, Path>, val buildFiles: Set<Path> = emptySet())
+data class WatchTargets(val manifest: Path, val modules: Map<String, List<Path>>, val buildFiles: Set<Path> = emptySet())
 
 /**
- * Observes a reactor's compiled output and reports *which modules changed* once their files have settled,
+ * Observes a build's compiled output and reports *which modules changed* once their files have settled,
  * so [HierarchicalGraphService] can rescan only those modules and swap a fresh graph in. Pluggable because
  * the right mechanism depends on where the server runs: polling works everywhere (including a mounted
  * volume under Docker Desktop, where native file events do not cross the boundary), while a native,

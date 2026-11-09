@@ -26,15 +26,13 @@
     <properties>
         <maven.api.version>3.9.9</maven.api.version>
         <maven.plugin.tools.version>3.13.1</maven.plugin.tools.version>
-        <gson.version>2.11.0</gson.version>
     </properties>
 
     <dependencies>
-        <!-- JSON read/write for the manifest (self-contained, no transitive dependencies). -->
+        <!-- The build-tool-independent manifest model, merge and writer. -->
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>${gson.version}</version>
+            <groupId>io.hierograph</groupId>
+            <artifactId>hierograph-manifest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

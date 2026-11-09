@@ -40,7 +40,7 @@ class PollingGraphWatcherTest {
         val watcher = PollingGraphWatcher(intervalMs = 50, settleMs = 60)
         try {
             watcher.start(
-                WatchTargets(manifest, mapOf(gav to tmp.resolve("app/target/classes"))),
+                WatchTargets(manifest, mapOf(gav to listOf(tmp.resolve("app/target/classes")))),
                 onChange = { changed += it },
                 onManifestChange = { manifestChanges.incrementAndGet() },
             )
@@ -69,7 +69,7 @@ class PollingGraphWatcherTest {
         val changed = ConcurrentHashMap.newKeySet<String>()
         val watcher = PollingGraphWatcher(intervalMs = 50, settleMs = 60)
         try {
-            watcher.start(WatchTargets(manifest, mapOf(gav to moduleDir)), onChange = { changed += it }, onManifestChange = {})
+            watcher.start(WatchTargets(manifest, mapOf(gav to listOf(moduleDir))), onChange = { changed += it }, onManifestChange = {})
 
             Files.createDirectories(moduleDir.resolve("com/example"))
             Files.write(moduleDir.resolve("com/example/New.class"), byteArrayOf(1, 2, 3))

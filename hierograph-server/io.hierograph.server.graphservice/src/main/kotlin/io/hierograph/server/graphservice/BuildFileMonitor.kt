@@ -22,7 +22,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Tracks whether the manifest still reflects the reactor's build files and, in [Mode.REGENERATE], runs the
+ * Tracks whether the manifest still reflects the build's build files and, in [Mode.REGENERATE], runs the
  * build that rewrites it. The manifest records each build file with the hash of the content it was merged
  * from; a build file whose current content differs is **stale** ([ManifestGraphSource.staleBuildFiles]). A
  * stale build file means the module set or a classpath may have changed without the manifest knowing.
@@ -30,14 +30,16 @@ import java.util.concurrent.TimeUnit
  * [refresh] re-evaluates the state from [inspect] (the current manifest's stale build files); the service
  * calls it whenever the manifest is (re)applied and whenever the watcher reports edited build files.
  *
- * Regeneration runs the command in the reactor root on its own thread, one run at a time: a request during a
- * run schedules exactly one follow-up run, because the running build may have read the POMs before the edit.
- * It is never run for a relocated manifest (a container without the build host's Maven and repository); the
- * monitor then behaves as in [Mode.NOTIFY].
+ * Regeneration runs a command in the build root on its own thread, one run at a time: a request during a run
+ * schedules exactly one follow-up run, because the running build may have read the build files before the edit.
+ * The monitor knows no build tool: the command is [commandOverride] when configured, otherwise the one the
+ * manifest names ([Inspection.command]), whose `./`-relative arguments resolve against the build root. With
+ * neither, and for a relocated manifest (a container without the build host's tools), the monitor behaves as in
+ * [Mode.NOTIFY].
  */
 class BuildFileMonitor(
     private val mode: Mode,
-    private val command: List<String>?,
+    private val commandOverride: List<String>?,
     private val timeoutMs: Long,
     private val inspect: () -> Inspection?,
 ) : AutoCloseable {
@@ -61,15 +63,32 @@ class BuildFileMonitor(
 
     enum class Status(val value: String) { CURRENT("current"), STALE("stale"), REGENERATING("regenerating"), REGENERATION_FAILED("regeneration-failed") }
 
-    /** The current manifest as seen by the monitor: its stale build files, the local reactor root, and whether it was relocated. */
-    data class Inspection(val staleFiles: List<Path>, val reactorRoot: Path, val relocated: Boolean)
+    /**
+     * The current manifest as seen by the monitor: its stale build files, the local build root, whether it was
+     * relocated, the producing build tool (informational) and the regeneration command it names.
+     */
+    data class Inspection(
+        val staleFiles: List<Path>,
+        val buildRoot: Path,
+        val relocated: Boolean,
+        val buildTool: String? = null,
+        val command: List<String>? = null,
+    )
 
     /** What `reload_graph` and `graph_overview` report as `build_state`. */
-    data class State(val status: Status, val changedFiles: List<Path> = emptyList(), val message: String? = null) {
+    data class State(
+        val status: Status,
+        val changedFiles: List<Path> = emptyList(),
+        val message: String? = null,
+        val buildTool: String? = null,
+    ) {
         fun toMap(): Map<String, Any?> = linkedMapOf<String, Any?>(
             "status" to status.value,
             "changed_files" to changedFiles.map { it.toString() },
-        ).apply { if (message != null) put("message", message) }
+        ).apply {
+            if (buildTool != null) put("build_tool", buildTool)
+            if (message != null) put("message", message)
+        }
     }
 
     private val log = LoggerFactory.getLogger(BuildFileMonitor::class.java)
@@ -78,6 +97,7 @@ class BuildFileMonitor(
     private var followUp = false
     private var failure: String? = null
     private var warnedRelocated = false
+    private var warnedNoCommand = false
 
     @Volatile
     private var process: Process? = null
@@ -99,10 +119,18 @@ class BuildFileMonitor(
         if (mode == Mode.OFF) return
         val inspection = inspect() ?: return
         val stale = inspection.staleFiles
-        val regenerate = mode == Mode.REGENERATE && !inspection.relocated
+        val command = command(inspection)
+        val regenerate = mode == Mode.REGENERATE && !inspection.relocated && command != null
         if (mode == Mode.REGENERATE && inspection.relocated && !warnedRelocated) {
             warnedRelocated = true
-            log.warn("Manifest is relocated (recorded under another reactor root); build files are reported, not regenerated")
+            log.warn("Manifest is relocated (recorded under another build root); build files are reported, not regenerated")
+        }
+        if (mode == Mode.REGENERATE && command == null && !warnedNoCommand) {
+            warnedNoCommand = true
+            log.warn(
+                "Neither hierograph.graph.regenerate.command nor the manifest names a regeneration command; " +
+                    "build files are reported, not regenerated",
+            )
         }
         val start = synchronized(lock) {
             if (stale.isEmpty()) failure = null
@@ -110,25 +138,32 @@ class BuildFileMonitor(
             if (startRun && running) followUp = true
             val newRun = startRun && !running
             if (newRun) running = true
+            val tool = inspection.buildTool
             state = when {
-                running -> State(Status.REGENERATING, stale)
-                stale.isEmpty() -> State(Status.CURRENT)
-                failure != null -> State(Status.REGENERATION_FAILED, stale, failure)
-                else -> State(Status.STALE, stale)
+                running -> State(Status.REGENERATING, stale, buildTool = tool)
+                stale.isEmpty() -> State(Status.CURRENT, buildTool = tool)
+                failure != null -> State(Status.REGENERATION_FAILED, stale, failure, tool)
+                else -> State(Status.STALE, stale, buildTool = tool)
             }
             newRun
         }
         if (start) {
             log.info("Build files changed: {}; regenerating the manifest", stale)
-            runner.submit { runUntilSettled(inspection.reactorRoot) }
+            runner.submit { runUntilSettled(command!!, inspection.buildRoot) }
         } else if (stale.isNotEmpty() && !regenerate) {
             log.info("Build files changed: {}; the graph is stale until the build runs", stale)
         }
     }
 
-    private fun runUntilSettled(reactorRoot: Path) {
+    /** [commandOverride] or the manifest's command, with `./`-relative arguments resolved against the build root. */
+    private fun command(inspection: Inspection): List<String>? {
+        val cmd = commandOverride ?: inspection.command ?: return null
+        return cmd.map { if (it.startsWith("./")) inspection.buildRoot.resolve(it.removePrefix("./")).toString() else it }
+    }
+
+    private fun runUntilSettled(cmd: List<String>, buildRoot: Path) {
         while (true) {
-            val result = runCatching { regenerate(reactorRoot) }.getOrElse { it.message ?: it.javaClass.simpleName }
+            val result = runCatching { regenerate(cmd, buildRoot) }.getOrElse { it.message ?: it.javaClass.simpleName }
             val again = synchronized(lock) {
                 failure = result
                 if (followUp) {
@@ -145,20 +180,19 @@ class BuildFileMonitor(
     }
 
     /** Runs the regeneration command once; returns `null` on success or a failure description. */
-    private fun regenerate(reactorRoot: Path): String? {
-        val cmd = command ?: defaultCommand(reactorRoot)
-        val logFile = reactorRoot.resolve(".hierograph/regenerate.log")
+    private fun regenerate(cmd: List<String>, buildRoot: Path): String? {
+        val logFile = buildRoot.resolve(".hierograph/regenerate.log")
         Files.createDirectories(logFile.parent)
-        log.info("Running {} in {}", cmd.joinToString(" "), reactorRoot)
+        log.info("Running {} in {}", cmd.joinToString(" "), buildRoot)
         // Requests until now are covered by this run, which reads the build files after starting.
         synchronized(lock) { followUp = false }
-        val p = ProcessBuilder(cmd).directory(reactorRoot.toFile()).redirectErrorStream(true).redirectOutput(logFile.toFile()).start()
+        val p = ProcessBuilder(cmd).directory(buildRoot.toFile()).redirectErrorStream(true).redirectOutput(logFile.toFile()).start()
         process = p
         try {
             if (!p.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
                 p.descendants().forEach { it.destroyForcibly() }
                 p.destroyForcibly()
-                return "regeneration timed out after ${timeoutMs}ms; see $logFile"
+                return "`${cmd.joinToString(" ")}` timed out after ${timeoutMs}ms; see $logFile"
             }
         } finally {
             process = null
@@ -169,7 +203,7 @@ class BuildFileMonitor(
         }
         val tail = runCatching { Files.readAllLines(logFile).takeLast(TAIL_LINES) }.getOrDefault(emptyList())
         log.warn("Regeneration failed with exit code {}; see {}", p.exitValue(), logFile)
-        return "exit code ${p.exitValue()}; last lines of $logFile:\n" + tail.joinToString("\n")
+        return "`${cmd.joinToString(" ")}` failed with exit code ${p.exitValue()}; last lines of $logFile:\n" + tail.joinToString("\n")
     }
 
     override fun close() {
@@ -177,19 +211,7 @@ class BuildFileMonitor(
         runner.shutdownNow()
     }
 
-    companion object {
-        private const val TAIL_LINES = 20
-
-        /**
-         * `mvnw` in [reactorRoot] when present, otherwise `mvn` from the `PATH`, running `-q -B process-classes`.
-         * `process-classes` rather than a bare `hierograph:create-descriptor`: without a lifecycle phase, Maven 3
-         * does not resolve reactor siblings from their output directories.
-         */
-        fun defaultCommand(reactorRoot: Path): List<String> {
-            val windows = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
-            val wrapper = reactorRoot.resolve(if (windows) "mvnw.cmd" else "mvnw")
-            val maven = if (Files.isRegularFile(wrapper)) wrapper.toString() else if (windows) "mvn.cmd" else "mvn"
-            return listOf(maven, "-q", "-B", "process-classes")
-        }
+    private companion object {
+        const val TAIL_LINES = 20
     }
 }

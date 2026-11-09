@@ -20,12 +20,12 @@ import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
 
 /**
- * Detects edits to the reactor's build files by polling a cheap `(size, mtime)` signature per file. Both
- * watchers use it on their regular tick: a reactor has tens to hundreds of build files, so polling them is
+ * Detects edits to the build's build files by polling a cheap `(size, mtime)` signature per file. Both
+ * watchers use it on their regular tick: a build has tens to hundreds of build files, so polling them is
  * cheap and behaves the same on every OS and across a mounted volume, whereas native events on module
  * directories would also deliver every source-file save.
  *
- * A rename or a version bump touches many POMs at once, so changes are collected until **no** build file has
+ * A rename or a version bump touches many build files at once, so changes are collected until **no** build file has
  * changed for [settleMs], and then reported together, once. A file edited and reverted within the burst is
  * not reported.
  */
