@@ -135,17 +135,19 @@ repackaged `-exec.jar`) via the `docker` CLI. The registry and name are properti
 
 ### Run the image
 
-The server listens on port `8080` and connects to a jQAssistant/Neo4j store over Bolt. The store is
-**not** part of the image — point the container at a running store with `HIEROGRAPH_BOLT_URI`:
+The server listens on port `8080` and reads the target project's build manifest
+(`.hierograph/manifest.json`) from its working directory, `/workspace`. Mount the project's build
+root there:
 
 ```bash
 docker run --rm -p 8080:8080 \
-  -e HIEROGRAPH_BOLT_URI=bolt://host.docker.internal:7687 \
+  -v /path/to/project:/workspace \
   ghcr.io/code-kontor/hierograph-mcp-server:0.2.0-SNAPSHOT
 ```
 
-(`host.docker.internal` reaches a store running on the host; use the appropriate hostname when the
-store runs in another container or on another machine.)
+The manifest records host paths; the server re-roots them onto the mount. Watching uses polling,
+which works across the mount. A container never runs the manifest's regeneration command (the
+host's Maven is not inside it); edited POMs are reported as stale instead.
 
 ### Push the image
 

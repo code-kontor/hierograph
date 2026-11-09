@@ -1,7 +1,8 @@
 # Releasing Hierograph
 
-This document describes how to cut a Hierograph release: the Java libraries to **Maven Central**
-and the MCP server image to **GitHub Container Registry (GHCR)**. For day-to-day building see
+This document describes how to cut a Hierograph release: the Java artifacts — libraries, the
+Maven plugin and the MCP server jar — to **Maven Central**, and the MCP server image to **GitHub
+Container Registry (GHCR)**. For day-to-day building see
 [`BUILD.md`](../BUILD.md).
 
 The two artifacts are independent — you can publish one without the other — but a normal release
@@ -135,11 +136,13 @@ mvn clean deploy -Prelease
 
 What deploys, and what doesn't:
 
-- **Published:** `hierograph-parent` (POM) and the library modules under `hierograph-core`,
-  `hierograph-hierarchicalgraph`, `hierograph-mcp` (the `javaspec`/`jqassistant`/`graphql` libs),
-  and `hierograph-jqassistant`.
-- **Skipped:** `io.hierograph.mcp.server` (an application, shipped as a Docker image — it sets
-  `maven.deploy.skip=true`), and the `hierograph-itest` module (only in the reactor under `-Pitest`).
+- **Published:** `hierograph-parent` (POM), the aggregator POMs, and every module under
+  `hierograph-hierarchicalgraph`, `hierograph-graphstore`, `hierograph-server` and
+  `hierograph-build-support` — including the Maven plugin, the `io.hierograph.manifest` library,
+  and the MCP server `io.hierograph.server` with its runnable `exec` jar
+  (`io.hierograph.server-<version>-exec.jar`), which the `hierograph-bootstrap` skill downloads
+  to run the server on a local JVM.
+- **Skipped:** the `hierograph-itest` module (only in the reactor under `-Pitest`).
 
 `autoPublish` is `false`, so the upload lands as a **staged deployment**. Review it at
 <https://central.sonatype.com> (Deployments) and click **Publish**. Sync to Central search/repo

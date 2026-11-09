@@ -14,11 +14,6 @@
     <packaging>jar</packaging>
     <name>Hierograph Server</name>
 
-    <properties>
-        <!-- The server is an application (fat jar), shipped as a Docker image rather
-             than a Maven Central library. Keep it out of `-Prelease deploy`. -->
-        <maven.deploy.skip>true</maven.deploy.skip>
-    </properties>
 
     <dependencies>
         <dependency>

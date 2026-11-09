@@ -425,14 +425,9 @@ limitations under the License.]]></inlineHeader>
                             <!-- false = upload to a staged deployment you review and
                                  click "Publish" on in the portal. Set true to auto-release. -->
                             <autoPublish>false</autoPublish>
-                            <!-- Keep the MCP server application out of Central. It is
-                                 shipped as a Docker image, not a library. maven.deploy.skip
-                                 alone does NOT work here: this plugin replaces the deploy
-                                 lifecycle and ignores it, so it must be excluded explicitly.
-                                 Entries are matched by artifactId only. -->
-                            <excludeArtifacts>
-                                <excludeArtifact>io.hierograph.mcp.server</excludeArtifact>
-                            </excludeArtifacts>
+                            <!-- Every module is published, the MCP server included: its
+                                 runnable `exec` jar on Central is what the bootstrap runs
+                                 on a local JVM (the Docker image is the alternative). -->
                         </configuration>
                     </plugin>
                 </plugins>
