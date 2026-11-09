@@ -26,7 +26,7 @@ import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.StandardOpenOption.WRITE
 import java.security.MessageDigest
-import java.time.Instant
+import java.time.OffsetDateTime
 
 /**
  * A module the build knows, as a producer hands it to [ManifestWriter.merge]: its current [gav] (to keep its
@@ -91,7 +91,7 @@ object ManifestWriter {
             val manifest = Manifest(
                 schemaVersion = SCHEMA_VERSION,
                 generator = request.generator,
-                generatedAt = Instant.now().toString(),
+                generatedAt = OffsetDateTime.now().toString(), // local time with its UTC offset
                 reactorRoot = request.reactorRoot,
                 buildTool = request.buildTool,
                 regenerate = request.regenerate,

@@ -36,7 +36,7 @@ manifest records it as `reactorRoot`.
 {
   "schemaVersion": 2,
   "generator": "io.hierograph.maven.plugin/0.2.0",
-  "generatedAt": "2026-11-08T17:04:11Z",
+  "generatedAt": "2026-11-08T18:04:11+01:00",
   "reactorRoot": "/ws/billing",
   "buildTool": { "name": "maven", "version": "3.9.6" },
   "regenerate": ["./mvnw", "-q", "-B", "process-classes"],
@@ -73,7 +73,7 @@ manifest records it as `reactorRoot`.
 |-------|------|---------|
 | `schemaVersion` | int | Manifest schema version (`2`). Advisory — see §4. |
 | `generator` | string | Producer and its version, e.g. `io.hierograph.maven.plugin/<version>`; informational. |
-| `generatedAt` | string | ISO-8601 instant the manifest was written; informational. |
+| `generatedAt` | string | ISO-8601 local date-time the manifest was written, with its UTC offset (`2026-11-08T18:04:11+01:00`); informational. |
 | `reactorRoot` | string | Absolute path of the build root on the build host. The anchor for path portability (§3). |
 | `buildTool` | object? | The producing tool, `{ "name", "version" }`; informational (§1.2). |
 | `regenerate` | string[]? | The command that rewrites this manifest (§1.2). |

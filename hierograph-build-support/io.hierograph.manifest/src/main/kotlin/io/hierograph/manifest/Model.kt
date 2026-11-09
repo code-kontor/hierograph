@@ -70,7 +70,7 @@ data class BuildFile(
 data class Manifest(
     val schemaVersion: Int,
     val generator: String,
-    val generatedAt: String,
+    val generatedAt: String,              // ISO-8601 local date-time with UTC offset, e.g. 2026-11-09T11:11:01+01:00
     val reactorRoot: String,
     val buildTool: BuildTool?,
     val regenerate: List<String>?,

@@ -354,7 +354,7 @@ authoritative, field-level definition of this object and the merged manifest is 
 {
   "schemaVersion": 2,
   "generator": "io.hierograph.maven.plugin/<plugin-version>",
-  "generatedAt": "2026-11-08T17:04:11Z",
+  "generatedAt": "2026-11-08T18:04:11+01:00",
   "reactorRoot": "/ws/billing",
   "buildTool": { "name": "maven", "version": "3.9.6" },
   "regenerate": ["./mvnw", "-q", "-B", "process-classes"],

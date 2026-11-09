@@ -74,7 +74,7 @@ on the server's classpath.
 data class Manifest(
     val schemaVersion: Int,             // SCHEMA_VERSION
     val generator: String,              // producer and version, e.g. "io.hierograph.maven.plugin/0.2.0"
-    val generatedAt: String,            // ISO-8601 instant of the write
+    val generatedAt: String,            // ISO-8601 local date-time of the write, with UTC offset
     val reactorRoot: String,            // the build root on the build host
     val buildTool: BuildTool?,          // the producing tool, informational
     val regenerate: List<String>?,      // the command that rewrites the manifest
