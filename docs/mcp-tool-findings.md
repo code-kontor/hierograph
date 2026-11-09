@@ -108,7 +108,7 @@ Severity:
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
 | 5.1 | Fixed | `inner_types` in `type_details` was always empty and `parent_container` never the enclosing type, because nested types are package siblings. Nesting is now derived from binary names (`NestedTypes`): the enclosing type of `Outer$Inner` is the sibling `Outer`, and `inner_types` lists the direct member types, without anonymous and local classes. | `tools/detail/NestedTypes.kt` |
-| 5.2 | High | `type_details` rejects `external.type` ids with `WRONG_NODE_KIND`, but returns those ids as `superclass` and `interfaces`, so following a supertype dead-ends. | `ParquetTypeDetails.kt:52` |
+| 5.2 | Fixed | `type_details` rejected `external.type` ids, which it returns itself as supertypes and annotations. It now accepts them and describes what the graph knows: identity and package; the facts only a scan provides are `null` or empty. | `tools/detail/ParquetTypeDetails.kt` (`externalTypeDetails`) |
 | 5.3 | Medium | `is_generic` is hard-coded `null`. The scanner already sees the class signature. | `ParquetTypeDetails.kt:93-94` |
 | 5.4 | Medium | In `method_details` and `field_details`, a type, package or unknown id gives `NODE_NOT_FOUND` instead of `WRONG_NODE_KIND`, because the lookup uses only the member index. There is no `recovery`. | `ParquetMethodDetails.kt:38-40`, `ParquetFieldDetails.kt:38-39` |
 | 5.5 | Medium | Field annotations whose type has no node (e.g. `java.lang.Deprecated`) are silently dropped. `type_details` and `method_details` report them with `id: null`. | `ParquetFieldDetails.kt:73-74` |

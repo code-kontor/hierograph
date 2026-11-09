@@ -506,9 +506,7 @@ parameters. When only the summary is needed, ask for `limit = 1`.
 ## 10. Guarantees
 
 1. **Stable ids.** Within one loaded graph, a node's id does not change, and every id a
-   tool returns is accepted by every tool that takes an id of that kind. The one
-   exception is `external.type`: `type_details` describes only scanned types and
-   rejects external type ids, which it can return as supertypes.
+   tool returns is accepted by every tool that takes an id of that kind.
 2. **Deterministic order.** For the same graph and parameters, a tool returns the same
    items in the same order. Pagination relies on this.
 3. **Full-result summaries.** Summary fields of a paginated tool describe the whole

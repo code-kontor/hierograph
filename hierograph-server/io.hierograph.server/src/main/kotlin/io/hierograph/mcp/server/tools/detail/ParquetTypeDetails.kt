@@ -40,7 +40,8 @@ import java.nio.file.Path
  * whose `types.parquet` row is missing or carries none. The source line of a type is not exported either.
  *
  * Nesting is derived from binary names, because a nested type sits beside its enclosing type in the
- * package (see [NestedTypes]).
+ * package (see [NestedTypes]). An external type is described by what the model knows of it: its identity
+ * and package; everything a scan would provide is `null` or empty.
  */
 @Component
 class ParquetTypeDetails(
@@ -51,6 +52,7 @@ class ParquetTypeDetails(
     fun typeDetails(typeId: Long): Map<String, Any?> {
         val hierarchy = graphService.model.hierarchy
         val node = graphService.model.lookupNode(typeId) ?: return notFound(typeId)
+        if (node.kind == JavaKinds.EXTERNAL_TYPE) return externalTypeDetails(typeId, node)
         if (node.kind !in JavaKinds.TYPE_KINDS) return wrongKind(typeId, node)
 
         val source = node.nodeSource as? GraphStoreNodeSource ?: return notFound(typeId)
@@ -104,6 +106,35 @@ class ParquetTypeDetails(
         )
     }
 
+    /**
+     * The description of an external type: identity, package and kind from the model. It was not
+     * scanned, so its modifiers, supertypes, annotations, members and source file are unknown.
+     */
+    private fun externalTypeDetails(typeId: Long, node: HGNode): Map<String, Any?> {
+        val hierarchy = graphService.model.hierarchy
+        val parent = hierarchy.parentOf(node)
+        return linkedMapOf(
+            "type" to linkedMapOf<String, Any?>(
+                "id" to typeId,
+                "name" to NodeMetadata.getName(node),
+                "qualified_name" to NodeMetadata.getQualifiedName(node),
+                "kind" to JavaKinds.EXTERNAL_TYPE,
+                "parent_id" to parent?.identifier,
+                "parent_kind" to parent?.kind?.toString(),
+            ),
+            "parent_container" to parent?.takeIf { it !== hierarchy.rootNode }?.let { nodeRefFactory.minimalNodeRef(it) },
+            "modifiers" to null,
+            "is_abstract" to null,
+            "is_generic" to null,
+            "superclass" to null,
+            "interfaces" to emptyList<Any>(),
+            "annotations" to emptyList<Any>(),
+            "member_summary" to null,
+            "inner_types" to emptyList<Any>(),
+            "location" to null,
+        )
+    }
+
     /** The key of [node]'s owning module (the artifact its `types.parquet` row is filed under). */
     private fun owningArtifact(node: HGNode): String? {
         var n: HGNode? = node
@@ -148,7 +179,7 @@ class ParquetTypeDetails(
             "error" to mapOf(
                 "code" to "WRONG_NODE_KIND",
                 "message" to "Node $typeId is a '$kind', not a type. " +
-                        "type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation).",
+                        "type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation, external.type).",
                 "actual_kind" to kind,
                 "declaring_type" to declaringType?.takeIf { it !== hierarchy.rootNode }?.let { nodeRefFactory.minimalNodeRef(it) },
                 "recovery" to when (node.kind) {

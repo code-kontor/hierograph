@@ -77,13 +77,15 @@ The browse tools and `type_details` both describe a type, and both are needed:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `typeId` | integer | yes | Id of a node of kind `java.class`, `java.interface`, `java.enum`, `java.record` or `java.annotation`. |
+| `typeId` | integer | yes | Id of a node of kind `java.class`, `java.interface`, `java.enum`, `java.record`, `java.annotation` or `external.type`. |
 
 **`typeId`** is the only input because a type is fully identified by its id
 ([shared spec §5](hierograph-mcp-tools.md#5-parameters)). Every tool that returns a
 type returns its id, so the caller never has to look a type up by name first. The id
-must name a type defined in the scanned code. External types (kind `external.type`)
-are rejected (§5): they have no declaration in the snapshot to describe.
+names a type: one defined in the scanned code, or an external type (kind
+`external.type`). An external type is accepted because the tool returns external
+type ids itself, as supertypes and annotations; a caller following one must not
+dead-end. Its description is limited to what the graph knows (§4.3).
 
 ---
 
@@ -322,6 +324,41 @@ no line number, because the snapshot records lines for member code only. It is `
 when the class file carries no `SourceFile` attribute. Several types can share one
 source file (nested types, Kotlin file facades).
 
+### 4.3 External types
+
+An external type was referenced by the scanned code but not scanned itself, so the
+snapshot holds no class file facts for it. The tool answers with the same fields,
+filled from the graph alone. For `java.io.Serializable` (id `4807`):
+
+```json
+{
+  "type": {
+    "id": 4807, "name": "Serializable", "qualified_name": "java.io.Serializable",
+    "kind": "external.type", "parent_id": 4808, "parent_kind": "java.package"
+  },
+  "parent_container": {
+    "id": 4808, "name": "io", "qualified_name": "java.io",
+    "kind": "java.package", "parent_id": 4801, "parent_kind": "java.package"
+  },
+  "modifiers": null,
+  "is_abstract": null,
+  "is_generic": null,
+  "superclass": null,
+  "interfaces": [],
+  "annotations": [],
+  "member_summary": null,
+  "inner_types": [],
+  "location": null
+}
+```
+
+`type` and `parent_container` come from the model: the type sits in a package under
+the `External Types` module. Every other field would need the class file:
+`modifiers`, `is_abstract`, `superclass`, `member_summary` and `location` are `null`
+(*unknown*), the lists are empty. `kind` `external.type` is the signal that the empty
+fields mean "not scanned", not "has none". The tool needs no snapshot for this answer,
+so it never returns `DETAIL_REBUILDING` for an external type.
+
 ---
 
 ## 5. Errors
@@ -329,7 +366,7 @@ source file (nested types, Kotlin file facades).
 | Code | Situation | Shape | Extra fields |
 |------|-----------|-------|--------------|
 | `NODE_NOT_FOUND` | `typeId` names no node | nested | `recovery`: use `find_node` |
-| `WRONG_NODE_KIND` | `typeId` names a node that is not one of the five type kinds | nested | `actual_kind`, `declaring_type`, `recovery` |
+| `WRONG_NODE_KIND` | `typeId` names a node that is neither one of the five type kinds nor an external type | nested | `actual_kind`, `declaring_type`, `recovery` |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | flat | none |
 
 Error shapes and the no-graph response are defined in the
@@ -342,7 +379,7 @@ shape.
 ```json
 { "error": {
     "code": "WRONG_NODE_KIND",
-    "message": "Node 4715 is a 'java.method', not a type. type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation).",
+    "message": "Node 4715 is a 'java.method', not a type. type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation, external.type).",
     "actual_kind": "java.method",
     "declaring_type": {
       "id": 4711, "name": "Invoice", "qualified_name": "com.example.billing.Invoice",
@@ -352,8 +389,8 @@ shape.
 ```
 
 `declaring_type` is the parent of the node that was passed, as a minimal NodeRef: the
-declaring type for a method or field, the parent package for a package or an external
-type (a package under `External Types` for the latter), and `null` for a module. The
+declaring type for a method or field, the parent package for a package, and `null` for
+a module. The
 `recovery` names `method_details` for a method (constructors included), `field_details`
 for a field, and `list_children` / `list_descendants` for anything else.
 
@@ -373,11 +410,11 @@ an unknown or wrong-kind id is reported as such even while the snapshot is rebui
 { "tool": "type_details", "arguments": { "typeId": 4711 } }
 ```
 
-**Walk up the inheritance chain.** Pass `superclass.id` back to `type_details` while its
-`kind` is one of the five Java type kinds. The chain leaves the scanned code at the
-first `external.type`: a placeholder id is accepted by the dependency tools but rejected
-by `type_details`, and a `null` id is accepted by no tool. The `qualified_name` names
-the supertype in both cases.
+**Walk up the inheritance chain.** Pass `superclass.id` back to `type_details` while it
+is not `null`. The chain leaves the scanned code at the first `external.type`: a
+placeholder id is still accepted and describes the type's identity and package
+(§4.3), but its own supertypes are unknown, so the walk ends there. A `null` id is
+accepted by no tool; the `qualified_name` names the supertype in every case.
 
 **Find implementations.** `type_details` lists what a type implements, not who
 implements it. For the reverse question, use

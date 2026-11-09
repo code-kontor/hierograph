@@ -38,7 +38,8 @@ class TypeDetailsTool(
                 "Return full structural details for a single type — superclass, interfaces, " +
                 "annotations, inner types, member counts, modifiers, and source location. " +
                 "Input must be a type-kind node ID (java.class, java.interface, java.enum, " +
-                "java.record, java.annotation). " +
+                "java.record, java.annotation) or an external.type ID; an external type was not scanned, " +
+                "so only its identity and package are known. " +
                 "Complements the enriched NodeRef from browse tools: browse tools give counts " +
                 "and flags; this tool gives the actual referenced types as navigable NodeRefs. " +
                 "For the members of a type (methods, fields), use list_children. " +

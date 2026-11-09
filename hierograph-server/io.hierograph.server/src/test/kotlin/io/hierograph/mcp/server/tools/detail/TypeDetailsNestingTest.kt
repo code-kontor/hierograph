@@ -17,14 +17,18 @@ package io.hierograph.mcp.server.tools.detail
 
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
+import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
+import io.hierograph.mcp.server.tools.NodeRefFactory
+import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreNodeSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 /**
- * Verifies the nesting `type_details` derives from binary names ([NestedTypes]).
+ * Verifies the nesting `type_details` derives from binary names ([NestedTypes]) and its description of
+ * external types.
  */
 class TypeDetailsNestingTest {
 
@@ -47,6 +51,9 @@ class TypeDetailsNestingTest {
     private val anonymous = add(billing, JavaKinds.CLASS, "Invoice\$1", "com.example.billing.Invoice\$1")
     private val local = add(billing, JavaKinds.CLASS, "Invoice\$1Draft", "com.example.billing.Invoice\$1Draft")
     private val generated = add(billing, JavaKinds.CLASS, "Ledger\$\$Proxy", "com.example.billing.Ledger\$\$Proxy")
+    private val external = add(
+        add(root, JavaKinds.PACKAGE, "math", "java.math"), JavaKinds.EXTERNAL_TYPE, "BigDecimal", "java.math.BigDecimal"
+    )
 
     @Test
     fun `member types are the direct, named nested types`() {
@@ -63,5 +70,22 @@ class TypeDetailsNestingTest {
         assertThat(NestedTypes.enclosingType(hierarchy, local)).isSameAs(invoice)
         assertThat(NestedTypes.enclosingType(hierarchy, invoice)).isNull()
         assertThat(NestedTypes.enclosingType(hierarchy, generated)).isNull()
+    }
+
+    @Test
+    fun `an external type is described by its identity and package`() {
+        val graphService = HierarchicalGraphService().also { it.seed(HGModel(graph, hierarchy)) }
+        val details = ParquetTypeDetails(graphService, NodeRefFactory(graphService)).typeDetails(external.identifier as Long)
+
+        @Suppress("UNCHECKED_CAST")
+        val type = details["type"] as Map<String, Any?>
+        assertThat(details).doesNotContainKey("error")
+        assertThat(type["kind"]).isEqualTo("external.type")
+        assertThat(type["qualified_name"]).isEqualTo("java.math.BigDecimal")
+        @Suppress("UNCHECKED_CAST")
+        assertThat((details["parent_container"] as Map<String, Any?>)["qualified_name"]).isEqualTo("java.math")
+        assertThat(details["superclass"]).isNull()
+        assertThat(details["member_summary"]).isNull()
+        assertThat(details["interfaces"] as List<*>).isEmpty()
     }
 }
