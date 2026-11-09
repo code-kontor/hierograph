@@ -132,17 +132,24 @@ class GraphOverviewTool(
         )
 
         // ── hierarchy: top-level modules with enriched metadata ────────
+        // The counts are boundary-crossing: a dependency between two types of the same module is internal
+        // and counts for neither side.
+        val moduleOf = HashMap<Any, Any>()
+        for (module in hierarchy.childrenOf(rootNode)) {
+            moduleOf[module.identifier] = module.identifier
+            hierarchy.traverse(module) { moduleOf[it.identifier] = module.identifier }
+        }
         val hierarchySection = hierarchy.childrenOf(rootNode).map { child ->
             val ref = nodeRefFactory.enrichedNodeRef(child)
-            ref["outgoing_dep_count"] = hierarchy.accumulatedOutgoing(child).size
-            ref["incoming_dep_count"] = hierarchy.accumulatedIncoming(child).size
+            ref["outgoing_dep_count"] = hierarchy.accumulatedOutgoing(child).count { moduleOf[it.to.identifier] != child.identifier }
+            ref["incoming_dep_count"] = hierarchy.accumulatedIncoming(child).count { moduleOf[it.from.identifier] != child.identifier }
             ref
         }
 
         // ── model: zoom-level description ──────────────────────────────
         val model = mapOf(
             "aggregation" to "Aggregation is pairwise. Given any two subtrees, aggregated_dependencies " +
-                    "computes one aggregated edge between them. Provide source_ids and target_ids as sets; " +
+                    "computes one aggregated edge between them. Provide sourceIds and targetIds as sets; " +
                     "the result includes one edge per (source, target) pair that has a dependency.",
             "levels" to listOf(
                 mapOf(
@@ -154,13 +161,13 @@ class GraphOverviewTool(
                     "name" to "type",
                     "description" to "Type-to-type edges between two specific subtrees, fast (in-memory)",
                     "tools" to listOf("outgoing_dependencies", "incoming_dependencies"),
-                    "parameter" to "detail_level=\"type\" (default)"
+                    "parameter" to "detailLevel=\"type\" (default)"
                 ),
                 mapOf(
                     "name" to "detail",
                     "description" to "Method/field-level edges between two specific subtrees, queried on demand",
                     "tools" to listOf("outgoing_dependencies", "incoming_dependencies"),
-                    "parameter" to "detail_level=\"detail\""
+                    "parameter" to "detailLevel=\"detail\""
                 )
             )
         )

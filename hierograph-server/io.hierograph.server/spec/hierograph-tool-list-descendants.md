@@ -113,9 +113,9 @@ between pages.
 
 The tool walks the subtree depth-first in pre-order: it visits a node, then that node's
 subtree, then the next sibling. At every level it sorts the children by qualified name
-and, for equal qualified names, by id compared as text. The comparison is a plain,
-case-sensitive string comparison, so upper-case letters sort before lower-case ones: in
-`com.example.billing` the type `Invoice` comes before a sub-package `internal`.
+ignoring case, then by qualified name, then by id as a number: alphabetical for a
+reader, so in `com.example.billing` the sub-package `internal` comes right after the type
+`Invoice`, not after every upper-case name.
 
 The result is the list of visited nodes that pass the filters, in visiting order. The
 fixed order is what lets a cursor resume at an offset (§3.3): the same query over the
@@ -143,10 +143,11 @@ The tool pages the result as described in
   page; `summary.truncated` is `true` when `total > returned`, which includes the last
   page of a multi-page walk.
 - `next_cursor` is present when more items follow and absent on the last page.
-- The query hash covers `nodeId`, the sorted `kindFilter`, `namePattern` as given and
-  `modifierFilter` in lower case, without duplicates and sorted. Reordering a filter
-  list or changing the case of a modifier keeps a cursor valid; changing the case of
-  `namePattern` or writing an alias instead of its kinds does not.
+- The query hash covers `nodeId`, the kinds `kindFilter` expands to (aliases resolved,
+  sorted), `namePattern` in lower case, and `modifierFilter` in lower case, without
+  duplicates and sorted. It hashes what the filters select, not how they are spelled:
+  reordering a list, changing letter case, or writing `["java.method", "java.field"]`
+  for `["members"]` keeps a cursor valid.
 - Each item counts as 250 bytes against the 50,000-byte
   [response budget](hierograph-mcp-tools.md#73-the-response-budget), so a page holds at
   most 200 items.

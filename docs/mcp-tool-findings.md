@@ -56,10 +56,10 @@ Severity:
 | 2.4 | Fixed | `find_node` hid truncation: `summary.total` was the capped count. `NodeSearch.find` now counts all matches, `summary.total` reports them, and `summary.truncated` is `true` when more than the 50 returned exist. | `tools/navigation/FindNodeTool.kt`, `NodeSearch.kt` |
 | 2.5 | Fixed | The `kinds` vocabulary of `graph_overview` omitted `external.type`, and `nodes_by_kind` / `total_nodes` left out the modules. The vocabulary now defines `external.type`, and the counts start at the root, so they cover every node but the root. | `tools/navigation/GraphOverviewTool.kt` |
 | 2.6 | Fixed | The detail vocabulary of `graph_overview` listed `parameter_annotated_by`, which the snapshot never holds, and omitted `raises`. It now lists `raises` and drops `parameter_annotated_by`; the detail filter still accepts the latter (3.9). | `tools/navigation/GraphOverviewTool.kt` |
-| 2.7 | Low | `graph_overview` includes intra-module edges in `outgoing_dep_count` and `incoming_dep_count` (accumulated, not boundary-crossing). | `GraphOverviewTool.kt:132-133` |
-| 2.8 | Low | `graph_overview` response text uses snake_case parameter names (`source_ids`, `target_ids`, `detail_level=`). | `GraphOverviewTool.kt:140,152,158` |
-| 2.9 | Low | `list_children` allows up to 1000 results, has no response budget and does not sort (insertion order). `list_descendants` sorts with a case-sensitive string compare and breaks sibling ties by comparing ids as text. | `ListChildrenTool.kt:107,115`, `ListDescendantsTool.kt:147-149` |
-| 2.10 | Low | The `list_descendants` query hash uses the raw `namePattern` and unexpanded aliases, so changing letter case or spelling out an alias invalidates a cursor although the result is the same. | `ListDescendantsTool.kt:127-134` |
+| 2.7 | Fixed | `outgoing_dep_count` / `incoming_dep_count` in `graph_overview` included dependencies inside the module. They now count only dependencies that cross the module boundary. | `GraphOverviewTool.kt` |
+| 2.8 | Fixed | The `model` text of `graph_overview` named snake_case parameters. It now names `sourceIds`, `targetIds` and `detailLevel`. | `GraphOverviewTool.kt` |
+| 2.9 | Fixed | `list_children` allowed 1000 results and listed children unsorted; `list_descendants` sorted case-sensitively with ids compared as text. `list_children` is capped at 200 (the response budget), and both tools sort by qualified name ignoring case, then by name, then by numeric id (`CHILD_ORDER`). | `ListChildrenTool.kt`, `ListDescendantsTool.kt`, `ChildOrder.kt` |
+| 2.10 | Fixed | The `list_descendants` query hash used the raw `namePattern` and unexpanded aliases. It now hashes the lower-cased pattern and the expanded, sorted kinds, so equivalent spellings keep a cursor valid. | `ListDescendantsTool.kt` |
 | 2.11 | Fixed | `list_descendants` advertised a cap of 500 while the response budget limited a page to 200. The cap is now 200. | `ListDescendantsTool.kt` |
 
 ---

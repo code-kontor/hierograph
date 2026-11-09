@@ -111,7 +111,7 @@ class ListChildrenTool(
         val allFiltered = mutableListOf<HGNode>()
         val byKind = linkedMapOf<String, Int>()
 
-        for (child in hierarchy.childrenOf(node)) {
+        for (child in hierarchy.childrenOf(node).sortedWith(CHILD_ORDER)) {
             // 1. kind filter
             if (expandedKinds != null && child.kind !in expandedKinds) continue
 

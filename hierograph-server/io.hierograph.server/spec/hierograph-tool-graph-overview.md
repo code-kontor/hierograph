@@ -88,13 +88,14 @@ synthetic root. The root itself is not counted, so:
 The `hierarchy` section lists the root's children in the model's order, the
 `External Types` module included. For each module:
 
-- `outgoing_dep_count` is the number of type-level dependencies whose source lies
-  anywhere in the module;
-- `incoming_dep_count` is the number whose target lies anywhere in the module.
+- `outgoing_dep_count` is the number of type-level dependencies whose source lies in
+  the module and whose target lies outside it;
+- `incoming_dep_count` is the number whose target lies in the module and whose source
+  lies outside it.
 
-Both counts include dependencies that stay inside the module. They measure how much
-dependency traffic a module takes part in, not how much crosses its boundary; the
-crossing weight between two modules comes from `aggregated_dependencies` or
+Dependencies between two types of the same module count for neither: they are the
+module's internal structure, not its coupling. The counts are numbers of dependencies;
+their weights between two particular modules come from `aggregated_dependencies` or
 `pairwise_dependencies`.
 
 **Example.** The graph holds one module `billing-core` and the `External Types` module.
@@ -110,9 +111,10 @@ It has seven type-level dependencies:
 | `Ledger` | `Invoice` |
 | `Money` | `java.math.BigDecimal` |
 
-All seven have their source in `billing-core`, so its `outgoing_dep_count` is `7`. Five
-have their target in `billing-core`, so its `incoming_dep_count` is `5`. `External Types`
-has `0` outgoing and `2` incoming.
+Five of them stay inside `billing-core`. The two into `java.util.List` and
+`java.math.BigDecimal` leave it, so its `outgoing_dep_count` is `2`; nothing outside
+depends on it, so its `incoming_dep_count` is `0`. `External Types` has `0` outgoing
+and `2` incoming.
 
 The `kinds`, `relationships` and `model` sections are fixed text: they are the same
 for every graph.
@@ -164,7 +166,7 @@ for every graph.
     { "id": 4690, "name": "billing-core", "qualified_name": "com.example:billing-core:1.4.0",
       "kind": "java.module", "parent_id": 4600, "parent_kind": null,
       "child_count": 1, "descendant_type_count": 4, "descendant_method_count": 9,
-      "outgoing_dep_count": 7, "incoming_dep_count": 5 }
+      "outgoing_dep_count": 2, "incoming_dep_count": 0 }
   ],
   "model": {
     "aggregation": "Aggregation is pairwise. …",

@@ -126,6 +126,20 @@ class ModifierFilterTest {
         assertThat(ids(next)).hasSize(1)
     }
 
+    @Test
+    fun `children are listed alphabetically, ignoring case`() {
+        val names = children.listChildren(invoiceId, listOf("java.method"), null, null, null)["results"] as List<Map<String, Any?>>
+        // members are named by signature; ids map back to their order
+        assertThat(names.map { it["id"] }).containsExactly(id("<init>()"), id("check()"), id("of()"), id("total()"))
+    }
+
+    @Test
+    fun `a cursor stays valid when an alias is spelled out or the name pattern changes case`() {
+        val first = descendants.listDescendants(packageId, listOf("members"), "E", null, 1, null)
+        val next = descendants.listDescendants(packageId, listOf("java.field", "java.method"), "e", null, 1, first["next_cursor"] as String)
+        assertThat(next["error"]).isNull()
+    }
+
     private class IdNodeRefFactory : INodeRefFactory {
         override fun minimalNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)
         override fun enrichedNodeRef(node: HGNode) = linkedMapOf<String, Any?>("id" to node.identifier)

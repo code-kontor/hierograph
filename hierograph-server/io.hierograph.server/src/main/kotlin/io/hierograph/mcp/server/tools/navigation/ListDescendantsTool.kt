@@ -126,8 +126,8 @@ class ListDescendantsTool(
         val queryHash = QueryHash.of(
             mapOf(
                 "nodeId" to nodeId,
-                "kindFilter" to kindFilter?.sorted(),
-                "namePattern" to namePattern,
+                "kindFilter" to expandedKinds?.map { it.toString() }?.sorted(),  // aliases expanded
+                "namePattern" to nameLower,                                       // matching ignores case
                 "modifierFilter" to ModifierFilter.canonical(modifierFilter)
             )
         )
@@ -144,7 +144,7 @@ class ListDescendantsTool(
 
         fun traverse(node: HGNode) {
             val orderedChildren = hierarchy.childrenOf(node).sortedWith(
-                compareBy({ NodeMetadata.getQualifiedName(it) }, { it.identifier.toString() })
+                CHILD_ORDER
             )
             for (child in orderedChildren) {
                 // apply filters

@@ -38,10 +38,14 @@ class GraphOverviewToolTest {
             "billing-core",
             ClassFacts(
                 "com.example.billing.Invoice", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(Ref("com.example.billing.Invoice", "org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1)),
+                refs = listOf(
+                    Ref("com.example.billing.Invoice", "org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.example.billing.Invoice", "com.example.money.Money", RefKind.DEPENDS_ON, count = 2),
+                ),
                 classHash = "h",
             ),
         )
+        applyClass("billing-core", ClassFacts("com.example.money.Money", JavaKinds.RECORD, 0, emptyList(), emptyList(), "m"))
     }
     private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }
     private val overview = GraphOverviewTool(graphService, NodeRefFactory(graphService)).graphOverview()
@@ -52,6 +56,7 @@ class GraphOverviewToolTest {
         val byKind = stats["nodes_by_kind"] as Map<String, Int>
         assertThat(byKind["java.module"]).isEqualTo(2) // billing-core and External Types
         assertThat(byKind["external.type"]).isEqualTo(1)
+        assertThat(byKind["java.record"]).isEqualTo(1)
         assertThat(stats["total_nodes"]).isEqualTo(store.nodeCount())
         assertThat(byKind.values.sum()).isEqualTo(stats["total_nodes"])
     }
@@ -66,5 +71,20 @@ class GraphOverviewToolTest {
     fun `the detail vocabulary lists the relationships the snapshot holds`() {
         val detail = (overview["relationships"] as Map<String, Any?>)["detail_level"] as List<Map<String, Any?>>
         assertThat(detail.map { it["kind"] }).contains("raises", "throws").doesNotContain("parameter_annotated_by")
+    }
+
+    @Test
+    fun `module coupling counts only dependencies that cross the module boundary`() {
+        val modules = (overview["hierarchy"] as List<Map<String, Any?>>).associateBy { it["name"] }
+        // Invoice -> Money stays inside billing-core; Invoice -> Logger leaves it.
+        assertThat(modules["billing-core"]!!["outgoing_dep_count"]).isEqualTo(1)
+        assertThat(modules["billing-core"]!!["incoming_dep_count"]).isEqualTo(0)
+        assertThat(modules["External Types"]!!["incoming_dep_count"]).isEqualTo(1)
+    }
+
+    @Test
+    fun `the model text names the camelCase parameters`() {
+        val text = overview["model"].toString()
+        assertThat(text).contains("sourceIds", "detailLevel").doesNotContain("source_ids", "detail_level")
     }
 }

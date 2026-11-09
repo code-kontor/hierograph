@@ -111,9 +111,10 @@ node's children in the model's child order. A child is kept when its kind passes
 method or field with all the listed modifiers. The kept children are counted into `summary.total` and
 `summary.by_kind`; then the first `limit` of them are returned.
 
-**Order.** Children appear in the order the model holds them. The order is stable for
-one loaded graph, but it is not sorted by name. A caller that needs alphabetical order
-sorts the result itself.
+**Order.** Children are sorted by qualified name ignoring case, then by qualified name,
+then by id: alphabetical for a reader, so the sub-package `internal` sits beside the
+type `Invoice`, and the same on every call. `list_descendants` uses the same order at
+every level.
 
 **Truncation.** When more children pass the filters than `limit` allows, the response
 holds the first `limit` and `summary.truncated` is `true`. There is no cursor: the
