@@ -30,10 +30,10 @@ extend type HierarchicalGraph {
     """
     findNodes(name: String!, kinds: [String!], limit: Int = 50): [Node!]!
 
-    # Returns the node with the given id
+    # Returns the dependency with the given id (<source id>_<target id>_<type>)
     dependency(id: ID!): Dependency
 
-    # Returns the node with the given id
+    # Returns the dependencies with the given ids
     dependencies(ids: [ID!]!): DependencySet
 
     # Returns a dependency set based on an aggregated dependency

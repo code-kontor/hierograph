@@ -18,8 +18,7 @@ package io.hierograph.server.graphservice
 import io.hierograph.hierarchicalgraph.model.HGNode
 
 /**
- * Supplies `Node.properties` for nodes that carry no store-backed properties of their own (i.e. not a
- * Neo4j `GraphDbNodeSource`), such as the Parquet-backed graph. Invoked on demand — only when a query
+ * Supplies the GraphQL `Node.properties` field. Invoked on demand — only when a query
  * selects `properties` — and once per response with every such node, so implementations can batch their
  * lookups. Nodes missing from the result get an empty property list.
  */

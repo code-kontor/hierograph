@@ -31,8 +31,7 @@ import java.nio.file.Path
  * `Node.properties` for the Parquet-backed graph, computed on demand. Structural counts come from the
  * in-memory hierarchy; per-type snapshot facts (`sourceFile`, `classHash`, modifiers, member counts) are
  * read from `types.parquet` / `members.parquet`, scoped to just the requested types — one filtered read
- * per table per batch, nothing kept in memory. In `jqa` mode it answers nothing (those nodes carry Neo4j
- * properties of their own).
+ * per table per batch, nothing kept in memory. Without a loaded graph it answers nothing.
  */
 @Component
 class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphService) : NodePropertiesProvider {

@@ -27,7 +27,7 @@ import org.springframework.stereotype.Controller
 
 /**
  * Resolvers for the GraphQL `HierarchicalGraph` type, which is backed by a [Hierarchy] (the unit that
- * now owns root, node lookup, and structural navigation).
+ * owns root, node lookup, and structural navigation).
  */
 @Controller
 class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
