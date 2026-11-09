@@ -347,8 +347,7 @@ a few dozen types, this removes most of the repetition.
 ### 7.1 Pages and summaries
 
 Paginated tools compute the complete result in a fixed order, then return one slice.
-`list_descendants`, `affected_by` and the type level of `outgoing_dependencies` /
-`incoming_dependencies` carry:
+Every page of every paginated tool carries:
 
 | Field | Meaning |
 |-------|---------|
@@ -360,13 +359,10 @@ Paginated tools compute the complete result in a fixed order, then return one sl
 `truncated` compares the page with the full result. It stays `true` on the last page of
 a multi-page walk. The presence of `next_cursor` is the signal that more pages follow.
 
-The detail level of `outgoing_dependencies` / `incoming_dependencies` names the count
-`summary.total_edges` instead of `summary.total`. `pairwise_dependencies` carries no
-page counts: it returns its summary (with `total_matching_edges`) on the first page
-only, and every tool marks further pages with `next_cursor`.
-
 The other summary fields (`by_kind`, `by_target`, `by_distance`, …) describe the full
-result, on every page that carries a summary.
+result, on every page. `pairwise_dependencies` is the one exception: its matrix
+analysis (cycles, layering, density) appears on the first page only, because it does
+not change from page to page; later pages carry the three counts alone.
 
 ### 7.2 Cursors
 

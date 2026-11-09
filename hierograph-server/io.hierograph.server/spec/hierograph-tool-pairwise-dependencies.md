@@ -217,9 +217,11 @@ The first page of the call in §3.4, with `limit = 2`:
     "4803": { "name": "BigDecimal", "qualified_name": "java.math.BigDecimal", "kind": "external.type" }
   },
   "summary": {
+    "total": 3,
+    "returned": 2,
+    "truncated": true,
     "node_count": 3,
     "edge_count": 3,
-    "total_matching_edges": 3,
     "possible_edges": 6,
     "density": 0.5,
     "has_cycles": false,
@@ -238,10 +240,11 @@ The first page of the call in §3.4, with `limit = 2`:
 }
 ```
 
-The second page, called with the cursor, holds only the edge list:
+The second page, called with the cursor, holds the page counts and the edge list:
 
 ```json
 {
+  "summary": { "total": 3, "returned": 1, "truncated": true },
   "edges": [
     { "from": 4720, "to": 4803, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
@@ -255,7 +258,7 @@ The second page, called with the cursor, holds only the edge list:
 | Field | Type | Present | Description |
 |-------|------|---------|-------------|
 | `nodes` | object | first page | Slim node map of every node in the set, in node order |
-| `summary` | object | first page | Structural summary of the full matrix |
+| `summary` | object | always | Page counts; on the first page also the structural summary of the full matrix |
 | `edges` | array | always | This page of the edge list |
 | `next_cursor` | string | when more edges follow | Cursor for the next page |
 
@@ -263,31 +266,34 @@ The second page, called with the cursor, holds only the edge list:
 nodes in the set, whether connected or not, in the node order of §3.2. It names every
 id the summary and the edges use.
 
-**`nodes` and `summary` appear on the first page only**, that is, on a call without a
-`cursor`. They describe the whole set and do not change from page to page;
-repeating them on every page would cost bytes the edge list needs.
+**`nodes` and the matrix analysis in `summary` appear on the first page only**, that
+is, on a call without a `cursor`. They describe the whole set and do not change from
+page to page; repeating them on every page would cost bytes the edge list needs. The
+page counts `total`, `returned` and `truncated` appear on every page, as in every
+paginated tool ([Pages and summaries](hierograph-mcp-tools.md#71-pages-and-summaries)).
 
 **`next_cursor`** is present when more edges follow and absent on the last page. Its
-presence is the only signal that the list continues; this tool has no `truncated`
-flag.
+presence is the signal that the list continues; `truncated` stays `true` on the last
+page of a multi-page walk.
 
 ### 4.3 Summary fields
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `total` | integer | Number of edges after `minWeight`: the length of the paged list; every page |
+| `returned` | integer | Number of edges on this page; every page |
+| `truncated` | boolean | `true` when `total > returned`; every page |
 | `node_count` | integer | Number of distinct nodes in the matrix |
 | `edge_count` | integer | Number of non-empty off-diagonal cells, before `minWeight` |
-| `total_matching_edges` | integer | Number of edges after `minWeight`: the length of the paged list |
 | `possible_edges` | integer | `node_count × (node_count − 1)` |
 | `density` | number | `edge_count / possible_edges`, rounded to two decimals |
 | `has_cycles` | boolean | `true` when at least one cycle exists |
 | `strongly_connected_components` | array of arrays of node ids | The cycles: every component with two or more nodes |
 | `topological_order` | array of node ids | The node order, dependers first; only when `has_cycles` is `false` |
 
-**`edge_count`** and **`total_matching_edges`** are both needed because `minWeight`
-separates the structure from the listing. `edge_count` describes the matrix and drives
-the density; `total_matching_edges` tells the caller how long the filtered list is and
-how many pages it will take.
+**`edge_count`** and **`total`** are both needed because `minWeight` separates the
+structure from the listing. `edge_count` describes the matrix and drives the density;
+`total` tells the caller how long the filtered list is and how many pages it will take.
 
 **`density`** measures how entangled the set is. A low density on many modules is a
 sign of clear separation; a density near 1 means almost every node depends on almost
@@ -365,7 +371,7 @@ component's nodes as both sources and targets.
 **Show the strongest couplings.** Use `edgeSort = "weight_desc"` with a small `limit`.
 The first page holds the heaviest edges.
 
-**Thin a large matrix.** Raise `minWeight` until `total_matching_edges` is small
+**Thin a large matrix.** Raise `minWeight` until `summary.total` is small
 enough to read. The summary still describes the full matrix.
 
 **Draw the full matrix.** Walk all pages with `edgeSort = "dsm"`, keeping `nodeIds`,

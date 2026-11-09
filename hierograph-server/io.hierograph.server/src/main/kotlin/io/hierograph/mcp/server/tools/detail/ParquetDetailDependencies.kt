@@ -179,7 +179,7 @@ class ParquetDetailDependencies(
         }
 
         val summary = linkedMapOf<String, Any?>(
-            "total_edges" to page.total,
+            "total" to page.total,
             "returned" to returnedEdges.size,
             "truncated" to page.truncated,
             "inherited" to inheritedCount,
@@ -282,7 +282,7 @@ class ParquetDetailDependencies(
             "to_scope" to toNode.identifier,
             "edges" to emptyList<Any>(),
             "summary" to linkedMapOf<String, Any?>(
-                "total_edges" to 0, "returned" to 0, "truncated" to false, "inherited" to 0,
+                "total" to 0, "returned" to 0, "truncated" to false, "inherited" to 0,
                 "by_relationship" to if (effectiveRel != null) mapOf(effectiveRel to 0) else emptyMap<String, Int>(),
                 "by_source_type" to emptyList<Any>(),
                 "by_source_nodes" to emptyList<Any>(),

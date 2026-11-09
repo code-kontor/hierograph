@@ -291,7 +291,7 @@ The detail example of §3.3 with `limit = 1`:
       "relationship": "returns", "location": { "line_number": 13 } }
   ],
   "summary": {
-    "total_edges": 6,
+    "total": 6,
     "returned": 1,
     "truncated": true,
     "inherited": 0,
@@ -326,7 +326,7 @@ the exchanged scopes:
 | `edges[].to`, `to_parent` | the referenced member or type and, for a member, its type, on the `fromId` side |
 | `edges[].relationship`, `location` | the relationship and the source line, or `null` |
 | `edges[].inherited` | `true` when the row comes from the inheritance closure; absent otherwise |
-| `summary.total_edges`, `returned`, `truncated` | count of rows, rows on this page, and `total_edges > returned` |
+| `summary.total`, `returned`, `truncated` | count of rows, rows on this page, and `total > returned` |
 | `summary.inherited` | the number of rows marked `inherited` |
 | `summary.by_relationship` | rows per relationship; a filtered relationship is present even with 0 |
 | `summary.by_source_type`, `others_count` | the depending types by number of rows, top 10, and how many more exist |

@@ -34,8 +34,9 @@ import org.springframework.stereotype.Component
  * MCP tool: `pairwise_dependencies`
  *
  * Returns the dependency matrix among a set of subtrees — a global structural summary (density, cycles,
- * SCCs, topological order) computed over the whole node set, plus a paginated edge list. The summary is
- * `O(node_count)` and is returned on the first page only; the edge list is `O(edges)` and is paginated
+ * SCCs, topological order) computed over the whole node set, plus a paginated edge list. Every page's
+ * summary carries the page counts (total, returned, truncated); the matrix analysis is `O(node_count)`
+ * and is returned on the first page only; the edge list is `O(edges)` and is paginated
  * (and can be thinned with `minWeight`). Entirely in-memory.
  */
 @Component
@@ -105,7 +106,8 @@ class PairwiseDependenciesTool(
         limit: Int?,
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. Omit for " +
-                    "the first page; the summary and nodes map are returned on the first page only. " +
+                    "the first page; the matrix analysis in the summary and the nodes map are returned on the first " +
+                    "page only, the page counts (summary.total, returned, truncated) on every page. " +
                     "Keep the other parameters identical when continuing.",
             required = false
         )
@@ -216,8 +218,13 @@ class PairwiseDependenciesTool(
             )
         }
 
-        // ── assemble; nodes + summary appear on the FIRST page only ─────
+        // ── assemble: page counts on every page; nodes + matrix analysis on the FIRST page only ──
         val response = linkedMapOf<String, Any?>()
+        val summary = linkedMapOf<String, Any?>(
+            "total" to page.total,          // post-minWeight edges, across all pages
+            "returned" to page.returned,
+            "truncated" to page.truncated
+        )
         if (cursor == null) {
             val possibleEdges = size * (size - 1)
             val density = if (possibleEdges > 0)
@@ -231,22 +238,19 @@ class PairwiseDependenciesTool(
                 nodeRefFactory.putSlimNode(nodes, node)
             }
 
-            val summary = linkedMapOf<String, Any?>(
-                "node_count" to size,
-                "edge_count" to edgeCount,             // unfiltered count, drives density
-                "total_matching_edges" to page.total,  // post-minWeight total that paginates (across all pages)
-                "possible_edges" to possibleEdges,
-                "density" to density,
-                "has_cycles" to hasCycles,
-                "strongly_connected_components" to sccs
-            )
+            summary["node_count"] = size
+            summary["edge_count"] = edgeCount  // unfiltered count, drives density
+            summary["possible_edges"] = possibleEdges
+            summary["density"] = density
+            summary["has_cycles"] = hasCycles
+            summary["strongly_connected_components"] = sccs
             if (!hasCycles) {
                 summary["topological_order"] = orderedNodes.map { it.identifier }
             }
 
             response["nodes"] = nodes
-            response["summary"] = summary
         }
+        response["summary"] = summary
         response["edges"] = edges
         // next_cursor is present iff more edges follow this page (omitted, not null, on the last page).
         page.nextCursor?.let { response["next_cursor"] = it }

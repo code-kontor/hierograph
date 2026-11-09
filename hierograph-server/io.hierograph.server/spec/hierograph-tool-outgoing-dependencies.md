@@ -453,7 +453,7 @@ The detail example of §3.4 with `limit = 3`:
       "relationship": "calls", "location": { "line_number": 13 } }
   ],
   "summary": {
-    "total_edges": 6,
+    "total": 6,
     "returned": 3,
     "truncated": true,
     "inherited": 0,
@@ -524,9 +524,9 @@ Summary fields:
 
 | Field | Type | Present | Description |
 |-------|------|---------|-------------|
-| `total_edges` | integer | always | Number of matching rows |
+| `total` | integer | always | Number of matching rows |
 | `returned` | integer | always | Number of rows on this page |
-| `truncated` | boolean | always | `true` when `total_edges > returned` |
+| `truncated` | boolean | always | `true` when `total > returned` |
 | `inherited` | integer | always | Number of matching rows marked `inherited` |
 | `by_relationship` | object | always | Rows per relationship, keys sorted |
 | `by_source_type` | array of `{type, edge_count}` | always | Depending types by number of rows, top 10 |
@@ -534,9 +534,9 @@ Summary fields:
 | `by_source_nodes` | array of `{node, aggregated_weight}` | always | Drill-down of the `from` scope (§3.2) |
 | `by_target_nodes` | array of `{node, aggregated_weight}` | always | Drill-down of the `to` scope (§3.2) |
 
-**`total_edges`** plays the role of `total` in
-[Pages and summaries](hierograph-mcp-tools.md#71-pages-and-summaries); it has its own
-name at this level.
+**`total`**, **`returned`** and **`truncated`** are the page counts of
+[Pages and summaries](hierograph-mcp-tools.md#71-pages-and-summaries), named as at the
+type level.
 
 **`by_relationship`** shows the nature of the dependency at a glance: a dependency
 made only of `parameter_type` and `returns` rows is an API dependency, one with
