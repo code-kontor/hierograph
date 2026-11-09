@@ -129,15 +129,17 @@ reload (their data hash no longer matches).
 ## 6. Live updates (manifest mode)
 
 When watching is enabled, the service tracks the manifest file and every output
-directory the manifest declares, including directories that do not exist yet, and
+directory the manifest declares, including directories that do not exist yet. An
+output may have several directories (Java and Kotlin classes of one module); a
+change in any of them reports the output. The service
 applies changes on a dedicated single-thread updater (kept off the watcher's own
 event thread):
 
 - **A module's output changed** → rescan only the changed modules, rebuild the
   graph from the cached union of per-module scans, and swap it in. Unchanged
-  modules are not re-scanned. An output directory that appears (a module compiled
-  for the first time) is scanned and added; one that disappears drops the
-  module's classes.
+  modules are not re-scanned. An output whose directory appears (a module
+  compiled for the first time) is scanned and added; one whose directories have
+  all disappeared drops the module's classes.
 - **The manifest itself changed** (module set or classpath) → apply it as a diff
   against the cached scans, rebuild, and re-target the watcher at the changed module
   set. The diff is keyed by output (`<gav>`, or `<gav>:test`):
@@ -145,16 +147,16 @@ event thread):
   | Output | Effect |
   |--------|--------|
   | removed | its scan and classpath are dropped |
-  | added | declared; scanned if its directory exists |
-  | output directory moved, or contents changed since its scan | rescanned |
+  | added | declared; scanned if one of its directories exists |
+  | output directories changed, or contents changed since its scan | rescanned |
   | otherwise (including a classpath or name change) | the cached scan is reused |
 
   A classpath change alone needs no rescan: a scan depends only on the output's
-  key and directory, and classpaths are applied when the graph is built. A
+  key and directories, and classpaths are applied when the graph is built. A
   renamed module is a removal plus an addition. Each scan records a signature of
-  its directory, a fold of `(path, size, mtime)` over its `.class` files, taken
-  just before the scan. The contents check compares it with the directory's
-  current signature. This check is needed because the watcher re-baselines when
+  its directories, a fold of `(path, size, mtime)` over their `.class` files,
+  taken just before the scan. The contents check compares it with the
+  directories' current signature. This check is needed because the watcher re-baselines when
   it is re-targeted: classes the same build compiled before that point are never
   reported as a change. An explicit `reload` still rescans every module.
 
@@ -168,14 +170,14 @@ the previous graph.
 
 ### Build files
 
-The manifest lists the reactor's build files (POMs and `.mvn` configuration)
-with the hashes of the content it was merged from (see the
+The manifest lists the build's build files (for Maven, POMs and `.mvn`
+configuration) with the hashes of the content it was merged from (see the
 [build manifest specification](hierograph-build-manifest.md)). Both watchers poll
 these files by `(size, mtime)` on their regular tick: there are tens to hundreds
 of them, polling is cheap and works the same across a mounted volume, and native
 events on module directories would also deliver every source-file save. Changes
 are collected until no build file has changed for the settle delay and reported
-once, because a rename or a version bump touches many POMs at once.
+once, because a rename or a version bump touches many build files at once.
 
 On a report, and whenever a manifest is applied, `BuildFileMonitor` compares the
 hashes. A build file whose content differs from its recorded hash, or that no
@@ -187,36 +189,46 @@ reaction:
 |------|----------|
 | `off` | build files are not watched |
 | `notify` (default) | the stale build files are reported in `build_state` until a build rewrites the manifest |
-| `regenerate` | the service runs the regeneration command in the reactor root; the rewritten manifest then arrives as a manifest change |
+| `regenerate` | the service runs the regeneration command in the build root; the rewritten manifest then arrives as a manifest change |
 
 `notify` is the default because running a build is a side effect the developer
 opts into.
 
-**Regeneration.** The command is `hierograph.graph.regenerate.command`, split on
-whitespace; by default `mvnw -q -B process-classes` when the reactor root holds a
-Maven wrapper, otherwise `mvn` from the `PATH`. It uses `process-classes`, not a
-bare `hierograph:create-descriptor`, because without a lifecycle phase Maven 3
-does not resolve reactor siblings from their output directories. The output goes
-to `.hierograph/regenerate.log`.
+**Regeneration.** The service knows no build tool; it runs the command the
+manifest's producer names. The command is chosen in this order:
+
+| Source | Used when |
+|--------|-----------|
+| `hierograph.graph.regenerate.command`, split on whitespace | set: an override for setups the producer cannot anticipate |
+| the manifest's `regenerate` | present; `./`-relative arguments resolve against the local build root |
+| none | `regenerate` behaves as `notify`, with a warning naming the missing command |
+
+The command runs in the build root, and its output goes to
+`.hierograph/regenerate.log`. The Maven plugin names `./mvnw` or `mvn` with
+`-q -B process-classes` (see the
+[build manifest specification](hierograph-build-manifest.md)); another producer
+names what fits its tool.
 
 | Rule | Why |
 |------|-----|
-| One run at a time; a request during a run schedules exactly one follow-up run | the running build may have read the POMs before the edit |
+| One run at a time; a request during a run schedules exactly one follow-up run | the running build may have read the build files before the edit |
 | A run exceeding `hierograph.graph.regenerate.timeout` is killed | a hanging build must not block later runs |
 | A failed run reports the last lines of its output | the developer sees why the graph did not follow; the previous graph stays live |
-| A relocated manifest (read under a different reactor root) is never regenerated | the server runs in a container without the build host's Maven and repository; it behaves as `notify` |
+| A relocated manifest (read under a different build root) is never regenerated | the server runs in a container without the build host's tools; it behaves as `notify` |
 
 Applying a manifest re-evaluates the state and starts a regeneration if build
 files are still stale, so `reload_graph` also retries a failed regeneration.
 
-**Limits.** Changes outside the listed build files are not detected: a profile
-activated through the environment or `settings.xml`, and a SNAPSHOT dependency
-updated in the local repository. A build followed by `reload_graph` covers them.
+**Limits.** Changes outside the listed build files are not detected: for Maven, a
+profile activated through the environment or `settings.xml`, and a SNAPSHOT
+dependency updated in the local repository. A build followed by `reload_graph` covers them.
 A regeneration that needs a dependency not yet in the local repository fails when
 the command runs offline.
 
 **`build_state`.** In `manifest` mode, `reload_graph` and `graph_overview` return
-the state as a map with `status`, `changed_files` and, after a failure, `message`:
+the state as a map with `status`, `changed_files`, `build_tool` (the manifest's
+`buildTool` name, when present) and, after a failure, `message` (the command that
+ran and the end of its output):
 
 | Status | Meaning |
 |--------|---------|
@@ -301,7 +313,7 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
 | `hierograph.graph.watch.settle` | `400` | Quiet period, ms, before rebuilding after a change. |
 | `hierograph.graph.watch.build-files` | `notify` | `off` / `notify` / `regenerate`: reaction to edited build files (§6). |
-| `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command; empty selects `mvnw` or `mvn` with `-q -B process-classes`. |
+| `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command override; empty uses the manifest's `regenerate` command. |
 | `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |
 | `hierograph.graph.dump.enabled` | `false` | Write a one-line-per-node text dump after each build. |
 | `hierograph.graph.dumpFile` | `hierarchical-graph.txt` | Where the dump is written. |

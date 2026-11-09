@@ -13,6 +13,14 @@ and an outline of a Gradle producer. It is a design document, not a
 specification: it describes intended behaviour. Once implemented, its content
 moves into the specifications listed in §9 and this file is deleted.
 
+**Status.** Parts A–D are implemented and specified in the
+[build manifest](../spec/hierograph-build-manifest.md),
+[hierarchical graph service](../spec/hierarchical-graph-service.md),
+[Maven plugin](../../../hierograph-maven-plugin/spec/hierograph-maven-plugin.md)
+and [manifest library](../../../hierograph-manifest/spec/hierograph-manifest.md)
+specifications, with the §11 decisions as proposed. Part E, the Gradle producer,
+is open.
+
 ---
 
 ## Contents

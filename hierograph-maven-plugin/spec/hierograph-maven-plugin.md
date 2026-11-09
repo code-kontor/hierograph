@@ -150,6 +150,21 @@ content to detect a POM edited since the merge. Hashes are cached per file while
 its size and modification time are unchanged, so a full build hashes each file
 once.
 
+**Build tool and regeneration command.** The manifest names its producer's tool,
+`buildTool: { "name": "maven", "version": <the running Maven version> }`, and the
+command a watching server runs to rewrite it: `./mvnw -q -B process-classes` when
+the execution root holds a Maven wrapper (`./mvnw.cmd` on Windows), otherwise
+`mvn -q -B process-classes` (`mvn.cmd` on Windows). `process-classes` rather than
+a bare `hierograph:create-descriptor`: without a lifecycle phase, Maven 3 does not
+resolve reactor siblings from their output directories. The plugin names the
+command because only it knows Maven; the server runs it without knowing the tool.
+
+**Shared with other build tools.** The merge rules above, write-only-on-change,
+the atomic write, the locking and the build-file hashing live in the
+[`hierograph-manifest` library](../../hierograph-manifest/spec/hierograph-manifest.md).
+The plugin contributes what only Maven knows: the projects of the reactor, their
+classpaths, the build files and the regeneration command.
+
 **Written only on change.** The merge compares the result with the existing
 manifest, ignoring `generatedAt`, and rewrites the file only when something else
 differs. A watching server treats a changed manifest as a module-set change, so a
@@ -309,8 +324,8 @@ and are never deployed.
 {
   "gav": "com.example:billing-core:1.4.0",
   "name": "billing-core",
-  "mainOutputDir": "/ws/billing/billing-core/target/classes",
-  "testOutputDir": "/ws/billing/billing-core/target/test-classes",
+  "mainOutputDirs": ["/ws/billing/billing-core/target/classes"],
+  "testOutputDirs": ["/ws/billing/billing-core/target/test-classes"],
   "sourceRoots": ["/ws/billing/billing-core/src/main/java"],
   "testSourceRoots": ["/ws/billing/billing-core/src/test/java"],
   "classpath": [
@@ -337,10 +352,12 @@ authoritative, field-level definition of this object and the merged manifest is 
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generator": "io.hierograph.maven.plugin/<plugin-version>",
   "generatedAt": "2026-11-08T17:04:11Z",
   "reactorRoot": "/ws/billing",
+  "buildTool": { "name": "maven", "version": "3.9.6" },
+  "regenerate": ["./mvnw", "-q", "-B", "process-classes"],
   "modules": [ /* one module.json object per module, sorted by gav */ ],
   "buildFiles": [ { "path": "/ws/billing/pom.xml", "sha256": "9a07…" } ]
 }
