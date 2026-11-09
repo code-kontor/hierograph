@@ -96,8 +96,8 @@ the detail level, for the reasons given in
 **`detailLevel`**, **`relationship`**, **`limit`** and **`cursor`** behave as in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
 `detailLevel` accepts only `"type"` and `"detail"`; `relationship` is an error at the
-type level; the response budget allows at most 142 type edges or 90 detail rows per
-page. A cursor is bound to `incoming_dependencies`: a cursor issued by
+type level; a page holds at most 142 type edges or 90 detail rows, the caps that keep
+it within the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
 `outgoing_dependencies` fails here with `WRONG_TOOL_CURSOR`.
 
 ---
@@ -352,7 +352,7 @@ All errors use the nested shape with `code`, `message` and `recovery`:
 | `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` given at the type level; `toId` missing at the detail level |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field; carries `actual_kind` and `declaring_type` |
-| cursor codes, `RESULT_TOO_LARGE` | see [Pagination](hierograph-mcp-tools.md#7-pagination) |
+| cursor codes | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
 
 The detail level checks `fromId`, then `toId`, before it exchanges the scopes, so
 `NODE_NOT_FOUND` names the missing id in parameter order, as at the type level, and

@@ -49,8 +49,8 @@ class IncomingDependenciesTool(
                 "The 'relationship' filter is only valid at detail level. " +
                 "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size. " +
-                "WARNING: on a hub node a full page of type-level edges can be hundreds of KB and " +
-                "overflow the caller's context. If you only need the ranking or attribute breakdown " +
+                "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
+                "you will not read. If you only need the ranking or attribute breakdown " +
                 "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
                 "For the forward direction (what source uses of target), use outgoing_dependencies. " +
@@ -83,8 +83,8 @@ class IncomingDependenciesTool(
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 400 / 250. " +
-                    "On a hub node even 100 type-level edges can exceed ~50 KB — pass limit=1 when you " +
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 142 / 90, the most " +
+                    "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
                     "only need the summary (by_target / by_source_type / by_attribute).",
             required = false
         )
@@ -150,10 +150,10 @@ class IncomingDependenciesTool(
     }
 
     companion object {
-        /** Type-level pagination for incoming_dependencies (~350 bytes/edge): default 100, cap 400. */
-        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 400, bytesPerItem = 350)
+        /** Type-level pagination for incoming_dependencies (~350 bytes/edge): default 100, cap 142 (the budget's fill). */
+        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 142, bytesPerItem = 350)
 
-        /** Detail-level pagination for incoming_dependencies (~550 bytes/edge): default 80, cap 250. */
-        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 250, bytesPerItem = 550)
+        /** Detail-level pagination for incoming_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
+        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)
     }
 }

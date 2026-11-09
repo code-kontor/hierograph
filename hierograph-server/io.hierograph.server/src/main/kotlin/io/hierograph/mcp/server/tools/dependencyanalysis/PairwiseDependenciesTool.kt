@@ -71,7 +71,7 @@ class PairwiseDependenciesTool(
                 "the layers? where are the cycles?) in a few hundred bytes, with no need to fetch edges at " +
                 "all. Only page through the edge list when you need specific pairwise weights. " +
                 "WARNING: the edge list can be large — a full all-modules query is often hundreds of edges " +
-                "(~200 bytes each) and can overflow the caller's context in a single page. Do NOT fetch it " +
+                "(~250 bytes each), and a full page of 200 fills the ~50 KB response budget. Do NOT fetch it " +
                 "all at once. Instead: keep limit small (default 25, stay <= 50) and walk next_cursor " +
                 "only as far as needed; raise minWeight to drop noise (a threshold like 100+ usually " +
                 "leaves a handful of edges); and use edgeSort='weight_desc' so the first small page " +
@@ -99,8 +99,8 @@ class PairwiseDependenciesTool(
         )
         minWeight: Int?,
         @ToolParam(
-            description = "Max edges per page (1-200, default 25). Keep this small — large pages can " +
-                    "overflow the caller's context. Increase only when you know the filtered edge count is low.",
+            description = "Max edges per page (1-200, default 25). Keep this small — a full page fills the " +
+                    "~50 KB response budget. Increase only when you know the filtered edge count is low.",
             required = false
         )
         limit: Int?,

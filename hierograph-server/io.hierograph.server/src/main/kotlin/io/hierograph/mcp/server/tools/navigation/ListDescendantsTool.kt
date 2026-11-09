@@ -82,7 +82,7 @@ class ListDescendantsTool(
         )
         modifierFilter: List<String>?,
         @ToolParam(
-            description = "Maximum items per page (default 150, max 500).",
+            description = "Maximum items per page (default 150, max 200; larger values are clamped).",
             required = false
         )
         limit: Int?,
@@ -233,8 +233,8 @@ class ListDescendantsTool(
         mapOf("error" to linkedMapOf<String, Any?>("code" to code, "message" to message, "recovery" to recovery))
 
     companion object {
-        /** Pagination policy for list_descendants (~250 bytes/item): default 150, server cap 500. */
-        private val PAGINATION = PaginationSpec(tool = "list_descendants", defaultLimit = 150, maxLimit = 500, bytesPerItem = 250)
+        /** Pagination policy for list_descendants (~250 bytes/item): default 150, cap 200 (the budget's fill). */
+        private val PAGINATION = PaginationSpec(tool = "list_descendants", defaultLimit = 150, maxLimit = 200, bytesPerItem = 250)
 
         private fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V> {
             val map = LinkedHashMap<K, V>()

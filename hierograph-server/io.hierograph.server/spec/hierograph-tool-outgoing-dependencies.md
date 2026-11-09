@@ -112,10 +112,9 @@ being silently ignored. An empty string counts as absent.
 
 **`limit`** is the page size. The defaults differ per level because a detail row is
 larger than a type edge. Values are clamped as described in
-[Parameters](hierograph-mcp-tools.md#5-parameters). The response budget allows at
-most 142 type edges or 90 detail rows per page
-([The response budget](hierograph-mcp-tools.md#73-the-response-budget)); a larger
-`limit` succeeds only when fewer edges remain.
+[Parameters](hierograph-mcp-tools.md#5-parameters): the caps are 142 type edges and
+90 detail rows, the largest pages that fit the
+[response budget](hierograph-mcp-tools.md#73-the-response-budget).
 
 **`cursor`** continues a listing. It is bound to `outgoing_dependencies`, to `fromId`,
 `toId`, `detailLevel` and (at the detail level) `relationship`, and to the loaded
@@ -566,7 +565,6 @@ The two levels report errors in different shapes, as described in
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node | — |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field | `actual_kind`, `declaring_type` |
 | cursor codes | the cursor is malformed, from another tool, or stale | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
-| `RESULT_TOO_LARGE` | more than 142 edges on the page | see [The response budget](hierograph-mcp-tools.md#73-the-response-budget) |
 
 `INVALID_NODE_KIND` carries the member's declaring type as a
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef) and a recovery that names
@@ -591,8 +589,7 @@ checks above, in this order:
     "recovery": "Use find_node to look up the correct node ID." } }
 ```
 
-Cursor errors and `RESULT_TOO_LARGE` (more than 90 rows on a page) come from the
-shared pagination.
+Cursor errors come from the shared pagination.
 
 While no graph is loaded the tool returns the
 [no-graph response](hierograph-mcp-tools.md#83-no-graph-loaded).
@@ -621,7 +618,7 @@ before paging through a large result.
 `"written_by"` with the fields' type as `fromId` and the suspected users as `toId`.
 
 **Page.** Pass `next_cursor` back with the same `fromId`, `toId`, `detailLevel` and
-`relationship`. Stay at or below 142 type edges or 90 detail rows per page.
+`relationship`. A page holds at most 142 type edges or 90 detail rows.
 
 **Read the other direction.** For "what uses X?", call
 [`incoming_dependencies`](hierograph-tool-incoming-dependencies.md) with the same

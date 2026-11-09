@@ -74,7 +74,7 @@ class ListChildrenTool(
         )
         modifierFilter: List<String>?,
         @ToolParam(
-            description = "Maximum number of children to return (default 200).",
+            description = "Maximum number of children to return (1-200, default 200; larger values are clamped).",
             required = false
         )
         limit: Int?
@@ -102,7 +102,8 @@ class ListChildrenTool(
             is ModifierFilter.Invalid -> return ModifierFilter.invalidResponse(parsed.values)
         }
 
-        val effectiveLimit = (limit ?: 200).coerceIn(1, 1000)
+        // 200 children of ~250 bytes fill the 50,000-byte response budget the paginated tools observe.
+        val effectiveLimit = (limit ?: 200).coerceIn(1, 200)
         val nameLower = namePattern?.lowercase()
 
         // ── filter children ───────────────────────────────────────────

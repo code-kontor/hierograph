@@ -66,7 +66,7 @@ linked by cursors (see [§7 of the MCP tools specification](hierograph-mcp-tools
 | `kindFilter` | string[] | no | none | kinds and group aliases to report |
 | `namePattern` | string | no | none | case-insensitive substring of the node's name |
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
-| `limit` | integer | no | `150` | items per page, clamped to 1–500 |
+| `limit` | integer | no | `150` | items per page, clamped to 1–200 |
 | `cursor` | string | no | none | `next_cursor` of the previous page |
 
 **`nodeId`** is any node id, including the synthetic root's, which searches the whole
@@ -98,9 +98,8 @@ Like `kindFilter`, it selects what is reported, not what is traversed: packages 
 types are still walked but, carrying no member modifiers, never reported while the
 filter is set.
 
-**`limit`** sets the page size. The default of 150 fits the response budget; values
-from 1 to 500 are accepted, but a page of more than 200 items exceeds the budget and
-fails with `RESULT_TOO_LARGE` (§3.3).
+**`limit`** sets the page size. The default is 150; the cap of 200 is the largest page
+that fits the response budget (§3.3), and a larger value is clamped to it.
 
 **`cursor`** resumes a walk. Pass the previous page's `next_cursor` unchanged, with the
 same `nodeId`, `kindFilter`, `namePattern` and `modifierFilter`. `limit` may change
@@ -150,7 +149,7 @@ The tool pages the result as described in
   `namePattern` or writing an alias instead of its kinds does not.
 - Each item counts as 250 bytes against the 50,000-byte
   [response budget](hierograph-mcp-tools.md#73-the-response-budget), so a page holds at
-  most 200 items. A `limit` above 200 succeeds only when 200 or fewer items remain.
+  most 200 items.
 
 ### 3.4 Example
 
@@ -244,14 +243,13 @@ minimal fields only ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
 | `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
 | `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
 | `cursor` is malformed, from another tool, or issued for other parameters or another graph | `INVALID_CURSOR_FORMAT`, `STALE_CURSOR_VERSION`, `WRONG_TOOL_CURSOR`, `STALE_CURSOR_QUERY`, `STALE_CURSOR_DATA` | see [§7.2](hierograph-mcp-tools.md#72-cursors) | restart without `cursor`, or restore the original parameters |
-| The page exceeds the response budget | `RESULT_TOO_LARGE` | see [§7.3](hierograph-mcp-tools.md#73-the-response-budget) | retry with `suggested_limit` (`200`), or `limit = 1` for the summary |
 | No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | make the graph source available, then call `reload_graph` |
 
-The checks run in this order: node, kind filter, modifier filter, cursor, budget. `NODE_NOT_FOUND` and
+The checks run in this order: node, kind filter, modifier filter, cursor. `NODE_NOT_FOUND` and
 `INVALID_KIND` use the nested shape of [§8.1](hierograph-mcp-tools.md#81-error-shapes)
 with `code`, `message` and `recovery`; `INVALID_KIND` adds `invalid_values`,
-`valid_kinds` and `valid_aliases` ([§3.2](hierograph-mcp-tools.md#32-kinds)). The cursor and budget errors
-carry the extra fields described in §7 of the MCP tools specification.
+`valid_kinds` and `valid_aliases` ([§3.2](hierograph-mcp-tools.md#32-kinds)). The cursor errors carry
+the extra fields described in §7.2 of the MCP tools specification.
 
 ---
 
@@ -285,6 +283,6 @@ again without `cursor`.
 3. **Full-result summaries.** `total`, `by_kind` and `by_parent` describe the full result
    on every page.
 4. **Root excluded.** The node `nodeId` names never appears in `results`.
-5. **Bounded pages.** A page either fits the response budget or fails with
-   `RESULT_TOO_LARGE`; it is never silently shortened.
+5. **Bounded pages.** Every page fits the response budget and holds `limit` items, or
+   all that remain; it is never silently shortened.
 6. **Read-only.** The tool changes no server state.

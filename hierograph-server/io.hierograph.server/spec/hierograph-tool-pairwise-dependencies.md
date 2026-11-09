@@ -342,15 +342,14 @@ is returned.
 | `INVALID_NODE_KIND` | an id names a method or a field | `actual_kind`, `declaring_type` |
 | `INVALID_PARAMETER` | `nodeIds` lists an id twice, or a node inside another listed node | `duplicates` (ids), `nested` (`{node, inside}` pairs) |
 | cursor codes | the cursor is malformed, from another tool, or stale | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
-| `RESULT_TOO_LARGE` | the page exceeds the response budget | see [The response budget](hierograph-mcp-tools.md#73-the-response-budget) |
 
 The size checks run before any id is looked up, so an empty or oversized list fails
 at once. `INVALID_NODE_KIND` carries the member's declaring type as a
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef), with a recovery that
 says to pass that id instead.
 
-The response budget allows 200 edges of 250 bytes each, which is exactly the page
-cap; a page of this tool therefore never fails with `RESULT_TOO_LARGE`.
+The cap of 200 edges at 250 bytes each is the largest page that fits the
+[response budget](hierograph-mcp-tools.md#73-the-response-budget).
 
 While no graph is loaded the tool returns the
 [no-graph response](hierograph-mcp-tools.md#83-no-graph-loaded).

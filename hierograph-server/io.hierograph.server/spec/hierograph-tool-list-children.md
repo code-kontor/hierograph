@@ -62,7 +62,7 @@ call.
 | `kindFilter` | string[] | no | none | kinds and group aliases to keep |
 | `namePattern` | string | no | none | case-insensitive substring of the child's name |
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
-| `limit` | integer | no | `200` | maximum children to return, clamped to 1–1000 |
+| `limit` | integer | no | `200` | maximum children to return, clamped to 1–200 |
 
 **`nodeId`** is any node id, including the synthetic root's, which lists the modules.
 On a module the children are top-level packages; on a package, sub-packages and types;
@@ -94,9 +94,12 @@ Packages and types carry no member modifiers, so while the filter is set they ne
 match. To read a single member's full modifier list, use `method_details` or
 `field_details`.
 
-**`limit`** bounds the response. The default of 200 covers the children of almost any
-package or type; a larger value up to 1000 is accepted for the rare type with hundreds
-of members. A value below 1 becomes 1, a value above 1000 becomes 1000.
+**`limit`** bounds the response. The default and cap of 200 cover the children of
+almost any package or type, and 200 children fill the same 50,000-byte
+[response budget](hierograph-mcp-tools.md#73-the-response-budget) the paginated tools
+observe. A value below 1 becomes 1, a value above 200 becomes 200. For the rare type
+with more members, narrow with `kindFilter`, `namePattern` or `modifierFilter`, or use
+`list_descendants`, which pages.
 
 ---
 

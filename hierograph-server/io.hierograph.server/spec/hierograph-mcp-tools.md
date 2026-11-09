@@ -409,33 +409,26 @@ parameters).
 
 ### 7.3 The response budget
 
-Each paginated tool estimates its page size in bytes as `returned × bytesPerItem`.
-A page above **50,000 bytes** fails with `RESULT_TOO_LARGE` instead of being returned.
-A one-item page always passes, so the summary is always reachable.
+Each paginated tool estimates the size of a page as `returned × bytes per item` and
+caps its page size so that a full page stays within **50,000 bytes**, well below the
+point where an MCP client truncates a response:
 
-| Tool | Default `limit` | Cap | Bytes per item | Largest page that fits |
-|------|-----------------|-----|----------------|------------------------|
-| `list_descendants` | 150 | 500 | 250 | 200 |
-| `pairwise_dependencies` | 25 | 200 | 250 | 200 |
-| `outgoing_dependencies`, `incoming_dependencies` (type level) | 100 | 400 | 350 | 142 |
-| `outgoing_dependencies`, `incoming_dependencies` (detail level) | 80 | 250 | 550 | 90 |
-| `affected_by` | 100 | 350 | 450 | 111 |
+| Tool | Default `limit` | Cap | Bytes per item | Full page |
+|------|-----------------|-----|----------------|-----------|
+| `list_descendants` | 150 | 200 | 250 | 50,000 |
+| `pairwise_dependencies` | 25 | 200 | 250 | 50,000 |
+| `outgoing_dependencies`, `incoming_dependencies` (type level) | 100 | 142 | 350 | 49,700 |
+| `outgoing_dependencies`, `incoming_dependencies` (detail level) | 80 | 90 | 550 | 49,500 |
+| `affected_by` | 100 | 111 | 450 | 49,950 |
 
-**Why the budget exists.** Without it, a page on a dense node overflows the client's
-context, the client truncates it, and the model loses the summary along with the
-edges. Failing early with a specific error keeps the answer reachable:
+A larger `limit` is clamped to the cap ([Parameters](#5-parameters)), so no page ever
+exceeds the budget and no call fails for its size.
 
-```json
-{ "error": {
-    "code": "RESULT_TOO_LARGE",
-    "message": "This page (~52500 bytes for 150 items) exceeds the 50000-byte response budget and would overflow the caller's context.",
-    "returned": 150, "estimated_bytes": 52500, "budget_bytes": 50000,
-    "suggested_limit": 142,
-    "recovery": "If you only need the ranking or breakdown, re-query with limit=1 and read the summary — …" } }
-```
-
-A `limit` between the largest fitting page and the cap succeeds only when fewer items
-than the budget allows remain.
+**Why the budget exists.** Without it, a page on a dense node would overflow the
+client's context, the client would truncate it, and the model would lose the summary
+along with the edges. Capping each tool by its item size keeps every page whole. The
+server enforces the rule when it starts: a tool whose cap would allow a page above the
+budget cannot be configured.
 
 ---
 
@@ -453,8 +446,7 @@ Every tool returns errors as a nested object:
 ```
 
 `code` comes first and `recovery` last. Some errors add fields between them that help
-the caller recover, such as `actual_kind`, `declaring_type`, `invalid_values` or
-`suggested_limit`. A caller therefore tests one key, `error`, and always finds the
+the caller recover, such as `actual_kind`, `declaring_type` or `invalid_values`. A caller therefore tests one key, `error`, and always finds the
 same three fields inside it, whichever tool answered.
 
 Each tool specification lists its errors and their extra fields.
@@ -470,7 +462,7 @@ Each tool specification lists its errors and their extra fields.
 | `INPUT_TOO_SMALL` / `INPUT_TOO_LARGE` | a list parameter has too few or too many entries |
 | `DETAIL_REBUILDING` | the entity-detail tools cannot read the detail-level snapshot yet; retry shortly |
 | `DETAIL_UNAVAILABLE` | the detail-level engine finds no detail-level data for the loaded graph |
-| cursor codes, `RESULT_TOO_LARGE` | §7 |
+| cursor codes | §7.2 |
 
 ### 8.3 No graph loaded
 
@@ -527,8 +519,9 @@ parameters. When only the summary is needed, ask for `limit = 1`.
    items in the same order. Pagination relies on this.
 3. **Full-result summaries.** Summary fields of a paginated tool describe the whole
    result on every page.
-4. **No partial pages.** A paginated tool either returns a page within the response
-   budget or fails with `RESULT_TOO_LARGE`; it never returns a silently shortened page.
+4. **Whole pages.** Every page of a paginated tool fits the response budget, and none
+   is silently shortened: a page holds `limit` items, clamped to the tool's cap, or all
+   that remain.
 5. **Cursors never cross graphs.** A cursor issued against one graph is rejected after
    the graph changes.
 6. **One graph per call.** Each tool call is computed from the graph that is live

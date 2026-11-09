@@ -60,7 +60,7 @@ Severity:
 | 2.8 | Low | `graph_overview` response text uses snake_case parameter names (`source_ids`, `target_ids`, `detail_level=`). | `GraphOverviewTool.kt:140,152,158` |
 | 2.9 | Low | `list_children` allows up to 1000 results, has no response budget and does not sort (insertion order). `list_descendants` sorts with a case-sensitive string compare and breaks sibling ties by comparing ids as text. | `ListChildrenTool.kt:107,115`, `ListDescendantsTool.kt:147-149` |
 | 2.10 | Low | The `list_descendants` query hash uses the raw `namePattern` and unexpanded aliases, so changing letter case or spelling out an alias invalidates a cursor although the result is the same. | `ListDescendantsTool.kt:127-134` |
-| 2.11 | Low | `list_descendants` advertises a cap of 500, but the response budget limits a page to 200. | `ListDescendantsTool.kt:253`, `pagination/Paginator.kt:86` |
+| 2.11 | Fixed | `list_descendants` advertised a cap of 500 while the response budget limited a page to 200. The cap is now 200. | `ListDescendantsTool.kt` |
 
 ---
 
@@ -81,7 +81,7 @@ Severity:
 | 3.11 | Low | The detail level returns its empty result before pagination, so it silently ignores a malformed or stale cursor when a scope has no types. | `ParquetDetailDependencies.kt:86` |
 | 3.12 | Low | `typeHandle` resolves an FQN to its first defining artifact, so detail rows for an FQN defined in several artifacts all attach to one of them. | `ParquetDetailDependencies.kt:91` |
 | 3.13 | Low | `aggregated_dependencies` accepts empty lists and returns an empty result. Duplicate ids produce duplicate edges. | `AggregatedDependenciesTool.kt` |
-| 3.14 | Low | Effective page ceilings fall below the advertised caps: 142 of 400 at type level and 90 of 250 at detail level. In `pairwise_dependencies`, `RESULT_TOO_LARGE` can never fire (200 × 250 = budget). | `pagination/Paginator.kt:86`, tool `PaginationSpec`s |
+| 3.14 | Fixed | The advertised page caps exceeded what the response budget allowed, so large limits failed with `RESULT_TOO_LARGE`. Every cap is now the largest page that fits the budget (142 / 90 / 111 / 200), `PaginationSpec` rejects a cap that would not, larger limits are clamped, and `RESULT_TOO_LARGE`, now unreachable, is gone. `list_children` is capped at 200 for the same budget. | `pagination/Paginator.kt`, tool `PaginationSpec`s |
 
 ---
 

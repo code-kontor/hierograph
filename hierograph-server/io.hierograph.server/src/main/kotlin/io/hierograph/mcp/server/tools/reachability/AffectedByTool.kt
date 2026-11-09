@@ -90,7 +90,7 @@ class AffectedByTool(
         )
         kindFilter: List<String>?,
         @ToolParam(
-            description = "Maximum results per page (1-350, default 100).",
+            description = "Maximum results per page (1-111, default 100; larger values are clamped).",
             required = false
         )
         limit: Int?,
@@ -398,7 +398,7 @@ class AffectedByTool(
     }
 
     companion object {
-        /** Pagination policy for affected_by (~450 bytes/item): default 100, server cap 350. */
-        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 350, bytesPerItem = 450)
+        /** Pagination policy for affected_by (~450 bytes/item): default 100, cap 111 (the budget's fill). */
+        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 111, bytesPerItem = 450)
     }
 }
