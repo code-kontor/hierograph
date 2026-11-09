@@ -87,8 +87,11 @@ graph) or an external type. A type covers itself and its members, not its nested
 types: `Invoice$Line` is a sibling of `Invoice` in its package (see
 [Nodes and the containment tree](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)).
 At the type level, methods and fields are rejected (§5), because type edges start at
-types. At the detail level a method or field id is accepted but contains no type, so
-the result is empty.
+types. At the detail level a method or field id is accepted and narrows the scope to that
+member: the tool reads the declaring type's scope and keeps the rows whose member on
+that side is the given one. `fromId = Invoice#net()` lists what `net()` calls, returns
+and reads; `toId = Money#plus(Money)` lists who calls `plus`. This answers member
+questions without listing the whole type.
 
 **`toId`** restricts the result to dependencies whose target lies in this subtree. It
 is what turns "everything `billing` uses" into "what `billing` uses of `money`". At
@@ -557,7 +560,7 @@ The two levels report errors in different shapes, as described in
 
 `INVALID_NODE_KIND` carries the member's declaring type as a
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef) and a recovery that names
-it, so the caller can retry with the type.
+it and points to the detail level, which accepts the member itself.
 
 **Detail level** checks use the same nested shape. They run after the parameter
 checks above, in this order:

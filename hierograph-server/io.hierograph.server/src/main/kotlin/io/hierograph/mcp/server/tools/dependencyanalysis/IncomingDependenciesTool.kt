@@ -44,7 +44,8 @@ class IncomingDependenciesTool(
                 "Mirror of outgoing_dependencies — returns edges from the toId subtree to the " +
                 "fromId subtree. Shows what the target side uses of the source side. " +
                 "detailLevel='type' (default) returns type-to-type edges (fast). " +
-                "detailLevel='detail' returns method/field-level edges with source locations (slower). " +
+                "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
+                "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
                 "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size. " +

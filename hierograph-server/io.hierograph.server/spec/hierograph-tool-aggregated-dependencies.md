@@ -293,7 +293,7 @@ is returned.
     "actual_kind": "java.method",
     "declaring_type": { "id": 4711, "name": "Invoice", "qualified_name": "com.example.billing.Invoice",
                         "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package" },
-    "recovery": "To query dependencies involving this java.method's declaring type, pass its id (4711). For member-level evidence, call outgoing_dependencies or incoming_dependencies with detailLevel='detail' on the declaring type." } }
+    "recovery": "To query dependencies involving this java.method's declaring type, pass its id (4711). For the member itself, call outgoing_dependencies or incoming_dependencies with detailLevel='detail', which accept member ids." } }
 ```
 
 **`declaring_type`** is a [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef)

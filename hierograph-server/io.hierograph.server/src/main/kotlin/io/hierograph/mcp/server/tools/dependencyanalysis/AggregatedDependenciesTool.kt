@@ -156,8 +156,8 @@ class AggregatedDependenciesTool(
                     "declaring_type" to if (declaringType != null)
                         nodeRefFactory.minimalNodeRef(declaringType) else null,
                     "recovery" to "To query dependencies involving this ${kind}'s declaring type, " +
-                            "pass its id (${declaringType?.identifier}). For member-level evidence, call " +
-                            "outgoing_dependencies or incoming_dependencies with detailLevel='detail' on the declaring type."
+                            "pass its id (${declaringType?.identifier}). For the member itself, call " +
+                            "outgoing_dependencies or incoming_dependencies with detailLevel='detail', which accept member ids."
                 )
             )
         }

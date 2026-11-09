@@ -83,8 +83,10 @@ are reversed: here `fromId` is the side that is *used*.
 **`fromId`** names the subtree whose users are listed: a module, a package, a type,
 the root or an external type. It stands for the node and everything below it; a type
 covers itself and its members, not its nested types. At the type level, methods and
-fields are rejected (§5). At the detail level they are accepted but contain no type,
-so the result is empty.
+fields are rejected (§5). At the detail level they are accepted and narrow the scope
+to that member, as in
+[`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
+`fromId = Money#times(int)` lists who calls `times`.
 
 **`toId`** restricts the users to this subtree, turning "what uses `money`" into
 "what does `billing` use of `money`". It is optional at the type level and required at

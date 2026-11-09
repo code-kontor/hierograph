@@ -89,8 +89,12 @@ class ParquetDetailDependencies(
 
         val queryHash = QueryHash.of(mapOf("fromId" to fromId, "toId" to toId, "relationship" to effectiveRel, "detailLevel" to "detail"))
 
-        val fromTypes = expandScope(fromNode)
-        val toTypes = expandScope(toNode)
+        // A member scope (method or field) is its declaring type's scope, narrowed below to the rows whose
+        // endpoint on that side is the member itself.
+        val fromMember = memberKeyOf(fromNode)
+        val toMember = memberKeyOf(toNode)
+        val fromTypes = expandScope(scopeOf(fromNode))
+        val toTypes = expandScope(scopeOf(toNode))
         if (fromTypes.isEmpty() || toTypes.isEmpty()) return emptyResult(fromNode, toNode, effectiveRel)
 
         // Pull the whole scoped edge set (own pagination below), then keep only edges whose endpoint
@@ -101,7 +105,10 @@ class ParquetDetailDependencies(
         val raw = DetailQueryEngine(parquetDir)
             .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, relationship = effectiveRel, limit = Int.MAX_VALUE))
             .edges + graphService.derivedDetailRefs(fromTypes, toTypes, effectiveRel)
-        val edges = raw.filter { typeHandle(it.fromType) != null && typeHandle(it.toType) != null }
+        val edges = raw.filter {
+            typeHandle(it.fromType) != null && typeHandle(it.toType) != null &&
+                (fromMember == null || it.fromKey == fromMember) && (toMember == null || it.toKey == toMember)
+        }
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
         fun endpointHandle(key: String, type: String): Long =
@@ -199,6 +206,14 @@ class ParquetDetailDependencies(
         val d = display[key]
         putSlimNode(nodes, handle, d?.name ?: key.substringAfterLast('#'), d?.qualifiedName ?: key, d?.kind ?: "unknown")
     }
+
+    /** The member key (`<owner fqn>#<signature>`) of a method or field node; `null` for any other node. */
+    private fun memberKeyOf(node: HGNode): String? =
+        if (node.kind in JavaKinds.MEMBER_KINDS) NodeMetadata.getQualifiedName(node) else null
+
+    /** The node whose subtree defines the scope: a member's declaring type, otherwise the node itself. */
+    private fun scopeOf(node: HGNode): HGNode =
+        if (node.kind in JavaKinds.MEMBER_KINDS) graphService.model.hierarchy.parentOf(node) ?: node else node
 
     /** Collects type FQNs in [node]'s subtree plus their transitive supertypes (the detail scope). */
     private fun expandScope(node: HGNode): Set<String> {

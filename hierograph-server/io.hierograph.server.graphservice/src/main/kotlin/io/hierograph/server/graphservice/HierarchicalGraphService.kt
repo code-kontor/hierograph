@@ -365,6 +365,17 @@ class HierarchicalGraphService {
         snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), generation = graphGen.incrementAndGet()))
     }
 
+    /**
+     * Loads the Parquet snapshot in [dir] as the current graph, together with its detail source, exactly
+     * as `parquet` mode does, but without Spring configuration. Intended, like [seed], for non-Spring
+     * construction in tests that need the detail tools; production code loads via [init] / [reload].
+     */
+    fun seedFromParquet(dir: Path) {
+        val built = buildFromParquet(dir)
+        snapshotRef.set(built.snapshot)
+        built.publishDetail()
+    }
+
     /** Build a fresh snapshot, logging progress (and the debug dump if enabled). Detail is published by the caller. */
     private fun loadSnapshot(): Built {
         log.info("Creating hierarchical graph ({} source)...", graphSource)
@@ -417,8 +428,7 @@ class HierarchicalGraphService {
      * `parquet` mode: read the Parquet tables into a [GraphStore] and bridge to an [HGModel]. Detail is
      * published synchronously (post-swap) with the same generation, so it is ready at once.
      */
-    private fun buildFromParquet(): Built {
-        val dir = snapshotDir()
+    private fun buildFromParquet(dir: Path = snapshotDir()): Built {
         val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
         val reader = ParquetReader()
         reader.load(dir, store)

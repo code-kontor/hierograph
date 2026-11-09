@@ -52,7 +52,8 @@ class OutgoingDependenciesTool(
                 "Return the edges from a source subtree to a target subtree. This is the evidence " +
                 "tool — use after an aggregated query reveals a dependency of interest. " +
                 "detailLevel='type' (default) returns type-to-type edges from the in-memory model (fast). " +
-                "detailLevel='detail' returns method/field-level edges with source locations (slower). " +
+                "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
+                "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
                 "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size — they give the shape without " +
@@ -365,7 +366,7 @@ class OutgoingDependenciesTool(
                     "declaring_type" to if (declaringType != null)
                         nodeRefFactory.minimalNodeRef(declaringType) else null,
                     "recovery" to "Pass the declaring type's id (${declaringType?.identifier}), " +
-                            "or use detailLevel='detail' on the declaring type for member-level evidence."
+                            "or use detailLevel='detail', which accepts this member's id."
                 )
             )
         }
