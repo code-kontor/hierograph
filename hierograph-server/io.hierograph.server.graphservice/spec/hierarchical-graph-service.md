@@ -138,8 +138,25 @@ event thread):
   modules are not re-scanned. An output directory that appears (a module compiled
   for the first time) is scanned and added; one that disappears drops the
   module's classes.
-- **The manifest itself changed** (module set or classpath) → re-read it fully,
-  rebuild, and re-target the watcher at the new module set.
+- **The manifest itself changed** (module set or classpath) → apply it as a diff
+  against the cached scans, rebuild, and re-target the watcher at the new module
+  set. The diff is keyed by output (`<gav>`, or `<gav>:test`):
+
+  | Output | Effect |
+  |--------|--------|
+  | removed | its scan and classpath are dropped |
+  | added | declared; scanned if its directory exists |
+  | output directory moved, or contents changed since its scan | rescanned |
+  | otherwise (including a classpath or name change) | the cached scan is reused |
+
+  A classpath change alone needs no rescan: a scan depends only on the output's
+  key and directory, and classpaths are applied when the graph is built. A
+  renamed module is a removal plus an addition. Each scan records a signature of
+  its directory, a fold of `(path, size, mtime)` over its `.class` files, taken
+  just before the scan. The contents check compares it with the directory's
+  current signature. This check is needed because the watcher re-baselines when
+  it is re-targeted: classes the same build compiled before that point are never
+  reported as a change. An explicit `reload` still rescans every module.
 
 Watch mode is `polling` (default), `native`, or `off`, with configurable poll
 interval and a settle delay that coalesces a burst of edits into one rebuild. The

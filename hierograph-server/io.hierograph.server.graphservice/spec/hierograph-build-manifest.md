@@ -202,7 +202,8 @@ In manifest mode the server:
    classes change, rebuilding the graph from the cached union. A directory that
    appears is scanned and added; one that disappears (`mvn clean`) drops the
    module's classes but keeps the declaration. It also watches the manifest file
-   and, when it changes, re-reads it and re-targets the watcher.
+   and, when it changes, applies it as a diff against the cached scans (only
+   added, moved or changed outputs are scanned) and re-targets the watcher.
 
 When no declared output exists at startup (a fresh clone), the server starts
 without a graph but keeps watching, and builds the graph when the first output

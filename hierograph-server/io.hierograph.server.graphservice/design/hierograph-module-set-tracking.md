@@ -12,11 +12,11 @@ makes to the plugin, the manifest and the server. It is a design document, not a
 specification: it describes intended behaviour. Once implemented, its content
 moves into the specifications listed in §9 and this file is deleted.
 
-**Status.** Parts A and B are implemented and specified in the
+**Status.** Parts A, B and D are implemented and specified in the
 [build manifest](../spec/hierograph-build-manifest.md),
 [hierarchical graph service](../spec/hierarchical-graph-service.md) and
 [Maven plugin](../../../hierograph-maven-plugin/spec/hierograph-maven-plugin.md)
-specifications. Parts C and D are open.
+specifications. Part C is open.
 
 ---
 
@@ -355,12 +355,19 @@ current `Scanned`, keyed by declared output key:
 | removed | drop its scan and classpath |
 | added | declare it; scan it if its directory exists |
 | output directory changed | rescan |
+| classes changed on disk since the scan | rescan |
 | classpath or name changed | replace the classpath or name; **no rescan** |
 | unchanged | keep the scan |
 
 **Why classpath changes need no rescan.** `scanModule(key, dir)` depends only on
 the key and the directory. Classpaths are applied when the graph is built, by the
 classpath-order type resolver, so a classpath change only requires a rebuild.
+
+**Why a changed directory rescans.** The watcher re-baselines when it is
+re-targeted after a manifest change. Classes the same build compiled before that
+point are never reported as a change, so each scan records a signature of its
+directory (`(path, size, mtime)` over its `.class` files) and the diff rescans a
+kept output whose signature differs.
 
 **Why a rename rescans.** A GAV change is a removal plus an addition. The key is
 part of every scanned fact, so the module is rescanned under its new key.
