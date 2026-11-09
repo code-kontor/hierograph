@@ -15,12 +15,12 @@
  */
 package io.hierograph.graphstore.jvm.detail
 
-import dev.hardwood.InputFile
 import dev.hardwood.reader.FilterPredicate
 import dev.hardwood.reader.ParquetFileReader
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.parquet.ParquetSchema
+import io.hierograph.graphstore.jvm.parquet.SnapshotSources
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import java.nio.file.Files
@@ -86,28 +86,33 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
     private fun typeKindDisplay(kind: Any): String = (kind as? JavaNodeKind)?.value ?: kind.toString()
 }
 
-/** Reads `(name, kind)` for a bounded set of member keys from `members.parquet`, via push-down. */
+/**
+ * Reads `(name, kind)` for a bounded set of member keys from `members.parquet` across every artifact of
+ * the snapshot at [membersDir][readByKeys], via push-down.
+ */
 internal object MemberDisplayReader {
 
     data class MemberDisplay(val name: String, val kind: String)
 
     fun readByKeys(membersDir: Path, keys: Collection<String>): Map<String, MemberDisplay> {
-        val path = membersDir.resolve(ParquetSchema.MEMBERS_FILE)
-        if (keys.isEmpty() || !Files.exists(path)) return emptyMap()
+        if (keys.isEmpty()) return emptyMap()
         val out = HashMap<String, MemberDisplay>(keys.size * 2)
-        ParquetFileReader.open(InputFile.of(path)).use { reader ->
-            reader.buildRowReader()
-                .filter(FilterPredicate.`in`(ParquetSchema.Members.MEMBER_KEY, *keys.toTypedArray()))
-                .build().use { rowReader ->
-                    val schema = reader.fileSchema
-                    val iKey = schema.getColumn(ParquetSchema.Members.MEMBER_KEY).columnIndex()
-                    val iName = schema.getColumn(ParquetSchema.Members.NAME).columnIndex()
-                    val iKind = schema.getColumn(ParquetSchema.Members.KIND).columnIndex()
-                    while (rowReader.hasNext()) {
-                        rowReader.next()
-                        out[rowReader.getString(iKey)] = MemberDisplay(rowReader.getString(iName), rowReader.getString(iKind))
+        for (source in SnapshotSources.of(membersDir)) {
+            val input = source.table(ParquetSchema.MEMBERS_FILE) ?: continue
+            ParquetFileReader.open(input).use { reader ->
+                reader.buildRowReader()
+                    .filter(FilterPredicate.`in`(ParquetSchema.Members.MEMBER_KEY, *keys.toTypedArray()))
+                    .build().use { rowReader ->
+                        val schema = reader.fileSchema
+                        val iKey = schema.getColumn(ParquetSchema.Members.MEMBER_KEY).columnIndex()
+                        val iName = schema.getColumn(ParquetSchema.Members.NAME).columnIndex()
+                        val iKind = schema.getColumn(ParquetSchema.Members.KIND).columnIndex()
+                        while (rowReader.hasNext()) {
+                            rowReader.next()
+                            out[rowReader.getString(iKey)] = MemberDisplay(rowReader.getString(iName), rowReader.getString(iKind))
+                        }
                     }
-                }
+            }
         }
         return out
     }

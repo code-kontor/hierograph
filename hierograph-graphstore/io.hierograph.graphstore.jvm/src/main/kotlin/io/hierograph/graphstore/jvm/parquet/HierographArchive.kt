@@ -17,7 +17,6 @@ package io.hierograph.graphstore.jvm.parquet
 
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -33,9 +32,8 @@ import java.util.zip.ZipOutputStream
  * **exploded** form; a snapshot directory may hold artifacts in either form.
  *
  * Entries are **STORED** (not re-compressed): the Parquet tables are already ZSTD-compressed, so deflating
- * them again only burns CPU. On read, archives are [extracted] to a temp directory once and cached by
- * (path, last-modified), so repeated scoped reads during a session pay the unzip cost a single time and a
- * changed snapshot (e.g. after a re-scan) is re-extracted automatically.
+ * them again only burns CPU. It also keeps every table a contiguous byte range of the archive, which is
+ * what lets readers use an archive in place, without extracting it (see [SnapshotSources]).
  */
 object HierographArchive {
 
@@ -84,11 +82,4 @@ object HierographArchive {
         }
     }
 
-    /** The extracted table directory for [archive], unzipped once and cached by (path, last-modified). */
-    fun extracted(archive: Path): Path =
-        cache.computeIfAbsent("$archive|${Files.getLastModifiedTime(archive).toMillis()}") {
-            Files.createTempDirectory("hierograph-").also { unzip(archive, it) }
-        }
-
-    private val cache = ConcurrentHashMap<String, Path>()
 }

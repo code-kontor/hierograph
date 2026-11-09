@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /**
  * Per-artifact `.hierograph` round-trip: [ParquetWriter.writeArtifacts] emits one archive per artifact,
@@ -130,6 +132,78 @@ class HierographRoundTripTest {
         assertThat(reader.readDetailRefs(dir).toSet()).isEqualTo(detailRefs)
         assertThat(reader.readMember(dir, "com.a.A#foo(java.lang.String)")!!.parameters.map { it.name })
             .containsExactly("x")
+    }
+
+    @Test
+    fun `a collect container is read in place, in a snapshot directory or on its own`(@TempDir dir: Path) {
+        val artifacts = dir.resolve("artifacts")
+        ParquetWriter.writeArtifacts(artifacts, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDetailRefs(artifacts).toSet()
+
+        val snapshot = Files.createDirectories(dir.resolve("snapshot"))
+        val container = snapshot.resolve("project-collect.hierograph")
+        HierographArchive.zip(artifacts, container)
+
+        assertReadsBoth(snapshot, archived)
+        assertReadsBoth(container, archived)
+    }
+
+    @Test
+    fun `an archive with deflated entries is read`(@TempDir dir: Path) {
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDetailRefs(dir).toSet()
+
+        for (name in listOf("a.hierograph", "b.hierograph")) deflate(dir.resolve(name))
+        assertReadsBoth(dir, archived)
+    }
+
+    @Test
+    fun `reading archives creates no files`(@TempDir dir: Path) {
+        val snapshot = dir.resolve("snapshot")
+        ParquetWriter.writeArtifacts(snapshot, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        val tmp = Path.of(System.getProperty("java.io.tmpdir"))
+        val tmpBefore = hierographEntries(tmp)
+        val snapshotBefore = Files.walk(dir).use { it.toList() }.toSet()
+
+        assertReadsBoth(snapshot, ParquetReader().readDetailRefs(snapshot).toSet())
+        ParquetReader().readClasspath(snapshot)
+
+        assertThat(hierographEntries(tmp)).isEqualTo(tmpBefore)
+        assertThat(Files.walk(dir).use { it.toList() }.toSet()).isEqualTo(snapshotBefore)
+    }
+
+    @Test
+    fun `a replaced archive is read anew and a deleted one is dropped`(@TempDir dir: Path) {
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        assertThat(ParquetReader().readDetailRefs(dir)).hasSize(2)
+
+        // rewrite b without its detail ref: the cached index of the old b.hierograph must not be used
+        Files.delete(dir.resolve("b.hierograph"))
+        ParquetWriter.writeArtifacts(dir, classes.filter { it.artifactKey == "b.jar" }, emptyList(), CompressionCodec.UNCOMPRESSED)
+        assertThat(ParquetReader().readDetailRefs(dir).map { it.relationship }).containsExactly("returns")
+
+        Files.delete(dir.resolve("b.hierograph"))
+        val store = GraphStore()
+        ParquetReader().load(dir, store)
+        assertThat(store.typeByFqn("com.a.A")).isNotNull()
+        assertThat(store.typeByFqn("com.b.B")).isNull()
+    }
+
+    private fun hierographEntries(dir: Path): Set<String> =
+        Files.list(dir).use { s -> s.map { it.fileName.toString() }.filter { it.startsWith("hierograph-") }.toList() }.toSet()
+
+    /** Repacks [archive] with DEFLATED entries, as a tool other than Hierograph might. */
+    private fun deflate(archive: Path) {
+        val tables = archive.resolveSibling(archive.fileName.toString() + ".tables")
+        HierographArchive.unzip(archive, tables)
+        ZipOutputStream(Files.newOutputStream(archive)).use { zos ->
+            Files.list(tables).use { it.sorted().toList() }.forEach { f ->
+                zos.putNextEntry(ZipEntry(f.fileName.toString()).apply { method = ZipEntry.DEFLATED })
+                Files.copy(f, zos)
+                zos.closeEntry()
+            }
+        }
+        Files.walk(tables).use { p -> p.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
     }
 
     @Test
