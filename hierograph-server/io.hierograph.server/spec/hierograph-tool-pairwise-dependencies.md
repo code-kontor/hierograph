@@ -74,7 +74,6 @@ cell list follows it.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `nodeIds` | array of node ids | yes | — | The nodes of the matrix, 2 to 1,000 |
-| `direction` | string | no | `"both"` | How `from` and `to` are labelled: `"both"`, `"outgoing"` or `"incoming"` |
 | `edgeSort` | string | no | `"dsm"` | Order of the edge list: `"dsm"` or `"weight_desc"` |
 | `minWeight` | integer | no | `1` | Smallest weight an edge must have to be listed |
 | `limit` | integer | no | `25` | Edges per page, clamped to 1–200 |
@@ -89,12 +88,6 @@ node is attributed to whichever of the two comes later in `nodeIds`, so the cell
 depend on the input order and mean little. At least two nodes are needed for a
 matrix; more than 1,000 are refused, because the cycle analysis and the summary grow
 with the node count.
-
-**`direction`** controls only the labelling of the edges. Every value lists the same
-edges with the same weights. With `"both"` and `"outgoing"`, `from` is the depending
-node and `to` the depended-upon node. With `"incoming"`, `from` and `to` are swapped,
-which suits a caller that reads the matrix by column ("who depends on me"). The
-summary does not change. Values outside the three are rejected.
 
 **`edgeSort`** chooses the order of the edge list. `"dsm"` follows the matrix: by row,
 then by column, in the node order of §3.2, so an acyclic set lists only cells on one
@@ -113,7 +106,7 @@ small. Values are clamped as described in
 [Parameters](hierograph-mcp-tools.md#5-parameters).
 
 **`cursor`** continues an edge list. It is bound to this tool, to `nodeIds` (in their
-given order), `direction`, `edgeSort` and `minWeight`, and to the loaded graph; see
+given order), `edgeSort` and `minWeight`, and to the loaded graph; see
 [Cursors](hierograph-mcp-tools.md#72-cursors). `limit` may change between pages.
 
 ---
@@ -312,8 +305,8 @@ not a layering.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `from` | node id | The depending node; the depended-upon node when `direction` is `"incoming"` |
-| `to` | node id | The depended-upon node; the depending node when `direction` is `"incoming"` |
+| `from` | node id | The depending node |
+| `to` | node id | The depended-upon node |
 | `weight` | integer | Summed weight of the type-level dependencies in the cell |
 | `type_pair_count` | integer | Number of distinct type pairs in the cell |
 | `attributes` | object | The four attribute flags, each `true` or `false` |
@@ -338,7 +331,7 @@ is returned.
 |------|-----------|--------------|
 | `INPUT_TOO_SMALL` | fewer than 2 ids in `nodeIds` | — |
 | `INPUT_TOO_LARGE` | more than 1,000 ids in `nodeIds` | `node_count`, `max_nodes` |
-| `INVALID_PARAMETER` | `direction` or `edgeSort` outside its value set | — |
+| `INVALID_PARAMETER` | `edgeSort` outside its value set | — |
 | `NODE_NOT_FOUND` | an id names no node | — |
 | `INVALID_NODE_KIND` | an id names a method or a field | `actual_kind`, `declaring_type` |
 | cursor codes | the cursor is malformed, from another tool, or stale | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
@@ -375,7 +368,7 @@ The first page holds the heaviest edges.
 enough to read. The summary still describes the full matrix.
 
 **Draw the full matrix.** Walk all pages with `edgeSort = "dsm"`, keeping `nodeIds`,
-`direction`, `edgeSort` and `minWeight` unchanged, and place each edge in the row of
+`edgeSort` and `minWeight` unchanged, and place each edge in the row of
 `from` and the column of `to`, using the order of `nodes`.
 
 **Explain one cell.** Pass its two ids to
@@ -390,11 +383,11 @@ behind the weight 6.
 1. **Full-set summary.** `node_count`, `edge_count`, `density`, the components and
    `topological_order` describe the full matrix, independent of `minWeight`, `limit`
    and the page.
-2. **Topological order.** When `topological_order` is present, every dependency goes
-   from an earlier node in it to a later one: from `from` to `to` for `"both"` and
-   `"outgoing"`, from `to` to `from` for `"incoming"`.
-3. **Same edges in every direction.** `direction` changes only the labels; the set of
-   edges and their weights are the same for all three values.
+2. **Topological order.** When `topological_order` is present, every edge goes from an
+   earlier node in it (`from`) to a later one (`to`).
+3. **One reading.** Every edge reads depending node (`from`) → depended-upon node
+   (`to`), as in every other dependency tool. A caller that reads the matrix by
+   column swaps the two itself.
 4. **No self-edges.** No edge has the same node as `from` and `to`.
 5. **Deterministic pages.** For the same graph and parameters, the edge list has the
    same order, so a cursor walk returns every matching edge exactly once.

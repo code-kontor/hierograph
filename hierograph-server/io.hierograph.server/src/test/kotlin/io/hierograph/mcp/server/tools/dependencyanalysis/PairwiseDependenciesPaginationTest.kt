@@ -104,7 +104,7 @@ class PairwiseDependenciesPaginationTest {
 
     @Test
     fun `first page carries the global summary, nodes map, and topological order`() {
-        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, null, null)
+        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, null)
 
         assertThat(resp).containsKeys("nodes", "summary", "edges")
         val s = summary(resp)
@@ -120,12 +120,12 @@ class PairwiseDependenciesPaginationTest {
 
     @Test
     fun `continuation page omits the summary and nodes map`() {
-        val first = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, 2, null)
+        val first = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, 2, null)
         assertThat(edges(first)).hasSize(2)
         assertThat(first["next_cursor"]).isNotNull()
 
         val second = tool.pairwiseDependencies(
-            listOf(pA, pB, pC), null, null, null, 2, first["next_cursor"] as String?
+            listOf(pA, pB, pC), null, null, 2, first["next_cursor"] as String?
         )
         assertThat(edges(second)).hasSize(1)
         assertThat(second).doesNotContainKey("summary")
@@ -139,7 +139,7 @@ class PairwiseDependenciesPaginationTest {
         var cursor: String? = null
         var pages = 0
         do {
-            val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, 2, cursor)
+            val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, 2, cursor)
             edges(resp).forEach { seen.add((it["from"] as Long) to (it["to"] as Long)) }
             cursor = resp["next_cursor"] as String?
             pages++
@@ -154,13 +154,13 @@ class PairwiseDependenciesPaginationTest {
 
     @Test
     fun `weight_desc orders edges heaviest first`() {
-        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, "weight_desc", null, null, null)
+        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), "weight_desc", null, null, null)
         assertThat(weights(resp)).containsExactly(3, 2, 1)
     }
 
     @Test
     fun `min_weight filters the edge list but leaves the summary analytics intact`() {
-        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, "weight_desc", 2, null, null)
+        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), "weight_desc", 2, null, null)
 
         // edge list is filtered to weight >= 2
         assertThat(weights(resp)).containsExactly(3, 2)
@@ -197,7 +197,7 @@ class PairwiseDependenciesPaginationTest {
         val cyclicTool = build(HGModel(graph, hierarchy))
 
         val resp = cyclicTool.pairwiseDependencies(
-            listOf(packageX.identifier as Long, packageY.identifier as Long), null, null, null, null, null
+            listOf(packageX.identifier as Long, packageY.identifier as Long), null, null, null, null
         )
 
         val s = summary(resp)
@@ -213,29 +213,29 @@ class PairwiseDependenciesPaginationTest {
 
     @Test
     fun `changing min_weight mid-pagination surfaces STALE_CURSOR_QUERY`() {
-        val first = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, 2, null)
+        val first = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, 2, null)
         val cursor = first["next_cursor"] as String?
         // same node set, different min_weight → different query identity
-        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, 2, 2, cursor)
+        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, 2, 2, cursor)
         assertThat(errorCode(resp)).isEqualTo("STALE_CURSOR_QUERY")
     }
 
     @Test
     fun `a malformed cursor surfaces INVALID_CURSOR_FORMAT`() {
-        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, 2, "!!nope!!")
+        val resp = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, 2, "!!nope!!")
         assertThat(errorCode(resp)).isEqualTo("INVALID_CURSOR_FORMAT")
     }
 
     @Test
     fun `fewer than two nodes is rejected before any node lookup`() {
-        val resp = tool.pairwiseDependencies(listOf(pA), null, null, null, null, null)
+        val resp = tool.pairwiseDependencies(listOf(pA), null, null, null, null)
         assertThat(errorCode(resp)).isEqualTo("INPUT_TOO_SMALL")
     }
 
     @Test
     fun `exceeding the soft node cap is rejected before any node lookup`() {
         // size check precedes resolution, so non-existent ids are fine here
-        val resp = tool.pairwiseDependencies((1L..1001L).toList(), null, null, null, null, null)
+        val resp = tool.pairwiseDependencies((1L..1001L).toList(), null, null, null, null)
         assertThat(errorCode(resp)).isEqualTo("INPUT_TOO_LARGE")
         @Suppress("UNCHECKED_CAST")
         assertThat((resp["error"] as Map<String, Any?>)["max_nodes"]).isEqualTo(1000)

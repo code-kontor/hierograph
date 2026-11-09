@@ -84,12 +84,6 @@ class PairwiseDependenciesTool(
         @ToolParam(description = "List of subtree IDs to analyze pairwise (2+; typically modules or packages).")
         nodeIds: List<Long>,
         @ToolParam(
-            description = "How edges are labelled; every value lists the same edges. 'both' (default) and " +
-                    "'outgoing' give each edge as depender (from) -> depended-upon (to); 'incoming' swaps from and to.",
-            required = false
-        )
-        direction: String?,
-        @ToolParam(
             description = "Edge ordering for the paginated list: 'dsm' (default, matrix reading order) " +
                     "or 'weight_desc' (heaviest coupling first). Does not affect the summary.",
             required = false
@@ -142,15 +136,6 @@ class PairwiseDependenciesTool(
             )
         }
 
-        // ── validate direction ─────────────────────────────────────────
-        val effectiveDirection = direction ?: "both"
-        if (effectiveDirection !in DIRECTIONS) {
-            return invalidParam(
-                "Invalid direction: '$effectiveDirection'. Must be 'both', 'outgoing', or 'incoming'.",
-                "Use 'both' for standard DSM, 'outgoing' for row→column, 'incoming' for column→row."
-            )
-        }
-
         // ── validate edgeSort ─────────────────────────────────────────
         val effectiveSort = edgeSort ?: "dsm"
         if (effectiveSort !in EDGE_SORTS) {
@@ -177,16 +162,13 @@ class PairwiseDependenciesTool(
 
         // ── build the complete (unfiltered) edge list — one linear pass ─
         val aggregated = GraphUtils.computePairwiseAggregation(orderedNodes, hierarchy)
+        // computePairwiseAggregation yields i→j (i depends on j): every edge reads depender → depended-upon.
         val allEdges = aggregated.map { e ->
-            // computePairwiseAggregation yields i→j (i depends on j); "incoming" transposes the labels.
-            val transpose = effectiveDirection == "incoming"
-            val fromIdx = if (transpose) e.toIndex else e.fromIndex
-            val toIdx = if (transpose) e.fromIndex else e.toIndex
             DsmEdge(
-                fromId = orderedNodes[fromIdx].identifier,
-                toId = orderedNodes[toIdx].identifier,
-                fromIdx = fromIdx,
-                toIdx = toIdx,
+                fromId = orderedNodes[e.fromIndex].identifier,
+                toId = orderedNodes[e.toIndex].identifier,
+                fromIdx = e.fromIndex,
+                toIdx = e.toIndex,
                 weight = e.weight,
                 typePairCount = e.typePairCount,
                 attributesBitmap = e.attributesBitmap
@@ -207,7 +189,6 @@ class PairwiseDependenciesTool(
         val queryHash = QueryHash.of(
             mapOf(
                 "nodeIds" to nodeIds, // verbatim: order can influence tie-broken edge order
-                "direction" to effectiveDirection,
                 "edgeSort" to effectiveSort,
                 "minWeight" to effectiveMinWeight
             )
@@ -310,7 +291,6 @@ class PairwiseDependenciesTool(
 
     companion object {
         private const val MAX_NODES = 1000
-        private val DIRECTIONS = setOf("both", "outgoing", "incoming")
         private val EDGE_SORTS = setOf("dsm", "weight_desc")
 
         /** Pagination policy for pairwise_dependencies (~250 bytes/edge): default 25, server cap 200. */
