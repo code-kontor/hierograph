@@ -303,7 +303,9 @@ The detail example of §3.3 with `limit = 1`:
       { "node": 4712, "aggregated_weight": 2 },
       { "node": 4713, "aggregated_weight": 1 }
     ],
-    "by_target_nodes": []
+    "by_target_nodes": [
+      { "node": 4730, "aggregated_weight": 6 }
+    ]
   },
   "next_cursor": "eyJ2IjoxLCJ0b29sIjoiaW5jb21pbmdfZGVwZW5kZW5jaWVzIiwi…"
 }
@@ -328,9 +330,9 @@ the exchanged scopes:
 
 **`from_scope`** and **`to_scope`** are the reason a caller can read this response
 without remembering the exchange: they name the depender and the depended-upon side
-explicitly. In the example, `by_target_nodes` is empty because the drill-down from
-`money` passes its only child `Money` and reaches `Money`'s members, which carry no
-type-level weight.
+explicitly. In the example, `by_target_nodes` drills into `money`, the `fromId` side:
+its only child is the type `Money`, so the drill-down lists `Money` with its weight
+from `billing`, 6.
 
 ---
 

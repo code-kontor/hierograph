@@ -20,8 +20,8 @@ import io.hierograph.graphstore.jvm.detail.DetailQuery
 import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
 import io.hierograph.graphstore.jvm.detail.NodeDisplay
 import io.hierograph.graphstore.jvm.model.DetailRef
-import io.hierograph.hierarchicalgraph.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 import io.hierograph.graphstore.jvm.model.JavaKinds
@@ -134,8 +134,9 @@ class ParquetDetailDependencies(
         // --- summaries over the hierarchy (model-only) + node display --------------------
         val enricher = DetailEnricher(store, parquetDir)
         val display = enricher.nodesFor(page.items.map { it.ref })
-        val bySourceNodes = computeDrillDown(fromNode) { child -> graphService.model.hierarchy.getAggregatedDependency(child, toNode) }
-        val byTargetNodes = computeDrillDown(toNode) { child -> graphService.model.hierarchy.getAggregatedDependency(fromNode, child) }
+        val hierarchy = graphService.model.hierarchy
+        val bySourceNodes = drillDown(hierarchy, fromNode) { child -> hierarchy.getAggregatedDependency(child, toNode)?.aggregatedWeight ?: 0 }
+        val byTargetNodes = drillDown(hierarchy, toNode) { child -> hierarchy.getAggregatedDependency(fromNode, child)?.aggregatedWeight ?: 0 }
 
         val nodes = linkedMapOf<String, Any>()
         putSlimNode(nodes, fromNode)
@@ -219,16 +220,6 @@ class ParquetDetailDependencies(
     }
 
     /** Drill down from [node] to the first multi-child level and weight each child by [dep] to the other scope. */
-    private fun computeDrillDown(node: HGNode, dep: (HGNode) -> AggregatedDependency?): List<Map<String, Any?>> {
-        val hierarchy = graphService.model.hierarchy
-        var current = node
-        while (hierarchy.childrenOf(current).size == 1) current = hierarchy.childrenOf(current)[0]
-        return hierarchy.childrenOf(current)
-            .map { it to (dep(it)?.aggregatedWeight ?: 0) }
-            .filter { it.second > 0 }
-            .sortedByDescending { it.second }
-            .map { (child, weight) -> linkedMapOf<String, Any?>("node" to (child.identifier as Long), "aggregated_weight" to weight) }
-    }
 
     private fun resolveNodeOrRoot(nodeId: Long): HGNode? {
         graphService.model.lookupNode(nodeId)?.let { return it }
@@ -258,7 +249,36 @@ class ParquetDetailDependencies(
     private fun error(code: String, message: String): Map<String, Any?> =
         linkedMapOf("error" to code, "message" to message)
 
-    private companion object {
+    internal companion object {
+
+        /**
+         * The drill-down of a scope ([node]) behind `by_source_nodes` / `by_target_nodes`: the next,
+         * narrower scopes a caller can query at type level. From [node] it descends while a container
+         * (root, module, package) has exactly one child that is itself a container, then weighs each
+         * package or type below that point with [weight] (its type-level aggregated weight to the other
+         * scope), drops zero weights and sorts by weight, highest first.
+         *
+         * The descent never enters a type: a type's children are members, which carry no type-level
+         * weight. A package holding a single type therefore lists that type, and a type scope has no
+         * narrower type-level scope, so its drill-down is empty.
+         */
+        fun drillDown(hierarchy: Hierarchy, node: HGNode, weight: (HGNode) -> Int): List<Map<String, Any?>> {
+            fun isType(n: HGNode) = JavaKinds.isTypeKind(n.kind)
+            var current = node
+            while (!isType(current)) {
+                val only = hierarchy.childrenOf(current).singleOrNull() ?: break
+                if (isType(only)) break
+                current = only
+            }
+            if (isType(current)) return emptyList()
+            return hierarchy.childrenOf(current)
+                .filter { it.kind !in JavaKinds.MEMBER_KINDS }
+                .map { it to weight(it) }
+                .filter { it.second > 0 }
+                .sortedByDescending { it.second }
+                .map { (child, w) -> linkedMapOf<String, Any?>("node" to (child.identifier as Long), "aggregated_weight" to w) }
+        }
+
         /** The relationship values accepted by the `relationship` filter. */
         private val RELATIONSHIP_KINDS = setOf(
             "throws", "raises", "returns", "has_type", "calls", "overrides", "reads_field", "writes_field",

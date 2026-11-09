@@ -237,10 +237,14 @@ every call, so pages are stable.
   given, its key is present even with a count of 0.
 - `by_source_type`: the depending types (`from_parent`) ranked by number of rows, top
   10, with `others_count` when more types exist.
-- `by_source_nodes` and `by_target_nodes`: a drill-down of each scope. From the scope
-  node, the tool descends while a node has exactly one child, then weighs each child
-  of that node by its type-level aggregated weight to the other scope. Children with
-  weight 0 are left out. These weights come from the type level, without the
+- `by_source_nodes` and `by_target_nodes`: a drill-down of each scope into the next,
+  narrower scopes. From the scope node, the tool descends while a module or package
+  has exactly one child that is itself a module or package, then weighs each package
+  or type below that point by its type-level aggregated weight to the other scope,
+  highest first. Children with weight 0 are left out. The descent stops at types,
+  because a type's members carry no type-level weight: a package holding a single
+  type lists that type, and a type scope has no narrower type-level scope, so its
+  drill-down is empty. These weights come from the type level, without the
   inheritance closure, so they need not match the row counts.
 
 ### 3.3 Worked example: type level
@@ -308,9 +312,9 @@ closure adds nothing.
 The summaries: `by_relationship` is `calls` 2, `has_type` 1, `parameter_type` 1,
 `returns` 2 (six rows). `by_source_type` is `Invoice` 3, `Invoice$Line` 2, `Ledger` 1.
 `by_source_nodes` descends from `billing`, which has three children, and weighs them
-by their type-level weight to `money`: 3, 2 and 1. `by_target_nodes` descends from
-`money` through its only child `Money` to `Money`'s members, which carry no type-level
-weight, and is therefore empty.
+by their type-level weight to `money`: 3, 2 and 1. `by_target_nodes` starts at
+`money`, whose only child is the type `Money`; the descent stops there and lists
+`Money` with its weight from `billing`, 6 (3 + 2 + 1).
 
 ---
 
@@ -455,7 +459,9 @@ The detail example of §3.4 with `limit = 3`:
       { "node": 4712, "aggregated_weight": 2 },
       { "node": 4713, "aggregated_weight": 1 }
     ],
-    "by_target_nodes": []
+    "by_target_nodes": [
+      { "node": 4730, "aggregated_weight": 6 }
+    ]
   },
   "next_cursor": "eyJ2IjoxLCJ0b29sIjoib3V0Z29pbmdfZGVwZW5kZW5jaWVzIiwi…"
 }

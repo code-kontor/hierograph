@@ -68,7 +68,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 3.1 | High | `by_source_nodes` and `by_target_nodes` are always empty for a type scope. The cause is that `computeDrillDown` descends through a single-child node into members, which have no type-level weight. A package holding exactly one type has the same problem. | `tools/detail/ParquetDetailDependencies.kt:222-231` |
+| 3.1 | Fixed | `by_source_nodes` and `by_target_nodes` descended through a single-child node into a type's members, which have no type-level weight, so a package holding one type gave an empty drill-down. The descent now stops at types and lists only packages and types. A type scope has no narrower type-level scope; its drill-down is empty by definition. | `tools/detail/ParquetDetailDependencies.kt` (`drillDown`) |
 | 3.2 | High | `direction` in `pairwise_dependencies` is not a filter. `outgoing` and `both` give identical output, and `incoming` only swaps `from` and `to`. | `tools/dependencyanalysis/PairwiseDependenciesTool.kt:146-194` |
 | 3.3 | Medium | Member ids are rejected at type level with `INVALID_NODE_KIND`. At detail level they give an empty result with no error. The recovery text used to send callers into that empty result. | `AggregatedDependenciesTool.kt:146-160`, `OutgoingDependenciesTool.kt:355-369`, `PairwiseDependenciesTool.kt:284-297` |
 | 3.4 | Medium | Nested or duplicate `nodeIds` in `pairwise_dependencies` are not rejected. Results depend on input order and can show spurious cycles; live, `[root, a module]` reports `has_cycles: true`. | `PairwiseDependenciesTool.kt:166-174`, `GraphUtils.kt:142-149` |
