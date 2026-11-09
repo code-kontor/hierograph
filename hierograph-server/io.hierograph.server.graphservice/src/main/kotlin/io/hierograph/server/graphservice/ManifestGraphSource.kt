@@ -36,9 +36,9 @@ import kotlin.io.path.isDirectory
 import kotlin.time.measureTimedValue
 
 /**
- * Scans the reactor modules named in a build manifest (`hierograph:merge-descriptors` → `.hierograph/manifest.json`)
- * — the server-owned replacement for the former plugin-side scan. The plugin only records what the build
- * tool knows (module layout + resolved classpath); the server runs the ASM [BytecodeScanner] itself.
+ * Scans the reactor modules named in a build manifest (`hierograph:create-descriptor` → `.hierograph/manifest.json`).
+ * The plugin only records what the build tool knows (module layout + resolved classpath); the server runs the
+ * ASM [BytecodeScanner] itself.
  *
  * Scans are held **per module** ([Scanned]) so a file-watch can rescan only what changed and the whole set
  * be rebuilt from the cached union. The caller composes the steps:
@@ -64,10 +64,24 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val origin: Origin = Origin.MODULE_MAIN,
     )
 
-    /** A parsed manifest: the per-module scans plus each module's resolved classpath (keyed by GAV). */
-    data class Scanned(val modules: Map<String, ModuleScan>, val classpaths: Map<String, ArtifactClasspath>) {
-        /** gav → (local) compiled-output directory (main or test), for the file watcher. */
-        val moduleDirs: Map<String, Path> get() = modules.mapValues { it.value.outputDir }
+    /**
+     * An output directory the manifest names, keyed like a [ModuleScan] (`<gav>`, or `<gav>:test`). The
+     * directory need not exist: a module not compiled yet is declared, watched, and scanned once its output
+     * appears.
+     */
+    data class DeclaredOutput(val gav: String, val name: String, val dir: Path, val origin: Origin)
+
+    /**
+     * A parsed manifest: the per-module scans, each module's resolved classpath (keyed by GAV), and every
+     * [declared] output directory, scanned or not.
+     */
+    data class Scanned(
+        val modules: Map<String, ModuleScan>,
+        val classpaths: Map<String, ArtifactClasspath>,
+        val declared: Map<String, DeclaredOutput> = emptyMap(),
+    ) {
+        /** gav → (local) compiled-output directory (main or test) of every declared output, for the file watcher. */
+        val moduleDirs: Map<String, Path> get() = declared.mapValues { it.value.dir } + modules.mapValues { it.value.outputDir }
 
         /** The union of every module's classes and detail refs — for [ingest] and [writeSnapshot]. */
         fun combined(): ScanResult = ScanResult(
@@ -102,6 +116,10 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      * output always, and test output additionally when [includeTests]. A test-only module (no main output,
      * e.g. an integration-test harness) is scanned from its test output when [includeTests] is set, instead
      * of being skipped.
+     *
+     * Every output directory the manifest names is [declared][Scanned.declared]; only those that exist are
+     * scanned. The result may hold no scans at all (nothing compiled yet), but the manifest must declare at
+     * least one output directory.
      */
     fun scan(manifestPath: Path, includeTests: Boolean = false): Scanned {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:create-descriptor hierograph:merge-descriptors`)" }
@@ -109,64 +127,74 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val remap = PathRemap(manifestPath, manifest.reactorRoot)
 
         val classpaths = LinkedHashMap<String, ArtifactClasspath>()
-        val modules = LinkedHashMap<String, ModuleScan>()
+        val declared = LinkedHashMap<String, DeclaredOutput>()
         for (module in manifest.modules) {
             val name = module.name.ifEmpty { module.gav }
             val mainCp = module.classpath.map { ClasspathEntry(it.gav, it.internal) }
             classpaths[module.gav] = ArtifactClasspath(module.gav, name, mainCp)
-            val mainDir = module.mainOutputDir?.let { remap.map(Path.of(it)) }?.takeIf { it.isDirectory() }
-            if (mainDir != null) {
-                modules[module.gav] = ModuleScan(module.gav, name, mainDir, scanModule(module.gav, mainDir), Origin.MODULE_MAIN)
-            }
+            val mainDir = module.mainOutputDir?.let { remap.map(Path.of(it)) }
+            if (mainDir != null) declared[module.gav] = DeclaredOutput(module.gav, name, mainDir, Origin.MODULE_MAIN)
 
-            var testScanned = false
             if (includeTests) {
                 val testDir = module.testOutputDir?.let { remap.map(Path.of(it)) }
-                if (testDir != null && testDir.isDirectory()) {
+                if (testDir != null) {
                     val testKey = "${module.gav}:test"
                     val testName = "$name (test)"
                     // Test types resolve against their own main output first (when the module has one), then the
-                    // module's full test classpath (all scopes). An older manifest without testClasspath falls back
-                    // to the main classpath, so test-scope deps (JUnit, …) resolve as external types. A test-only
-                    // module (no main output — e.g. an integration-test harness) simply has no self-main entry.
+                    // module's full test classpath (all scopes). A manifest without testClasspath falls back to the
+                    // main classpath, so test-scope deps (JUnit, …) resolve as external types. A test-only module
+                    // (no main output — e.g. an integration-test harness) simply has no self-main entry.
                     val testCp = module.testClasspath?.map { ClasspathEntry(it.gav, it.internal) } ?: mainCp
                     val selfMain = if (mainDir != null) listOf(ClasspathEntry(module.gav, internal = true)) else emptyList()
                     classpaths[testKey] = ArtifactClasspath(testKey, testName, selfMain + testCp)
-                    modules[testKey] = ModuleScan(testKey, testName, testDir, scanModule(testKey, testDir), Origin.MODULE_TEST)
-                    testScanned = true
+                    declared[testKey] = DeclaredOutput(testKey, testName, testDir, Origin.MODULE_TEST)
                 }
             }
+        }
+        require(declared.isNotEmpty()) {
+            "Manifest $manifestPath declares no module output directory (did `hierograph:create-descriptor` run?)"
+        }
 
-            if (mainDir == null && !testScanned) {
-                log.warn(
-                    "Manifest module {} has no scannable output (main={}); skipping. A test-only module is ingested only with includeTests=true.",
-                    module.gav, module.mainOutputDir,
-                )
+        val modules = LinkedHashMap<String, ModuleScan>()
+        for (output in declared.values) {
+            if (output.dir.isDirectory()) {
+                modules[output.gav] = scanOutput(output)
+            } else {
+                log.info("Output of {} not compiled yet ({}); watching for it", output.gav, output.dir)
             }
         }
-        require(modules.isNotEmpty()) {
-            "Manifest $manifestPath lists no module with compiled output to scan (did the reactor build run?)"
-        }
-        log.info("Scanned {} artifact(s) from manifest {} (includeTests={})", modules.size, manifestPath, includeTests)
-        return Scanned(modules, classpaths)
+        log.info(
+            "Scanned {} of {} declared artifact(s) from manifest {} (includeTests={})",
+            modules.size, declared.size, manifestPath, includeTests,
+        )
+        return Scanned(modules, classpaths, declared)
     }
 
     /**
      * Rescans only [changedGavs], returning a new [Scanned] with those modules replaced. A module whose
-     * output directory has disappeared is dropped (its classes then vanish from the rebuilt graph).
+     * output directory has disappeared is dropped (its classes then vanish from the rebuilt graph) but stays
+     * declared; a declared module whose output has appeared is scanned and added.
      */
     fun rescan(previous: Scanned, changedGavs: Set<String>): Scanned {
         val modules = LinkedHashMap(previous.modules)
         for (gav in changedGavs) {
-            val prev = previous.modules[gav] ?: continue
+            val prev = previous.modules[gav]
+            if (prev == null) {
+                val output = previous.declared[gav] ?: continue
+                if (output.dir.isDirectory()) modules[gav] = scanOutput(output)
+                continue
+            }
             if (!prev.outputDir.isDirectory()) {
                 modules.remove(gav)
                 continue
             }
             modules[gav] = prev.copy(result = scanModule(gav, prev.outputDir))
         }
-        return Scanned(modules, previous.classpaths)
+        return Scanned(modules, previous.classpaths, previous.declared)
     }
+
+    private fun scanOutput(output: DeclaredOutput): ModuleScan =
+        ModuleScan(output.gav, output.name, output.dir, scanModule(output.gav, output.dir), output.origin)
 
     private fun scanModule(gav: String, dir: Path): ScanResult {
         val (result, elapsed) = measureTimedValue { scanner.scan(listOf(ScanArtifact(gav, dir))) }

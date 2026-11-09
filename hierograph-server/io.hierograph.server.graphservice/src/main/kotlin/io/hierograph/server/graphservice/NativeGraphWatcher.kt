@@ -38,6 +38,11 @@ import java.util.concurrent.TimeUnit
  *
  * Raw events are coalesced: a module is reported only once no event has arrived for it for [settleMs], so
  * a burst of compiler writes becomes a single rescan.
+ *
+ * A native watch can only be registered on an existing directory. The flush tick therefore also checks
+ * which module directories exist: when one appears (a module compiled for the first time) or disappears
+ * (`mvn clean`), the module is reported as changed and the native watch is re-registered on the directories
+ * that exist now.
  */
 class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
 
@@ -54,6 +59,7 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
     private lateinit var moduleByDir: List<Pair<Path, String>> // (normalized dir, gav), longest path first
     private lateinit var manifestPath: Path
     private var manifestSig = 0L
+    private var watchedRoots: Set<Path> = emptySet() // the module directories the native watch is registered on
 
     override fun start(targets: WatchTargets, onChange: (Set<String>) -> Unit, onManifestChange: () -> Unit) {
         manifestPath = targets.manifest.toAbsolutePath().normalize()
@@ -62,18 +68,8 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
             .map { it.value.toAbsolutePath().normalize() to it.key }
             .sortedByDescending { it.first.toString().length }
 
-        val roots = moduleByDir.map { it.first }.filter { Files.isDirectory(it) }.distinct()
-        if (roots.isNotEmpty()) {
-            val w = DirectoryWatcher.builder()
-                .paths(roots)
-                .fileHashing(false) // we coalesce by settle; avoid hashing every class file
-                .listener { event -> onRawEvent(event) }
-                .build()
-            watcher = w
-            val we = Executors.newSingleThreadExecutor { r -> Thread(r, "hierograph-native-watcher").apply { isDaemon = true } }
-            watchExec = we
-            w.watchAsync(we)
-        }
+        watchExec = Executors.newSingleThreadExecutor { r -> Thread(r, "hierograph-native-watcher").apply { isDaemon = true } }
+        register(existingRoots())
 
         val tick = maxOf(50L, settleMs / 2)
         val fe = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hierograph-watch-flush").apply { isDaemon = true } }
@@ -82,7 +78,39 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
             { runCatching { flush(onChange, onManifestChange) }.onFailure { log.warn("Watch flush failed", it) } },
             tick, tick, TimeUnit.MILLISECONDS,
         )
-        log.info("Native watcher started on {} director(ies)", roots.size)
+        log.info("Native watcher started on {} of {} director(ies)", watchedRoots.size, moduleByDir.size)
+    }
+
+    private fun existingRoots(): Set<Path> = moduleByDir.map { it.first }.filterTo(LinkedHashSet()) { Files.isDirectory(it) }
+
+    /** (Re-)registers the native watch on [roots], replacing any previous registration. */
+    private fun register(roots: Set<Path>) {
+        runCatching { watcher?.close() }
+        watcher = null
+        watchedRoots = roots
+        val exec = watchExec ?: return
+        if (roots.isEmpty()) return
+        val w = DirectoryWatcher.builder()
+            .paths(roots.toList())
+            .fileHashing(false) // we coalesce by settle; avoid hashing every class file
+            .listener { event -> onRawEvent(event) }
+            .build()
+        watcher = w
+        w.watchAsync(exec)
+    }
+
+    /** Reports modules whose directory appeared or disappeared since the last tick, and re-registers. */
+    private fun checkRoots() {
+        val existing = existingRoots()
+        if (existing == watchedRoots) return
+        val flipped = (existing - watchedRoots) + (watchedRoots - existing)
+        log.info("Module output director(ies) appeared or disappeared: {}; re-registering the native watch", flipped)
+        register(existing)
+        val gavs = moduleByDir.filter { it.first in flipped }.map { it.second }
+        synchronized(lock) {
+            pending += gavs
+            lastEventAt = System.currentTimeMillis()
+        }
     }
 
     private fun onRawEvent(event: DirectoryChangeEvent) {
@@ -101,6 +129,7 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
             onManifestChange()
             return
         }
+        checkRoots()
         val drained: Set<String> = synchronized(lock) {
             if (pending.isEmpty() || System.currentTimeMillis() - lastEventAt < settleMs) emptySet()
             else HashSet(pending).also { pending.clear() }

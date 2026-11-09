@@ -21,6 +21,7 @@ import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -173,5 +174,72 @@ class ManifestGraphSourceTest {
         val itest = scanned.modules.getValue("$itestGav:test")
         assertThat(itest.origin).isEqualTo(Origin.MODULE_TEST)
         assertThat(itest.result.classes).`as`("test-only output scanned").isNotEmpty()
+    }
+
+    /** An output directory that does not exist yet is declared and watched, and scanned by `rescan` once it appears. */
+    @Test
+    fun `uncompiled module is declared and scanned once its output appears`(@TempDir tmp: Path) {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        assertThat(Files.isDirectory(classesDir)).`as`("main classes compiled").isTrue()
+
+        val gav = "io.hierograph:test-graphservice:0"
+        val outputDir = tmp.resolve("graphservice/target/classes")
+        // The manifest sits at <reactorRoot>/.hierograph/, so the recorded reactor root is the local one.
+        val manifest = Files.createDirectories(tmp.resolve(".hierograph")).resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """
+            {
+              "schemaVersion": 1,
+              "generator": "test",
+              "generatedAt": "2026-01-01T00:00:00Z",
+              "reactorRoot": "${tmp.toUri().path}",
+              "modules": [
+                {
+                  "gav": "$gav",
+                  "name": "graphservice",
+                  "mainOutputDir": "${outputDir.toUri().path}",
+                  "testOutputDir": null,
+                  "sourceRoots": [],
+                  "classpath": []
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        // Nothing compiled: no scan, but the output is declared and a watch target.
+        val source = ManifestGraphSource()
+        val before = source.scan(manifest)
+        assertThat(before.modules).isEmpty()
+        assertThat(before.declared.keys).containsExactly(gav)
+        assertThat(before.moduleDirs).containsEntry(gav, outputDir)
+
+        // The output appears (first compile) → rescan adds the module.
+        Files.walk(classesDir).use { paths ->
+            paths.forEach { p -> Files.copy(p, outputDir.resolve(classesDir.relativize(p).toString()).also { Files.createDirectories(it.parent) }) }
+        }
+        val after = source.rescan(before, setOf(gav))
+        assertThat(after.modules.keys).containsExactly(gav)
+        assertThat(after.modules.getValue(gav).result.classes).isNotEmpty()
+
+        // The output disappears again (`mvn clean`) → the scan is dropped, the declaration stays.
+        Files.walk(outputDir).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+        val cleaned = source.rescan(after, setOf(gav))
+        assertThat(cleaned.modules).isEmpty()
+        assertThat(cleaned.declared.keys).containsExactly(gav)
+    }
+
+    /** A manifest that declares no output directory at all is rejected. */
+    @Test
+    fun `manifest without any output directory is rejected`(@TempDir tmp: Path) {
+        val manifest = tmp.resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """{ "reactorRoot": "${tmp.toUri().path}", "modules": [ { "gav": "com.example:billing-core:1.4.0" } ] }""",
+        )
+        assertThatThrownBy { ManifestGraphSource().scan(manifest) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("declares no module output directory")
     }
 }

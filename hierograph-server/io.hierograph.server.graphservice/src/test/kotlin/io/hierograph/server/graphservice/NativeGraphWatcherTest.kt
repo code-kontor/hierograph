@@ -58,4 +58,34 @@ class NativeGraphWatcherTest {
             watcher.close()
         }
     }
+
+    @Test
+    fun `reports a module whose output directory appears and disappears`(@TempDir tmp: Path) {
+        val moduleDir = tmp.resolve("app/target/classes")
+        val manifest = Files.writeString(tmp.resolve("manifest.json"), "{}")
+
+        val changed = ConcurrentHashMap.newKeySet<String>()
+        val watcher = NativeGraphWatcher(settleMs = 150)
+        try {
+            watcher.start(WatchTargets(manifest, mapOf(gav to moduleDir)), onChange = { changed += it }, onManifestChange = {})
+
+            // First compile: the directory appears → reported, and the native watch now covers it.
+            Files.createDirectories(moduleDir.resolve("com/example"))
+            Files.write(moduleDir.resolve("com/example/New.class"), byteArrayOf(1, 2, 3))
+            await().atMost(Duration.ofSeconds(15)).untilAsserted { assertThat(changed).contains(gav) }
+
+            changed.clear()
+            Thread.sleep(300) // let the re-registered watch settle before the next event
+            Files.write(moduleDir.resolve("com/example/Other.class"), byteArrayOf(4, 5, 6))
+            await().atMost(Duration.ofSeconds(15)).untilAsserted { assertThat(changed).contains(gav) }
+
+            // `mvn clean`: the directory disappears → reported again.
+            changed.clear()
+            Files.walk(moduleDir).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            await().atMost(Duration.ofSeconds(15)).untilAsserted { assertThat(changed).contains(gav) }
+        } finally {
+            watcher.close()
+        }
+    }
 }
+

@@ -41,7 +41,8 @@ internal data class ClasspathEntry(
  * into the manifest by `hierograph:merge-descriptors`. Only the build tool knows these facts (module layout
  * + the already-resolved classpaths), so the plugin reports them and the server never has to resolve
  * dependencies itself. [classpath] is the module's non-test scopes; [testClasspath] the full test classpath
- * (all scopes), omitted when the module has no test output.
+ * (all scopes). The output directories are the configured ones and need not exist yet: a watching server
+ * scans them once they appear.
  */
 internal data class ModuleDescriptor(
     val gav: String,

@@ -60,4 +60,23 @@ class PollingGraphWatcherTest {
             watcher.close()
         }
     }
+
+    @Test
+    fun `reports a module whose output directory appears after start`(@TempDir tmp: Path) {
+        val moduleDir = tmp.resolve("app/target/classes")
+        val manifest = Files.writeString(tmp.resolve("manifest.json"), "{}")
+
+        val changed = ConcurrentHashMap.newKeySet<String>()
+        val watcher = PollingGraphWatcher(intervalMs = 50, settleMs = 60)
+        try {
+            watcher.start(WatchTargets(manifest, mapOf(gav to moduleDir)), onChange = { changed += it }, onManifestChange = {})
+
+            Files.createDirectories(moduleDir.resolve("com/example"))
+            Files.write(moduleDir.resolve("com/example/New.class"), byteArrayOf(1, 2, 3))
+            await().atMost(Duration.ofSeconds(5)).untilAsserted { assertThat(changed).containsExactly(gav) }
+        } finally {
+            watcher.close()
+        }
+    }
 }
+

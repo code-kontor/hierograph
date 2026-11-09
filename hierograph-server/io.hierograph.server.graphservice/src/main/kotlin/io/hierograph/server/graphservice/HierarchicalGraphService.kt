@@ -181,7 +181,8 @@ class HierarchicalGraphService {
     @PostConstruct
     fun init() {
         // Start "empty" if the graph cannot be built: build best-effort, but never fail startup. Tools
-        // then report that no graph is available until one is loaded (e.g. via reload_graph).
+        // then report that no graph is available until one is loaded (e.g. via reload_graph). A manifest
+        // that was read is still watched, so the graph builds itself once compiled output appears.
         try {
             val built = loadSnapshot()
             snapshotRef.set(built.snapshot)
@@ -193,6 +194,7 @@ class HierarchicalGraphService {
                         "report that no graph is available until one is loaded (e.g. via reload_graph).",
                 e.message,
             )
+            startWatchingIfEnabled()
         }
     }
 
@@ -231,6 +233,7 @@ class HierarchicalGraphService {
             )
         } catch (e: Exception) {
             log.error("Reload failed; keeping the previously loaded graph.", e)
+            startWatchingIfEnabled()
             linkedMapOf(
                 "status" to "error",
                 "message" to (e.message ?: e.javaClass.simpleName),
@@ -321,6 +324,9 @@ class HierarchicalGraphService {
     private fun buildFromManifest(): Built {
         val scanned = manifestGraphSource.scan(Path.of(manifestFile), includeTests)
         currentScanned = scanned
+        check(scanned.modules.isNotEmpty()) {
+            "No module of manifest $manifestFile is compiled yet; watching ${scanned.declared.size} declared output(s)"
+        }
         return buildManifestSnapshot(scanned)
     }
 
@@ -395,6 +401,7 @@ class HierarchicalGraphService {
             startWatchingIfEnabled()
         } catch (e: Exception) {
             log.error("Manifest reload failed; keeping the previous graph.", e)
+            startWatchingIfEnabled() // follow the new module set even when nothing in it is compiled yet
         }
     }
 
