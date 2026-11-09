@@ -109,6 +109,18 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.regenerate.timeout:600000}")
     private var regenerateTimeoutMs: Long = 600_000
 
+    /** Saturation breaker: pause rebuilds once more than this many complete within the window (<= 0 disables). */
+    @Value("\${hierograph.graph.watch.breaker.max-rebuilds:20}")
+    private var breakerMaxRebuilds: Int = 20
+
+    /** Saturation breaker: the trailing window, ms, over which rebuilds are counted. */
+    @Value("\${hierograph.graph.watch.breaker.window:10000}")
+    private var breakerWindowMs: Long = 10_000
+
+    /** Saturation breaker: how long, ms, to serve the last good graph before retrying while tripped. */
+    @Value("\${hierograph.graph.watch.breaker.cooldown:2000}")
+    private var breakerCooldownMs: Long = 2_000
+
     /**
      * Whether the manifest still reflects the build's build files, and the regeneration runner. Created on
      * first use, after the configuration is injected.
@@ -150,14 +162,27 @@ class HierarchicalGraphService {
     @Volatile
     private var watcher: GraphWatcher? = null
 
-    /** Single thread that applies watch-triggered updates, kept off the watcher's own poll/event thread. */
-    private val updateExecutor = Executors.newSingleThreadExecutor { r ->
+    /**
+     * Single thread that applies watch-triggered updates, kept off the watcher's own poll/event thread.
+     * Scheduled so the coalescer can re-arm its drain after a saturation-breaker cooldown.
+     */
+    private val updateExecutor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "hierograph-graph-updater").apply { isDaemon = true }
     }
 
-    /** Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each (see [UpdateCoalescer]). */
-    private val coalescer = UpdateCoalescer(updateExecutor) { reload, gavs ->
-        if (reload) reloadFromManifest() else applyIncremental(gavs)
+    /** Rate guard for sustained churn; `null` when disabled (max-rebuilds <= 0). Built after config is injected. */
+    private val saturationBreaker: SaturationBreaker? by lazy {
+        if (breakerMaxRebuilds > 0) SaturationBreaker(breakerWindowMs, breakerMaxRebuilds, breakerCooldownMs) else null
+    }
+
+    /**
+     * Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each, and throttles
+     * sustained churn via [saturationBreaker] (see [UpdateCoalescer]). Lazy so it reads injected config.
+     */
+    private val coalescer by lazy {
+        UpdateCoalescer(updateExecutor, saturationBreaker) { reload, gavs ->
+            if (reload) reloadFromManifest() else applyIncremental(gavs)
+        }
     }
 
     /**

@@ -16,7 +16,8 @@
 package io.hierograph.server.graphservice
 
 import org.slf4j.LoggerFactory
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 /**
  * Merges watch-triggered rebuilds so a storm of settled bursts never queues one rebuild each. While a
@@ -31,9 +32,14 @@ import java.util.concurrent.ExecutorService
  *
  * [apply] is expected to handle its own failures; a throw that escapes it is caught and logged here so
  * the drain keeps going and `draining` is never left wedged.
+ *
+ * When a [breaker] is supplied it throttles *sustained* churn: before each rebuild the drain asks the
+ * breaker whether the rebuild rate has saturated; if so it leaves the pending work untouched (the last
+ * good graph keeps serving) and re-arms itself after the breaker's cooldown instead of rebuilding now.
  */
 class UpdateCoalescer(
-    private val executor: ExecutorService,
+    private val executor: ScheduledExecutorService,
+    private val breaker: SaturationBreaker? = null,
     private val apply: (reload: Boolean, gavs: Set<String>) -> Unit,
 ) {
     private val log = LoggerFactory.getLogger(UpdateCoalescer::class.java)
@@ -70,13 +76,24 @@ class UpdateCoalescer(
      */
     private fun drain() {
         while (true) {
-            val reload: Boolean
-            val batch: Set<String>
+            // Is there work? Peek without taking it, so a breaker pause can leave it pending.
             synchronized(lock) {
                 if (!manifestDirty && pendingGavs.isEmpty()) {
                     draining = false
                     return
                 }
+            }
+            // Throttle sustained churn: if the breaker is tripped, keep serving the last good graph and
+            // re-arm after the cooldown. `draining` stays true, so bursts arriving meanwhile just
+            // accumulate into the pending set rather than queuing more work.
+            val pause = breaker?.pauseDelayMs()
+            if (pause != null) {
+                executor.schedule({ drain() }, pause, TimeUnit.MILLISECONDS)
+                return
+            }
+            val reload: Boolean
+            val batch: Set<String>
+            synchronized(lock) {
                 reload = manifestDirty
                 manifestDirty = false
                 batch = if (reload) emptySet() else HashSet(pendingGavs)
@@ -88,6 +105,7 @@ class UpdateCoalescer(
                 // apply is expected to swallow its own errors; this only guards the drain loop itself.
                 log.error("Coalesced update failed (reload={}, {} module(s)); continuing.", reload, batch.size, e)
             }
+            breaker?.recordRebuild()
             // loop: anything that changed *during* that apply is now pending and gets one more pass
         }
     }

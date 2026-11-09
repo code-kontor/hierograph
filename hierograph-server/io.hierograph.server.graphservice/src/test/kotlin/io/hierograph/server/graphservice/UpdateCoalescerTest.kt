@@ -21,6 +21,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 class UpdateCoalescerTest {
 
@@ -30,7 +31,7 @@ class UpdateCoalescerTest {
      */
     @Test
     fun `bursts during a rebuild collapse into a single follow-up pass`() {
-        val executor = Executors.newSingleThreadExecutor()
+        val executor = Executors.newSingleThreadScheduledExecutor()
         val calls = CopyOnWriteArrayList<Set<String>>()
         val firstStarted = CountDownLatch(1)
         val release = CountDownLatch(1)
@@ -64,7 +65,7 @@ class UpdateCoalescerTest {
     /** A manifest change arriving during a rebuild supersedes the GAV rescans accumulated alongside it. */
     @Test
     fun `a manifest change during a rebuild supersedes pending GAV rescans`() {
-        val executor = Executors.newSingleThreadExecutor()
+        val executor = Executors.newSingleThreadScheduledExecutor()
         val calls = CopyOnWriteArrayList<Pair<Boolean, Set<String>>>()
         val firstStarted = CountDownLatch(1)
         val release = CountDownLatch(1)
@@ -99,7 +100,7 @@ class UpdateCoalescerTest {
     /** A burst arriving after the drain has gone idle starts a fresh pass of its own. */
     @Test
     fun `a burst after the drain goes idle starts a fresh pass`() {
-        val executor = Executors.newSingleThreadExecutor()
+        val executor = Executors.newSingleThreadScheduledExecutor()
         val calls = CopyOnWriteArrayList<Set<String>>()
         val coalescer = UpdateCoalescer(executor) { _, gavs -> calls.add(gavs) }
 
@@ -111,10 +112,48 @@ class UpdateCoalescerTest {
         assertThat(calls).containsExactly(setOf("a"), setOf("b"))
     }
 
+    /**
+     * A tripped saturation breaker makes the coalescer defer the rebuild (serve the last good graph) and
+     * re-arm after the cooldown; once the window clears, the deferred work is applied with nothing lost.
+     */
+    @Test
+    fun `a tripped breaker defers the rebuild, then applies it once the window clears`() {
+        val clock = AtomicLong(0)
+        // Trip after a single rebuild; a short cooldown so the re-armed drain fires quickly in the test.
+        val breaker = SaturationBreaker(windowMs = 100, maxRebuildsInWindow = 1, cooldownMs = 5, clock = clock::get)
+        val executor = Executors.newSingleThreadScheduledExecutor()
+        val calls = CopyOnWriteArrayList<Set<String>>()
+        val coalescer = UpdateCoalescer(executor, breaker) { _, gavs -> calls.add(gavs) }
+
+        // First burst goes through and records one completion (clock frozen at 0).
+        coalescer.scheduleIncremental(setOf("a"))
+        drain(executor)
+        assertThat(calls).containsExactly(setOf("a"))
+
+        // Second burst: the breaker is now saturated, so the rebuild is deferred — `b` is NOT applied.
+        coalescer.scheduleIncremental(setOf("b"))
+        drain(executor) // the drain that saw saturation has run and only scheduled a retry
+        assertThat(calls).`as`("rebuild deferred while tripped").containsExactly(setOf("a"))
+
+        // Advance past the window so the recorded completion ages out; the re-armed drain then applies `b`.
+        clock.set(500)
+        awaitUntil { calls.size == 2 }
+        assertThat(calls).containsExactly(setOf("a"), setOf("b"))
+
+        executor.shutdownNow()
+    }
+
     /** Blocks until the single-thread [executor] has processed everything submitted so far. */
     private fun drain(executor: java.util.concurrent.ExecutorService) {
         val done = CountDownLatch(1)
         executor.submit { done.countDown() }
         assertThat(done.await(5, TimeUnit.SECONDS)).isTrue()
+    }
+
+    /** Polls [cond] until true or the timeout elapses (for the breaker's re-armed, time-delayed retry). */
+    private fun awaitUntil(timeoutMs: Long = 2000, cond: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline && !cond()) Thread.sleep(2)
+        assertThat(cond()).`as`("condition met within $timeoutMs ms").isTrue()
     }
 }
