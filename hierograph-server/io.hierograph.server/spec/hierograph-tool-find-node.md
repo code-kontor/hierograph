@@ -89,10 +89,10 @@ the only way to search members.
 
 The search runs over the node search index of the loaded graph, which the
 [hierarchical graph service](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md)
-builds once per loaded graph. The index holds every node below the modules: packages,
-types, members and external types. The synthetic root and the modules themselves are
-not in the index, so `find_node` never returns a module, and a `kindFilter` of
-`["java.module"]` returns no results. Module ids come from `graph_overview`.
+builds once per loaded graph. The index holds every node except the synthetic root:
+modules, packages, types, members and external types. A module matches by its artifact
+id (`billing-core`) and by its Maven coordinate (`com.example:billing-core:1.4.0`);
+`kindFilter = ["java.module"]` restricts a search to modules.
 
 A node is a candidate when its kind passes the filter and the lower-cased `name`
 occurs in its lower-cased name or qualified name.
@@ -200,8 +200,8 @@ Take the `id` of the result whose `qualified_name` is the one meant.
 **Find a method.** `find_node(name = "total", kindFilter = ["members"])`. The result's
 `parent_id` is the declaring type. For overloads, read the signature in `name`.
 
-**Find a module.** Modules are not searched. Read the module ids from `graph_overview`
-or from `list_children` on the root.
+**Find a module.** `find_node(name = "billing-core", kindFilter = ["java.module"])`. To
+see every module at once, use `graph_overview`.
 
 **Too many results.** If `returned` is 50, lengthen `name` or add a `kindFilter`; the
 response does not say how many matches were cut off.
@@ -215,7 +215,7 @@ response does not say how many matches were cut off.
 2. **Bounded response.** At most 50 results are returned.
 3. **No members unless asked.** Without a filter naming `java.method`, `java.field` or
    `members`, no method or field is returned.
-4. **No modules.** The tool never returns a module or the synthetic root.
+4. **No root.** The tool never returns the synthetic root.
 5. **Valid ids.** Every returned `id` is accepted by every tool that takes a node of that
    kind.
 6. **Read-only.** The tool changes no server state.

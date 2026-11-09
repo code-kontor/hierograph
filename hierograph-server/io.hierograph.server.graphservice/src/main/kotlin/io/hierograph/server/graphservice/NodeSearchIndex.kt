@@ -22,8 +22,9 @@ import io.hierograph.hierarchicalgraph.model.NodeMetadata
 /**
  * Immutable, precomputed search index over the hierarchical model, used by `find_node`.
  *
- * The model is built once at startup and never mutated afterwards, so each node's name and
- * fully-qualified name are lower-cased a single time here rather than on every search. A search is
+ * Each loaded graph snapshot builds its own index, and the snapshot's model is never mutated afterwards,
+ * so each node's name and fully-qualified name are lower-cased a single time here rather than on every
+ * search. A search is
  * then an allocation-free scan over a flat [entries] array (substring matching is
  * inherently linear; this just removes the per-query lower-casing cost).
  *
@@ -41,20 +42,21 @@ class NodeSearchIndex private constructor(val entries: List<Entry>) {
 
     companion object {
 
-        /** Builds an index over every node in [model] except the synthetic root. */
+        /**
+         * Builds an index over every node in [model] except the synthetic root. `traverse` visits the
+         * descendants of the node it starts from, so starting at the root covers the modules as well.
+         */
         fun build(model: HGModel): NodeSearchIndex {
             val hierarchy = model.hierarchy
             val entries = ArrayList<Entry>()
-            for (topLevel in hierarchy.childrenOf(hierarchy.rootNode)) {
-                hierarchy.traverse(topLevel) { node ->
-                    entries.add(
-                        Entry(
-                            node = node,
-                            nameLower = NodeMetadata.getName(node).lowercase(),
-                            fqnLower = NodeMetadata.getQualifiedName(node).lowercase(),
-                        )
+            hierarchy.traverse(hierarchy.rootNode) { node ->
+                entries.add(
+                    Entry(
+                        node = node,
+                        nameLower = NodeMetadata.getName(node).lowercase(),
+                        fqnLower = NodeMetadata.getQualifiedName(node).lowercase(),
                     )
-                }
+                )
             }
             entries.trimToSize()
             return NodeSearchIndex(entries)

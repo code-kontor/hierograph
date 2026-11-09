@@ -114,7 +114,7 @@ A successful reload in manifest mode, for a graph with the modules `billing-core
 {
   "status": "reloaded",
   "root_children": 2,
-  "search_index_entries": 26,
+  "search_index_entries": 28,
   "data_hash": "k3VtQ9xZr2LmA7pE",
   "reload_millis": 412,
   "build_state": { "status": "current", "changed_files": [], "build_tool": "maven" }
@@ -137,7 +137,7 @@ A failed reload on a server that has no graph yet:
 |-------|---------|---------|-----|
 | `status` | always | `"reloaded"` or `"error"` | the outcome, for the caller to act on |
 | `root_children` | on success | number of modules, `External Types` included | a quick check that the expected modules were found |
-| `search_index_entries` | on success | number of nodes below the modules | the size of the rebuilt graph; matches `graph_overview`'s `total_nodes` |
+| `search_index_entries` | on success | number of nodes in the graph, modules included, root excluded | the size of the rebuilt graph: `graph_overview`'s `total_nodes` plus the modules |
 | `data_hash` | always | the data hash of the graph now served; `null` when none is loaded | tells the caller whether earlier cursors are still valid |
 | `reload_millis` | on success | duration of the build in milliseconds | the cost of a reload on this codebase |
 | `message` | on error | the cause of the failure | what to fix before retrying |

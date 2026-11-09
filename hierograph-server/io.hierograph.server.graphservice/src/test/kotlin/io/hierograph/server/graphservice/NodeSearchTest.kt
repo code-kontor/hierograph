@@ -62,6 +62,12 @@ class NodeSearchTest {
     }
 
     @Test
+    fun `modules are searchable by name and qualified name`() {
+        assertThat(search.search("app.jar", null, 50)).containsExactly(module)
+        assertThat(search.search("app", listOf("java.module"), 50)).containsExactly(module)
+    }
+
+    @Test
     fun `invalid kinds are reported, kinds and aliases are not`() {
         assertThat(search.invalidKinds(listOf("java.class", "classes", "types"))).containsExactly("classes")
         assertThat(search.invalidKinds(null)).isEmpty()

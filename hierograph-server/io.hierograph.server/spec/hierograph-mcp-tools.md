@@ -476,8 +476,7 @@ way to load a graph once the input exists.
 coupling, and defines every kind and relationship the other tools return.
 
 **Find a starting node.** `find_node(name = "Invoice")` returns candidates ranked by how
-well they match. Take the `id` of the right one. Modules are not searchable; their ids
-come from `graph_overview`.
+well they match. Take the `id` of the right one.
 
 **Browse.** `list_children(nodeId = <module id>)` shows the packages of a module.
 `list_descendants(nodeId = <package id>, kindFilter = ["types"])` lists every type below a

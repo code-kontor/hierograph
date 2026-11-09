@@ -166,10 +166,9 @@ class ListChildrenIT : AbstractMcpApplicationIntegrationTest() {
         resolveNodeId(name = TOMCAT_PKG_FQN, qualifiedName = TOMCAT_PKG_FQN, kind = "java.package")
 
     /**
-     * Resolves the ID of the module containing the (findable) tomcat package by climbing the parent
-     * chain. `find_node` does not index modules (they are the top level of the hierarchy), so we
-     * start from a package it *can* find and walk up via each node's `parent` ref (returned by
-     * `list_children`) until a `java.module` is reached.
+     * Resolves the ID of the module containing the tomcat package by climbing the parent chain: the
+     * package's module is not known by name here, so we start from the package and walk up via each
+     * node's `parent` ref (returned by `list_children`) until a `java.module` is reached.
      */
     private fun springContextModuleId(): Long {
         var ref = nodeRefOf(tomcatPackageId())
