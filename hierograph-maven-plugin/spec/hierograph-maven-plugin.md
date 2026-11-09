@@ -134,12 +134,21 @@ narrowed with `-pl`. This gives the manifest these properties:
 | Change | Effect on the manifest |
 |--------|------------------------|
 | A module is removed from `<modules>` | its entry disappears, even if its directory and descriptor remain on disk |
-| A module's `artifactId` changes | its descriptor is rewritten with the new GAV; the old GAV disappears |
+| A module's `artifactId` changes | its descriptor is rewritten with the changed GAV; the previous GAV disappears |
 | A module is not built in this run | its last descriptor is used unchanged |
 | A module's descriptor is missing (after `mvn clean`, not rebuilt yet) | its entry from the existing manifest is kept |
 | Two modules report the same GAV | the first is kept and a warning is logged |
 
 Modules are sorted by GAV for a stable file.
+
+**Build files.** The merge also records the files that define the reactor, each
+with the SHA-256 of its content: every project's POM (aggregators included), each
+project's parent POM when it was read from a local file rather than the local
+repository, and `.mvn/maven.config` and `.mvn/extensions.xml` of the multi-module
+project directory. A watching server compares the hashes with the files' current
+content to detect a POM edited since the merge. Hashes are cached per file while
+its size and modification time are unchanged, so a full build hashes each file
+once.
 
 **Written only on change.** The merge compares the result with the existing
 manifest, ignoring `generatedAt`, and rewrites the file only when something else
@@ -332,7 +341,8 @@ authoritative, field-level definition of this object and the merged manifest is 
   "generator": "io.hierograph.maven.plugin/<plugin-version>",
   "generatedAt": "2026-11-08T17:04:11Z",
   "reactorRoot": "/ws/billing",
-  "modules": [ /* one module.json object per module, sorted by gav */ ]
+  "modules": [ /* one module.json object per module, sorted by gav */ ],
+  "buildFiles": [ { "path": "/ws/billing/pom.xml", "sha256": "9a07…" } ]
 }
 ```
 
@@ -433,7 +443,9 @@ Any build reaching `process-classes` (`mvn compile` is not enough; `mvn
 process-classes`, `mvn test` or later) writes `.hierograph/manifest.json`; start
 the server in manifest mode pointed at the reactor root. After a POM change that
 adds, removes or renames a module or changes dependencies, run such a build once;
-class changes alone need no Maven run.
+class changes alone need no Maven run. The server reports a POM edited since the
+last merge as a stale `build_state`, and can run the build itself (the
+`hierograph.graph.watch.build-files` setting of the server).
 
 ### 7.2 Publishing archives
 

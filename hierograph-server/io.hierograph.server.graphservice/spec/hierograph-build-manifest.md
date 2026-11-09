@@ -46,6 +46,10 @@ which classpath to resolve references*.
         { "gav": "org.assertj:assertj-core:3.26.3",        "internal": false, "jar": "/home/u/.m2/…/assertj-core-3.26.3.jar" }
       ]
     }
+  ],
+  "buildFiles": [
+    { "path": "/ws/billing/billing-core/pom.xml", "sha256": "3f1c…" },
+    { "path": "/ws/billing/pom.xml",              "sha256": "9a07…" }
   ]
 }
 ```
@@ -59,6 +63,7 @@ which classpath to resolve references*.
 | `generatedAt` | string | ISO-8601 instant the manifest was written; informational. |
 | `reactorRoot` | string | Absolute path of the reactor root on the build host. The anchor for path portability (§3). |
 | `modules` | array | One entry per reactor module except `pom`-packaged ones, compiled or not, sorted by `gav`. |
+| `buildFiles` | entry[] | The files that define the reactor, with content hashes (§1.1), sorted by `path`. |
 
 ### Module
 
@@ -80,6 +85,34 @@ which classpath to resolve references*.
 | `gav` | string | `groupId:artifactId:version` of the dependency. |
 | `internal` | boolean | `true` = a reactor sibling (scanned from its own output); `false` = an external dependency. |
 | `jar` | string? | Resolved local path of an external dependency's jar. Recorded; reserved (§5). |
+
+### 1.1 Build files
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `path` | string | Absolute path of a POM or `.mvn` configuration file. |
+| `sha256` | string | Lower-case hex SHA-256 of the file's content when the manifest was merged. |
+
+The list holds every reactor project's POM, including `pom`-packaged
+aggregators; each project's parent POM when it was read from a local file rather
+than the local repository, which covers a parent outside the reactor root; and
+`.mvn/maven.config` and `.mvn/extensions.xml` of the multi-module project
+directory when present.
+
+**Why build files are recorded.** The module set and the classpaths are facts only
+Maven computes. When a build file changes, the manifest may not match the build
+definition until Maven runs again. The hashes let the server decide this
+exactly: a build file whose current content differs from its recorded hash is
+**stale**, a missing file is stale, and an edit that is reverted is not. Any build
+that merges after the edit records the edited file's hash, so the manifest changes and the
+staleness clears.
+
+**Why Maven's answer and not a file search.** Searching the tree for `pom.xml`
+finds POMs that are not part of the build (test fixtures under
+`src/test/resources`, archetype templates, directories not listed in
+`<modules>`) and misses parents outside the tree. A module or nested
+aggregator added to the reactor always appears through an edit of an already listed aggregator, so the
+list needs no search to stay complete.
 
 ---
 
@@ -204,6 +237,12 @@ In manifest mode the server:
    module's classes but keeps the declaration. It also watches the manifest file
    and, when it changes, applies it as a diff against the cached scans (only
    added, moved or changed outputs are scanned) and re-targets the watcher.
+
+6. Watches the build files (§1.1) and, when one changes, compares the hashes and
+   reports the stale build files; depending on its configuration it also runs the
+   build that rewrites the manifest. Build-file paths under `reactorRoot` are
+   re-rooted (§3); a manifest read under a different reactor root never triggers
+   that build, because the build host's Maven and repository are not available.
 
 When no declared output exists at startup (a fresh clone), the server starts
 without a graph but keeps watching, and builds the graph when the first output

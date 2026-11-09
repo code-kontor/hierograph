@@ -139,7 +139,7 @@ event thread):
   for the first time) is scanned and added; one that disappears drops the
   module's classes.
 - **The manifest itself changed** (module set or classpath) → apply it as a diff
-  against the cached scans, rebuild, and re-target the watcher at the new module
+  against the cached scans, rebuild, and re-target the watcher at the changed module
   set. The diff is keyed by output (`<gav>`, or `<gav>:test`):
 
   | Output | Effect |
@@ -166,11 +166,70 @@ tick which declared directories exist, reports the ones that appeared or
 disappeared, and re-registers. An incremental update that fails logs and keeps
 the previous graph.
 
+### Build files
+
+The manifest lists the reactor's build files (POMs and `.mvn` configuration)
+with the hashes of the content it was merged from (see the
+[build manifest specification](hierograph-build-manifest.md)). Both watchers poll
+these files by `(size, mtime)` on their regular tick: there are tens to hundreds
+of them, polling is cheap and works the same across a mounted volume, and native
+events on module directories would also deliver every source-file save. Changes
+are collected until no build file has changed for the settle delay and reported
+once, because a rename or a version bump touches many POMs at once.
+
+On a report, and whenever a manifest is applied, `BuildFileMonitor` compares the
+hashes. A build file whose content differs from its recorded hash, or that no
+longer exists, is **stale**: the module set or a classpath may have changed
+without the manifest knowing. `hierograph.graph.watch.build-files` selects the
+reaction:
+
+| Mode | Reaction |
+|------|----------|
+| `off` | build files are not watched |
+| `notify` (default) | the stale build files are reported in `build_state` until a build rewrites the manifest |
+| `regenerate` | the service runs the regeneration command in the reactor root; the rewritten manifest then arrives as a manifest change |
+
+`notify` is the default because running a build is a side effect the developer
+opts into.
+
+**Regeneration.** The command is `hierograph.graph.regenerate.command`, split on
+whitespace; by default `mvnw -q -B process-classes` when the reactor root holds a
+Maven wrapper, otherwise `mvn` from the `PATH`. It uses `process-classes`, not a
+bare `hierograph:create-descriptor`, because without a lifecycle phase Maven 3
+does not resolve reactor siblings from their output directories. The output goes
+to `.hierograph/regenerate.log`.
+
+| Rule | Why |
+|------|-----|
+| One run at a time; a request during a run schedules exactly one follow-up run | the running build may have read the POMs before the edit |
+| A run exceeding `hierograph.graph.regenerate.timeout` is killed | a hanging build must not block later runs |
+| A failed run reports the last lines of its output | the developer sees why the graph did not follow; the previous graph stays live |
+| A relocated manifest (read under a different reactor root) is never regenerated | the server runs in a container without the build host's Maven and repository; it behaves as `notify` |
+
+Applying a manifest re-evaluates the state and starts a regeneration if build
+files are still stale, so `reload_graph` also retries a failed regeneration.
+
+**Limits.** Changes outside the listed build files are not detected: a profile
+activated through the environment or `settings.xml`, and a SNAPSHOT dependency
+updated in the local repository. A build followed by `reload_graph` covers them.
+A regeneration that needs a dependency not yet in the local repository fails when
+the command runs offline.
+
+**`build_state`.** In `manifest` mode, `reload_graph` and `graph_overview` return
+the state as a map with `status`, `changed_files` and, after a failure, `message`:
+
+| Status | Meaning |
+|--------|---------|
+| `current` | every build file matches the manifest |
+| `stale` | the listed build files changed since the manifest was written |
+| `regenerating` | a regeneration is running |
+| `regeneration-failed` | the last regeneration failed; `message` holds the end of its output |
+
 **Starting without output.** When the manifest is readable but no declared output
 exists, or the graph cannot be built, the service starts without a graph and
 still starts the watcher; the first output that appears builds the graph. A
 failed `reload` or manifest reload also re-targets the watcher, so the service
-follows a new module set even before any of it is compiled.
+follows a changed module set even before any of it is compiled.
 
 **Asynchronous detail.** Each manifest build schedules its Parquet detail write on
 a background writer. When the write for a generation finishes, it is published as
@@ -222,7 +281,8 @@ What tools read from the service (all reads resolve the current snapshot atomica
 | `readyDetailDir()` | the Parquet detail directory, or `null` while rebuilding (§7) |
 | `derivedDetailRefs(from, to, relationship)` | load-derived cross-artifact edges for a scope (§8) |
 | `parquetDirectory` | directory the node-property provider reads (may lag during a rescan) |
-| `reload()` | rebuild and swap; returns a status map |
+| `reload()` | rebuild and swap; returns a status map, with `build_state` in `manifest` mode |
+| `buildState()` | the `build_state` map (§6), or `null` outside `manifest` mode |
 | `seed(model)` | install a ready-made model directly — for tests, bypassing any source |
 
 ---
@@ -240,6 +300,9 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.watch.mode` | `polling` | `off` / `polling` / `native` (`manifest` mode). |
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
 | `hierograph.graph.watch.settle` | `400` | Quiet period, ms, before rebuilding after a change. |
+| `hierograph.graph.watch.build-files` | `notify` | `off` / `notify` / `regenerate`: reaction to edited build files (§6). |
+| `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command; empty selects `mvnw` or `mvn` with `-q -B process-classes`. |
+| `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |
 | `hierograph.graph.dump.enabled` | `false` | Write a one-line-per-node text dump after each build. |
 | `hierograph.graph.dumpFile` | `hierarchical-graph.txt` | Where the dump is written. |
 
