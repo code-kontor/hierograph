@@ -56,16 +56,30 @@ class AggregatedDependenciesTool(
         targetIds: List<Long>
     ): Map<String, Any?> {
 
+        // ── validate list sizes: each side needs an id; a repeated id adds nothing ──
+        val sources = sourceIds.distinct()
+        val targets = targetIds.distinct()
+        if (sources.isEmpty() || targets.isEmpty()) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INPUT_TOO_SMALL",
+                    "message" to "aggregated_dependencies needs at least one id in sourceIds and in targetIds, " +
+                            "got ${sources.size} and ${targets.size}.",
+                    "recovery" to "Pass at least one source and one target id."
+                )
+            )
+        }
+
         // ── validate cross-product cap ─────────────────────────────────
-        val crossProduct = sourceIds.size.toLong() * targetIds.size.toLong()
+        val crossProduct = sources.size.toLong() * targets.size.toLong()
         if (crossProduct > MAX_CROSS_PRODUCT) {
             return mapOf(
                 "error" to mapOf(
                     "code" to "INPUT_TOO_LARGE",
-                    "message" to "The cross product of sourceIds (${sourceIds.size}) x " +
-                            "targetIds (${targetIds.size}) = $crossProduct exceeds the maximum of $MAX_CROSS_PRODUCT.",
-                    "source_count" to sourceIds.size,
-                    "target_count" to targetIds.size,
+                    "message" to "The cross product of sourceIds (${sources.size}) x " +
+                            "targetIds (${targets.size}) = $crossProduct exceeds the maximum of $MAX_CROSS_PRODUCT.",
+                    "source_count" to sources.size,
+                    "target_count" to targets.size,
                     "cross_product" to crossProduct,
                     "max_cross_product" to MAX_CROSS_PRODUCT,
                     "recovery" to "Narrow either sourceIds or targetIds. " +
@@ -77,14 +91,14 @@ class AggregatedDependenciesTool(
         // ── resolve and validate all nodes ─────────────────────────────
         val hierarchy = graphService.model.hierarchy
         val sourceNodes = mutableListOf<HGNode>()
-        for (id in sourceIds) {
+        for (id in sources) {
             val node = graphService.model.lookupNode(id) ?: return nodeNotFound(id)
             validateNodeKind(node)?.let { return it }
             sourceNodes.add(node)
         }
 
         val targetNodes = mutableListOf<HGNode>()
-        for (id in targetIds) {
+        for (id in targets) {
             val node = graphService.model.lookupNode(id) ?: return nodeNotFound(id)
             validateNodeKind(node)?.let { return it }
             targetNodes.add(node)
@@ -128,7 +142,7 @@ class AggregatedDependenciesTool(
         }
 
         // ── summary ────────────────────────────────────────────────────
-        val totalPairs = sourceIds.size * targetIds.size
+        val totalPairs = sources.size * targets.size
 
         return linkedMapOf<String, Any?>(
             "nodes" to nodes,

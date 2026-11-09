@@ -233,6 +233,7 @@ internal object ClassScanner {
             private val declaredNames = ArrayList<String?>()
             private val localNames = HashMap<Int, String>()
             private val annotations = ArrayList<Type>()
+            private val parameterAnnotations = HashMap<Int, MutableList<Type>>()
             private val bodyRefs = ArrayList<DetailRef>()
             private var bridgeTarget: String? = null
             // The type whose constructor was the last real bytecode instruction — i.e. a freshly-built
@@ -263,6 +264,7 @@ internal object ClassScanner {
 
             override fun visitParameterAnnotation(parameter: Int, descriptor: String, visible: Boolean): AnnotationVisitor {
                 ref(Type.getType(descriptor), RefKind.MEMBER_ANNOTATED_BY)
+                parameterAnnotations.getOrPut(parameter) { ArrayList() } += Type.getType(descriptor)
                 return AnnotationValues()
             }
 
@@ -376,6 +378,8 @@ internal object ClassScanner {
                 exceptions.forEach { detail(key, JavaNames.fqn(it), "throws", minLine) }
                 raised.forEach { detail(key, it, "raises", minLine) }
                 annotations.forEach { detail(key, typeTarget(it), "annotated_by", null) }
+                parameterAnnotations.values.flatten().map { typeTarget(it) }.distinct()
+                    .forEach { detail(key, it, "parameter_annotated_by", null) }
                 detailRefs += bodyRefs
             }
 
@@ -390,7 +394,10 @@ internal object ClassScanner {
                         ?: localNames[slot]
                         ?: "arg$i"
                     slot += type.size
-                    ParameterFacts(index = i, name = name, typeFqn = typeTarget(type))
+                    ParameterFacts(
+                        index = i, name = name, typeFqn = typeTarget(type),
+                        annotations = parameterAnnotations[i].orEmpty().map { typeTarget(it) }.distinct(),
+                    )
                 }
             }
         }

@@ -20,6 +20,7 @@ import io.hierograph.graphstore.jvm.detail.DetailQuery
 import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
 import io.hierograph.graphstore.jvm.detail.NodeDisplay
 import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Node
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeHandle
@@ -93,16 +94,35 @@ class ParquetDetailDependencies(
         // endpoint on that side is the member itself.
         val fromMember = memberKeyOf(fromNode)
         val toMember = memberKeyOf(toNode)
-        val fromTypes = expandScope(scopeOf(fromNode))
-        val toTypes = expandScope(scopeOf(toNode))
+        val fromScope = expandScope(scopeOf(fromNode))
+        val toScope = expandScope(scopeOf(toNode))
+        val fromTypes = fromScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
+        val toTypes = toScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
         // The scopes' own types, without the supertypes the closure adds: a row outside them is inherited.
         val ownFromTypes = typesIn(scopeOf(fromNode))
         val ownToTypes = typesIn(scopeOf(toNode))
-        if (fromTypes.isEmpty() || toTypes.isEmpty()) return emptyResult(fromNode, toNode, effectiveRel)
+        if (fromTypes.isEmpty() || toTypes.isEmpty()) {
+            // Even an empty result honours the cursor contract: a malformed or stale cursor is an error.
+            if (cursor != null) {
+                val check = Paginator.paginate(emptyList<Any>(), spec, queryHash, dataHashProvider.dataHash, cursor, limit)
+                if (check is PageResult.Failed) return check.error.toResponse()
+            }
+            return emptyResult(fromNode, toNode, effectiveRel)
+        }
 
         // Pull the whole scoped edge set (own pagination below), then keep only edges whose endpoint
         // types are known to the GraphStore, so the detail layer never surfaces a type without a handle.
-        val typeHandle: (String) -> Long? = { fqn -> store.typeByFqn(fqn)?.key?.let { NodeHandle.of(it) } }
+        // A row's types resolve in the context of the artifact that holds the row: its depending type is that
+        // artifact's own definition, its target the definer that artifact's classpath picks. Without a known
+        // artifact (unpacked snapshots, load-derived rows), an FQN resolves to its first definer.
+        fun fromTypeNode(r: DetailRef): Node? = r.fromArtifact?.let { store.typeIn(it, r.fromType) } ?: store.typeByFqn(r.fromType)
+        fun toTypeNode(r: DetailRef): Node? = r.fromArtifact?.let { store.resolveType(it, r.toType) } ?: store.typeByFqn(r.toType)
+        fun handle(n: Node): Long = NodeHandle.of(n.key)
+        fun memberHandle(owner: Node, key: String): Long =
+            store.memberOf(owner, key)?.let { handle(it) } ?: graphService.memberHandle(key)
+        // The scopes' own type nodes, closure included: a row of a same-FQN type in another artifact is not in scope.
+        val fromScopeHandles = fromScope.mapTo(HashSet()) { it.identifier as Long }
+        val toScopeHandles = toScope.mapTo(HashSet()) { it.identifier as Long }
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val raw = DetailQueryEngine(parquetDir)
@@ -111,13 +131,14 @@ class ParquetDetailDependencies(
         // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
         // ones rather than trailing them.
         val edges = raw.filter {
-            typeHandle(it.fromType) != null && typeHandle(it.toType) != null &&
+            fromTypeNode(it)?.let { n -> handle(n) in fromScopeHandles } == true &&
+                toTypeNode(it)?.let { n -> handle(n) in toScopeHandles } == true &&
                 (fromMember == null || it.fromKey == fromMember) && (toMember == null || it.toKey == toMember)
         }.sortedWith(ROW_ORDER)
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
-        fun endpointHandle(key: String, type: String): Long =
-            if ('#' in key) graphService.memberHandle(key) else typeHandle(type)!!
+        fun fromHandle(r: DetailRef): Long = fromTypeNode(r)!!.let { if ('#' in r.fromKey) memberHandle(it, r.fromKey) else handle(it) }
+        fun toHandle(r: DetailRef): Long = toTypeNode(r)!!.let { if ('#' in r.toKey) memberHandle(it, r.toKey) else handle(it) }
 
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
@@ -126,7 +147,7 @@ class ParquetDetailDependencies(
         val inheritedCount = edges.count(::inherited)
         for (e in edges) {
             byRelationship.merge(e.relationship, 1, Int::plus)
-            sourceTypeCounts.merge(typeHandle(e.fromType)!!, 1, Int::plus)
+            sourceTypeCounts.merge(handle(fromTypeNode(e)!!), 1, Int::plus)
         }
         if (effectiveRel != null) byRelationship.putIfAbsent(effectiveRel, 0)
         val bySourceType = sourceTypeCounts.entries.sortedByDescending { it.value }.take(10)
@@ -135,11 +156,11 @@ class ParquetDetailDependencies(
         // --- map to edge rows (engine order is already stable), keeping each ref with its row ----
         val mapped = edges.map { ref ->
             val row = linkedMapOf<String, Any?>(
-                "from" to endpointHandle(ref.fromKey, ref.fromType),
-                "from_parent" to typeHandle(ref.fromType)!!,
-                "to" to endpointHandle(ref.toKey, ref.toType),
+                "from" to fromHandle(ref),
+                "from_parent" to handle(fromTypeNode(ref)!!),
+                "to" to toHandle(ref),
             )
-            if ('#' in ref.toKey) row["to_parent"] = typeHandle(ref.toType)!!
+            if ('#' in ref.toKey) row["to_parent"] = handle(toTypeNode(ref)!!)
             row["relationship"] = ref.relationship
             row["location"] = ref.line?.let { mapOf("line_number" to it.toLong()) }
             if (inherited(ref)) row["inherited"] = true
@@ -233,12 +254,12 @@ class ParquetDetailDependencies(
     }
 
     /**
-     * Collects type FQNs in [node]'s subtree plus their transitive supertypes (the detail scope). The
+     * Collects the type nodes in [node]'s subtree plus their transitive supertypes (the detail scope). The
      * supertypes are included because a type's behaviour includes what it inherits: a call made by an
      * inherited method, or a call to a method a target type inherits, belongs to the dependency. Rows that
      * only the supertypes contribute are marked `inherited`.
      */
-    private fun expandScope(node: HGNode): Set<String> {
+    private fun expandScope(node: HGNode): List<HGNode> {
         val hierarchy = graphService.model.hierarchy
         val seed = ArrayList<HGNode>()
         // Include the scope node itself when it is a type: `traverse` visits descendants only, so a scope
@@ -247,13 +268,13 @@ class ParquetDetailDependencies(
         // types via the traversal below.
         if (JavaKinds.isTypeKind(node.kind)) seed.add(node)
         hierarchy.traverse(node) { if (JavaKinds.isTypeKind(it.kind)) seed.add(it) }
-        val fqns = linkedSetOf<String>()
+        val scope = ArrayList<HGNode>()
         val visited = HashSet<Any?>()
         val queue = ArrayDeque(seed)
         while (queue.isNotEmpty()) {
             val t = queue.removeFirst()
             if (!visited.add(t.identifier)) continue
-            fqns += NodeMetadata.getQualifiedName(t)
+            scope += t
             for (dep in t.outgoingCoreDependencies) {
                 val bm = dep.attributesBitmap
                 if (JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_EXTENDS) || JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_IMPLEMENTS)) {
@@ -261,7 +282,7 @@ class ParquetDetailDependencies(
                 }
             }
         }
-        return fqns
+        return scope
     }
 
     /** Drill down from [node] to the first multi-child level and weight each child by [dep] to the other scope. */

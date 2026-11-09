@@ -20,6 +20,7 @@ import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.model.ParameterFacts
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
@@ -107,7 +108,10 @@ class DetailFixture {
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             MONEY, JavaKinds.RECORD, TypeModifiers.pack("public", final = true),
             members = listOf(
-                method(MONEY, "$MONEY plus($MONEY)"), method(MONEY, "$MONEY times(int)"),
+                method(MONEY, "$MONEY plus($MONEY)"),
+                method(MONEY, "$MONEY times(int)").copy(
+                    parameters = listOf(ParameterFacts(0, "factor", "int", annotations = listOf("javax.annotation.Nonnull"))),
+                ),
                 MemberFacts("$MONEY#int cents", JavaKinds.FIELD, "int cents", "cents", modifiers = MemberModifiers.pack("private", final = true)),
             ),
             refs = emptyList(), classHash = "m",

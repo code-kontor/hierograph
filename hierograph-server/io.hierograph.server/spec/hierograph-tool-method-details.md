@@ -123,8 +123,9 @@ the implicit `this` is not a parameter. A parameter's name is taken from the
 `MethodParameters` attribute, else from the local-variable table, else it is `arg<n>`
 (see
 [`parameters.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#43-parametersparquet)).
-Parameter annotations are not stored in the snapshot, so each parameter's
-`annotations` is an empty list.
+Each parameter's `annotations` lists the annotations on that parameter, each once, from
+the `annotations` column of `parameters.parquet`. Annotations with `SOURCE` retention
+are not in the class file and never appear.
 
 **Throws and raises.** `throws` lists the types in the method's `throws` clause.
 `raises` lists the exception types the body constructs and throws on the spot
@@ -303,7 +304,8 @@ always holds at least the visibility.
 
 **`parameters`** gives names as well as types, because a model that writes a call needs
 the names to match arguments to parameters. `position` is explicit so the order
-survives any re-sorting by the client. `annotations` is always `[]` (§3.1).
+survives any re-sorting by the client. `annotations` holds `{type}` entries like the
+method's own (§3.1).
 
 **`throws`** and **`raises`** are separate because they answer different questions:
 the contract a caller must handle, and what the method really throws (§3.1).

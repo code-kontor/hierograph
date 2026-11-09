@@ -70,7 +70,7 @@ class GraphOverviewToolTest {
     @Test
     fun `the detail vocabulary lists the relationships the snapshot holds`() {
         val detail = (overview["relationships"] as Map<String, Any?>)["detail_level"] as List<Map<String, Any?>>
-        assertThat(detail.map { it["kind"] }).contains("raises", "throws").doesNotContain("parameter_annotated_by")
+        assertThat(detail.map { it["kind"] }).contains("raises", "throws", "parameter_annotated_by")
     }
 
     @Test

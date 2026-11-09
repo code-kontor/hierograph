@@ -179,6 +179,20 @@ class GraphStore(
     /** A type (or external-type placeholder) node by FQN; the first when an FQN is defined more than once. */
     fun typeByFqn(fqn: String): Node? = typeKeysByFqn[fqn]?.firstOrNull()?.let { nodesByKey[it] }
 
+    /** The type [fqn] as defined by [artifactKey] itself, or `null` when that artifact does not define it. */
+    fun typeIn(artifactKey: String, fqn: String): Node? = nodesByKey[typeKey(artifactKey, fqn)]
+
+    /**
+     * The type node a reference from [artifactKey] to [fqn] resolves to: the definer the classpath of
+     * [artifactKey] picks (the same rule type-level refs follow), or the external placeholder. `null` when
+     * neither exists, e.g. a target the placeholder policy keeps out.
+     */
+    fun resolveType(artifactKey: String, fqn: String): Node? = nodesByKey[resolveTargetKey(artifactKey, fqn)]
+
+    /** The member [memberKey] (`<owner fqn>#<signature>`) of the type node [owner], or `null`. */
+    fun memberOf(owner: Node, memberKey: String): Node? =
+        nodeKeysByMemberKey[memberKey].orEmpty().firstNotNullOfOrNull { k -> nodesByKey[k]?.takeIf { it.parent == owner.key } }
+
     /** Every type (or external-type placeholder) node with this FQN — more than one only across artifacts. */
     fun typesWithFqn(fqn: String): List<Node> = typeKeysByFqn[fqn].orEmpty().mapNotNull { nodesByKey[it] }
 

@@ -361,6 +361,7 @@ lookup skip everything but the member's own rows.
 | `index` | int32 | no | 0-based position in the declared parameter list. |
 | `name` | string | no | The parameter's name. |
 | `type_fqn` | string | no | The parameter's type, as a type reference (§3.2). |
+| `annotations` | string | yes | The parameter's annotation types, each once, separated by spaces; `null` for none. |
 
 **`method_key`** joins a parameter to its member in `members.parquet`.
 
@@ -371,6 +372,11 @@ implicit `this` of an instance method is not a parameter.
 (`javac -parameters`), then from the local-variable table (debug information), and
 otherwise falls back to `arg<index>` (`arg0`, `arg1`, …). Named parameters make
 method details readable and give tool schemas meaningful argument names.
+
+**`annotations`** records which annotations sit on which parameter (`@NonNull` on the
+second, say), which a `parameter_annotated_by` row (§5.3) cannot say because it names
+the method only. Annotation types are FQNs and contain no spaces, so one string column
+holds the list without a nested type.
 
 **`type_fqn`** is the parameter's erased type reduced to its element type, so
 primitives appear by keyword (`int`) and a `String[]` parameter is recorded as
@@ -583,6 +589,7 @@ erased types of a generic signature are counted under their position's kind
 | `raises` | method | type | executes `throw new <target>(…)` in its body |
 | `has_type` | field | type | is declared with the target type |
 | `annotated_by` | type, method, field | type | carries the target annotation |
+| `parameter_annotated_by` | method | type | has a parameter carrying the target annotation (once per distinct annotation) |
 
 `throws` and `raises` are complementary. The first is the declared contract; the
 second is what the body actually throws. `raises` records only a freshly

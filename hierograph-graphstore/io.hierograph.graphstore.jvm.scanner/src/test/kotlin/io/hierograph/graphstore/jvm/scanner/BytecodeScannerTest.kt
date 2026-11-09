@@ -112,7 +112,7 @@ class BytecodeScannerTest {
         """,
         "fix/Box.java" to """
             package fix;
-            public class Box<T extends Comparable<T>> { T value; }
+            public class Box<T extends Comparable<T>> { T value; void put(int slot, @Deprecated T v) { value = v; } }
         """,
     )
 
@@ -162,6 +162,13 @@ class BytecodeScannerTest {
         // an enum's signature names a generic supertype (Enum<Color>) but declares no type parameter
         assertThat(TypeModifiers.isGeneric(type("fix.Circle\$Color").modifiers)).isFalse()
         assertThat(TypeModifiers.isGeneric(type("fix.Circle").modifiers)).isFalse()
+    }
+
+    @Test
+    fun `parameter annotations are kept per parameter and as detail refs`() {
+        val put = type("fix.Box").members.single { it.name == "put" }
+        assertThat(put.parameters.map { it.annotations }).containsExactly(emptyList(), listOf("java.lang.Deprecated"))
+        assertThat(details(put.key, "parameter_annotated_by").map { it.toType }).containsExactly("java.lang.Deprecated")
     }
 
     @Test

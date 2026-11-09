@@ -195,7 +195,7 @@ root has id `4600`.
 | `kinds.structural` | the nine `java.*` node kinds and `external.type`, each with a description | defines the `kind` values of node references |
 | `kinds.group_aliases` | each alias with its expansion | tells the caller what `types`, `members` and `packages` select in a kind filter |
 | `relationships.type_level_attributes` | the four attribute flags with a description | defines the flags on type-level and aggregated edges |
-| `relationships.detail_level` | the twelve detail-level relationships with their source kind | defines the `relationship` values of detail-level edges; each one occurs in the snapshot (ten) or is a reverse view of one (`read_by`, `written_by`) |
+| `relationships.detail_level` | the thirteen detail-level relationships with their source kind | defines the `relationship` values of detail-level edges; eleven are stored in the snapshot or derived at load, two are reverse views (`read_by`, `written_by`) |
 | `hierarchy` | every module as an enriched node reference plus `outgoing_dep_count` and `incoming_dep_count` | the ids and sizes needed to start navigating, and a first impression of coupling |
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |

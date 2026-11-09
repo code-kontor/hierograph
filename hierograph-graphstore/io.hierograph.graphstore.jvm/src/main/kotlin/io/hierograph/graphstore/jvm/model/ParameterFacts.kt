@@ -17,7 +17,8 @@ package io.hierograph.graphstore.jvm.model
 
 /**
  * One declared parameter of a method/constructor: its [index] (0-based position), its source [name]
- * (when captured — javac `-parameters`), and the fully-qualified [typeFqn] of its (erased) type.
+ * (when captured — javac `-parameters`), the fully-qualified [typeFqn] of its (erased) type, and the
+ * fully-qualified types of the [annotations] on it, each once.
  *
  * Parameters are a detail-level concern persisted in `parameters.parquet`; they are not materialized in
  * the type-level in-memory graph.
@@ -26,4 +27,5 @@ data class ParameterFacts(
     val index: Int,
     val name: String,
     val typeFqn: String,
+    val annotations: List<String> = emptyList(),
 )

@@ -177,6 +177,7 @@ object ParquetWriter {
             sb.setInt(ParquetSchema.Parameters.INDEX, p.index)
             sb.setString(ParquetSchema.Parameters.NAME, p.name)
             sb.setString(ParquetSchema.Parameters.TYPE_FQN, p.typeFqn)
+            sb.setNullable(ParquetSchema.Parameters.ANNOTATIONS, p.annotations.takeIf { it.isNotEmpty() }?.joinToString(" "))
         }
     }
 

@@ -322,6 +322,11 @@ class OutgoingDependenciesTool(
                 linkedMapOf<String, Any?>("id" to id, "weight" to weight)
             }
 
+        // Name every id the summary uses, too: a ranked type need not appear on this page.
+        for (entry in bySourceType + (summary["by_target"] as List<Map<String, Any?>>)) {
+            graphService.model.lookupNode(entry["id"]!!)?.let { nodeRefFactory.putSlimNode(nodes, it) }
+        }
+
         val response = linkedMapOf<String, Any?>(
             "nodes" to nodes,
             "edges" to edges,

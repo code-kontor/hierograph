@@ -186,7 +186,19 @@ whose two types lie in the scopes' own subtrees carries no `inherited` key.
 [`detail_refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#45-detail_refsparquet),
 then adds the references derived when the graph was loaded: method overrides and the
 possible run-time targets of virtual calls. It keeps the references whose two types
-are known to the graph. Each reference becomes one row:
+are known to the graph and lie in the scopes.
+
+**Types in context.** A reference names its types by FQN, and an FQN can be defined by
+several artifacts (a library vendored twice, say). Each reference is read from the
+snapshot artifact that defines its depending type, so the tool resolves the depending
+type in that artifact, and the target type the way that artifact's classpath resolves
+it, the rule type-level dependencies follow too (see
+[binding type names to artifacts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#61-binding-type-names-to-artifacts)).
+A scope that names one definition therefore never lists the rows of its twin. Where
+the artifact is not known (a snapshot in the unpacked layout, or a reference derived
+at load), an FQN resolves to its first definer.
+
+Each reference becomes one row:
 
 | Field | Value |
 |-------|-------|
@@ -214,7 +226,7 @@ are known to the graph. Each reference becomes one row:
 | `annotated_by` | type, method or field → its annotation | snapshot |
 | `read_by` | field → method that reads it | reverse view of `reads_field` |
 | `written_by` | field → method that assigns it | reverse view of `writes_field` |
-| `parameter_annotated_by` | method → a parameter annotation | accepted; snapshots do not record it, so it matches no rows |
+| `parameter_annotated_by` | method → an annotation on one of its parameters | snapshot |
 
 The stored relationships are defined in the format specification's
 [member-level relationships](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#53-member-level-relationships-detail_refsrelationship).
@@ -372,8 +384,9 @@ The open form of §3.3 with `limit = 2`:
 
 **`nodes`** is the [slim node map](hierograph-mcp-tools.md#63-slim-node-map). It
 always names the scope nodes, so a caller can label the answer even when it has no
-edges. It names the endpoints of the edges on this page only: ids that occur only in
-`by_target` or `by_source_type` (`4730` and `4806` above) are not in the map.
+edges, the endpoints of the edges on this page, and every type ranked in `by_target`
+and `by_source_type`, so a ranking is readable without a second call even when its
+types are not on the page.
 
 Edge fields:
 
@@ -589,7 +602,8 @@ checks above, in this order:
     "recovery": "Use find_node to look up the correct node ID." } }
 ```
 
-Cursor errors come from the shared pagination.
+Cursor errors come from the shared pagination; a cursor is checked also when a scope
+contains no types and the result is empty.
 
 While no graph is loaded the tool returns the
 [no-graph response](hierograph-mcp-tools.md#83-no-graph-loaded).
@@ -601,8 +615,7 @@ While no graph is loaded the tool returns the
 **Ask "what does X use?".** Call the open form with `limit = 1`:
 `outgoing_dependencies(fromId = 4711, limit = 1)`. Read `by_target` for the
 most-used types and `by_attribute` for the kinds of dependency; the one edge is a
-by-product. A ranked id that is not on the page is not in the `nodes` map;
-[`type_details`](hierograph-tool-type-details.md) names it.
+by-product; the `nodes` map names every ranked type.
 
 **Explain an aggregated weight.** Pass the pair from
 [`aggregated_dependencies`](hierograph-tool-aggregated-dependencies.md) or a cell of

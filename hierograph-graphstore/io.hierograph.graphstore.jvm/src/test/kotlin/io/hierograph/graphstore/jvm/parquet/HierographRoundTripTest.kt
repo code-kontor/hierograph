@@ -129,7 +129,10 @@ class HierographRoundTripTest {
         assertThat(store.typeByFqn("com.a.A")).isNotNull()
         assertThat(store.typeByFqn("com.b.B")).isNotNull()
         val reader = ParquetReader()
-        assertThat(reader.readDetailRefs(dir).toSet()).isEqualTo(detailRefs)
+        val read = reader.readDetailRefs(dir)
+        // Rows read from a per-artifact snapshot are tagged with the artifact that holds them.
+        assertThat(read.map { it.copy(fromArtifact = null) }.toSet()).isEqualTo(detailRefs.map { it.copy(fromArtifact = null) }.toSet())
+        assertThat(read).allSatisfy { assertThat(it.fromArtifact).isEqualTo(it.fromType.substringAfter("com.").substringBefore('.') + ".jar") }
         assertThat(reader.readMember(dir, "com.a.A#foo(java.lang.String)")!!.parameters.map { it.name })
             .containsExactly("x")
     }

@@ -71,6 +71,13 @@ class EntityDetailToolsTest {
     }
 
     @Test
+    fun `method_details lists the annotations of each parameter`() {
+        val params = methods.methodDetails(f.id("$MONEY#$MONEY times(int)"))["parameters"] as List<Map<String, Any?>>
+        val annotations = params.single()["annotations"] as List<Map<String, Any?>>
+        assertThat(annotations.map { (it["type"] as Map<String, Any?>)["qualified_name"] }).containsExactly("javax.annotation.Nonnull")
+    }
+
+    @Test
     fun `overrides lists every overridden method`() {
         val overrides = methods.methodDetails(f.id("$INVOICE#void render()"))["overrides"] as List<Map<String, Any?>>
         assertThat(overrides.map { it["qualified_name"] })

@@ -107,6 +107,14 @@ class ParquetReader {
     }
 
     /** Reads [file] across every artifact of the snapshot at [parquetDir] and concatenates the mapped rows. */
+    /**
+     * The artifact a snapshot source holds, read from its `types.parquet`; `null` when the source holds
+     * several artifacts (the unpacked layout) or none. The writer files each artifact's detail rows with
+     * that artifact, so this is the artifact of every row's depending type.
+     */
+    private fun sourceArtifact(source: ArtifactSource): String? =
+        readRows(source, ParquetSchema.TYPES_FILE, null) { it.string(ParquetSchema.Types.ARTIFACT) }.distinct().singleOrNull()
+
     private fun <T> readAcross(parquetDir: Path, file: String, filter: FilterPredicate? = null, map: (RowCursor) -> T): List<T> =
         SnapshotSources.of(parquetDir).flatMap { readRows(it, file, filter, map) }
 
@@ -137,15 +145,18 @@ class ParquetReader {
             relationship != null -> FilterPredicate.eq(cols.RELATIONSHIP, relationship)
             else -> null
         }
-        return readAcross(parquetDir, ParquetSchema.DETAIL_REFS_FILE, pushdown) { r ->
-            DetailRef(
-                fromKey = r.string(cols.FROM_KEY),
-                fromType = r.string(cols.FROM_TYPE),
-                toKey = r.string(cols.TO_KEY),
-                toType = r.string(cols.TO_TYPE),
-                relationship = r.string(cols.RELATIONSHIP),
-                line = r.intOrNull(cols.LINE),
-            )
+        return SnapshotSources.of(parquetDir).flatMap { source ->
+            val rows = readRows(source, ParquetSchema.DETAIL_REFS_FILE, pushdown) { r ->
+                DetailRef(
+                    fromKey = r.string(cols.FROM_KEY),
+                    fromType = r.string(cols.FROM_TYPE),
+                    toKey = r.string(cols.TO_KEY),
+                    toType = r.string(cols.TO_TYPE),
+                    relationship = r.string(cols.RELATIONSHIP),
+                    line = r.intOrNull(cols.LINE),
+                )
+            }
+            if (rows.isEmpty()) rows else sourceArtifact(source)?.let { a -> rows.map { it.copy(fromArtifact = a) } } ?: rows
         }.filter {
             (from == null || it.fromType in from) &&
                 (to == null || it.toType in to) &&
@@ -278,6 +289,9 @@ class ParquetReader {
                 index = r.int(ParquetSchema.Parameters.INDEX),
                 name = r.string(ParquetSchema.Parameters.NAME),
                 typeFqn = r.string(ParquetSchema.Parameters.TYPE_FQN),
+                annotations = if (r.hasColumn(ParquetSchema.Parameters.ANNOTATIONS))
+                    r.stringOrNull(ParquetSchema.Parameters.ANNOTATIONS)?.split(' ')?.filter { it.isNotEmpty() }.orEmpty()
+                else emptyList(),
             )
         }.sortedBy { it.index }
 

@@ -99,9 +99,10 @@ a member has no edges of its own at that level.
 list of ids rather than a single id lets one call measure a source against every
 candidate target, for example every module of a project.
 
-Both lists may be empty; the result is then empty, not an error. The order of each
-list is kept: it determines the order of the edges (§3.3). Duplicate ids are not
-removed and give duplicate edges.
+Each list needs at least one id; an empty list fails with `INPUT_TOO_SMALL` (§5),
+because a dependency needs two ends. A repeated id adds nothing and is ignored after
+its first occurrence. The order of each list is kept: it determines the order of the
+edges (§3.3).
 
 ---
 
@@ -263,7 +264,7 @@ for the type-level edges.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total_pairs_requested` | integer | Length of `sourceIds` × length of `targetIds`, duplicates included |
+| `total_pairs_requested` | integer | Number of distinct `sourceIds` × number of distinct `targetIds` |
 | `pairs_with_dependency` | integer | Number of returned edges |
 | `pairs_without_dependency` | integer | Requested pairs with no dependency |
 
@@ -282,7 +283,8 @@ is returned.
 
 | Code | Situation | Extra fields |
 |------|-----------|--------------|
-| `INPUT_TOO_LARGE` | length of `sourceIds` × length of `targetIds` exceeds 2,500 | `source_count`, `target_count`, `cross_product`, `max_cross_product` |
+| `INPUT_TOO_SMALL` | `sourceIds` or `targetIds` is empty | — |
+| `INPUT_TOO_LARGE` | number of distinct `sourceIds` × distinct `targetIds` exceeds 2,500 | `source_count`, `target_count`, `cross_product`, `max_cross_product` |
 | `NODE_NOT_FOUND` | an id names no node (sources are checked before targets) | — |
 | `INVALID_NODE_KIND` | an id names a method or a field | `actual_kind`, `declaring_type` |
 

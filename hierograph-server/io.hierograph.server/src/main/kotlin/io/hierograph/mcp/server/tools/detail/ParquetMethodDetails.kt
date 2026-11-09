@@ -85,7 +85,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
                 "position" to p.index.toLong(),
                 "name" to p.name,
                 "type" to typeRef(p.typeFqn),
-                "annotations" to emptyList<Any>(), // parameter annotations are not stored in the snapshot
+                "annotations" to p.annotations.map { linkedMapOf<String, Any?>("type" to typeRef(it)) },
             )
         }
         val location = member.lineFrom?.takeIf { it > 0 }?.let { linkedMapOf<String, Any>("line_number" to it.toLong()) }

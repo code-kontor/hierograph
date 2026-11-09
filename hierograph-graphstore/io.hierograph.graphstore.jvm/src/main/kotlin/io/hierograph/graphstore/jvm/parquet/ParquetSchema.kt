@@ -65,6 +65,7 @@ object ParquetSchema {
         const val INDEX = "index"               // 0-based position
         const val NAME = "name"
         const val TYPE_FQN = "type_fqn"         // fully-qualified (erased) parameter type
+        const val ANNOTATIONS = "annotations"   // the parameter's annotation types, space-separated; null for none
     }
 
     object Refs {
@@ -135,6 +136,7 @@ object ParquetSchema {
             .addColumn(Parameters.INDEX, PhysicalType.INT32, RepetitionType.REQUIRED)
             .string(Parameters.NAME, RepetitionType.REQUIRED)
             .string(Parameters.TYPE_FQN, RepetitionType.REQUIRED)
+            .string(Parameters.ANNOTATIONS, RepetitionType.OPTIONAL)
             .build()
 
     fun refsSchema(): FileSchema =

@@ -125,6 +125,7 @@ class GraphOverviewTool(
                 detailRelEntry("writes_field", "method", "Method writes a field"),
                 detailRelEntry("overrides", "method", "Method overrides another method"),
                 detailRelEntry("annotated_by", "method/field", "Entity has this annotation type"),
+                detailRelEntry("parameter_annotated_by", "method", "Method has a parameter with this annotation type"),
                 detailRelEntry("has_type", "field", "Field is of this type"),
                 detailRelEntry("read_by", "field", "Field is read by this method"),
                 detailRelEntry("written_by", "field", "Field is written by this method")
