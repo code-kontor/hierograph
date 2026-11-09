@@ -351,15 +351,14 @@ All errors use the nested shape with `code`, `message` and `recovery`:
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field; carries `actual_kind` and `declaring_type` |
 | cursor codes, `RESULT_TOO_LARGE` | see [Pagination](hierograph-mcp-tools.md#7-pagination) |
 
-The detail level adds `INVALID_RELATIONSHIP`, `DETAIL_UNAVAILABLE`,
-`DETAIL_REBUILDING` and its own `NODE_NOT_FOUND`. Because the scopes are exchanged, the detail-level node check
-looks at `toId` first and calls it the source: an unknown `toId` gives
-"Source node not found", an unknown `fromId` gives "Target node not found".
+The detail level checks `fromId`, then `toId`, before it exchanges the scopes, so
+`NODE_NOT_FOUND` names the missing id in parameter order, as at the type level, and
+then adds `INVALID_RELATIONSHIP`, `DETAIL_UNAVAILABLE` and `DETAIL_REBUILDING`:
 
 ```json
 { "error": {
     "code": "NODE_NOT_FOUND",
-    "message": "Source node not found: 9999.",
+    "message": "No node with id 9999 exists in the graph.",
     "recovery": "Use find_node to look up the correct node ID." } }
 ```
 

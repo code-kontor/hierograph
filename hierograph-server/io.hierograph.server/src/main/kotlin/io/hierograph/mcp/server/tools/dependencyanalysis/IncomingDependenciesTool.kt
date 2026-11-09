@@ -143,6 +143,7 @@ class IncomingDependenciesTool(
         } else {
             // Detail level: swap from/to — detail_dependencies(toId, fromId)
             // shows edges from toId subtree into fromId subtree
+            outgoingTool.missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
             detailDependenciesTool.detailDependencies(toId, fromId, effectiveRel, limit, cursor, DETAIL_SPEC)
         }

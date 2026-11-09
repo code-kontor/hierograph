@@ -83,9 +83,9 @@ class ParquetDetailDependencies(
         val parquetDir = readyDetailDir() ?: return detailRebuilding()
 
         val fromNode = resolveNodeOrRoot(fromId)
-            ?: return errorResponse("NODE_NOT_FOUND", "Source node not found: $fromId.", "Use find_node to look up the correct node ID.")
+            ?: return errorResponse("NODE_NOT_FOUND", "No node with id $fromId exists in the graph.", "Use find_node to look up the correct node ID.")
         val toNode = resolveNodeOrRoot(toId)
-            ?: return errorResponse("NODE_NOT_FOUND", "Target node not found: $toId.", "Use find_node to look up the correct node ID.")
+            ?: return errorResponse("NODE_NOT_FOUND", "No node with id $toId exists in the graph.", "Use find_node to look up the correct node ID.")
 
         val queryHash = QueryHash.of(mapOf("fromId" to fromId, "toId" to toId, "relationship" to effectiveRel, "detailLevel" to "detail"))
 

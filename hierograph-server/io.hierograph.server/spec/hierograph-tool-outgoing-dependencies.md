@@ -567,15 +567,17 @@ checks above, in this order:
 
 | Code | Situation | Recovery |
 |------|-----------|----------|
+| `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node; any node, the root included, is a valid scope | use `find_node` |
 | `INVALID_RELATIONSHIP` | `relationship` is not in the vocabulary of §3.2; the message lists the allowed values | use an allowed value, or omit `relationship` |
 | `DETAIL_UNAVAILABLE` | the loaded graph has no member-level data | use `detailLevel = "type"` |
 | `DETAIL_REBUILDING` | the member-level data is being rewritten after a rescan | retry in a moment |
-| `NODE_NOT_FOUND` | `fromId` ("Source node not found"), then `toId` ("Target node not found"), names no node | use `find_node` |
+
+`NODE_NOT_FOUND` reads as at the type level, naming the missing id:
 
 ```json
 { "error": {
     "code": "NODE_NOT_FOUND",
-    "message": "Target node not found: 9999.",
+    "message": "No node with id 9999 exists in the graph.",
     "recovery": "Use find_node to look up the correct node ID." } }
 ```
 

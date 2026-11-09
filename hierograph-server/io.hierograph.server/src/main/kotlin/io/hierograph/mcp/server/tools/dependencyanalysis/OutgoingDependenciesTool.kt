@@ -148,7 +148,8 @@ class OutgoingDependenciesTool(
                 )
             )
         } else {
-            // Delegate to the detail_dependencies provider; it owns detail-level pagination.
+            // Check the ids in parameter order, then delegate; the detail engine owns detail-level pagination.
+            missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
             detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC)
         }
@@ -369,6 +370,20 @@ class OutgoingDependenciesTool(
                             "or use detailLevel='detail', which accepts this member's id."
                 )
             )
+        }
+        return null
+    }
+
+    /**
+     * `NODE_NOT_FOUND` for the first of [fromId], [toId] that names no node, or `null` when both exist.
+     * The detail level accepts any node as a scope, the root included. Checking here, in parameter order,
+     * keeps the error the same for both directions: `incoming_dependencies` hands the engine its ids
+     * exchanged.
+     */
+    internal fun missingDetailScope(fromId: Long, toId: Long): Map<String, Any?>? {
+        val root = graphService.model.hierarchy.rootNode.identifier
+        for (id in listOf(fromId, toId)) {
+            if (graphService.model.lookupNode(id) == null && root != id) return nodeNotFound(id)
         }
         return null
     }

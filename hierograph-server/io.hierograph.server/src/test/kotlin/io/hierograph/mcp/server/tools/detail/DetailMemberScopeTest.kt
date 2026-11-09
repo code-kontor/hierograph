@@ -51,4 +51,19 @@ class DetailMemberScopeTest {
         val resp = f.incoming.incomingDependencies(times, f.id(INVOICE), "detail", null, null, null)
         assertThat(edges(resp)).hasSize(1).allSatisfy { assertThat(it["to"]).isEqualTo(times) }
     }
+
+    @Test
+    fun `an unknown id is reported by parameter name, whichever direction`() {
+        val known = f.id(INVOICE)
+        for (resp in listOf(
+            f.incoming.incomingDependencies(999L, known, "detail", null, null, null),
+            f.outgoing.outgoingDependencies(999L, known, "detail", null, null, null),
+        )) {
+            val error = resp["error"] as Map<String, Any?>
+            assertThat(error["code"]).isEqualTo("NODE_NOT_FOUND")
+            assertThat(error["message"]).isEqualTo("No node with id 999 exists in the graph.")
+        }
+        val toMissing = f.incoming.incomingDependencies(known, 998L, "detail", null, null, null)["error"] as Map<String, Any?>
+        assertThat(toMissing["message"]).isEqualTo("No node with id 998 exists in the graph.")
+    }
 }
