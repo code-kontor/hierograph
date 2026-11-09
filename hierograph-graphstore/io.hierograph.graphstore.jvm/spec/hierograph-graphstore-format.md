@@ -40,10 +40,11 @@ binds to — is derived when snapshots are loaded together, never stored. That i
 what makes an artifact's snapshot reusable: a library is scanned once and its
 archive serves every project that depends on it.
 
-**One artifact, one archive.** The unit of scanning, caching and exchange is a
-single artifact (a module's compiled output, a library jar, the JDK). Each is
-written as its own `.hierograph` archive. A project is simply a directory of
-archives.
+**One artifact, one set of tables.** The unit of scanning, caching and exchange is
+a single artifact (a module's compiled output, a library jar, the JDK). Each is
+written as its own set of tables, packaged by use: as a `.hierograph` archive for
+shipping, or as a directory of the same name for local work. A project is simply a
+directory of artifacts.
 
 **Flat, keyed by strings.** Every row is self-contained and every relationship is
 expressed through human-readable keys — fully-qualified type names and member keys —
@@ -99,26 +100,50 @@ and `.hierograph` is appended.
 The file name is only a filesystem-safe label. The authoritative key is the one
 stored *inside* the tables.
 
-### 2.2 The snapshot directory
+### 2.2 The exploded artifact
 
-A snapshot is a directory of archives, one per artifact:
+The same tables may sit unzipped in a **directory** named exactly like the archive
+would be. This is the exploded form of the artifact:
+
+```
+com.example_billing-core_1.4.0.hierograph/
+├── classpath.parquet
+├── detail_refs.parquet
+├── members.parquet
+├── parameters.parquet
+├── refs.parquet
+└── types.parquet
+```
+
+The entries follow the archive's rules: flat, named as in §2.1, with the same
+required and optional tables. Because the name is the same, the two forms are
+interchangeable: zipping the directory's files as STORED entries yields the
+archive, unzipping the archive into a directory of its name yields the exploded
+form. Archives suit shipping, for example deploying to an artifact repository; the
+exploded form suits local work, where nothing is shipped and nothing has to be
+unpacked.
+
+### 2.3 The snapshot directory
+
+A snapshot is a directory of artifacts, one per artifact, each an archive or
+exploded:
 
 ```
 snapshot/
-├── com.example_billing-api_1.4.0.hierograph
-├── com.example_billing-core_1.4.0.hierograph
-└── com.example_billing-core_1.4.0_test.hierograph
+├── com.example_billing-api_1.4.0.hierograph          archive (file)
+├── com.example_billing-core_1.4.0.hierograph/        exploded (directory)
+└── com.example_billing-core_1.4.0_test.hierograph    archive (file)
 ```
 
-A reader loads every `*.hierograph` file in the directory, in file-name order, and
-treats the union as one graph.
+A reader loads every `*.hierograph` entry in the directory — file or directory — in
+name order, and treats the union as one graph. The two forms may be mixed freely.
 
-A directory that contains the six table files directly, rather than archives, is an
+A directory that contains the six table files directly, rather than artifacts, is an
 **unpacked** snapshot. It is read the same way, as if it were the content of a
 single archive. Its tables may cover several artifacts, because every type row
 names its own artifact.
 
-### 2.3 Parquet properties
+### 2.4 Parquet properties
 
 | Property | Value |
 |----------|-------|
