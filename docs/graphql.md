@@ -22,6 +22,21 @@ the **Explorer** sidebar lets you build queries by clicking through the schema.
 
 ### Example queries
 
+**Find nodes by name** (the entry point when you don't have an id yet; same matching and
+ranking as the MCP `find_node` tool):
+
+```graphql
+{
+  hierarchicalGraph {
+    findNodes(name: "invoice", kinds: ["types"], limit: 10) {
+      id
+      text
+      type
+    }
+  }
+}
+```
+
 **Get the root node and its direct children:**
 
 ```graphql
@@ -190,10 +205,10 @@ The full schema is defined in `hierograph-server/io.hierograph.server.graphql/sr
 | Field | Returns | Description |
 |---|---|---|
 | `identifier` | `ID!` | Identifier of the root node. |
-| `globalIdentifier` | `ID!` | The hierarchy's name, falling back to the root identifier. |
 | `rootNode` | `Node!` | The root of the tree. |
 | `node(id)` | `Node` | A single node by id. |
-| `nodes(ids)` | `NodeSet!` | A set of nodes by id. |
+| `nodes(ids)` | `NodeSet` | A set of nodes by id. |
+| `findNodes(name, kinds, limit)` | `[Node!]!` | Nodes by name, best match first; `kinds` filters by kind or group alias (`types`, `members`, `packages`), `limit` is 1–200 (default 50). |
 | `dependency(id)` | `Dependency` | A single dependency by its `<from>_<to>_<type>` id. |
 | `dependencies(ids)` | `DependencySet` | A set of dependencies by id. |
 | `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | `DependencySet` | All core dependencies rolled up between two subtrees. |
@@ -219,7 +234,25 @@ The full schema is defined in `hierograph-server/io.hierograph.server.graphql/sr
 `cells` (each `Cell` is `row` / `column` / `value`), and `stronglyConnectedComponents` (each
 `StronglyConnectedComponent` is `nodes` / `nodeIds` / `nodePositions`).
 
+Fields that take node ids match subtrees: a package or module id stands for every
+type below it. Every type and field carries a description, shown in GraphiQL's
+documentation pane.
+
 **Enums and inputs:** `NodeType` (`SOURCE`, `TARGET`); `NodesToConsider` (`SELF`,
 `SELF_AND_CHILDREN`, `SELF_AND_SUCCESSORS`), used by the `filter*` fields; the `NodeSelection` input
 (`selectedNodeIds`, `selectedNodesType`) consumed by `filteredDependencies`; and `MapEntry`, a
 `{ key, value }` pair.
+
+## Errors
+
+Errors appear in the response's `errors` array, next to whatever data could be
+resolved. Each carries a classification in `extensions.classification`:
+
+| Classification | When |
+|---|---|
+| `BAD_REQUEST` | An argument is invalid: a non-numeric node id, a malformed dependency id, a page number or size below 1, an unknown `findNodes` kind. |
+| `NOT_FOUND` | An id names nothing in the served graph. Non-fatal: the field answers without the id, and `extensions.unknownNodeIds` / `unknownDependencyIds` list it. |
+| `GRAPH_UNAVAILABLE` | No graph is loaded yet; `hierarchicalGraph` is `null`. |
+
+The full behaviour is specified in the
+[GraphQL API specification](../hierograph-server/io.hierograph.server.graphql/spec/hierograph-graphql.md).

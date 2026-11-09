@@ -226,9 +226,9 @@ of its endpoints and its type:
 The id is unique because the graph holds at most one core dependency per source,
 target and type. It is stable for the same reason handles are.
 
-**Hierarchy identifiers.** `HierarchicalGraph.identifier` is the root node's handle.
-`globalIdentifier` is the hierarchy's `name` when it has one, and the root handle
-otherwise. The served hierarchy carries no name, so both return the root handle.
+**Hierarchy identifier.** `HierarchicalGraph.identifier` is the root node's handle.
+It changes only when the root's key does, so a client can use it to recognise the
+served graph.
 
 The examples in this document use one small codebase:
 
@@ -300,29 +300,33 @@ given set after expansion:
 Several fields compute a set of nodes from dependencies: `referencedNodes`,
 `referencingNodes`, `filterReferencedNodes`, `filterReferencingNodes` on `Node` and
 `NodeSet`, and `nodes` / `referencedNodes` on `FilteredDependencies`. They share
-three rules.
+four rules.
 
 **Results are endpoints.** A referenced node is the `targetNode` of a core dependency,
-a referencing node its `sourceNode`. Results are therefore types. Accumulation keeps
-internal dependencies (§5), so the referenced nodes of a package include its own
-types that other types in the package use: `billing.referencedNodes` is `Money` and
-`Invoice`.
+a referencing node its `sourceNode`. Results are therefore types.
 
-**Predecessors are optional.** With `includePredecessors: true` (or
-`includePredecessorsInResult` / `includedPredecessors`, depending on the field) every
-result node is followed by its ancestors, nearest first, up to and including the root.
-This turns a set of types into the set of every tree node a UI needs to expand to show
-them. `billing.referencedNodes(includePredecessors: true)` is `Money`,
-`com.example.money`, `billing-core`, root, `Invoice`, `com.example.billing`.
+**The receiver's own subtree is left out.** On `Node` and `NodeSet`, a node's
+accumulated dependencies include its internal ones (§5), but an internal dependency is
+not a reference to anything else. The fields drop every result that lies inside the
+subtree of the node it was reached from: `billing.referencedNodes` is `Money` alone,
+although `Ledger` uses `Invoice`. In a node set the rule applies per member, so a
+member's reference to another member counts: the referenced nodes of the set
+`[Invoice, Ledger]` are `Money` and `Invoice`. The `filter*` fields select from these
+results, so they leave out the receiver's subtree too.
+
+**Predecessors are optional.** With `includePredecessors: true` every result node is
+followed by its ancestors, nearest first, up to and including the root. This turns a
+set of types into the set of every tree node a UI needs to expand to show them.
+`billing.referencedNodes(includePredecessors: true)` is `Money`, `com.example.money`,
+`billing-core`, root.
 
 **No duplicates, first-seen order.** A node appears once, at the position where it
 was first reached: receivers in their order, each receiver's accumulated dependencies
 in the model's accumulation order, and each result node directly followed by its
 not-yet-listed ancestors.
 
-The boolean arguments on `Node` and `NodeSet` are nullable and default to `false`.
-The two arguments on `FilteredDependencies` (`nodeType`, `includedPredecessors`) are
-required.
+Every field that offers predecessors names the argument `includePredecessors`,
+declared `Boolean! = false`: a client may leave it out but not pass `null`.
 
 ---
 
@@ -417,12 +421,37 @@ for its own mistake or a server fault.
 | `dependencyPage` with `pageNumber` < 1 or `pageSize` < 1 | `BAD_REQUEST`: `pageNumber must be >= 1 (pages are 1-based), was …` / `pageSize must be >= 1, was …` |
 | A node id that is not a number | `BAD_REQUEST`: `Invalid node id '…': a node id is a numeric handle`; the field resolves to `null`, or, for a non-null field such as `nodes(ids)`, its nearest nullable parent does |
 | A dependency id not of the form `<number>_<number>_<type>` | `BAD_REQUEST`: `Invalid dependency id '…': expected <source id>_<target id>_<type>` |
-| A node or dependency id that is well-formed but names nothing | no error; see the per-field behaviour in §11 |
+| A node or dependency id that is well-formed but names nothing | `NOT_FOUND`, non-fatal: the field answers without the id, and the error lists it |
 | No graph loaded yet | `GRAPH_UNAVAILABLE`; `hierarchicalGraph` is `null` |
 
-Unknown ids are not errors because a client that holds ids across a rebuild can
-legitimately ask for a node that has since disappeared. Single lookups return `null`,
-list arguments drop the unknown ids, and filters ignore them.
+**Unknown ids** are a fourth class. A client that holds ids across a rebuild can
+legitimately ask for a node that has since disappeared, so an unknown id does not
+fail the field: a single lookup returns `null`, a list argument drops the id, and a
+filter ignores it. The field reports the id all the same, so the client can tell a
+stale id from an empty result. Resolvers report each unknown id to `UnknownIds`; the
+`UnknownIdReporting` instrumentation collects the reports of each data fetcher and
+attaches one `NOT_FOUND` error to that field's result, next to its data:
+
+```json
+{
+  "message": "Unknown ids, left out of the result: no node with id '424242'",
+  "path": ["hierarchicalGraph", "nodes"],
+  "extensions": {
+    "classification": "NOT_FOUND",
+    "unknownNodeIds": ["424242"],
+    "unknownDependencyIds": []
+  }
+}
+```
+
+A well-formed query that finds nothing, such as an aggregated dependency between two
+unconnected subtrees, reports no error.
+
+**Where an error lands.** A rejected argument makes its field `null`. The top-level
+fields that take ids (`node`, `nodes`, `dependency`, `dependencies`,
+`dependencySetForAggregatedDependency`) and `dependencyPage` are nullable, so a
+rejection nulls only that field. On a non-null nested field, the `null` moves up to
+the nearest nullable ancestor, as GraphQL prescribes.
 
 ---
 
@@ -469,7 +498,9 @@ and searches only its outgoing core dependencies, never the whole graph.
 The schema lives in two files under `src/main/resources/graphql/`:
 `hierograph.graphqls` declares `Query` and the empty `HierarchicalGraph` type, and
 `hierograph-hierarchicalgraph.graphqls` extends `HierarchicalGraph` and declares every
-other type. One `@Controller` per GraphQL type holds its resolvers.
+other type. Every type, field and enum value carries a description, which GraphiQL
+shows in its documentation pane. One `@Controller` per GraphQL type holds its
+resolvers.
 
 ### 11.1 `Query` and `HierarchicalGraph`
 
@@ -485,13 +516,12 @@ type Query {
 | Field | Returns | Description |
 |---|---|---|
 | `identifier` | `ID!` | The root node's handle. |
-| `globalIdentifier` | `ID!` | The hierarchy's name, or the root handle when it has none (§4). |
 | `rootNode` | `Node!` | The root of the tree. Its children are the modules. |
-| `node(id)` | `Node` | The node with this handle, or `null`. |
-| `nodes(ids)` | `NodeSet!` | The nodes with these handles, in argument order; unknown ids are dropped, duplicates kept. |
+| `node(id)` | `Node` | The node with this handle, or `null` with a `NOT_FOUND` error (§9). |
+| `nodes(ids)` | `NodeSet` | The nodes with these handles, in argument order; unknown ids are dropped and reported (§9), duplicates kept. |
 | `findNodes(name, kinds, limit = 50)` | `[Node!]!` | Name search, see below. |
-| `dependency(id)` | `Dependency` | The core dependency with this id (§4), or `null`. A malformed id is a `BAD_REQUEST`. |
-| `dependencies(ids)` | `DependencySet` | The core dependencies with these ids, in argument order without duplicates; unknown ids are dropped. Never `null`. |
+| `dependency(id)` | `Dependency` | The core dependency with this id (§4), or `null` with a `NOT_FOUND` error. A malformed id is a `BAD_REQUEST`. |
+| `dependencies(ids)` | `DependencySet` | The core dependencies with these ids, in argument order without duplicates; unknown ids are dropped and reported. `null` only when an id is malformed. |
 | `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | `DependencySet` | The core dependencies of the aggregated dependency from the first subtree to the second; `null` when either id names no node or no core dependency connects the subtrees. |
 
 **`findNodes`** is the only name-based entry point; every other field takes ids. It
@@ -533,10 +563,10 @@ served hierarchy.
 | `properties` | `[MapEntry!]!` | Key–value facts about the node (§7). |
 | `dependenciesTo(targetNodes)` | `[Dependency!]!` | The core dependencies from this subtree whose target lies in the subtree of one of the given nodes. |
 | `dependenciesFrom(sourceNodes)` | `[Dependency!]!` | The core dependencies into this subtree whose source lies in the subtree of one of the given nodes. |
-| `referencedNodes(includePredecessors)` | `NodeSet!` | The targets of this subtree's outgoing core dependencies (§6). |
-| `referencingNodes(includePredecessors)` | `NodeSet!` | The sources of this subtree's incoming core dependencies (§6). |
-| `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessorsInResult)` | `NodeSet!` | The referenced nodes that lie in the expanded node set (§5). |
-| `filterReferencingNodes(nodeIds, nodesToConsider, includePredecessorsInResult)` | `NodeSet!` | The referencing nodes that lie in the expanded node set. |
+| `referencedNodes(includePredecessors)` | `NodeSet!` | The targets of this subtree's outgoing core dependencies, outside the subtree (§6). |
+| `referencingNodes(includePredecessors)` | `NodeSet!` | The sources of this subtree's incoming core dependencies, outside the subtree (§6). |
+| `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessors)` | `NodeSet!` | The referenced nodes that lie in the expanded node set (§5). |
+| `filterReferencingNodes(nodeIds, nodesToConsider, includePredecessors)` | `NodeSet!` | The referencing nodes that lie in the expanded node set. |
 
 **`childrenFilteredBy…`** answers the drill-down question "which of my children
 cause this dependency?". A UI that shows `billing → money` can ask
@@ -557,8 +587,8 @@ Resolvers in `NodeSetController`. A node set is an ordered list of nodes.
 | `orderedAdjacencyMatrix` | `OrderedAdjacencyMatrix!` | The DSM over the set (§11.8). |
 | `referencedNodes(includePredecessors)` | `NodeSet!` | The union of the members' referenced nodes (§6). |
 | `referencingNodes(includePredecessors)` | `NodeSet!` | The union of the members' referencing nodes. |
-| `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessorsInResult)` | `NodeSet!` | The union of the members' filtered referenced nodes (§5). |
-| `filterReferencingNodes(nodeIds, nodesToConsider, includePredecessorsInResult)` | `NodeSet!` | The union of the members' filtered referencing nodes. |
+| `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessors)` | `NodeSet!` | The union of the members' filtered referenced nodes (§5). |
+| `filterReferencingNodes(nodeIds, nodesToConsider, includePredecessors)` | `NodeSet!` | The union of the members' filtered referencing nodes. |
 
 The set-level fields exist so a client can ask about a selection (the children of a
 module, a user's multi-select) in one field rather than one per node, and get the
@@ -590,8 +620,8 @@ dependencies: the aggregated dependency's order for
 | `size` | `Int!` | The number of dependencies. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
-| `filteredChildren(parentNode, parentNodeType)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; empty when `parentNode` names no node. |
-| `filteredChildrenIds(parentNode, parentNodeType)` | `[String!]!` | Their handles. |
+| `filteredChildren(parentNode, parentNodeType)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; empty, with a `NOT_FOUND` error, when `parentNode` names no node. |
+| `filteredChildrenIds(parentNode, parentNodeType)` | `[ID!]!` | Their handles. |
 | `filteredDependencies(nodeSelection)` | `FilteredDependencies!` | The dependencies whose endpoints lie in the selected subtrees, see below. |
 
 **`filteredChildren`** drills a dependency set down one level (§5): it returns the
@@ -628,10 +658,10 @@ extraction.
 | `size` | `Int!` | The number of dependencies. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
-| `nodes(nodeType, includedPredecessors)` | `[Node!]!` | The distinct sources (`SOURCE`) or targets (`TARGET`) of the dependencies (§6). |
-| `nodeIds(nodeType, includedPredecessors)` | `[ID!]!` | Their handles. |
-| `referencedNodes(nodeType, includedPredecessors)` | `[Node!]!` | Every node that those sources or targets depend on, across the whole graph (§6). |
-| `referencedNodeIds(nodeType, includedPredecessors)` | `[ID!]!` | Their handles. |
+| `nodes(nodeType, includePredecessors)` | `[Node!]!` | The distinct sources (`SOURCE`) or targets (`TARGET`) of the dependencies (§6). |
+| `nodeIds(nodeType, includePredecessors)` | `[ID!]!` | Their handles. |
+| `referencedNodes(nodeType, includePredecessors)` | `[Node!]!` | Every node that those sources or targets depend on, across the whole graph (§6). |
+| `referencedNodeIds(nodeType, includePredecessors)` | `[ID!]!` | Their handles. |
 
 **`referencedNodes`** is not limited to the filtered set: it follows *all* outgoing
 dependencies of the extracted nodes. It answers "what else do the types in this cell
@@ -641,7 +671,7 @@ depend on?".
 
 | Type | Field | Returns | Description |
 |---|---|---|---|
-| `DependencyPage` | `pageInfo` | `PageInfo` | Where the page sits (§8). Always present. |
+| `DependencyPage` | `pageInfo` | `PageInfo!` | Where the page sits (§8). |
 | | `dependencies` | `[Dependency!]!` | The page's dependencies. |
 | `PageInfo` | `pageNumber` | `Int!` | The requested page, 1-based. |
 | | `maxPages` | `Int!` | The number of non-empty pages. |
@@ -828,10 +858,12 @@ For `findNodes`, seed a `HierarchicalGraphService` with the model and pass a
    returns the same lists in the same order.
 6. **No duplicates in derived sets.** The node lists of §6 contain each node once.
 7. **Non-null where declared.** `Node.properties` is an empty list, never `null`;
-   `nodes(ids)` is a node set, never `null`; list fields are empty rather than absent.
+   list fields are empty rather than absent. A field is `null` only where §9 and §11
+   say so.
 8. **Errors are classified.** Every argument the API validates (§9), malformed ids
    included, produces a `BAD_REQUEST` with a message; a missing graph produces
-   `GRAPH_UNAVAILABLE`. Neither is an `INTERNAL_ERROR`.
+   `GRAPH_UNAVAILABLE`; an id that names nothing produces a non-fatal `NOT_FOUND`
+   listing it. None is an `INTERNAL_ERROR`.
 
 ---
 

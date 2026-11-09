@@ -1,19 +1,19 @@
 extend type HierarchicalGraph {
 
-    # Returns the identifier
+    "The root node's id."
     identifier: ID!
 
-	# Returns the identifier
-    globalIdentifier: ID!
-
-    # Returns the root node
+    "The root of the tree. Its children are the modules."
     rootNode: Node!
 
-    # Returns the node with the given id
+    "The node with this id, or `null` (with a NOT_FOUND error) when it names no node."
     node(id: ID!): Node
 
-    # Returns the nodes with the given ids
-    nodes(ids: [ID!]!): NodeSet!
+    """
+    The nodes with these ids, in argument order, duplicates kept. Ids that name no node are left out and
+    reported in a NOT_FOUND error.
+    """
+    nodes(ids: [ID!]!): NodeSet
 
     """
     Finds nodes by name — the name-based entry point (every other field takes ids). Case-insensitive
@@ -22,203 +22,286 @@ extend type HierarchicalGraph {
     fully-qualified name. Same matching and ranking as the MCP find_node tool.
 
     `kinds` restricts the result to node kinds (e.g. "java.class", "java.method", "java.package",
-    "java.module") and/or the group aliases "types", "members", "packages". Without `kinds`, only
-    modules, packages and types are searched — methods and fields only when requested. An unknown
-    kind is a BAD_REQUEST listing the valid values.
+    "java.module", "external.type") and/or the group aliases "types", "members", "packages". Without
+    `kinds`, only modules, packages and types are searched — methods and fields only when requested. An
+    unknown kind is a BAD_REQUEST listing the valid values.
 
     `limit` caps the result (1..200, default 50); the result is the top `limit` matches, not a page.
     """
     findNodes(name: String!, kinds: [String!], limit: Int = 50): [Node!]!
 
-    # Returns the dependency with the given id (<source id>_<target id>_<type>)
+    """
+    The dependency with this id (`<source id>_<target id>_<type>`), or `null` (with a NOT_FOUND error)
+    when it names no dependency. A malformed id is a BAD_REQUEST.
+    """
     dependency(id: ID!): Dependency
 
-    # Returns the dependencies with the given ids
+    """
+    The dependencies with these ids, in argument order without duplicates. Ids that name no dependency are
+    left out and reported in a NOT_FOUND error; a malformed id is a BAD_REQUEST.
+    """
     dependencies(ids: [ID!]!): DependencySet
 
-    # Returns a dependency set based on an aggregated dependency
+    """
+    The dependencies from anywhere in the source node's subtree to anywhere in the target node's subtree:
+    the dependencies behind one cell of a dependency structure matrix. `null` when no dependency connects
+    the two subtrees, or (with a NOT_FOUND error) when an id names no node.
+    """
     dependencySetForAggregatedDependency(sourceNodeId: ID!, targetNodeId: ID!): DependencySet
 }
 
+"Which side of a dependency a node is on."
 enum NodeType {
+    "The depending end."
     SOURCE
+    "The end depended upon."
     TARGET
 }
 
+"How the `filter*` fields expand each given node before matching."
 enum NodesToConsider {
+    "The node alone."
     SELF,
+    "The node and its direct children."
     SELF_AND_CHILDREN,
+    "The node and all its descendants."
     SELF_AND_SUCCESSORS
 }
 
+"""
+An ordered list of nodes. Fields that take node ids match subtrees: a package id stands for every type
+below it. Ids that name no node are ignored and reported in a NOT_FOUND error.
+"""
 type NodeSet {
 
-	# contained nodes as node array
-	nodes: [Node!]!
-	
-	# the node ids as an array
-	nodeIds: [ID!]!
-	
-	# the adjacency matrix
+    "The nodes, in set order."
+    nodes: [Node!]!
+
+    "Their ids, in the same order."
+    nodeIds: [ID!]!
+
+    "The dependency structure matrix over the set: dependents first, cycles as contiguous blocks."
     orderedAdjacencyMatrix: OrderedAdjacencyMatrix!
-	
-	#
-	referencedNodes(includePredecessors: Boolean): NodeSet!
 
-	#
-	referencingNodes(includePredecessors: Boolean): NodeSet!
+    """
+    The nodes the members depend on, without duplicates. A member's dependencies inside its own subtree
+    are not references and are left out. With `includePredecessors`, each result node is followed by its
+    ancestors up to the root.
+    """
+    referencedNodes(includePredecessors: Boolean! = false): NodeSet!
 
-    #
-    filterReferencedNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+    "The nodes that depend on the members, leaving out each member's own subtree. See `referencedNodes`."
+    referencingNodes(includePredecessors: Boolean! = false): NodeSet!
 
-    #
-    filterReferencingNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+    "The members' referenced nodes that lie in `nodeIds`, each id expanded by `nodesToConsider`."
+    filterReferencedNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessors: Boolean! = false): NodeSet!
+
+    "The members' referencing nodes that lie in `nodeIds`, each id expanded by `nodesToConsider`."
+    filterReferencingNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessors: Boolean! = false): NodeSet!
 }
 
+"""
+A node of the tree: a module, a package, a type or a member. Only types are ends of dependencies; a
+package or module depends on what the types below it depend on. Fields that take node ids match subtrees:
+a package id stands for every type below it. Ids that name no node are ignored and reported in a
+NOT_FOUND error.
+"""
 type Node {
 
-    # The symbolicName for this node
+    "The node's id: a numeric handle, stable across rescans and restarts while the node exists."
     id: ID!
 
-    # The text label
+    """
+    The qualified name: the type's fully-qualified name, the package name, the artifact key for a module,
+    `<owner fqn>#<signature>` for a member; empty for the root.
+    """
     text: String!
 
-    # the type of the node
+    "The node's kind, e.g. `java.module`, `java.package`, `java.class`, `external.type`; `Unknown` for the root."
     type: String!
 
-    # The parent node
+    "The parent; `null` for the root."
     parent: Node
 
-    # The predecessors
+    "The ancestors, nearest first, up to and including the root."
     predecessors: [Node!]!
 
-    #
+    "Whether the node has children, so a tree view can draw an expander without loading them."
     hasChildren: Boolean!
 
-    # The children
+    "The children, in tree order."
     children: NodeSet!
 
-    #
+    "The children whose subtree depends on the subtree of at least one of the given nodes."
     childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!): NodeSet!
 
-    #
+    "The children whose subtree is depended on by the subtree of at least one of the given nodes."
     childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!): NodeSet!
 
-    #
+    """
+    Key-value facts about the node (`fqn`, `name`, `kind`, counts, modifiers, source file, …). Resolved in
+    one batch for all nodes of a response, and only when selected.
+    """
     properties: [MapEntry!]!
 
-    #
+    "The dependencies from this subtree into the subtree of one of the given nodes."
     dependenciesTo(targetNodes: [ID!]!): [Dependency!]!
 
-    #
+    "The dependencies into this subtree from the subtree of one of the given nodes."
     dependenciesFrom(sourceNodes: [ID!]!): [Dependency!]!
 
-    #
-    referencedNodes(includePredecessors: Boolean): NodeSet!
+    """
+    The nodes this subtree depends on, leaving out its own subtree. With `includePredecessors`, each
+    result node is followed by its ancestors up to the root.
+    """
+    referencedNodes(includePredecessors: Boolean! = false): NodeSet!
 
-    #
-    referencingNodes(includePredecessors: Boolean): NodeSet!
+    "The nodes that depend on this subtree, leaving out its own subtree. See `referencedNodes`."
+    referencingNodes(includePredecessors: Boolean! = false): NodeSet!
 
-    #
-    filterReferencedNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+    "The referenced nodes that lie in `nodeIds`, each id expanded by `nodesToConsider`."
+    filterReferencedNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessors: Boolean! = false): NodeSet!
 
-    #
-    filterReferencingNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessorsInResult: Boolean): NodeSet!
+    "The referencing nodes that lie in `nodeIds`, each id expanded by `nodesToConsider`."
+    filterReferencingNodes(nodeIds: [ID!]!, nodesToConsider: NodesToConsider!, includePredecessors: Boolean! = false): NodeSet!
 }
 
+"A direct dependency between two types."
 type Dependency {
+    "`<source id>_<target id>_<type>`; accepted by `dependency(id)`."
     id: ID!
+    "The depending type."
     sourceNode: Node!
+    "The type depended upon."
     targetNode: Node!
+    "The dependency's type, `DEPENDS_ON`."
     type: String!
+    "The number of individual references from source to target."
     weight: Int!
 }
 
+"A dependency structure matrix over a node set."
 type OrderedAdjacencyMatrix {
+    "The set in matrix order: dependents first, each cycle a contiguous block."
     orderedNodes: [Node!]!
+    "The non-zero cells, row by row."
     cells: [Cell!]!
+    "The cycles: components of more than one node. Empty for an acyclic set."
     stronglyConnectedComponents: [StronglyConnectedComponent!]!
 }
 
+"One non-zero cell of a dependency structure matrix."
 type Cell {
+    "Index into `orderedNodes` of the depending node."
     row: Int!
+    "Index into `orderedNodes` of the node depended upon."
     column: Int!
+    "The summed weight of the dependencies from the row's subtree into the column's; on the diagonal, the internal weight."
     value: Int!
 }
 
+"A cycle in a dependency structure matrix. The three lists are parallel: `orderedNodes[nodePositions[k]]` is `nodes[k]`."
 type StronglyConnectedComponent {
-
-	# contained nodes as node array
-	nodes: [Node!]!
-	
-	# the node ids as an array
-	nodeIds: [ID!]!
-
-	nodePositions: [Int!]!
+    "The cycle's nodes, in matrix order."
+    nodes: [Node!]!
+    "Their ids, in the same order."
+    nodeIds: [ID!]!
+    "Their indices into `orderedNodes`, in the same order."
+    nodePositions: [Int!]!
 }
 
+"Where a page sits in its dependency list."
 type PageInfo {
+    "The requested page, 1-based."
     pageNumber: Int!
+    "The number of non-empty pages; 0 for an empty list."
     maxPages: Int!
+    "The requested page size."
     pageSize: Int!
+    "The number of dependencies in the whole list."
     totalCount: Int!
 }
 
+"One page of a dependency list."
 type DependencyPage {
-    pageInfo: PageInfo
+    "Where the page sits."
+    pageInfo: PageInfo!
+    "The page's dependencies; empty past the last page."
     dependencies: [Dependency!]!
 }
 
+"An ordered list of dependencies."
 type DependencySet {
 
-    #
+    "The number of dependencies."
     size: Int!
 
-    #
+    "All dependencies, in set order."
     dependencies: [Dependency!]!
 
-    # Returns a dependency page with with the specified size
+    "One 1-based page of `pageSize` dependencies. `null`, with a BAD_REQUEST, when either argument is below 1."
     dependencyPage(pageNumber: Int!, pageSize: Int!): DependencyPage
 
-    # Returns a set of nodes filtered by the specified node type.
+    """
+    The children of `parentNode` whose subtree contains a source (SOURCE) or target (TARGET) of a
+    dependency in the set: drills the set down one level. Empty (with a NOT_FOUND error) when
+    `parentNode` names no node.
+    """
     filteredChildren(parentNode: ID!, parentNodeType: NodeType!): [Node!]!
 
-    #
-    filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!): [String!]!
+    "The ids of `filteredChildren`."
+    filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!): [ID!]!
 
-    #
+    """
+    The dependencies whose source lies in the subtree of a selected SOURCE node and whose target lies in
+    the subtree of a selected TARGET node. A side no selection names ids for is not restricted; a side
+    selected only with unknown ids keeps nothing.
+    """
     filteredDependencies(nodeSelection: [NodeSelection!]!): FilteredDependencies!
 }
 
+"A dependency set narrowed by `DependencySet.filteredDependencies`."
 type FilteredDependencies {
 
-    #
+    "The number of dependencies."
     size: Int!
 
-    #
+    "All dependencies, in set order."
     dependencies: [Dependency!]!
 
-    # Returns a dependency page with with the specified size
+    "One 1-based page of `pageSize` dependencies. `null`, with a BAD_REQUEST, when either argument is below 1."
     dependencyPage(pageNumber: Int!, pageSize: Int!): DependencyPage
 
-    #
-    nodes(nodeType: NodeType!, includedPredecessors: Boolean!): [Node!]!
+    "The distinct sources (SOURCE) or targets (TARGET) of these dependencies."
+    nodes(nodeType: NodeType!, includePredecessors: Boolean! = false): [Node!]!
 
-    #
-    nodeIds(nodeType: NodeType!, includedPredecessors: Boolean!): [ID!]!
+    "The ids of `nodes`."
+    nodeIds(nodeType: NodeType!, includePredecessors: Boolean! = false): [ID!]!
 
-    #
-    referencedNodes(nodeType: NodeType!, includedPredecessors: Boolean!): [Node!]!
+    """
+    Everything the sources (SOURCE) or targets (TARGET) of these dependencies depend on, across the whole
+    graph, not only within this set: "what else do the types in this cell use?".
+    """
+    referencedNodes(nodeType: NodeType!, includePredecessors: Boolean! = false): [Node!]!
 
-    #
-    referencedNodeIds(nodeType: NodeType!, includedPredecessors: Boolean!): [ID!]!
+    "The ids of `referencedNodes`."
+    referencedNodeIds(nodeType: NodeType!, includePredecessors: Boolean! = false): [ID!]!
 }
 
+"One side of a `filteredDependencies` selection."
 input NodeSelection {
 
+    "The selected nodes; each stands for its subtree."
     selectedNodeIds: [ID!]!
 
+    "Which side of the dependencies the nodes select."
     selectedNodesType: NodeType!
 }
 
-type MapEntry { key: String!, value: String }
+"A key-value pair."
+type MapEntry {
+    "The key."
+    key: String!
+    "The value; `null` when the underlying fact is."
+    value: String
+}

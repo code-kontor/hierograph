@@ -1,8 +1,16 @@
-# The Query type
 type Query {
+    """
+    The served hierarchical graph: the tree of modules, packages, types and members over the scanned
+    code, with the dependencies between types. `null`, with a GRAPH_UNAVAILABLE error, while no graph is
+    loaded.
+    """
     hierarchicalGraph: HierarchicalGraph
 }
 
+"""
+The served hierarchy. Every node and dependency is reached from here, by id or, with `findNodes`, by
+name. Each request is answered from the graph that was live when it arrived.
+"""
 type HierarchicalGraph {
 
 }

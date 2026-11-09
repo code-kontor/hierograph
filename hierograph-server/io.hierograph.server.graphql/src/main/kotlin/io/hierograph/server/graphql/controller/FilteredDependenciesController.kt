@@ -47,26 +47,26 @@ class FilteredDependenciesController(private val provider: HierarchicalGraphProv
     fun nodes(
         model: FilteredDependenciesModel,
         @Argument nodeType: NodeType,
-        @Argument includedPredecessors: Boolean
+        @Argument includePredecessors: Boolean
     ): List<HGNode> {
         val nodes = extractNodes(model.dependencyList, nodeType)
-        return if (includedPredecessors) addPredecessors(nodes) else nodes.toList()
+        return if (includePredecessors) addPredecessors(nodes) else nodes.toList()
     }
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun nodeIds(
         model: FilteredDependenciesModel,
         @Argument nodeType: NodeType,
-        @Argument includedPredecessors: Boolean
+        @Argument includePredecessors: Boolean
     ): List<String> {
-        return nodes(model, nodeType, includedPredecessors).map { it.identifier.toString() }
+        return nodes(model, nodeType, includePredecessors).map { it.identifier.toString() }
     }
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun referencedNodes(
         model: FilteredDependenciesModel,
         @Argument nodeType: NodeType,
-        @Argument includedPredecessors: Boolean
+        @Argument includePredecessors: Boolean
     ): List<HGNode> {
         val hierarchy = provider.hierarchy()
         val baseNodes = extractNodes(model.dependencyList, nodeType)
@@ -76,16 +76,16 @@ class FilteredDependenciesController(private val provider: HierarchicalGraphProv
                 referenced.add(dep.to)
             }
         }
-        return if (includedPredecessors) addPredecessors(referenced) else referenced.toList()
+        return if (includePredecessors) addPredecessors(referenced) else referenced.toList()
     }
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun referencedNodeIds(
         model: FilteredDependenciesModel,
         @Argument nodeType: NodeType,
-        @Argument includedPredecessors: Boolean
+        @Argument includePredecessors: Boolean
     ): List<String> {
-        return referencedNodes(model, nodeType, includedPredecessors).map { it.identifier.toString() }
+        return referencedNodes(model, nodeType, includePredecessors).map { it.identifier.toString() }
     }
 
     private fun extractNodes(deps: List<HGCoreDependency>, nodeType: NodeType): Set<HGNode> {

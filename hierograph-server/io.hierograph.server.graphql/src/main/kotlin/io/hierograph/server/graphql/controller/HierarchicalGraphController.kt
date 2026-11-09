@@ -16,6 +16,7 @@
 package io.hierograph.server.graphql.controller
 
 import io.hierograph.server.graphservice.NodeSearch
+import io.hierograph.server.graphql.UnknownIds
 import io.hierograph.server.graphql.model.DependencySetModel
 import io.hierograph.server.graphql.model.NodeSetModel
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
@@ -58,30 +59,23 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
     fun identifier(hierarchy: Hierarchy): String = hierarchy.rootNode.identifier.toString()
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun globalIdentifier(hierarchy: Hierarchy): String =
-        hierarchy.name ?: hierarchy.rootNode.identifier.toString()
-
-    @SchemaMapping(typeName = "HierarchicalGraph")
     fun rootNode(hierarchy: Hierarchy): HGNode = hierarchy.rootNode
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun node(hierarchy: Hierarchy, @Argument id: String): HGNode? =
-        hierarchy.lookupNode(NodeController.nodeId(id))
+    fun node(hierarchy: Hierarchy, @Argument id: String): HGNode? = NodeController.lookup(hierarchy, id)
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun nodes(hierarchy: Hierarchy, @Argument ids: List<String>): NodeSetModel {
-        val resolved = ids.mapNotNull { hierarchy.lookupNode(NodeController.nodeId(it)) }
+        val resolved = ids.mapNotNull { NodeController.lookup(hierarchy, it) }
         return NodeSetModel(resolved)
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
-    fun dependency(hierarchy: Hierarchy, @Argument id: String): HGCoreDependency? {
-        return findCoreDependencyById(hierarchy, id)
-    }
+    fun dependency(hierarchy: Hierarchy, @Argument id: String): HGCoreDependency? = lookupDependency(hierarchy, id)
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun dependencies(hierarchy: Hierarchy, @Argument ids: List<String>): DependencySetModel? {
-        return DependencySetModel(ids.distinct().mapNotNull { findCoreDependencyById(hierarchy, it) })
+        return DependencySetModel(ids.distinct().mapNotNull { lookupDependency(hierarchy, it) })
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
@@ -90,11 +84,16 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
         @Argument sourceNodeId: String,
         @Argument targetNodeId: String
     ): DependencySetModel? {
-        val sourceNode = hierarchy.lookupNode(NodeController.nodeId(sourceNodeId)) ?: return null
-        val targetNode = hierarchy.lookupNode(NodeController.nodeId(targetNodeId)) ?: return null
+        val sourceNode = NodeController.lookup(hierarchy, sourceNodeId)
+        val targetNode = NodeController.lookup(hierarchy, targetNodeId)
+        if (sourceNode == null || targetNode == null) return null
         val aggregated = hierarchy.getAggregatedDependency(sourceNode, targetNode) ?: return null
         return DependencySetModel(aggregated.coreDependencies)
     }
+
+    /** The dependency named by [id], or `null`; an id that names no dependency is reported to [UnknownIds]. */
+    private fun lookupDependency(hierarchy: Hierarchy, id: String): HGCoreDependency? =
+        findCoreDependencyById(hierarchy, id) ?: null.also { UnknownIds.dependency(id) }
 
     companion object {
         /** Upper bound for `findNodes(limit:)`; the result is a top-N, not a page. */

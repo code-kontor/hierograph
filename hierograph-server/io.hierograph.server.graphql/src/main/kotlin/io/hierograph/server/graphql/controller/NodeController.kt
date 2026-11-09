@@ -18,6 +18,7 @@ package io.hierograph.server.graphql.controller
 import graphql.GraphQLContext
 import io.hierograph.server.graphql.GraphSnapshotPinning
 import io.hierograph.server.graphql.HierarchicalGraphProvider
+import io.hierograph.server.graphql.UnknownIds
 import io.hierograph.server.graphservice.NodePropertiesProvider
 import io.hierograph.server.graphql.model.MapEntryModel
 import io.hierograph.server.graphql.model.NodeSetModel
@@ -120,16 +121,16 @@ class NodeController(
     }
 
     @SchemaMapping(typeName = "Node")
-    fun referencedNodes(node: HGNode, @Argument includePredecessors: Boolean?): NodeSetModel {
+    fun referencedNodes(node: HGNode, @Argument includePredecessors: Boolean): NodeSetModel {
         return NodeSetModel(
-            collectReferencedNodes(provider.hierarchy(), listOf(node), includePredecessors ?: false)
+            collectReferencedNodes(provider.hierarchy(), listOf(node), includePredecessors)
         )
     }
 
     @SchemaMapping(typeName = "Node")
-    fun referencingNodes(node: HGNode, @Argument includePredecessors: Boolean?): NodeSetModel {
+    fun referencingNodes(node: HGNode, @Argument includePredecessors: Boolean): NodeSetModel {
         return NodeSetModel(
-            collectReferencingNodes(provider.hierarchy(), listOf(node), includePredecessors ?: false)
+            collectReferencingNodes(provider.hierarchy(), listOf(node), includePredecessors)
         )
     }
 
@@ -138,15 +139,12 @@ class NodeController(
         node: HGNode,
         @Argument nodeIds: List<String>,
         @Argument nodesToConsider: NodesToConsider,
-        @Argument includePredecessorsInResult: Boolean?
+        @Argument includePredecessors: Boolean
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
         val targetSet = expandNodes(hierarchy, nodeIds, nodesToConsider)
-        val referenced = hierarchy.accumulatedOutgoing(node)
-            .map { it.to }
-            .filter { it in targetSet }
-            .toSet()
-        return NodeSetModel(withOptionalPredecessors(hierarchy, referenced, includePredecessorsInResult ?: false))
+        val referenced = collectReferencedNodes(hierarchy, listOf(node), false).filterTo(LinkedHashSet()) { it in targetSet }
+        return NodeSetModel(withOptionalPredecessors(hierarchy, referenced, includePredecessors))
     }
 
     @SchemaMapping(typeName = "Node")
@@ -154,15 +152,12 @@ class NodeController(
         node: HGNode,
         @Argument nodeIds: List<String>,
         @Argument nodesToConsider: NodesToConsider,
-        @Argument includePredecessorsInResult: Boolean?
+        @Argument includePredecessors: Boolean
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
         val sourceSet = expandNodes(hierarchy, nodeIds, nodesToConsider)
-        val referencing = hierarchy.accumulatedIncoming(node)
-            .map { it.from }
-            .filter { it in sourceSet }
-            .toSet()
-        return NodeSetModel(withOptionalPredecessors(hierarchy, referencing, includePredecessorsInResult ?: false))
+        val referencing = collectReferencingNodes(hierarchy, listOf(node), false).filterTo(LinkedHashSet()) { it in sourceSet }
+        return NodeSetModel(withOptionalPredecessors(hierarchy, referencing, includePredecessors))
     }
 
     companion object {
@@ -170,9 +165,13 @@ class NodeController(
         fun nodeId(id: String): Long =
             id.toLongOrNull() ?: throw InvalidArgumentException("Invalid node id '$id': a node id is a numeric handle")
 
-        /** The identifiers of the nodes named by [ids]; ids that name no node are dropped. */
+        /** The node named by [id], or `null`; an id that names no node is reported to [UnknownIds]. */
+        fun lookup(hierarchy: Hierarchy, id: String): HGNode? =
+            hierarchy.lookupNode(nodeId(id)) ?: null.also { UnknownIds.node(id) }
+
+        /** The identifiers of the nodes named by [ids]; ids that name no node are dropped and reported. */
         fun resolveIds(hierarchy: Hierarchy, ids: List<String>): Set<Any> =
-            ids.mapNotNullTo(HashSet()) { hierarchy.lookupNode(nodeId(it))?.identifier }
+            ids.mapNotNullTo(HashSet()) { lookup(hierarchy, it)?.identifier }
 
         /**
          * Subtree matching: whether [node] is one of [anchors] or a descendant of one. Dependency endpoints
@@ -197,6 +196,11 @@ class NodeController(
             }
         }
 
+        /**
+         * The nodes that [nodes] depend on: the targets of each node's accumulated outgoing dependencies,
+         * leaving out targets inside that node's own subtree. Its internal dependencies are not references
+         * to anything else.
+         */
         fun collectReferencedNodes(
             hierarchy: Hierarchy,
             nodes: List<HGNode>,
@@ -204,13 +208,15 @@ class NodeController(
         ): List<HGNode> {
             val targets = mutableSetOf<HGNode>()
             for (node in nodes) {
+                val self = setOf(node.identifier)
                 for (dep in hierarchy.accumulatedOutgoing(node)) {
-                    targets.add(dep.to)
+                    if (!isWithin(hierarchy, dep.to, self)) targets.add(dep.to)
                 }
             }
             return withOptionalPredecessors(hierarchy, targets, includePredecessors)
         }
 
+        /** The nodes that depend on [nodes], leaving out sources inside each node's own subtree. */
         fun collectReferencingNodes(
             hierarchy: Hierarchy,
             nodes: List<HGNode>,
@@ -218,8 +224,9 @@ class NodeController(
         ): List<HGNode> {
             val sources = mutableSetOf<HGNode>()
             for (node in nodes) {
+                val self = setOf(node.identifier)
                 for (dep in hierarchy.accumulatedIncoming(node)) {
-                    sources.add(dep.from)
+                    if (!isWithin(hierarchy, dep.from, self)) sources.add(dep.from)
                 }
             }
             return withOptionalPredecessors(hierarchy, sources, includePredecessors)
@@ -232,7 +239,7 @@ class NodeController(
         ): Set<HGNode> {
             val result = mutableSetOf<HGNode>()
             for (id in nodeIds) {
-                val node = hierarchy.lookupNode(nodeId(id)) ?: continue
+                val node = lookup(hierarchy, id) ?: continue
                 result.add(node)
                 when (nodesToConsider) {
                     NodesToConsider.SELF -> {}

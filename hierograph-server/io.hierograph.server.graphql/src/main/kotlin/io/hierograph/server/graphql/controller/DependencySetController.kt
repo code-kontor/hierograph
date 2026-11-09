@@ -55,7 +55,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         @Argument parentNodeType: NodeType
     ): List<HGNode> {
         val hierarchy = provider.hierarchy()
-        val parent = hierarchy.lookupNode(NodeController.nodeId(parentNode)) ?: return emptyList()
+        val parent = NodeController.lookup(hierarchy, parentNode) ?: return emptyList()
         val endpoints = when (parentNodeType) {
             NodeType.SOURCE -> depSet.dependencyList.map { it.from }
             NodeType.TARGET -> depSet.dependencyList.map { it.to }
