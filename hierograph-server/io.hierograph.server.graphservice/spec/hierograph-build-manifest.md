@@ -54,7 +54,7 @@ which classpath to resolve references*.
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `schemaVersion` | int | Manifest schema version (currently `1`). Advisory — see §4. |
+| `schemaVersion` | int | Manifest schema version (`1`). Advisory — see §4. |
 | `generator` | string | `io.hierograph.maven.plugin/<version>`; informational. |
 | `generatedAt` | string | ISO-8601 instant the manifest was written; informational. |
 | `reactorRoot` | string | Absolute path of the reactor root on the build host. The anchor for path portability (§3). |
@@ -145,7 +145,7 @@ relocate, which is one reason the consumer resolves dependencies by `gav`, not b
 The consumer parses the manifest **leniently**, which defines the compatibility
 contract:
 
-- **Unknown fields are ignored.** A newer producer may add fields a older consumer
+- **Unknown fields are ignored.** A newer producer may add fields an older consumer
   does not know; they are skipped, not errors.
 - **Missing fields take defaults.** Absent strings default empty, absent arrays
   empty, `internal` defaults `false`, `jar`/dirs default null, `schemaVersion`
@@ -163,14 +163,15 @@ behavior on the presence of fields rather than on the version number.
 
 ## 5. Recorded but reserved
 
-Two fields are captured by the producer and carried in the manifest but **not yet
-consumed** — recorded now so the format need not change when they are:
+Two fields are captured by the producer and carried in the manifest but **not
+consumed** by the server. They are recorded so the format does not change when a
+consumer starts using them:
 
 - **`jar`** (classpath entries) — the resolved local path of an external
   dependency. Reserved for API-scanning libraries the server has not cached, so
   references resolve *into* third-party types instead of stopping at a placeholder.
-  Today the server resolves dependencies by `gav` only (and the path would not
-  survive relocation anyway, §3).
+  The server resolves dependencies by `gav` only; the path would not survive
+  relocation in any case (§3).
 - **`sourceRoots`** / **`testSourceRoots`** (modules) — the module's main and test
   source directories, reserved for mapping graph nodes back to their source
   locations.
@@ -190,27 +191,17 @@ In manifest mode the server:
    is missing is skipped with a warning. (It is an error for *no* module to have
    scannable output.)
 3. When test scanning is enabled: re-roots and scans `testOutputDir` as the
-   artifact `<gav>:test`, resolved against `testClasspath`.
+   artifact `<gav>:test`, resolved against `testClasspath`. A manifest without
+   `testClasspath` (§4) resolves test types against `classpath` instead, so
+   test-scope dependencies appear as external types.
 4. Installs the per-owner classpath-order type resolver (§2) and ingests the
    scanned classes straight into the in-memory graph store; the Parquet detail
    snapshot is written separately, off the hot path.
 5. Watches each scanned output directory and re-scans only the modules whose
-   classes change, rebuilding the graph from the cached union.
+   classes change, rebuilding the graph from the cached union. It also watches
+   the manifest file and, when it changes, re-reads it and re-targets the
+   watcher.
 
 The manifest is thus a *scan plan plus resolution context*: it never contains
 scanned facts, only the inputs the server needs to produce them.
 
----
-
-## 7. Conformance
-
-The format above is implemented end to end: the envelope, `classpath` (all non-test
-scopes) and `testClasspath` (the full test classpath), the path-portability rule,
-lenient parsing, main/test scanning, the classpath-order resolver, and directory
-watching. The producer resolves test scope, emits `testClasspath` and
-`testSourceRoots`, and widens the main classpath to `provided`/`system`; the
-consumer resolves `<gav>:test` against `testClasspath`, falling back to the main
-classpath for a manifest from an older producer that omits it.
-
-The only fields produced but **not yet consumed** are the reserved ones (§5):
-`jar`, `sourceRoots`, and `testSourceRoots`.
