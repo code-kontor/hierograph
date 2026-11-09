@@ -40,8 +40,17 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
     fun invalidKinds(kindFilter: List<String>?): List<String> =
         kindFilter.orEmpty().filter { it !in validKindValues && it !in JavaKinds.ALL_ALIASES }
 
+    /** The best [limit] matches for [name] and the number of all matches. */
+    data class Result(val nodes: List<HGNode>, val total: Int)
+
     /** The best [limit] matches for [name]; [kindFilter] must already be valid (see [invalidKinds]). */
-    fun search(name: String, kindFilter: List<String>?, limit: Int): List<HGNode> {
+    fun search(name: String, kindFilter: List<String>?, limit: Int): List<HGNode> = find(name, kindFilter, limit).nodes
+
+    /**
+     * The best [limit] matches for [name], plus how many nodes match in all, so a caller can tell a
+     * complete answer from a cut one. [kindFilter] must already be valid (see [invalidKinds]).
+     */
+    fun find(name: String, kindFilter: List<String>?, limit: Int): Result {
         val expandedKinds = expandKindFilter(kindFilter)
         val kindMatches: (HGNode) -> Boolean = when (expandedKinds) {
             null -> { node -> node.kind != JavaNodeKind.METHOD && node.kind != JavaNodeKind.FIELD }
@@ -61,7 +70,8 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
             }
             matches.add(RankedNode(entry.node, rank, entry.fqnLower.length))
         }
-        return matches.sortedWith(compareBy({ it.rank }, { it.fqnLength })).take(limit).map { it.node }
+        val best = matches.sortedWith(compareBy({ it.rank }, { it.fqnLength })).take(limit).map { it.node }
+        return Result(best, matches.size)
     }
 
     /** Expands [kindFilter] into concrete kinds; `null` when no filter is supplied (structural-node default). */

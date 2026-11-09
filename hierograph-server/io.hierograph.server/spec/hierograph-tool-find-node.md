@@ -144,23 +144,25 @@ With `kindFilter = ["types"]` only the record remains.
       "modifiers": ["public", "final"], "is_abstract": false,
       "member_count": 4, "method_count": 3, "field_count": 1 }
   ],
-  "summary": { "total": 2, "returned": 2 }
+  "summary": { "total": 2, "returned": 2, "truncated": false }
 }
 ```
 
 | Field | Content | Why |
 |-------|---------|-----|
 | `results` | the ranked matches as enriched node references | ids to pass on, plus the kind, parent and size needed to pick the right one |
-| `summary.total` | the number of results returned, at most 50 | the count of the answer |
-| `summary.returned` | the same number | keeps the summary shape of the other browse tools |
+| `summary.total` | the number of all matches, before the cap | how ambiguous the name is |
+| `summary.returned` | the number of results returned, at most 50 | the size of this answer |
+| `summary.truncated` | `true` when `total > returned` | tells the caller that matches were left out and the name is too broad |
 
 Methods and fields carry their `modifiers` and no counts; external types carry the
 minimal fields only ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
 
-**The cap is silent.** `summary.total` counts the returned results, not all candidates.
-A response with 50 results may have more matches behind it, and the response has no
-flag that says so. A caller that gets 50 results narrows the search with a longer name
-or a `kindFilter`.
+**The cap is visible.** `summary.total` counts every match, so a response that was cut
+says so: `total` 312, `returned` 50, `truncated` `true`. The 50 returned are the best
+ranked, so an exact name match is never cut. A caller that sees `truncated` narrows
+the search with a longer name or a `kindFilter` rather than guessing among the
+returned ones.
 
 ---
 
@@ -193,8 +195,8 @@ Take the `id` of the result whose `qualified_name` is the one meant.
 **Find a module.** `find_node(name = "billing-core", kindFilter = ["java.module"])`. To
 see every module at once, use `graph_overview`.
 
-**Too many results.** If `returned` is 50, lengthen `name` or add a `kindFilter`; the
-response does not say how many matches were cut off.
+**Too many results.** If `truncated` is `true`, lengthen `name` or add a `kindFilter`;
+`total` says how far the search has to narrow.
 
 ---
 

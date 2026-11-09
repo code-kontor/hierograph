@@ -62,6 +62,13 @@ class NodeSearchTest {
     }
 
     @Test
+    fun `find reports the number of all matches beside the capped result`() {
+        val found = search.find("handler", null, 2)
+        assertThat(found.nodes).containsExactly(pkg, handler)
+        assertThat(found.total).isEqualTo(4)
+    }
+
+    @Test
     fun `modules are searchable by name and qualified name`() {
         assertThat(search.search("app.jar", null, 50)).containsExactly(module)
         assertThat(search.search("app", listOf("java.module"), 50)).containsExactly(module)

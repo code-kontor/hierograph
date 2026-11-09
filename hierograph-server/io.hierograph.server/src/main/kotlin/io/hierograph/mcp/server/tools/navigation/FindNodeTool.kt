@@ -47,7 +47,9 @@ class FindNodeTool(
                 "Use kindFilter to narrow results when names are ambiguous across node types. " +
                 "Accepts specific kinds (java.class, java.interface, java.enum, java.record, " +
                 "java.annotation, java.method, java.field, java.package, java.module) " +
-                "and group aliases (types, members, packages)."
+                "and group aliases (types, members, packages). " +
+                "Returns at most the 50 best matches; summary.total counts all matches and " +
+                "summary.truncated is true when more exist, in which case use a longer name or a kindFilter."
     )
     fun findNode(
         @ToolParam(description = "Name or fragment to search for, e.g. 'ClusterService', 'payment.api'")
@@ -64,12 +66,14 @@ class FindNodeTool(
         (KindFilter.parse(kindFilter) as? KindFilter.Invalid)?.let { return KindFilter.invalidResponse(it.values) }
 
         // ── search (shared with the GraphQL findNodes field) ───────────
-        val results = nodeSearch.search(name, kindFilter, SERVER_SIDE_CAP).map { nodeRefFactory.enrichedNodeRef(it) }
+        val found = nodeSearch.find(name, kindFilter, SERVER_SIDE_CAP)
+        val results = found.nodes.map { nodeRefFactory.enrichedNodeRef(it) }
         return mapOf(
             "results" to results,
             "summary" to mapOf(
-                "total" to results.size,
-                "returned" to results.size
+                "total" to found.total,
+                "returned" to results.size,
+                "truncated" to (found.total > results.size)
             )
         )
     }
