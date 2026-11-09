@@ -303,6 +303,7 @@ the pinned one inside `withPinnedSnapshot`):
 |--------|---------|
 | `isGraphAvailable` | whether any graph is loaded; tools check this before answering |
 | `withPinnedSnapshot { … }` | run a block against one snapshot, whatever reloads happen meanwhile |
+| `liveSnapshot()` / `withPinnedSnapshot(snapshot) { … }` | capture the live snapshot once and pin it later, for work that spans callbacks or threads (the GraphQL API pins each request this way) |
 | `model` | the hierarchical model (navigation, hierarchy, dependencies) |
 | `searchIndex` | the node search index for the current model |
 | `dataHash` | fingerprint of the current model; the basis for pagination-cursor validity |

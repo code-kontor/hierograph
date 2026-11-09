@@ -15,6 +15,8 @@
  */
 package io.hierograph.server.graphql.controller
 
+import graphql.GraphQLContext
+import io.hierograph.server.graphql.GraphSnapshotPinning
 import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphservice.NodePropertiesProvider
 import io.hierograph.server.graphql.model.MapEntryModel
@@ -38,6 +40,7 @@ import org.springframework.stereotype.Controller
 class NodeController(
     private val provider: HierarchicalGraphProvider,
     private val propertiesProvider: NodePropertiesProvider? = null,
+    private val pinning: GraphSnapshotPinning? = null,
 ) {
 
     @SchemaMapping(typeName = "Node")
@@ -89,11 +92,14 @@ class NodeController(
 
     /**
      * Batched and on demand: runs only when `properties` is selected, once for all nodes of the response.
-     * Node properties are resolved by the optional [propertiesProvider] in a single call.
+     * Node properties are resolved by the optional [propertiesProvider] in a single call. A batch loader runs
+     * outside any data fetcher, so it pins the request's graph itself (see [GraphSnapshotPinning]).
      */
     @BatchMapping(typeName = "Node", field = "properties")
-    fun properties(nodes: List<HGNode>): Map<HGNode, List<MapEntryModel>> {
-        val provided = propertiesProvider?.propertiesOf(nodes).orEmpty()
+    fun properties(nodes: List<HGNode>, context: GraphQLContext): Map<HGNode, List<MapEntryModel>> {
+        val provided = propertiesProvider?.let { provider ->
+            pinning?.pinned(context) { provider.propertiesOf(nodes) } ?: provider.propertiesOf(nodes)
+        }.orEmpty()
         return nodes.associateWith { node ->
             provided[node].orEmpty().map { (k, v) -> MapEntryModel(k, v) }
         }
@@ -160,9 +166,13 @@ class NodeController(
     }
 
     companion object {
+        /** Parses a node id argument; an id that is not a handle is the client's mistake, a `BAD_REQUEST`. */
+        fun nodeId(id: String): Long =
+            id.toLongOrNull() ?: throw InvalidArgumentException("Invalid node id '$id': a node id is a numeric handle")
+
         /** The identifiers of the nodes named by [ids]; ids that name no node are dropped. */
         fun resolveIds(hierarchy: Hierarchy, ids: List<String>): Set<Any> =
-            ids.mapNotNullTo(HashSet()) { hierarchy.lookupNode(it.toLong())?.identifier }
+            ids.mapNotNullTo(HashSet()) { hierarchy.lookupNode(nodeId(it))?.identifier }
 
         /**
          * Subtree matching: whether [node] is one of [anchors] or a descendant of one. Dependency endpoints
@@ -222,7 +232,7 @@ class NodeController(
         ): Set<HGNode> {
             val result = mutableSetOf<HGNode>()
             for (id in nodeIds) {
-                val node = hierarchy.lookupNode(id.toLong()) ?: continue
+                val node = hierarchy.lookupNode(nodeId(id)) ?: continue
                 result.add(node)
                 when (nodesToConsider) {
                     NodesToConsider.SELF -> {}

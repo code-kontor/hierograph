@@ -132,11 +132,12 @@ Both are needed because:
               GraphQL clients · GraphiQL (/graphiql/index.html)
 ```
 
-**Producers.** The API produces nothing; it reads. `GraphQlConfiguration` defines the
-one bean the module contributes, a `HierarchicalGraphProvider` that returns
-`graphService.model.hierarchy`, the hierarchy of the snapshot the service
-serves at the moment of the call. `NodeSearch` and `NodePropertiesProvider` come from the graph-service module,
-so the GraphQL API and the MCP tools share them. The hierarchy itself is defined by
+**Producers.** The API produces nothing; it reads. `GraphQlConfiguration` defines a
+`HierarchicalGraphProvider` that returns `graphService.model.hierarchy`: the hierarchy
+of the snapshot pinned for the request (§10), and a `GRAPH_UNAVAILABLE` error when no
+graph is loaded (§9). `GraphSnapshotPinning` does the pinning. `NodeSearch` and
+`NodePropertiesProvider` come from the graph-service module, so the GraphQL API and the
+MCP tools share them. The hierarchy itself is defined by
 the [hierarchical graph model specification](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md),
 and the service by the
 [hierarchical graph service specification](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md).
@@ -389,12 +390,20 @@ client that pages across a reload can see a dependency twice or miss one.
 ## 9. Errors
 
 GraphQL reports errors in the response's `errors` array, alongside whatever data
-could be resolved. The API distinguishes two classes.
+could be resolved. The API distinguishes three classes.
 
 **Invalid arguments** are `BAD_REQUEST` errors with a message that names the problem.
 A resolver throws `InvalidArgumentException`, and `InvalidArgumentExceptionResolver`
 maps it to a GraphQL error of type `BAD_REQUEST` with the exception's message. Without
 this mapping the client would see an opaque `INTERNAL_ERROR` for its own mistake.
+
+**No graph** is a `GRAPH_UNAVAILABLE` error. The server starts without a graph when
+its source cannot be built, for example before the project is compiled. The
+`HierarchicalGraphProvider` then throws `GraphUnavailableException`, and
+`GraphUnavailableExceptionResolver` reports it with the classification
+`GRAPH_UNAVAILABLE` and a message saying how to make a graph available. A client
+recognises the state by its classification and retries later, rather than taking it
+for its own mistake or a server fault.
 
 **Anything else** is reported by Spring GraphQL's default handling as an
 `INTERNAL_ERROR`, without the exception's message.
@@ -406,9 +415,10 @@ this mapping the client would see an opaque `INTERNAL_ERROR` for its own mistake
 | `findNodes` with an unknown kind | `BAD_REQUEST` naming the unknown kinds and listing every valid kind and group alias |
 | `findNodes` without a `NodeSearch` bean | `BAD_REQUEST`: `findNodes is not available: no search index is configured` |
 | `dependencyPage` with `pageNumber` < 1 or `pageSize` < 1 | `BAD_REQUEST`: `pageNumber must be >= 1 (pages are 1-based), was …` / `pageSize must be >= 1, was …` |
-| A node id that is not a number | `INTERNAL_ERROR`; the field resolves to `null`, or, for a non-null field such as `nodes(ids)`, its nearest nullable parent does |
-| A node id that is a number but names no node | no error; see the per-field behaviour in §11 |
-| No graph loaded yet | `INTERNAL_ERROR`; `hierarchicalGraph` is `null` |
+| A node id that is not a number | `BAD_REQUEST`: `Invalid node id '…': a node id is a numeric handle`; the field resolves to `null`, or, for a non-null field such as `nodes(ids)`, its nearest nullable parent does |
+| A dependency id not of the form `<number>_<number>_<type>` | `BAD_REQUEST`: `Invalid dependency id '…': expected <source id>_<target id>_<type>` |
+| A node or dependency id that is well-formed but names nothing | no error; see the per-field behaviour in §11 |
+| No graph loaded yet | `GRAPH_UNAVAILABLE`; `hierarchicalGraph` is `null` |
 
 Unknown ids are not errors because a client that holds ids across a rebuild can
 legitimately ask for a node that has since disappeared. Single lookups return `null`,
@@ -418,13 +428,23 @@ list arguments drop the unknown ids, and filters ignore them.
 
 ## 10. Consistency and cost
 
-**No snapshot pinning.** `hierarchicalGraph` resolves the current hierarchy once and
-hands it to the `HierarchicalGraph` fields. Fields on `Node`, `NodeSet`,
-`DependencySet` and `FilteredDependencies` call `HierarchicalGraphProvider.hierarchy()`
-themselves, and `findNodes` reads the service's current search index. A graph reload
-that completes while a query runs can therefore make the later fields of that query
-read the rebuilt hierarchy. Each field is computed from one hierarchy; a whole query is
-not. Clients that need a consistent picture across a reload issue the query again.
+**One graph per request.** Resolvers read the graph service many times in one
+request: the hierarchy in nearly every field, the search index in `findNodes`, the
+hierarchy and the Parquet tables in the properties batch. A reload can complete
+between any two of those reads. `GraphSnapshotPinning` keeps one request on one graph,
+in two roles:
+
+- As a `WebGraphQlInterceptor`, it captures the service's live snapshot into the
+  request's GraphQL context when the request arrives.
+- As a graphql-java `Instrumentation`, it pins that snapshot
+  (`HierarchicalGraphService.withPinnedSnapshot`) around every non-trivial data
+  fetcher, on whichever thread the fetcher runs. The properties batch loader runs
+  outside any data fetcher and pins the same snapshot itself.
+
+A response is therefore computed entirely from the graph that was live when the
+request arrived, as an MCP tool call is. A reload that completes meanwhile takes
+effect from the next request on. Different requests may see different graphs, so ids
+and page numbers held across requests follow the rules of §4 and §8.
 
 **Cost per field.** Fields that start at a node cost in proportion to its subtree;
 fields that start at the whole graph cost in proportion to the graph.
@@ -436,12 +456,11 @@ fields that start at the whole graph cost in proportion to the graph.
 | `dependencySetForAggregatedDependency` | the aggregated dependency, cached per hierarchy |
 | `orderedAdjacencyMatrix` | builds a DSM over the set: SCCs, ordering and a weight matrix |
 | `findNodes` | one pass over the search index |
-| `dependency(id)`, `dependencies(ids)` | **a walk of the whole tree** collecting every core dependency, per call |
+| `dependency(id)`, `dependencies(ids)` | per id: the source node's outgoing core dependencies |
 | `properties` | one batched Parquet read per response (§7) |
 
-`dependency` and `dependencies` exist for clients that stored dependency ids; a
-client that knows the endpoints reaches the same dependencies far more cheaply with
-`dependencySetForAggregatedDependency` or `Node.dependenciesTo`.
+A dependency id names both endpoints, so `dependency(id)` looks up the source node
+and searches only its outgoing core dependencies, never the whole graph.
 
 ---
 
@@ -471,8 +490,8 @@ type Query {
 | `node(id)` | `Node` | The node with this handle, or `null`. |
 | `nodes(ids)` | `NodeSet!` | The nodes with these handles, in argument order; unknown ids are dropped, duplicates kept. |
 | `findNodes(name, kinds, limit = 50)` | `[Node!]!` | Name search, see below. |
-| `dependency(id)` | `Dependency` | The core dependency with this id (§4), or `null`. |
-| `dependencies(ids)` | `DependencySet` | The core dependencies whose ids are in `ids`, in tree order (pre-order over the sources); unknown ids are dropped. Never `null`. |
+| `dependency(id)` | `Dependency` | The core dependency with this id (§4), or `null`. A malformed id is a `BAD_REQUEST`. |
+| `dependencies(ids)` | `DependencySet` | The core dependencies with these ids, in argument order without duplicates; unknown ids are dropped. Never `null`. |
 | `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | `DependencySet` | The core dependencies of the aggregated dependency from the first subtree to the second; `null` when either id names no node or no core dependency connects the subtrees. |
 
 **`findNodes`** is the only name-based entry point; every other field takes ids. It
@@ -564,7 +583,7 @@ annotated-by, other uses); the MCP dependency tools report them.
 
 Resolvers in `DependencySetController`. A dependency set is an ordered list of core
 dependencies: the aggregated dependency's order for
-`dependencySetForAggregatedDependency`, tree order for `dependencies(ids)`.
+`dependencySetForAggregatedDependency`, argument order for `dependencies(ids)`.
 
 | Field | Returns | Description |
 |---|---|---|
@@ -585,9 +604,11 @@ and `Ledger`. A child is returned once, however many endpoints it contains.
 of sources and a chosen group of targets. Each `NodeSelection` contributes its ids to
 the source side (`SOURCE`) or the target side (`TARGET`). A dependency is kept when
 its source lies in the subtree of a source-side node **and** its target lies in the
-subtree of a target-side node (§5); a side that ends up empty does not restrict. Ids that name no node
-are dropped before this rule applies, so a selection whose ids are all unknown leaves
-its side unrestricted.
+subtree of a target-side node (§5). A side restricts as soon as a selection names an
+id for it: a side no selection names, or only with an empty id list, does not
+restrict. Ids that name no node match nothing, so a side selected only with unknown
+ids keeps no dependency at all, and a stale selection yields an empty result rather
+than the whole set.
 
 ```graphql
 filteredDependencies(nodeSelection: [
@@ -643,17 +664,19 @@ defines the ordering and the cycle detection; this type serialises the result.
 | `Cell` | `row` | `Int!` | Index into `orderedNodes` of the depending node. |
 | | `column` | `Int!` | Index into `orderedNodes` of the node depended upon. |
 | | `value` | `Int!` | The summed weight of the core dependencies from the row's subtree into the column's. |
-| `StronglyConnectedComponent` | `nodes` | `[Node!]!` | The cycle's nodes, in the algorithm's order (the reverse of DSM order). |
+| `StronglyConnectedComponent` | `nodes` | `[Node!]!` | The cycle's nodes, in DSM order. |
 | | `nodeIds` | `[ID!]!` | Their handles, in the same order. |
-| | `nodePositions` | `[Int!]!` | The cycle's indices into `orderedNodes`, ascending. |
+| | `nodePositions` | `[Int!]!` | Their indices into `orderedNodes`, in the same order, so ascending. |
 
 **Sparse cells.** A matrix over *n* nodes has *n*² cells, most of them zero. Sending
 only the non-zero ones keeps a 200-package matrix small. A cell on the diagonal
 (`row == column`) is the subtree-internal weight of that node.
 
-**Positions, not pairs.** `nodePositions` is sorted and `nodes` is in the algorithm's
-order, so `nodes[k]` and `nodePositions[k]` do not belong together. To mark cycle
-rows, use the positions; to name the members, use `orderedNodes[position]`.
+**Parallel lists.** `nodes[k]`, `nodeIds[k]` and `nodePositions[k]` describe the
+same member: `orderedNodes[nodePositions[k]]` is `nodes[k]`. A client marks the cycle's
+rows with the positions and labels them from `nodes`, without a second lookup. The
+algorithm reports a cycle's members in the reverse of DSM order; the API re-sorts them
+so the three lists line up.
 
 For `nodes(ids: [billing, money]) { orderedAdjacencyMatrix }`:
 
@@ -799,13 +822,16 @@ For `findNodes`, seed a `HierarchicalGraphService` with the model and pass a
    to the same node or dependency while the node still exists.
 3. **Shared semantics.** A node's handle, its kind string and the ranking of a name
    search are the same as in the MCP tools.
-4. **Deterministic for a given graph.** The same query against the same served graph
+4. **One graph per request.** Every field of a response is computed from the graph
+   that was live when the request arrived (§10).
+5. **Deterministic for a given graph.** The same query against the same served graph
    returns the same lists in the same order.
-5. **No duplicates in derived sets.** The node lists of §6 contain each node once.
-6. **Non-null where declared.** `Node.properties` is an empty list, never `null`;
+6. **No duplicates in derived sets.** The node lists of §6 contain each node once.
+7. **Non-null where declared.** `Node.properties` is an empty list, never `null`;
    `nodes(ids)` is a node set, never `null`; list fields are empty rather than absent.
-7. **Client mistakes are `BAD_REQUEST`.** Every argument the API validates (§9)
-   produces a `BAD_REQUEST` with a message, not an `INTERNAL_ERROR`.
+8. **Errors are classified.** Every argument the API validates (§9), malformed ids
+   included, produces a `BAD_REQUEST` with a message; a missing graph produces
+   `GRAPH_UNAVAILABLE`. Neither is an `INTERNAL_ERROR`.
 
 ---
 

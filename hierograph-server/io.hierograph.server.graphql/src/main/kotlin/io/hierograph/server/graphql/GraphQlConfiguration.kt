@@ -15,15 +15,23 @@
  */
 package io.hierograph.server.graphql
 
+import io.hierograph.server.graphql.controller.GraphUnavailableException
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-/** Wires the GraphQL layer onto the shared graph service: resolvers see the currently served hierarchy. */
+/**
+ * Wires the GraphQL layer onto the shared graph service: resolvers see the served hierarchy, the one
+ * pinned for the request by [GraphSnapshotPinning]. Without a loaded graph the provider throws
+ * [GraphUnavailableException].
+ */
 @Configuration
 class GraphQlConfiguration {
 
     @Bean
     fun hierarchicalGraphProvider(graphService: HierarchicalGraphService): HierarchicalGraphProvider =
-        HierarchicalGraphProvider { graphService.model.hierarchy }
+        HierarchicalGraphProvider {
+            if (!graphService.isGraphAvailable) throw GraphUnavailableException()
+            graphService.model.hierarchy
+        }
 }

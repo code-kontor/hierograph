@@ -53,9 +53,10 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
         }
 
         val nodeIndexMap = orderedNodes.withIndex().associate { (i, n) -> n to i }
+        // Members in DSM order, so nodes[k] sits at nodePositions[k].
         val sccs = dsm.cycles.map { cycle ->
-            val positions = cycle.mapNotNull { nodeIndexMap[it] }.sorted()
-            StronglyConnectedComponentModel(cycle, positions)
+            val members = cycle.filter { it in nodeIndexMap }.sortedBy { nodeIndexMap.getValue(it) }
+            StronglyConnectedComponentModel(members, members.map { nodeIndexMap.getValue(it) })
         }
 
         return OrderedAdjacencyMatrixModel(orderedNodes, cells, sccs)

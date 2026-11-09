@@ -291,9 +291,18 @@ class HierarchicalGraphService {
      *
      * Nested calls keep the outer pin. Without a loaded graph, [block] runs unpinned.
      */
-    fun <T> withPinnedSnapshot(block: () -> T): T {
-        if (pinned.get() != null) return block()
-        val snapshot = snapshotRef.get() ?: return block()
+    fun <T> withPinnedSnapshot(block: () -> T): T = withPinnedSnapshot(snapshotRef.get(), block)
+
+    /** The live snapshot, or `null` without a loaded graph: what [withPinnedSnapshot] would pin right now. */
+    fun liveSnapshot(): GraphSnapshot? = snapshotRef.get()
+
+    /**
+     * Runs [block] with [snapshot] pinned to the current thread, like [withPinnedSnapshot] does with the
+     * live one. For work that spans threads or callbacks: capture [liveSnapshot] once where the work starts,
+     * and pin it around each piece. Nested calls keep the outer pin; a `null` [snapshot] runs [block] unpinned.
+     */
+    fun <T> withPinnedSnapshot(snapshot: GraphSnapshot?, block: () -> T): T {
+        if (pinned.get() != null || snapshot == null) return block()
         pinned.set(snapshot)
         try {
             return block()

@@ -66,11 +66,11 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun node(hierarchy: Hierarchy, @Argument id: String): HGNode? =
-        hierarchy.lookupNode(id.toLong())
+        hierarchy.lookupNode(NodeController.nodeId(id))
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun nodes(hierarchy: Hierarchy, @Argument ids: List<String>): NodeSetModel {
-        val resolved = ids.mapNotNull { hierarchy.lookupNode(it.toLong()) }
+        val resolved = ids.mapNotNull { hierarchy.lookupNode(NodeController.nodeId(it)) }
         return NodeSetModel(resolved)
     }
 
@@ -81,9 +81,7 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
 
     @SchemaMapping(typeName = "HierarchicalGraph")
     fun dependencies(hierarchy: Hierarchy, @Argument ids: List<String>): DependencySetModel? {
-        val idSet = ids.toSet()
-        val deps = collectAllCoreDependencies(hierarchy).filter { coreDependencyId(it) in idSet }
-        return DependencySetModel(deps)
+        return DependencySetModel(ids.distinct().mapNotNull { findCoreDependencyById(hierarchy, it) })
     }
 
     @SchemaMapping(typeName = "HierarchicalGraph")
@@ -92,8 +90,8 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
         @Argument sourceNodeId: String,
         @Argument targetNodeId: String
     ): DependencySetModel? {
-        val sourceNode = hierarchy.lookupNode(sourceNodeId.toLong()) ?: return null
-        val targetNode = hierarchy.lookupNode(targetNodeId.toLong()) ?: return null
+        val sourceNode = hierarchy.lookupNode(NodeController.nodeId(sourceNodeId)) ?: return null
+        val targetNode = hierarchy.lookupNode(NodeController.nodeId(targetNodeId)) ?: return null
         val aggregated = hierarchy.getAggregatedDependency(sourceNode, targetNode) ?: return null
         return DependencySetModel(aggregated.coreDependencies)
     }
@@ -105,18 +103,22 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
         fun coreDependencyId(dep: HGCoreDependency): String =
             "${dep.from.identifier}_${dep.to.identifier}_${dep.type}"
 
+        /**
+         * The core dependency named by [id] (see [coreDependencyId]), or `null` when there is none. The id
+         * names both endpoints, so this looks only at the source's outgoing dependencies. Handles contain no
+         * `_`, so the first two separate the endpoints and the rest is the type. A malformed id is a
+         * `BAD_REQUEST`.
+         */
         fun findCoreDependencyById(hierarchy: Hierarchy, id: String): HGCoreDependency? {
-            return collectAllCoreDependencies(hierarchy).firstOrNull { coreDependencyId(it) == id }
-        }
-
-        fun collectAllCoreDependencies(hierarchy: Hierarchy): List<HGCoreDependency> {
-            val deps = mutableListOf<HGCoreDependency>()
-            fun walk(node: HGNode) {
-                deps.addAll(node.outgoingCoreDependencies)
-                for (child in hierarchy.childrenOf(node)) walk(child)
+            val parts = id.split('_', limit = 3)
+            val from = parts.getOrNull(0)?.toLongOrNull()
+            val to = parts.getOrNull(1)?.toLongOrNull()
+            if (parts.size != 3 || from == null || to == null) {
+                throw InvalidArgumentException("Invalid dependency id '$id': expected <source id>_<target id>_<type>")
             }
-            walk(hierarchy.rootNode)
-            return deps
+            val type = parts[2]
+            return hierarchy.lookupNode(from)?.outgoingCoreDependencies
+                ?.firstOrNull { it.to.identifier == to && it.type == type }
         }
     }
 }

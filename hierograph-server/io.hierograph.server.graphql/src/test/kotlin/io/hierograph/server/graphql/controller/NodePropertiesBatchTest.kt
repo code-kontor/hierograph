@@ -15,6 +15,7 @@
  */
 package io.hierograph.server.graphql.controller
 
+import graphql.GraphQLContext
 import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphservice.NodePropertiesProvider
 import io.hierograph.server.graphql.model.MapEntryModel
@@ -44,7 +45,7 @@ class NodePropertiesBatchTest {
             mapOf(a to mapOf("fqn" to "com.foo.A", "typeCount" to "3"))
         }
 
-        val result = NodeController(graphProvider, provider).properties(listOf(a, b))
+        val result = NodeController(graphProvider, provider).properties(listOf(a, b), GraphQLContext.getDefault())
 
         assertThat(calls).containsExactly(listOf(a, b))
         assertThat(result.getValue(a)).containsExactly(MapEntryModel("fqn", "com.foo.A"), MapEntryModel("typeCount", "3"))
@@ -56,7 +57,7 @@ class NodePropertiesBatchTest {
     fun `without a provider every node gets an empty property list`() {
         val a = node()
 
-        val result = NodeController(graphProvider).properties(listOf(a))
+        val result = NodeController(graphProvider).properties(listOf(a), GraphQLContext.getDefault())
 
         assertThat(result).containsOnlyKeys(a)
         assertThat(result.getValue(a)).isEmpty()

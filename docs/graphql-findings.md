@@ -34,9 +34,9 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 1.1 | Medium | One query can mix two graphs. `hierarchicalGraph` resolves the hierarchy once, but the resolvers of `Node`, `NodeSet`, `DependencySet` and `FilteredDependencies` call `provider.hierarchy()` again, and `findNodes` reads the service's live search index. A reload that completes mid-query makes later fields read the rebuilt graph. The MCP tools avoid this with `HierarchicalGraphService.withPinnedSnapshot`; GraphQL requests are not pinned. Options: pin per request (e.g. a `WebGraphQlInterceptor`), or resolve everything from the `Hierarchy` passed down from `hierarchicalGraph`. | `kotlin/.../controller/*Controller.kt`, `kotlin/.../GraphQlConfiguration.kt` |
-| 1.2 | Medium | Without a loaded graph, `hierarchicalGraph` fails with an opaque `INTERNAL_ERROR`: `service.model` throws `IllegalStateException("Hierarchical graph has not been loaded yet")`. The field is nullable, so returning `null` (or a `BAD_REQUEST`/`NOT_FOUND` with a message like the MCP tools' no-graph text) would be expected. | `kotlin/.../controller/QueryController.kt:27` |
-| 1.3 | Medium | A node id that is not a number gives an `INTERNAL_ERROR`. Every id argument is parsed with `toLong()`, whose `NumberFormatException` is not mapped. For a non-null field such as `nodes(ids)` the `null` propagates to `hierarchicalGraph`, so the whole response is lost. Parsing through a helper that throws `InvalidArgumentException` would yield a `BAD_REQUEST` naming the bad id. | `HierarchicalGraphController.kt:69,73,95–96`, `NodeController.kt:70,83,104,110,196`, `DependencySetController.kt:58,86` |
+| 1.1 | Fixed | One query could mix two graphs: resolvers below `hierarchicalGraph` re-read the service, and `findNodes` read the live search index. `GraphSnapshotPinning` captures the live snapshot into the request's GraphQL context (`WebGraphQlInterceptor`) and pins it around every non-trivial data fetcher (`Instrumentation`) and the properties batch, through the new `HierarchicalGraphService.withPinnedSnapshot(snapshot, block)` / `liveSnapshot()`. A response is computed from the graph that was live when the request arrived. | `GraphSnapshotPinning.kt`, `controller/NodeController.kt`, `io.hierograph.server.graphservice/.../HierarchicalGraphService.kt` |
+| 1.2 | Fixed | Without a loaded graph, `hierarchicalGraph` failed with an opaque `INTERNAL_ERROR`. The provider now throws `GraphUnavailableException`, which `GraphUnavailableExceptionResolver` reports with the classification `GRAPH_UNAVAILABLE` and a message saying how to make a graph available; `hierarchicalGraph` is `null`. | `GraphQlConfiguration.kt`, `controller/GraphUnavailableException.kt` |
+| 1.3 | Fixed | A node id that was not a number gave an `INTERNAL_ERROR`. Every id argument is parsed by `NodeController.nodeId`, which throws `InvalidArgumentException`: a `BAD_REQUEST` naming the id. Malformed dependency ids are a `BAD_REQUEST` too (4.1). | `controller/*Controller.kt` |
 | 1.4 | Low | Unknown-but-numeric ids are handled three different ways: single lookups return `null`, `nodes(ids)` drops them, `dependenciesTo` and the filters silently ignore them. A client cannot tell a stale id from an empty result. | `HierarchicalGraphController.kt`, `NodeController.kt` |
 
 ---
@@ -47,7 +47,7 @@ Severity:
 |---|----------|---------|----------|
 | 2.1 | Fixed | Several fields matched ids against the exact endpoints of core dependencies. Only types are endpoints, so a package or module id matched nothing: `Node.dependenciesTo` / `dependenciesFrom`, `childrenFilteredByReferencedNodes` / `…ByReferencingNodes`, `DependencySet.filteredDependencies`. They now match subtrees (`NodeController.isWithin`): a dependency matches a node when its endpoint is the node or one of its descendants, as `dependencySetForAggregatedDependency` does. Type ids match as before. `SubtreeMatchingTest` covers each field. | `NodeController.kt`, `DependencySetController.kt` |
 | 2.2 | Fixed | `DependencySet.filteredChildren` kept only children that were *themselves* endpoints, so for a module (children are packages) it always returned nothing. It now returns each child whose subtree contains a source or target (`NodeController.childContaining`), in child order. | `DependencySetController.kt` |
-| 2.3 | Medium | `filteredDependencies` drops unknown ids before filtering, and an empty side means "no restriction". A selection whose ids are all unknown therefore returns *every* dependency of that side instead of none. | `DependencySetController.kt:85–96` |
+| 2.3 | Fixed | A selection whose ids were all unknown left its side of `filteredDependencies` unrestricted, so it returned every dependency. A side now restricts as soon as a selection names an id for it; unknown ids match nothing, so such a selection returns no dependency. An empty id list still does not restrict. | `controller/DependencySetController.kt` |
 | 2.4 | Low | `referencedNodes` / `referencingNodes` and `filter*` on a package or module include nodes inside the receiver's own subtree, because accumulated dependencies keep internal edges (`billing.referencedNodes` contains `Invoice`). Probably expected to list only nodes outside the receiver. | `NodeController.kt:115–160`, `NodeSetController.kt:65–117` |
 | 2.5 | Low | `FilteredDependencies.referencedNodes` follows *all* outgoing dependencies of the extracted nodes, not only those in the filtered set. Fine if intended ("what else do these types use?"), but the name reads as "the nodes these dependencies reference", which `nodes(nodeType: TARGET)` already answers. | `FilteredDependenciesController.kt:66–81` |
 
@@ -57,7 +57,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 3.1 | Medium | `StronglyConnectedComponent.nodes` and `nodePositions` are not index-aligned. `nodes` is in the algorithm's order (the reverse of DSM order), `nodePositions` is sorted ascending, so `nodes[k]` does not sit at `nodePositions[k]`. A client zipping the two lists mislabels cycle members. Sort `nodes` by position, or keep positions in node order. | `NodeSetController.kt:56–59` |
+| 3.1 | Fixed | `StronglyConnectedComponent.nodes` was in the algorithm's order while `nodePositions` was ascending, so the lists did not line up. The members are now sorted by DSM position: `orderedNodes[nodePositions[k]]` is `nodes[k]`. | `controller/NodeSetController.kt` |
 
 ---
 
@@ -65,7 +65,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 4.1 | Medium | `dependency(id)` and `dependencies(ids)` walk the whole tree and collect every core dependency on each call, then scan for the id. The id already names both endpoint handles, so parsing it and looking at `lookupNode(from).outgoingCoreDependencies` is constant-cost. | `HierarchicalGraphController.kt:78–87,108–120` |
+| 4.1 | Fixed | `dependency(id)` and `dependencies(ids)` walked the whole tree on every call. The id is now parsed into source handle, target handle and type, and only the source's outgoing dependencies are searched. `dependencies(ids)` returns argument order without duplicates; a malformed id is a `BAD_REQUEST`. | `controller/HierarchicalGraphController.kt` |
 
 ---
 

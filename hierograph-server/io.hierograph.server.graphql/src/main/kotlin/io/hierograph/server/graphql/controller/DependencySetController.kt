@@ -55,7 +55,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         @Argument parentNodeType: NodeType
     ): List<HGNode> {
         val hierarchy = provider.hierarchy()
-        val parent = hierarchy.lookupNode(parentNode.toLong()) ?: return emptyList()
+        val parent = hierarchy.lookupNode(NodeController.nodeId(parentNode)) ?: return emptyList()
         val endpoints = when (parentNodeType) {
             NodeType.SOURCE -> depSet.dependencyList.map { it.from }
             NodeType.TARGET -> depSet.dependencyList.map { it.to }
@@ -80,20 +80,25 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         @Argument nodeSelection: List<NodeSelection>
     ): FilteredDependenciesModel {
         val hierarchy = provider.hierarchy()
-        val sourceIds = mutableSetOf<Any>()
-        val targetIds = mutableSetOf<Any>()
+        // A side is restricted as soon as a selection names ids for it, even if none of them resolves:
+        // selecting only unknown nodes matches nothing rather than everything.
+        var sourceIds: MutableSet<Any>? = null
+        var targetIds: MutableSet<Any>? = null
 
         for (selection in nodeSelection) {
+            if (selection.selectedNodeIds.isEmpty()) continue
             val ids = NodeController.resolveIds(hierarchy, selection.selectedNodeIds)
             when (selection.selectedNodesType) {
-                NodeType.SOURCE -> sourceIds.addAll(ids)
-                NodeType.TARGET -> targetIds.addAll(ids)
+                NodeType.SOURCE -> sourceIds = (sourceIds ?: mutableSetOf()).apply { addAll(ids) }
+                NodeType.TARGET -> targetIds = (targetIds ?: mutableSetOf()).apply { addAll(ids) }
             }
         }
 
+        val sources = sourceIds
+        val targets = targetIds
         val filtered = depSet.dependencyList.filter { dep ->
-            (sourceIds.isEmpty() || NodeController.isWithin(hierarchy, dep.from, sourceIds)) &&
-                (targetIds.isEmpty() || NodeController.isWithin(hierarchy, dep.to, targetIds))
+            (sources == null || NodeController.isWithin(hierarchy, dep.from, sources)) &&
+                (targets == null || NodeController.isWithin(hierarchy, dep.to, targets))
         }
 
         return FilteredDependenciesModel(filtered)
