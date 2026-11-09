@@ -29,6 +29,9 @@ import java.util.zip.ZipOutputStream
  * caching and exchange: a project snapshot is a directory of these, one per artifact (jar / module), so a
  * library is scanned once and its `.hierograph` reused.
  *
+ * The same tables may also sit unzipped in a directory of the same name (`<key>.hierograph/`), the
+ * **exploded** form; a snapshot directory may hold artifacts in either form.
+ *
  * Entries are **STORED** (not re-compressed): the Parquet tables are already ZSTD-compressed, so deflating
  * them again only burns CPU. On read, archives are [extracted] to a temp directory once and cached by
  * (path, last-modified), so repeated scoped reads during a session pay the unzip cost a single time and a

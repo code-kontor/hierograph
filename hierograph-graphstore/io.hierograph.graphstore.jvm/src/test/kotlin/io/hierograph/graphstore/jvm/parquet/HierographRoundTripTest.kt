@@ -99,6 +99,40 @@ class HierographRoundTripTest {
     }
 
     @Test
+    fun `exploded artifacts read like archives, also mixed with them`(@TempDir dir: Path) {
+        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDetailRefs(dir).toSet()
+
+        // explode b: its archive becomes a directory of the same name holding the same tables (mixed snapshot)
+        explode(dir.resolve("b.hierograph"))
+        assertThat(dir.resolve("b.hierograph")).isDirectory()
+        assertReadsBoth(dir, archived)
+
+        // explode a too: a snapshot of exploded artifacts only
+        explode(dir.resolve("a.hierograph"))
+        assertThat(dir.resolve("a.hierograph")).isDirectory()
+        assertReadsBoth(dir, archived)
+    }
+
+    private fun explode(archive: Path) {
+        val tmp = archive.resolveSibling(archive.fileName.toString() + ".tmp")
+        Files.move(archive, tmp)
+        HierographArchive.unzip(tmp, archive)
+        Files.delete(tmp)
+    }
+
+    private fun assertReadsBoth(dir: Path, detailRefs: Set<DetailRef>) {
+        val store = GraphStore()
+        ParquetReader().load(dir, store)
+        assertThat(store.typeByFqn("com.a.A")).isNotNull()
+        assertThat(store.typeByFqn("com.b.B")).isNotNull()
+        val reader = ParquetReader()
+        assertThat(reader.readDetailRefs(dir).toSet()).isEqualTo(detailRefs)
+        assertThat(reader.readMember(dir, "com.a.A#foo(java.lang.String)")!!.parameters.map { it.name })
+            .containsExactly("x")
+    }
+
+    @Test
     fun `classpath manifests round-trip and provide artifact display names on load`(@TempDir dir: Path) {
         val classpaths = mapOf(
             "a.jar" to ArtifactClasspath("a.jar", "A", emptyList()),

@@ -107,17 +107,18 @@ class ParquetReader {
     }
 
     /**
-     * The table directories to read a snapshot from: the extracted dir of each `*.hierograph` archive in
-     * [parquetDir] (one per artifact), or just [parquetDir] itself when it holds the tables directly (the
-     * legacy combined layout) or is not a directory. Archives are extracted once and cached
-     * (see [HierographArchive.extracted]).
+     * The table directories to read a snapshot from, one per `*.hierograph` artifact in [parquetDir], in name
+     * order: an exploded artifact (a directory) is read as it is, an archive (a file) from its extracted dir
+     * (extracted once and cached, see [HierographArchive.extracted]). [parquetDir] itself when it holds no
+     * artifacts but the tables directly (the unpacked layout), or is not a directory.
      */
     private fun snapshotDirs(parquetDir: Path): List<Path> {
         if (!Files.isDirectory(parquetDir)) return listOf(parquetDir)
-        val archives = Files.list(parquetDir).use { stream ->
+        val artifacts = Files.list(parquetDir).use { stream ->
             stream.filter { it.fileName.toString().endsWith(HierographArchive.EXTENSION) }.sorted().toList()
         }
-        return if (archives.isEmpty()) listOf(parquetDir) else archives.map { HierographArchive.extracted(it) }
+        if (artifacts.isEmpty()) return listOf(parquetDir)
+        return artifacts.map { if (Files.isDirectory(it)) it else HierographArchive.extracted(it) }
     }
 
     /** Reads [file] across every snapshot dir under [parquetDir] and concatenates the mapped rows. */
