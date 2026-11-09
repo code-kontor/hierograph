@@ -30,10 +30,15 @@ import java.time.OffsetDateTime
 
 /**
  * A module the build knows, as a producer hands it to [ManifestWriter.merge]: its current [gav] (to keep its
- * previous manifest entry when the descriptor is missing), a display [name] for messages, and where its
- * descriptor is.
+ * previous manifest entry when the descriptor is missing), a display [name] for messages, and its descriptor —
+ * either computed in memory ([descriptor]) or written to [descriptorFile] by an earlier build step.
  */
-data class ModuleSource(val gav: String, val name: String, val descriptorFile: Path)
+data class ModuleSource(
+    val gav: String,
+    val name: String,
+    val descriptorFile: Path? = null,
+    val descriptor: ModuleDescriptor? = null,
+)
 
 /**
  * Everything a merge needs from the build tool. [modules] are all modules of the build, also those not built in
@@ -55,8 +60,8 @@ data class MergeOutcome(val modules: Int, val written: Boolean, val file: Path)
 /**
  * Writes descriptors and merges them into the manifest, independent of the build tool.
  *
- * - **Merge.** One entry per module of the build with a descriptor. A module whose descriptor is missing (deleted
- *   by a clean, not rebuilt yet) keeps its entry from the existing manifest. A module no longer in the build
+ * - **Merge.** One entry per module of the build with a descriptor, given in memory or as a file. A module whose
+ *   descriptor file is missing (deleted by a clean, not rebuilt yet) keeps its entry from the existing manifest. A module no longer in the build
  *   drops out; a module whose GAV changed replaces its previous entry. Two modules with the same GAV: the first
  *   is kept and [merge]'s `warn` is told. Modules are sorted by GAV, build files by path.
  * - **Write only on change.** The manifest is compared with the existing file as a JSON tree, ignoring
@@ -111,14 +116,17 @@ object ManifestWriter {
         val seen = HashMap<String, String>() // gav -> the module that provided it
         val modules = ArrayList<ModuleDescriptor>()
         for (source in sources) {
-            val module = if (Files.isRegularFile(source.descriptorFile)) {
-                val obj = ManifestJson.parseObject(Files.readString(source.descriptorFile))
-                obj?.let(ManifestJson::readDescriptor) ?: run {
-                    warn("could not read descriptor ${source.descriptorFile}")
-                    null
+            val file = source.descriptorFile
+            val module = when {
+                source.descriptor != null -> source.descriptor
+                file != null && Files.isRegularFile(file) -> {
+                    val obj = ManifestJson.parseObject(Files.readString(file))
+                    obj?.let(ManifestJson::readDescriptor) ?: run {
+                        warn("could not read descriptor $file")
+                        null
+                    }
                 }
-            } else {
-                previousByGav[source.gav]
+                else -> previousByGav[source.gav]
             } ?: continue
             val first = seen.putIfAbsent(module.gav, source.name)
             if (first != null) {

@@ -15,9 +15,7 @@
  */
 package io.hierograph.maven.plugin
 
-import io.hierograph.manifest.ClasspathEntry
 import io.hierograph.manifest.ManifestWriter
-import io.hierograph.manifest.ModuleDescriptor
 import org.apache.maven.execution.MavenSession
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.descriptor.PluginDescriptor
@@ -76,30 +74,10 @@ class CreateDescriptorMojo : AbstractMojo() {
         }
 
         val reactorGavs = session.allProjects.mapTo(HashSet()) { gav(it.groupId, it.artifactId, it.version) }
-        fun entries(include: (String) -> Boolean) = project.artifacts
-            .filter { include(it.scope) }
-            .map {
-                val g = gav(it.groupId, it.artifactId, it.version)
-                val internal = g in reactorGavs
-                // An internal entry is scanned from its own output; its file (installed jar or target/classes,
-                // depending on how the build was invoked) is irrelevant and would only make the manifest unstable.
-                ClasspathEntry(gav = g, internal = internal, jar = if (internal) null else it.file?.absolutePath)
-            }
-        // Main classpath = every non-test scope (compile/runtime/provided/system); test classpath = all scopes.
-        // Both are recorded whether or not output exists yet: output may appear after this build (IDE compile).
-        val classpath = entries { it != "test" }
-        val testClasspath = entries { true }
-
-        val descriptor = ModuleDescriptor(
-            gav = gav(project.groupId, project.artifactId, project.version),
-            name = project.artifactId,
-            mainOutputDirs = listOf(File(project.build.outputDirectory).absolutePath),
-            testOutputDirs = listOf(File(project.build.testOutputDirectory).absolutePath),
-            sourceRoots = project.compileSourceRoots.toList(),
-            testSourceRoots = project.testCompileSourceRoots.toList(),
-            classpath = classpath,
-            testClasspath = testClasspath,
-        )
+        // Maven resolved the classpath for this goal (scope test): every scope, in classpath order.
+        val dependencies = project.artifacts.map { ResolvedDependency(gav(it.groupId, it.artifactId, it.version), it.scope, it.file) }
+        val descriptor = MavenManifest.describe(project, dependencies, reactorGavs)
+        val classpath = descriptor.classpath
 
         val descriptorFile = descriptorFile(project)
         val descriptorWritten = ManifestWriter.writeDescriptor(descriptor, descriptorFile.toPath())
@@ -108,7 +86,10 @@ class CreateDescriptorMojo : AbstractMojo() {
                 if (descriptorWritten) "" else " (unchanged)",
         )
 
-        val merged = MavenManifest.merge(session, manifestDir, pluginDescriptor.version, log)
+        val merged = MavenManifest.merge(
+            session, manifestDir, pluginDescriptor.version, log,
+            MavenManifest.descriptorFileModules(session), MavenManifest.REGENERATE_DESCRIPTORS,
+        )
         log.info(
             "hierograph:create-descriptor: ${merged.modules} module(s) → ${merged.file}" +
                 if (merged.written) "" else " (unchanged)",

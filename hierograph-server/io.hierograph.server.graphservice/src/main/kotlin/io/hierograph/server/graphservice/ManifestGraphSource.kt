@@ -145,8 +145,8 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      * scanned. The result may hold no scans at all (nothing compiled yet), but the manifest must declare at
      * least one output directory.
      */
-    fun scan(manifestPath: Path, includeTests: Boolean = false): Scanned {
-        val plan = readPlan(manifestPath, includeTests)
+    fun scan(manifestPath: Path, includeTests: Boolean = false, buildRoot: Path? = null): Scanned {
+        val plan = readPlan(manifestPath, includeTests, buildRoot)
         val modules = LinkedHashMap<String, ModuleScan>()
         for (output in plan.declared.values) {
             if (output.present) {
@@ -172,8 +172,8 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      * The signature check matters because the watcher re-baselines when it is re-targeted after a manifest
      * change: classes the same build compiled before that point are never reported as a change.
      */
-    fun reload(previous: Scanned, manifestPath: Path, includeTests: Boolean = false): Scanned {
-        val plan = readPlan(manifestPath, includeTests)
+    fun reload(previous: Scanned, manifestPath: Path, includeTests: Boolean = false, buildRoot: Path? = null): Scanned {
+        val plan = readPlan(manifestPath, includeTests, buildRoot)
         val modules = LinkedHashMap<String, ModuleScan>()
         var reused = 0
         for (output in plan.declared.values) {
@@ -223,10 +223,10 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             Scanned(modules, classpaths, declared, buildFiles, relocated, buildTool, regenerate)
     }
 
-    private fun readPlan(manifestPath: Path, includeTests: Boolean): Plan {
+    private fun readPlan(manifestPath: Path, includeTests: Boolean, buildRoot: Path?): Plan {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run a build with the Hierograph plugin applied)" }
         val manifest = MAPPER.readValue<ManifestDto>(manifestPath.toFile())
-        val remap = PathRemap(manifestPath, manifest.reactorRoot)
+        val remap = PathRemap(buildRoot ?: defaultBuildRoot(manifestPath), manifest.reactorRoot)
 
         val classpaths = LinkedHashMap<String, ArtifactClasspath>()
         val declared = LinkedHashMap<String, DeclaredOutput>()
@@ -346,15 +346,15 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     }
 
     /**
-     * Remaps a host path recorded in the manifest onto the local workspace. The manifest always lives at
-     * `<reactorRoot>/.hierograph/manifest.json`, so the local build root is where the manifest was
-     * actually read (`manifest.parent.parent`); a recorded path under the recorded reactor root is
-     * re-rooted there. On the build host the two roots are equal → identity; in a container with the
-     * workspace mounted they differ and the re-root makes the recorded paths resolve. A path outside the
-     * build tree is left as recorded.
+     * Remaps a host path recorded in the manifest onto the local workspace. The local build root is the
+     * configured one, or by default where the manifest was read (`<build root>/.hierograph/manifest.json`,
+     * see [defaultBuildRoot]); a recorded path under the recorded reactor root is re-rooted there. On the build
+     * host, and for a manifest written where it is read, the two roots are equal → identity; for a host manifest
+     * read in a container with the workspace mounted they differ and the re-root makes the recorded paths
+     * resolve. A path outside the build tree is left as recorded.
      */
-    private class PathRemap(manifestPath: Path, recordedReactorRoot: String) {
-        private val localRoot: Path? = manifestPath.toAbsolutePath().normalize().parent?.parent
+    private class PathRemap(localBuildRoot: Path?, recordedReactorRoot: String) {
+        private val localRoot: Path? = localBuildRoot?.toAbsolutePath()?.normalize()
         private val recordedRoot: Path? =
             recordedReactorRoot.takeIf { it.isNotEmpty() }?.let { runCatching { Path.of(it) }.getOrNull() }
 
@@ -369,8 +369,14 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         }
     }
 
-    private companion object {
+    companion object {
         private val log = LoggerFactory.getLogger(ManifestGraphSource::class.java)
+
+        /**
+         * The local build root of a manifest at [manifestPath] when none is configured: its grandparent, because a
+         * manifest written by the build lives at `<build root>/.hierograph/manifest.json`.
+         */
+        fun defaultBuildRoot(manifestPath: Path): Path? = manifestPath.toAbsolutePath().normalize().parent?.parent
         private val MAPPER = JsonMapper.builder()
             .addModule(kotlinModule())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

@@ -41,6 +41,7 @@ class BuildFileMonitor(
     private val mode: Mode,
     private val commandOverride: List<String>?,
     private val timeoutMs: Long,
+    private val stateDir: Path,
     private val inspect: () -> Inspection?,
 ) : AutoCloseable {
 
@@ -181,7 +182,7 @@ class BuildFileMonitor(
 
     /** Runs the regeneration command once; returns `null` on success or a failure description. */
     private fun regenerate(cmd: List<String>, buildRoot: Path): String? {
-        val logFile = buildRoot.resolve(".hierograph/regenerate.log")
+        val logFile = stateDir.resolve("regenerate.log")
         Files.createDirectories(logFile.parent)
         log.info("Running {} in {}", cmd.joinToString(" "), buildRoot)
         // Requests until now are covered by this run, which reads the build files after starting.
@@ -204,6 +205,29 @@ class BuildFileMonitor(
         val tail = runCatching { Files.readAllLines(logFile).takeLast(TAIL_LINES) }.getOrDefault(emptyList())
         log.warn("Regeneration failed with exit code {}; see {}", p.exitValue(), logFile)
         return "`${cmd.joinToString(" ")}` failed with exit code ${p.exitValue()}; last lines of $logFile:\n" + tail.joinToString("\n")
+    }
+
+    /**
+     * Generates a missing manifest **synchronously**, before anything is loaded: with [Mode.REGENERATE] and a
+     * configured [commandOverride] (there is no manifest yet to name a command). Returns `true` when the command
+     * succeeded; a failure is logged and kept as the [state], so `build_state` explains why no graph loaded.
+     */
+    fun generateMissingManifest(buildRoot: Path): Boolean {
+        val cmd = commandOverride
+        if (mode != Mode.REGENERATE || cmd == null) return false
+        log.info("No manifest yet; generating it")
+        synchronized(lock) {
+            if (running) return false
+            running = true
+            state = State(Status.REGENERATING)
+        }
+        val result = runCatching { regenerate(cmd, buildRoot) }.getOrElse { it.message ?: it.javaClass.simpleName }
+        synchronized(lock) {
+            running = false
+            failure = result
+            state = if (result == null) State(Status.CURRENT) else State(Status.REGENERATION_FAILED, message = result)
+        }
+        return result == null
     }
 
     override fun close() {

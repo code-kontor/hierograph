@@ -16,6 +16,8 @@
 package io.hierograph.maven.plugin
 
 import io.hierograph.manifest.BuildTool
+import io.hierograph.manifest.ClasspathEntry
+import io.hierograph.manifest.ModuleDescriptor
 import io.hierograph.manifest.ManifestWriter
 import io.hierograph.manifest.MergeOutcome
 import io.hierograph.manifest.MergeRequest
@@ -34,41 +36,88 @@ internal fun descriptorFile(project: MavenProject): File = File(File(project.bui
 
 internal fun gav(groupId: String, artifactId: String, version: String) = "$groupId:$artifactId:$version"
 
+/** One resolved dependency of a project, in classpath order: its GAV, its (mediated) scope and its file, if resolved. */
+internal data class ResolvedDependency(val gav: String, val scope: String, val file: File?)
+
 /**
  * The Maven side of a manifest merge: what only Maven knows, handed to the build-tool-independent
- * [ManifestWriter]. Shared by `hierograph:create-descriptor` and `hierograph:merge-descriptors`.
+ * [ManifestWriter]. Shared by `hierograph:create-descriptor`, `hierograph:merge-descriptors` and
+ * `hierograph:manifest`.
  *
  * - **Modules** are every project of `session.allProjects`, which is the full reactor even when the build is
- *   narrowed with `-pl`.
+ *   narrowed with `-pl`. [describe] turns a project and its resolved dependencies into a descriptor.
  * - **Build files** are every project's POM (aggregators included), each project's parent chain where the parent
  *   was read from a local file rather than the local repository, and `.mvn/maven.config` and
  *   `.mvn/extensions.xml` of the multi-module project directory.
- * - **Regeneration command** is `./mvnw -q -B process-classes` when the execution root holds a Maven wrapper
- *   (`./mvnw.cmd` on Windows), otherwise `mvn` from the `PATH`. `process-classes` rather than a bare
- *   `hierograph:create-descriptor`, because without a lifecycle phase Maven 3 does not resolve reactor siblings
- *   from their output directories.
+ * - **Regeneration command** reruns the goal that wrote the manifest: `./mvnw` when the execution root holds a
+ *   Maven wrapper (`./mvnw.cmd` on Windows), otherwise `mvn` from the `PATH`, with `-q -B`, the build's
+ *   explicitly active profiles, and the goal's own arguments ([REGENERATE_DESCRIPTORS] or [regenerateManifest]).
  */
 internal object MavenManifest {
 
-    fun merge(session: MavenSession, manifestDir: File, pluginVersion: String, log: Log): MergeOutcome {
-        val root = File(session.executionRootDirectory)
+    /**
+     * Regeneration arguments for a manifest merged from descriptor files: `process-classes`, because
+     * `create-descriptor` needs a lifecycle phase for Maven 3 to resolve reactor siblings from their output.
+     */
+    val REGENERATE_DESCRIPTORS = listOf("process-classes")
+
+    /** Regeneration arguments for a manifest written by `hierograph:manifest`: the goal itself, no lifecycle. */
+    fun regenerateManifest(pluginVersion: String) = listOf("io.hierograph:hierograph-maven-plugin:$pluginVersion:manifest")
+
+    /** Modules read from the descriptor files `create-descriptor` wrote into each project's `target/hierograph/`. */
+    fun descriptorFileModules(session: MavenSession): List<ModuleSource> =
+        session.allProjects.map { ModuleSource(gav(it.groupId, it.artifactId, it.version), it.artifactId, descriptorFile(it).toPath()) }
+
+    /**
+     * The descriptor of [project] from its resolved [dependencies] (classpath order). A dependency whose GAV is in
+     * [reactorGavs] is internal: it is scanned from its own output, so its file is irrelevant and recorded as `null`.
+     * The main classpath holds every non-`test` scope, the test classpath every scope. Output directories are the
+     * configured ones and need not exist yet.
+     */
+    fun describe(project: MavenProject, dependencies: List<ResolvedDependency>, reactorGavs: Set<String>): ModuleDescriptor {
+        fun entries(include: (String) -> Boolean) = dependencies.filter { include(it.scope) }.map {
+            val internal = it.gav in reactorGavs
+            ClasspathEntry(gav = it.gav, internal = internal, jar = if (internal) null else it.file?.absolutePath)
+        }
+        return ModuleDescriptor(
+            gav = gav(project.groupId, project.artifactId, project.version),
+            name = project.artifactId,
+            mainOutputDirs = listOf(File(project.build.outputDirectory).absolutePath),
+            testOutputDirs = listOf(File(project.build.testOutputDirectory).absolutePath),
+            sourceRoots = project.compileSourceRoots.toList(),
+            testSourceRoots = project.testCompileSourceRoots.toList(),
+            classpath = entries { it != "test" },
+            testClasspath = entries { true },
+        )
+    }
+
+    fun merge(
+        session: MavenSession,
+        manifestDir: File,
+        pluginVersion: String,
+        log: Log,
+        modules: List<ModuleSource>,
+        regenerateArgs: List<String>,
+    ): MergeOutcome {
         val request = MergeRequest(
             manifestDir = manifestDir.toPath(),
             generator = "io.hierograph.maven.plugin/$pluginVersion",
             reactorRoot = session.executionRootDirectory,
             buildTool = BuildTool("maven", session.systemProperties.getProperty("maven.version").orEmpty()),
-            regenerate = regenerateCommand(root),
-            modules = session.allProjects.map { ModuleSource(gav(it.groupId, it.artifactId, it.version), it.artifactId, descriptorFile(it).toPath()) },
+            regenerate = regenerateCommand(session, regenerateArgs),
+            modules = modules,
             buildFiles = buildFiles(session),
         )
         return ManifestWriter.merge(request) { log.warn("hierograph: $it") }
     }
 
-    private fun regenerateCommand(root: File): List<String> {
+    private fun regenerateCommand(session: MavenSession, args: List<String>): List<String> {
+        val root = File(session.executionRootDirectory)
         val windows = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
         val wrapper = if (windows) "mvnw.cmd" else "mvnw"
         val maven = if (File(root, wrapper).isFile) "./$wrapper" else if (windows) "mvn.cmd" else "mvn"
-        return listOf(maven, "-q", "-B", "process-classes")
+        val profiles = session.request.activeProfiles.orEmpty()
+        return listOf(maven, "-q", "-B") + (if (profiles.isEmpty()) emptyList() else listOf("-P" + profiles.joinToString(","))) + args
     }
 
     private fun buildFiles(session: MavenSession): List<Path> {

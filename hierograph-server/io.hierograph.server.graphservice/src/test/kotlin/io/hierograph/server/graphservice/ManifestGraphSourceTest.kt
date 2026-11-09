@@ -389,6 +389,31 @@ class ManifestGraphSourceTest {
         assertThat(source.rescan(reloaded, setOf(gav)).modules).isEmpty()
     }
 
+    /**
+     * A manifest written in a container's state directory records the container's build root. With that build
+     * root configured, its paths are used as recorded and it is not relocated — although it does not live at
+     * `<build root>/.hierograph/manifest.json`.
+     */
+    @Test
+    fun `an explicit build root takes a manifest outside the build root as not relocated`(@TempDir tmp: Path) {
+        val workspace = Files.createDirectories(tmp.resolve("workspace"))
+        val outputDir = copyTree(Path.of("target/classes").toAbsolutePath(), workspace.resolve("billing-core/target/classes"))
+        val manifest = Files.createDirectories(tmp.resolve("state")).resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """{ "reactorRoot": "${workspace.toUri().path.removeSuffix("/")}",
+                 "modules": [ { "gav": "com.example:billing-core:1.4.0", "mainOutputDirs": ["${outputDir.toUri().path}"] } ] }""",
+        )
+        val source = ManifestGraphSource()
+
+        val withRoot = source.scan(manifest, buildRoot = workspace)
+        assertThat(withRoot.relocated).isFalse()
+        assertThat(withRoot.modules.keys).containsExactly("com.example:billing-core:1.4.0")
+
+        // Without it, the root is derived from the manifest's location (tmp), which differs from the recorded one.
+        assertThat(source.scan(manifest).relocated).isTrue()
+    }
+
     private fun deleteTree(dir: Path) = Files.walk(dir).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
 
     private fun copyTree(from: Path, to: Path): Path {

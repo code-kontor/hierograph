@@ -68,9 +68,24 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.parquetDir:parquet}")
     private lateinit var parquetDir: String
 
-    /** Build manifest the server scans in `manifest` mode (written by `hierograph:merge-descriptors`). */
+    /** Build manifest the server scans in `manifest` mode (written by the Hierograph Maven plugin). */
     @Value("\${hierograph.graph.manifest:.hierograph/manifest.json}")
     private lateinit var manifestFile: String
+
+    /**
+     * Where the server writes in `manifest` mode — the Parquet snapshot and the regeneration log. Empty: the
+     * manifest's directory. A container sets it to its state directory, outside the read-only workspace.
+     */
+    @Value("\${hierograph.graph.stateDir:}")
+    private var stateDirSetting: String = ""
+
+    /**
+     * The local build root: the target of path re-rooting and the working directory of regeneration. Empty: the
+     * manifest's grandparent (`<build root>/.hierograph/manifest.json`). Set explicitly when the manifest lives
+     * elsewhere, e.g. in a container's state directory; a manifest recorded under this root is then not relocated.
+     */
+    @Value("\${hierograph.graph.buildRoot:}")
+    private var buildRootSetting: String = ""
 
     /** Watch mode (`manifest` mode only): `off` | `polling` | `native`. `native` falls back to polling for now. */
     @Value("\${hierograph.graph.watch.mode:polling}")
@@ -103,11 +118,12 @@ class HierarchicalGraphService {
             mode = BuildFileMonitor.Mode.parse(buildFilesMode),
             commandOverride = regenerateCommand.trim().takeIf { it.isNotEmpty() }?.split(Regex("\\s+")),
             timeoutMs = regenerateTimeoutMs,
+            stateDir = stateDir(),
             inspect = {
                 currentScanned?.let { scanned ->
                     BuildFileMonitor.Inspection(
                         staleFiles = manifestGraphSource.staleBuildFiles(scanned),
-                        buildRoot = Path.of(manifestFile).toAbsolutePath().normalize().parent.parent,
+                        buildRoot = buildRoot(),
                         relocated = scanned.relocated,
                         buildTool = scanned.buildTool,
                         command = scanned.regenerate,
@@ -144,12 +160,33 @@ class HierarchicalGraphService {
 
     /**
      * Base directory for the Parquet snapshot the detail tools read: [parquetDir] in `parquet` mode, or
-     * the `snapshot` directory beside the manifest in `manifest` mode (async writes land in zero-padded
+     * the `snapshot` directory in the state directory in `manifest` mode (async writes land in zero-padded
      * `gen-<nnnn>` subdirectories of it).
      */
     private fun snapshotDir(): Path =
-        if (manifestMode) Path.of(manifestFile).toAbsolutePath().normalize().parent.resolve("snapshot")
+        if (manifestMode) stateDir().resolve("snapshot")
         else Path.of(parquetDir)
+
+    private fun manifestPath(): Path = Path.of(manifestFile).toAbsolutePath().normalize()
+
+    /** [stateDirSetting], or the manifest's directory. */
+    private fun stateDir(): Path =
+        stateDirSetting.trim().takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() } ?: manifestPath().parent
+
+    /** The explicitly configured build root, or `null` to derive it from the manifest's location. */
+    private fun configuredBuildRoot(): Path? =
+        buildRootSetting.trim().takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() }
+
+    private fun buildRoot(): Path = configuredBuildRoot() ?: ManifestGraphSource.defaultBuildRoot(manifestPath()) ?: manifestPath().parent
+
+    /**
+     * In `manifest` mode without a manifest yet, generate it with the configured regeneration command before
+     * loading (a container's first start). A no-op when a manifest exists or no command is configured.
+     */
+    private fun generateManifestIfMissing() {
+        if (!manifestMode || Files.exists(manifestPath())) return
+        buildFileMonitor.generateMissingManifest(buildRoot())
+    }
 
     /**
      * The Parquet detail source, coupled to the graph [generation][GraphSnapshot.generation] it was built
@@ -226,6 +263,7 @@ class HierarchicalGraphService {
         // then report that no graph is available until one is loaded (e.g. via reload_graph). A manifest
         // that was read is still watched, so the graph builds itself once compiled output appears.
         try {
+            generateManifestIfMissing()
             val built = loadSnapshot()
             snapshotRef.set(built.snapshot)
             built.publishDetail()
@@ -260,6 +298,7 @@ class HierarchicalGraphService {
     fun reload(): Map<String, Any?> {
         log.info("Reloading hierarchical graph ({} source): {}", graphSource, if (manifestMode) manifestFile else parquetDir)
         return try {
+            generateManifestIfMissing()
             val (built, elapsed) = measureTimedValue { loadSnapshot() }
             snapshotRef.set(built.snapshot)
             built.publishDetail()
@@ -365,7 +404,7 @@ class HierarchicalGraphService {
      * lands, [readyDetailDir] withholds detail rather than serving the previous scan's.
      */
     private fun buildFromManifest(): Built {
-        val scanned = manifestGraphSource.scan(Path.of(manifestFile), includeTests)
+        val scanned = manifestGraphSource.scan(manifestPath(), includeTests, configuredBuildRoot())
         currentScanned = scanned
         requireCompiled(scanned)
         return buildManifestSnapshot(scanned)
@@ -405,7 +444,7 @@ class HierarchicalGraphService {
         }
         w.start(
             WatchTargets(
-                Path.of(manifestFile).toAbsolutePath().normalize(),
+                manifestPath(),
                 scanned.moduleDirs,
                 if (buildFileMonitor.watchesBuildFiles) scanned.buildFiles.keys else emptySet(),
             ),
@@ -458,7 +497,7 @@ class HierarchicalGraphService {
                 loadSnapshot() // nothing cached yet: a full scan, which also refreshes currentScanned
             } else {
                 val (built, elapsed) = measureTimedValue {
-                    val scanned = manifestGraphSource.reload(previous, Path.of(manifestFile), includeTests)
+                    val scanned = manifestGraphSource.reload(previous, manifestPath(), includeTests, configuredBuildRoot())
                     currentScanned = scanned
                     requireCompiled(scanned)
                     buildManifestSnapshot(scanned)

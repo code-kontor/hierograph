@@ -46,8 +46,8 @@ class ManifestWriterTest {
 
     @Test
     fun `merges descriptors and build files, sorted, with tool and command`(@TempDir tmp: Path) {
-        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile)
-        ManifestWriter.writeDescriptor(descriptor(api), source(tmp, api).descriptorFile)
+        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile!!)
+        ManifestWriter.writeDescriptor(descriptor(api), source(tmp, api).descriptorFile!!)
         val rootPom = Files.writeString(tmp.resolve("pom.xml"), "<project/>")
         val corePom = Files.writeString(Files.createDirectories(tmp.resolve("billing-core")).resolve("pom.xml"), "<project/>")
 
@@ -67,7 +67,7 @@ class ManifestWriterTest {
 
     @Test
     fun `an unchanged merge does not rewrite the manifest`(@TempDir tmp: Path) {
-        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile)
+        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile!!)
         val first = ManifestWriter.merge(request(tmp, listOf(source(tmp, core))))
         val mtime = Files.getLastModifiedTime(first.file)
         Thread.sleep(20)
@@ -75,16 +75,16 @@ class ManifestWriterTest {
         val second = ManifestWriter.merge(request(tmp, listOf(source(tmp, core))))
         assertThat(second.written).isFalse()
         assertThat(Files.getLastModifiedTime(second.file)).isEqualTo(mtime)
-        assertThat(ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile)).isFalse()
+        assertThat(ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile!!)).isFalse()
     }
 
     @Test
     fun `a missing descriptor keeps its entry, a module no longer in the build drops out`(@TempDir tmp: Path) {
-        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile)
-        ManifestWriter.writeDescriptor(descriptor(api), source(tmp, api).descriptorFile)
+        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile!!)
+        ManifestWriter.writeDescriptor(descriptor(api), source(tmp, api).descriptorFile!!)
         ManifestWriter.merge(request(tmp, listOf(source(tmp, core), source(tmp, api))))
 
-        Files.delete(source(tmp, api).descriptorFile) // a clean, not rebuilt yet
+        Files.delete(source(tmp, api).descriptorFile!!) // a clean, not rebuilt yet
         assertThat(manifestModules(ManifestWriter.merge(request(tmp, listOf(source(tmp, core), source(tmp, api)))))).containsExactly(api, core)
 
         // billing-api removed from the build: no longer among the sources.
@@ -94,8 +94,8 @@ class ManifestWriterTest {
     @Test
     fun `a duplicate GAV keeps the first module and warns`(@TempDir tmp: Path) {
         val other = ModuleSource(core, "billing-core-copy", tmp.resolve("copy/target/hierograph/module.json"))
-        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile)
-        ManifestWriter.writeDescriptor(descriptor(core, "/ws/billing/copy/target/classes"), other.descriptorFile)
+        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile!!)
+        ManifestWriter.writeDescriptor(descriptor(core, "/ws/billing/copy/target/classes"), other.descriptorFile!!)
         val warnings = ArrayList<String>()
 
         val outcome = ManifestWriter.merge(request(tmp, listOf(source(tmp, core), other)), warnings::add)
@@ -119,5 +119,14 @@ class ManifestWriterTest {
         assertThat(module.getAsJsonArray("testOutputDirs")).isEmpty()
         assertThat(module.getAsJsonArray("testClasspath")).isEmpty()
         assertThat(module.has("mainOutputDir")).isFalse()
+    }
+
+    @Test
+    fun `descriptors given in memory are merged without any descriptor file`(@TempDir tmp: Path) {
+        val outcome = ManifestWriter.merge(
+            request(tmp, listOf(ModuleSource(core, "billing-core", descriptor = descriptor(core)), ModuleSource(api, "billing-api", descriptor = descriptor(api)))),
+        )
+        assertThat(manifestModules(outcome)).containsExactly(api, core)
+        assertThat(Files.exists(tmp.resolve("billing-core/target"))).isFalse()
     }
 }

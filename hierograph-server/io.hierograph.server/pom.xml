@@ -158,6 +158,18 @@
                      named builder is created on demand and reused across runs. -->
                 <docker.buildx.builder>hierograph-builder</docker.buildx.builder>
             </properties>
+            <dependencies>
+                <!-- The image bakes the Maven plugin in (for regeneration inside the container). Declaring it
+                     here makes the reactor build the plugin before this module; provided scope keeps it out of
+                     the server jar. -->
+                <dependency>
+                    <groupId>io.hierograph</groupId>
+                    <artifactId>hierograph-maven-plugin</artifactId>
+                    <version>${project.version}</version>
+                    <type>maven-plugin</type>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <!-- Stage the Docker build context under target/docker: the
@@ -181,6 +193,7 @@
                                             <directory>${project.basedir}</directory>
                                             <includes>
                                                 <include>Dockerfile</include>
+                                                <include>entrypoint.sh</include>
                                             </includes>
                                         </resource>
                                         <resource>
@@ -195,6 +208,116 @@
                         </executions>
                     </plugin>
 
+                    <!-- Stage the Maven plugin and the Hierograph artifacts it needs into
+                         target/docker/repository (local-repository layout). The Dockerfile adds
+                         their third-party dependencies and bakes the result into the image, so
+                         regeneration inside the container finds the plugin without the host's
+                         repository. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>stage-plugin-repository</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>hierograph-maven-plugin</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>maven-plugin</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/hierograph-maven-plugin/${project.version}</outputDirectory>
+                                            <destFileName>hierograph-maven-plugin-${project.version}.jar</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>hierograph-maven-plugin</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/hierograph-maven-plugin/${project.version}</outputDirectory>
+                                            <destFileName>hierograph-maven-plugin-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.manifest</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>jar</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.manifest/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.manifest-${project.version}.jar</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.manifest</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.manifest/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.manifest-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>jar</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.graphstore.jvm-${project.version}.jar</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.graphstore.jvm-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.graphstore.jvm.scanner</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>jar</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm.scanner/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.graphstore.jvm.scanner-${project.version}.jar</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>io.hierograph.graphstore.jvm.scanner</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm.scanner/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.graphstore.jvm.scanner-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>hierograph-build-support</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/hierograph-build-support/${project.version}</outputDirectory>
+                                            <destFileName>hierograph-build-support-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>hierograph-graphstore</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/hierograph-graphstore/${project.version}</outputDirectory>
+                                            <destFileName>hierograph-graphstore-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.hierograph</groupId>
+                                            <artifactId>hierograph-parent</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>pom</type>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/hierograph-parent/${project.version}</outputDirectory>
+                                            <destFileName>hierograph-parent-${project.version}.pom</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
@@ -212,6 +335,8 @@
                                         <argument>build</argument>
                                         <argument>--build-arg</argument>
                                         <argument>JAR_FILE=${project.build.finalName}-exec.jar</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>HIEROGRAPH_VERSION=${project.version}</argument>
                                         <argument>-t</argument>
                                         <argument>${docker.image.name}</argument>
                                         <argument>.</argument>
@@ -270,6 +395,8 @@
                                         <argument>${docker.platforms}</argument>
                                         <argument>--build-arg</argument>
                                         <argument>JAR_FILE=${project.build.finalName}-exec.jar</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>HIEROGRAPH_VERSION=${project.version}</argument>
                                         <argument>-t</argument>
                                         <argument>${docker.image.name}</argument>
                                         <argument>--push</argument>

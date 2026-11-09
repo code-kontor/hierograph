@@ -60,7 +60,10 @@ class MergeDescriptorsMojo : AbstractMojo() {
             return
         }
 
-        val merged = MavenManifest.merge(session, manifestDir, pluginDescriptor.version, log)
+        val merged = MavenManifest.merge(
+            session, manifestDir, pluginDescriptor.version, log,
+            MavenManifest.descriptorFileModules(session), MavenManifest.REGENERATE_DESCRIPTORS,
+        )
         log.info("hierograph:merge-descriptors: ${merged.modules} module(s) → ${merged.file}" + if (merged.written) "" else " (unchanged)")
         if (merged.modules == 0) {
             log.warn("hierograph:merge-descriptors: no module descriptors found — did `hierograph:create-descriptor` run for the modules?")

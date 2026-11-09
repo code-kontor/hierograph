@@ -35,7 +35,7 @@ class BuildFileMonitorTest {
     @Test
     fun `notify reports stale build files until the manifest catches up`(@TempDir tmp: Path) {
         var stale = emptyList<Path>()
-        BuildFileMonitor(Mode.NOTIFY, commandOverride = null, timeoutMs = 1_000, inspect = { Inspection(stale, tmp, relocated = false) }).use { monitor ->
+        BuildFileMonitor(Mode.NOTIFY, commandOverride = null, timeoutMs = 1_000, stateDir = tmp.resolve("state"), inspect = { Inspection(stale, tmp, relocated = false) }).use { monitor ->
             monitor.refresh()
             assertThat(monitor.state.status).isEqualTo(Status.CURRENT)
 
@@ -55,7 +55,7 @@ class BuildFileMonitorTest {
     fun `regenerate runs the command, and a request during a run schedules exactly one follow-up`(@TempDir tmp: Path) {
         var stale = listOf(pom)
         val command = listOf("sh", "-c", "echo run >> runs.txt; sleep 0.5")
-        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, inspect = { Inspection(stale, tmp, relocated = false) }).use { monitor ->
+        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { Inspection(stale, tmp, relocated = false) }).use { monitor ->
             monitor.refresh()
             assertThat(monitor.state.status).isEqualTo(Status.REGENERATING)
             await().atMost(Duration.ofSeconds(10)).until { Files.exists(tmp.resolve("runs.txt")) }
@@ -76,7 +76,7 @@ class BuildFileMonitorTest {
     @EnabledOnOs(OS.MAC, OS.LINUX)
     fun `a failed regeneration is reported with the end of its output`(@TempDir tmp: Path) {
         val command = listOf("sh", "-c", "echo 'Non-parseable POM billing-core/pom.xml'; exit 1")
-        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, inspect = { Inspection(listOf(pom), tmp, relocated = false) }).use { monitor ->
+        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { Inspection(listOf(pom), tmp, relocated = false) }).use { monitor ->
             monitor.refresh()
             await().atMost(Duration.ofSeconds(10)).until { monitor.state.status == Status.REGENERATION_FAILED }
             assertThat(monitor.state.message).contains("exit code 1").contains("Non-parseable POM")
@@ -86,7 +86,7 @@ class BuildFileMonitorTest {
     @Test
     fun `a relocated manifest is reported, never regenerated`(@TempDir tmp: Path) {
         val command = listOf("sh", "-c", "touch ran.txt")
-        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, inspect = { Inspection(listOf(pom), tmp, relocated = true) }).use { monitor ->
+        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { Inspection(listOf(pom), tmp, relocated = true) }).use { monitor ->
             monitor.refresh()
             assertThat(monitor.state.status).isEqualTo(Status.STALE)
             Thread.sleep(300)
@@ -99,7 +99,7 @@ class BuildFileMonitorTest {
     fun `the manifest's command runs, with relative arguments resolved against the build root`(@TempDir tmp: Path) {
         Files.writeString(tmp.resolve("regen.sh"), "touch ran-by-manifest.txt\n")
         val inspection = Inspection(listOf(pom), tmp, relocated = false, buildTool = "gradle", command = listOf("sh", "./regen.sh"))
-        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, inspect = { inspection }).use { monitor ->
+        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { inspection }).use { monitor ->
             monitor.refresh()
             assertThat(monitor.state.toMap()).containsEntry("build_tool", "gradle")
             await().atMost(Duration.ofSeconds(10)).until { monitor.state.status != Status.REGENERATING }
@@ -111,7 +111,7 @@ class BuildFileMonitorTest {
     @EnabledOnOs(OS.MAC, OS.LINUX)
     fun `a configured command overrides the manifest's`(@TempDir tmp: Path) {
         val inspection = Inspection(listOf(pom), tmp, relocated = false, command = listOf("sh", "-c", "touch ran-by-manifest.txt"))
-        BuildFileMonitor(Mode.REGENERATE, listOf("sh", "-c", "touch ran-by-override.txt"), timeoutMs = 10_000, inspect = { inspection }).use { monitor ->
+        BuildFileMonitor(Mode.REGENERATE, listOf("sh", "-c", "touch ran-by-override.txt"), timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { inspection }).use { monitor ->
             monitor.refresh()
             await().atMost(Duration.ofSeconds(10)).until { monitor.state.status != Status.REGENERATING }
             assertThat(tmp.resolve("ran-by-override.txt")).exists()
@@ -121,9 +121,42 @@ class BuildFileMonitorTest {
 
     @Test
     fun `without any command, regenerate behaves as notify`(@TempDir tmp: Path) {
-        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, inspect = { Inspection(listOf(pom), tmp, relocated = false) }).use { monitor ->
+        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { Inspection(listOf(pom), tmp, relocated = false) }).use { monitor ->
             monitor.refresh()
             assertThat(monitor.state.status).isEqualTo(Status.STALE)
         }
     }
+
+    @Test
+    @EnabledOnOs(OS.MAC, OS.LINUX)
+    fun `the regeneration log is written to the state directory, not the build root`(@TempDir tmp: Path) {
+        val buildRoot = Files.createDirectories(tmp.resolve("workspace"))
+        val state = tmp.resolve("state")
+        val command = listOf("sh", "-c", "echo regenerating; exit 1")
+        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, stateDir = state, inspect = { Inspection(listOf(pom), buildRoot, relocated = false) }).use { monitor ->
+            monitor.refresh()
+            await().atMost(Duration.ofSeconds(10)).until { monitor.state.status == Status.REGENERATION_FAILED }
+            assertThat(state.resolve("regenerate.log")).content().contains("regenerating")
+            assertThat(buildRoot.resolve(".hierograph")).doesNotExist()
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.MAC, OS.LINUX)
+    fun `a missing manifest is generated synchronously with the configured command`(@TempDir tmp: Path) {
+        val command = listOf("sh", "-c", "touch generated.txt")
+        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { null }).use { monitor ->
+            assertThat(monitor.generateMissingManifest(tmp)).isTrue()
+            assertThat(tmp.resolve("generated.txt")).exists()
+            assertThat(monitor.state.status).isEqualTo(Status.CURRENT)
+        }
+        // Without regenerate mode, or without a configured command, nothing runs.
+        BuildFileMonitor(Mode.NOTIFY, command, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { null }).use {
+            assertThat(it.generateMissingManifest(tmp)).isFalse()
+        }
+        BuildFileMonitor(Mode.REGENERATE, commandOverride = null, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = { null }).use {
+            assertThat(it.generateMissingManifest(tmp)).isFalse()
+        }
+    }
 }
+
