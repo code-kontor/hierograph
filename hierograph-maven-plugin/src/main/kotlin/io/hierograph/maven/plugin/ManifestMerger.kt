@@ -16,6 +16,8 @@
 package io.hierograph.maven.plugin
 
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import org.apache.maven.execution.MavenSession
 import org.apache.maven.plugin.logging.Log
 import java.io.File
@@ -28,6 +30,7 @@ import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.StandardOpenOption.WRITE
+import java.security.MessageDigest
 import java.time.Instant
 
 /** What a [ManifestMerger.merge] did: the number of modules merged and whether the manifest file was rewritten. */
@@ -43,6 +46,9 @@ internal data class MergeOutcome(val modules: Int, val written: Boolean, val fil
  * built in this run contributes its last descriptor unchanged. A module whose descriptor is missing (deleted by
  * `mvn clean`, not rebuilt yet) keeps its entry from the existing manifest, so a narrowed or partial build after
  * `clean` does not drop it.
+ *
+ * The manifest also lists the reactor's **build files** with their content hashes ([collectBuildFiles]), so a
+ * watching server can tell when a POM was edited after the last merge.
  *
  * The manifest is rewritten only when its content differs from the existing file (ignoring `generatedAt`), so
  * a rebuild of an unchanged module set does not signal a module-set change to a watching server. Writes are
@@ -61,15 +67,16 @@ internal object ManifestMerger {
         manifestDir.mkdirs()
         withFileLock(File(manifestDir, LOCK_FILE).toPath()) {
             val out = File(manifestDir, MANIFEST_FILE)
-            val existing = readManifest(out)
+            val existing = readManifestTree(out)
             val manifest = Manifest(
                 schemaVersion = SCHEMA_VERSION,
                 generator = generator,
                 generatedAt = Instant.now().toString(),
                 reactorRoot = session.executionRootDirectory,
-                modules = collectDescriptors(session, existing, log),
+                modules = collectDescriptors(session, existing?.let { readModules(it) }, log),
+                buildFiles = collectBuildFiles(session),
             )
-            val written = existing == null || existing.copy(generatedAt = "") != manifest.copy(generatedAt = "")
+            val written = existing == null || withoutTimestamp(existing) != withoutTimestamp(gson.toJsonTree(manifest).asJsonObject)
             if (written) writeAtomically(out.toPath(), gson.toJson(manifest) + "\n")
             MergeOutcome(manifest.modules.size, written, out)
         }
@@ -84,8 +91,8 @@ internal object ManifestMerger {
         return true
     }
 
-    private fun collectDescriptors(session: MavenSession, existing: Manifest?, log: Log): List<ModuleDescriptor> {
-        val previous = existing?.modules.orEmpty().associateBy { it.gav }
+    private fun collectDescriptors(session: MavenSession, existing: List<ModuleDescriptor>?, log: Log): List<ModuleDescriptor> {
+        val previous = existing.orEmpty().associateBy { it.gav }
         val seen = HashMap<String, String>() // gav -> the module that provided it
         val modules = ArrayList<ModuleDescriptor>()
         for (project in session.allProjects) {
@@ -112,8 +119,60 @@ internal object ManifestMerger {
         return modules
     }
 
-    private fun readManifest(file: File): Manifest? =
-        if (!file.isFile) null else runCatching { gson.fromJson(file.readText(), Manifest::class.java) }.getOrNull()
+    /**
+     * The files that define the reactor: every project's POM (including `pom`-packaged aggregators), each
+     * project's parent chain where the parent was read from a local file rather than the local repository (a
+     * parent outside the reactor root still changes inherited dependencies), and `.mvn/maven.config` and
+     * `.mvn/extensions.xml` of the multi-module project directory (they can switch profiles and thus modules).
+     * Sorted by path, without duplicates, so an unchanged build does not cause a rewrite.
+     */
+    private fun collectBuildFiles(session: MavenSession): List<BuildFile> {
+        val localRepo = session.repositorySession?.localRepository?.basedir?.toPath()?.toAbsolutePath()?.normalize()
+        val files = sortedSetOf<Path>()
+        fun add(file: File?) {
+            val path = file?.toPath()?.toAbsolutePath()?.normalize() ?: return
+            if (localRepo != null && path.startsWith(localRepo)) return
+            if (Files.isRegularFile(path)) files.add(path)
+        }
+        for (project in session.allProjects) {
+            add(project.file)
+            var parent = project.parent
+            while (parent != null) {
+                add(parent.file)
+                parent = parent.parent
+            }
+        }
+        session.request.multiModuleProjectDirectory?.let { root ->
+            add(File(root, ".mvn/maven.config"))
+            add(File(root, ".mvn/extensions.xml"))
+        }
+        return files.map { BuildFile(it.toString(), sha256(it)) }
+    }
+
+    /** Content hashes keyed by path, reused while size and mtime are unchanged (a full build merges once per module). */
+    private val hashCache = HashMap<Path, Triple<Long, Long, String>>()
+
+    private fun sha256(file: Path): String {
+        val size = Files.size(file)
+        val mtime = Files.getLastModifiedTime(file).toMillis()
+        hashCache[file]?.let { (s, m, hash) -> if (s == size && m == mtime) return hash }
+        val digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file))
+        val hash = digest.joinToString("") { "%02x".format(it) }
+        hashCache[file] = Triple(size, mtime, hash)
+        return hash
+    }
+
+    /**
+     * The existing manifest as a JSON tree. Compared as a tree rather than as a [Manifest], because a manifest
+     * written by an older producer lacks fields that Gson would leave `null` in non-null properties.
+     */
+    private fun readManifestTree(file: File): JsonObject? =
+        if (!file.isFile) null else runCatching { JsonParser.parseString(file.readText()).asJsonObject }.getOrNull()
+
+    private fun readModules(manifest: JsonObject): List<ModuleDescriptor> =
+        manifest.getAsJsonArray("modules")?.mapNotNull { runCatching { gson.fromJson(it, ModuleDescriptor::class.java) }.getOrNull() }.orEmpty()
+
+    private fun withoutTimestamp(manifest: JsonObject): JsonObject = manifest.deepCopy().apply { remove("generatedAt") }
 
     private fun writeAtomically(target: Path, content: String) {
         val tmp = target.resolveSibling("${target.fileName}.tmp")

@@ -55,11 +55,22 @@ internal data class ModuleDescriptor(
     val testClasspath: List<ClasspathEntry>? = null,
 )
 
-/** The merged top-level manifest `hierograph:merge-descriptors` writes and the local MCP server reads. */
+/**
+ * A file that defines the reactor (a POM, or a `.mvn` configuration file) and the SHA-256 of its content when the
+ * manifest was merged. A watching server compares the hash with the file's current content to tell whether the
+ * manifest still reflects the build definition.
+ */
+internal data class BuildFile(
+    val path: String,
+    val sha256: String,
+)
+
+/** The merged top-level manifest `hierograph:create-descriptor` / `hierograph:merge-descriptors` write and the local MCP server reads. */
 internal data class Manifest(
     val schemaVersion: Int,
     val generator: String,
     val generatedAt: String,
     val reactorRoot: String,
     val modules: List<ModuleDescriptor>,
+    val buildFiles: List<BuildFile>,
 )

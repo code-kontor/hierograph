@@ -27,6 +27,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
+import java.security.MessageDigest
 
 class ManifestGraphSourceTest {
 
@@ -305,6 +306,40 @@ class ManifestGraphSourceTest {
         assertThat(fourth.modules.getValue(ledger).result).isSameAs(third.modules.getValue(ledger).result)
     }
 
+    /** A build file is stale when its content no longer matches the hash recorded in the manifest. */
+    @Test
+    fun `build files are stale when their content differs from the recorded hash`(@TempDir tmp: Path) {
+        val pom = Files.writeString(tmp.resolve("pom.xml"), "<project/>")
+        val gone = tmp.resolve("billing-export/pom.xml")
+        val sha = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(pom)).joinToString("") { "%02x".format(it) }
+        val manifest = Files.createDirectories(tmp.resolve(".hierograph")).resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """
+            {
+              "reactorRoot": "${tmp.toUri().path}",
+              "modules": [ { "gav": "com.example:billing-core:1.4.0", "mainOutputDir": "${tmp.resolve("billing-core/target/classes").toUri().path}" } ],
+              "buildFiles": [ { "path": "$pom", "sha256": "$sha" } ]
+            }
+            """.trimIndent(),
+        )
+        val source = ManifestGraphSource()
+        val scanned = source.scan(manifest)
+        assertThat(scanned.buildFiles.keys).containsExactly(pom)
+        assertThat(scanned.relocated).isFalse()
+        assertThat(source.staleBuildFiles(scanned)).isEmpty()
+
+        Files.writeString(pom, "<project><modules><module>billing-export</module></modules></project>")
+        assertThat(source.staleBuildFiles(scanned)).containsExactly(pom)
+
+        Files.writeString(pom, "<project/>") // reverted
+        assertThat(source.staleBuildFiles(scanned)).isEmpty()
+
+        // A listed file that no longer exists counts as changed.
+        val withGone = scanned.copy(buildFiles = scanned.buildFiles + (gone to sha))
+        assertThat(source.staleBuildFiles(withGone)).containsExactly(gone)
+    }
+
     private fun copyTree(from: Path, to: Path): Path {
         Files.walk(from).use { paths ->
             paths.forEach { p -> Files.copy(p, to.resolve(from.relativize(p).toString()).also { Files.createDirectories(it.parent) }) }
@@ -312,4 +347,3 @@ class ManifestGraphSourceTest {
         return to
     }
 }
-

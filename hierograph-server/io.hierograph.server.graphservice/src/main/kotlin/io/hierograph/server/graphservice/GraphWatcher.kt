@@ -17,8 +17,11 @@ package io.hierograph.server.graphservice
 
 import java.nio.file.Path
 
-/** The directories a [GraphWatcher] observes: each module's compiled output, plus the manifest file. */
-data class WatchTargets(val manifest: Path, val modules: Map<String, Path>)
+/**
+ * What a [GraphWatcher] observes: each module's compiled output, the manifest file, and the reactor's build
+ * files (POMs and `.mvn` configuration) the manifest lists.
+ */
+data class WatchTargets(val manifest: Path, val modules: Map<String, Path>, val buildFiles: Set<Path> = emptySet())
 
 /**
  * Observes a reactor's compiled output and reports *which modules changed* once their files have settled,
@@ -34,10 +37,16 @@ interface GraphWatcher : AutoCloseable {
 
     /**
      * Begin watching [targets]. [onChange] is invoked with the GAVs whose compiled output changed and then
-     * settled; [onManifestChange] when the manifest file itself changes (module set / classpath). Only
+     * settled; [onManifestChange] when the manifest file itself changes (module set / classpath);
+     * [onBuildFilesChange] once per settled burst of build-file edits, with the files that changed. Only
      * changes *after* `start` are reported — the current state is taken as the baseline.
      */
-    fun start(targets: WatchTargets, onChange: (changedGavs: Set<String>) -> Unit, onManifestChange: () -> Unit)
+    fun start(
+        targets: WatchTargets,
+        onChange: (changedGavs: Set<String>) -> Unit,
+        onManifestChange: () -> Unit,
+        onBuildFilesChange: (changedFiles: Set<Path>) -> Unit = {},
+    )
 
     override fun close()
 }

@@ -31,6 +31,7 @@ import io.hierograph.graphstore.jvm.scanner.ScanResult
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.time.measureTimedValue
@@ -75,13 +76,17 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     data class DeclaredOutput(val gav: String, val name: String, val dir: Path, val origin: Origin)
 
     /**
-     * A parsed manifest: the per-module scans, each module's resolved classpath (keyed by GAV), and every
-     * [declared] output directory, scanned or not.
+     * A parsed manifest: the per-module scans, each module's resolved classpath (keyed by GAV), every
+     * [declared] output directory, scanned or not, and the reactor's [buildFiles] (local path → SHA-256 of the
+     * content the manifest was merged from). [relocated] is true when the manifest was recorded under a
+     * different reactor root (a container with the workspace mounted elsewhere).
      */
     data class Scanned(
         val modules: Map<String, ModuleScan>,
         val classpaths: Map<String, ArtifactClasspath>,
         val declared: Map<String, DeclaredOutput> = emptyMap(),
+        val buildFiles: Map<Path, String> = emptyMap(),
+        val relocated: Boolean = false,
     ) {
         /** gav → (local) compiled-output directory (main or test) of every declared output, for the file watcher. */
         val moduleDirs: Map<String, Path> get() = declared.mapValues { it.value.dir } + modules.mapValues { it.value.outputDir }
@@ -106,12 +111,15 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         val testClasspath: List<ClasspathEntryDto>? = null,
     )
 
+    private data class BuildFileDto(val path: String = "", val sha256: String = "")
+
     private data class ManifestDto(
         val schemaVersion: Int = 0,
         val generator: String = "",
         val generatedAt: String = "",
         val reactorRoot: String = "",
         val modules: List<ModuleDto> = emptyList(),
+        val buildFiles: List<BuildFileDto> = emptyList(),
     )
 
     /**
@@ -138,7 +146,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             "Scanned {} of {} declared artifact(s) from manifest {} (includeTests={})",
             modules.size, plan.declared.size, manifestPath, includeTests,
         )
-        return Scanned(modules, plan.classpaths, plan.declared)
+        return Scanned(modules, plan.classpaths, plan.declared, plan.buildFiles, plan.relocated)
     }
 
     /**
@@ -171,11 +179,28 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             "Applied manifest {}: {} of {} declared artifact(s) present, {} reused, {} scanned, {} dropped",
             manifestPath, modules.size, plan.declared.size, reused, modules.size - reused, dropped,
         )
-        return Scanned(modules, plan.classpaths, plan.declared)
+        return Scanned(modules, plan.classpaths, plan.declared, plan.buildFiles, plan.relocated)
     }
 
-    /** What a manifest declares: each output's classpath and its (re-rooted) output directory. */
-    private class Plan(val classpaths: Map<String, ArtifactClasspath>, val declared: Map<String, DeclaredOutput>)
+    /**
+     * The build files of [scanned] whose current content no longer matches the hash recorded in the manifest,
+     * sorted; a missing file counts as changed. Empty when the manifest reflects the build definition (or the
+     * manifest lists no build files).
+     */
+    fun staleBuildFiles(scanned: Scanned): List<Path> =
+        scanned.buildFiles.filter { (path, sha256) -> contentSha256(path) != sha256 }.keys.sorted()
+
+    private fun contentSha256(file: Path): String? = runCatching {
+        MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)).joinToString("") { "%02x".format(it) }
+    }.getOrNull()
+
+    /** What a manifest declares: each output's classpath and (re-rooted) output directory, and the build files. */
+    private class Plan(
+        val classpaths: Map<String, ArtifactClasspath>,
+        val declared: Map<String, DeclaredOutput>,
+        val buildFiles: Map<Path, String>,
+        val relocated: Boolean,
+    )
 
     private fun readPlan(manifestPath: Path, includeTests: Boolean): Plan {
         require(manifestPath.exists()) { "Manifest not found: $manifestPath (run `mvn … hierograph:create-descriptor hierograph:merge-descriptors`)" }
@@ -210,7 +235,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         require(declared.isNotEmpty()) {
             "Manifest $manifestPath declares no module output directory (did `hierograph:create-descriptor` run?)"
         }
-        return Plan(classpaths, declared)
+        val buildFiles = manifest.buildFiles.filter { it.path.isNotEmpty() }
+            .associate { remap.map(Path.of(it.path)) to it.sha256 }
+        return Plan(classpaths, declared, buildFiles, remap.relocated)
     }
 
     /**
@@ -234,7 +261,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             val signature = outputSignature(prev.outputDir)
             modules[gav] = prev.copy(result = scanModule(gav, prev.outputDir), signature = signature)
         }
-        return Scanned(modules, previous.classpaths, previous.declared)
+        return previous.copy(modules = modules)
     }
 
     private fun scanOutput(output: DeclaredOutput): ModuleScan {
@@ -303,6 +330,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         private val localRoot: Path? = manifestPath.toAbsolutePath().normalize().parent?.parent
         private val recordedRoot: Path? =
             recordedReactorRoot.takeIf { it.isNotEmpty() }?.let { runCatching { Path.of(it) }.getOrNull() }
+
+        /** True when the manifest was recorded under a different reactor root than the one it is read from. */
+        val relocated: Boolean get() = localRoot != null && recordedRoot != null && localRoot != recordedRoot
 
         fun map(recorded: Path): Path {
             val local = localRoot ?: return recorded

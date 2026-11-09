@@ -45,8 +45,9 @@ class GraphOverviewTool(
                 "codebase, what vocabulary the other tools use, and how dependency analysis " +
                 "tools relate to each other. Returns statistics (node counts by kind, edge " +
                 "counts by attribute), the kind and relationship vocabularies, top-level " +
-                "module structure, and the zoom-level model. No parameters needed. For known " +
-                "codebases, this can be skipped."
+                "module structure, and the zoom-level model. In manifest mode it also returns the " +
+                "build_state ('current', or 'stale' with the POMs edited since the graph's manifest was " +
+                "written). No parameters needed. For known codebases, this can be skipped."
     )
     fun graphOverview(): Map<String, Any?> {
 
@@ -177,7 +178,7 @@ class GraphOverviewTool(
             "hierarchy" to hierarchySection,
             "model" to model,
             "scan_metadata" to scanMetadata
-        )
+        ).apply { graphService.buildState()?.let { put("build_state", it) } }
     }
 
     private fun kindEntry(kind: JavaNodeKind, description: String) =

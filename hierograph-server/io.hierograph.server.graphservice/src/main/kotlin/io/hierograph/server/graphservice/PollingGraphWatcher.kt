@@ -52,7 +52,14 @@ class PollingGraphWatcher(
     private var lastManifestSig = 0L
     private var manifestChangedAt = 0L
 
-    override fun start(targets: WatchTargets, onChange: (Set<String>) -> Unit, onManifestChange: () -> Unit) {
+    private var buildFiles: BuildFileTracker? = null
+
+    override fun start(
+        targets: WatchTargets,
+        onChange: (Set<String>) -> Unit,
+        onManifestChange: () -> Unit,
+        onBuildFilesChange: (Set<Path>) -> Unit,
+    ) {
         // Baseline = current state, so only changes after start are reported.
         for ((gav, dir) in targets.modules) {
             val sig = signature(dir)
@@ -61,18 +68,24 @@ class PollingGraphWatcher(
         }
         reportedManifest = fileSignature(targets.manifest)
         lastManifestSig = reportedManifest
+        buildFiles = BuildFileTracker(targets.buildFiles, settleMs)
 
         val e = Executors.newSingleThreadScheduledExecutor { r ->
             Thread(r, "hierograph-poll-watcher").apply { isDaemon = true }
         }
         exec = e
         e.scheduleWithFixedDelay(
-            { runCatching { poll(targets, onChange, onManifestChange) }.onFailure { log.warn("Watch poll failed", it) } },
+            { runCatching { poll(targets, onChange, onManifestChange, onBuildFilesChange) }.onFailure { log.warn("Watch poll failed", it) } },
             intervalMs, intervalMs, TimeUnit.MILLISECONDS,
         )
     }
 
-    private fun poll(targets: WatchTargets, onChange: (Set<String>) -> Unit, onManifestChange: () -> Unit) {
+    private fun poll(
+        targets: WatchTargets,
+        onChange: (Set<String>) -> Unit,
+        onManifestChange: () -> Unit,
+        onBuildFilesChange: (Set<Path>) -> Unit,
+    ) {
         val now = System.currentTimeMillis()
 
         // Manifest file: report once it has settled.
@@ -86,6 +99,8 @@ class PollingGraphWatcher(
             onManifestChange()
             return
         }
+
+        buildFiles?.poll(now)?.takeIf { it.isNotEmpty() }?.let(onBuildFilesChange)
 
         val changed = HashSet<String>()
         for ((gav, dir) in targets.modules) {

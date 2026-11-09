@@ -82,6 +82,46 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.watch.settle:400}")
     private var watchSettleMs: Long = 400
 
+    /** Reaction to edited build files (`manifest` mode, watching on): `off` | `notify` | `regenerate`. */
+    @Value("\${hierograph.graph.watch.build-files:notify}")
+    private var buildFilesMode: String = "notify"
+
+    /** Regeneration command (whitespace-separated); empty selects `mvnw`/`mvn -q -B process-classes`. */
+    @Value("\${hierograph.graph.regenerate.command:}")
+    private var regenerateCommand: String = ""
+
+    /** Regeneration timeout, ms; a run that takes longer is killed. */
+    @Value("\${hierograph.graph.regenerate.timeout:600000}")
+    private var regenerateTimeoutMs: Long = 600_000
+
+    /**
+     * Whether the manifest still reflects the reactor's build files, and the regeneration runner. Created on
+     * first use, after the configuration is injected.
+     */
+    private val buildFileMonitor by lazy {
+        BuildFileMonitor(
+            mode = BuildFileMonitor.Mode.parse(buildFilesMode),
+            command = regenerateCommand.trim().takeIf { it.isNotEmpty() }?.split(Regex("\\s+")),
+            timeoutMs = regenerateTimeoutMs,
+            inspect = {
+                currentScanned?.let { scanned ->
+                    BuildFileMonitor.Inspection(
+                        staleFiles = manifestGraphSource.staleBuildFiles(scanned),
+                        reactorRoot = Path.of(manifestFile).toAbsolutePath().normalize().parent.parent,
+                        relocated = scanned.relocated,
+                    )
+                }
+            },
+        )
+    }
+
+    /**
+     * The `build_state` reported by `reload_graph` and `graph_overview`: whether the manifest reflects the
+     * reactor's build files (`current`), a build file changed since (`stale`, with the changed files), or a
+     * regeneration is running or failed. `null` outside `manifest` mode.
+     */
+    fun buildState(): Map<String, Any?>? = if (manifestMode) buildFileMonitor.state.toMap() else null
+
     private val manifestGraphSource = ManifestGraphSource()
 
     /** The cached per-module scans backing the live `manifest`-mode graph; incremental updates rescan into it. */
@@ -201,6 +241,7 @@ class HierarchicalGraphService {
     @PreDestroy
     fun shutdown() {
         stopWatcher()
+        if (manifestMode) buildFileMonitor.close()
         updateExecutor.shutdownNow()
         detailWriter.shutdownNow()
     }
@@ -224,22 +265,22 @@ class HierarchicalGraphService {
             val snapshot = built.snapshot
             val rootChildren = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
             log.info("Reload complete: {} root children, hash {} in {}.", rootChildren, snapshot.dataHash, elapsed)
-            linkedMapOf(
+            linkedMapOf<String, Any?>(
                 "status" to "reloaded",
                 "root_children" to rootChildren,
                 "search_index_entries" to snapshot.searchIndex.entries.size,
                 "data_hash" to snapshot.dataHash,
                 "reload_millis" to elapsed.inWholeMilliseconds
-            )
+            ).apply { buildState()?.let { put("build_state", it) } }
         } catch (e: Exception) {
             log.error("Reload failed; keeping the previously loaded graph.", e)
             startWatchingIfEnabled()
-            linkedMapOf(
+            linkedMapOf<String, Any?>(
                 "status" to "error",
                 "message" to (e.message ?: e.javaClass.simpleName),
                 "data_hash" to snapshotRef.get()?.dataHash,
                 "note" to "The previously loaded graph is still being served; re-run the scan and retry."
-            )
+            ).apply { buildState()?.let { put("build_state", it) } }
         }
     }
 
@@ -345,26 +386,35 @@ class HierarchicalGraphService {
 
     // ---- File watch & incremental updates (manifest mode) --------------------------------------------
 
-    /** Start (or restart) watching the current module set, if `manifest` mode and watching is enabled. */
+    /**
+     * Start (or restart) watching the current module set, if `manifest` mode and watching is enabled. Also
+     * re-evaluates the build state against the (re)applied manifest, which may start a regeneration.
+     */
     private fun startWatchingIfEnabled() {
         if (!manifestMode) return
         val mode = watchMode.lowercase()
         if (mode == "off") return
         val scanned = currentScanned ?: return
         stopWatcher()
+        buildFileMonitor.refresh()
         val w = when (mode) {
             "native" -> NativeGraphWatcher(watchSettleMs)
             else -> PollingGraphWatcher(watchIntervalMs, watchSettleMs)
         }
         w.start(
-            WatchTargets(Path.of(manifestFile).toAbsolutePath().normalize(), scanned.moduleDirs),
+            WatchTargets(
+                Path.of(manifestFile).toAbsolutePath().normalize(),
+                scanned.moduleDirs,
+                if (buildFileMonitor.watchesBuildFiles) scanned.buildFiles.keys else emptySet(),
+            ),
             onChange = { gavs -> updateExecutor.submit { applyIncremental(gavs) } },
             onManifestChange = { updateExecutor.submit { reloadFromManifest() } },
+            onBuildFilesChange = { updateExecutor.submit { buildFileMonitor.refresh() } },
         )
         watcher = w
         log.info(
-            "Watching {} module(s) for changes (mode={}, interval={}ms, settle={}ms)",
-            scanned.moduleDirs.size, mode, watchIntervalMs, watchSettleMs,
+            "Watching {} module(s) and {} build file(s) for changes (mode={}, build files={}, interval={}ms, settle={}ms)",
+            scanned.moduleDirs.size, scanned.buildFiles.size, mode, buildFilesMode, watchIntervalMs, watchSettleMs,
         )
     }
 

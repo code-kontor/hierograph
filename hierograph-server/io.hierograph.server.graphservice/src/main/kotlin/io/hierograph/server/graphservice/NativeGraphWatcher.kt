@@ -32,8 +32,8 @@ import java.util.concurrent.TimeUnit
  * well under a second. Inside Docker Desktop on macOS/Windows native events do not cross the bind mount,
  * so [PollingGraphWatcher] remains the default there.
  *
- * Only the module output directories are watched natively. The manifest file is checked with a cheap
- * `stat` on the flush tick instead — that keeps the watcher off the `.hierograph/` directory, so the
+ * Only the module output directories are watched natively. The manifest file and the build files are checked
+ * with a cheap `stat` on the flush tick instead ([BuildFileTracker] for the latter) — that keeps the watcher off the `.hierograph/` directory, so the
  * Parquet snapshots the server writes there never feed events back to it.
  *
  * Raw events are coalesced: a module is reported only once no event has arrived for it for [settleMs], so
@@ -61,7 +61,15 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
     private var manifestSig = 0L
     private var watchedRoots: Set<Path> = emptySet() // the module directories the native watch is registered on
 
-    override fun start(targets: WatchTargets, onChange: (Set<String>) -> Unit, onManifestChange: () -> Unit) {
+    private var buildFiles: BuildFileTracker? = null
+
+    override fun start(
+        targets: WatchTargets,
+        onChange: (Set<String>) -> Unit,
+        onManifestChange: () -> Unit,
+        onBuildFilesChange: (Set<Path>) -> Unit,
+    ) {
+        buildFiles = BuildFileTracker(targets.buildFiles, settleMs)
         manifestPath = targets.manifest.toAbsolutePath().normalize()
         manifestSig = fileSignature(manifestPath)
         moduleByDir = targets.modules.entries
@@ -75,7 +83,7 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
         val fe = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hierograph-watch-flush").apply { isDaemon = true } }
         flushExec = fe
         fe.scheduleWithFixedDelay(
-            { runCatching { flush(onChange, onManifestChange) }.onFailure { log.warn("Watch flush failed", it) } },
+            { runCatching { flush(onChange, onManifestChange, onBuildFilesChange) }.onFailure { log.warn("Watch flush failed", it) } },
             tick, tick, TimeUnit.MILLISECONDS,
         )
         log.info("Native watcher started on {} of {} director(ies)", watchedRoots.size, moduleByDir.size)
@@ -122,13 +130,14 @@ class NativeGraphWatcher(private val settleMs: Long) : GraphWatcher {
         }
     }
 
-    private fun flush(onChange: (Set<String>) -> Unit, onManifestChange: () -> Unit) {
+    private fun flush(onChange: (Set<String>) -> Unit, onManifestChange: () -> Unit, onBuildFilesChange: (Set<Path>) -> Unit) {
         val sig = fileSignature(manifestPath)
         if (sig != manifestSig) {
             manifestSig = sig
             onManifestChange()
             return
         }
+        buildFiles?.poll(System.currentTimeMillis())?.takeIf { it.isNotEmpty() }?.let(onBuildFilesChange)
         checkRoots()
         val drained: Set<String> = synchronized(lock) {
             if (pending.isEmpty() || System.currentTimeMillis() - lastEventAt < settleMs) emptySet()
