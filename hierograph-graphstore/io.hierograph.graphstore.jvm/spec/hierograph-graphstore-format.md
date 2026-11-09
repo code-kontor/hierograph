@@ -143,6 +143,20 @@ A directory that contains the six table files directly, rather than artifacts, i
 single archive. Its tables may cover several artifacts, because every type row
 names its own artifact.
 
+**Containers.** A `.hierograph` file whose entries are themselves `.hierograph`
+archives, rather than tables, is a **container** — the shape `hierograph:collect`
+produces. A reader treats each inner archive as an artifact of the snapshot, in
+entry-name order. A container may sit in a snapshot directory next to other
+artifacts, and a single `.hierograph` file — archive or container — may also be
+given in place of a snapshot directory.
+
+**Reading in place.** Readers never extract an archive. Because entries are STORED
+(§2.1), every table — also every table of an archive inside a container — is a
+contiguous byte range of the file, and a reader reads it there. An entry that is not
+STORED, as in an archive repacked by another tool, is inflated into memory while it
+is read. Archives in the ZIP64 format are not supported; one artifact's tables are
+far below its limits.
+
 ### 2.4 Parquet properties
 
 | Property | Value |
@@ -580,7 +594,7 @@ callers), are never stored. They are derived at load time (§6.3).
 
 ## 6. Loading semantics
 
-A snapshot is a set of facts. The rules below turn the facts of all its archives
+A snapshot is a set of facts. The rules below turn the facts of all its artifacts
 into one consistent graph. They are part of the format's contract, because they
 define what the stored keys mean.
 

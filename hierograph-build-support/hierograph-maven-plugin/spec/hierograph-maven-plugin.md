@@ -331,7 +331,8 @@ An optional convenience. Where `scan` publishes one archive per module (the
 preferred shape, because each is reusable and independently versioned), `collect`
 gathers them into a single file for consumers that want exactly one input. It runs
 once at the root and attaches the result to the top-level project. It is a
-container of the per-module archives, not a content merge.
+container of the per-module archives, not a content merge. Readers use the container
+as it is, without unpacking it (see the snapshot format, §2.3).
 
 - **Binding:** `verify` (aggregator)
 - **Inputs:** each module's `<artifactId>.hierograph` archive (and its `tests` archive, when present). A duplicate archive name from two modules is kept once (first wins).
@@ -478,8 +479,9 @@ The Hierograph MCP server builds its graph from one of three sources, selected b
   set. An artifact without a published archive is scanned on demand from its jar
   and cached by content hash, so published archives are an optimization, not a
   requirement. Paired with `scan`.
-- **`parquet`** — load a prepared directory of Parquet tables directly. Paired
-  with `collect` (unpacked) or any archive set assembled by hand.
+- **`parquet`** — load a prepared snapshot directly: a directory of archives or
+  exploded artifacts, or a single `collect` container. Paired with `collect` or any
+  archive set assembled by hand.
 
 In every case the server computes cross-artifact facts (overrides, virtual-call
 resolution) over the assembled link set at load time, so the same archive serves

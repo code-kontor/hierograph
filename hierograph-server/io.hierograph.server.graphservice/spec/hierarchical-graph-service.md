@@ -312,7 +312,7 @@ All properties are optional; defaults suit a local server.
 | Property | Default | Meaning |
 |----------|---------|---------|
 | `hierograph.graph.source` | `parquet` | `parquet` or `manifest` (§4). |
-| `hierograph.graph.parquetDir` | `parquet` | Snapshot directory, `parquet` mode. |
+| `hierograph.graph.parquetDir` | `parquet` | Snapshot, `parquet` mode: a snapshot directory, or a single `.hierograph` archive or `collect` container. |
 | `hierograph.graph.manifest` | `.hierograph/manifest.json` | Build manifest, `manifest` mode. |
 | `hierograph.graph.stateDir` | *(the manifest's directory)* | Where the snapshot and the regeneration log are written. |
 | `hierograph.graph.buildRoot` | *(the manifest's grandparent)* | Local build root: path re-rooting and the regeneration working directory. |
