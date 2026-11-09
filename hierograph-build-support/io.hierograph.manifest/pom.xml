@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>hierograph-manifest</artifactId>
+    <artifactId>io.hierograph.manifest</artifactId>
     <packaging>jar</packaging>
 
     <name>Hierograph Build Manifest</name>

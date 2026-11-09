@@ -161,7 +161,7 @@ command because only it knows Maven; the server runs it without knowing the tool
 
 **Shared with other build tools.** The merge rules above, write-only-on-change,
 the atomic write, the locking and the build-file hashing live in the
-[`hierograph-manifest` library](../../hierograph-manifest/spec/hierograph-manifest.md).
+[`io.hierograph.manifest` library](../../io.hierograph.manifest/spec/hierograph-manifest.md).
 The plugin contributes what only Maven knows: the projects of the reactor, their
 classpaths, the build files and the regeneration command.
 

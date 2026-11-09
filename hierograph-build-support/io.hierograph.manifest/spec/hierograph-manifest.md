@@ -52,7 +52,7 @@ the merge must keep entries from the existing manifest across such versions.
 
 ```
  Maven plugin ─────────┐         ┌──────────────────────────┐
-  modules, classpaths, ├────────►│ hierograph-manifest      │
+  modules, classpaths, ├────────►│ io.hierograph.manifest   │
   build files, command │         │  ManifestWriter          │──► target/…/module.json
  (other producers) ────┘         │   writeDescriptor        │──► .hierograph/manifest.json
                                  │   merge                  │

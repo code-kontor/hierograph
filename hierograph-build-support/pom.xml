@@ -18,7 +18,7 @@
     <description>Build-tool integration: the build-tool-independent manifest library and the Maven plugin that produces the manifest and the scanned archives.</description>
 
     <modules>
-        <module>hierograph-manifest</module>
+        <module>io.hierograph.manifest</module>
         <module>hierograph-maven-plugin</module>
     </modules>
 </project>

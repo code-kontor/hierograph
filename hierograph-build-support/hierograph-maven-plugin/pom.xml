@@ -32,7 +32,7 @@
         <!-- The build-tool-independent manifest model, merge and writer. -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>hierograph-manifest</artifactId>
+            <artifactId>io.hierograph.manifest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

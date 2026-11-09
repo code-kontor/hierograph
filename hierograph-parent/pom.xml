@@ -331,7 +331,7 @@ limitations under the License.]]></inlineHeader>
             <!-- ==================== -->
             <dependency>
                 <groupId>io.hierograph</groupId>
-                <artifactId>hierograph-manifest</artifactId>
+                <artifactId>io.hierograph.manifest</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
