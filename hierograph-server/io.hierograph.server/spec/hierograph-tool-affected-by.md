@@ -98,8 +98,8 @@ Direct neighbours are always reported, so a `maxDepth` of `0` or below behaves l
 **`kindFilter`** narrows the *result*, not the walk. A type of a filtered-out kind is
 still traversed, so a class reached only through an interface keeps its true distance.
 The filter accepts the kind values and group aliases of
-[Kinds](hierograph-mcp-tools.md#32-kinds). Unknown entries are dropped without an
-error, and a filter in which no entry is known applies no filtering at all.
+[Kinds](hierograph-mcp-tools.md#32-kinds); `[]` is no filter, and an unknown value
+fails the call with `INVALID_KIND` (§5).
 `external.type` is not a known filter value, so external types cannot be selected on
 their own; the `types` alias excludes them. A filter that names only non-type kinds
 (`packages`, `members`, `java.module`) yields an empty result, because only types are
@@ -375,6 +375,7 @@ The checks run in the order of the table; the first failure is reported.
 | `INVALID_PARAMETER` | `direction` is neither `"incoming"` nor `"outgoing"` | — | `Use direction='incoming' for blast radius or direction='outgoing' for transitive dependencies.` |
 | `NODE_NOT_FOUND` | `nodeId` names no node | — | `Use find_node to look up the correct node ID.` |
 | `INVALID_NODE_KIND` | `nodeId` names a method or field | `actual_kind`, `declaring_type` (minimal NodeRef) | `To query dependencies involving this <kind>'s declaring type, pass nodeId=<id>.` |
+| `INVALID_KIND` | `kindFilter` contains a value that is neither a kind nor an alias | `invalid_values`, `valid_kinds`, `valid_aliases` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
 | cursor codes | the cursor is malformed or stale | per code | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
 | `RESULT_TOO_LARGE` | the page exceeds the response budget | `returned`, `estimated_bytes`, `budget_bytes`, `suggested_limit` | see [The response budget](hierograph-mcp-tools.md#73-the-response-budget) |
 

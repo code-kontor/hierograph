@@ -26,6 +26,7 @@ import io.hierograph.mcp.server.pagination.QueryHash
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
+import io.hierograph.mcp.server.tools.KindFilter
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -143,19 +144,11 @@ class AffectedByTool(
         }
 
         // ── resolve kind filter ────────────────────────────────────────
-        val allowedKinds: Set<JavaNodeKind>? = if (kindFilter != null) {
-            val resolved = mutableSetOf<JavaNodeKind>()
-            for (k in kindFilter) {
-                val expanded = JavaKinds.expandAlias(k)
-                if (expanded != null) {
-                    resolved.addAll(expanded)
-                } else {
-                    val nk = JavaNodeKind.fromValue(k)
-                    if (nk != null) resolved.add(nk)
-                }
-            }
-            resolved.ifEmpty { null }
-        } else null
+        val allowedKinds: Set<JavaNodeKind>? = when (val parsed = KindFilter.parse(kindFilter)) {
+            null -> null
+            is KindFilter.Valid -> parsed.kinds
+            is KindFilter.Invalid -> return KindFilter.invalidResponse(parsed.values)
+        }
 
         val effectiveMaxDepth = maxDepth ?: Int.MAX_VALUE
 

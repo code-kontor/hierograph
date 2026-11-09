@@ -17,6 +17,7 @@ package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.NodeSearch
+import io.hierograph.mcp.server.tools.KindFilter
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -59,21 +60,8 @@ class FindNodeTool(
         kindFilter: List<String>?
     ): Map<String, Any?> {
 
-        // ── validate kind_filter ───────────────────────────────────────
-        val invalid = nodeSearch.invalidKinds(kindFilter)
-        if (invalid.isNotEmpty()) {
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_KIND",
-                    "message" to "Unknown kind${if (invalid.size > 1) "s" else ""}: ${invalid.joinToString(", ") { "'$it'" }}. " +
-                            "Valid kinds: ${nodeSearch.validKindValues.joinToString(", ")}. " +
-                            "Group aliases: ${nodeSearch.validAliases.joinToString(", ")}.",
-                    "invalid_values" to invalid,
-                    "valid_kinds" to nodeSearch.validKindValues,
-                    "valid_aliases" to nodeSearch.validAliases
-                )
-            )
-        }
+        // ── validate kindFilter ────────────────────────────────────────
+        (KindFilter.parse(kindFilter) as? KindFilter.Invalid)?.let { return KindFilter.invalidResponse(it.values) }
 
         // ── search (shared with the GraphQL findNodes field) ───────────
         val results = nodeSearch.search(name, kindFilter, SERVER_SIDE_CAP).map { nodeRefFactory.enrichedNodeRef(it) }

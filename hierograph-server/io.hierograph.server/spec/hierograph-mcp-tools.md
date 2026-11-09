@@ -176,6 +176,25 @@ and `java.constructor`, which the detail tools report for a `<init>` member.
 The `types` alias does not include `external.type`. External types are kept out of
 kind-filtered results because they have no members or metadata to browse.
 
+Every tool with a `kindFilter` (`find_node`, `list_children`, `list_descendants`,
+`affected_by`) parses it the same way. An absent or empty filter is no filter. A value
+that is neither a kind nor an alias fails the call with `INVALID_KIND`, which names
+the invalid values and lists the valid ones, so the caller can correct the filter
+without a second lookup:
+
+```json
+{ "error": {
+    "code": "INVALID_KIND",
+    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field. Group aliases: types, members, packages.",
+    "invalid_values": ["classes"],
+    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field"],
+    "valid_aliases": ["types", "members", "packages"],
+    "recovery": "Use values from valid_kinds or valid_aliases, or omit kindFilter." } }
+```
+
+With several invalid values the message starts `Unknown kinds:`. The pseudo-kinds
+`java.primitive` and `java.constructor` are not valid filter values.
+
 ### 3.3 Two levels of dependency
 
 The tools report dependencies at two levels of granularity.

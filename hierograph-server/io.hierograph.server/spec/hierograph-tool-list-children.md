@@ -72,8 +72,8 @@ on a type, its methods and fields. Methods, fields and external types have no ch
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds), mixed freely. It
 exists because a package mixes sub-packages and types, and a type mixes methods and
 fields: `["types"]` on a package shows its types without the namespace segments below
-it. Omitting it returns all children. An empty list `[]` is rejected with
-`INVALID_KIND` (§5). External types cannot be selected by kind; they appear only
+it. Omitting it, or passing `[]`, returns all children. An unknown value is rejected
+with `INVALID_KIND` (§5). External types cannot be selected by kind; they appear only
 without a filter.
 
 **`namePattern`** keeps children whose name contains the pattern, ignoring case. It
@@ -171,20 +171,16 @@ The members of a type carry no counts beyond the minimal fields
 | Situation | Code | Message | Recovery |
 |-----------|------|---------|----------|
 | `nodeId` names no node | `NODE_NOT_FOUND` | `No node with id 9999 exists in the graph.` | `Use find_node to look up the correct node ID.` |
-| `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use valid kind values or group aliases.` |
-| `kindFilter` is `[]` | `INVALID_KIND` | `Unknown kind . Valid kinds: …` | omit `kindFilter` instead |
+| `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
 | `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
 | No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
 
 Errors use the nested shape of [§8.1](hierograph-mcp-tools.md#81-error-shapes) with
-`code`, `message` and `recovery` and no further fields. With several invalid values the
-message starts `Unknown kinds` and lists each one. A node is checked before the filter,
+`code`, `message` and `recovery`; `INVALID_KIND` adds `invalid_values`, `valid_kinds`
+and `valid_aliases` ([§3.2](hierograph-mcp-tools.md#32-kinds)). A node is checked before the filter,
 so an unknown id reports `NODE_NOT_FOUND` whatever the filters hold; `kindFilter` is
 checked before `modifierFilter`. With several unknown modifiers the message starts
 `Unknown modifiers`.
-
-The empty-list case reports an `INVALID_KIND` whose message names no kind. A caller
-that wants no filter omits the parameter.
 
 ---
 

@@ -16,6 +16,7 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.mcp.server.tools.KindFilter
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.graphstore.jvm.model.JavaKinds
@@ -88,17 +89,10 @@ class ListChildrenTool(
             )
 
         // ── resolve kind filter (expand aliases) ──────────────────────
-        val expandedKinds = expandKindFilter(kindFilter)
-        if (expandedKinds == null && kindFilter != null) {
-            // expandKindFilter returns null on invalid input
-            val invalid = kindFilter.filter { JavaNodeKind.fromValue(it) == null && JavaKinds.expandAlias(it) == null }
-            return errorResponse(
-                "INVALID_KIND",
-                "Unknown kind${if (invalid.size > 1) "s" else ""} ${invalid.joinToString { "'$it'" }}. " +
-                        "Valid kinds: ${JavaKinds.ALL_KINDS.joinToString { it.value }}. " +
-                        "Group aliases: ${JavaKinds.ALL_ALIASES.joinToString()}.",
-                "Use valid kind values or group aliases."
-            )
+        val expandedKinds = when (val parsed = KindFilter.parse(kindFilter)) {
+            null -> null
+            is KindFilter.Valid -> parsed.kinds
+            is KindFilter.Invalid -> return KindFilter.invalidResponse(parsed.values)
         }
 
         // ── resolve modifier filter ───────────────────────────────────
@@ -156,26 +150,6 @@ class ListChildrenTool(
 
     // ── helpers ────────────────────────────────────────────────────────
 
-    /**
-     * Expands a kind filter list (which may contain group aliases) into a set of
-     * [JavaNodeKind] values. Returns `null` if the input contains invalid values.
-     * Returns `null` (meaning "no filter") if [kindFilter] is null or empty.
-     */
-    private fun expandKindFilter(kindFilter: List<String>?): Set<JavaNodeKind>? {
-        if (kindFilter.isNullOrEmpty()) return null
-
-        val result = mutableSetOf<JavaNodeKind>()
-        for (entry in kindFilter) {
-            val expanded = JavaKinds.expandAlias(entry)
-            if (expanded != null) {
-                result.addAll(expanded)
-            } else {
-                val kind = JavaNodeKind.fromValue(entry) ?: return null
-                result.add(kind)
-            }
-        }
-        return result
-    }
 
     private fun errorResponse(code: String, message: String, recovery: String): Map<String, Any?> =
         mapOf("error" to linkedMapOf<String, Any?>("code" to code, "message" to message, "recovery" to recovery))

@@ -167,23 +167,12 @@ or a `kindFilter`.
 
 | Situation | Code | Message | Recovery |
 |-----------|------|---------|----------|
-| `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'X'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | correct the filter from `valid_kinds` / `valid_aliases` |
+| `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
 | No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | build the project, then call `reload_graph` |
 
-The `INVALID_KIND` error uses the nested shape of
-[§8.1](hierograph-mcp-tools.md#81-error-shapes) without a `recovery` field. Instead it
-carries the data to correct the call:
-
-```json
-{ "error": {
-    "code": "INVALID_KIND",
-    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field. Group aliases: types, members, packages.",
-    "invalid_values": ["classes"],
-    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field"],
-    "valid_aliases": ["types", "members", "packages"] } }
-```
-
-With several invalid values the message starts `Unknown kinds:` and lists each one.
+`INVALID_KIND` is the shared kind-filter error of
+[§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): it carries
+`invalid_values`, `valid_kinds` and `valid_aliases` besides the `recovery`.
 `external.type` is not a valid filter value. A search for a name that matches nothing
 is not an error: it returns empty `results` and a `total` of `0`.
 

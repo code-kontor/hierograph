@@ -75,7 +75,7 @@ graph. The node itself is never part of the result, because the caller already h
 **`kindFilter`** accepts the kind values and group aliases of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds), mixed freely.
 It selects what is reported, never what is traversed. Omitting it reports every
-descendant. An empty list `[]` is rejected with `INVALID_KIND` (§5). External types
+descendant, and so does `[]`. An unknown value is rejected with `INVALID_KIND` (§5). External types
 cannot be selected by kind; they appear only without a filter.
 
 **`namePattern`** keeps nodes whose name contains the pattern, ignoring case. It matches
@@ -238,8 +238,7 @@ Members and external types in `results` carry no counts beyond the minimal field
 | Situation | Code | Message | Recovery |
 |-----------|------|---------|----------|
 | `nodeId` names no node | `NODE_NOT_FOUND` | `No node with id 9999 exists in the graph.` | `Use find_node to look up the correct node ID.` |
-| `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use valid kind values or group aliases.` |
-| `kindFilter` is `[]` | `INVALID_KIND` | `Unknown kind . Valid kinds: …` | omit `kindFilter` instead |
+| `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
 | `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
 | `cursor` is malformed, from another tool, or issued for other parameters or another graph | `INVALID_CURSOR_FORMAT`, `STALE_CURSOR_VERSION`, `WRONG_TOOL_CURSOR`, `STALE_CURSOR_QUERY`, `STALE_CURSOR_DATA` | see [§7.2](hierograph-mcp-tools.md#72-cursors) | restart without `cursor`, or restore the original parameters |
 | The page exceeds the response budget | `RESULT_TOO_LARGE` | see [§7.3](hierograph-mcp-tools.md#73-the-response-budget) | retry with `suggested_limit` (`200`), or `limit = 1` for the summary |
@@ -247,11 +246,9 @@ Members and external types in `results` carry no counts beyond the minimal field
 
 The checks run in this order: node, kind filter, modifier filter, cursor, budget. `NODE_NOT_FOUND` and
 `INVALID_KIND` use the nested shape of [§8.1](hierograph-mcp-tools.md#81-error-shapes)
-with `code`, `message` and `recovery` and no further fields. The cursor and budget errors
+with `code`, `message` and `recovery`; `INVALID_KIND` adds `invalid_values`,
+`valid_kinds` and `valid_aliases` ([§3.2](hierograph-mcp-tools.md#32-kinds)). The cursor and budget errors
 carry the extra fields described in §7 of the MCP tools specification.
-
-The empty-list case reports an `INVALID_KIND` whose message names no kind. A caller
-that wants no filter omits the parameter.
 
 ---
 
