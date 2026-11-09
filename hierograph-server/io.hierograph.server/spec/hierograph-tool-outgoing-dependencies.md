@@ -232,10 +232,12 @@ ids work with every other tool. A member of an external type (a call to
 `org.slf4j.Logger.info`, say) is not a graph node. It gets a stable id that is unique
 for the member but is not accepted by other tools; the `nodes` map still names it.
 
-**Ordering.** The snapshot's references are sorted by depending type name, depending
-member key, target type name, target key, relationship and line. The load-derived
-references follow them, in the order they were derived. The order is the same on
-every call, so pages are stable.
+**Ordering.** All rows, the snapshot's and the load-derived ones together, are sorted
+by depending type name, depending member key, target type name, target key,
+relationship and line (a row without a line first). A derived `overrides` row of
+`Invoice#render()` therefore sits between the rows of `Invoice#net()` and
+`Invoice#validate()`, not after them. The order is the same on every call, so pages
+are stable.
 
 **Summaries.** Over all kept rows, the tool computes:
 

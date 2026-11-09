@@ -108,10 +108,12 @@ class ParquetDetailDependencies(
         val raw = DetailQueryEngine(parquetDir)
             .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, relationship = effectiveRel, limit = Int.MAX_VALUE))
             .edges + graphService.derivedDetailRefs(fromTypes, toTypes, effectiveRel)
+        // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
+        // ones rather than trailing them.
         val edges = raw.filter {
             typeHandle(it.fromType) != null && typeHandle(it.toType) != null &&
                 (fromMember == null || it.fromKey == fromMember) && (toMember == null || it.toKey == toMember)
-        }
+        }.sortedWith(ROW_ORDER)
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
         fun endpointHandle(key: String, type: String): Long =
@@ -319,6 +321,12 @@ class ParquetDetailDependencies(
                 .sortedByDescending { it.second }
                 .map { (child, w) -> linkedMapOf<String, Any?>("node" to (child.identifier as Long), "aggregated_weight" to w) }
         }
+
+        /**
+         * The order of the edge list: depending type, depending member, target type, target member,
+         * relationship, line. The same order [DetailQueryEngine] sorts the stored rows in.
+         */
+        private val ROW_ORDER = compareBy<DetailRef>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }, { it.line ?: -1 })
 
         /** The relationship values accepted by the `relationship` filter. */
         private val RELATIONSHIP_KINDS = setOf(

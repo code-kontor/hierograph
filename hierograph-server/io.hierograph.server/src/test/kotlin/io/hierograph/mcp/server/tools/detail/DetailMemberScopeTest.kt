@@ -76,4 +76,12 @@ class DetailMemberScopeTest {
         assertThat(byFrom[f.id(DetailFixture.DOC)]!!["inherited"]).isEqualTo(true)
         assertThat((resp["summary"] as Map<String, Any?>)["inherited"]).isEqualTo(1)
     }
+
+    @Test
+    fun `derived rows take their place in the row order`() {
+        val resp = f.outgoing.outgoingDependencies(f.id(INVOICE), f.id(DetailFixture.DOC), "detail", null, null, null)
+        // net() < render() < validate(): the derived `overrides` row of render() sits between the stored rows.
+        assertThat(edges(resp).map { it["relationship"] }).containsExactly("calls", "overrides", "calls")
+        assertThat(edges(resp)[1]["from"]).isEqualTo(f.id("$INVOICE#void render()"))
+    }
 }
