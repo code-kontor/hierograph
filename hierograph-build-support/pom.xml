@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.hierograph</groupId>
+        <artifactId>hierograph-parent</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
+        <relativePath>../hierograph-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>hierograph-build-support</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Hierograph Build Support</name>
+    <description>Build-tool integration: the build-tool-independent manifest library and the Maven plugin that produces the manifest and the scanned archives.</description>
+
+    <modules>
+        <module>hierograph-manifest</module>
+        <module>hierograph-maven-plugin</module>
+    </modules>
+</project>

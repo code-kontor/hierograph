@@ -17,8 +17,7 @@
         <module>hierograph-hierarchicalgraph</module>
         <module>hierograph-server</module>
         <module>hierograph-graphstore</module>
-        <module>hierograph-manifest</module>
-        <module>hierograph-maven-plugin</module>
+        <module>hierograph-build-support</module>
     </modules>
 
     <properties>

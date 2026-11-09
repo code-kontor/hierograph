@@ -105,7 +105,7 @@ mvn -o -pl hierograph-server/io.hierograph.server spring-boot:run
 ```
 
 For end-to-end setup (preparing a target project for a watching server), see the
-[usage guide of the Hierograph Maven plugin](hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
+[usage guide of the Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
 
 > The `spring-boot:repackage` goal runs as part of the server module's `package` phase and attaches
 > the self-contained, runnable Spring Boot jar under the `exec` classifier (the `-exec.jar` above).

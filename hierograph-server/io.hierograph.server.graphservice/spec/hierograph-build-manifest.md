@@ -15,8 +15,8 @@ the bytecode scanning; the manifest tells it *what* to scan and *against which
 classpath to resolve references*.
 
 - **Producers:** build-tool plugins, through the shared
-  [`hierograph-manifest` library](../../../hierograph-manifest/spec/hierograph-manifest.md);
-  the [Maven plugin](../../../hierograph-maven-plugin/spec/hierograph-maven-plugin.md)'s
+  [`hierograph-manifest` library](../../../hierograph-build-support/hierograph-manifest/spec/hierograph-manifest.md);
+  the [Maven plugin](../../../hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md)'s
   `hierograph:create-descriptor` writes it on every build that reaches
   `process-classes`
 - **Consumer:** the server's manifest-mode graph source (`hierograph.graph.source=manifest`)

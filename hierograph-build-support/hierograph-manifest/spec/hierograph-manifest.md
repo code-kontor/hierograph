@@ -36,7 +36,7 @@ correct.
 **One format, many producers.** A plugin collects what only its build tool knows
 (the modules, their classpaths, the build files, the regeneration command) and
 hands it over as plain values. The library turns them into the format the
-[build manifest specification](../../hierograph-server/io.hierograph.server.graphservice/spec/hierograph-build-manifest.md)
+[build manifest specification](../../../hierograph-server/io.hierograph.server.graphservice/spec/hierograph-build-manifest.md)
 defines.
 
 **No build-tool API.** The library depends on Gson and the Kotlin standard library

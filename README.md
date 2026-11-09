@@ -114,7 +114,7 @@ The first answer tells you whether this is the missing piece.
 
 Hierograph's core is scanner-agnostic: it derives its hierarchical model from any structural graph, and jQAssistant provides that for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
 
-For a step-by-step description, see the [usage guide of the Hierograph Maven plugin](hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
+For a step-by-step description, see the [usage guide of the Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
 
 Open source. Self-hosted.
 
