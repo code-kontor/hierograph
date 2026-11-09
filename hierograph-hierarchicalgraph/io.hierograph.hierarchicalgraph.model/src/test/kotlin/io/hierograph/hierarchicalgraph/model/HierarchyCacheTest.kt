@@ -73,6 +73,17 @@ class HierarchyCacheTest {
     }
 
     @Test
+    fun `an absent aggregated dependency is recomputed after move`() {
+        assertThat(g.hierarchy.getAggregatedDependency(g.b1, g.b2)).isNull()
+
+        // a2 (with a3) moves into b1's subtree, so b1 now reaches b2 and b3 through them
+        g.hierarchy.move(g.a2, g.b1)
+
+        assertThat(g.hierarchy.getAggregatedDependency(g.b1, g.b2)!!.coreDependencies)
+            .containsExactlyInAnyOrder(g.dep_a2_b2_uses, g.dep_a3_b3_depends_on)
+    }
+
+    @Test
     fun `addChild triggers cache invalidation`() {
         assertThat(g.hierarchy.accumulatedOutgoing(g.b1)).isEmpty()
 

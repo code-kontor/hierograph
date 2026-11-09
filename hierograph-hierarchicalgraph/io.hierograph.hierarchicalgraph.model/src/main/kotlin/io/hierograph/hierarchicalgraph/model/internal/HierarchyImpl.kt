@@ -16,6 +16,8 @@
 package io.hierograph.hierarchicalgraph.model.internal
 
 import io.hierograph.hierarchicalgraph.model.*
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 
 class HierarchyImpl(
     override val coreGraph: HGGraph,
@@ -43,11 +45,17 @@ class HierarchyImpl(
     override fun lookupNode(identifier: Any): HGNode? =
         localNodeMap[identifier] ?: coreGraph.lookupNode(identifier)
 
-    // caches (cleared on structural mutation)
-    private var predecessorCache: MutableMap<Any, List<HGNode>>? = null
-    private var accOutCache: MutableMap<Any, List<HGCoreDependency>>? = null
-    private var accInCache: MutableMap<Any, List<HGCoreDependency>>? = null
-    private var aggDepCache: MutableMap<Pair<Any, Any>, AggregatedDependency?>? = null
+    // Caches, filled lazily by reads and cleared on structural mutation. Concurrent reads are safe: an entry
+    // is computed outside the map and published with putIfAbsent, so two threads racing on one key may both
+    // compute it, but every reader sees one complete value. (computeIfAbsent is not an option: the
+    // computations recurse into the same map.) An absent aggregated dependency is cached as Optional.empty().
+    private val predecessorCache = ConcurrentHashMap<Any, List<HGNode>>()
+    private val accOutCache = ConcurrentHashMap<Any, List<HGCoreDependency>>()
+    private val accInCache = ConcurrentHashMap<Any, List<HGCoreDependency>>()
+    private val aggDepCache = ConcurrentHashMap<Pair<Any, Any>, Optional<AggregatedDependency>>()
+
+    private inline fun <K : Any, V : Any> ConcurrentHashMap<K, V>.memo(key: K, compute: () -> V): V =
+        get(key) ?: compute().let { putIfAbsent(key, it) ?: it }
 
     // structure
 
@@ -62,9 +70,8 @@ class HierarchyImpl(
     }
 
     override fun predecessorsOf(node: HGNode): List<HGNode> {
-        val cache = predecessorCache ?: mutableMapOf<Any, List<HGNode>>().also { predecessorCache = it }
-        return cache.getOrPut(node.identifier) {
-            val parent = parentOf(node) ?: return@getOrPut emptyList()
+        return predecessorCache.memo(node.identifier) {
+            val parent = parentOf(node) ?: return@memo emptyList()
             buildList {
                 add(parent)
                 addAll(predecessorsOf(parent))
@@ -81,8 +88,7 @@ class HierarchyImpl(
     // accumulated dependencies
 
     override fun accumulatedOutgoing(node: HGNode): List<HGCoreDependency> {
-        val cache = accOutCache ?: mutableMapOf<Any, List<HGCoreDependency>>().also { accOutCache = it }
-        return cache.getOrPut(node.identifier) {
+        return accOutCache.memo(node.identifier) {
             buildList {
                 addAll(node.outgoingCoreDependencies)
                 for (child in childrenOf(node)) {
@@ -93,8 +99,7 @@ class HierarchyImpl(
     }
 
     override fun accumulatedIncoming(node: HGNode): List<HGCoreDependency> {
-        val cache = accInCache ?: mutableMapOf<Any, List<HGCoreDependency>>().also { accInCache = it }
-        return cache.getOrPut(node.identifier) {
+        return accInCache.memo(node.identifier) {
             buildList {
                 addAll(node.incomingCoreDependencies)
                 for (child in childrenOf(node)) {
@@ -107,15 +112,13 @@ class HierarchyImpl(
     // aggregated dependencies
 
     override fun getAggregatedDependency(from: HGNode, to: HGNode): AggregatedDependency? {
-        val cache = aggDepCache ?: mutableMapOf<Pair<Any, Any>, AggregatedDependency?>().also { aggDepCache = it }
-        val key = from.identifier to to.identifier
-        return cache.getOrPut(key) {
+        return aggDepCache.memo(from.identifier to to.identifier) {
             val coreDeps = accumulatedIncoming(to).filter { dep ->
                 dep.from === from || isPredecessorOf(from, dep.from)
             }
-            if (coreDeps.isEmpty()) null
-            else AggregatedDependencyImpl(from, to, coreDeps)
-        }
+            if (coreDeps.isEmpty()) Optional.empty()
+            else Optional.of(AggregatedDependencyImpl(from, to, coreDeps))
+        }.orElse(null)
     }
 
     override fun getAggregatedDependencies(
@@ -209,9 +212,9 @@ class HierarchyImpl(
     }
 
     private fun clearCaches() {
-        predecessorCache = null
-        accOutCache = null
-        accInCache = null
-        aggDepCache = null
+        predecessorCache.clear()
+        accOutCache.clear()
+        accInCache.clear()
+        aggDepCache.clear()
     }
 }

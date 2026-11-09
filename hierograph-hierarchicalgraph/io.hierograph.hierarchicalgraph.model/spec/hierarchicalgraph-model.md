@@ -490,9 +490,15 @@ Derived results are cached per hierarchy, keyed by node identifier:
 | accumulated incoming | `accumulatedIncoming`, `getAggregatedDependency` |
 | aggregated dependencies (including "none") | `getAggregatedDependency` and its list forms |
 
-Each cache is created on first use and filled one entry per request. Accumulated
-results are computed recursively, so asking for a module's accumulated dependencies
-also caches those of every node beneath it.
+The caches are filled one entry per request. Accumulated results are computed
+recursively, so asking for a module's accumulated dependencies also caches those of
+every node beneath it.
+
+**Concurrent reads.** The caches are concurrent maps. An entry is computed outside
+the map and then published only if no other thread published one first, so two
+threads asking for the same entry at the same time may both compute it, but every
+reader sees one complete value, and all values for a key are equal. Entries cannot
+be computed inside the map, because the computations recurse into the same cache.
 
 **Invalidation.** `move` and `addChild` on the hierarchy clear all its caches. Nothing
 else does. The caches assume the core graph is complete and its weights final before
@@ -631,19 +637,21 @@ model.withScope { billing.outgoingTo(money)?.aggregatedWeight }   // still 4
 
 ### 11.4 Concurrency
 
-The model is **not thread-safe**, and this includes reads. Queries fill the
-hierarchy's caches lazily, in plain maps, so two threads querying the same
-hierarchy at the same time may race even if neither changes the structure.
+**Reads are thread-safe; changes are not.**
 
-Use one of these patterns:
+- **Reads.** Any number of threads may query the same hierarchy at the same time —
+  structure, traversal, accumulation, aggregation — also while its caches are still
+  empty (§9).
+- **Changes.** `move`, `addChild` and `createLocalNode` change the hierarchy's maps
+  and clear its caches. A change while another thread reads the hierarchy, or two
+  changes at the same time, is never safe.
+- **Build, then publish.** Build or restructure a hierarchy on one thread, then hand
+  it to readers through a safe publication — a volatile field, an atomic reference,
+  a concurrent collection — and do not change it afterwards. A scenario that needs
+  changes is a fork, built the same way.
 
-- **Confine:** use a hierarchy from one thread at a time.
-- **Synchronize:** guard every access to a hierarchy with a lock. Holding a lock for
-  reads is required too.
-- **Fork per thread:** give each thread its own fork. Forks share only the core
-  graph, which is read-only once built, and have independent caches.
-
-Mutating a hierarchy (`move`, `addChild`) while it is being read is never safe.
+The core graph follows the same rule: it is built before the first query and is
+read-only afterwards (§12).
 
 ---
 
@@ -701,7 +709,7 @@ What the model deliberately does **not** do, and where it happens instead:
 | Persistence | the serialization module |
 | Interpretation of `kind`, `type` and `attributesBitmap` | the application that sets them |
 | Change notification | none: restructuring clears caches, and everything else is built before use |
-| Thread safety | the caller (§11.4) |
+| Thread safety of changes | the caller; reads are thread-safe (§11.4) |
 
 Keeping the model to nodes, trees and weighted edges is what lets one model serve
 every view of the system, the real one and any number of proposed ones, at the cost
