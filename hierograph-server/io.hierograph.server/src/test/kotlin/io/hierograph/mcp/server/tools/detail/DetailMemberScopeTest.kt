@@ -66,4 +66,14 @@ class DetailMemberScopeTest {
         val toMissing = f.incoming.incomingDependencies(known, 998L, "detail", null, null, null)["error"] as Map<String, Any?>
         assertThat(toMissing["message"]).isEqualTo("No node with id 998 exists in the graph.")
     }
+
+    @Test
+    fun `rows that only the inheritance closure brings in are marked inherited`() {
+        val plus = f.id("$MONEY#$MONEY plus($MONEY)")
+        val resp = f.outgoing.outgoingDependencies(f.id(INVOICE), plus, "detail", null, null, null)
+        val byFrom = edges(resp).associateBy { it["from_parent"] }
+        assertThat(byFrom[f.id(INVOICE)]).doesNotContainKey("inherited")
+        assertThat(byFrom[f.id(DetailFixture.DOC)]!!["inherited"]).isEqualTo(true)
+        assertThat((resp["summary"] as Map<String, Any?>)["inherited"]).isEqualTo(1)
+    }
 }

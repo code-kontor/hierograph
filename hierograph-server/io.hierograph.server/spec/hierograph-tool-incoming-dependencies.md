@@ -143,7 +143,7 @@ then applies unchanged:
 
 - each side is expanded to its **inheritance closure**, the types of the subtree plus
   their transitive supertypes, so a use of an interface method that `fromId`
-  implements is found;
+  implements is found; the rows only the closure brings in carry `"inherited": true`;
 - the rows come from the snapshot's
   [`detail_refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#45-detail_refsparquet)
   plus the load-derived overrides and virtual-call targets, in the same order;
@@ -294,6 +294,7 @@ The detail example of §3.3 with `limit = 1`:
     "total_edges": 6,
     "returned": 1,
     "truncated": true,
+    "inherited": 0,
     "by_relationship": { "calls": 2, "has_type": 1, "parameter_type": 1, "returns": 2 },
     "by_source_type": [
       { "type": 4711, "edge_count": 3 },
@@ -324,7 +325,9 @@ the exchanged scopes:
 | `edges[].from`, `from_parent` | the referencing member and its type, on the depender's side |
 | `edges[].to`, `to_parent` | the referenced member or type and, for a member, its type, on the `fromId` side |
 | `edges[].relationship`, `location` | the relationship and the source line, or `null` |
+| `edges[].inherited` | `true` when the row comes from the inheritance closure; absent otherwise |
 | `summary.total_edges`, `returned`, `truncated` | count of rows, rows on this page, and `total_edges > returned` |
+| `summary.inherited` | the number of rows marked `inherited` |
 | `summary.by_relationship` | rows per relationship; a filtered relationship is present even with 0 |
 | `summary.by_source_type`, `others_count` | the depending types by number of rows, top 10, and how many more exist |
 | `summary.by_source_nodes` | drill-down of `toId`, weighted by type-level weight into `fromId` |

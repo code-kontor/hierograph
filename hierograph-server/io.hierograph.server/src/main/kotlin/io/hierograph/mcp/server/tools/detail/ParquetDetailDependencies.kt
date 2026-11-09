@@ -95,6 +95,9 @@ class ParquetDetailDependencies(
         val toMember = memberKeyOf(toNode)
         val fromTypes = expandScope(scopeOf(fromNode))
         val toTypes = expandScope(scopeOf(toNode))
+        // The scopes' own types, without the supertypes the closure adds: a row outside them is inherited.
+        val ownFromTypes = typesIn(scopeOf(fromNode))
+        val ownToTypes = typesIn(scopeOf(toNode))
         if (fromTypes.isEmpty() || toTypes.isEmpty()) return emptyResult(fromNode, toNode, effectiveRel)
 
         // Pull the whole scoped edge set (own pagination below), then keep only edges whose endpoint
@@ -117,6 +120,8 @@ class ParquetDetailDependencies(
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
         val sourceTypeCounts = LinkedHashMap<Long, Int>()
+        fun inherited(e: DetailRef) = e.fromType !in ownFromTypes || e.toType !in ownToTypes
+        val inheritedCount = edges.count(::inherited)
         for (e in edges) {
             byRelationship.merge(e.relationship, 1, Int::plus)
             sourceTypeCounts.merge(typeHandle(e.fromType)!!, 1, Int::plus)
@@ -135,6 +140,7 @@ class ParquetDetailDependencies(
             if ('#' in ref.toKey) row["to_parent"] = typeHandle(ref.toType)!!
             row["relationship"] = ref.relationship
             row["location"] = ref.line?.let { mapOf("line_number" to it.toLong()) }
+            if (inherited(ref)) row["inherited"] = true
             Row(row, ref)
         }
 
@@ -174,6 +180,7 @@ class ParquetDetailDependencies(
             "total_edges" to page.total,
             "returned" to returnedEdges.size,
             "truncated" to page.truncated,
+            "inherited" to inheritedCount,
             "by_relationship" to byRelationship,
             "by_source_type" to bySourceType,
         )
@@ -215,7 +222,20 @@ class ParquetDetailDependencies(
     private fun scopeOf(node: HGNode): HGNode =
         if (node.kind in JavaKinds.MEMBER_KINDS) graphService.model.hierarchy.parentOf(node) ?: node else node
 
-    /** Collects type FQNs in [node]'s subtree plus their transitive supertypes (the detail scope). */
+    /** The FQNs of the types in [node]'s subtree, [node] included when it is a type. */
+    private fun typesIn(node: HGNode): Set<String> {
+        val fqns = HashSet<String>()
+        if (JavaKinds.isTypeKind(node.kind)) fqns += NodeMetadata.getQualifiedName(node)
+        graphService.model.hierarchy.traverse(node) { if (JavaKinds.isTypeKind(it.kind)) fqns += NodeMetadata.getQualifiedName(it) }
+        return fqns
+    }
+
+    /**
+     * Collects type FQNs in [node]'s subtree plus their transitive supertypes (the detail scope). The
+     * supertypes are included because a type's behaviour includes what it inherits: a call made by an
+     * inherited method, or a call to a method a target type inherits, belongs to the dependency. Rows that
+     * only the supertypes contribute are marked `inherited`.
+     */
     private fun expandScope(node: HGNode): Set<String> {
         val hierarchy = graphService.model.hierarchy
         val seed = ArrayList<HGNode>()
@@ -260,7 +280,7 @@ class ParquetDetailDependencies(
             "to_scope" to toNode.identifier,
             "edges" to emptyList<Any>(),
             "summary" to linkedMapOf<String, Any?>(
-                "total_edges" to 0, "returned" to 0, "truncated" to false,
+                "total_edges" to 0, "returned" to 0, "truncated" to false, "inherited" to 0,
                 "by_relationship" to if (effectiveRel != null) mapOf(effectiveRel to 0) else emptyMap<String, Int>(),
                 "by_source_type" to emptyList<Any>(),
                 "by_source_nodes" to emptyList<Any>(),

@@ -178,7 +178,9 @@ from a base class belongs to what `Invoice` does, and a call compiled against an
 interface that `Money` implements is a use of `Money`. The consequence is that a
 detail result can contain rows whose `from_parent` lies outside `fromId`, and targets
 outside `toId`: a supertype's own references, and references to members of the
-target's supertypes.
+target's supertypes. Such a row is **inherited**: it carries `"inherited": true`, and
+`summary.inherited` counts them, so a caller can keep or drop them deliberately. A row
+whose two types lie in the scopes' own subtrees carries no `inherited` key.
 
 **Edges.** The tool reads every member reference whose depending type lies in the
 `from` side and whose target type lies in the `to` side from the snapshot's
@@ -195,6 +197,7 @@ are known to the graph. Each reference becomes one row:
 | `to_parent` | the type that declares `to`; only when `to` is a member |
 | `relationship` | the meaning of the reference |
 | `location` | the source line, or `null` |
+| `inherited` | `true` when a type of the row lies outside its scope's own subtree; absent otherwise |
 
 **Relationships.** The `relationship` filter accepts these values:
 
@@ -451,6 +454,7 @@ The detail example of §3.4 with `limit = 3`:
     "total_edges": 6,
     "returned": 3,
     "truncated": true,
+    "inherited": 0,
     "by_relationship": { "calls": 2, "has_type": 1, "parameter_type": 1, "returns": 2 },
     "by_source_type": [
       { "type": 4711, "edge_count": 3 },
@@ -499,9 +503,12 @@ Edge fields:
 | `to_parent` | node id | when `to` is a member | The type that declares `to` |
 | `relationship` | string | always | One of the values in §3.2 |
 | `location` | object or `null` | always | `{"line_number": n}`, or `null` without a line |
+| `inherited` | boolean | when `true` | The row comes from the inheritance closure (§3.2) |
 
-**`from_parent`** and **`to_parent`** let a caller group rows by type without a lookup,
-and show at once when a row comes from a supertype through the inheritance closure.
+**`from_parent`** and **`to_parent`** let a caller group rows by type without a lookup.
+**`inherited`** marks the rows that only the inheritance closure brings in, a
+supertype's code or a target's inherited member, so the scope's own rows stay
+recognisable; it is absent on all other rows to keep them small.
 `to_parent` is absent when `to` is a type, because the type is its own parent.
 
 **`location`** is the line of the instruction for `calls`, `reads_field` and
@@ -518,6 +525,7 @@ Summary fields:
 | `total_edges` | integer | always | Number of matching rows |
 | `returned` | integer | always | Number of rows on this page |
 | `truncated` | boolean | always | `true` when `total_edges > returned` |
+| `inherited` | integer | always | Number of matching rows marked `inherited` |
 | `by_relationship` | object | always | Rows per relationship, keys sorted |
 | `by_source_type` | array of `{type, edge_count}` | always | Depending types by number of rows, top 10 |
 | `others_count` | integer | more than 10 depending types | Number of depending types not in `by_source_type` |
