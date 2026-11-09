@@ -36,7 +36,7 @@ interface INodeRefFactory {
     fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?>
 
     /**
-     * Identity plus kind-appropriate metadata (counts, modifiers, flags).
+     * Identity plus kind-appropriate metadata: counts for modules, packages and types; modifiers for types, methods and fields.
      * The metadata varies by node kind (module, package, type, method, field).
      */
     fun enrichedNodeRef(node: HGNode): LinkedHashMap<String, Any?>

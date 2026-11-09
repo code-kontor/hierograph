@@ -42,7 +42,7 @@ class FindNodeTool(
                 "and should be the first tool called when the user mentions a specific " +
                 "class, package, or module by name. " +
                 "Searches by name or fully qualified name using case-insensitive substring matching. " +
-                "Results include kind-appropriate metadata (member counts, modifiers, flags) " +
+                "Results include kind-appropriate metadata (counts and modifiers) " +
                 "so you can inspect matches before proceeding. " +
                 "Use kindFilter to narrow results when names are ambiguous across node types. " +
                 "Accepts specific kinds (java.class, java.interface, java.enum, java.record, " +

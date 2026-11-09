@@ -175,7 +175,7 @@ data class Node(
     val fqn: String,          // qualified name, the human-facing identity
     val parent: String?,      // parent node's key; null for top-level modules
     val placeholder: Boolean, // true for an external-type placeholder (§6)
-    val modifiers: Int,       // a member's packed access flags; 0 for every other node
+    val modifiers: Int,       // a type's or member's packed access flags; 0 otherwise
 )
 ```
 
@@ -191,11 +191,13 @@ data class Node(
 Constructors and static initializers are `METHOD` nodes. In the hierarchy, a
 type's methods include its constructors.
 
-**`modifiers`** is the one detail a member node carries beyond its identity: the
-packed access flags of `MemberModifiers` (visibility, `static`, `final`, …), taken from
-the member's `MemberFacts`. It is `0` on every other node. Navigation filters on it:
-`list_children` and `list_descendants` select members by modifier without reading the
-snapshot, which a filter over a large subtree could not afford per node.
+**`modifiers`** is the one declaration detail a type or member node carries beyond its
+identity: the packed access flags of `TypeModifiers` / `MemberModifiers` (visibility,
+`static`, `final`, `abstract`, …), taken from the `ClassFacts` or `MemberFacts`. It is
+`0` on packages, modules and external types. Navigation reads it: `list_children` and
+`list_descendants` filter members by modifier, and every browse result shows a type's
+or member's modifiers, without reading the snapshot, which a result over a large
+subtree could not afford per node.
 
 Nested types are **not** nested in the hierarchy. `Invoice$Line` is a sibling of
 `Invoice` in package `com.example.billing`. This mirrors the class-file view, in

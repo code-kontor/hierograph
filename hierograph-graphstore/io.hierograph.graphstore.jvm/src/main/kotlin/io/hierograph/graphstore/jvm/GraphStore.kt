@@ -102,7 +102,7 @@ class GraphStore(
         val ownerKey = typeKey(artifactKey, facts.fqn)
         removeOwned(ownerKey)
         val parentKey = ensurePackagePath(artifactKey, packageOf(facts.fqn))
-        upsertType(artifactKey, facts.fqn, facts.kind, parentKey)
+        upsertType(artifactKey, facts.fqn, facts.kind, parentKey, facts.modifiers)
         for (m in facts.members) {
             // Constructors are java.method nodes, as in the hierarchy vocabulary ("includes constructors").
             val kind = if (m.kind == JavaNodeKind.CONSTRUCTOR) JavaKinds.METHOD else m.kind
@@ -219,14 +219,14 @@ class GraphStore(
     }
 
     /** Upserts a scanned type under [parentKey] and records its defining artifact. */
-    private fun upsertType(artifactKey: String, fqn: String, kind: Any, parentKey: String) {
+    private fun upsertType(artifactKey: String, fqn: String, kind: Any, parentKey: String, modifiers: Int) {
         val key = typeKey(artifactKey, fqn)
         val existing = nodesByKey[key]
         if (existing == null) {
-            putNode(Node(key, kind, simpleName(fqn), fqn, parent = parentKey, placeholder = false))
+            putNode(Node(key, kind, simpleName(fqn), fqn, parent = parentKey, placeholder = false, modifiers = modifiers))
         } else {
             reparent(key, existing.parent, parentKey)
-            nodesByKey[key] = existing.copy(kind = kind, name = simpleName(fqn), parent = parentKey, placeholder = false)
+            nodesByKey[key] = existing.copy(kind = kind, name = simpleName(fqn), parent = parentKey, placeholder = false, modifiers = modifiers)
         }
         definersByFqn.getOrPut(fqn) { mutableSetOf() } += artifactKey
         // Now that a real artifact defines this FQN, the external placeholder (if any) is redundant.

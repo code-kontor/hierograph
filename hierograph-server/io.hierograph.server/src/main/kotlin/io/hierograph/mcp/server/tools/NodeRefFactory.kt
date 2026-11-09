@@ -17,8 +17,11 @@ package io.hierograph.mcp.server.tools
 
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.mapping.GraphStoreNodeSource
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
 
@@ -27,7 +30,7 @@ import org.springframework.stereotype.Component
  *
  * Provides three flavours:
  * - [minimalNodeRef]  – identity fields only (id, name, qualified_name, kind, parent_id, parent_kind)
- * - [enrichedNodeRef] – identity plus kind-appropriate metadata (counts, modifiers, flags)
+ * - [enrichedNodeRef] – identity plus kind-appropriate metadata (counts, modifiers)
  * - [putSlimNode]     – registers a node's display fields into a shared `nodes` map for slim payload encoding
  */
 @Component
@@ -92,8 +95,10 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
-        // TODO: modifiers, annotation_count, interface_count, is_abstract, is_generic, parent_type
-        //       require property materialisation — will be filled in when the enriched metadata is available
+        modifierBits(node)?.let { bits ->
+            ref["modifiers"] = TypeModifiers.modifiers(bits)
+            ref["is_abstract"] = TypeModifiers.isAbstract(bits)
+        }
         val methods = children.count { it.kind == JavaKinds.METHOD }
         val fields = children.count { it.kind == JavaKinds.FIELD }
         ref["member_count"] = methods + fields
@@ -101,17 +106,16 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         ref["field_count"] = fields
     }
 
-    @Suppress("UNUSED_PARAMETER")
     private fun enrichMethod(ref: LinkedHashMap<String, Any?>, node: HGNode) {
-        // TODO: modifiers, parameter_count, throws_count, annotation_count, is_constructor
-        //       require property materialisation
+        modifierBits(node)?.let { ref["modifiers"] = MemberModifiers.methodModifiers(it) }
     }
 
-    @Suppress("UNUSED_PARAMETER")
     private fun enrichField(ref: LinkedHashMap<String, Any?>, node: HGNode) {
-        // TODO: modifiers, field_type_name, annotation_count, is_constant
-        //       require property materialisation
+        modifierBits(node)?.let { ref["modifiers"] = MemberModifiers.fieldModifiers(it) }
     }
+
+    /** The packed access flags the GraphStore keeps for a scanned type or member; `null` for other sources. */
+    private fun modifierBits(node: HGNode): Int? = (node.nodeSource as? GraphStoreNodeSource)?.modifiers
 
     // ── slim payload encoding ───────────────────────────────
 

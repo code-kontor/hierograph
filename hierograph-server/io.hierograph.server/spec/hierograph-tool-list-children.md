@@ -137,9 +137,11 @@ caller narrows the filters or raises `limit`.
   "results": [
     { "id": 4711, "name": "Invoice", "qualified_name": "com.example.billing.Invoice",
       "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package",
+      "modifiers": ["public", "final"], "is_abstract": false,
       "member_count": 5, "method_count": 3, "field_count": 2 },
     { "id": 4712, "name": "Invoice$Line", "qualified_name": "com.example.billing.Invoice$Line",
       "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package",
+      "modifiers": ["public", "final", "static"], "is_abstract": false,
       "member_count": 3, "method_count": 2, "field_count": 1 }
   ],
   "summary": {
@@ -160,7 +162,7 @@ caller narrows the filters or raises `limit`.
 | `summary.truncated` | `true` when `total > returned` | the signal to narrow or raise `limit` |
 | `summary.by_kind` | count per kind over all kept children, in order of first occurrence | the composition of the node in one line |
 
-The members of a type carry no counts beyond the minimal fields
+The members of a type carry their `modifiers` and no counts
 ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)). For the root, `parent` has
 `kind` `null` and no counts.
 

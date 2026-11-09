@@ -295,24 +295,34 @@ call.
 
 ### 6.2 Enriched NodeRef
 
-A minimal NodeRef plus counts that depend on the kind. Browse results
+A minimal NodeRef plus counts and modifiers that depend on the kind. Browse results
 (`find_node`, `list_children`, `list_descendants`, `affected_by`, `graph_overview`'s
 hierarchy) use it, because a caller choosing where to look next needs to know how big
-each candidate is.
+each candidate is and whether it is part of an API.
 
 | Kind | Extra fields | Why |
 |------|--------------|-----|
 | `java.module` | `child_count`, `descendant_type_count`, `descendant_method_count` | size of the module at a glance |
 | `java.package` | `child_count`, `descendant_type_count`, `direct_type_count` | tells a package with types apart from a pure namespace segment |
-| `java.class`, `java.interface`, `java.enum`, `java.record`, `java.annotation` | `member_count`, `method_count`, `field_count` | shows whether a type is worth opening |
-| `java.method`, `java.field`, `external.type` | none | the minimal fields identify them fully |
+| `java.class`, `java.interface`, `java.enum`, `java.record`, `java.annotation` | `modifiers`, `is_abstract`, `member_count`, `method_count`, `field_count` | shows whether a type is public, instantiable and worth opening |
+| `java.method` | `modifiers` | tells API from implementation without a detail call |
+| `java.field` | `modifiers` | tells constants and state apart |
+| `external.type` | none | it was not scanned, so nothing beyond its identity is known |
 
 `descendant_type_count` and `direct_type_count` count the five Java type kinds, not
 `external.type`. Packages under `External Types` therefore report `0`.
 `method_count` includes constructors.
 
-For declaration-level facts (modifiers, supertypes, annotations, signatures) the caller
-uses the entity-detail tools.
+**`modifiers`** lists the declared modifiers, visibility first, in the vocabulary of
+the entity-detail tools: for a type `public`/`protected`/`private`/`package-private`,
+then `abstract`, `final`, `static`; for a method the visibility, then `static`, `final`,
+`abstract`, `synchronized`, `native`, `default`; for a field the visibility, then
+`static`, `final`, `transient`, `volatile`. **`is_abstract`** repeats the presence of
+`abstract` on a type as a boolean; interfaces are abstract. The graph keeps these flags
+in memory, so browse results carry them at no extra cost.
+
+For the rest of a declaration (supertypes, annotations, signatures, source location)
+the caller uses the entity-detail tools.
 
 ### 6.3 Slim node map
 

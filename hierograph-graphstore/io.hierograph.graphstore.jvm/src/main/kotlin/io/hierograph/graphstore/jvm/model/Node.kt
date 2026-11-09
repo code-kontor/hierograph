@@ -22,8 +22,9 @@ package io.hierograph.graphstore.jvm.model
  * replaces Neo4j's internal `id()`. [kind] is an `Any` because it spans [io.hierograph.graphstore.jvm.model
  * JavaNodeKind] values and the `EXTERNAL_TYPE` string. [parent] is the parent node's key, `null` for
  * top-level modules. A [placeholder] node is a referenced-but-unscanned type; it is upgraded in place
- * when the real class is scanned, so incoming edges stay valid. [modifiers] holds a member's packed
- * access flags (see [MemberModifiers]); it is `0` for every other node.
+ * when the real class is scanned, so incoming edges stay valid. [modifiers] holds the packed access flags
+ * of a scanned type (see [TypeModifiers]) or a member (see [MemberModifiers]); it is `0` for every other
+ * node.
  */
 data class Node(
     val key: String,

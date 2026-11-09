@@ -190,9 +190,11 @@ The first page of the example:
   "results": [
     { "id": 4711, "name": "Invoice", "qualified_name": "com.example.billing.Invoice",
       "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package",
+      "modifiers": ["public", "final"], "is_abstract": false,
       "member_count": 5, "method_count": 3, "field_count": 2 },
     { "id": 4712, "name": "Invoice$Line", "qualified_name": "com.example.billing.Invoice$Line",
       "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package",
+      "modifiers": ["public", "final", "static"], "is_abstract": false,
       "member_count": 3, "method_count": 2, "field_count": 1 }
   ],
   "summary": {
@@ -228,8 +230,8 @@ The first page of the example:
 ([§6.1](hierograph-mcp-tools.md#61-minimal-noderef)) rather than an enriched one, so ten
 entries stay small. For matches directly below `nodeId`, the parent is `nodeId` itself.
 
-Members and external types in `results` carry no counts beyond the minimal fields
-([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
+Members in `results` carry their `modifiers` and no counts; external types carry the
+minimal fields only ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
 
 ---
 

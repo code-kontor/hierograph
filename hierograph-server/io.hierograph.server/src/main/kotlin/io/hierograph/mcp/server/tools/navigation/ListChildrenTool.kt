@@ -43,7 +43,7 @@ class ListChildrenTool(
         name = "list_children",
         description = "[Discovery and navigation] " +
                 "Returns the immediate direct children of a node — one level deep only. " +
-                "Each child carries kind-appropriate metadata (counts, modifiers, flags). " +
+                "Each child carries kind-appropriate metadata (counts and modifiers). " +
                 "On a module: returns packages. On a package: returns sub-packages and types. " +
                 "On a type: returns methods and fields with metadata. " +
                 "Supports filtering by kind, name pattern, and modifiers. " +

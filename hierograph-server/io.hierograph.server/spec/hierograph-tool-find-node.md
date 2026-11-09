@@ -141,6 +141,7 @@ With `kindFilter = ["types"]` only the record remains.
       "child_count": 1, "descendant_type_count": 1, "direct_type_count": 1 },
     { "id": 4730, "name": "Money", "qualified_name": "com.example.money.Money",
       "kind": "java.record", "parent_id": 4720, "parent_kind": "java.package",
+      "modifiers": ["public", "final"], "is_abstract": false,
       "member_count": 4, "method_count": 3, "field_count": 1 }
   ],
   "summary": { "total": 2, "returned": 2 }
@@ -153,8 +154,8 @@ With `kindFilter = ["types"]` only the record remains.
 | `summary.total` | the number of results returned, at most 50 | the count of the answer |
 | `summary.returned` | the same number | keeps the summary shape of the other browse tools |
 
-Methods, fields and external types carry no counts beyond the minimal fields
-([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
+Methods and fields carry their `modifiers` and no counts; external types carry the
+minimal fields only ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
 
 **The cap is silent.** `summary.total` counts the returned results, not all candidates.
 A response with 50 results may have more matches behind it, and the response has no

@@ -282,6 +282,7 @@ The response to `affected_by(nodeId = 4702, direction = "outgoing")` on the grap
       "node": {
         "id": 4730, "name": "Money", "qualified_name": "com.example.money.Money",
         "kind": "java.record", "parent_id": 4720, "parent_kind": "java.package",
+        "modifiers": ["public", "final"], "is_abstract": false,
         "member_count": 6, "method_count": 4, "field_count": 2
       },
       "distance": 1,
@@ -344,7 +345,7 @@ types it expanded to.
 
 | Field | Type | Meaning | Why |
 |-------|------|---------|-----|
-| `node` | enriched NodeRef | the affected type | identifies it and shows its size; external types carry the minimal fields only |
+| `node` | enriched NodeRef | the affected type | identifies it and shows its size and modifiers; external types carry the minimal fields only |
 | `distance` | integer | smallest number of hops from any source type | ranks impact by proximity |
 | `source_count` | integer | the number of source types that reach it within `maxDepth` | shows how widely the affected type is coupled to the scope |
 | `via` | array of `{from, to, weight}` | one shortest path from a source type, listed source-side first, each step a real edge | shows *how* the type is reached, ready to inspect with the dependency tools |
