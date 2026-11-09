@@ -523,7 +523,10 @@ parameters. When only the summary is needed, ask for `limit = 1`.
    budget or fails with `RESULT_TOO_LARGE`; it never returns a silently shortened page.
 5. **Cursors never cross graphs.** A cursor issued against one graph is rejected after
    the graph changes.
-6. **Read-only.** No tool other than `reload_graph` changes server state.
+6. **One graph per call.** Each tool call is computed from the graph that is live
+   when it starts, even when a reload replaces the graph while it runs. Its data hash,
+   and the cursor it issues, belong to that same graph.
+7. **Read-only.** No tool other than `reload_graph` changes server state.
 
 ---
 

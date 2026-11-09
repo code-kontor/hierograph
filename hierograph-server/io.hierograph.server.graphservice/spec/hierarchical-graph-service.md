@@ -71,6 +71,15 @@ Every public read resolves it once, so concurrent tool calls each see one cohere
 (model, index, hash) set. A rebuild publishes by replacing that reference in a
 single step — there is no window in which a reader sees a partial graph.
 
+**Pinned snapshot.** A tool call reads the service many times: the model, then the
+data hash for its cursor, then the detail directory. `withPinnedSnapshot { … }` pins
+the snapshot that is live when the block starts to the calling thread, and every read
+inside the block resolves that snapshot, even when a reload swaps in a new one
+meanwhile. The MCP server runs every tool call inside such a block, so one answer is
+always computed from one graph. While a pinned snapshot is no longer live,
+`readyDetailDir()` returns `null`, so a call never pairs an old model with the new
+build's detail data. Pins are per thread, and a nested block keeps the outer pin.
+
 **Generation.** A monotonic counter. Each build takes the next value and stamps
 both its snapshot and the detail source built for it. The generation is how the
 service tells "current" from "superseded" when work happens asynchronously.
@@ -287,11 +296,13 @@ these derived edges with the Parquet `detail_refs` for a scope.
 
 ## 9. Served interface
 
-What tools read from the service (all reads resolve the current snapshot atomically):
+What tools read from the service (all reads resolve the current snapshot atomically, or
+the pinned one inside `withPinnedSnapshot`):
 
 | Member | Purpose |
 |--------|---------|
 | `isGraphAvailable` | whether any graph is loaded; tools check this before answering |
+| `withPinnedSnapshot { … }` | run a block against one snapshot, whatever reloads happen meanwhile |
 | `model` | the hierarchical model (navigation, hierarchy, dependencies) |
 | `searchIndex` | the node search index for the current model |
 | `dataHash` | fingerprint of the current model; the basis for pagination-cursor validity |

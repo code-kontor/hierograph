@@ -23,7 +23,8 @@ import org.springframework.ai.tool.ToolCallbackProvider
 import org.springframework.ai.tool.definition.ToolDefinition
 
 /**
- * Wraps a delegate [ToolCallbackProvider] and short-circuits every tool call with the standard
+ * Wraps a delegate [ToolCallbackProvider], runs every tool call against one pinned graph snapshot
+ * ([HierarchicalGraphService.withPinnedSnapshot]), and short-circuits every tool call with the standard
  * [GraphUnavailable] description while no hierarchical graph is loaded (the graph source could not be
  * built — see [HierarchicalGraphService.isGraphAvailable]).
  *
@@ -53,10 +54,11 @@ class GraphAvailabilityToolCallbackProvider(
         override fun call(toolInput: String, toolContext: ToolContext?): String =
             guard { delegate.call(toolInput, toolContext) }
 
-        private inline fun guard(invoke: () -> String): String {
+        private inline fun guard(crossinline invoke: () -> String): String {
             val name = delegate.toolDefinition.name()
             return if (graphService.isGraphAvailable || name in toolsAllowedWithoutGraph) {
-                invoke()
+                // One snapshot per call: a reload during the call cannot mix two graphs into one answer.
+                graphService.withPinnedSnapshot { invoke() }
             } else {
                 objectMapper.writeValueAsString(GraphUnavailable.response())
             }

@@ -214,7 +214,7 @@ class HierarchicalGraphService {
      */
     fun readyDetailDir(): Path? {
         val detail = detailSource.get()
-        val live = snapshotRef.get()?.generation
+        val live = live()?.generation
         return if (detail.dir != null && live != null && detail.generation == live) detail.dir else null
     }
 
@@ -222,10 +222,10 @@ class HierarchicalGraphService {
     val parquetDirectory: String get() = (detailSource.get().dir ?: snapshotDir()).toString()
 
     /** The type-level GraphStore backing the current snapshot in `parquet` mode, else `null`. */
-    val graphStore: GraphStore? get() = snapshotRef.get()?.graphStore
+    val graphStore: GraphStore? get() = live()?.graphStore
 
     /** Reverse index `node handle → member key` for the Parquet detail tools. */
-    val memberHandleIndex: Map<Long, String> get() = snapshotRef.get()?.memberHandles ?: emptyMap()
+    val memberHandleIndex: Map<Long, String> get() = live()?.memberHandles ?: emptyMap()
 
     /**
      * The node handle for a bare member key (`<owner fqn>#<signature>`, as detail refs carry it): the
@@ -241,11 +241,38 @@ class HierarchicalGraphService {
      */
     private val snapshotRef = AtomicReference<GraphSnapshot>()
 
+    /** The snapshot pinned to the current thread by [withPinnedSnapshot], if any. */
+    private val pinned = ThreadLocal<GraphSnapshot?>()
+
+    /** The snapshot this thread reads: the pinned one inside [withPinnedSnapshot], else the live one. */
+    private fun live(): GraphSnapshot? = pinned.get() ?: snapshotRef.get()
+
+    /**
+     * Runs [block] with the live snapshot pinned to the current thread: every read of [model],
+     * [searchIndex], [dataHash], [graphStore], [memberHandleIndex] and the detail source inside it sees
+     * that one snapshot, even when a reload swaps in a new one meanwhile. A tool call that reads the
+     * service several times therefore never mixes two graphs; it answers from the graph that was live
+     * when it started. While the pinned snapshot is no longer live, [readyDetailDir] reports the detail
+     * data as not ready, so the call never pairs an old model with new detail data.
+     *
+     * Nested calls keep the outer pin. Without a loaded graph, [block] runs unpinned.
+     */
+    fun <T> withPinnedSnapshot(block: () -> T): T {
+        if (pinned.get() != null) return block()
+        val snapshot = snapshotRef.get() ?: return block()
+        pinned.set(snapshot)
+        try {
+            return block()
+        } finally {
+            pinned.remove()
+        }
+    }
+
     val model: HGModel get() = current().model
 
     val searchIndex: NodeSearchIndex get() = current().searchIndex
 
-    /** Fingerprint of the currently-loaded snapshot; changes on every successful [reload]. */
+    /** Fingerprint of the currently-loaded snapshot; changes on every [reload] that changes the graph. */
     val dataHash: String get() = current().dataHash
 
     /**
@@ -255,7 +282,7 @@ class HierarchicalGraphService {
     val isGraphAvailable: Boolean get() = snapshotRef.get() != null
 
     private fun current(): GraphSnapshot =
-        snapshotRef.get() ?: error("Hierarchical graph has not been loaded yet")
+        live() ?: error("Hierarchical graph has not been loaded yet")
 
     @PostConstruct
     fun init() {

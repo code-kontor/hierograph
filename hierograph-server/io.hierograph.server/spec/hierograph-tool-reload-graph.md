@@ -197,8 +197,9 @@ without `cursor`.
 
 ## 7. Guarantees
 
-1. **Atomic.** Every read of the graph sees either the graph before the reload or the
-   graph after it, never a partially built one.
+1. **Atomic.** Every tool call sees either the graph before the reload or the graph
+   after it, never a partially built one and never both: a call that is running
+   when the reload swaps the graph finishes on the graph it started with.
 2. **No loss on failure.** A failed reload leaves the graph that was in service before the
    call in service.
 3. **Always callable.** The tool runs whether or not a graph is loaded.
