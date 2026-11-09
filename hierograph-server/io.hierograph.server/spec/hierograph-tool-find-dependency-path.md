@@ -112,35 +112,40 @@ dependencies between types inside them (§3.4).
 The tool runs a breadth-first search along outgoing type-level dependencies, one
 layer of hops at a time, starting from all source types at once.
 
-1. **Layer by layer.** In layer *k*, every path of length *k* is extended by each
-   outgoing dependency of its last type.
-2. **Target reached.** When the dependency leads to a target type, the extended path
-   is recorded. The search does not continue past a target type.
-3. **Not yet reached.** When the dependency leads to a type that no earlier layer has
-   reached, the extended path joins the next layer. A type reached by several paths in
-   the same layer is carried forward once per path, so each of those paths can lead to
-   a separate result.
+1. **Layer by layer.** Layer *k* holds the types first reached in *k* hops. Each
+   type in it carries its heaviest partial paths from a source type.
+2. **Target reached.** When a dependency leads to a target type, the extended paths
+   are candidates of length *k* + 1. The search does not continue past a target type.
+3. **Not yet reached.** When a dependency leads to a type that no earlier layer has
+   reached, the type joins the next layer, and its partial paths are merged from all
+   the types of this layer that lead to it.
 4. **Already reached.** A type reached in an earlier layer, and every source type
-   that is not a target type, is not extended again. Paths therefore never pass
+   that is not a target type, is not entered again. Paths therefore never pass
    through another source type, and a type appears in paths only at the hop at which
    the search first reached it.
 
-The search stops as soon as `maxPaths` paths are recorded, when no path is left to
-extend, or when the paths have reached `maxLength` hops. Paths are recorded in
-discovery order: source types in pre-order of the containment tree, then each type's
-dependencies in the order the graph holds them. When the shortest layer yields fewer
-than `maxPaths` paths, the search goes on into longer layers.
+After each layer, the candidates of that length are ranked by total weight, heaviest
+first, and as many are kept as paths are still wanted. The search goes on into longer
+layers until `maxPaths` paths are kept, no type is left to extend, or the paths have
+reached `maxLength` hops.
 
-Rule 4 keeps the search proportional to the graph rather than to the number of
-routes through it. Its consequence is that the result is not every simple path: a
-longer route through a type that a shorter path already passed is not returned.
+A type keeps only as many partial paths as paths are still wanted. That loses no
+result: when two partial paths reach the same type, the heavier one followed by any
+continuation outweighs the lighter one with the same continuation, so a returned path
+never needs a prefix that was dropped. Together with rule 4, this keeps the work
+proportional to the number of dependencies times `maxPaths`, however many routes the
+graph holds.
+The result is not every simple path: a longer route through a type that a shorter path
+already passed is not returned.
 
 ### 3.3 Ordering
 
-The recorded paths are sorted by length (ascending), then total weight (descending).
-The sort orders what was found; it does not choose what is found. When `maxPaths` cuts
-the search off inside a layer, the paths returned for that length are the first ones
-discovered, which are not necessarily the heaviest.
+The paths are sorted by length (ascending), then total weight (descending). Because
+the search ranks each length's candidates by weight before it keeps any, the paths
+returned for a length are the heaviest of that length, also when `maxPaths` cuts the
+result off inside it. Paths of equal length and weight keep the order in which the
+search met them: source types in pre-order of the containment tree, then each type's
+dependencies in the order the graph holds them.
 
 ### 3.4 Worked example
 
@@ -184,8 +189,8 @@ the source types `Invoice`, `Invoice$Line` and `Ledger`, and the target types
 | `Ledger → Money → BigDecimal` | 2 | 1 + 5 = 6 |
 
 The one-hop path comes first although it is the lightest, because length sorts before
-weight. With `maxPaths = 2` the search stops at the first path of layer 2 and returns
-the first two rows. With `maxLength = 1` it returns only the first row.
+weight. With `maxPaths = 2` the tool returns the first two rows: the one-hop path,
+then the heaviest of the three two-hop paths. With `maxLength = 1` it returns only the first row.
 
 **Only first arrivals.** `find_dependency_path(fromId = 4711, toId = 4803)` returns one
 path, `Invoice → Money → BigDecimal`. The routes through `Invoice$Line` and `Ledger`
@@ -219,18 +224,18 @@ The response to `find_dependency_path(fromId = 4702, toId = 4800)` on the graph 
     "4713": { "name": "Ledger",         "qualified_name": "com.example.billing.Ledger",        "kind": "java.interface" }
   },
   "paths": [
-    { "length": 1, "total_weight": 1,
+    { "from": 4711, "to": 4806, "length": 1, "total_weight": 1,
       "steps": [ { "from": 4711, "to": 4806, "weight": 1 } ] },
-    { "length": 2, "total_weight": 8,
+    { "from": 4711, "to": 4803, "length": 2, "total_weight": 8,
       "steps": [ { "from": 4711, "to": 4730, "weight": 3 }, { "from": 4730, "to": 4803, "weight": 5 } ] },
-    { "length": 2, "total_weight": 7,
+    { "from": 4712, "to": 4803, "length": 2, "total_weight": 7,
       "steps": [ { "from": 4712, "to": 4730, "weight": 2 }, { "from": 4730, "to": 4803, "weight": 5 } ] },
-    { "length": 2, "total_weight": 6,
+    { "from": 4713, "to": 4803, "length": 2, "total_weight": 6,
       "steps": [ { "from": 4713, "to": 4730, "weight": 1 }, { "from": 4730, "to": 4803, "weight": 5 } ] }
   ],
   "summary": {
-    "from": 4702,
-    "to": 4800,
+    "from_scope": 4702,
+    "to_scope": 4800,
     "path_count": 4,
     "shortest_length": 1,
     "exists": true
@@ -256,6 +261,8 @@ without searching: then `nodes` is `{}`.
 
 | Field | Type | Meaning | Why |
 |-------|------|---------|-----|
+| `from` | integer | the source type the path starts at | the endpoint, without reading the steps |
+| `to` | integer | the target type the path ends at | same |
 | `length` | integer | number of steps | the primary sort key; shorter chains are more direct |
 | `total_weight` | integer | sum of the step weights | ranks equal-length chains by coupling strength |
 | `steps` | array of `{from, to, weight}` | the dependencies in path order | shows each hop, ready to inspect with the dependency tools |
@@ -269,14 +276,16 @@ target type.
 
 | Field | Type | Meaning | Why |
 |-------|------|---------|-----|
-| `from` | integer | the `fromId` passed in | ties the answer to the question |
-| `to` | integer | the `toId` passed in | same |
+| `from_scope` | integer | the `fromId` passed in | ties the answer to the question |
+| `to_scope` | integer | the `toId` passed in | same |
 | `path_count` | integer | number of entries in `paths` | at most `maxPaths` |
 | `shortest_length` | integer or `null` | length of the first path; `null` when there is none | "how directly are they connected?" in one field |
 | `exists` | boolean | `true` when at least one path was found | the yes/no answer |
 
-`from` and `to` echo the input ids, not the endpoint types; the endpoints of each path
-are its first `from` and last `to`.
+`from_scope` and `to_scope` echo the input ids, which may be packages or modules; the
+types a path actually connects are its own `from` and `to`. The names match the
+detail level of the dependency tools, where `from_scope` and `to_scope` echo the
+scopes the same way.
 
 When no path is found, `paths` is `[]`, `path_count` is `0`, `shortest_length` is
 `null` and `exists` is `false`. Within `maxLength`, this is definitive: no dependency
@@ -355,7 +364,9 @@ with `direction = "outgoing"` from the source.
    `maxLength` steps.
 5. **Shortest first.** The first path has the smallest length of any path from source
    to target; `shortest_length` is that length.
-6. **Definite absence.** `exists: false` means no dependency chain of at most
+6. **Heaviest within a length.** Among the paths the search considers (§3.2), no
+   unreturned path of a returned length is heavier than a returned one of that length.
+7. **Definite absence.** `exists: false` means no dependency chain of at most
    `maxLength` steps leads from any source type to any target type.
-7. **Deterministic.** For the same graph and parameters, the tool returns the same
+8. **Deterministic.** For the same graph and parameters, the tool returns the same
    paths in the same order.

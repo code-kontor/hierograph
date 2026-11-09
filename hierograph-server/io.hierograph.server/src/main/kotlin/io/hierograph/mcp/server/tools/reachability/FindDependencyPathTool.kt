@@ -87,58 +87,45 @@ class FindDependencyPathTool(
             return noPathResult(fromId, toId)
         }
 
-        // ── BFS to find shortest paths ─────────────────────────────────
-        // We use BFS layer by layer to find all shortest paths first,
-        // then progressively longer paths up to maxPaths.
-        data class BfsState(
-            val node: HGNode,
-            val path: List<PathStep>  // steps taken to reach this node
-        )
-
+        // ── layered search, keeping each node's best partial paths ─────
+        // Layer n holds the nodes first reached in n hops, each with its heaviest partial paths. A node
+        // is entered only at its shortest distance, source types are never re-entered, and target types
+        // end a path rather than extend it. All arrivals at targets in a layer are ranked by weight, so
+        // the heaviest paths of each length are returned. A node keeps at most as many partial paths as
+        // paths are still wanted: a heavier prefix with the same continuation always ranks first, so no
+        // returned path needs more. The work is bounded by edges × maxPaths, not by the number of paths.
         val foundPaths = mutableListOf<List<PathStep>>()
-        val visited = mutableSetOf<Any>() // node identifiers already fully expanded
-        var queue: MutableList<BfsState> = mutableListOf()
-
-        // Seed with all source types
+        val reached = HashSet<Any>(fromTypeIds)
+        var layer = LinkedHashMap<HGNode, List<Partial>>()
         for (srcId in fromTypeIds) {
-            val srcNode = graphService.model.lookupNode(srcId) ?: continue
-            queue.add(BfsState(srcNode, emptyList()))
-            visited.add(srcId)
+            graphService.model.lookupNode(srcId)?.let { layer[it] = listOf(Partial.START) }
         }
 
-        var currentDepth = 0
-
-        while (queue.isNotEmpty() && foundPaths.size < effectiveMaxPaths && currentDepth < effectiveMaxLength) {
-            val nextQueue = mutableListOf<BfsState>()
-            val visitedThisLevel = mutableSetOf<Any>()
-
-            for (state in queue) {
-                for (dep in state.node.outgoingCoreDependencies) {
+        var length = 0
+        while (layer.isNotEmpty() && foundPaths.size < effectiveMaxPaths && length < effectiveMaxLength) {
+            length++
+            val arrivals = mutableListOf<Partial>()
+            val next = LinkedHashMap<HGNode, MutableList<Partial>>()
+            for ((node, partials) in layer) {
+                for (dep in node.outgoingCoreDependencies) {
                     val neighbor = dep.to
                     val neighborId = neighbor.identifier
-
-                    val step = PathStep(
-                        from = state.node.identifier,
-                        to = neighborId,
-                        weight = dep.weight
-                    )
-                    val newPath = state.path + step
-
-                    if (neighborId in toTypeIds) {
-                        // Found a path to a target type
-                        foundPaths.add(newPath)
-                        if (foundPaths.size >= effectiveMaxPaths) break
-                    } else if (neighborId !in visited) {
-                        visitedThisLevel.add(neighborId)
-                        nextQueue.add(BfsState(neighbor, newPath))
-                    }
+                    val isTarget = neighborId in toTypeIds
+                    if (!isTarget && neighborId in reached) continue
+                    val step = PathStep(from = node.identifier, to = neighborId, weight = dep.weight)
+                    val extended = partials.map { Partial(step, it, it.weight + dep.weight) }
+                    if (isTarget) arrivals += extended else next.getOrPut(neighbor) { mutableListOf() } += extended
                 }
-                if (foundPaths.size >= effectiveMaxPaths) break
             }
+            arrivals.sortedWith(HEAVIEST_FIRST).take(effectiveMaxPaths - foundPaths.size)
+                .forEach { foundPaths += it.steps() }
 
-            visited.addAll(visitedThisLevel)
-            queue = nextQueue
-            currentDepth++
+            val stillWanted = effectiveMaxPaths - foundPaths.size
+            layer = LinkedHashMap()
+            for ((node, partials) in next) {
+                layer[node] = partials.sortedWith(HEAVIEST_FIRST).take(stillWanted)
+                reached += node.identifier
+            }
         }
 
         // ── sort paths: by length asc, then total weight desc ──────────
@@ -165,6 +152,8 @@ class FindDependencyPathTool(
         // ── build path entries ─────────────────────────────────────────
         val pathEntries = sortedPaths.map { path ->
             linkedMapOf<String, Any?>(
+                "from" to path.first().from,  // the source type the path starts at
+                "to" to path.last().to,       // the target type it ends at
                 "length" to path.size,
                 "total_weight" to path.sumOf { it.weight },
                 "steps" to path.map { step ->
@@ -184,8 +173,8 @@ class FindDependencyPathTool(
             "nodes" to nodes,
             "paths" to pathEntries,
             "summary" to linkedMapOf<String, Any?>(
-                "from" to fromId,
-                "to" to toId,
+                "from_scope" to fromId,
+                "to_scope" to toId,
                 "path_count" to sortedPaths.size,
                 "shortest_length" to if (exists) sortedPaths.first().size else null,
                 "exists" to exists
@@ -196,6 +185,16 @@ class FindDependencyPathTool(
     // ── helpers ─────────────────────────────────────────────────────────
 
     private data class PathStep(val from: Any, val to: Any, val weight: Int)
+
+    /** A partial path: its last [step], the partial path before it, and its total [weight]. */
+    private class Partial(val step: PathStep?, val parent: Partial?, val weight: Int) {
+        fun steps(): List<PathStep> = generateSequence(this) { it.parent }.mapNotNull { it.step }.toList().asReversed()
+
+        companion object {
+            /** The empty path every search starts from, at a source type. */
+            val START = Partial(null, null, 0)
+        }
+    }
 
     private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
@@ -228,6 +227,11 @@ class FindDependencyPathTool(
         return null
     }
 
+    private companion object {
+        /** Ranks partial paths by total weight, heaviest first; equal weights keep their discovery order. */
+        val HEAVIEST_FIRST = compareByDescending<Partial> { it.weight }
+    }
+
     private fun nodeNotFound(id: Long) = mapOf<String, Any?>(
         "error" to mapOf(
             "code" to "NODE_NOT_FOUND",
@@ -240,8 +244,8 @@ class FindDependencyPathTool(
         "nodes" to emptyMap<String, Any>(),
         "paths" to emptyList<Any>(),
         "summary" to linkedMapOf<String, Any?>(
-            "from" to fromId,
-            "to" to toId,
+            "from_scope" to fromId,
+            "to_scope" to toId,
             "path_count" to 0,
             "shortest_length" to null,
             "exists" to false
