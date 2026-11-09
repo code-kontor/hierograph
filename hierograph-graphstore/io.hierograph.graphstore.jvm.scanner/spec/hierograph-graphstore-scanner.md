@@ -178,16 +178,21 @@ code reads or writes which field, what each member's signature names, with sourc
 lines. They are kept apart from `ClassFacts` because they are large and are read on
 demand rather than held in memory.
 
-**`writeTo(dir, codec, classpaths)`** writes the result as a snapshot directory, with
-one `.hierograph` archive per artifact. Its tables, columns and conventions are
-defined in the
+**`writeTo(dir, codec, classpaths, packaging)`** writes the result as a snapshot
+directory, with one `.hierograph` artifact per artifact key — an archive or an
+exploded directory of the same name, with identical tables. An artifact of the same
+name already in the directory is replaced, whichever its form. Nothing is written
+outside the directory: an archive's tables are staged in a `.staging-<artifact>`
+directory there, which is deleted once the archive is written. Tables, columns and
+conventions are defined in the
 [snapshot format specification](../../io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `dir` | — | the snapshot directory; created if missing |
 | `codec` | ZSTD | the Parquet compression codec |
-| `classpaths` | none | per artifact key, the ordered classpath to store in that archive's `classpath` table |
+| `classpaths` | none | per artifact key, the ordered classpath to store in that artifact's `classpath` table |
+| `packaging` | `ARCHIVE` | `ARCHIVE` writes `<artifact>.hierograph` files (for shipping), `EXPLODED` writes `<artifact>.hierograph/` directories (for local work) |
 
 ---
 
@@ -390,7 +395,7 @@ A scan either succeeds completely or fails. It never returns a partial result.
 | `ScanArtifact.of(path)` | an input keyed by its file or directory name |
 | `ScanResult.classes` | the scanned classes, as `ArtifactClass(artifactKey, facts)` |
 | `ScanResult.detailRefs` | the member-level references |
-| `ScanResult.writeTo(dir, codec, classpaths)` | writes the result as a snapshot of `.hierograph` archives, one per artifact (§4) |
+| `ScanResult.writeTo(dir, codec, classpaths, packaging)` | writes the result as a snapshot of `.hierograph` artifacts, archived or exploded, one per artifact (§4) |
 
 ---
 
