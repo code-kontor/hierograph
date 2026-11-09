@@ -21,13 +21,14 @@ artifact.
 
 ## 1. Overview
 
-The plugin exposes four goals that serve two workflows.
+The plugin exposes five goals that serve two workflows.
 
 ```
  Local development (the server scans and watches your build)
  ────────────────────────────────────────────────────────────
    hierograph:create-descriptor   per module   →  target/hierograph/module.json
                                   + merge      →  .hierograph/manifest.json  ──►  MCP server (manifest mode)
+   hierograph:manifest            once (root)  →  <manifestDir>/manifest.json   (no compile, no write into the project)
 
  Publishing (a scanned archive travels as an artifact)
  ────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ The plugin exposes four goals that serve two workflows.
 |------|-------|---------------|-----------------|----------------|
 | `create-descriptor` | per module | `process-classes` | no | `module.json` descriptor and merged `manifest.json` |
 | `merge-descriptors` | aggregator | `verify` | no | merged `manifest.json` (optional) |
+| `manifest` | aggregator | none (invoked directly) | no | `manifest.json`, written without compiling or touching the project |
 | `scan` | per module | `package` | yes | attached `.hierograph` archive |
 | `collect` | aggregator | `verify` | yes (collects) | attached combined archive |
 
@@ -152,10 +154,11 @@ once.
 
 **Build tool and regeneration command.** The manifest names its producer's tool,
 `buildTool: { "name": "maven", "version": <the running Maven version> }`, and the
-command a watching server runs to rewrite it: `./mvnw -q -B process-classes` when
-the execution root holds a Maven wrapper (`./mvnw.cmd` on Windows), otherwise
-`mvn -q -B process-classes` (`mvn.cmd` on Windows). `process-classes` rather than
-a bare `hierograph:create-descriptor`: without a lifecycle phase, Maven 3 does not
+command a watching server runs to rewrite it: `./mvnw` when the execution root
+holds a Maven wrapper (`./mvnw.cmd` on Windows), otherwise `mvn` (`mvn.cmd` on
+Windows), with `-q -B`, the build's explicitly active profiles (`-P…`), and
+`process-classes`. `process-classes` rather than a bare
+`hierograph:create-descriptor`: without a lifecycle phase, Maven 3 does not
 resolve reactor siblings from their output directories. The plugin names the
 command because only it knows Maven; the server runs it without knowing the tool.
 
@@ -221,6 +224,56 @@ to bind it; it is there to merge explicitly, for example from the command line.
 | Parameter | Property | Default | Description |
 |-----------|----------|---------|-------------|
 | `manifestDir` | `hierograph.manifestDir` | `${session.executionRootDirectory}/.hierograph` | Directory the merged manifest is written to. |
+| `skip` | `hierograph.skip` | `false` | Skip the goal. |
+
+---
+
+### `hierograph:manifest`
+
+> Write the build manifest for the whole reactor in one step — **without a
+> lifecycle phase, without compiling, and without writing anything into the
+> project.**
+
+`create-descriptor` depends on Maven's own dependency resolution. Under Maven 3
+that resolves a reactor sibling only from its packaged artifact or, after a
+lifecycle phase in the same build, from its compiled output — so it needs
+`process-classes`, which compiles, and it writes descriptors into `target/`. A
+manifest needs much less from a sibling: its classpath entry is internal, with
+`jar: null`, and only its coordinates matter.
+
+`manifest` therefore resolves itself. For each reactor project it collects the
+dependency graph with Maven's `ProjectDependenciesResolver` — POMs only, the
+siblings' POMs from the reactor — and resolves only the artifacts that are **not**
+reactor projects. The classpath is the graph in pre-order, first occurrence wins:
+the order in which Maven builds `project.artifacts`. The result equals what
+`create-descriptor` records for the same project, except `sourceRoots`, which do
+not include source directories that only a lifecycle phase adds (such as
+`target/generated-sources/annotations`).
+
+- **Binding:** none; invoke as `io.hierograph:hierograph-maven-plugin:<version>:manifest`.
+- **Aggregator:** yes — one execution covers `session.allProjects`, the full reactor.
+- **Dependency resolution:** done by the goal; reactor siblings are never resolved to files.
+- **Writes:** only `manifest.json` (and `manifest.lock`) in `manifestDir`. No descriptor files, nothing below the project.
+- **Skips:** modules with `pom` packaging.
+
+The merge rules, the build files, write-only-on-change and the atomic write are
+those of `create-descriptor`. The regeneration command it records reruns this
+goal: `mvn -q -B [-P…] io.hierograph:hierograph-maven-plugin:<version>:manifest`
+(`./mvnw` with a wrapper).
+
+**Where it is used.** The Hierograph Docker image regenerates the manifest with
+this goal inside the container, with the project and the host's `~/.m2` mounted
+read-only. On a host it is the cheapest explicit command: no `process-classes`,
+no installed siblings.
+
+A missing **external** dependency fails the goal: the manifest would be wrong
+without it.
+
+**Parameters**
+
+| Parameter | Property | Default | Description |
+|-----------|----------|---------|-------------|
+| `manifestDir` | `hierograph.manifestDir` | `${session.executionRootDirectory}/.hierograph` | Directory the manifest is written to. |
 | `skip` | `hierograph.skip` | `false` | Skip the goal. |
 
 ---
@@ -305,7 +358,7 @@ artifact:  <root-groupId>:<root-artifactId>:<version>   ·   type hierograph   �
 | Produced by | Name | Form | Published? | Coordinates |
 |-------------|------|------|------------|-------------|
 | `create-descriptor` | `target/hierograph/module.json` | JSON descriptor | no (build-local) | — |
-| `create-descriptor`, `merge-descriptors` | `.hierograph/manifest.json` | JSON manifest | no (build-local) | — |
+| `create-descriptor`, `merge-descriptors`, `manifest` | `.hierograph/manifest.json` | JSON manifest | no (build-local) | — |
 | `scan` | `<artifactId>.hierograph` | Parquet archive | yes | type `hierograph`, no classifier |
 | `scan` (tests) | `<artifactId>.hierograph` | Parquet archive | yes | type `hierograph`, classifier `tests` |
 | `collect` | `<artifactId>-collect.hierograph` | archive of archives | yes | type `hierograph`, classifier `collect` |
@@ -500,7 +553,7 @@ To hand a single file to a server instead, add `collect`:
 | Property | Goal(s) | Default | Purpose |
 |----------|---------|---------|---------|
 | `hierograph.skip` | all | `false` | Skip the goal. |
-| `hierograph.manifestDir` | `create-descriptor`, `merge-descriptors` | `${session.executionRootDirectory}/.hierograph` | Manifest output directory. |
+| `hierograph.manifestDir` | `create-descriptor`, `merge-descriptors`, `manifest` | `${session.executionRootDirectory}/.hierograph` | Manifest output directory. |
 | `hierograph.archiveDir` | `scan` | `${project.build.directory}/hierograph` | Archive staging directory. |
 | `hierograph.attach` | `scan`, `collect` | `true` | Attach (and deploy) the produced artifact. |
 | `hierograph.includeTestClasses` | `scan` | `false` | Also scan test output. |

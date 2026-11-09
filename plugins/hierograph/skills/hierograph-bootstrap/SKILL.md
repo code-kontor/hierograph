@@ -61,7 +61,7 @@ a Gradle producer is planned. Do not improvise a manifest by hand.
 | `MAVEN` | `./mvnw` if `BUILD_ROOT/mvnw` exists, else `mvn` | Use the project's wrapper when it has one. |
 | `PROFILES` | none | Profiles the user's normal build activates (e.g. one that adds modules). Pass them to every Maven command here, or those modules are missing from the graph. Ask if the root POM has `<profiles>` with `<modules>`. |
 | `MAVEN_SETUP` | asked in Step 3 | `pom` (plugin bound in the POM) or `command` (no POM change). |
-| `RUN_MODE` | `jvm` | `jvm` (local Java process) or `docker`. |
+| `RUN_MODE` | asked in Step 1 | `jvm` (server as a local Java process, manifest from the host build) or `docker` (self-contained container: produces and regenerates the manifest itself; Steps 3 and 4 are skipped). |
 | `MCP_PORT` | `8080` | Hierograph MCP HTTP endpoint: `http://localhost:<MCP_PORT>/mcp`. |
 
 ## The procedure
@@ -106,6 +106,10 @@ the action, then **verify in a separate step**. Long output is fine; let it scro
   - If the request returns 404 or the release is older than 0.2.0, **stop**: no released version
     supports this setup yet. Tell the user; do not fall back to a `-SNAPSHOT`.
   - If Maven Central is unreachable, ask the user for the version.
+- **Ask for `RUN_MODE`.** `jvm` (default): the server runs on the host and the host build produces the
+  manifest (Steps 3–4). `docker`: a self-contained container with the project and `~/.m2` mounted
+  read-only; it produces and regenerates the manifest itself, and the project needs no Hierograph
+  configuration at all — Steps 3 and 4 are skipped. Docker must be available (`docker version`).
 
 ### 2. Make sure the build is green
 
@@ -113,7 +117,7 @@ Hierograph analyzes compiled bytecode. Run the user's normal build once from `BU
 `PROFILES`), e.g. `./mvnw -B install -DskipTests` or `mvn -B install -DskipTests`. A failing build
 must be fixed first; don't continue on a red build.
 
-### 3. Hook the Maven plugin into the build — ask the user
+### 3. Hook the Maven plugin into the build — ask the user (`RUN_MODE=jvm` only)
 
 Present both options and let the user choose (`MAVEN_SETUP`):
 
@@ -157,7 +161,7 @@ modules only from `~/.m2` and fails on uninstalled ones.
 In both cases, **suggest adding `.hierograph/` to the project's `.gitignore`** (it holds the
 generated manifest, the server's snapshot and its logs). It is an edit to the user's file — ask.
 
-### 4. Produce the manifest
+### 4. Produce the manifest (`RUN_MODE=jvm` only)
 
 From `BUILD_ROOT`, with `PROFILES`:
 
@@ -202,23 +206,32 @@ offering:
   `--hierograph.graph.regenerate.command="mvn -q -B process-classes io.hierograph:hierograph-maven-plugin:VERSION:create-descriptor"`,
   because the manifest's default command does not run an unbound plugin.
 
-**`RUN_MODE=docker`.** Mount the project at `/workspace`, the image's working directory (replace
-`ABSOLUTE_BUILD_ROOT` and `VERSION`):
+**`RUN_MODE=docker`.** Mount the project's build root and the user's Maven directory **read-only**
+(replace `ABSOLUTE_BUILD_ROOT`, `ABSOLUTE_HOME` and `VERSION`; add `-e HIEROGRAPH_MAVEN_ARGS=-P<PROFILES>`
+when the build needs profiles):
 
 ```bash
-docker run --rm --name hierograph-mcp -p 8080:8080 \
-  -v ABSOLUTE_BUILD_ROOT:/workspace \
+docker run -d --name hierograph-mcp -p 8080:8080 \
+  -v ABSOLUTE_BUILD_ROOT:/workspace:ro \
+  -v ABSOLUTE_HOME/.m2:/m2:ro \
+  -v hierograph-PROJECT:/hierograph \
   ghcr.io/code-kontor/hierograph-mcp-server:VERSION
 ```
 
-- The manifest records host paths; the server re-roots them onto `/workspace` automatically.
-- Watching uses polling, which works across the mount (native events do not cross a Docker Desktop
-  mount).
-- In a container the server **never runs a regeneration** (the host's Maven isn't there); edited
-  POMs are reported as stale, and the user runs the build on the host.
-- On Linux the server writes `.hierograph/snapshot/` as root unless the container runs with the
-  user's numeric uid/gid (`--user <uid>:<gid>`).
+- **Everything else happens inside the container.** On its first start it has no manifest and
+  generates one with the Maven and Hierograph plugin baked into the image — without compiling and
+  without writing into the project. Dependencies come from the mounted `~/.m2` (read-only); only
+  missing ones are downloaded into the container's own repository. `/m2/settings.xml` is used when
+  present.
+- **The host keeps compiling as usual** (IDE or Maven); the container picks the classes up through the
+  mount. A module the host never compiled is watched until its classes appear.
+- **POM edits regenerate the manifest inside the container** — no Maven run on the host needed.
+- **The third mount is optional.** A named volume (one per project) keeps the manifest, the snapshot
+  and downloaded dependencies across restarts; without it, every start regenerates (seconds).
+- Watching uses polling, which works across the mount.
 - If the pull fails with `unauthorized`, the image may need `docker login ghcr.io`.
+
+The log shows `No manifest yet; generating it` and `Regeneration finished` before the lines below.
 
 **Wait for readiness** with a single check, repeated as its own step if needed:
 `nc -z localhost 8080`. Then read the server output (`docker logs hierograph-mcp` for Docker) and
@@ -273,8 +286,9 @@ There is no rescan step.
 
 - **Code changes:** any compile — Maven or the IDE — rewrites `target/classes`; the server rescans
   the changed modules within a second or two.
-- **Module or dependency changes (POM edits):** the server notices the edited POM and reports
-  `build_state: "stale"` in `graph_overview` / `reload_graph` until the manifest is rewritten. With
+- **Module or dependency changes (POM edits):** with `RUN_MODE=docker` the container regenerates the
+  manifest itself. With `RUN_MODE=jvm` the server notices the edited POM and reports
+  `build_state: "stale"` in `graph_overview` / `reload_graph` until the manifest is rewritten: with
   `MAVEN_SETUP=pom`, the next build reaching `process-classes` does that; with `command`, rerun the
   Step 3 command. With `--hierograph.graph.watch.build-files=regenerate` the server runs it itself.
 - **Something the watcher can't see** (a profile activated in `settings.xml`, an updated SNAPSHOT
@@ -300,3 +314,5 @@ AI starts reading source files instead of querying, nudge it with **"use hierogr
 | `build_state: "stale"` | A POM changed after the last manifest | Run the build (`pom`) or the Step 3 command (`command`) |
 | `build_state: "regeneration-failed"` | The regeneration build failed; `message` holds the end of its output | Fix the build error; the next POM edit or `reload_graph` retries |
 | Port 8080 in use | Another process | Choose another `MCP_PORT` (`--server.port=…` / `-p <port>:8080`) and register that URL |
+| Container exits with `no pom.xml in /workspace` | The mounted directory isn't the build root | Mount the directory holding the root `pom.xml` at `/workspace` |
+| Container: `build_state: "regeneration-failed"` naming a missing artifact | A dependency is neither in `~/.m2` nor downloadable (offline, or credentials the container can't see) | Build once on the host so `~/.m2` has it; mount `settings.xml` at `/m2/settings.xml` |

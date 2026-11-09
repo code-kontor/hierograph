@@ -106,9 +106,10 @@ A producer describes its build with two more types:
 
 ```kotlin
 data class ModuleSource(
-    val gav: String,           // the module's current GAV
-    val name: String,          // display name for messages
-    val descriptorFile: Path,  // where the module's descriptor is (or would be)
+    val gav: String,                       // the module's current GAV
+    val name: String,                      // display name for messages
+    val descriptorFile: Path? = null,      // where an earlier build step wrote the descriptor (or would have)
+    val descriptor: ModuleDescriptor? = null,  // the descriptor computed in memory, if the producer has it
 )
 
 data class MergeRequest(
@@ -130,8 +131,9 @@ data class MergeRequest(
 
 | Situation | Effect |
 |-----------|--------|
-| The module's descriptor exists | its content is the entry |
-| The descriptor is missing (deleted by a clean, not rebuilt yet) | the module's entry from the existing manifest is kept, matched by `gav` |
+| The descriptor is given in memory | it is the entry |
+| The module's descriptor file exists | its content is the entry |
+| Neither is available (the file was deleted by a clean, not rebuilt yet) | the module's entry from the existing manifest is kept, matched by `gav` |
 | A module is no longer in the request | its entry disappears, even if its descriptor remains on disk |
 | A module's GAV changed | the entry under the previous GAV disappears; the descriptor's entry appears |
 | A descriptor cannot be read | it is skipped and `warn` is told |

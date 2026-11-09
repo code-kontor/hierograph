@@ -135,19 +135,28 @@ repackaged `-exec.jar`) via the `docker` CLI. The registry and name are properti
 
 ### Run the image
 
-The server listens on port `8080` and reads the target project's build manifest
-(`.hierograph/manifest.json`) from its working directory, `/workspace`. Mount the project's build
-root there:
+The image is self-contained: mount the target project's build root and your Maven directory
+**read-only**, and everything else happens inside the container — producing the build manifest with
+the baked-in Maven and Hierograph plugin (`hierograph:manifest`, no compilation), regenerating it after a
+POM edit, scanning, and serving MCP on port `8080`:
 
 ```bash
 docker run --rm -p 8080:8080 \
-  -v /path/to/project:/workspace \
+  -v /path/to/project:/workspace:ro \
+  -v ~/.m2:/m2:ro \
+  [-v hierograph-state:/hierograph] \
+  [-e HIEROGRAPH_MAVEN_ARGS=-Pitest] \
   ghcr.io/code-kontor/hierograph-mcp-server:0.2.0-SNAPSHOT
 ```
 
-The manifest records host paths; the server re-roots them onto the mount. Watching uses polling,
-which works across the mount. A container never runs the manifest's regeneration command (the
-host's Maven is not inside it); edited POMs are reported as stale instead.
+- `/m2/repository` serves as a read-only tail of the container's own local repository; only missing
+  artifacts are downloaded into the state directory. `/m2/settings.xml` is used when present.
+- `/hierograph` holds all state — manifest, Parquet snapshot, regeneration log, downloaded
+  dependencies. Mount a named volume there to keep it across restarts; without it, each start
+  regenerates the manifest first.
+- `HIEROGRAPH_MAVEN_ARGS` passes extra Maven arguments (e.g. profiles that add modules);
+  `HIEROGRAPH_BUILD_FILES` sets the reaction to edited POMs (`regenerate` by default).
+- The host keeps compiling as usual; the container picks the classes up through the mount (polling).
 
 ### Push the image
 

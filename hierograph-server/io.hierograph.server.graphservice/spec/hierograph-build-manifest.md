@@ -18,9 +18,11 @@ classpath to resolve references*.
   [`io.hierograph.manifest` library](../../../hierograph-build-support/io.hierograph.manifest/spec/hierograph-manifest.md);
   the [Maven plugin](../../../hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md)'s
   `hierograph:create-descriptor` writes it on every build that reaches
-  `process-classes`
+  `process-classes`, and its `hierograph:manifest` writes it without compiling —
+  the way the Hierograph Docker image produces it inside the container
 - **Consumer:** the server's manifest-mode graph source (`hierograph.graph.source=manifest`)
-- **Location:** `<build root>/.hierograph/manifest.json`
+- **Location:** `<build root>/.hierograph/manifest.json` by default; any directory
+  when the consumer is told the build root (§3)
 - **Encoding:** UTF-8 JSON
 
 Two terms are used throughout. The **build** is the set of modules one build
@@ -207,8 +209,13 @@ rule:
 > grandparent directory, and re-roots any recorded path that lies under the
 > recorded `reactorRoot` onto that local root.
 
+A consumer that reads the manifest from somewhere else — a container writes it into
+its own state directory, outside the read-only workspace — is told the local build
+root explicitly (`hierograph.graph.buildRoot`) instead of deriving it.
+
 On the build host the recorded and local roots are equal, so re-rooting is the
-identity. When the server runs elsewhere — e.g. in a container with the workspace
+identity; so they are for a manifest written where it is read, such as one the
+container generates for `/workspace`. When the server runs elsewhere — e.g. in a container with the workspace
 mounted at a different path — the two roots differ and every path inside the build
 (the output directories, the build files) is relocated correctly. The
 `./`-relative arguments of `regenerate` resolve against the local build root.
@@ -270,7 +277,8 @@ them when it cheaply can.
 
 In manifest mode the server:
 
-1. Reads the manifest and builds the `PathRemap` from `reactorRoot` (§3).
+1. Reads the manifest and builds the `PathRemap` from `reactorRoot` and the local
+   build root (§3).
 2. For each module: records its `classpath` (keyed by `gav`), re-roots
    `mainOutputDirs` and **declares** them as one output. A declared output with at
    least one existing directory is scanned with the ASM bytecode scanner, every

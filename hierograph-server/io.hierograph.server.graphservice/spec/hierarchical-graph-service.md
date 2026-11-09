@@ -203,11 +203,17 @@ manifest's producer names. The command is chosen in this order:
 | the manifest's `regenerate` | present; `./`-relative arguments resolve against the local build root |
 | none | `regenerate` behaves as `notify`, with a warning naming the missing command |
 
-The command runs in the build root, and its output goes to
-`.hierograph/regenerate.log`. The Maven plugin names `./mvnw` or `mvn` with
-`-q -B process-classes` (see the
+The command runs in the build root, and its output goes to `regenerate.log` in the
+state directory. The Maven plugin names `./mvnw` or `mvn` with `-q -B`, the active
+profiles and the goal that wrote the manifest (see the
 [build manifest specification](hierograph-build-manifest.md)); another producer
 names what fits its tool.
+
+**A missing manifest is generated first.** When the manifest does not exist at
+startup — or at a `reload` — and the mode is `regenerate` with a configured
+command, the service runs that command synchronously, then loads the result. This
+is how a container starts from nothing. A failed run is reported as
+`regeneration-failed`; the service then starts without a graph.
 
 | Rule | Why |
 |------|-----|
@@ -308,6 +314,8 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.source` | `parquet` | `parquet` or `manifest` (§4). |
 | `hierograph.graph.parquetDir` | `parquet` | Snapshot directory, `parquet` mode. |
 | `hierograph.graph.manifest` | `.hierograph/manifest.json` | Build manifest, `manifest` mode. |
+| `hierograph.graph.stateDir` | *(the manifest's directory)* | Where the snapshot and the regeneration log are written. |
+| `hierograph.graph.buildRoot` | *(the manifest's grandparent)* | Local build root: path re-rooting and the regeneration working directory. |
 | `hierograph.graph.include-tests` | `false` | Also scan each module's test output (`manifest` mode). |
 | `hierograph.graph.watch.mode` | `polling` | `off` / `polling` / `native` (`manifest` mode). |
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
@@ -318,8 +326,16 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.dump.enabled` | `false` | Write a one-line-per-node text dump after each build. |
 | `hierograph.graph.dumpFile` | `hierarchical-graph.txt` | Where the dump is written. |
 
-In `manifest` mode the detail snapshot is written to a `snapshot/` directory beside
-the manifest (one `gen-<nnnn>` subdirectory per build; superseded ones are pruned).
+In `manifest` mode the detail snapshot is written to a `snapshot/` directory in the
+state directory (one `gen-<nnnn>` subdirectory per build; superseded ones are
+pruned). The service writes nothing else outside the state directory.
+
+**State directory and build root.** By default both follow from the manifest's
+location: the state directory is the manifest's directory, the build root its
+parent (`<build root>/.hierograph/manifest.json`). A container sets both, so the
+manifest and every write live in its state directory while the build root stays
+read-only — and because the manifest it generates records that build root, it is
+not relocated and may be regenerated.
 
 ---
 
