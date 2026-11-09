@@ -61,8 +61,8 @@ class AffectedByTool(
                 "(direction='incoming', default) or all types it depends on (direction='outgoing'), " +
                 "up to maxDepth hops. This is the tool for 'what breaks if I change this?' " +
                 "Accepts modules, packages, or types; expands higher-level inputs internally. " +
-                "Each result carries distance (hop count) and source_count (for a direct neighbour, " +
-                "how many types in the input subtree it is directly connected to; 1 otherwise). The summary (by_distance, " +
+                "Each result carries distance (hop count) and source_count (how many types in the input " +
+                "subtree reach it within maxDepth). The summary (by_distance, " +
                 "by_parent_module) often answers the question without processing individual " +
                 "results. Use maxDepth or kindFilter to narrow large result sets."
     )
@@ -205,13 +205,10 @@ class AffectedByTool(
                     weight = dep.weight
                 )
 
-                val existing = visited[neighborId]
-                if (existing == null) {
+                if (neighborId !in visited) {
                     val entry = AffectedEntry(neighbor, 1, 1, listOf(step))
                     visited[neighborId] = entry
                     queue.add(neighbor to entry.via)
-                } else {
-                    existing.sourceCount++
                 }
             }
         }
@@ -249,6 +246,8 @@ class AffectedByTool(
                 queue.add(neighbor to entry.via)
             }
         }
+
+        countSources(sourceTypeIds, visited, effectiveDirection == "incoming", effectiveMaxDepth)
 
         // ── filter by kind ─────────────────────────────────────────────
         // Sort by (distance ascending, qualified name), with the identifier as a tiebreaker so the
@@ -331,6 +330,58 @@ class AffectedByTool(
         // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
         pageData.nextCursor?.let { response["next_cursor"] = it }
         return response
+    }
+
+    /**
+     * Sets each entry's `sourceCount`: the number of source types that reach it within [maxDepth],
+     * along paths that stay outside the source subtree (the same paths `distance` is measured on).
+     *
+     * The multi-source BFS cannot attribute a node to individual sources, so this runs one bounded BFS
+     * per source type. Every node such a BFS can reach is already in [visited] (the union BFS reaches it
+     * at the same or a smaller distance), so the walks are restricted to those entries and indexed by
+     * array position. With a single source type every count is 1 and no walk is needed.
+     */
+    private fun countSources(
+        sourceTypeIds: Set<Any>,
+        visited: Map<Any, AffectedEntry>,
+        incoming: Boolean,
+        maxDepth: Int
+    ) {
+        if (sourceTypeIds.size <= 1 || visited.isEmpty()) return
+        val entries = visited.values.toList()
+        val index = HashMap<Any, Int>(entries.size * 2)
+        entries.forEachIndexed { i, e -> index[e.node.identifier] = i }
+        val counts = IntArray(entries.size)
+        val stamp = IntArray(entries.size) // last source walk that reached each entry (1-based)
+        val queue = ArrayDeque<Int>()
+        val depth = IntArray(entries.size)
+
+        fun neighbours(node: HGNode): Sequence<HGNode> =
+            if (incoming) node.incomingCoreDependencies.asSequence().map { it.from }
+            else node.outgoingCoreDependencies.asSequence().map { it.to }
+
+        var walk = 0
+        for (sourceId in sourceTypeIds) {
+            val source = graphService.model.lookupNode(sourceId) ?: continue
+            walk++
+            for (n in neighbours(source)) {
+                val i = index[n.identifier] ?: continue
+                if (stamp[i] == walk) continue
+                stamp[i] = walk; depth[i] = 1; counts[i]++
+                queue.add(i)
+            }
+            while (queue.isNotEmpty()) {
+                val i = queue.poll()
+                if (depth[i] >= maxDepth) continue
+                for (n in neighbours(entries[i].node)) {
+                    val j = index[n.identifier] ?: continue
+                    if (stamp[j] == walk) continue
+                    stamp[j] = walk; depth[j] = depth[i] + 1; counts[j]++
+                    queue.add(j)
+                }
+            }
+        }
+        entries.forEachIndexed { i, e -> e.sourceCount = counts[i] }
     }
 
     companion object {

@@ -89,7 +89,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 4.1 | High | `source_count` in `affected_by` only grows while the direct neighbours are seeded. Every result at distance 2 or more reports 1, even when several source types reach it. At distance 1 it counts edges, not distinct source types. | `tools/reachability/AffectedByTool.kt:213-215,242-247` |
+| 4.1 | Fixed | `source_count` in `affected_by` only grew while direct neighbours were seeded, so every result at distance 2 or more reported 1. It is now the number of source types that reach the result within `maxDepth`, along paths outside the source subtree, computed by one bounded walk per source type over the types already found. | `tools/reachability/AffectedByTool.kt` (`countSources`) |
 | 4.2 | Medium | `affected_by` silently drops unknown `kindFilter` entries. If none of them resolve, nothing is filtered. The `packages` and `members` aliases give an empty result. | `AffectedByTool.kt:146-158` |
 | 4.3 | Medium | In `find_dependency_path`, `summary.from` and `summary.to` echo the input ids, not the endpoint types. | `tools/reachability/FindDependencyPathTool.kt:187-188` |
 | 4.4 | Medium | `find_dependency_path` stops at `maxPaths` in discovery order and sorts afterwards, so among equal-length paths the heaviest are not guaranteed to be returned. | `FindDependencyPathTool.kt:130-136` |

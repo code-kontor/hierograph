@@ -156,13 +156,19 @@ path, not all of them. Its steps are real dependency edges, `{from, to, weight}`
 Keeping the real edge direction lets a caller pass any step to the dependency tools
 without reversing it.
 
-**`source_count`** is computed during seeding only. For a type at distance `1` it is
-the number of type-level edges between that type and the source types, which equals
-the number of source types it is directly connected to (there is at most one
-type-level edge per pair of types). Every type at distance `2` or more has
-`source_count` `1`, however many source types reach it. For a single-type input,
-`source_count` is always `1`. The count tells, for direct neighbours of a scope, how
-widely the neighbour is coupled to it.
+**`source_count`** is the number of source types that reach the type within
+`maxDepth`, along paths that stay outside the source subtree, the same paths
+`distance` is measured on. It counts source types, not paths or edges: a type reached
+from one source type along several paths counts that source once. For a single-type
+input, `source_count` is always `1`. The count tells how widely an affected type is
+coupled to the scope: a type with `source_count` equal to the scope's type count is
+reached from every type in it, while a type with `1` hangs on a single one.
+
+The tool finds the affected types with one breadth-first search from all source types
+at once, which yields `distance` and `via` but cannot tell which sources reach a type.
+For `source_count` it then walks from each source type separately, bounded by
+`maxDepth` and restricted to the types already found. The cost grows with the number
+of source types times the size of the result.
 
 ### 3.4 Filtering and ordering
 
@@ -250,9 +256,9 @@ and `billing-core (test)` with 1. With `maxDepth = 1` only the first three remai
 `Invoice → Ledger` and `Invoice → Invoice$Line` are internal and ignored. Seeding
 reaches `Money` three times (from `Invoice`, `Invoice$Line` and `Ledger`), so its
 `source_count` is `3`, and `Logger` once. Expanding `Money` reaches `BigDecimal` at
-distance `2`. All three source types reach `BigDecimal` through `Money`, yet its
-`source_count` is `1`, because counting happens only during seeding (§3.3). The
-response is shown in §4.1.
+distance `2`. All three source types reach `BigDecimal` through `Money`, so its
+`source_count` is `3` as well (§3.3). With `maxDepth = 1`, `BigDecimal` is not
+affected at all. The response is shown in §4.1.
 
 ---
 
@@ -297,7 +303,7 @@ The response to `affected_by(nodeId = 4702, direction = "outgoing")` on the grap
         "kind": "external.type", "parent_id": 4802, "parent_kind": "java.package"
       },
       "distance": 2,
-      "source_count": 1,
+      "source_count": 3,
       "via": [
         { "from": 4711, "to": 4730, "weight": 3 },
         { "from": 4730, "to": 4803, "weight": 5 }
@@ -340,7 +346,7 @@ types it expanded to.
 |-------|------|---------|-----|
 | `node` | enriched NodeRef | the affected type | identifies it and shows its size; external types carry the minimal fields only |
 | `distance` | integer | smallest number of hops from any source type | ranks impact by proximity |
-| `source_count` | integer | at distance `1`, the number of source types it is directly connected to; otherwise `1` | shows which direct neighbours are coupled to many types of the scope |
+| `source_count` | integer | the number of source types that reach it within `maxDepth` | shows how widely the affected type is coupled to the scope |
 | `via` | array of `{from, to, weight}` | one shortest path from a source type, listed source-side first, each step a real edge | shows *how* the type is reached, ready to inspect with the dependency tools |
 
 ### 4.4 Summary fields
