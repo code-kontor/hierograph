@@ -9,7 +9,7 @@
     {
       "name": "hierograph",
       "source": "./plugins/hierograph",
-      "description": "Set a Maven project up with the Hierograph MCP server, then explore dependency structure, detect cycles, and plan extractions.",
+      "description": "Set a Maven project up with the Hierograph MCP server — by default a self-contained container that needs no change to the project — then explore dependency structure, detect cycles, and plan extractions.",
       "category": "architecture",
       "keywords": ["hierograph", "architecture", "dependency-analysis", "dsm", "jvm", "maven", "mcp"]
     }

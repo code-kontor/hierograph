@@ -4,11 +4,12 @@ Claude Code skills for setting up and analyzing JVM codebases with the Hierograp
 
 Skills included:
 
-- **`/hierograph:hierograph-bootstrap`** — first-time setup for a Maven project: hook the Hierograph
-  Maven plugin into the build (in the POM, or as a command without touching it), produce
-  `.hierograph/manifest.json`, start the Hierograph MCP server on it (local JVM or Docker), and
-  register the server with your client. Afterwards the server follows code, module and POM changes
-  on its own; there is no rescan step. Gradle builds are not supported yet.
+- **`/hierograph:hierograph-bootstrap`** — first-time setup for a Maven project. By default it starts
+  the self-contained Hierograph Docker container with the project and `~/.m2` mounted read-only: the
+  container produces and regenerates the build manifest itself, and the project needs no change at all.
+  Alternatively it runs the server as a local Java process on a manifest from the host
+  (`hierograph:manifest`). Then it registers the server with your client. Afterwards the server follows
+  code, module and POM changes on its own; there is no rescan step. Gradle builds are not supported yet.
 - **`/hierograph:hierograph-structure`** — dependency structure: DSM, layered dependency graph,
   layering and cycle analysis.
 - **`/hierograph:hierograph-extract`** — plan a module / package extraction.
@@ -54,5 +55,5 @@ After installing, invoke a skill directly (`/hierograph:hierograph-bootstrap`) o
 task — e.g. *"bootstrap hierograph for this project"* or *"show these modules as a DSM"* — and the
 matching skill triggers automatically.
 
-The bootstrap needs a released Hierograph **0.2.0 or later** (Maven plugin and server on Maven
-Central, server image on GHCR) and Java 21.
+The bootstrap needs a released Hierograph **0.2.0 or later** (server image on GHCR; Maven plugin and
+server jar on Maven Central), and Docker — or Java 21 for the local-JVM mode.

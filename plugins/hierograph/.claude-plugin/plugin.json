@@ -1,6 +1,6 @@
 {
   "name": "hierograph",
-  "description": "Bootstrap and analyze JVM codebases with the Hierograph MCP server: hook the Hierograph Maven plugin into a project, start the server on its build manifest, then explore dependency structure, detect cycles, and plan extractions.",
+  "description": "Bootstrap and analyze JVM codebases with the Hierograph MCP server: start the self-contained Hierograph container on a Maven project (no change to the project) or run the server locally, then explore dependency structure, detect cycles, and plan extractions.",
   "version": "0.2.0",
   "author": {
     "name": "Gerd Wuetherich",
