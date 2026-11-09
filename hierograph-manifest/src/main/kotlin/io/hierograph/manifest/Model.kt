@@ -31,8 +31,8 @@ data class BuildTool(
 )
 
 /**
- * One classpath entry of a module, in classpath order. [internal] marks a module of the same build (scanned from
- * its own output directories, so [jar] is irrelevant); [jar] is the resolved local path of an external dependency.
+ * One classpath entry of a module, in classpath order. [internal] marks a module of the same build, scanned from
+ * its own output directories; its [jar] is `null`. For an external dependency, [jar] is its resolved local path.
  */
 data class ClasspathEntry(
     val gav: String,

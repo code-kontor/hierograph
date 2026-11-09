@@ -106,7 +106,7 @@ producer records one directory per list (`target/classes`,
 |-------|------|---------|
 | `gav` | string | `group:name:version` of the dependency. |
 | `internal` | boolean | `true` = a module of the same build (scanned from its own output); `false` = an external dependency. |
-| `jar` | string? | Resolved local path of an external dependency's jar. Recorded; reserved (§5). |
+| `jar` | string? | Resolved local path of an external dependency's jar; `null` for an internal entry. Recorded; reserved (§5). |
 
 ### 1.1 Build files
 

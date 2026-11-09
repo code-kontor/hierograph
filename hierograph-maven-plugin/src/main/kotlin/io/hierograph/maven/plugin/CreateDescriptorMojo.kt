@@ -80,7 +80,10 @@ class CreateDescriptorMojo : AbstractMojo() {
             .filter { include(it.scope) }
             .map {
                 val g = gav(it.groupId, it.artifactId, it.version)
-                ClasspathEntry(gav = g, internal = g in reactorGavs, jar = it.file?.absolutePath)
+                val internal = g in reactorGavs
+                // An internal entry is scanned from its own output; its file (installed jar or target/classes,
+                // depending on how the build was invoked) is irrelevant and would only make the manifest unstable.
+                ClasspathEntry(gav = g, internal = internal, jar = if (internal) null else it.file?.absolutePath)
             }
         // Main classpath = every non-test scope (compile/runtime/provided/system); test classpath = all scopes.
         // Both are recorded whether or not output exists yet: output may appear after this build (IDE compile).
