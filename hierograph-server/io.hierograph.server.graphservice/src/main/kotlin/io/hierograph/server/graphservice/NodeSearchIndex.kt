@@ -24,7 +24,7 @@ import io.hierograph.hierarchicalgraph.model.NodeMetadata
  *
  * The model is built once at startup and never mutated afterwards, so each node's name and
  * fully-qualified name are lower-cased a single time here rather than on every search. A search is
- * then an allocation-free scan over a flat [entries] array (the substring `CONTAINS` semantics are
+ * then an allocation-free scan over a flat [entries] array (substring matching is
  * inherently linear; this just removes the per-query lower-casing cost).
  *
  * `kind` is intentionally not cached — it is a cheap field read on the node and is needed live so

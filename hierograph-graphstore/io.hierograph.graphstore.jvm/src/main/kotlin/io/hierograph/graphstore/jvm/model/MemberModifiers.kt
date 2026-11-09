@@ -18,8 +18,8 @@ package io.hierograph.graphstore.jvm.model
 /**
  * The packed access-flag layout for [MemberFacts.modifiers], with helpers to build it from the scanner's
  * boolean flags and to decode it back to the canonical modifier-string lists the detail tools emit
- * (visibility first, then storage modifiers). A dedicated bit layout keeps the MVP (jQAssistant-sourced)
- * snapshot self-contained; the future ASM scanner packs the same bits from bytecode access flags.
+ * (visibility first, then storage modifiers). A dedicated bit layout keeps the snapshot self-contained;
+ * the scanner packs the bits from bytecode access flags.
  *
  * Package-private visibility is the absence of [PUBLIC] / [PROTECTED] / [PRIVATE].
  */

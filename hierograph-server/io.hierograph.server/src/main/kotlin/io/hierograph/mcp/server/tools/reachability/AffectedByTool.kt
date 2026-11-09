@@ -36,7 +36,7 @@ import java.util.*
  *
  * Returns types transitively connected to the input via type-level dependencies.
  * "What breaks if I change this?" (incoming) or "What does this rely on?" (outgoing).
- * Operates entirely on the in-memory model — no Neo4j queries.
+ * Operates entirely on the in-memory model.
  */
 @Component
 class AffectedByTool(
@@ -59,12 +59,12 @@ class AffectedByTool(
         description = "[Reachability and impact] " +
                 "Return the transitive blast radius of a node — all types that depend on it " +
                 "(direction='incoming', default) or all types it depends on (direction='outgoing'), " +
-                "up to max_depth hops. This is the tool for 'what breaks if I change this?' " +
+                "up to maxDepth hops. This is the tool for 'what breaks if I change this?' " +
                 "Accepts modules, packages, or types; expands higher-level inputs internally. " +
-                "Each result carries distance (hop count) and source_count (how many types in " +
-                "the input subtree reach this affected type). The summary (by_distance, " +
+                "Each result carries distance (hop count) and source_count (for a direct neighbour, " +
+                "how many types in the input subtree it is directly connected to; 1 otherwise). The summary (by_distance, " +
                 "by_parent_module) often answers the question without processing individual " +
-                "results. Use max_depth or kind_filter to narrow large result sets."
+                "results. Use maxDepth or kindFilter to narrow large result sets."
     )
     fun affectedBy(
         @ToolParam(description = "The node being analyzed — module, package, or type ID.")
@@ -96,7 +96,7 @@ class AffectedByTool(
                     "Pass it to retrieve the next page; omit to start from the first page. " +
                     "When continuing, keep the other parameters identical to the original call. " +
                     "If the blast radius is larger than you need, prefer narrowing the query " +
-                    "(a smaller max_depth or a kind_filter) over paginating through all of it.",
+                    "(a smaller maxDepth or a kindFilter) over paginating through all of it.",
             required = false
         )
         cursor: String?
@@ -137,7 +137,7 @@ class AffectedByTool(
                     "actual_kind" to nodeKind.toString(),
                     "declaring_type" to if (declaringType != null) nodeRefFactory.minimalNodeRef(declaringType) else null,
                     "recovery" to "To query dependencies involving this ${nodeKind}'s declaring type, " +
-                            "pass id=${declaringType?.identifier}."
+                            "pass nodeId=${declaringType?.identifier}."
                 )
             )
         }

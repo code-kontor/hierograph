@@ -19,11 +19,10 @@ package io.hierograph.mcp.server.core
  * The single, modular source of the response every MCP tool returns while no hierarchical graph is
  * loaded.
  *
- * Hierograph can be started "empty" — without a reachable jQAssistant/Neo4j database — in which case no
- * in-memory hierarchical graph is built. The analysis tools then have nothing to operate on and answer
- * with the description below instead of failing. Connecting the server to a database at runtime and
- * loading a graph on demand is planned; this is intentionally the one place to enhance the wording
- * (e.g. to tell callers exactly how to load/connect a graph) as that workflow lands.
+ * The server starts "empty" when its graph source cannot be built (for example, the project has not
+ * been compiled yet), in which case no in-memory hierarchical graph exists. The analysis tools then
+ * have nothing to operate on and answer with the description below instead of failing. `reload_graph`
+ * is exempt and loads the graph once its source is available.
  */
 object GraphUnavailable {
 
@@ -33,10 +32,8 @@ object GraphUnavailable {
     /** The description returned to every tool call while no hierarchical graph is available. */
     fun response(): Map<String, Any?> = linkedMapOf(
         "status" to STATUS,
-        "message" to "No hierarchical graph is currently available. The Hierograph MCP server was " +
-                "started without a reachable jQAssistant/Neo4j database, so no in-memory graph has " +
-                "been built. The analysis tools cannot answer until a graph is loaded. Loading a " +
-                "graph on demand — by connecting the server to a database once it has been set up — " +
-                "is not yet available; for now, start the server with a running database."
+        "message" to "No hierarchical graph is available. The Hierograph MCP server could not build " +
+                "a graph from its source (for example, the project has not been compiled yet), so the " +
+                "analysis tools cannot answer. Build the project, then call reload_graph to load the graph."
     )
 }

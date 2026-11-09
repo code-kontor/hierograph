@@ -37,16 +37,16 @@ import org.springframework.stereotype.Component
 import java.nio.file.Path
 
 /**
- * Parquet-backed `detail_dependencies` — the Neo4j-free counterpart of [DetailDependenciesComponent].
- * Served when `hierograph.graph.source=parquet` (see [DetailDependenciesRouter]); it resolves the scope
- * over the in-memory model, reads member-level edges from `detail_refs.parquet` via [DetailQueryEngine],
- * and maps them into the same response shape using content-addressed [NodeHandle]s for every endpoint.
+ * The detail level of `outgoing_dependencies` and `incoming_dependencies`. It resolves the scope over
+ * the in-memory model, reads member-level edges from `detail_refs.parquet` via [DetailQueryEngine]
+ * plus the load-derived edges, and maps them into the response shape using content-addressed
+ * [NodeHandle]s for every endpoint.
  *
- * Scopes must be containers (module / package / type) — a specific method/field as `from`/`to` is not
- * supported, a deliberate difference from the Cypher path. Endpoint ids line up with `find_node` /
- * `list_children`: members are hierarchy nodes, so a member endpoint is its (artifact-scoped) member
- * node's handle; only members of unscanned owners fall back to a stable but non-navigable
- * `NodeHandle.of(memberKey)` (see [HierarchicalGraphService.memberHandle]).
+ * Scopes are containers (root / module / package / type). A method or field as scope contains no
+ * type and yields an empty result. Endpoint ids line up with `find_node` / `list_children`: members
+ * are hierarchy nodes, so a member endpoint is its (artifact-scoped) member node's handle; only
+ * members of unscanned owners fall back to a stable but non-navigable `NodeHandle.of(memberKey)`
+ * (see [HierarchicalGraphService.memberHandle]).
  */
 @Component
 class ParquetDetailDependencies(
@@ -71,7 +71,7 @@ class ParquetDetailDependencies(
         }
 
         val store = graphService.graphStore
-            ?: return error("DETAIL_UNAVAILABLE", "Parquet detail engine requires graph.source=parquet.")
+            ?: return error("DETAIL_UNAVAILABLE", "No detail-level data is available for the loaded graph.")
         val parquetDir = readyDetailDir() ?: return detailRebuilding()
 
         val fromNode = resolveNodeOrRoot(fromId)
@@ -86,8 +86,7 @@ class ParquetDetailDependencies(
         if (fromTypes.isEmpty() || toTypes.isEmpty()) return emptyResult(fromNode, toNode, effectiveRel)
 
         // Pull the whole scoped edge set (own pagination below), then keep only edges whose endpoint
-        // types are materialized in the model — matching the Cypher path, which drops inheritance-reached
-        // types that aren't hierarchy nodes so the detail layer never surfaces a non-navigable type.
+        // types are known to the GraphStore, so the detail layer never surfaces a type without a handle.
         val typeHandle: (String) -> Long? = { fqn -> store.typeByFqn(fqn)?.key?.let { NodeHandle.of(it) } }
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
@@ -260,7 +259,7 @@ class ParquetDetailDependencies(
         linkedMapOf("error" to code, "message" to message)
 
     private companion object {
-        /** The detail relationship vocabulary (mirrors DetailDependenciesComponent's BRANCHES kinds). */
+        /** The relationship values accepted by the `relationship` filter. */
         private val RELATIONSHIP_KINDS = setOf(
             "throws", "raises", "returns", "has_type", "calls", "overrides", "reads_field", "writes_field",
             "read_by", "written_by", "annotated_by", "parameter_type", "parameter_annotated_by",

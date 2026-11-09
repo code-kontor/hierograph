@@ -32,14 +32,15 @@ class FieldDetailsTool(
 
     @Tool(
         name = "field_details",
-        description = "[Detail-level] Return the full structural details of a single field, in one call. " +
-                "Use this when you've identified a field of interest (via list_fields, detail_dependencies, " +
-                "or another tool that surfaces field IDs) and need the complete picture: type, annotations, and " +
-                "information about which methods read or write it. " +
+        description = "[Entity detail] Return the full structural details of a single field, in one call. " +
+                "Use this when you've identified a field of interest (via list_children, outgoing_dependencies / " +
+                "incoming_dependencies with detailLevel 'detail', or another tool that surfaces field IDs) and " +
+                "need the complete picture: type, annotations, and information about which methods read or write it. " +
                 "Response shape (slim encoding): top-level 'nodes' map (each referenced node listed once " +
                 "with name, qualified_name, kind, keyed by stringified ID) plus the field's structural details — " +
-                "'field', 'declaring_type', 'type' (or null for primitives), 'type_name' (always-present string — " +
-                "qualified name for reference types, keyword for primitives), 'annotations' (each entry is " +
+                "'field', 'declaring_type', 'type' (null for primitives and for types outside the graph, such as " +
+                "java.lang.String), 'type_name' (always-present string — qualified name for reference types, " +
+                "keyword for primitives, element type for arrays), 'annotations' (each entry is " +
                 "{type: ID}), 'read_access', 'write_access' — all referencing nodes by ID. " +
                 "Read/write access digests carry: method_count (true total across the codebase), methods_sample " +
                 "(up to 10 method IDs — resolve via nodes[id]), sample_truncated (boolean), and by_declaring_type " +
@@ -47,22 +48,22 @@ class FieldDetailsTool(
                 "many readers (loggers, common dependencies), the digest tells you the structural story without " +
                 "needing to enumerate every accessor. " +
                 "If you need the full list of readers or writers (beyond the inline sample), use " +
-                "detail_dependencies(from=root_id, to=field_id, relationship='reads_field') (or 'writes_field') " +
-                "for exhaustive enumeration. " +
-                "Primitive field types: 'type' is null and no nodes entry exists for it; read 'type_name' to see " +
-                "the primitive keyword (e.g. 'int', 'boolean'). The LLM should not try to use a null type ID as " +
-                "input to other tools. " +
+                "incoming_dependencies(fromId=<declaring type id>, toId=<scope id>, detailLevel='detail', " +
+                "relationship='reads_field') (or 'writes_field') and keep the edges whose 'to' is this field. " +
+                "When 'type' is null, no nodes entry exists for it; read 'type_name' to see the primitive keyword " +
+                "(e.g. 'int', 'boolean') or the qualified name. Do not use a null type ID as input to other tools. " +
                 "When to use this vs. neighboring tools: " +
-                "For all the fields declared on a type (composition, not single-field detail), use list_fields. " +
-                "For 'which methods read this specific field?' with exhaustive enumeration or filters, use " +
-                "detail_dependencies with relationship: 'reads_field'. " +
+                "For all the fields declared on a type, use list_children. " +
+                "For 'which methods read this specific field?' with exhaustive enumeration, use " +
+                "incoming_dependencies with detailLevel 'detail' and relationship 'reads_field'. " +
                 "For methods rather than fields, use method_details (parallel tool, but uses inline NodeRefs since " +
                 "method_details is a single-entity response)."
     )
     fun fieldDetails(
         @ToolParam(
             description = "The node ID of the field to inspect. Must be a field-kind node (java.field). " +
-                    "Typically obtained from list_fields or detail_dependencies."
+                    "Typically obtained from list_children or from outgoing_dependencies / incoming_dependencies " +
+                    "with detailLevel 'detail'."
         )
         fieldId: Long
     ): Map<String, Any?> = parquet.fieldDetails(fieldId)

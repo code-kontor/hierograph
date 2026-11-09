@@ -32,33 +32,36 @@ class MethodDetailsTool(
 
     @Tool(
         name = "method_details",
-        description = "[Detail-level] Return the full structural details of a single method, in one call. " +
-                "Use this when you've identified a method of interest (via list_methods, detail_dependencies, " +
-                "or another tool that surfaces method IDs) and need the complete picture: modifiers, return type, " +
-                "parameters with names and types, declared exceptions, annotations, the method it overrides " +
-                "(if any), and source location. " +
-                "Response shape: single-entity inline form (no slim 'nodes' wrapper map). " +
-                "Single-entity responses with one declaring type don't benefit from slim encoding; inline " +
-                "NodeRefs are kept. The declaring_type, return_type, parameter types, throws types, annotation " +
-                "types, and overrides target are all full NodeRefs — feed these into other tools (find_node, " +
-                "aggregated_incoming, list_methods, etc.) to investigate. " +
-                "Primitive types (void, int, boolean, etc.) appear with id: null and kind: 'java.primitive' — " +
-                "these are not first-class entities in the graph and cannot be used as input to other tools. " +
+        description = "[Entity detail] Return the full structural details of a single method or constructor, " +
+                "in one call. Use this when you've identified a method of interest (via list_children, " +
+                "outgoing_dependencies / incoming_dependencies with detailLevel 'detail', or another tool that " +
+                "surfaces method IDs) and need the complete picture: modifiers, return type, parameters with " +
+                "names and types, declared exceptions (throws), exceptions thrown in the body (raises), " +
+                "annotations, the method it overrides (if any), and source location. " +
+                "Response shape: single-entity inline form (no slim 'nodes' map). The declaring_type, " +
+                "return_type, parameter types, throws/raises types, annotation types, and overrides target are " +
+                "inline NodeRefs — feed their ids into other tools (type_details, list_children, " +
+                "incoming_dependencies, etc.) to investigate. " +
+                "Primitive types (void, int, boolean, etc.) appear with id: null and kind: 'java.primitive'; " +
+                "types outside the graph (e.g. java.lang.String) appear as kind 'external.type' with id: null. " +
+                "Neither can be used as input to other tools. " +
                 "For generic types like List<String>, the erased type (java.util.List) is reported; type " +
-                "parameters are not surfaced in v0.2. " +
+                "arguments are not surfaced. For an array type, the element type is reported. " +
                 "Use the location field together with your file-reading tools when you need to inspect the " +
-                "actual method implementation (the line number points to the method declaration; the body " +
-                "follows from there). " +
+                "actual method implementation (the line number is the first line of the method's code; it is " +
+                "null for abstract and native methods). " +
                 "When to use this vs. neighboring tools: " +
-                "For the methods declared on a type (composition, not single-method detail), use list_methods. " +
+                "For the methods declared on a type, use list_children. " +
                 "For 'which methods call this one?' or 'which methods throw this exception?', use " +
-                "detail_dependencies — that's the dependency-driven view rather than the entity-detail view. " +
-                "For fields rather than methods, use field_details (uses slim encoding because of read/write digest)."
+                "incoming_dependencies with detailLevel 'detail' — the dependency-driven view rather than the " +
+                "entity-detail view. " +
+                "For fields rather than methods, use field_details."
     )
     fun methodDetails(
         @ToolParam(
             description = "The node ID of the method to inspect. Must be a method-kind node " +
-                    "(java.method or java.constructor). Typically obtained from list_methods or detail_dependencies."
+                    "(a java.method from list_children, including constructors). Typically obtained from list_children " +
+                    "or from outgoing_dependencies / incoming_dependencies with detailLevel 'detail'."
         )
         methodId: Long
     ): Map<String, Any?> = parquet.methodDetails(methodId)

@@ -26,8 +26,7 @@ import org.springframework.stereotype.Component
 import java.nio.file.Path
 
 /**
- * Parquet-backed `field_details` — the Neo4j-free counterpart of the Cypher path in [FieldDetailsTool],
- * selected when `hierograph.graph.source=parquet`. Identity (name/modifiers/location) comes from
+ * The engine behind `field_details`, served from the Parquet snapshot. Identity (name/modifiers/location) comes from
  * `members.parquet`; the field type and annotations from the field's `detail_refs` edges; the read/write
  * access digests from the reverse `reads_field` / `writes_field` edges. Uses the same slim-encoding
  * response shape (a top-level `nodes` map keyed by stringified handle).
@@ -142,6 +141,6 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
 
     private fun notFound(fieldId: Long): Map<String, Any?> = linkedMapOf(
         "error" to "NODE_NOT_FOUND", "code" to "NODE_NOT_FOUND",
-        "message" to "Node not found: $fieldId. Re-resolve via detail_dependencies.",
+        "message" to "Node not found: $fieldId. Look the field up again via list_children on its declaring type or find_node.",
     )
 }

@@ -40,7 +40,7 @@ class AggregatedDependenciesTool(
         name = "aggregated_dependencies",
         description = "[Dependency analysis] " +
                 "Return aggregated pairwise dependencies from source subtrees to target subtrees. " +
-                "Direction is implicit: put the depender in source_ids, the depended-on in target_ids. " +
+                "Direction is implicit: put the depender in sourceIds, the depended-on in targetIds. " +
                 "Each edge carries weight, type_pair_count, and structured attributes (is_extends, " +
                 "is_implements, is_annotated_by, is_depends_on_other). " +
                 "Pairs with no dependency are omitted; check the summary for honest accounting. " +
@@ -62,13 +62,13 @@ class AggregatedDependenciesTool(
             return mapOf(
                 "error" to mapOf(
                     "code" to "INPUT_TOO_LARGE",
-                    "message" to "The cross product of source_ids (${sourceIds.size}) x " +
-                            "target_ids (${targetIds.size}) = $crossProduct exceeds the maximum of $MAX_CROSS_PRODUCT.",
+                    "message" to "The cross product of sourceIds (${sourceIds.size}) x " +
+                            "targetIds (${targetIds.size}) = $crossProduct exceeds the maximum of $MAX_CROSS_PRODUCT.",
                     "source_count" to sourceIds.size,
                     "target_count" to targetIds.size,
                     "cross_product" to crossProduct,
                     "max_cross_product" to MAX_CROSS_PRODUCT,
-                    "recovery" to "Narrow either source_ids or target_ids. " +
+                    "recovery" to "Narrow either sourceIds or targetIds. " +
                             "For all-pairs analysis within a node set, use pairwise_dependencies instead."
                 )
             )
@@ -156,8 +156,8 @@ class AggregatedDependenciesTool(
                     "declaring_type" to if (declaringType != null)
                         nodeRefFactory.minimalNodeRef(declaringType) else null,
                     "recovery" to "To query dependencies involving this ${kind}'s declaring type, " +
-                            "pass id=${declaringType?.identifier}. To query method-level evidence directly, " +
-                            "use outgoing_dependencies or incoming_dependencies with detail_level='detail'."
+                            "pass its id (${declaringType?.identifier}). For member-level evidence, call " +
+                            "outgoing_dependencies or incoming_dependencies with detailLevel='detail' on the declaring type."
                 )
             )
         }

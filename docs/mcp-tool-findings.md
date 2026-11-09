@@ -1,0 +1,150 @@
+# MCP Tool Review — Findings
+
+These findings come from reviewing the MCP tool implementations in
+`hierograph-server/io.hierograph.server` against their specifications. Each one is code
+behaviour that looks unintended or inconsistent. The specifications in
+`hierograph-server/io.hierograph.server/spec/` document the behaviour as it is; this
+document lists what the maintainer should decide on: change the code, or keep the
+behaviour as specified.
+
+Paths are relative to
+`hierograph-server/io.hierograph.server/src/main/kotlin/io/hierograph/mcp/server/`
+unless they start with a module name. Line numbers are approximate, because the
+description and KDoc text in these files was corrected during the review.
+
+Severity:
+
+- **High:** wrong results, or a documented feature that does nothing.
+- **Medium:** inconsistent or misleading behaviour.
+- **Low:** cosmetic issues or edge cases.
+
+---
+
+## Contents
+
+1. [Cross-cutting](#1-cross-cutting)
+2. [Navigation](#2-navigation)
+3. [Dependency analysis](#3-dependency-analysis)
+4. [Reachability](#4-reachability)
+5. [Entity detail](#5-entity-detail)
+6. [Maintenance](#6-maintenance)
+7. [Text corrections made during the review](#7-text-corrections-made-during-the-review)
+
+---
+
+## 1. Cross-cutting
+
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 1.1 | High | Cursors do not survive a server restart. `DataHash` hashes `node.kind?.hashCode()`, and for a `JavaNodeKind` enum that value changes from one JVM process to the next. Hashing `kind.toString()` would make it stable. | `io.hierograph.server.graphservice/.../pagination/DataHash.kt:55` |
+| 1.2 | Medium | There are three error shapes. Most tools return a nested `{error:{code,message,recovery}}`. `method_details` and `field_details` return a flat `{error,code,message}`. The detail-level engine returns a flat `{error,message}` without `code`. | `tools/detail/ParquetDetailDependencies.kt:259`, `ParquetMethodDetails.kt`, `ParquetFieldDetails.kt`, `AbstractDetailTool.kt:58` |
+| 1.3 | Medium | `INVALID_KIND` has two shapes. `find_node` includes `invalid_values`, `valid_kinds` and `valid_aliases`, and its message reads "Unknown kind: …". The list tools include only `recovery`, and their message reads "Unknown kind …". `affected_by` does not reject unknown kinds at all (4.2). | `tools/navigation/FindNodeTool.kt:65`, `ListChildrenTool.kt:97`, `ListDescendantsTool.kt:113` |
+| 1.4 | Medium | One tool call can mix two graphs. Tools read `graphService.model` (and `dataHash`) several times per call, so a call that overlaps a reload can see the old snapshot in one read and the new one in the next. | e.g. `tools/navigation/ListDescendantsTool.kt:103,141,189,201` |
+| 1.5 | Medium | The enriched NodeRef carries only counts. The `modifiers`, `annotation_count`, `is_abstract` and similar fields promised in KDoc are not emitted, and methods, fields and external types get no enrichment at all. Several tool descriptions still say "modifiers, flags". | `tools/NodeRefFactory.kt:92-114`, `FindNodeTool.kt:44`, `ListChildrenTool.kt:49` |
+| 1.6 | Low | `external.type` is neither a valid kind filter value nor part of the `types` alias, so external types cannot be selected by kind anywhere. | `hierograph-graphstore/.../model/JavaKinds.kt` |
+| 1.7 | Low | The kind of a member differs between tools: `list_children` reports a constructor as `java.method`, while `method_details` and `field_details` report `java.constructor`. The same id also has two names: the signature in browse tools and the bare name in detail tools. | `tools/detail/ParquetMethodDetails.kt:59`, `ParquetFieldDetails.kt:57,117` |
+
+---
+
+## 2. Navigation
+
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 2.1 | High | `modifierFilter` in `list_children` and `list_descendants` is accepted and described as AND matching, but it is ignored (the code is commented out). In `list_descendants` it is still part of the query hash, so changing it between pages gives `STALE_CURSOR_QUERY`. | `tools/navigation/ListChildrenTool.kt:125-129`, `ListDescendantsTool.kt:132,165-166` |
+| 2.2 | High | `find_node` never returns modules. `NodeSearchIndex.build` traverses from each top-level node, and `traverse` skips the start node, so modules are never indexed. `kindFilter ["java.module"]` always returns nothing, even though the description lists it. GraphQL `findNodes` has the same problem. | `io.hierograph.server.graphservice/.../NodeSearchIndex.kt:48-49` |
+| 2.3 | Medium | An empty `kindFilter: []` in `list_children` and `list_descendants` returns `INVALID_KIND` "Unknown kind . …". `find_node` treats `[]` as no filter. | `ListChildrenTool.kt:95`, `ListDescendantsTool.kt:112` |
+| 2.4 | Medium | `find_node` hides truncation. `summary.total` is the capped count (at most 50) and there is no `truncated` flag. | `tools/navigation/FindNodeTool.kt:79-85` |
+| 2.5 | Medium | The `kinds` vocabulary in `graph_overview` omits `external.type`, although `nodes_by_kind` and node references contain it. `nodes_by_kind` and `total_nodes` also exclude modules. | `tools/navigation/GraphOverviewTool.kt:60-66,89-100` |
+| 2.6 | Medium | The relationship vocabulary in `graph_overview` lists `parameter_annotated_by` (never stored) and omits `raises` (emitted by the scanner and accepted by the filter). | `tools/navigation/GraphOverviewTool.kt:110-125` |
+| 2.7 | Low | `graph_overview` includes intra-module edges in `outgoing_dep_count` and `incoming_dep_count` (accumulated, not boundary-crossing). | `GraphOverviewTool.kt:132-133` |
+| 2.8 | Low | `graph_overview` response text uses snake_case parameter names (`source_ids`, `target_ids`, `detail_level=`). | `GraphOverviewTool.kt:140,152,158` |
+| 2.9 | Low | `list_children` allows up to 1000 results, has no response budget and does not sort (insertion order). `list_descendants` sorts with a case-sensitive string compare and breaks sibling ties by comparing ids as text. | `ListChildrenTool.kt:107,115`, `ListDescendantsTool.kt:147-149` |
+| 2.10 | Low | The `list_descendants` query hash uses the raw `namePattern` and unexpanded aliases, so changing letter case or spelling out an alias invalidates a cursor although the result is the same. | `ListDescendantsTool.kt:127-134` |
+| 2.11 | Low | `list_descendants` advertises a cap of 500, but the response budget limits a page to 200. | `ListDescendantsTool.kt:253`, `pagination/Paginator.kt:86` |
+
+---
+
+## 3. Dependency analysis
+
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 3.1 | High | `by_source_nodes` and `by_target_nodes` are always empty for a type scope. The cause is that `computeDrillDown` descends through a single-child node into members, which have no type-level weight. A package holding exactly one type has the same problem. | `tools/detail/ParquetDetailDependencies.kt:222-231` |
+| 3.2 | High | `direction` in `pairwise_dependencies` is not a filter. `outgoing` and `both` give identical output, and `incoming` only swaps `from` and `to`. | `tools/dependencyanalysis/PairwiseDependenciesTool.kt:146-194` |
+| 3.3 | Medium | Member ids are rejected at type level with `INVALID_NODE_KIND`. At detail level they give an empty result with no error. The recovery text used to send callers into that empty result. | `AggregatedDependenciesTool.kt:146-160`, `OutgoingDependenciesTool.kt:355-369`, `PairwiseDependenciesTool.kt:284-297` |
+| 3.4 | Medium | Nested or duplicate `nodeIds` in `pairwise_dependencies` are not rejected. Results depend on input order and can show spurious cycles; live, `[root, a module]` reports `has_cycles: true`. | `PairwiseDependenciesTool.kt:166-174`, `GraphUtils.kt:142-149` |
+| 3.5 | Medium | The incoming detail level checks `toId` first and reports it as "Source node not found". An unknown `fromId` is reported as "Target node not found". | `IncomingDependenciesTool.kt:146`, `ParquetDetailDependencies.kt:77-80` |
+| 3.6 | Medium | The detail scope includes the transitive supertypes of every type on both sides. Edges whose `from_parent` lies outside the `fromId` subtree can therefore appear. Integration tests rely on this, so confirm that it is intended. | `ParquetDetailDependencies.kt:196-220` |
+| 3.7 | Medium | Load-derived detail refs (overrides, resolved calls) are appended after the engine-sorted refs instead of being merged into the sort order. | `ParquetDetailDependencies.kt:93-96` |
+| 3.8 | Medium | `pairwise_dependencies` has no `summary.total/returned/truncated`, and returns its summary only on the first page. The detail level names its count `total_edges`. Both differ from the other paginated tools. | `PairwiseDependenciesTool.kt:237-267`, `ParquetDetailDependencies.kt:158` |
+| 3.9 | Low | `parameter_annotated_by` is accepted as a relationship but is never stored, so it always returns 0 rows. | `ParquetDetailDependencies.kt:265`, `ParquetMethodDetails.kt:85` |
+| 3.10 | Low | At type level, the `nodes` map omits ids that appear only in `by_target` / `by_source_type`. The detail level adds them. | `OutgoingDependenciesTool.kt:274-280` |
+| 3.11 | Low | The detail level returns its empty result before pagination, so it silently ignores a malformed or stale cursor when a scope has no types. | `ParquetDetailDependencies.kt:86` |
+| 3.12 | Low | `typeHandle` resolves an FQN to its first defining artifact, so detail rows for an FQN defined in several artifacts all attach to one of them. | `ParquetDetailDependencies.kt:91` |
+| 3.13 | Low | `aggregated_dependencies` accepts empty lists and returns an empty result. Duplicate ids produce duplicate edges. | `AggregatedDependenciesTool.kt` |
+| 3.14 | Low | Effective page ceilings fall below the advertised caps: 142 of 400 at type level and 90 of 250 at detail level. In `pairwise_dependencies`, `RESULT_TOO_LARGE` can never fire (200 × 250 = budget). | `pagination/Paginator.kt:86`, tool `PaginationSpec`s |
+
+---
+
+## 4. Reachability
+
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 4.1 | High | `source_count` in `affected_by` only grows while the direct neighbours are seeded. Every result at distance 2 or more reports 1, even when several source types reach it. At distance 1 it counts edges, not distinct source types. | `tools/reachability/AffectedByTool.kt:213-215,242-247` |
+| 4.2 | Medium | `affected_by` silently drops unknown `kindFilter` entries. If none of them resolve, nothing is filtered. The `packages` and `members` aliases give an empty result. | `AffectedByTool.kt:146-158` |
+| 4.3 | Medium | In `find_dependency_path`, `summary.from` and `summary.to` echo the input ids, not the endpoint types. | `tools/reachability/FindDependencyPathTool.kt:187-188` |
+| 4.4 | Medium | `find_dependency_path` stops at `maxPaths` in discovery order and sorts afterwards, so among equal-length paths the heaviest are not guaranteed to be returned. | `FindDependencyPathTool.kt:130-136` |
+| 4.5 | Medium | `find_dependency_path` enqueues a path once per prefix and does not de-duplicate within a layer, so the queue can grow combinatorially on dense graphs before `maxPaths` targets are found. This is a performance risk. | `FindDependencyPathTool.kt:131-133` |
+| 4.6 | Medium | A type's scope does not include its nested types, because `Invoice$Line` sits beside `Invoice` in the package. So `affected_by(Invoice)` can report `Invoice$Line` as affected. | `AffectedByTool.kt:175`, `FindDependencyPathTool.kt:200-209` |
+| 4.7 | Low | `maxDepth` ≤ 0 in `affected_by` behaves like 1, and `maxLength` ≤ 0 in `find_dependency_path` returns `exists: false`. Neither raises an error. | `AffectedByTool.kt:210,223`, `FindDependencyPathTool.kt:77,111` |
+| 4.8 | Low | The "same source and target" exit in `find_dependency_path` fires only when both sides are the same single type. Identical packages return paths between the types inside them. | `FindDependencyPathTool.kt:84-86` |
+| 4.9 | Low | The no-search exit in `find_dependency_path` returns `nodes: {}`, while every other no-path case lists the scope nodes. | `FindDependencyPathTool.kt:84-88,151-154` |
+| 4.10 | Low | When modules tie in `by_parent_module`, their order comes from a `HashMap` and is not deterministic. | `AffectedByTool.kt:267,281` |
+| 4.11 | Low | Validation order: `direction` is checked before the node exists, and in `find_dependency_path` both ids are checked for existence before either kind is checked. | `AffectedByTool.kt:106-107`, `FindDependencyPathTool.kt:67-74` |
+
+---
+
+## 5. Entity detail
+
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 5.1 | High | `inner_types` in `type_details` is always empty, and `parent_container` is never the enclosing type, because nested types are package siblings. Either compute it (types named `Outer$…` in the package) or drop the field. | `tools/detail/ParquetTypeDetails.kt:85-86,98` |
+| 5.2 | High | `type_details` rejects `external.type` ids with `WRONG_NODE_KIND`, but returns those ids as `superclass` and `interfaces`, so following a supertype dead-ends. | `ParquetTypeDetails.kt:52` |
+| 5.3 | Medium | `is_generic` is hard-coded `null`. The scanner already sees the class signature. | `ParquetTypeDetails.kt:93-94` |
+| 5.4 | Medium | In `method_details` and `field_details`, a type, package or unknown id gives `NODE_NOT_FOUND` instead of `WRONG_NODE_KIND`, because the lookup uses only the member index. There is no `recovery`. | `ParquetMethodDetails.kt:38-40`, `ParquetFieldDetails.kt:38-39` |
+| 5.5 | Medium | Field annotations whose type has no node (e.g. `java.lang.Deprecated`) are silently dropped. `type_details` and `method_details` report them with `id: null`. | `ParquetFieldDetails.kt:73-74` |
+| 5.6 | Medium | `overrides` holds a single target (`firstOrNull`), so a method overriding both a superclass and an interface method shows only one. Overrides of external types are always `null`. | `ParquetMethodDetails.kt:78` |
+| 5.7 | Medium | `type_details` reads refs and members by FQN across all artifacts but reads the `types` row per artifact. When several artifacts define one FQN, `member_summary` double-counts and the interfaces and annotations of the definitions merge. | `ParquetTypeDetails.kt:61-62` |
+| 5.8 | Low | Parameter annotations are always `[]`. The scanner sees them but stores only a type-level ref. | `ParquetMethodDetails.kt:85` |
+| 5.9 | Low | `location` of a field is always `null`, because fields have no line numbers. A method's `location` is its first body line, not the declaration. | `ParquetFieldDetails.kt:81,94`, `ParquetMethodDetails.kt:88` |
+| 5.10 | Low | `type` in `field_details` is `null` for every type outside the model (e.g. `java.lang.String`), not only for primitives. `type_name` is `"unknown"` without a `has_type` edge. | `ParquetFieldDetails.kt:67-69,136-141` |
+| 5.11 | Low | `methods_sample` is sorted by the declaring type's FQN, not by method name. Readers and writers match only accesses compiled against the declaring type. | `ParquetFieldDetails.kt:76-77,104` |
+| 5.12 | Low | `is_constant` means `static && final`, not a compile-time constant. Modifiers omit `synthetic` and `bridge`, while the member counts include such members. | `ParquetFieldDetails.kt:54`, `TypeModifiers.kt`, `MemberModifiers.kt` |
+| 5.13 | Low | `type_details` returns `DETAIL_REBUILDING` flat while its other errors are nested. For a package id, `declaring_type` is the parent package. | `ParquetTypeDetails.kt:57,150` |
+| 5.14 | Low | `type_details` counts constructors separately (`constructor_count`), while `list_children` counts them as methods. | `ParquetTypeDetails.kt:81-85` |
+
+---
+
+## 6. Maintenance
+
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 6.1 | Low | The error `note` from `reload_graph` always says "The previously loaded graph is still being served", even when there was none (`data_hash: null`). | `io.hierograph.server.graphservice/.../HierarchicalGraphService.kt:323` |
+| 6.2 | Low | `GraphUnavailable` and `reload_graph` describe recovery only for manifest mode. In Parquet mode, "build the project" does not apply. | `core/GraphUnavailable.kt` |
+
+---
+
+## 7. Text corrections made during the review
+
+These changes affect only descriptions, messages and KDoc. No logic changed.
+
+- **Parameter names.** All tool descriptions, parameter descriptions and error/recovery messages now use the camelCase names that clients actually send (`nodeId`, `kindFilter`, `fromId`, `detailLevel`, `maxDepth`, …).
+- **Nonexistent tools.** References to `list_methods`, `list_fields`, `detail_dependencies`, `aggregated_incoming` and `page_size` now point to the real tools (`list_children`, `outgoing_dependencies` / `incoming_dependencies` with `detailLevel` `"detail"`, `limit`).
+- **Retired technology.** Mentions of jQAssistant, Neo4j, Cypher, Bolt and "MVP" were removed from KDoc and messages, in `GraphUnavailable`, `DataHash`, `JavaKinds`, `MemberModifiers`, `DetailQueryEngine`, `HierarchicalGraphService` and the detail tools.
+- **No-graph message.** It now tells the caller to build the project and call `reload_graph`.
+- **Misleading descriptions.**
+  - `reload_graph` no longer promises a new hash or stale cursors on every reload.
+  - The `direction` parameter description of `pairwise_dependencies` states its labelling semantics.
+  - `source_count` of `affected_by` is described as it is computed.
+  - The `DETAIL_UNAVAILABLE` message no longer claims Parquet mode is required.
+- **Cursor lifetime.** The KDoc of `Cursor` and `DataHash` states that cursors survive reloads of unchanged data but not server restarts (1.1).
+- **Service spec.** `hierarchical-graph-service.md` now says cursors become stale only when a reload changes the graph.

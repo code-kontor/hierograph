@@ -45,17 +45,14 @@ data class DetailQueryResult(
 )
 
 /**
- * The Parquet-backed `detail_dependencies` engine (approach B). Scope resolution happens in memory via
- * [DetailScope]; this engine does the member-edge half: a scoped push-down read of `detail_refs.parquet`
+ * The member-level dependency engine over a Parquet snapshot. Scope resolution happens in memory (see
+ * [DetailScope]); this engine does the member-edge half: a scoped push-down read of `detail_refs.parquet`
  * (`from_type` / `to_type` ∈ scope, optionally `relationship`), a stable sort, the summaries, and offset
- * paging. No Neo4j, no second engine.
+ * paging.
  *
  * The reverse relationships `read_by` / `written_by` are the stored `reads_field` / `writes_field` edges
  * viewed target→source: the scope anchors on the field side (`to_type`) and the endpoints are swapped so
  * the field is the source and the reading/writing method is the target.
- *
- * Not yet implemented (next increments): member display enrichment (join to `members.parquet`) and
- * keyset cursors in place of offset paging.
  */
 class DetailQueryEngine(private val parquetDir: Path) {
 

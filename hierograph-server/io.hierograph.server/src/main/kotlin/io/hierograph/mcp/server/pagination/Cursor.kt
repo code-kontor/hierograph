@@ -22,8 +22,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * A pagination cursor.
  *
  * A cursor is a self-contained, stateless token that encodes everything needed to resume a paginated
- * query — it carries no server-side state, so it survives server restarts as long as the underlying
- * data is unchanged. On the wire a cursor is a base64-URL-encoded JSON object; this class is the
+ * query — it carries no server-side state, so it survives reloads that leave the underlying data
+ * unchanged. It does not survive a server restart, because the data hash differs between processes
+ * (see `DataHash`). On the wire a cursor is a base64-URL-encoded JSON object; this class is the
  * decoded form.
  *
  * The cursor is opaque to the LLM: it is passed through verbatim and never constructed or parsed by

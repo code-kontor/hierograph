@@ -120,7 +120,8 @@ failed reload leaves the previously loaded graph in place and returns an `error`
 status rather than emptying the server. Reload returns a small status map
 (`status`, `root_children`, `search_index_entries`, `data_hash`, `reload_millis`)
 for the `reload_graph` tool. Outstanding pagination cursors become stale across a
-reload (their data hash no longer matches).
+reload that changes the graph (their data hash no longer matches); a reload of
+unchanged code keeps the hash and the cursors.
 
 **Shutdown** stops the watcher and the background executors.
 

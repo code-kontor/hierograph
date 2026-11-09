@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component
  * Returns the dependency matrix among a set of subtrees — a global structural summary (density, cycles,
  * SCCs, topological order) computed over the whole node set, plus a paginated edge list. The summary is
  * `O(node_count)` and is returned on the first page only; the edge list is `O(edges)` and is paginated
- * (and can be thinned with `min_weight`). Entirely in-memory.
+ * (and can be thinned with `minWeight`). Entirely in-memory.
  */
 @Component
 class PairwiseDependenciesTool(
@@ -46,7 +46,7 @@ class PairwiseDependenciesTool(
 ) {
 
     /**
-     * An aggregated DSM edge held in typed form so it can be ordered, `min_weight`-filtered, and paged
+     * An aggregated DSM edge held in typed form so it can be ordered, `minWeight`-filtered, and paged
      * before being mapped to the wire shape. `fromIdx`/`toIdx` are positions in the matrix's node order
      * (equal to the topological order when acyclic), which makes "dsm" ordering a plain index sort.
      */
@@ -71,9 +71,9 @@ class PairwiseDependenciesTool(
                 "all. Only page through the edge list when you need specific pairwise weights. " +
                 "WARNING: the edge list can be large — a full all-modules query is often hundreds of edges " +
                 "(~200 bytes each) and can overflow the caller's context in a single page. Do NOT fetch it " +
-                "all at once. Instead: keep page_size small (default 25, stay <= 50) and walk next_cursor " +
-                "only as far as needed; raise min_weight to drop noise (a threshold like 100+ usually " +
-                "leaves a handful of edges); and use edge_sort='weight_desc' so the first small page " +
+                "all at once. Instead: keep limit small (default 25, stay <= 50) and walk next_cursor " +
+                "only as far as needed; raise minWeight to drop noise (a threshold like 100+ usually " +
+                "leaves a handful of edges); and use edgeSort='weight_desc' so the first small page " +
                 "already holds the strongest couplings. The node set you pass is bounded only by a " +
                 "generous soft cap, so passing many modules is fine — it is the edge OUTPUT, not the " +
                 "input, that you must bound. " +
@@ -84,8 +84,8 @@ class PairwiseDependenciesTool(
         @ToolParam(description = "List of subtree IDs to analyze pairwise (2+; typically modules or packages).")
         nodeIds: List<Long>,
         @ToolParam(
-            description = "Which edges to include: 'both' (default, standard DSM), " +
-                    "'outgoing' (row depends on column), 'incoming' (column depends on row).",
+            description = "How edges are labelled; every value lists the same edges. 'both' (default) and " +
+                    "'outgoing' give each edge as depender (from) -> depended-upon (to); 'incoming' swaps from and to.",
             required = false
         )
         direction: String?,
@@ -151,11 +151,11 @@ class PairwiseDependenciesTool(
             )
         }
 
-        // ── validate edge_sort ─────────────────────────────────────────
+        // ── validate edgeSort ─────────────────────────────────────────
         val effectiveSort = edgeSort ?: "dsm"
         if (effectiveSort !in EDGE_SORTS) {
             return invalidParam(
-                "Invalid edge_sort: '$effectiveSort'. Must be 'dsm' or 'weight_desc'.",
+                "Invalid edgeSort: '$effectiveSort'. Must be 'dsm' or 'weight_desc'.",
                 "Use 'dsm' for matrix reading order or 'weight_desc' for heaviest-first."
             )
         }
@@ -194,7 +194,7 @@ class PairwiseDependenciesTool(
         }
         val edgeCount = allEdges.size // unfiltered — drives density
 
-        // ── order (stable, total), then apply min_weight ───────────────
+        // ── order (stable, total), then apply minWeight ───────────────
         val comparator = when (effectiveSort) {
             "weight_desc" -> compareByDescending<DsmEdge> { it.weight }.thenBy { it.fromIdx }.thenBy { it.toIdx }
             else -> compareBy<DsmEdge> { it.fromIdx }.thenBy { it.toIdx } // "dsm"
@@ -252,7 +252,7 @@ class PairwiseDependenciesTool(
             val summary = linkedMapOf<String, Any?>(
                 "node_count" to size,
                 "edge_count" to edgeCount,             // unfiltered count, drives density
-                "total_matching_edges" to page.total,  // post-min_weight total that paginates (across all pages)
+                "total_matching_edges" to page.total,  // post-minWeight total that paginates (across all pages)
                 "possible_edges" to possibleEdges,
                 "density" to density,
                 "has_cycles" to hasCycles,

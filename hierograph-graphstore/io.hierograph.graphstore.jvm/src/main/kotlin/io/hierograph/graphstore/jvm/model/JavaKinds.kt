@@ -21,7 +21,7 @@ package io.hierograph.graphstore.jvm.model
  *
  * Node kinds are defined as [JavaNodeKind] enum values. The string constants
  * (`MODULE`, `CLASS`, etc.) are kept as aliases for the enum's [value][JavaNodeKind.value]
- * property for use in contexts that need plain strings (Cypher queries, JSON keys).
+ * property for use in contexts that need plain strings (JSON keys, Parquet columns).
  */
 object JavaKinds {
 
@@ -47,7 +47,7 @@ object JavaKinds {
 
     /**
      * The kind assigned to external (virtual) type nodes — types referenced but not part of the
-     * scanned classpath (e.g. library annotations/classes lifted onto a canonical `:Virtual:Type`).
+     * scanned code (e.g. library annotations and classes), placed under the synthetic `External Types` module.
      * Unlike the internal [TYPE_KINDS] this is a plain string, not a [JavaNodeKind] enum value,
      * because external types carry no parsed metadata.
      */

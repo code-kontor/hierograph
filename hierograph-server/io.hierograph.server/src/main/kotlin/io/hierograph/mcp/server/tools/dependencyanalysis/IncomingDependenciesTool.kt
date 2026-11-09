@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component
  * MCP tool: `incoming_dependencies`
  *
  * Mirror of `outgoing_dependencies` with reversed direction.
- * `incoming_dependencies(from_id: A, to_id: B)` returns edges from B to A
+ * `incoming_dependencies(fromId: A, toId: B)` returns edges from B to A
  * — i.e., what B uses of A.
  *
  * Delegates type-level queries to [OutgoingDependenciesTool.typeLevelDependencies]
@@ -41,43 +41,43 @@ class IncomingDependenciesTool(
     @Tool(
         name = "incoming_dependencies",
         description = "[Dependency analysis] " +
-                "Mirror of outgoing_dependencies — returns edges from the to_id subtree to the " +
-                "from_id subtree. Shows what the target side uses of the source side. " +
-                "detail_level='type' (default) returns type-to-type edges (fast). " +
-                "detail_level='detail' returns method/field-level edges with source locations (slower). " +
+                "Mirror of outgoing_dependencies — returns edges from the toId subtree to the " +
+                "fromId subtree. Shows what the target side uses of the source side. " +
+                "detailLevel='type' (default) returns type-to-type edges (fast). " +
+                "detailLevel='detail' returns method/field-level edges with source locations (slower). " +
                 "The 'relationship' filter is only valid at detail level. " +
                 "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size. " +
                 "WARNING: on a hub node a full page of type-level edges can be hundreds of KB and " +
                 "overflow the caller's context. If you only need the ranking or attribute breakdown " +
-                "(the common case, especially when to_id is omitted), pass limit=1 and read the " +
+                "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
                 "For the forward direction (what source uses of target), use outgoing_dependencies. " +
-                "At type level, to_id is optional: omit it to return ALL incoming dependencies of " +
-                "from_id (everything that depends on from_id, from anywhere) — answering 'what depends on X'. " +
+                "At type level, toId is optional: omit it to return ALL incoming dependencies of " +
+                "fromId (everything that depends on fromId, from anywhere) — answering 'what depends on X'. " +
                 "That question is almost always answered by the by_target / by_source_type summary, not " +
                 "by the edge list — request a minimal page (limit=1). " +
-                "The summary always includes 'by_target': the from_id types ranked by summed incoming " +
+                "The summary always includes 'by_target': the fromId types ranked by summed incoming " +
                 "weight (the most heavily used types), computed over the full result set. " +
-                "to_id is required at detail level."
+                "toId is required at detail level."
     )
     fun incomingDependencies(
         @ToolParam(description = "The subtree that is depended upon — source side.")
         fromId: Long,
         @ToolParam(
             description = "The subtree that does the depending — target side. Optional at type " +
-                    "level — omit to return ALL incoming dependencies of from_id (everything that " +
+                    "level — omit to return ALL incoming dependencies of fromId (everything that " +
                     "depends on it, from anywhere). Required at detail level.",
             required = false
         )
         toId: Long?,
         @ToolParam(
-            description = "Zoom level: 'type' (default, in-memory) or 'detail' (method/field-level, Neo4j).",
+            description = "Zoom level: 'type' (default, in-memory) or 'detail' (member-level, with source lines).",
             required = false
         )
         detailLevel: String?,
         @ToolParam(
-            description = "Filter to a specific detail-level relationship kind. Only valid when detail_level='detail'.",
+            description = "Filter to a specific detail-level relationship kind. Only valid when detailLevel='detail'.",
             required = false
         )
         relationship: String?,
@@ -102,12 +102,12 @@ class IncomingDependenciesTool(
 
         val level = detailLevel ?: "type"
 
-        // ── validate detail_level ──────────────────────────────────────
+        // ── validate detailLevel ──────────────────────────────────────
         if (level !in listOf("type", "detail")) {
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_PARAMETER",
-                    "message" to "Invalid detail_level: '$level'. Must be 'type' or 'detail'.",
+                    "message" to "Invalid detailLevel: '$level'. Must be 'type' or 'detail'.",
                     "recovery" to "Use 'type' for type-to-type edges or 'detail' for method/field-level edges."
                 )
             )
@@ -118,9 +118,9 @@ class IncomingDependenciesTool(
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_PARAMETER",
-                    "message" to "The 'relationship' parameter is only valid at detail_level='detail'. " +
+                    "message" to "The 'relationship' parameter is only valid at detailLevel='detail'. " +
                             "At type level, edges carry attribute flags but cannot be filtered by detail-level relationship.",
-                    "recovery" to "Either remove the 'relationship' parameter, or set detail_level='detail' to filter by relationship kind."
+                    "recovery" to "Either remove the 'relationship' parameter, or set detailLevel='detail' to filter by relationship kind."
                 )
             )
         }
@@ -134,9 +134,9 @@ class IncomingDependenciesTool(
             mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_PARAMETER",
-                    "message" to "to_id is required at detail_level='detail'. The open form " +
-                            "(omitted to_id, returning everything that depends on from_id) is supported only at detail_level='type'.",
-                    "recovery" to "Provide a to_id, or set detail_level='type' to query everything that depends on from_id."
+                    "message" to "toId is required at detailLevel='detail'. The open form " +
+                            "(omitted toId, returning everything that depends on fromId) is supported only at detailLevel='type'.",
+                    "recovery" to "Provide a toId, or set detailLevel='type' to query everything that depends on fromId."
                 )
             )
         } else {

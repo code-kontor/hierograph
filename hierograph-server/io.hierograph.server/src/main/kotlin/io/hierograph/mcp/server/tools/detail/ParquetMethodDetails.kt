@@ -26,11 +26,11 @@ import org.springframework.stereotype.Component
 import java.nio.file.Path
 
 /**
- * Parquet-backed `method_details` — the Neo4j-free counterpart of the Cypher path in [MethodDetailsTool],
- * selected when `hierograph.graph.source=parquet`. Identity (name/kind/modifiers/location) and parameters
- * come from `members.parquet` / `parameters.parquet`; return type, throws, annotations and the overridden
- * method come from `detail_refs.parquet`. The method id is a content-addressed handle, resolved back to
- * its member key via the service's handle index (members are not nodes in the bridged model).
+ * The engine behind `method_details`, served from the Parquet snapshot. Identity (name/kind/modifiers/
+ * location) and parameters come from `members.parquet` / `parameters.parquet`; return type, throws,
+ * raises and annotations from `detail_refs.parquet`; the overridden method from the load-derived
+ * `overrides` edges. The method id is a content-addressed member handle, resolved back to its member key
+ * via the service's member handle index.
  */
 @Component
 class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDetailTool(graphService) {
@@ -82,7 +82,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
                 "position" to p.index.toLong(),
                 "name" to p.name,
                 "type" to typeRef(p.typeFqn),
-                "annotations" to emptyList<Any>(), // parameter_annotated_by is not persisted in the MVP snapshot
+                "annotations" to emptyList<Any>(), // parameter annotations are not stored in the snapshot
             )
         }
         val location = member.lineFrom?.takeIf { it > 0 }?.let { linkedMapOf<String, Any>("line_number" to it.toLong()) }
@@ -141,6 +141,6 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
 
     private fun notFound(methodId: Long): Map<String, Any?> = linkedMapOf(
         "error" to "NODE_NOT_FOUND", "code" to "NODE_NOT_FOUND",
-        "message" to "Node not found: $methodId. Re-resolve via detail_dependencies.",
+        "message" to "Node not found: $methodId. Look the method up again via list_children on its declaring type or find_node.",
     )
 }

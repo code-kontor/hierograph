@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component
 @Component
 class NodeSearch(private val graphService: HierarchicalGraphService) {
 
-    /** The `kind_filter` values that [search] accepts: the [JavaKinds.ALL_KINDS] values plus the group aliases. */
+    /** The `kindFilter` values that [search] accepts: the [JavaKinds.ALL_KINDS] values plus the group aliases. */
     val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value }
     val validAliases: List<String> get() = JavaKinds.ALL_ALIASES.toList()
 

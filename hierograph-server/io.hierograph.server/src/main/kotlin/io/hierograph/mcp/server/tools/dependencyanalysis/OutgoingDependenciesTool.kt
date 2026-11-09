@@ -35,8 +35,8 @@ import org.springframework.stereotype.Component
  * MCP tool: `outgoing_dependencies`
  *
  * Returns edges from a source subtree to a target subtree at the requested zoom level.
- * - `detail_level: "type"` (default): type-to-type edges, in-memory, fast
- * - `detail_level: "detail"`: method/field-level edges with source locations, via Neo4j
+ * - `detailLevel: "type"` (default): type-to-type edges, in-memory, fast
+ * - `detailLevel: "detail"`: member-level edges with source locations, read from the detail snapshot
  */
 @Component
 class OutgoingDependenciesTool(
@@ -51,42 +51,42 @@ class OutgoingDependenciesTool(
         description = "[Dependency analysis] " +
                 "Return the edges from a source subtree to a target subtree. This is the evidence " +
                 "tool — use after an aggregated query reveals a dependency of interest. " +
-                "detail_level='type' (default) returns type-to-type edges from the in-memory model (fast). " +
-                "detail_level='detail' returns method/field-level edges with source locations (slower). " +
+                "detailLevel='type' (default) returns type-to-type edges from the in-memory model (fast). " +
+                "detailLevel='detail' returns method/field-level edges with source locations (slower). " +
                 "The 'relationship' filter is only valid at detail level. " +
                 "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size — they give the shape without " +
                 "processing all edges. " +
                 "WARNING: on a hub node a full page of type-level edges can be hundreds of KB and " +
                 "overflow the caller's context. If you only need the ranking or attribute breakdown " +
-                "(the common case, especially when to_id is omitted), pass limit=1 and read the " +
+                "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
                 "Direction: this tool shows what the source uses of the target. " +
                 "For the reverse, use incoming_dependencies. " +
-                "At type level, to_id is optional: omit it to return ALL outgoing dependencies of " +
-                "from_id (every type-level edge to anywhere in the graph) — answering 'show me the " +
+                "At type level, toId is optional: omit it to return ALL outgoing dependencies of " +
+                "fromId (every type-level edge to anywhere in the graph) — answering 'show me the " +
                 "dependencies of X'. That question is almost always answered by the by_target / " +
                 "by_source_type summary, not by the edge list — request a minimal page (limit=1). " +
                 "The summary always includes 'by_target': the depended-upon " +
-                "types ranked by summed weight over the full result set (whole graph when to_id is " +
-                "omitted, within the to_id subtree otherwise). to_id is required at detail level."
+                "types ranked by summed weight over the full result set (whole graph when toId is " +
+                "omitted, within the toId subtree otherwise). toId is required at detail level."
     )
     fun outgoingDependencies(
         @ToolParam(description = "Source subtree root ID.")
         fromId: Long,
         @ToolParam(
             description = "Target subtree root ID. Optional at type level — omit to return ALL " +
-                    "outgoing dependencies of from_id (every edge to anywhere). Required at detail level.",
+                    "outgoing dependencies of fromId (every edge to anywhere). Required at detail level.",
             required = false
         )
         toId: Long?,
         @ToolParam(
-            description = "Zoom level: 'type' (default, in-memory) or 'detail' (method/field-level, Neo4j).",
+            description = "Zoom level: 'type' (default, in-memory) or 'detail' (member-level, with source lines).",
             required = false
         )
         detailLevel: String?,
         @ToolParam(
-            description = "Filter to a specific detail-level relationship kind. Only valid when detail_level='detail'.",
+            description = "Filter to a specific detail-level relationship kind. Only valid when detailLevel='detail'.",
             required = false
         )
         relationship: String?,
@@ -111,12 +111,12 @@ class OutgoingDependenciesTool(
 
         val level = detailLevel ?: "type"
 
-        // ── validate detail_level ──────────────────────────────────────
+        // ── validate detailLevel ──────────────────────────────────────
         if (level !in listOf("type", "detail")) {
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_PARAMETER",
-                    "message" to "Invalid detail_level: '$level'. Must be 'type' or 'detail'.",
+                    "message" to "Invalid detailLevel: '$level'. Must be 'type' or 'detail'.",
                     "recovery" to "Use 'type' for type-to-type edges or 'detail' for method/field-level edges."
                 )
             )
@@ -127,9 +127,9 @@ class OutgoingDependenciesTool(
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_PARAMETER",
-                    "message" to "The 'relationship' parameter is only valid at detail_level='detail'. " +
+                    "message" to "The 'relationship' parameter is only valid at detailLevel='detail'. " +
                             "At type level, edges carry attribute flags but cannot be filtered by detail-level relationship.",
-                    "recovery" to "Either remove the 'relationship' parameter, or set detail_level='detail' to filter by relationship kind."
+                    "recovery" to "Either remove the 'relationship' parameter, or set detailLevel='detail' to filter by relationship kind."
                 )
             )
         }
@@ -141,9 +141,9 @@ class OutgoingDependenciesTool(
             mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_PARAMETER",
-                    "message" to "to_id is required at detail_level='detail'. The open form " +
-                            "(omitted to_id, returning all dependencies) is supported only at detail_level='type'.",
-                    "recovery" to "Provide a to_id, or set detail_level='type' to query all dependencies of from_id."
+                    "message" to "toId is required at detailLevel='detail'. The open form " +
+                            "(omitted toId, returning all dependencies) is supported only at detailLevel='type'.",
+                    "recovery" to "Provide a toId, or set detailLevel='type' to query all dependencies of fromId."
                 )
             )
         } else {
@@ -184,7 +184,7 @@ class OutgoingDependenciesTool(
         }
 
         // Query hash covers the parameters that define the result set — not limit or cursor.
-        // detail_level and direction are baked in so a type-level cursor can never be mistaken
+        // detailLevel and direction are baked in so a type-level cursor can never be mistaken
         // for a detail-level one, nor an outgoing cursor for an incoming one beyond the tool name.
         val queryHash = QueryHash.of(
             mapOf(
@@ -196,13 +196,13 @@ class OutgoingDependenciesTool(
         )
 
         // ── collect type-level edges ───────────────────────────────────
-        // Anchor on from_id's types. For the outgoing direction walk each
+        // Anchor on fromId's types. For the outgoing direction walk each
         // anchor type's outgoing core dependencies; for incoming, its incoming
         // ones. Each HGCoreDependency already encodes (from -> to) in
         // depender->depended-upon orientation, so the edge endpoints are
         // dep.from / dep.to in both directions. The "other" endpoint (the one
         // not on the anchor side) is matched against otherSideTypeIds when
-        // to_id is provided; when omitted every edge is kept.
+        // toId is provided; when omitted every edge is kept.
         val anchorTypes = collectTypes(fromNode)
 
         data class TypeEdge(
@@ -309,10 +309,10 @@ class OutgoingDependenciesTool(
         // Rank the depended-upon endpoints (dep.to) by summed weight, top 10.
         // Computed over the FULL result set — not just the returned page — so the
         // ranking is complete even when edges are truncated. In the open form
-        // (to_id omitted) this spans the whole graph; in the constrained form it
-        // ranks within the to_id subtree. For incoming, dep.to is the from_id type,
-        // so this ranks the most heavily used types within from_id; for outgoing, it
-        // ranks what from_id leans on most.
+        // (toId omitted) this spans the whole graph; in the constrained form it
+        // ranks within the toId subtree. For incoming, dep.to is the fromId type,
+        // so this ranks the most heavily used types within fromId; for outgoing, it
+        // ranks what fromId leans on most.
         summary["by_target"] = targetWeights.entries
             .sortedByDescending { it.value }
             .take(10)
@@ -359,13 +359,13 @@ class OutgoingDependenciesTool(
             return mapOf(
                 "error" to mapOf(
                     "code" to "INVALID_NODE_KIND",
-                    "message" to "This tool operates on type-level dependencies at detail_level='type'. " +
+                    "message" to "This tool operates on type-level dependencies at detailLevel='type'. " +
                             "The node is a $kind, not a type.",
                     "actual_kind" to kind.toString(),
                     "declaring_type" to if (declaringType != null)
                         nodeRefFactory.minimalNodeRef(declaringType) else null,
                     "recovery" to "Pass the declaring type's id (${declaringType?.identifier}), " +
-                            "or use detail_level='detail' to query method/field-level evidence directly."
+                            "or use detailLevel='detail' on the declaring type for member-level evidence."
                 )
             )
         }

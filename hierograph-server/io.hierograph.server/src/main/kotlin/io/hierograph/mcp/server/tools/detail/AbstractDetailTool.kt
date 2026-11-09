@@ -22,9 +22,10 @@ import io.hierograph.server.graphservice.HierarchicalGraphService
 import java.nio.file.Path
 
 /**
- * Shared base for the detail-level MCP tools (method_details, field_details, type_details,
- * detail_dependencies). Holds the slim-node and primitive-ref helpers used by 2+ of these tools so each
- * concrete tool class can focus on its own logic.
+ * Shared base for the detail-level MCP tools (type_details, method_details, field_details) and the
+ * detail-level engine behind outgoing_dependencies / incoming_dependencies with detailLevel "detail".
+ * Holds the slim-node and primitive-ref helpers used by 2+ of these so each concrete class can focus on
+ * its own logic.
  *
  * This class is intentionally not a Spring `@Component`; only the concrete subclasses are.
  */

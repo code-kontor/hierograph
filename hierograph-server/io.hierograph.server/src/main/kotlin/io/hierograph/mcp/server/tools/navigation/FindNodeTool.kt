@@ -43,7 +43,7 @@ class FindNodeTool(
                 "Searches by name or fully qualified name using case-insensitive substring matching. " +
                 "Results include kind-appropriate metadata (member counts, modifiers, flags) " +
                 "so you can inspect matches before proceeding. " +
-                "Use kind_filter to narrow results when names are ambiguous across node types. " +
+                "Use kindFilter to narrow results when names are ambiguous across node types. " +
                 "Accepts specific kinds (java.class, java.interface, java.enum, java.record, " +
                 "java.annotation, java.method, java.field, java.package, java.module) " +
                 "and group aliases (types, members, packages)."

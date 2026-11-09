@@ -6,7 +6,7 @@ This bundle contains the current design documentation for Hierograph (formerly C
 
 ### Core specifications
 
-**`hierograph-tool-surface-proposal.md`** — The main API specification. Documents the 13 MCP tools, their parameters and response shapes, the NodeRef variants, the input-acceptance policy, the node-kind and edge-attribute vocabularies, and the architectural principles that drive the design (input-bounded vs. data-bounded tools, navigation vs. evidence boundary). This is the primary reference for what the LLM sees.
+**MCP tool specifications** — The specifications of the MCP tools live with the server, in `hierograph-server/io.hierograph.server/spec/`: `hierograph-mcp-tools.md` for the shared concepts and one `hierograph-tool-<name>.md` per tool.
 
 **`hierograph-architecture.md`** — The internal architecture. Documents the three-layer model (tool, model, provider) and the three-provider sub-structure (HierarchyProvider, CoreDependencyProvider, DetailDependencyProvider). Includes interface sketches in Kotlin, scanner-agnosticism details, and the migration plan for completing the provider model. This is the primary reference for implementers and contributors.
 

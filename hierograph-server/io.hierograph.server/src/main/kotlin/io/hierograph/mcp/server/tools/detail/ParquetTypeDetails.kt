@@ -30,15 +30,14 @@ import org.springframework.stereotype.Component
 import java.nio.file.Path
 
 /**
- * Parquet-backed `type_details` — the Neo4j-free counterpart of the Cypher path in [TypeDetailsTool],
- * selected when `hierograph.graph.source=parquet`, with the same response shape. Identity, parent and
- * inner types come from the in-memory model; modifiers and source file from `types.parquet`; superclass,
- * interfaces and annotations from the type's `refs.parquet` rows (so targets the placeholder policy keeps
- * out of the model, like `java.lang.Object`, still appear — as id-less external refs); member counts from
+ * The engine behind `type_details`, served from the Parquet snapshot. Identity, parent and inner types
+ * come from the in-memory model; modifiers and source file from `types.parquet`; superclass, interfaces
+ * and annotations from the type's `refs.parquet` rows (so targets the placeholder policy keeps out of the
+ * model, like `java.lang.Object`, still appear — as id-less external refs); member counts from
  * `members.parquet` (which, unlike the model, distinguishes constructors).
  *
- * Not in the snapshot, hence reported as unknown (`null`): `is_generic`, and the modifiers of a snapshot
- * written before `types.parquet` carried them. The source line of a type is not exported either.
+ * Not in the snapshot, hence reported as unknown (`null`): `is_generic`, and the modifiers of a type
+ * whose `types.parquet` row is missing or carries none. The source line of a type is not exported either.
  */
 @Component
 class ParquetTypeDetails(
@@ -149,8 +148,8 @@ class ParquetTypeDetails(
                 "actual_kind" to kind,
                 "declaring_type" to declaringType?.takeIf { it !== hierarchy.rootNode }?.let { nodeRefFactory.minimalNodeRef(it) },
                 "recovery" to when (node.kind) {
-                    JavaKinds.METHOD -> "To inspect the method itself, use method_details(method_id: $typeId)."
-                    JavaKinds.FIELD -> "To inspect the field itself, use field_details(field_id: $typeId)."
+                    JavaKinds.METHOD -> "To inspect the method itself, use method_details(methodId: $typeId)."
+                    JavaKinds.FIELD -> "To inspect the field itself, use field_details(fieldId: $typeId)."
                     else -> "Use list_children or list_descendants to find type nodes."
                 },
             )

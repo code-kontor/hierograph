@@ -64,7 +64,7 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.source:parquet}")
     private lateinit var graphSource: String
 
-    /** Directory holding the Parquet snapshot tables the graph is built from (no Neo4j); `parquet` mode. */
+    /** Directory holding the Parquet snapshot tables the graph is built from; `parquet` mode. */
     @Value("\${hierograph.graph.parquetDir:parquet}")
     private lateinit var parquetDir: String
 
@@ -249,8 +249,8 @@ class HierarchicalGraphService {
     val dataHash: String get() = current().dataHash
 
     /**
-     * Whether a hierarchical graph is currently loaded. `false` when the server was started without a
-     * reachable database (see [init]); tools consult this to decide whether they can answer at all.
+     * Whether a hierarchical graph is currently loaded. `false` when the graph source could not be
+     * built (see [init]); tools consult this to decide whether they can answer at all.
      */
     val isGraphAvailable: Boolean get() = snapshotRef.get() != null
 
@@ -326,7 +326,7 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Seed the service with a ready-made model without going through Bolt. Builds the derived index
+     * Seed the service with a ready-made model without reading a graph source. Builds the derived index
      * and data hash and installs them as the current snapshot. Intended for non-Spring construction
      * in tests; production code loads via [init] / [reload].
      */
@@ -571,7 +571,7 @@ class HierarchicalGraphService {
     /**
      * Hierarchy-dependent member edges (overrides / virtual + resolved calls) computed over the full
      * assembled graph — the load-time home of what the scanner cannot derive across independently-scanned
-     * artifacts. Keeps only the edges not already in the snapshot's `detail_refs`, so a single-shot or jQA
+     * artifacts. Keeps only the edges not already in the snapshot's `detail_refs`, so a single-shot
      * snapshot (already complete) contributes nothing and a per-artifact snapshot gains its cross-artifact
      * edges. See [HierarchyResolution].
      */

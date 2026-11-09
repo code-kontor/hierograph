@@ -43,7 +43,7 @@ class FindDependencyPathTool(
                 "Returns the shortest paths with concrete type-level steps and weights. " +
                 "An empty result (exists=false) is definitive — no dependency chain exists. " +
                 "Accepts modules, packages, or types; expands internally. " +
-                "Use max_paths and max_length to control result scope. " +
+                "Use maxPaths and maxLength to control result scope. " +
                 "For blast-radius analysis (all things affected), use affected_by instead."
     )
     fun findDependencyPath(
@@ -80,7 +80,7 @@ class FindDependencyPathTool(
         val fromTypeIds = collectTypeIds(fromNode)
         val toTypeIds = collectTypeIds(toNode)
 
-        // Same source and target → no path
+        // No types on either side, or source and target are the same single type → no path
         if (fromTypeIds.isEmpty() || toTypeIds.isEmpty() ||
             (fromTypeIds.size == 1 && toTypeIds.size == 1 && fromTypeIds.first() == toTypeIds.first())
         ) {
@@ -89,7 +89,7 @@ class FindDependencyPathTool(
 
         // ── BFS to find shortest paths ─────────────────────────────────
         // We use BFS layer by layer to find all shortest paths first,
-        // then progressively longer paths up to max_paths.
+        // then progressively longer paths up to maxPaths.
         data class BfsState(
             val node: HGNode,
             val path: List<PathStep>  // steps taken to reach this node

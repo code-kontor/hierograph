@@ -24,12 +24,11 @@ import org.springframework.ai.tool.definition.ToolDefinition
 
 /**
  * Wraps a delegate [ToolCallbackProvider] and short-circuits every tool call with the standard
- * [GraphUnavailable] description while no hierarchical graph is loaded (the server was started without
- * a reachable database — see [HierarchicalGraphService.isGraphAvailable]).
+ * [GraphUnavailable] description while no hierarchical graph is loaded (the graph source could not be
+ * built — see [HierarchicalGraphService.isGraphAvailable]).
  *
  * Tools whose names are in [toolsAllowedWithoutGraph] are exempt: they must run even without a graph so
- * that a graph can eventually be loaded/connected in the first place (e.g. `reload_graph`, and future
- * "connect to a database" tools). Everything else answers with the one modular description.
+ * that a graph can be loaded in the first place (`reload_graph`). Everything else answers with the one modular description.
  */
 class GraphAvailabilityToolCallbackProvider(
     private val delegate: ToolCallbackProvider,
