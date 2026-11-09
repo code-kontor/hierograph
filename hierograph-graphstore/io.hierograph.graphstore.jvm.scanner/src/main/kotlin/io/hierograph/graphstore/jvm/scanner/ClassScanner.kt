@@ -191,6 +191,7 @@ internal object ClassScanner {
                     transient = access and Opcodes.ACC_TRANSIENT != 0,
                     volatile = access and Opcodes.ACC_VOLATILE != 0,
                     synthetic = access and Opcodes.ACC_SYNTHETIC != 0,
+                    constant = value != null, // a ConstantValue attribute: inlined at every use
                 ),
             )
             val type = Type.getType(descriptor)

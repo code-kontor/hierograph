@@ -84,7 +84,10 @@ class DetailFixture {
     private fun classes() = listOf(
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             DOC, JavaKinds.CLASS, TypeModifiers.pack("public", abstract = true, generic = true),
-            members = listOf(method(DOC, "void render()"), method(DOC, "$MONEY total()")),
+            members = listOf(
+                method(DOC, "void render()"), method(DOC, "$MONEY total()"),
+                MemberFacts("$DOC#int pages", JavaKinds.FIELD, "int pages", "pages", modifiers = MemberModifiers.pack("protected")),
+            ),
             refs = listOf(Ref(DOC, MONEY, RefKind.DEPENDS_ON, count = 1)), classHash = "d",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
@@ -95,6 +98,7 @@ class DetailFixture {
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             INVOICE, JavaKinds.CLASS, TypeModifiers.pack("public"),
             members = listOf(
+                MemberFacts("$INVOICE#void <init>()", JavaKinds.CONSTRUCTOR, "void <init>()", "<init>", modifiers = MemberModifiers.pack("public")),
                 method(INVOICE, "void render()"), method(INVOICE, "$MONEY net()"),
                 method(INVOICE, "$MONEY tax()"), method(INVOICE, "void validate()"),
             ),
@@ -113,6 +117,8 @@ class DetailFixture {
                     parameters = listOf(ParameterFacts(0, "factor", "int", annotations = listOf("javax.annotation.Nonnull"))),
                 ),
                 MemberFacts("$MONEY#int cents", JavaKinds.FIELD, "int cents", "cents", modifiers = MemberModifiers.pack("private", final = true)),
+                MemberFacts("$MONEY#int SCALE", JavaKinds.FIELD, "int SCALE", "SCALE",
+                    modifiers = MemberModifiers.pack("public", static = true, final = true, constant = true)),
             ),
             refs = emptyList(), classHash = "m",
         )),
@@ -126,6 +132,8 @@ class DetailFixture {
         DetailRef("$INVOICE#$MONEY tax()", INVOICE, "$MONEY#$MONEY times(int)", MONEY, "calls", 20),
         DetailRef("$INVOICE#void validate()", INVOICE, "$DOC#void render()", DOC, "calls", 30),
         DetailRef("$MONEY#int cents", MONEY, "int", "int", "has_type"),
+        // net() reads the inherited field pages through the subclass, as javac compiles `this.pages`
+        DetailRef("$INVOICE#$MONEY net()", INVOICE, "$INVOICE#int pages", INVOICE, "reads_field", 12),
         DetailRef("$MONEY#int cents", MONEY, "java.lang.Deprecated", "java.lang.Deprecated", "annotated_by"),
     )
 

@@ -80,7 +80,7 @@ class DetailEnricherTest {
     }
 
     @Test
-    fun `nodes map carries member and type display, with constructor and external kinds`() {
+    fun `nodes map carries member and type display, with tree names and kinds`() {
         val edges = listOf(
             DetailRef(place, "com.shop.OrderService", charge, "com.shop.PaymentGateway", "calls", 50),
             DetailRef(place, "com.shop.OrderService", log, "com.shop.OrderService", "reads_field", 48),
@@ -89,11 +89,11 @@ class DetailEnricherTest {
 
         val nodes = enricher.nodesFor(edges)
 
-        // members: name from members.parquet, kind as the JavaNodeKind display value
-        assertThat(nodes[place]).isEqualTo(NodeDisplay("place", "java.method", place))
-        assertThat(nodes[log]).isEqualTo(NodeDisplay("log", "java.field", log))
-        assertThat(nodes[ctor]).isEqualTo(NodeDisplay("<init>", "java.constructor", ctor))
-        assertThat(nodes[charge]).isEqualTo(NodeDisplay("charge", "java.method", charge))
+        // members: named by signature and kinded as in the containment tree (a constructor is a java.method)
+        assertThat(nodes[place]).isEqualTo(NodeDisplay(place.substringAfter('#'), "java.method", place))
+        assertThat(nodes[log]).isEqualTo(NodeDisplay(log.substringAfter('#'), "java.field", log))
+        assertThat(nodes[ctor]).isEqualTo(NodeDisplay(ctor.substringAfter('#'), "java.method", ctor))
+        assertThat(nodes[charge]).isEqualTo(NodeDisplay(charge.substringAfter('#'), "java.method", charge))
 
         // types: from the in-memory type graph
         assertThat(nodes["com.shop.OrderService"]).isEqualTo(NodeDisplay("OrderService", "java.class", "com.shop.OrderService"))

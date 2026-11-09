@@ -16,6 +16,8 @@
 package io.hierograph.mcp.server.tools.detail
 
 import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
+import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
@@ -23,12 +25,12 @@ import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
-import java.nio.file.Path
 
 /**
- * The engine behind `field_details`, served from the Parquet snapshot. Identity (name/modifiers/location) comes from
- * `members.parquet`; the field type and annotations from the field's `detail_refs` edges; the read/write
- * access digests from the reverse `reads_field` / `writes_field` edges. Uses the same slim-encoding
+ * The engine behind `field_details`, served from the Parquet snapshot. Identity, modifiers and the declared
+ * type come from `members.parquet`; the annotations from the field's `detail_refs` edges; the read/write
+ * access digests from the `reads_field` / `writes_field` edges into the field, including accesses compiled
+ * against a subtype that inherits it. Uses the same slim-encoding
  * response shape (a top-level `nodes` map keyed by stringified handle).
  */
 @Component
@@ -43,43 +45,41 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         if (member.kind != JavaNodeKind.FIELD) {
             return errorResponse(
                 "WRONG_NODE_KIND",
-                "Node $fieldId is a '${member.kind.value}', not a field. field_details requires a field-kind node.",
+                "Node $fieldId is a 'java.method', not a field. field_details requires a field-kind node.",
                 "To inspect the method itself, use method_details(methodId: $fieldId).",
-                mapOf("actual_kind" to member.kind.value),
+                mapOf("actual_kind" to JavaNodeKind.METHOD.value),
             )
         }
 
         val ownerFqn = memberKey.substringBefore('#')
         val modifiers = MemberModifiers.fieldModifiers(member.modifiers)
-        val isConstant = "static" in modifiers && "final" in modifiers
+        // A compile-time constant (ConstantValue attribute), not merely static final.
+        val isConstant = MemberModifiers.isConstant(member.modifiers)
 
         val nodes = linkedMapOf<String, Any>()
-        putSlimNode(nodes, fieldId, member.name, memberKey, JavaKinds.FIELD.value)
+        putSlimNode(nodes, fieldId, member.signature, memberKey, JavaKinds.FIELD.value)
         val declaringTypeHandle = putType(nodes, ownerFqn)
 
         val ownEdges = reader.readDetailRefs(dir, fromTypes = listOf(ownerFqn)).filter { it.fromKey == memberKey }
 
-        // field type (has_type)
-        val typeFqn = ownEdges.firstOrNull { it.relationship == "has_type" }?.toType
-        val typeIdForResponse: Long?
-        val typeNameForResponse: String
-        when {
-            typeFqn == null -> { typeIdForResponse = null; typeNameForResponse = "unknown" }
-            typeFqn in JAVA_PRIMITIVES -> { typeIdForResponse = null; typeNameForResponse = typeFqn }
-            else -> { typeIdForResponse = putType(nodes, typeFqn); typeNameForResponse = typeFqn }
-        }
+        // The declared type, from the signature `<type> <name>`: a keyword, an FQN, or an array of either.
+        // `type` is the id of its element type when that is a node; `type_name` always names it.
+        val typeNameForResponse = member.signature.substringBeforeLast(' ')
+        val elementType = typeNameForResponse.substringBefore('[')
+        val typeIdForResponse = if (elementType in JAVA_PRIMITIVES) null else putType(nodes, elementType)
 
         // annotations ({type: id or null, type_name}): an annotation type without a node is kept, by name
         val annotations = ownEdges.filter { it.relationship == "annotated_by" }.map { it.toType }.distinct()
             .map { fqn -> linkedMapOf<String, Any?>("type" to putType(nodes, fqn), "type_name" to fqn) }
 
-        // read/write access: reverse edges anchored on this field (to_key == fieldKey)
-        val readers = reader.readDetailRefs(dir, toTypes = listOf(ownerFqn), relationship = "reads_field").filter { it.toKey == memberKey }
-        val writers = reader.readDetailRefs(dir, toTypes = listOf(ownerFqn), relationship = "writes_field").filter { it.toKey == memberKey }
-        val readAccess = accessDigest(reader, dir, readers, nodes)
-        val writeAccess = accessDigest(reader, dir, writers, nodes)
-
-        val location = member.lineFrom?.takeIf { it > 0 }?.let { linkedMapOf<String, Any>("line_number" to it.toLong()) }
+        // read/write access: edges into this field, compiled against its declaring type or against a subtype
+        // that inherits it without declaring a field of the same name
+        val owners = inheritingTypes(ownerFqn, member.name)
+        val signature = member.signature
+        fun accesses(relationship: String) = reader.readDetailRefs(dir, toTypes = owners, relationship = relationship)
+            .filter { it.toType in owners && it.toKey == "${it.toType}#$signature" }
+        val readAccess = accessDigest(accesses("reads_field"), nodes)
+        val writeAccess = accessDigest(accesses("writes_field"), nodes)
 
         return linkedMapOf(
             "nodes" to nodes,
@@ -92,16 +92,45 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
             "annotations" to annotations,
             "read_access" to readAccess,
             "write_access" to writeAccess,
-            "location" to location,
         )
+    }
+
+    /**
+     * [ownerFqn] and every scanned type that inherits its field [fieldName]: the transitive subtypes (through
+     * `extends` and `implements`) that do not declare a field of that name themselves, which would hide it.
+     */
+    private fun inheritingTypes(ownerFqn: String, fieldName: String): Set<String> {
+        val store = graphService.graphStore ?: return setOf(ownerFqn)
+        val model = graphService.model
+        val owner = store.typeByFqn(ownerFqn)?.let { model.lookupNode(NodeHandle.of(it.key)) } ?: return setOf(ownerFqn)
+        val result = linkedSetOf(ownerFqn)
+        val queue = ArrayDeque(listOf(owner))
+        val seen = hashSetOf(owner.identifier)
+        while (queue.isNotEmpty()) {
+            val t = queue.removeFirst()
+            for (dep in t.incomingCoreDependencies) {
+                val bm = dep.attributesBitmap
+                val inherits = JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_EXTENDS) ||
+                    JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_IMPLEMENTS)
+                val sub = dep.from
+                if (!inherits || !seen.add(sub.identifier)) continue
+                val hides = model.hierarchy.childrenOf(sub).any {
+                    it.kind == JavaKinds.FIELD && NodeMetadata.getName(it).substringAfterLast(' ') == fieldName
+                }
+                if (hides) continue
+                result += NodeMetadata.getQualifiedName(sub)
+                queue.add(sub)
+            }
+        }
+        return result
     }
 
     /**
      * Builds a read/write digest from the accessing-method edges (each edge's `from_key` is the
      * reading/writing method, `from_type` its declaring type) and registers the referenced nodes.
      */
-    private fun accessDigest(reader: ParquetReader, dir: Path, edges: List<DetailRef>, nodes: MutableMap<String, Any>): MutableMap<String, Any> {
-        val methods = edges.associateBy { it.fromKey }.values.sortedBy { it.fromType } // distinct accessing methods
+    private fun accessDigest(edges: List<DetailRef>, nodes: MutableMap<String, Any>): MutableMap<String, Any> {
+        val methods = edges.associateBy { it.fromKey }.values.sortedBy { it.fromKey } // distinct accessing methods, by type then signature
         val sample = methods.take(10)
         val sampleIds = sample.map { graphService.memberHandle(it.fromKey) }
 
@@ -111,11 +140,8 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
             .map { linkedMapOf<String, Any>("type" to it.key, "count" to it.value) }
 
         for (m in sample) {
-            val handle = graphService.memberHandle(m.fromKey)
-            val target = reader.readMember(dir, m.fromKey)
-            val isCtor = target?.kind == JavaNodeKind.CONSTRUCTOR || m.fromKey.substringAfterLast('#').startsWith("<init>")
-            putSlimNode(nodes, handle, target?.name ?: m.fromKey.substringAfterLast('#').substringBefore('('), m.fromKey,
-                (if (isCtor) JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD).value)
+            // Named and kinded as in the containment tree: by signature, a constructor as a java.method.
+            putSlimNode(nodes, graphService.memberHandle(m.fromKey), m.fromKey.substringAfterLast('#'), m.fromKey, JavaNodeKind.METHOD.value)
             putType(nodes, m.fromType)
         }
         for (e in byDeclaringType) graphService.model.lookupNode(e["type"] as Long)?.let { putSlimNode(nodes, it) }

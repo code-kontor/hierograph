@@ -46,7 +46,8 @@ class ModifierFilter private constructor(private val required: Set<String>) {
         /** Every value a filter may name: the modifiers [MemberModifiers] can decode for a method or field. */
         val VALID_MODIFIERS: List<String> = listOf(
             "public", "protected", "private", "package-private",
-            "static", "final", "abstract", "synchronized", "native", "default", "transient", "volatile"
+            "static", "final", "abstract", "synchronized", "native", "default", "transient", "volatile",
+            "bridge", "synthetic"
         )
 
         /**

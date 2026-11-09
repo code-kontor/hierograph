@@ -54,11 +54,12 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         val ownerFqn = memberKey.substringBefore('#')
         val declaringTypeRef = typeRef(ownerFqn)
 
+        // Named and kinded as in the containment tree: by signature, a constructor as a java.method.
         val methodRef = linkedMapOf<String, Any?>(
             "id" to methodId,
-            "name" to member.name,
+            "name" to member.signature,
             "qualified_name" to memberKey,
-            "kind" to (if (isConstructor) JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD).value,
+            "kind" to JavaNodeKind.METHOD.value,
             "parent_id" to declaringTypeRef["id"],
             "parent_kind" to declaringTypeRef["kind"],
         )
@@ -78,7 +79,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
             .map { linkedMapOf<String, Any?>("type" to typeRef(it)) }
         // Every method this one overrides: a superclass method and interface methods can all apply.
         val overrides = edges.filter { it.relationship == "overrides" }.distinctBy { it.toKey }
-            .sortedBy { it.toKey }.map { methodRefFor(reader, dir, it.toKey, it.toType) }
+            .sortedBy { it.toKey }.map { methodRefFor(it.toKey, it.toType) }
 
         val parameters = member.parameters.map { p ->
             linkedMapOf<String, Any?>(
@@ -106,15 +107,13 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
     }
 
     /** A method NodeRef for an override target, reading the target member's display when it was scanned. */
-    private fun methodRefFor(reader: ParquetReader, dir: Path, memberKey: String, declaringFqn: String): Map<String, Any?> {
-        val target = reader.readMember(dir, memberKey)
-        val isCtor = target?.kind == JavaNodeKind.CONSTRUCTOR || memberKey.substringAfterLast('#').startsWith("<init>")
+    private fun methodRefFor(memberKey: String, declaringFqn: String): Map<String, Any?> {
         val parent = typeRef(declaringFqn)
         return linkedMapOf(
             "id" to graphService.memberHandle(memberKey),
-            "name" to (target?.name ?: memberKey.substringAfterLast('#').substringBefore('(')),
+            "name" to memberKey.substringAfterLast('#'),
             "qualified_name" to memberKey,
-            "kind" to (if (isCtor) JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD).value,
+            "kind" to JavaNodeKind.METHOD.value,
             "parent_id" to parent["id"],
             "parent_kind" to parent["kind"],
         )

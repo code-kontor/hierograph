@@ -77,7 +77,8 @@ class ListDescendantsTool(
         @ToolParam(
             description = "Restricts to methods and fields whose modifiers include ALL listed values (AND logic); " +
                     "other descendants are excluded while the filter is set. Values: public, protected, private, " +
-                    "package-private, static, final, abstract, synchronized, native, default, transient, volatile.",
+                    "package-private, static, final, abstract, synchronized, native, default, transient, volatile, " +
+                    "bridge, synthetic.",
             required = false
         )
         modifierFilter: List<String>?,

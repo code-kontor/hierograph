@@ -76,7 +76,7 @@ data hash for its cursor, then the detail directory. `withPinnedSnapshot { … }
 the snapshot that is live when the block starts to the calling thread, and every read
 inside the block resolves that snapshot, even when a reload swaps in a new one
 meanwhile. The MCP server runs every tool call inside such a block, so one answer is
-always computed from one graph. While a pinned snapshot is no longer live,
+always computed from one graph. While a pinned snapshot is not the live one,
 `readyDetailDir()` returns `null`, so a call never pairs an old model with the new
 build's detail data. Pins are per thread, and a nested block keeps the outer pin.
 
@@ -129,7 +129,7 @@ failed reload leaves the previously loaded graph in place and returns an `error`
 status rather than emptying the server. Reload returns a small status map
 (`status`, `root_children`, `search_index_entries`, `data_hash`, `reload_millis`)
 for the `reload_graph` tool. Outstanding pagination cursors become stale across a
-reload that changes the graph (their data hash no longer matches); a reload of
+reload that changes the graph (their data hash does not match); a reload of
 unchanged code keeps the hash and the cursors.
 
 **Shutdown** stops the watcher and the background executors.

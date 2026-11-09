@@ -200,6 +200,8 @@ class BytecodeScannerTest {
             .containsExactly("private", "transient", "volatile")
         assertThat(MemberModifiers.fieldModifiers(members.getValue("fix.Circle#double PI").modifiers))
             .containsExactly("public", "static", "final")
+        assertThat(MemberModifiers.isConstant(members.getValue("fix.Circle#double PI").modifiers)).isTrue()
+        assertThat(MemberModifiers.isConstant(members.getValue("fix.Circle#java.util.List tags").modifiers)).isFalse()
         assertThat(MemberModifiers.methodModifiers(type("fix.Shape").members.single { it.name == "label" }.modifiers))
             .containsExactly("public", "default")
 

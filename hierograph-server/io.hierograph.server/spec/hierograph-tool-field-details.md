@@ -91,27 +91,28 @@ and reads the snapshot described in the
 
 | Response field | Source |
 |----------------|--------|
-| `field`, `modifiers`, `is_constant`, `location` | the field's row in `members.parquet` |
-| `type`, `type_name` | the field's `has_type` edge in `detail_refs.parquet` |
+| `field`, `modifiers`, `is_constant`, `type`, `type_name` | the field's row in `members.parquet` |
 | `annotations` | the field's `annotated_by` edges in `detail_refs.parquet` |
-| `read_access` | the `reads_field` edges in `detail_refs.parquet` that target the field |
-| `write_access` | the `writes_field` edges in `detail_refs.parquet` that target the field |
+| `read_access` | the `reads_field` edges in `detail_refs.parquet` that target the field, directly or through an inheriting subtype |
+| `write_access` | the `writes_field` edges in `detail_refs.parquet` that target the field, the same way |
 | `declaring_type` | the owner FQN in the member key, resolved against the graph |
 
 **Modifiers.** Modifiers are decoded from the
 [modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
 in a fixed order: one visibility value (`public`, `protected`, `private` or
-`package-private`), then any of `static`, `final`, `transient`, `volatile`. The
-`synthetic` marker is not reported.
+`package-private`), then any of `static`, `final`, `transient`, `volatile`, and last
+`synthetic` for a field the compiler generated (an enum's `$VALUES`, a captured outer
+instance), so declared and generated fields can be told apart.
 
-**Constant.** `is_constant` is `true` when the field is both `static` and `final`. It
-does not mean the field is a compile-time constant: a `static final Money ZERO` is
-reported as constant, too.
+**Constant.** `is_constant` is `true` when the field is a compile-time constant: its
+class file gives it a `ConstantValue`, a primitive or `String` value the compiler
+copies into every use (`static final int SCALE = 2`). A `static final Money ZERO`,
+initialised at run time, is not a constant. The distinction matters because a
+constant's uses leave no read in the bytecode (§3.2).
 
-**Type.** The field's type is its erased type reduced to the element type: a
-`List<Line>` field reports `java.util.List`, a `Money[]` field reports
-`com.example.money.Money`. `type_name` always carries the name; `type` carries the id
-when the type is a node:
+**Type.** The field's type is its declared, erased type, taken from its signature:
+`type_name` is `java.util.List` for a `List<Line>` field and `com.example.money.Money[]`
+for a `Money[]` field. `type` is the id of the element type when that type is a node:
 
 | Field type | `type` | `type_name` |
 |------------|--------|-------------|
@@ -119,10 +120,10 @@ when the type is a node:
 | an external type with a placeholder node | the placeholder's id | its FQN |
 | an external type without a node (`java.lang.*`, `kotlin.*`) | `null` | its FQN |
 | a primitive | `null` | the keyword: `int`, `boolean`, … |
-| no `has_type` edge in the snapshot | `null` | `unknown` |
+| an array | as for its element type | the element type followed by `[]` |
 
-The scanner records a `has_type` edge for every field, so `unknown` occurs only for a
-snapshot that lacks it. Types without a node are explained by the
+`type_name` is never `null`: the signature always names the type. Types without a node
+are explained by the
 [placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders).
 
 **Annotations.** The annotations on the field, each once, as
@@ -131,11 +132,11 @@ snapshot that lacks it. Types without a node are explained by the
 `null`, so `type_name` names it, as `type` and `type_name` do for the field's own type.
 Annotations with `SOURCE` retention are not in the class file and never appear.
 
-**Location.** The snapshot records line numbers for code only, and a field has none
-(see
-[line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)).
-`location` is therefore `null` for every field. To find the declaration, open the
-declaring type's source file (`type_details`' `location.source_file`).
+**No location.** A class file records line numbers for code only, and a field
+declaration has none (see
+[line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)),
+so the response has no `location`. To find the declaration, open the declaring type's
+source file (`type_details`' `location.source_file`).
 
 ### 3.2 Who reads and writes a field
 
@@ -152,15 +153,17 @@ getter is usually the only reader outside the declaring class.
 **Each method counts once.** A method that reads the field five times counts as one
 reader. `method_count` is the number of distinct accessing methods.
 
-**Accesses are named by the instruction's owner.** The compiler names a field access
-after the type it was written against. An access written against a subclass
-(`SubInvoice.ledger` for a field inherited from `Invoice`) targets the subclass's name
-and is not counted for `Invoice`'s field.
+**Accesses through a subtype count.** The compiler names a field access after the type
+it was written against: `this.pages` in `Invoice`, for a field inherited from
+`AbstractDoc`, targets `Invoice#int pages`. The tool counts such accesses for the
+declaring type's field: it collects the scanned subtypes (through `extends` and
+`implements`) that inherit the field, stopping at a subtype that declares a field of
+the same name and so hides it, and counts the accesses written against any of them.
 
-**Compile-time constants are inlined.** The Java compiler copies the value of a
-`static final` field with a constant initializer (a primitive or a `String` literal)
-into every reader, so no read instruction remains. Such a field reports
-`read_access.method_count` `0` however often it is used in source.
+**Compile-time constants are inlined.** The compiler copies the value of a constant
+(`is_constant: true`, §3.1) into every reader, so no read instruction remains. Such a
+field reports `read_access.method_count` `0` however often it is used in source; this
+is a property of the bytecode, not a gap in the snapshot.
 
 ### 3.3 The access digest
 
@@ -225,8 +228,8 @@ four in `com.example.billing.Invoice`, by member key. The digest is:
 }
 ```
 
-`ZERO` is reported with `is_constant: true`. It is not a compile-time constant, so its
-reads remain in the bytecode and are counted.
+`ZERO` is reported with `is_constant: false`: it is initialised at run time, not a
+compile-time constant, so its reads remain in the bytecode and are counted.
 
 ---
 
@@ -240,12 +243,12 @@ by `book()` and `cancel()`. The response for the field (id `4716`):
 ```json
 {
   "nodes": {
-    "4716": { "name": "ledger", "qualified_name": "com.example.billing.Invoice#com.example.billing.Ledger ledger", "kind": "java.field" },
+    "4716": { "name": "com.example.billing.Ledger ledger", "qualified_name": "com.example.billing.Invoice#com.example.billing.Ledger ledger", "kind": "java.field" },
     "4711": { "name": "Invoice", "qualified_name": "com.example.billing.Invoice", "kind": "java.class" },
     "4713": { "name": "Ledger", "qualified_name": "com.example.billing.Ledger", "kind": "java.interface" },
-    "4718": { "name": "book", "qualified_name": "com.example.billing.Invoice#void book()", "kind": "java.method" },
-    "4719": { "name": "cancel", "qualified_name": "com.example.billing.Invoice#void cancel()", "kind": "java.method" },
-    "4714": { "name": "<init>", "qualified_name": "com.example.billing.Invoice#void <init>(com.example.billing.Ledger)", "kind": "java.constructor" }
+    "4718": { "name": "void book()", "qualified_name": "com.example.billing.Invoice#void book()", "kind": "java.method" },
+    "4719": { "name": "void cancel()", "qualified_name": "com.example.billing.Invoice#void cancel()", "kind": "java.method" },
+    "4714": { "name": "void <init>(com.example.billing.Ledger)", "qualified_name": "com.example.billing.Invoice#void <init>(com.example.billing.Ledger)", "kind": "java.method" }
   },
   "field": 4716,
   "declaring_type": 4711,
@@ -261,8 +264,7 @@ by `book()` and `cancel()`. The response for the field (id `4716`):
   "write_access": {
     "method_count": 1, "methods_sample": [4714], "sample_truncated": false,
     "by_declaring_type": [ { "type": 4711, "count": 1 } ]
-  },
-  "location": null
+  }
 }
 ```
 
@@ -274,22 +276,19 @@ by `book()` and `cancel()`. The response for the field (id `4716`):
 | `field` | id | no | The field itself. |
 | `declaring_type` | id | yes | The type that declares the field. |
 | `modifiers` | list of strings | no | Visibility first, then storage modifiers (§3.1). |
-| `is_constant` | boolean | no | `true` for `static final`. |
+| `is_constant` | boolean | no | `true` for a compile-time constant (§3.1). |
 | `type` | id | yes | The field's type, when it is a node (§3.1). |
-| `type_name` | string | no | The field's type by name, keyword or `unknown`. |
+| `type_name` | string | no | The field's declared type: FQN or keyword, with `[]` for an array. |
 | `annotations` | list of `{type, type_name}` | no | Annotation types; `type` is an id, or `null` without a node. |
 | `read_access` | digest | no | Who reads the field (§3.3). |
 | `write_access` | digest | no | Who writes the field (§3.3). |
-| `location` | object | always `null` | Fields carry no line (§3.1). |
 
 **`nodes`** is the [slim node map](hierograph-mcp-tools.md#63-slim-node-map). It holds
 the field, its declaring type, its type and annotation types when they are nodes, every
 sampled method with its declaring type, and every type in `by_declaring_type`. Methods
-beyond the sample have no entry. Member entries carry the bare `name`, as in
-`method_details`; the signature is in `qualified_name` after the `#`. A constructor's
-entry has kind `java.constructor`, although `list_children` reports the same id as
-`java.method`
-([shared spec §3.2](hierograph-mcp-tools.md#32-kinds)).
+beyond the sample have no entry. Member entries are named and kinded as in the
+containment tree: by signature, and a constructor as a `java.method`
+([shared spec §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)).
 
 **`field`** echoes the input so the response can be read on its own; its `nodes` entry
 names it.
@@ -299,7 +298,8 @@ siblings (`list_children`). It is `null` only if the owner FQN has no node, whic
 not occur for scanned fields.
 
 **`modifiers`** and **`is_constant`** answer "who can see this field?" and "can it
-change?". `is_constant` is a convenience for the frequent `static final` check (§3.1).
+change?". `is_constant` says whether the value is inlined into its readers, which
+changes what `read_access` can show (§3.1, §3.2).
 
 **`type`** and **`type_name`** are separate because not every type is a node.
 `type_name` always gives the caller something to read; `type` is there when the caller
@@ -313,9 +313,6 @@ name, so an annotation without a node is still reported.
 They are split because readers depend on the field's value and writers on its
 mutability, and a refactoring affects them differently.
 
-**`location`** keeps the key that `method_details` uses, so the two tools share a shape;
-for fields it is always `null`.
-
 ---
 
 ## 5. Errors
@@ -324,7 +321,7 @@ for fields it is always `null`.
 |------|-----------|--------------|
 | `NODE_NOT_FOUND` | `fieldId` names no node | none |
 | `WRONG_NODE_KIND` | `fieldId` names a type, package or module | `actual_kind`; the recovery names `type_details` and `list_children` for a type, `list_descendants` otherwise |
-| `WRONG_NODE_KIND` | `fieldId` names a method or constructor | `actual_kind` (`"java.method"` or `"java.constructor"`) |
+| `WRONG_NODE_KIND` | `fieldId` names a method or constructor | `actual_kind` (`"java.method"`) |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | none |
 
 All three use the nested shape of
@@ -378,8 +375,8 @@ ask `incoming_dependencies(fromId = <declaring type id>, toId = <scope id>, deta
 `method_details` and a type id to `type_details` (or, for an `external.type` placeholder,
 to the dependency tools).
 
-**Account for inlined constants.** A `static final` field of a primitive or `String`
-type with `read_access.method_count` `0` may still be used: its value is inlined into
+**Account for inlined constants.** A field with `is_constant: true` and
+`read_access.method_count` `0` may still be used: its value is inlined into
 the readers (§3.2). Search the source for its name before deleting it.
 
 ---

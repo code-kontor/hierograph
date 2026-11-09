@@ -84,4 +84,32 @@ class DetailMemberScopeTest {
         assertThat(edges(resp).map { it["relationship"] }).containsExactly("calls", "overrides", "calls")
         assertThat(edges(resp)[1]["from"]).isEqualTo(f.id("$INVOICE#void render()"))
     }
+
+    @Test
+    fun `an empty detail result still rejects a malformed cursor`() {
+        val resp = f.outgoing.outgoingDependencies(f.id(INVOICE), f.id(MONEY), "detail", null, null, "!!nope!!")
+        assertThat((resp["error"] as Map<String, Any?>)["code"]).isEqualTo("INVALID_CURSOR_FORMAT")
+        val fieldScope = f.outgoing.outgoingDependencies(f.id("$MONEY#int SCALE"), f.id(INVOICE), "detail", null, null, "!!nope!!")
+        assertThat((fieldScope["error"] as Map<String, Any?>)["code"]).isEqualTo("INVALID_CURSOR_FORMAT")
+    }
+
+    @Test
+    fun `the type-level nodes map names every ranked type`() {
+        val resp = f.outgoing.outgoingDependencies(f.id(INVOICE), null, "type", null, 1, null)
+        val nodes = resp["nodes"] as Map<String, Any?>
+        val ranked = ((resp["summary"] as Map<String, Any?>)["by_target"] as List<Map<String, Any?>>).map { it["id"].toString() }
+        assertThat(nodes.keys).containsAll(ranked)
+    }
+
+    @Test
+    fun `aggregated_dependencies needs both lists and ignores repeated ids`() {
+        val tool = io.hierograph.mcp.server.tools.dependencyanalysis.AggregatedDependenciesTool(
+            f.graphService, io.hierograph.mcp.server.tools.NodeRefFactory(f.graphService)
+        )
+        assertThat((tool.aggregatedDependencies(emptyList(), listOf(f.id(MONEY)))["error"] as Map<String, Any?>)["code"])
+            .isEqualTo("INPUT_TOO_SMALL")
+        val resp = tool.aggregatedDependencies(listOf(f.id(INVOICE), f.id(INVOICE)), listOf(f.id(MONEY)))
+        assertThat(resp["edges"] as List<*>).hasSize(1)
+        assertThat((resp["summary"] as Map<String, Any?>)["total_pairs_requested"]).isEqualTo(1)
+    }
 }

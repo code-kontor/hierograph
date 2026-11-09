@@ -56,7 +56,8 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
         for (key in memberKeys) {
             val md = memberDisplay[key]
             nodes[key] = if (md != null) {
-                NodeDisplay(md.name, memberKindDisplay(md.kind), key)
+                // Named and kinded as in the containment tree: by signature, a constructor as a method.
+                NodeDisplay(key.substringAfterLast('#'), memberKindDisplay(md.kind), key)
             } else {
                 // A referenced member we never scanned (e.g. a member of an external type): best-effort.
                 NodeDisplay(key.substringAfterLast('#'), "unknown", key)
@@ -78,9 +79,10 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
         if ('#' in key) members += key else types += key
     }
 
-    /** Raw members-table kind name (METHOD / FIELD / CONSTRUCTOR) → the JavaNodeKind display value. */
+    /** Raw members-table kind name (METHOD / FIELD / CONSTRUCTOR) → the tree's kind: a constructor is a method. */
     private fun memberKindDisplay(kindName: String): String =
-        runCatching { JavaNodeKind.valueOf(kindName).value }.getOrDefault(kindName)
+        runCatching { JavaNodeKind.valueOf(kindName) }.getOrNull()
+            ?.let { if (it == JavaNodeKind.CONSTRUCTOR) JavaNodeKind.METHOD else it }?.value ?: kindName
 
     /** A type node's kind (a JavaNodeKind, or the EXTERNAL_TYPE string) → display value. */
     private fun typeKindDisplay(kind: Any): String = (kind as? JavaNodeKind)?.value ?: kind.toString()

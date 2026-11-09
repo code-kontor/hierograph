@@ -89,8 +89,9 @@ contains `Money`, such as `com.example.money.Money total()`.
 listed value. It exists for questions across a whole subtree, such as every public
 static method of a module. Values are matched ignoring case against the member modifier vocabulary:
 a visibility (`public`, `protected`, `private`, `package-private`), then `static`,
-`final`, `abstract`, `synchronized`, `native` and `default` for methods (constructors
-included) and `static`, `final`, `transient` and `volatile` for fields. Every member
+`final`, `abstract`, `synchronized`, `native`, `default`, `bridge` and `synthetic` for
+methods (constructors included) and `static`, `final`, `transient`, `volatile` and
+`synthetic` for fields. `["synthetic"]` finds the members the compiler generated. Every member
 has exactly one visibility, so `["package-private"]` finds the members without a
 visibility keyword. An unknown value is rejected with `INVALID_PARAMETER` (§5); an
 empty list is no filter.
@@ -242,7 +243,7 @@ minimal fields only ([§6.2](hierograph-mcp-tools.md#62-enriched-noderef)).
 |-----------|------|---------|----------|
 | `nodeId` names no node | `NODE_NOT_FOUND` | `No node with id 9999 exists in the graph.` | `Use find_node to look up the correct node ID.` |
 | `kindFilter` contains a value that is neither a kind nor an alias | `INVALID_KIND` | `Unknown kind: 'classes'. Valid kinds: java.module, java.package, …. Group aliases: types, members, packages.` | `Use values from valid_kinds or valid_aliases, or omit kindFilter.` |
-| `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile.` | `Use valid modifier values, or omit modifierFilter.` |
+| `modifierFilter` contains an unknown value | `INVALID_PARAMETER` | `Unknown modifier 'pubic'. Valid modifiers: public, protected, private, package-private, static, final, abstract, synchronized, native, default, transient, volatile, bridge, synthetic.` | `Use valid modifier values, or omit modifierFilter.` |
 | `cursor` is malformed, from another tool, or issued for other parameters or another graph | `INVALID_CURSOR_FORMAT`, `STALE_CURSOR_VERSION`, `WRONG_TOOL_CURSOR`, `STALE_CURSOR_QUERY`, `STALE_CURSOR_DATA` | see [§7.2](hierograph-mcp-tools.md#72-cursors) | restart without `cursor`, or restore the original parameters |
 | No graph is loaded | — | `{"status": "no_graph_available", …}` ([§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | make the graph source available, then call `reload_graph` |
 

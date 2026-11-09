@@ -540,11 +540,13 @@ visibility is the absence of all three visibility bits.
 | 10 | `0x0400` | `default` | interface methods |
 | 11 | `0x0800` | `bridge` | methods (compiler-generated) |
 | 12 | `0x1000` | `synthetic` | members (compiler-generated) |
-| 13 | `0x2000` | `generic` | types that declare type parameters |
+| 13 | `0x2000` | `generic` (types), `constant` (fields) | a type that declares type parameters; a field that is a compile-time constant |
 
-Types use bits 0–5 and 13. Bit 13 is not a modifier: it records that the class
-signature opens with a type-parameter list (`class Box<T>`), so `type_details` can
-answer `is_generic` from the snapshot alone. This layout is Hierograph's own rather than the JVM's
+Types use bits 0–5 and 13. Bit 13 is not a modifier and means one thing per table:
+on a type, that its class signature opens with a type-parameter list
+(`class Box<T>`), so `type_details` can answer `is_generic`; on a field, that it
+carries a `ConstantValue` attribute, a value the compiler inlines into every use, so
+`field_details` can answer `is_constant`. This layout is Hierograph's own rather than the JVM's
 access-flag layout, so that `default`, which the JVM does not encode as a flag,
 fits alongside the rest.
 

@@ -160,9 +160,9 @@ dependency on `BigDecimal` is as visible as a dependency on `Money`.
 | `java.field` | A field |
 | `external.type` | A type referenced from outside the scanned code |
 
-Two further kinds appear only inside responses and never as tree nodes:
-`java.primitive` for primitive types such as `int` and `void` (always with `id: null`),
-and `java.constructor`, which the detail tools report for a `<init>` member.
+One further kind appears only inside responses and never as a tree node:
+`java.primitive`, for primitive types such as `int` and `void` (always with `id: null`).
+Every tool reports a member under its tree kind, a constructor as `java.method`.
 
 **Kind filters** accept the kind values above, `external.type` included, plus three
 **group aliases** that expand to several kinds:
@@ -194,8 +194,8 @@ without a second lookup:
 
 With several invalid values the message starts `Unknown kinds:`. A tool whose results
 can only have some kinds accepts only those: `affected_by` accepts the type kinds,
-`external.type` and the `types` alias, and rejects the rest, which could never match. The pseudo-kinds
-`java.primitive` and `java.constructor` are not valid filter values.
+`external.type` and the `types` alias, and rejects the rest, which could never match.
+`java.primitive` is not a valid filter value.
 
 ### 3.3 Two levels of dependency
 
@@ -318,8 +318,9 @@ each candidate is and whether it is part of an API.
 **`modifiers`** lists the declared modifiers, visibility first, in the vocabulary of
 the entity-detail tools: for a type `public`/`protected`/`private`/`package-private`,
 then `abstract`, `final`, `static`; for a method the visibility, then `static`, `final`,
-`abstract`, `synchronized`, `native`, `default`; for a field the visibility, then
-`static`, `final`, `transient`, `volatile`. **`is_abstract`** repeats the presence of
+`abstract`, `synchronized`, `native`, `default`, `bridge`, `synthetic`; for a field the
+visibility, then `static`, `final`, `transient`, `volatile`, `synthetic`. `bridge` and
+`synthetic` mark what the compiler generated. **`is_abstract`** repeats the presence of
 `abstract` on a type as a boolean; interfaces are abstract. The graph keeps these flags
 in memory, so browse results carry them at no extra cost.
 

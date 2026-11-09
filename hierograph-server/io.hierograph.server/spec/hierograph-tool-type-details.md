@@ -172,10 +172,10 @@ not reported, because the snapshot does not record them.
 
 **Member counts.** `member_summary` counts every row in `members.parquet` for the type,
 including compiler-generated members: bridge methods, synthetic accessors, lambda
-bodies and the static initializer `<clinit>`. Constructors (`<init>`) are counted
-separately in `constructor_count` and are *not* part of `method_count`. The enriched
-NodeRef counts them as methods, so for the same type `list_children` reports
-`method_count` = `type_details`' `method_count` + `constructor_count`.
+bodies and the static initializer `<clinit>`. `method_count` includes the constructors
+(`<init>`), as the containment tree does, so it equals the `method_count` that
+`list_children` and every browse tool report for the same type; `constructor_count`
+says how many of them are constructors.
 
 ### 3.2 Referenced types outside the graph
 
@@ -225,8 +225,8 @@ compiles to two class files, `Invoice` and `Invoice$Line`. For `Invoice`,
 `members.parquet` holds eight rows: three fields (`LOG`, `ledger`, `lines`), one
 constructor, and four methods: `total`, `compareTo(Invoice)`, the bridge method
 `compareTo(Object)` the compiler generates for the generic interface, and `<clinit>`,
-which initialises `LOG`. `type_details` therefore reports `method_count` `4`,
-`field_count` `3` and `constructor_count` `1`, while `list_children` reports
+which initialises `LOG`. `type_details` therefore reports `method_count` `5`, of which
+`constructor_count` `1`, and `field_count` `3`, as `list_children` reports
 `method_count` `5` and `member_count` `8`.
 
 `Comparable` is in `java.lang`, so it has no node and comes back with `id: null`.
@@ -262,7 +262,7 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
     { "id": 4807, "name": "Serializable", "qualified_name": "java.io.Serializable", "kind": "external.type" }
   ],
   "annotations": [],
-  "member_summary": { "method_count": 4, "field_count": 3, "constructor_count": 1 },
+  "member_summary": { "method_count": 5, "field_count": 3, "constructor_count": 1 },
   "inner_types": [
     { "id": 4712, "name": "Invoice$Line", "qualified_name": "com.example.billing.Invoice$Line",
       "kind": "java.class", "parent_id": 4702, "parent_kind": "java.package" }
@@ -283,7 +283,7 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
 | `superclass` | type reference | yes | The superclass named in the class file. |
 | `interfaces` | list of type references | no | Directly implemented (or, for an interface, extended) interfaces. |
 | `annotations` | list of `{type}` | no | Annotations on the type itself; `type` is a type reference. |
-| `member_summary` | object | no | `method_count`, `field_count`, `constructor_count`. |
+| `member_summary` | object | no | `method_count` (constructors included), `field_count`, `constructor_count`. |
 | `inner_types` | list of minimal NodeRefs | no | The member types declared directly in the type (§3.1). |
 | `location` | object | yes | `{source_file}`, the simple name of the source file. |
 
@@ -316,8 +316,8 @@ than how it is used. They are type references (§3.2) so the caller can follow e
 `method_details`' annotations.
 
 **`member_summary`** sizes the type by sort of member (§3.1). `constructor_count` is
-separate because "how many ways can this be built" and "how much behaviour does it
-have" are different questions.
+reported besides `method_count` because "how many ways can this be built" and "how much
+behaviour does it have" are different questions.
 
 **`inner_types`** lists the member types declared directly in the type, in the
 package's child order, so a caller sees a type's nested API without listing the whole
@@ -370,7 +370,7 @@ so it never returns `DETAIL_REBUILDING` for an external type.
 | Code | Situation | Shape | Extra fields |
 |------|-----------|-------|--------------|
 | `NODE_NOT_FOUND` | `typeId` names no node | nested | `recovery`: use `find_node` |
-| `WRONG_NODE_KIND` | `typeId` names a node that is neither one of the five type kinds nor an external type | nested | `actual_kind`, `declaring_type`, `recovery` |
+| `WRONG_NODE_KIND` | `typeId` names a node that is neither one of the five type kinds nor an external type | nested | `actual_kind`, `declaring_type` (members only), `recovery` |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | nested | `recovery`: retry in a moment |
 
 Error shapes and the no-graph response are defined in the
@@ -390,9 +390,9 @@ Error shapes and the no-graph response are defined in the
     "recovery": "To inspect the method itself, use method_details(methodId: 4715)." } }
 ```
 
-`declaring_type` is the parent of the node that was passed, as a minimal NodeRef: the
-declaring type for a method or field, the parent package for a package, and `null` for
-a module. The
+`declaring_type` is the type that declares the member that was passed, as a minimal
+NodeRef. It is present only for a method or field; for a package or module the key is
+left out, because they have no declaring type. The
 `recovery` names `method_details` for a method (constructors included), `field_details`
 for a field, and `list_children` / `list_descendants` for anything else.
 

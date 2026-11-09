@@ -100,17 +100,19 @@ and reads the method's rows from the Parquet snapshot described in the
 | `overrides` | the `overrides` edges derived when the graph is loaded |
 | `declaring_type` | the owner FQN in the member key, resolved against the graph |
 
-**Kind.** A member named `<init>` is a constructor. The response reports it with kind
-`java.constructor` and `is_constructor: true`, and its `return_type` is the declaring
-type, the type a constructor produces. Every other member, `<clinit>` included, has kind
-`java.method`.
+**Kind.** A member named `<init>` is a constructor. The response reports it, like every
+method, with kind `java.method`, as the containment tree does, and marks it with
+`is_constructor: true`; its `return_type` is the declaring type, the type a constructor
+produces.
 
 **Modifiers.** Modifiers are decoded from the
 [modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
 in a fixed order: one visibility value (`public`, `protected`, `private` or
 `package-private`), then any of `static`, `final`, `abstract`, `synchronized`, `native`,
-`default`. `default` marks an interface method with a body that is neither static nor
-private. The compiler markers `bridge` and `synthetic` are not reported.
+`default`, and last the compiler markers `bridge` and `synthetic`. `default` marks an
+interface method with a body that is neither static nor private; `bridge` and
+`synthetic` mark methods the compiler generated (bridges for generic and covariant
+overrides, lambda bodies, accessors), so a reader can tell them from declared ones.
 
 **Types.** Every type in the response is the erased type, reduced to its element type:
 a `List<Money>` parameter reports `java.util.List`, a `Money[]` parameter reports
@@ -167,13 +169,13 @@ Three reference forms appear in the response.
 | Field | Value | Example |
 |-------|-------|---------|
 | `id` | the member's node id | `4715` |
-| `name` | the bare member name | `total`, `<init>` |
+| `name` | the member's signature | `com.example.money.Money total(java.lang.String)`, `void <init>()` |
 | `qualified_name` | the member key | `com.example.billing.Invoice#com.example.money.Money total(java.lang.String)` |
-| `kind` | `java.method` or `java.constructor` | `java.method` |
+| `kind` | always `java.method`, constructors included | `java.method` |
 | `parent_id`, `parent_kind` | the declaring type's id and kind | `4711`, `java.class` |
 
-`name` is the bare name, unlike `list_children`, which names members by signature. The
-signature is in `qualified_name`, after the `#`.
+`name` and `kind` match what `list_children` and every other tool report for the same id,
+so a reference reads the same wherever it appears.
 
 **A type reference** (`declaring_type`, `return_type`, parameter types, `throws`,
 `raises`, annotation types) has `id`, `name`, `qualified_name` and `kind`:
@@ -238,7 +240,7 @@ The response for `total` (id `4715`):
 ```json
 {
   "method": {
-    "id": 4715, "name": "total",
+    "id": 4715, "name": "com.example.money.Money total(java.lang.String)",
     "qualified_name": "com.example.billing.Invoice#com.example.money.Money total(java.lang.String)",
     "kind": "java.method", "parent_id": 4711, "parent_kind": "java.class"
   },
@@ -266,7 +268,7 @@ member key. For `CachedLedger.post` (id `4723`), which implements `Ledger.post`:
 
 ```json
 "overrides": [
-  { "id": 4722, "name": "post",
+  { "id": 4722, "name": "void post(com.example.billing.Invoice)",
     "qualified_name": "com.example.billing.Ledger#void post(com.example.billing.Invoice)",
     "kind": "java.method", "parent_id": 4713, "parent_kind": "java.interface" }
 ]
@@ -288,7 +290,7 @@ member key. For `CachedLedger.post` (id `4723`), which implements `Ledger.post`:
 | `overrides` | list of method references | no | The overridden methods in the scanned code, sorted by member key. |
 | `location` | object | yes | `{line_number}`, the first line of the method's code. |
 
-**`method`** echoes the input with its bare name and member key, so the response can be
+**`method`** echoes the input with its signature and member key, so the response can be
 read on its own. Its `parent_id` is the declaring type's id.
 
 **`declaring_type`** lets the caller move from a method to its type's declaration

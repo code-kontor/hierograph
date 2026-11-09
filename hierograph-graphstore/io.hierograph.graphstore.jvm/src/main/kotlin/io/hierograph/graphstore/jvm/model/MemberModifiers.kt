@@ -38,12 +38,18 @@ object MemberModifiers {
     const val DEFAULT = 1 shl 10
 
     /**
-     * Compiler-generated flags. Not user-facing modifiers (kept out of [methodModifiers] / [fieldModifiers]),
-     * but needed by the hierarchy resolver to get covariant-return overrides right: a covariant override
-     * compiles to a [BRIDGE] method forwarding to the real one, and both must be reasoned about.
+     * Compiler-generated flags. The hierarchy resolver needs them to get covariant-return overrides right
+     * (a covariant override compiles to a [BRIDGE] method forwarding to the real one), and the modifier
+     * lists end with them, so a reader can tell compiler-generated members from declared ones.
      */
     const val BRIDGE = 1 shl 11
     const val SYNTHETIC = 1 shl 12
+
+    /**
+     * A field that is a compile-time constant: it carries a `ConstantValue` attribute, so the compiler
+     * inlines its value at every use. Not a modifier; never listed by [fieldModifiers].
+     */
+    const val CONSTANT = 1 shl 13
 
     /** Packs the given flags into a bitmap. [visibility] is one of public/protected/private (else package-private). */
     fun pack(
@@ -58,6 +64,7 @@ object MemberModifiers {
         volatile: Boolean = false,
         bridge: Boolean = false,
         synthetic: Boolean = false,
+        constant: Boolean = false,
     ): Int {
         var bits = when (visibility?.lowercase()) {
             "public" -> PUBLIC
@@ -75,11 +82,13 @@ object MemberModifiers {
         if (volatile) bits = bits or VOLATILE
         if (bridge) bits = bits or BRIDGE
         if (synthetic) bits = bits or SYNTHETIC
+        if (constant) bits = bits or CONSTANT
         return bits
     }
 
     fun isBridge(bits: Int): Boolean = bits and BRIDGE != 0
     fun isSynthetic(bits: Int): Boolean = bits and SYNTHETIC != 0
+    fun isConstant(bits: Int): Boolean = bits and CONSTANT != 0
 
     fun visibility(bits: Int): String = when {
         bits and PUBLIC != 0 -> "public"
@@ -88,7 +97,10 @@ object MemberModifiers {
         else -> "package-private"
     }
 
-    /** Method/constructor modifiers in canonical order: visibility, then static/final/abstract/synchronized/native/default. */
+    /**
+     * Method/constructor modifiers in canonical order: visibility, then static/final/abstract/synchronized/
+     * native/default, then the compiler-generated `bridge` and `synthetic`.
+     */
     fun methodModifiers(bits: Int): List<String> = buildList {
         add(visibility(bits))
         if (bits and STATIC != 0) add("static")
@@ -97,14 +109,17 @@ object MemberModifiers {
         if (bits and SYNCHRONIZED != 0) add("synchronized")
         if (bits and NATIVE != 0) add("native")
         if (bits and DEFAULT != 0) add("default")
+        if (bits and BRIDGE != 0) add("bridge")
+        if (bits and SYNTHETIC != 0) add("synthetic")
     }
 
-    /** Field modifiers in canonical order: visibility, then static/final/transient/volatile. */
+    /** Field modifiers in canonical order: visibility, then static/final/transient/volatile, then `synthetic`. */
     fun fieldModifiers(bits: Int): List<String> = buildList {
         add(visibility(bits))
         if (bits and STATIC != 0) add("static")
         if (bits and FINAL != 0) add("final")
         if (bits and TRANSIENT != 0) add("transient")
         if (bits and VOLATILE != 0) add("volatile")
+        if (bits and SYNTHETIC != 0) add("synthetic")
     }
 }

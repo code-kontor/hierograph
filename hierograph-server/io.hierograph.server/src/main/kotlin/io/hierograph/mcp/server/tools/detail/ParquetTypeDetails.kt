@@ -86,7 +86,8 @@ class ParquetTypeDetails(
             .map { linkedMapOf<String, Any?>("type" to typeRef(it)) }
 
         val memberSummary = linkedMapOf<String, Any?>(
-            "method_count" to members.count { it.kind == JavaNodeKind.METHOD },
+            // Methods include constructors, as in the containment tree; constructor_count is that subset.
+            "method_count" to members.count { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR },
             "field_count" to members.count { it.kind == JavaNodeKind.FIELD },
             "constructor_count" to members.count { it.kind == JavaNodeKind.CONSTRUCTOR },
         )
@@ -177,19 +178,21 @@ class ParquetTypeDetails(
         val hierarchy = graphService.model.hierarchy
         val declaringType = hierarchy.parentOf(node)
         val kind = node.kind?.toString()
-        return mapOf(
-            "error" to mapOf(
-                "code" to "WRONG_NODE_KIND",
-                "message" to "Node $typeId is a '$kind', not a type. " +
-                        "type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation, external.type).",
-                "actual_kind" to kind,
-                "declaring_type" to declaringType?.takeIf { it !== hierarchy.rootNode }?.let { nodeRefFactory.minimalNodeRef(it) },
-                "recovery" to when (node.kind) {
-                    JavaKinds.METHOD -> "To inspect the method itself, use method_details(methodId: $typeId)."
-                    JavaKinds.FIELD -> "To inspect the field itself, use field_details(fieldId: $typeId)."
-                    else -> "Use list_children or list_descendants to find type nodes."
-                },
-            )
+        val error = linkedMapOf<String, Any?>(
+            "code" to "WRONG_NODE_KIND",
+            "message" to "Node $typeId is a '$kind', not a type. " +
+                    "type_details requires a type-kind node (java.class, java.interface, java.enum, java.record, java.annotation, external.type).",
+            "actual_kind" to kind,
         )
+        // Only a member has a declaring type; for a package or module the key is left out.
+        if (node.kind in JavaKinds.MEMBER_KINDS && declaringType != null) {
+            error["declaring_type"] = nodeRefFactory.minimalNodeRef(declaringType)
+        }
+        error["recovery"] = when (node.kind) {
+            JavaKinds.METHOD -> "To inspect the method itself, use method_details(methodId: $typeId)."
+            JavaKinds.FIELD -> "To inspect the field itself, use field_details(fieldId: $typeId)."
+            else -> "Use list_children or list_descendants to find type nodes."
+        }
+        return mapOf("error" to error)
     }
 }

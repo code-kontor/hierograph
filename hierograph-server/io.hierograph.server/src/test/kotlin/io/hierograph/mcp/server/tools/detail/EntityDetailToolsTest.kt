@@ -110,4 +110,36 @@ class EntityDetailToolsTest {
             assertThat((resp["interfaces"] as List<Map<String, Any?>>).map { it["qualified_name"] }).containsExactly(iface)
         }
     }
+
+    @Test
+    fun `members are named by signature and a constructor is a java_method`() {
+        val ctor = methods.methodDetails(f.id("$INVOICE#void <init>()"))
+        val ref = ctor["method"] as Map<String, Any?>
+        assertThat(ref["name"]).isEqualTo("void <init>()")
+        assertThat(ref["kind"]).isEqualTo("java.method")
+        assertThat(ctor["is_constructor"]).isEqualTo(true)
+    }
+
+    @Test
+    fun `field_details reads type and constancy from the declaration, and has no location`() {
+        val scale = fields.fieldDetails(f.id("$MONEY#int SCALE"))
+        assertThat(scale["type_name"]).isEqualTo("int")
+        assertThat(scale["is_constant"]).isEqualTo(true)
+        assertThat(scale).doesNotContainKey("location")
+        assertThat(fields.fieldDetails(f.id("$MONEY#int cents"))["is_constant"]).isEqualTo(false)
+    }
+
+    @Test
+    fun `an access through a subclass counts for the inherited field`() {
+        val pages = fields.fieldDetails(f.id("$DOC#int pages"))
+        assertThat((pages["read_access"] as Map<String, Any?>)["method_count"]).isEqualTo(1)
+    }
+
+    @Test
+    fun `type_details counts constructors among the methods and omits declaring_type for a package`() {
+        val summary = types.typeDetails(f.id(INVOICE))["member_summary"] as Map<String, Any?>
+        assertThat(summary["method_count"]).isEqualTo(5)
+        assertThat(summary["constructor_count"]).isEqualTo(1)
+        assertThat(error(types.typeDetails(f.id("com.example.money")))).doesNotContainKey("declaring_type")
+    }
 }
