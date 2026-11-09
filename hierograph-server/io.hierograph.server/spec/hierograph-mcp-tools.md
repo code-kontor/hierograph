@@ -352,10 +352,9 @@ needed to resume:
 | `dh` | **data hash** of the loaded graph | resuming over changed data skips or repeats items |
 | `offset` | position of the next item | where to resume |
 
-The server keeps no session state. A cursor stays valid across reloads that leave the
-graph unchanged, and becomes invalid as soon as a rebuild changes it. It does not
-survive a server restart: the data hash includes the hash codes of the kind values,
-which differ from one JVM process to the next.
+The server keeps no session state. A cursor stays valid across reloads and server
+restarts that leave the graph unchanged, and becomes invalid as soon as a rebuild
+changes it.
 
 The query hash covers the parameters that define the result and excludes `limit` and
 `cursor`, so a caller can change the page size between pages. Kind and modifier
@@ -363,8 +362,9 @@ filters are sorted before hashing, so reordering them keeps the cursor valid. Th
 `nodeIds` of `pairwise_dependencies` are hashed in the given order.
 
 The **data hash** is a fingerprint of the loaded graph: the node count, the edge count
-and an order-independent sum over every node's id and kind. Within one server
-process, two loads of the same code give the same hash.
+and an order-independent sum over the hashes of every node's id and kind, each taken
+from its text. Two loads of the same code give the same hash, in the same server
+process or in another one.
 
 A cursor is checked in this order, and the first failure is reported:
 

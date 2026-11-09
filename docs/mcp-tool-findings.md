@@ -36,7 +36,7 @@ Severity:
 
 | # | Severity | Finding | Location |
 |---|----------|---------|----------|
-| 1.1 | High | Cursors do not survive a server restart. `DataHash` hashes `node.kind?.hashCode()`, and for a `JavaNodeKind` enum that value changes from one JVM process to the next. Hashing `kind.toString()` would make it stable. | `io.hierograph.server.graphservice/.../pagination/DataHash.kt:55` |
+| 1.1 | Fixed | Cursors did not survive a server restart: `DataHash` hashed `node.kind?.hashCode()`, which for a `JavaNodeKind` enum differs from one JVM process to the next. It now hashes the kind's text; `DataHashTest` pins the fingerprint of a graph with enum kinds. | `io.hierograph.server.graphservice/.../pagination/DataHash.kt` |
 | 1.2 | Medium | There are three error shapes. Most tools return a nested `{error:{code,message,recovery}}`. `method_details` and `field_details` return a flat `{error,code,message}`. The detail-level engine returns a flat `{error,message}` without `code`. | `tools/detail/ParquetDetailDependencies.kt:259`, `ParquetMethodDetails.kt`, `ParquetFieldDetails.kt`, `AbstractDetailTool.kt:58` |
 | 1.3 | Medium | `INVALID_KIND` has two shapes. `find_node` includes `invalid_values`, `valid_kinds` and `valid_aliases`, and its message reads "Unknown kind: …". The list tools include only `recovery`, and their message reads "Unknown kind …". `affected_by` does not reject unknown kinds at all (4.2). | `tools/navigation/FindNodeTool.kt:65`, `ListChildrenTool.kt:97`, `ListDescendantsTool.kt:113` |
 | 1.4 | Medium | One tool call can mix two graphs. Tools read `graphService.model` (and `dataHash`) several times per call, so a call that overlaps a reload can see the old snapshot in one read and the new one in the next. | e.g. `tools/navigation/ListDescendantsTool.kt:103,141,189,201` |
@@ -146,5 +146,4 @@ These changes affect only descriptions, messages and KDoc. No logic changed.
   - The `direction` parameter description of `pairwise_dependencies` states its labelling semantics.
   - `source_count` of `affected_by` is described as it is computed.
   - The `DETAIL_UNAVAILABLE` message no longer claims Parquet mode is required.
-- **Cursor lifetime.** The KDoc of `Cursor` and `DataHash` states that cursors survive reloads of unchanged data but not server restarts (1.1).
 - **Service spec.** `hierarchical-graph-service.md` now says cursors become stale only when a reload changes the graph.
