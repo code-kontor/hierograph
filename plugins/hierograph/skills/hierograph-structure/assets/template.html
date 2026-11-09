@@ -165,6 +165,8 @@
   .bandlabel { font: 400 10.5px var(--mono); fill: var(--ink-3); letter-spacing: 0.05em; }
   .bandlabel.named { font-weight: 500; fill: var(--ink-2); letter-spacing: 0.1em; }
   .node.grp rect { fill: var(--grp); }
+  .groupbox { fill: var(--grp); fill-opacity: 0.45; stroke: var(--out); stroke-opacity: 0.55; stroke-width: 1.2px; }
+  .grouplabel { font: 500 10.5px var(--mono); fill: var(--out); letter-spacing: 0.1em; }
   .edge { fill: none; stroke-linecap: round; }
   .node rect { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.1px; }
   .node text { font: 400 11.5px var(--mono); fill: var(--ink); dominant-baseline: middle; text-anchor: middle; }
@@ -352,6 +354,11 @@ const PADX = (() => {
 })();
 const charW = 6.95, FS = 11.5;
 const widthOf = n => Math.max(74, Math.round(n.n.length * charW) + 20);
+// A group is drawn as one box around its members: GPAD is the extra room kept
+// on each side of the block, GBOX the box's inset into it, GTOP the room above
+// the top members for the group's name.
+const GPAD = 14, GBOX = 10, GTOP = 24, GBOT = 9;
+const GROUPS = DATA.groups || [];
 
 let visible = [], pos = [], layout = { w: 0, h: 0 };
 
@@ -360,33 +367,106 @@ function computeLayout() {
   const visSet = new Set(vis.map(n => n.i));
   visible = vis;
 
+  // A group occupies one slot on every level from its lowest to its highest
+  // member, all slots aligned on one column. The layout orders slots like nodes;
+  // the members are then laid out inside them. A level the group spans without a
+  // member still gets an empty slot, so no outsider lands inside the box.
+  const span = {}, inner = {};
+  vis.forEach(n => {
+    if (!n.g) return;
+    const s = span[n.g] || (span[n.g] = { lo: n.l, hi: n.l });
+    s.lo = Math.min(s.lo, n.l); s.hi = Math.max(s.hi, n.l);
+    const lv = inner[n.g] || (inner[n.g] = {});
+    (lv[n.l] || (lv[n.l] = [])).push(n);
+  });
+  const rowW = M => M.reduce((s, n) => s + widthOf(n), 0) + GAPX * Math.max(0, M.length - 1);
+  const slotW = {};
+  for (const g in span) {
+    slotW[g] = 0;
+    for (const l in inner[g]) slotW[g] = Math.max(slotW[g], rowW(inner[g][l]));
+    // wide enough for the group's name (10.5px mono caps, 0.1em tracking)
+    slotW[g] = Math.max(slotW[g], (GROUPS[g - 1] || '').length * 7.4 + 16 - 2 * GBOX);
+  }
   const layers = Array.from({ length: MAXL + 1 }, () => []);
-  vis.forEach(n => layers[n.l].push(n));
+  vis.forEach(n => { if (!n.g) layers[n.l].push(n); });
+  for (const g in span)
+    for (let l = span[g].lo; l <= span[g].hi; l++)
+      layers[l].push({ slot: +g, l, i: 's' + g + '_' + l, n: GROUPS[g - 1] || '' });
   layers.forEach(L => L.sort((a, b) => a.n.localeCompare(b.n)));
+  const itemW = it => it.slot ? slotW[it.slot] + 2 * GPAD : widthOf(it);
 
   const centres = () => {
     const c = {};
     layers.forEach(L => {
-      const total = L.reduce((s, n) => s + widthOf(n), 0) + GAPX * Math.max(0, L.length - 1);
+      const total = L.reduce((s, it) => s + itemW(it), 0) + GAPX * Math.max(0, L.length - 1);
       let x = -total / 2;
-      L.forEach(n => { c[n.i] = x + widthOf(n) / 2; x += widthOf(n) + GAPX; });
+      L.forEach(it => { c[it.i] = x + itemW(it) / 2; x += itemW(it) + GAPX; });
     });
+    // Align each group's slots on one column. Rows are packed left to right,
+    // every slot asking for its group's column and every node for its own
+    // place; a slot pushed right moves its column, until all rows agree. Slots
+    // keep one order across rows (see slotBar), so pushing only ever moves
+    // right and settles.
+    const want = { ...c }, X = {};
+    for (const g in span) {
+      let s = 0;
+      for (let l = span[g].lo; l <= span[g].hi; l++) s += c['s' + g + '_' + l];
+      X[g] = s / (span[g].hi - span[g].lo + 1);
+    }
+    for (let round = 0; round < 50; round++) {
+      layers.forEach(L => {
+        let cursor = -Infinity;
+        L.forEach(it => {
+          const w = itemW(it);
+          const left = Math.max((it.slot ? X[it.slot] : want[it.i]) - w / 2, cursor);
+          c[it.i] = left + w / 2;
+          cursor = left + w + GAPX;
+        });
+      });
+      let moved = false;
+      for (const g in span)
+        for (let l = span[g].lo; l <= span[g].hi; l++)
+          if (c['s' + g + '_' + l] > X[g] + 0.5) { X[g] = c['s' + g + '_' + l]; moved = true; }
+      if (!moved) break;
+    }
+    for (const g in inner)
+      for (const l in inner[g]) {
+        const M = inner[g][l];
+        let x = c['s' + g + '_' + l] - rowW(M) / 2;
+        M.forEach(n => { c[n.i] = x + widthOf(n) / 2; x += widthOf(n) + GAPX; });
+      }
     return c;
   };
 
   for (let pass = 0; pass < 10; pass++) {
     const c = centres(), down = pass % 2 === 0;
     const order = down ? [...layers.keys()].slice(1) : [...layers.keys()].slice(0, -1).reverse();
+    const pull = n => {
+      let sw = 0, s = 0;
+      for (const e of (down ? n.out : n.in))
+        if (visSet.has(e.t) && c[e.t] !== undefined) { s += c[e.t] * e.w; sw += e.w; }
+      return [s, sw];
+    };
+    const bar = n => { const [s, sw] = pull(n); return sw ? s / sw : 0; };
+    // A slot sorts by the combined barycentre of all its group's members, on
+    // every level, so a group's slots share one key and groups keep the same
+    // order on every row they span. Without links, a slot holds its place.
+    const slotBar = it => {
+      let s = 0, sw = 0;
+      for (const l in inner[it.slot])
+        for (const n of inner[it.slot][l]) { const [a, b] = pull(n); s += a; sw += b; }
+      return sw ? s / sw : c[it.i];
+    };
     for (const li of order) {
-      const bar = n => {
-        const link = down ? n.out : n.in;
-        let sw = 0, s = 0;
-        for (const e of link) if (visSet.has(e.t) && c[e.t] !== undefined) { s += c[e.t] * e.w; sw += e.w; }
-        return sw ? s / sw : 0;
-      };
-      const keyed = layers[li].map(n => [bar(n), n]);
+      const keyed = layers[li].map(it => [it.slot ? slotBar(it) : bar(it), it]);
       keyed.sort((a, b) => a[0] - b[0]);
       layers[li] = keyed.map(p => p[1]);
+      for (const g in inner)
+        if (inner[g][li]) {
+          const k = inner[g][li].map(n => [bar(n), n]);
+          k.sort((a, b) => a[0] - b[0]);
+          inner[g][li] = k.map(p => p[1]);
+        }
     }
   }
 
@@ -403,12 +483,17 @@ function computeLayout() {
   layout.h = MAXL * VGAP + VGAP;
   layout.minx = minx - PADX;
   layout.miny = -MAXL * VGAP - VGAP / 2;
+  layout.groups = Object.keys(span).map(g => {
+    let left = Infinity;
+    for (let l = span[g].lo; l <= span[g].hi; l++) left = Math.min(left, c['s' + g + '_' + l] - slotW[g] / 2);
+    return { g: +g, left, w: slotW[g], lo: span[g].lo, hi: span[g].hi };
+  });
 }
 
 /* ---------- drawing ---------- */
-const bandsG = el('g'), edgesG = el('g'), nodesG = el('g');
+const bandsG = el('g'), groupsG = el('g'), edgesG = el('g'), nodesG = el('g');
 const root = el('g');
-root.append(bandsG, edgesG, nodesG);
+root.append(bandsG, groupsG, edgesG, nodesG);
 
 // Arrowheads. Without them an edge's direction is only implied by the colour it
 // takes on selection, so the moment a violation turns red the same line reads as
@@ -441,7 +526,7 @@ let edgeEls = [], nodeEls = [];
 
 function draw() {
   computeLayout();
-  bandsG.textContent = ''; edgesG.textContent = ''; nodesG.textContent = '';
+  bandsG.textContent = ''; groupsG.textContent = ''; edgesG.textContent = ''; nodesG.textContent = '';
   edgeEls = []; nodeEls = [];
 
   for (let l = 0; l <= MAXL; l++) {
@@ -456,6 +541,17 @@ function draw() {
     tx.textContent = bandText(l);
     if (DATA.levelNames && DATA.levelNames[l]) tx.setAttribute('class', 'bandlabel named');
     bandsG.append(tx);
+  }
+
+  for (const box of layout.groups) {
+    const x0 = box.left - GBOX, y0 = -box.hi * VGAP - H / 2 - GTOP;
+    groupsG.append(el('rect', {
+      class: 'groupbox', x: x0, y: y0, rx: 9,
+      width: box.w + 2 * GBOX, height: (box.hi - box.lo) * VGAP + H + GTOP + GBOT
+    }));
+    const tx = el('text', { class: 'grouplabel', x: x0 + 8, y: y0 + 15 });
+    tx.textContent = (GROUPS[box.g - 1] || '').toUpperCase();
+    groupsG.append(tx);
   }
 
   const visSet = new Set(visible.map(n => n.i));
@@ -632,7 +728,7 @@ function renderAside() {
   if (sel < 0) return;
   const n = N[sel];
   $('selname').textContent = n.n;
-  $('sellvl').textContent = `level ${n.l}${n.l === 0 ? ' \u00b7 core' : ''}${n.t ? ' \u00b7 test / tooling' : ''}`;
+  $('sellvl').textContent = `level ${n.l}${n.l === 0 ? ' \u00b7 core' : ''}${n.g ? ' \u00b7 ' + GROUPS[n.g - 1] : ''}${n.t ? ' \u00b7 test / tooling' : ''}`;
   const os = n.out.filter(e => e.w >= minw && (showTest || !N[e.t].t));
   const is = n.in.filter(e => e.w >= minw && (showTest || !N[e.t].t));
   $('mo').textContent = os.length; $('mi').textContent = is.length;
@@ -725,7 +821,7 @@ $('tbtn').addEventListener('click', e => {
 (function summary() {
   const heaviest = E.reduce((a, b) => (b[2] > a[2] ? b : a));
   if (DATA.cycles) $('cyckey').hidden = false;
-  if (DATA.levelNames && Object.keys(DATA.levelNames).length) {
+  if (GROUPS.length) {
     if (DATA.internal) $('intkey').hidden = false;
     $('violkey').hidden = false;
   }

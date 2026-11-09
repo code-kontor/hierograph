@@ -11,7 +11,14 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
     "unit":     "modules",                          # what a node is called in the UI
     "nodes":    {"23815330338705": "hierarchicalgraph.core.model", "5968189658062703": "javaspec", ...},
     "edges":    [[7802159431405318, 23815330338705, 385], ...],  # [from, to, weight]
-    "test_patterns": ["itest", "-test"]             # substring match -> dashed outline
+    "test_patterns": ["itest", "-test"],            # substring match -> dashed outline
+    "pin_groups": [                                 # optional, see Groups below
+      {"name": "API",  "patterns": ["-api"]},
+      {"name": "Core", "names": ["model", "algorithms"], "span": true}
+    ],
+    "aggregator_groups": {                          # optional, see Groups below
+      "hierograph-server": ["io.hierograph.server", "io.hierograph.server.graphql"]
+    }
   }
 
 Output: graphdata.json next to the input (or argv[2]).
@@ -20,6 +27,29 @@ Levels come from the longest dependency chain beneath a node, which is what puts
 core code at the bottom. That is only well defined on a DAG, so cycles are
 condensed first: every node in a strongly connected component shares one level
 and is flagged, rather than the longest-path walk silently recursing forever.
+
+Groups. Each entry of `pin_groups` selects members by `names` (exact) or
+`patterns` (substring); the first matching group wins. The page draws every group
+as one box around its members.
+
+  pinned (default)  members are contracted to one node before levels are assigned,
+                    so they share one level; edges between them are `internal`.
+  "span": true      members keep their own levels and the box stretches from the
+                    lowest to the highest; nothing is contracted.
+  "place": n        a pinned group is stacked above everything else, lowest `n`
+                    nearest the rest of the graph.
+
+A placed group owns its level and also names it. Edges that no longer point downward because of pinning are reported as
+violations, not hidden.
+
+`aggregator_groups` maps the name of a multi-module (a Maven aggregator, a Gradle
+parent project) to its member modules, by exact node name. Each becomes a spanning
+group, added after the `pin_groups`, which therefore win any overlap. Test
+artifacts are members only when listed. A multi-module with fewer than two members
+in the node set is skipped and reported - a box around one module says nothing.
+
+Output fields beyond levels: `groups` (the group names, in order), per node `g`
+(1-based group index, 0 = none) and `levelNames` (levels owned by a group).
 """
 import json, sys, os
 from collections import defaultdict
@@ -99,7 +129,17 @@ def main():
     # around them as tightly as the edges allow. If the contraction introduces a
     # cycle, the SCC pass below absorbs it into one level rather than looping,
     # and the edges that now run the wrong way get flagged instead of hidden.
-    pins = spec.get("pin_groups", [])
+    pins = list(spec.get("pin_groups", []))
+    # One spanning group per multi-module. They come after the explicit groups,
+    # which therefore win any overlap. A multi-module with fewer than two members
+    # in the node set is skipped - a box around one module says nothing.
+    present = set(names.values())
+    for name, members in spec.get("aggregator_groups", {}).items():
+        hits = [n for n in members if n in present]
+        if len(hits) >= 2:
+            pins.append({"name": name, "names": list(members), "span": True})
+        else:
+            print(f"  multi-module '{name}' skipped: {len(hits)} member(s) in the node set")
     def pin_of(nm):
         # First match wins, so list order is precedence. `names` is exact and is
         # the right tool when membership comes from something the name does not
@@ -111,7 +151,11 @@ def main():
             if any(p in nm for p in g.get("patterns", [])):
                 return gi
         return None
-    key = {n: (f"P{pin_of(names[n])}" if pin_of(names[n]) is not None else f"N{n}") for n in ids}
+    # A `span` group is only drawn as a box: its members keep their own levels
+    # and the box stretches over the levels they occupy.
+    group = {n: pin_of(names[n]) for n in ids}
+    pinned = lambda gi: gi is not None and not pins[gi].get("span")
+    key = {n: (f"P{group[n]}" if pinned(group[n]) else f"N{n}") for n in ids}
     keys = sorted(set(key.values()))
     kout = defaultdict(set)
     for a, b, _ in edges:
@@ -145,32 +189,13 @@ def main():
                     stack.append((c, False))
     level = {n: memo[gid_of[key[n]]] for n in ids}
 
-    # An "exclusive" group gets a band of its own: everything that is not a
-    # member and had landed on that level (or above) moves up one, opening a
-    # gap. Members never move, so this cannot turn a downward edge into a
-    # violation - a non-member that was below stays below, and one that was
-    # above stays above. It can only expose an edge that was already flat.
-    for gi, g in enumerate(pins):
-        if not g.get("exclusive"):
-            continue
-        members = [n for n in ids if key[n] == f"P{gi}"]
-        if not members:
-            continue
-        lvl = level[members[0]]
-        moved = [n for n in ids if key[n] != f"P{gi}" and level[n] >= lvl]
-        for n in moved:
-            level[n] += 1
-        shifted = sum(1 for n in moved if level[n] - 1 == lvl)
-        print(f"  '{g.get('name', gi)}' is exclusive: moved {len(moved)} node(s) up "
-              f"({shifted} were sharing its band)")
-
     # Explicit placement. `place` overrides the computed depth and stacks a group
     # above everything else, lowest `place` nearest the rest of the graph. Use it
     # when the band's position is a statement about the architecture rather than
     # something the edges imply - "tests sit on top of everything" is true by
     # intent, not because the longest path says so. Anything that then depends
     # upward into a placed group is reported as a violation, as usual.
-    placed = [(gi, g) for gi, g in enumerate(pins) if g.get("place") is not None]
+    placed = [(gi, g) for gi, g in enumerate(pins) if g.get("place") is not None and not g.get("span")]
     if placed:
         pkeys = {f"P{gi}" for gi, _ in placed}
         rest = [level[n] for n in ids if key[n] not in pkeys]
@@ -181,9 +206,11 @@ def main():
                     level[n] = base + rank
             print(f"  '{g.get('name', gi)}' placed at level {base + rank}")
 
-    # name the bands that a pinned group landed on
+    # Name the bands that a placed group owns. A group that merely shares its
+    # band is drawn as a box around its members instead - naming the whole band
+    # after it would claim the other nodes on that level for the group.
     level_names = {}
-    for gi, g in enumerate(pins):
+    for gi, g in placed:
         members = [n for n in ids if key[n] == f"P{gi}"]
         if members:
             level_names[str(level[members[0]])] = g.get("name", f"group {gi}")
@@ -227,11 +254,12 @@ def main():
         "violations": len(viol),
         "internal": len(internal),
         "levelNames": level_names,
+        "groups": [g.get("name", f"group {gi}") for gi, g in enumerate(pins)],
         "nodes": [{
             "n": names[n], "l": level[n],
             "t": 1 if is_test(names[n]) else 0,
             "c": 1 if n in cyclic else 0,
-            "g": 1 if key[n].startswith("P") else 0,
+            "g": group[n] + 1 if group[n] is not None else 0,
             "iw": iw[n], "ow": ow[n], "id": ind[n], "od": outd[n],
         } for n in ids],
         "edges": [[idx[a], idx[b], w] + ([violation(a, b)] if violation(a, b) else [])
@@ -240,13 +268,17 @@ def main():
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(src) or ".", "graphdata.json")
     json.dump(data, open(dst, "w"), separators=(",", ":"))
     print(f"nodes {len(ids)}  edges {len(edges)}  levels {data['maxLevel'] + 1}  cycles {n_cycles}")
-    for lvl, nm in sorted(level_names.items(), key=lambda kv: int(kv[0])):
-        print(f"  pinned group '{nm}' -> level {lvl} "
-              f"({sum(1 for n in ids if level[n] == int(lvl) and key[n].startswith('P'))} members)")
+    for gi, g in enumerate(pins):
+        lv = sorted({level[n] for n in ids if group[n] == gi})
+        if lv:
+            where = f"level {lv[0]}" if len(lv) == 1 else f"levels {lv[0]}-{lv[-1]}"
+            kind = "spanning group" if g.get("span") else "pinned group"
+            print(f"  {kind} '{g.get('name', gi)}' -> {where} "
+                  f"({sum(1 for n in ids if group[n] == gi)} members)")
     if internal:
         by_layer = defaultdict(int)
         for a, b, _ in internal:
-            by_layer[level_names.get(str(level[a]), "?")] += 1
+            by_layer[pins[int(key[a][1:])].get("name", key[a])] += 1
         inside = ", ".join(f"{k} {v}" for k, v in sorted(by_layer.items()))
         print(f"  {len(internal)} edge(s) internal to a pinned layer ({inside}) - expected, not violations")
     if viol:

@@ -47,8 +47,8 @@ persistence layer, a set of facades — add:
 
 ```json
 "pin_groups": [
-  {"name": "Libs", "names": ["object-mapper", "processing"], "exclusive": true},
-  {"name": "API",  "patterns": ["-api"], "exclusive": true}
+  {"name": "Libs", "names": ["object-mapper", "processing"]},
+  {"name": "API",  "patterns": ["-api"]}
 ]
 ```
 
@@ -61,8 +61,35 @@ like an API module and is not one.
 
 Members are contracted to one node before levels are assigned, which forces them
 onto one band while keeping everything else packed as tightly around them as the
-edges allow. The band is then labelled with the group's name, and its members get
-a distinct fill.
+edges allow. The page draws the group as one block: its members sit side by side
+inside a box labelled with the group's name, and the block moves as a unit when
+the layout orders the band. A placed group (`place`, below) owns its band and
+also names it.
+
+`span` keeps the group together without flattening it: members stay on the
+levels their dependencies give them, and the box stretches over every level from
+the lowest to the highest member — `{"name": "Graphstore", "names": [...], "span":
+true}`. The layout reserves one column for the group on each of those levels, so
+no outsider lands inside the box, including on a spanned level that has no member.
+Use it when the group is a unit but has its own internal layering, such as a core
+module and an extension built on it. `place` does not apply to a spanning group.
+
+To box multi-modules, list them under `aggregator_groups`, mapping each
+multi-module's name to its member modules (exact node names):
+
+```json
+"aggregator_groups": {
+  "hierograph-server": ["io.hierograph.server", "io.hierograph.server.graphql",
+                        "io.hierograph.server.graphservice", "io.hierograph.server.mapping"],
+  "hierograph-graphstore": ["io.hierograph.graphstore.jvm", "io.hierograph.graphstore.jvm.scanner"]
+}
+```
+
+Each becomes a spanning group. Take the membership from the build — a Maven
+aggregator's `<modules>`, a Gradle parent's subprojects — not from name
+similarity. Test artifacts are members only when listed. A multi-module with fewer
+than two members in the node set is skipped and reported. Explicit `pin_groups`
+come first and win any overlap.
 
 `place` overrides the computed depth and stacks a group above everything else,
 lowest value nearest the rest of the graph — `{"name": "Tests", "place": 2}` with
@@ -72,14 +99,6 @@ than something the edges imply: "tests sit above everything" is true by intent,
 and the longest path has no reason to agree. Check first what else depends on the
 group you are lifting — anything left below it becomes an upward violation, which
 is reported but is usually a sign the placement was wrong.
-
-`exclusive` reserves the band: non-members that would have landed on it move up
-one level, so the group gets a row to itself. This is usually what someone means
-by "an API layer" — a band you can point at and say *that is the API surface* —
-and without it the layer quietly fills up with whatever else shares that depth.
-Members never move, so the shift cannot turn a downward edge into a violation; it
-only separates nodes that were already sitting flat beside each other. The script
-reports how many nodes it moved and how many had been sharing the band.
 
 This is the useful part: **pinning can contradict the dependencies**, and the
 script does not hide that. If a non-member sits between two members in the
@@ -208,7 +227,8 @@ The `graphdata.json` it writes is minified with single-letter keys (read it only
 if you must — the stdout roster usually suffices):
 
 - top level: `title`, `project`, `scanned`, `source`, `unit`, `maxLevel`,
-  `cycles`, `violations`, `internal`, `levelNames`, `nodes`, `edges`.
+  `cycles`, `violations`, `internal`, `levelNames` (bands owned by a group),
+  `groups` (pin-group names, in `pin_groups` order), `nodes`, `edges`.
 - each node (`nodes[]`): `n` name, `l` level (0 = foundation), `t` is-test, `c`
-  in-a-cycle, `g` pin-group, `iw`/`ow` in/out coupling weight, `id`/`od` in/out degree.
+  in-a-cycle, `g` pin group (1-based index into `groups`, 0 = none), `iw`/`ow` in/out coupling weight, `id`/`od` in/out degree.
 - each edge (`edges[]`): `[from_index, to_index, weight]`, indices into `nodes`.
