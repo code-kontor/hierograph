@@ -37,7 +37,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
 
     fun methodDetails(methodId: Long): Map<String, Any?> {
         val memberKey = graphService.memberHandleIndex[methodId]
-            ?: return notFound(methodId)
+            ?: return notAMember(methodId, "method", "method_details") ?: notFound(methodId)
         val dir = readyDetailDir() ?: return detailRebuilding()
         val reader = ParquetReader()
         val member = reader.readMember(dir, memberKey) ?: return notFound(methodId)
@@ -76,7 +76,9 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         val raisesList = edges.filter { it.relationship == "raises" }.map { it.toType }.distinct().map { typeRef(it) }
         val annotations = edges.filter { it.relationship == "annotated_by" }.map { it.toType }.distinct()
             .map { linkedMapOf<String, Any?>("type" to typeRef(it)) }
-        val overrides = edges.firstOrNull { it.relationship == "overrides" }?.let { methodRefFor(reader, dir, it.toKey, it.toType) }
+        // Every method this one overrides: a superclass method and interface methods can all apply.
+        val overrides = edges.filter { it.relationship == "overrides" }.distinctBy { it.toKey }
+            .sortedBy { it.toKey }.map { methodRefFor(reader, dir, it.toKey, it.toType) }
 
         val parameters = member.parameters.map { p ->
             linkedMapOf<String, Any?>(

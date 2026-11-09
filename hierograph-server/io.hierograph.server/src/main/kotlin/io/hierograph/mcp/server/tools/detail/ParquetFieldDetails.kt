@@ -36,7 +36,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
 
     fun fieldDetails(fieldId: Long): Map<String, Any?> {
         val memberKey = graphService.memberHandleIndex[fieldId]
-            ?: return notFound(fieldId)
+            ?: return notAMember(fieldId, "field", "field_details") ?: notFound(fieldId)
         val dir = readyDetailDir() ?: return detailRebuilding()
         val reader = ParquetReader()
         val member = reader.readMember(dir, memberKey) ?: return notFound(fieldId)
@@ -69,9 +69,9 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
             else -> { typeIdForResponse = putType(nodes, typeFqn); typeNameForResponse = typeFqn }
         }
 
-        // annotations ({type: id})
+        // annotations ({type: id or null, type_name}): an annotation type without a node is kept, by name
         val annotations = ownEdges.filter { it.relationship == "annotated_by" }.map { it.toType }.distinct()
-            .mapNotNull { fqn -> putType(nodes, fqn)?.let { linkedMapOf<String, Any?>("type" to it) } }
+            .map { fqn -> linkedMapOf<String, Any?>("type" to putType(nodes, fqn), "type_name" to fqn) }
 
         // read/write access: reverse edges anchored on this field (to_key == fieldKey)
         val readers = reader.readDetailRefs(dir, toTypes = listOf(ownerFqn), relationship = "reads_field").filter { it.toKey == memberKey }

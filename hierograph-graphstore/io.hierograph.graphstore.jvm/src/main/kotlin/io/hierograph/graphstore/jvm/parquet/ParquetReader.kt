@@ -175,6 +175,27 @@ class ParquetReader {
         return SnapshotSources.of(parquetDir).flatMap { readTypes(it, ParquetSchema.TYPES_FILE, filter) }
     }
 
+    /** A scanned type's `types.parquet` row together with its members and its type-level refs. */
+    data class TypeFacts(val row: TypeRow, val members: List<MemberFacts>, val refs: List<Ref>)
+
+    /**
+     * The facts of the type [fqn] as defined by [artifact]: its row, members and refs, all read from the
+     * one snapshot artifact whose `types.parquet` holds that row, so a type defined by several artifacts is
+     * never mixed with another definition of the same name. `null` when no artifact defines it. In the
+     * unpacked layout, where one directory holds the tables of every artifact, members and refs carry no
+     * artifact and are read for the FQN.
+     */
+    fun readTypeFacts(parquetDir: Path, artifact: String, fqn: String): TypeFacts? {
+        val typeFilter = FilterPredicate.eq(ParquetSchema.Types.FQN, fqn)
+        for (source in SnapshotSources.of(parquetDir)) {
+            val row = readTypes(source, ParquetSchema.TYPES_FILE, typeFilter).firstOrNull { it.artifact == artifact } ?: continue
+            val members = readMembers(source, ParquetSchema.MEMBERS_FILE, FilterPredicate.eq(ParquetSchema.Members.OWNER_FQN, fqn))[fqn].orEmpty()
+            val refs = readRefs(source, ParquetSchema.REFS_FILE, FilterPredicate.eq(ParquetSchema.Refs.FROM_TYPE, fqn))[fqn].orEmpty()
+            return TypeFacts(row, members, refs)
+        }
+        return null
+    }
+
     /**
      * Scoped read of `members.parquet`, grouped by owner FQN, for the owners in [ownerFqns] (no
      * parameters attached). Members are keyed by owner FQN only, so same-FQN types from different

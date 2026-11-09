@@ -107,10 +107,11 @@ described in the
 | `annotations` | the type's `ANNOTATED_BY` rows in `refs.parquet` | same |
 | `member_summary` | the type's rows in `members.parquet` | only the snapshot tells constructors from methods |
 | `inner_types` | the type's siblings in the model, by binary name | see below |
-| `is_generic` | none | the snapshot does not record type parameters |
+| `is_generic` | `types.parquet`, the `generic` bit of `modifiers` | the scanner reads it from the class signature |
 
-The `types.parquet` row is the one filed under the artifact of the type's own module,
-so two artifacts that define the same FQN do not mix modifiers or source files. See
+The `types.parquet` row, the members and the refs are all read from the snapshot
+artifact of the type's own module, so two artifacts that define the same FQN never mix
+modifiers, members or supertypes: each definition is described as it was compiled. See
 [`types.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#41-typesparquet),
 [`members.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#42-membersparquet)
 and
@@ -254,7 +255,7 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
   },
   "modifiers": ["public", "final"],
   "is_abstract": false,
-  "is_generic": null,
+  "is_generic": false,
   "superclass": { "id": null, "name": "Object", "qualified_name": "java.lang.Object", "kind": "external.type" },
   "interfaces": [
     { "id": null, "name": "Comparable", "qualified_name": "java.lang.Comparable", "kind": "external.type" },
@@ -278,7 +279,7 @@ The response for `Invoice` (id `4711`) in package `com.example.billing` (id `470
 | `parent_container` | minimal NodeRef | yes | The enclosing type of a nested type, otherwise the package. |
 | `modifiers` | list of strings | yes | Declared modifiers, visibility first (§3.1). |
 | `is_abstract` | boolean | yes | `true` when the `abstract` modifier is present. |
-| `is_generic` | boolean | always `null` | Whether the type declares type parameters; not recorded. |
+| `is_generic` | boolean | yes | Whether the type declares type parameters. |
 | `superclass` | type reference | yes | The superclass named in the class file. |
 | `interfaces` | list of type references | no | Directly implemented (or, for an interface, extended) interfaces. |
 | `annotations` | list of `{type}` | no | Annotations on the type itself; `type` is a type reference. |
@@ -302,8 +303,11 @@ duplicates the presence of `abstract` so a caller can test a boolean. Both are
 `null` when the snapshot has no `types.parquet` row for the type in its own artifact;
 `null` means *unknown*, not "no modifiers".
 
-**`is_generic`** is always `null`. The field is kept so the response shape names the
-question; `null` says the answer is not available, which is different from `false`.
+**`is_generic`** is `true` when the type declares type parameters (`class Box<T>`),
+read from its class signature, which opens with the parameter list exactly then. A type
+that only extends or implements a generic type (`enum Color` extends `Enum<Color>`)
+is not generic. It answers "is this a container or a template?" without opening the
+source. Like `modifiers`, it is `null` when the type has no `types.parquet` row.
 
 **`superclass`**, **`interfaces`** and **`annotations`** are the type's structural
 dependencies, the three `refs.parquet` kinds that describe how a type is defined rather

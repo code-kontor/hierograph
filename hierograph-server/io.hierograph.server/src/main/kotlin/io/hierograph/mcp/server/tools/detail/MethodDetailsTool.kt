@@ -37,9 +37,10 @@ class MethodDetailsTool(
                 "outgoing_dependencies / incoming_dependencies with detailLevel 'detail', or another tool that " +
                 "surfaces method IDs) and need the complete picture: modifiers, return type, parameters with " +
                 "names and types, declared exceptions (throws), exceptions thrown in the body (raises), " +
-                "annotations, the method it overrides (if any), and source location. " +
+                "annotations, the methods it overrides (a list; a superclass method and interface methods can all apply), " +
+                "and source location. " +
                 "Response shape: single-entity inline form (no slim 'nodes' map). The declaring_type, " +
-                "return_type, parameter types, throws/raises types, annotation types, and overrides target are " +
+                "return_type, parameter types, throws/raises types, annotation types, and overrides targets are " +
                 "inline NodeRefs — feed their ids into other tools (type_details, list_children, " +
                 "incoming_dependencies, etc.) to investigate. " +
                 "Primitive types (void, int, boolean, etc.) appear with id: null and kind: 'java.primitive'; " +

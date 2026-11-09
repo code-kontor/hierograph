@@ -37,13 +37,15 @@ import java.nio.file.Files
  * `parquet` mode (detail data included):
  *
  * ```
- * com.example.doc.AbstractDoc            void render(), Money total()   total() calls Money#plus
- * com.example.billing.Invoice            extends AbstractDoc
- *     void render()                      overrides AbstractDoc#render (derived at load)
+ * com.example.doc.AbstractDoc<T>         void render(), Money total()   total() calls Money#plus
+ * com.example.doc.Renderable             interface: void render()
+ * com.example.billing.Invoice            extends AbstractDoc, implements Renderable
+ *     void render()                      overrides AbstractDoc#render and Renderable#render (derived)
  *     Money net()                        returns Money; calls Money#plus; calls AbstractDoc#total
  *     Money tax()                        calls Money#times
  *     void validate()                    calls AbstractDoc#render
- * com.example.money.Money                Money plus(Money), Money times(int)
+ * com.example.money.Money                Money plus(Money), Money times(int),
+ *                                        @Deprecated int cents (java.lang.Deprecated has no node)
  * ```
  */
 class DetailFixture {
@@ -80,9 +82,14 @@ class DetailFixture {
 
     private fun classes() = listOf(
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
-            DOC, JavaKinds.CLASS, TypeModifiers.pack("public", abstract = true),
+            DOC, JavaKinds.CLASS, TypeModifiers.pack("public", abstract = true, generic = true),
             members = listOf(method(DOC, "void render()"), method(DOC, "$MONEY total()")),
             refs = listOf(Ref(DOC, MONEY, RefKind.DEPENDS_ON, count = 1)), classHash = "d",
+        )),
+        ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
+            RENDERABLE, JavaKinds.INTERFACE, TypeModifiers.pack("public", abstract = true),
+            members = listOf(method(RENDERABLE, "void render()", abstract = true)),
+            refs = emptyList(), classHash = "r",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             INVOICE, JavaKinds.CLASS, TypeModifiers.pack("public"),
@@ -92,13 +99,17 @@ class DetailFixture {
             ),
             refs = listOf(
                 Ref(INVOICE, DOC, RefKind.EXTENDS, count = 1),
+                Ref(INVOICE, RENDERABLE, RefKind.IMPLEMENTS, count = 1),
                 Ref(INVOICE, MONEY, RefKind.DEPENDS_ON, count = 3),
             ),
             classHash = "i",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             MONEY, JavaKinds.RECORD, TypeModifiers.pack("public", final = true),
-            members = listOf(method(MONEY, "$MONEY plus($MONEY)"), method(MONEY, "$MONEY times(int)")),
+            members = listOf(
+                method(MONEY, "$MONEY plus($MONEY)"), method(MONEY, "$MONEY times(int)"),
+                MemberFacts("$MONEY#int cents", JavaKinds.FIELD, "int cents", "cents", modifiers = MemberModifiers.pack("private", final = true)),
+            ),
             refs = emptyList(), classHash = "m",
         )),
     )
@@ -110,11 +121,14 @@ class DetailFixture {
         DetailRef("$INVOICE#$MONEY net()", INVOICE, "$DOC#$MONEY total()", DOC, "calls", 11),
         DetailRef("$INVOICE#$MONEY tax()", INVOICE, "$MONEY#$MONEY times(int)", MONEY, "calls", 20),
         DetailRef("$INVOICE#void validate()", INVOICE, "$DOC#void render()", DOC, "calls", 30),
+        DetailRef("$MONEY#int cents", MONEY, "int", "int", "has_type"),
+        DetailRef("$MONEY#int cents", MONEY, "java.lang.Deprecated", "java.lang.Deprecated", "annotated_by"),
     )
 
     companion object {
         const val ARTIFACT = "billing-core"
         const val DOC = "com.example.doc.AbstractDoc"
+        const val RENDERABLE = "com.example.doc.Renderable"
         const val INVOICE = "com.example.billing.Invoice"
         const val MONEY = "com.example.money.Money"
     }

@@ -19,13 +19,24 @@ package io.hierograph.graphstore.jvm.model
  * The packed access flags of a type ([ClassFacts.modifiers]). Uses the same bit layout as
  * [MemberModifiers] (visibility, [MemberModifiers.STATIC], [MemberModifiers.FINAL],
  * [MemberModifiers.ABSTRACT]); only the flags meaningful for a type are packed and decoded.
- * Package-private visibility is the absence of a visibility bit.
+ * Package-private visibility is the absence of a visibility bit. [GENERIC] is a type-only bit, above the
+ * member bits: it is not a modifier, so [modifiers] never lists it.
  */
 object TypeModifiers {
 
+    /** The type declares type parameters (`class Box<T>`): its class signature starts with `<`. */
+    const val GENERIC = 1 shl 13
+
     /** Packs a type's flags. [visibility] is one of public/protected/private (else package-private). */
-    fun pack(visibility: String?, abstract: Boolean = false, final: Boolean = false, static: Boolean = false): Int =
-        MemberModifiers.pack(visibility, static = static, final = final, abstract = abstract)
+    fun pack(
+        visibility: String?,
+        abstract: Boolean = false,
+        final: Boolean = false,
+        static: Boolean = false,
+        generic: Boolean = false,
+    ): Int =
+        MemberModifiers.pack(visibility, static = static, final = final, abstract = abstract) or
+            (if (generic) GENERIC else 0)
 
     /** Type modifiers in canonical order — visibility, then abstract/final/static — as `type_details` emits them. */
     fun modifiers(bits: Int): List<String> = buildList {
@@ -36,6 +47,7 @@ object TypeModifiers {
     }
 
     fun isAbstract(bits: Int): Boolean = bits and MemberModifiers.ABSTRACT != 0
+    fun isGeneric(bits: Int): Boolean = bits and GENERIC != 0
     fun isFinal(bits: Int): Boolean = bits and MemberModifiers.FINAL != 0
     fun isStatic(bits: Int): Boolean = bits and MemberModifiers.STATIC != 0
 }

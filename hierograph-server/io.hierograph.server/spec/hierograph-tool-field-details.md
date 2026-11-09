@@ -125,11 +125,11 @@ The scanner records a `has_type` edge for every field, so `unknown` occurs only 
 snapshot that lacks it. Types without a node are explained by the
 [placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders).
 
-**Annotations.** The annotations on the field, each once, as `{"type": <id>}`. Only
-annotation types that are nodes in the graph are listed; an annotation whose type has
-no node (`java.lang.Deprecated`, `org.jetbrains.annotations.NotNull`) is left out,
-because the slim encoding has no way to name a node without an id. Annotations with
-`SOURCE` retention are not in the class file and never appear.
+**Annotations.** The annotations on the field, each once, as
+`{"type": <id>, "type_name": <qualified name>}`. An annotation whose type has no node
+(`java.lang.Deprecated`, `org.jetbrains.annotations.NotNull`) is kept with `type`
+`null`, so `type_name` names it, as `type` and `type_name` do for the field's own type.
+Annotations with `SOURCE` retention are not in the class file and never appear.
 
 **Location.** The snapshot records line numbers for code only, and a field has none
 (see
@@ -277,7 +277,7 @@ by `book()` and `cancel()`. The response for the field (id `4716`):
 | `is_constant` | boolean | no | `true` for `static final`. |
 | `type` | id | yes | The field's type, when it is a node (§3.1). |
 | `type_name` | string | no | The field's type by name, keyword or `unknown`. |
-| `annotations` | list of `{type}` | no | Annotation types with a node; `type` is an id. |
+| `annotations` | list of `{type, type_name}` | no | Annotation types; `type` is an id, or `null` without a node. |
 | `read_access` | digest | no | Who reads the field (§3.3). |
 | `write_access` | digest | no | Who writes the field (§3.3). |
 | `location` | object | always `null` | Fields carry no line (§3.1). |
@@ -306,7 +306,8 @@ change?". `is_constant` is a convenience for the frequent `static final` check (
 can follow it. A caller never passes a `null` `type` to another tool.
 
 **`annotations`** lists annotation types as ids into `nodes`, the slim counterpart of
-the `{type}` entries in `type_details` and `method_details`.
+the `{type}` entries in `type_details` and `method_details`; `type_name` carries the
+name, so an annotation without a node is still reported.
 
 **`read_access`** and **`write_access`** are the reason the tool exists (§3.2, §3.3).
 They are split because readers depend on the field's value and writers on its
@@ -321,7 +322,8 @@ for fields it is always `null`.
 
 | Code | Situation | Extra fields |
 |------|-----------|--------------|
-| `NODE_NOT_FOUND` | `fieldId` is not the id of a member: unknown ids, and the ids of types, packages and modules | none |
+| `NODE_NOT_FOUND` | `fieldId` names no node | none |
+| `WRONG_NODE_KIND` | `fieldId` names a type, package or module | `actual_kind`; the recovery names `type_details` and `list_children` for a type, `list_descendants` otherwise |
 | `WRONG_NODE_KIND` | `fieldId` names a method or constructor | `actual_kind` (`"java.method"` or `"java.constructor"`) |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | none |
 
@@ -340,13 +342,14 @@ All three use the nested shape of
 declaring type or find_node." and `DETAIL_REBUILDING` with "Retry the call in a
 moment."
 
-The tool looks ids up in the index of member ids only, so the id of a type or package is
-reported as `NODE_NOT_FOUND` rather than `WRONG_NODE_KIND`. A method id is found in the
-index and reported as `WRONG_NODE_KIND`; pass it to `method_details` instead.
+An id that names any other node is reported as `WRONG_NODE_KIND` with the tool to use
+instead: a method id points to `method_details`, a type id to `type_details` and
+`list_children`, a package or module id to `list_descendants`. Only an id that names no
+node at all is `NODE_NOT_FOUND`.
 
 `DETAIL_REBUILDING` is returned after a rescan while the Parquet snapshot of the live
-graph is still being written. The member id is checked first, so an id that is not a
-member is reported as `NODE_NOT_FOUND` even then. Retrying shortly succeeds.
+graph is still being written. The id is checked first, so an id that is not a field is
+reported as such even then. Retrying shortly succeeds.
 
 The no-graph response is described in the
 [shared spec §8.3](hierograph-mcp-tools.md#83-no-graph-loaded).
@@ -391,7 +394,7 @@ the readers (§3.2). Search the source for its name before deleting it.
    accessing methods in the snapshot, regardless of the sample and the cap.
 4. **Bounded size.** Each digest holds at most 10 sampled methods and 10 declaring
    types, so the response size does not grow with the field's popularity.
-5. **Resolvable ids.** Every id in `field`, `annotations`, `methods_sample` and
-   `by_declaring_type`, and `type` and `declaring_type` when not `null`, has an entry in
-   `nodes`.
+5. **Resolvable ids.** Every id in `field`, `methods_sample` and `by_declaring_type`,
+   and `type`, `declaring_type` and each annotation's `type` when not `null`, has an
+   entry in `nodes`.
 6. **Deterministic.** For the same graph and `fieldId`, the response is the same.

@@ -71,6 +71,26 @@ abstract class AbstractDetailTool(
         }
     )
 
+    /**
+     * The error for an id that is not a member: `WRONG_NODE_KIND` when it names another node (a type,
+     * package or module), with a recovery that points to the tool for that node, else `null` so the caller
+     * reports `NODE_NOT_FOUND`. [expected] is the member kind the tool wanted (`"method"` or `"field"`).
+     */
+    protected fun notAMember(id: Long, expected: String, tool: String): Map<String, Any?>? {
+        val node = graphService.model.lookupNode(id) ?: return null
+        val kind = node.kind?.toString() ?: "unknown"
+        val recovery = if (JavaKinds.isTypeKind(node.kind))
+            "To inspect the type, use type_details(typeId: $id); to find its ${expected}s, use list_children(nodeId: $id)."
+        else
+            "To find ${expected}s below this node, use list_descendants(nodeId: $id, kindFilter: ['java.$expected'])."
+        return errorResponse(
+            "WRONG_NODE_KIND",
+            "Node $id is a '$kind', not a $expected. $tool requires a $expected-kind node.",
+            recovery,
+            mapOf("actual_kind" to kind),
+        )
+    }
+
     /** Uniform error returned when detail is queried before its snapshot for the live graph is ready. */
     protected fun detailRebuilding(): Map<String, Any?> = errorResponse(
         "DETAIL_REBUILDING",

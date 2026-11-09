@@ -110,6 +110,10 @@ class BytecodeScannerTest {
             package fix;
             public class Dog extends Animal { public Dog self() { return this; } } // covariant: javac adds a bridge
         """,
+        "fix/Box.java" to """
+            package fix;
+            public class Box<T extends Comparable<T>> { T value; }
+        """,
     )
 
     private lateinit var classesDir: Path
@@ -133,7 +137,7 @@ class BytecodeScannerTest {
         assertThat(result.classes.map { it.facts.fqn }).containsExactlyInAnyOrder(
             "fix.package-info", "fix.Base", "fix.Shape", "fix.Circle",
             "fix.Circle\$Nested", "fix.Circle\$Color", "fix.Circle\$Point", "fix.Circle\$Marker",
-            "fix.User", "fix.Animal", "fix.Dog",
+            "fix.User", "fix.Animal", "fix.Dog", "fix.Box",
         )
         assertThat(result.classes.map { it.artifactKey }.toSet()).containsExactly("classes")
 
@@ -149,6 +153,15 @@ class BytecodeScannerTest {
         assertThat(type("fix.Circle\$Point").kind).isEqualTo(JavaNodeKind.RECORD)
         assertThat(type("fix.Circle\$Marker").kind).isEqualTo(JavaNodeKind.ANNOTATION)
         assertThat(type("fix.Circle").sourceFile).isEqualTo("Circle.java")
+    }
+
+    @Test
+    fun `a type that declares type parameters is marked generic`() {
+        assertThat(TypeModifiers.isGeneric(type("fix.Box").modifiers)).isTrue()
+        assertThat(TypeModifiers.modifiers(type("fix.Box").modifiers)).containsExactly("public")
+        // an enum's signature names a generic supertype (Enum<Color>) but declares no type parameter
+        assertThat(TypeModifiers.isGeneric(type("fix.Circle\$Color").modifiers)).isFalse()
+        assertThat(TypeModifiers.isGeneric(type("fix.Circle").modifiers)).isFalse()
     }
 
     @Test

@@ -41,7 +41,8 @@ class FieldDetailsTool(
                 "'field', 'declaring_type', 'type' (null for primitives and for types outside the graph, such as " +
                 "java.lang.String), 'type_name' (always-present string — qualified name for reference types, " +
                 "keyword for primitives, element type for arrays), 'annotations' (each entry is " +
-                "{type: ID}), 'read_access', 'write_access' — all referencing nodes by ID. " +
+                "{type: ID or null, type_name: qualified name}; type is null for annotation types outside the graph), " +
+                "'read_access', 'write_access' — all referencing nodes by ID. " +
                 "Read/write access digests carry: method_count (true total across the codebase), methods_sample " +
                 "(up to 10 method IDs — resolve via nodes[id]), sample_truncated (boolean), and by_declaring_type " +
                 "(list of {type: ID, count: N}, sorted descending by count, capped at 10 entries). For fields with " +

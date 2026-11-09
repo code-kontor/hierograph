@@ -73,6 +73,7 @@ internal object ClassScanner {
         private var sourceFile: String? = null
         private val members = ArrayList<MemberFacts>()
         private val detailRefs = ArrayList<DetailRef>()
+        private var generic = false
         private val refCounts = LinkedHashMap<Pair<String, RefKind>, Int>()
 
         fun result(): ScannedClass {
@@ -85,6 +86,7 @@ internal object ClassScanner {
                     abstract = effective and Opcodes.ACC_ABSTRACT != 0,
                     final = effective and Opcodes.ACC_FINAL != 0,
                     static = effective and Opcodes.ACC_STATIC != 0,
+                    generic = generic,
                 ),
                 members = members,
                 refs = refCounts.map { (k, count) -> Ref(fromKey = fqn, toKey = k.first, kind = k.second, count = count) },
@@ -135,6 +137,8 @@ internal object ClassScanner {
             this.fqn = JavaNames.fqn(name)
             this.access = access
             this.superFqn = superName?.let { JavaNames.fqn(it) }
+            // A class signature opens with its formal type parameters, `<T:…>`, exactly when it declares any.
+            this.generic = signature?.startsWith('<') == true
             superName?.let { refInternal(it, RefKind.EXTENDS) }
             interfaces.orEmpty().forEach { refInternal(it, RefKind.IMPLEMENTS) }
             genericRefs(signature)

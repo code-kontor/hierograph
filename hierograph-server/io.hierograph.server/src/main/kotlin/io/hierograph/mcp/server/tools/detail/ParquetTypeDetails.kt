@@ -36,8 +36,8 @@ import java.nio.file.Path
  * model, like `java.lang.Object`, still appear — as id-less external refs); member counts from
  * `members.parquet` (which, unlike the model, distinguishes constructors).
  *
- * Not in the snapshot, hence reported as unknown (`null`): `is_generic`, and the modifiers of a type
- * whose `types.parquet` row is missing or carries none. The source line of a type is not exported either.
+ * Not in the snapshot, hence reported as unknown (`null`): the modifiers and `is_generic` of a type whose
+ * `types.parquet` row is missing or carries none. The source line of a type is not exported either.
  *
  * Nesting is derived from binary names, because a nested type sits beside its enclosing type in the
  * package (see [NestedTypes]). An external type is described by what the model knows of it: its identity
@@ -62,9 +62,11 @@ class ParquetTypeDetails(
         val dir = readyDetailDir() ?: return detailRebuilding()
         val reader = ParquetReader()
 
-        val typeRow = reader.readTypeRows(dir, listOf(fqn)).firstOrNull { it.artifact == artifact }
-        val refs = reader.readRefsFrom(dir, listOf(fqn))[fqn].orEmpty()
-        val members = reader.readMembersByOwner(dir, listOf(fqn))[fqn].orEmpty()
+        // Row, refs and members all from the artifact that defines this node, never from a same-FQN twin.
+        val facts = artifact?.let { reader.readTypeFacts(dir, it, fqn) }
+        val typeRow = facts?.row
+        val refs = facts?.refs.orEmpty()
+        val members = facts?.members.orEmpty()
 
         val typeRef = linkedMapOf<String, Any?>(
             "id" to typeId,
@@ -96,7 +98,7 @@ class ParquetTypeDetails(
             "parent_container" to parentContainer,
             "modifiers" to bits?.let { TypeModifiers.modifiers(it) },
             "is_abstract" to bits?.let { TypeModifiers.isAbstract(it) },
-            "is_generic" to null,
+            "is_generic" to bits?.let { TypeModifiers.isGeneric(it) },
             "superclass" to superclass,
             "interfaces" to interfaces,
             "annotations" to annotations,

@@ -139,13 +139,14 @@ non-private methods with a reference return type, so these appear for Kotlin met
 **Overrides.** Overriding is a fact about two class files, so the snapshot does not
 store it; it is derived when the graph is loaded
 ([derived facts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#63-derived-facts)).
-A method overrides a method of a transitive supertype with the same signature, or,
-failing that, with the same name and parameter types (a covariant return). Supertypes
-are searched breadth-first, starting with the direct ones, and the first method found is
-reported. Overrides are derived only between types of the scanned code: a method that
-overrides a method of an external type (`toString()` of `java.lang.Object`,
-`compareTo` of `java.lang.Comparable`) reports `overrides: null`, because the external
-type's methods are not in the snapshot. Constructors, static and private methods never
+A method overrides, in every transitive supertype, the method with the same signature,
+or, failing that, the methods with the same name and parameter types (a covariant
+return). All of them are reported: a method can override a superclass method and
+implement interface methods at once, and each is a contract it fulfils. Overrides are
+derived only between types of the scanned code: a method that overrides a method of an
+external type (`toString()` of `java.lang.Object`, `compareTo` of
+`java.lang.Comparable`) does not list it, because the external type's methods are not
+in the snapshot. Constructors, static and private methods never
 override.
 
 **Location.** `line_number` is the lowest source line in the method's code: the first
@@ -222,7 +223,7 @@ declares no exceptions, so `throws` is empty, but its body throws a freshly buil
 `IllegalStateException`, so `raises` lists it. Its code starts at line `19`, which is
 what `location` reports.
 
-`compareTo(Invoice)` reports `overrides: null` and `annotations: []`: `Comparable` is not
+`compareTo(Invoice)` reports `overrides: []` and `annotations: []`: `Comparable` is not
 scanned, so no override is derived, and `@Override` is not in the class file.
 
 ---
@@ -254,20 +255,20 @@ The response for `total` (id `4715`):
     { "id": null, "name": "IllegalStateException", "qualified_name": "java.lang.IllegalStateException", "kind": "external.type" }
   ],
   "annotations": [],
-  "overrides": null,
+  "overrides": [],
   "location": { "line_number": 19 }
 }
 ```
 
-A method that overrides one in the scanned code names it. For `CachedLedger.post`
-(id `4723`), which implements `Ledger.post`:
+A method that overrides methods in the scanned code names each of them, sorted by
+member key. For `CachedLedger.post` (id `4723`), which implements `Ledger.post`:
 
 ```json
-"overrides": {
-  "id": 4722, "name": "post",
-  "qualified_name": "com.example.billing.Ledger#void post(com.example.billing.Invoice)",
-  "kind": "java.method", "parent_id": 4713, "parent_kind": "java.interface"
-}
+"overrides": [
+  { "id": 4722, "name": "post",
+    "qualified_name": "com.example.billing.Ledger#void post(com.example.billing.Invoice)",
+    "kind": "java.method", "parent_id": 4713, "parent_kind": "java.interface" }
+]
 ```
 
 ### 4.2 Fields
@@ -283,7 +284,7 @@ A method that overrides one in the scanned code names it. For `CachedLedger.post
 | `throws` | list of type references | no | The declared `throws` clause. |
 | `raises` | list of type references | no | Exceptions the body throws on the spot. |
 | `annotations` | list of `{type}` | no | Annotations on the method. |
-| `overrides` | method reference | yes | The overridden method in the scanned code. |
+| `overrides` | list of method references | no | The overridden methods in the scanned code, sorted by member key. |
 | `location` | object | yes | `{line_number}`, the first line of the method's code. |
 
 **`method`** echoes the input with its bare name and member key, so the response can be
@@ -312,8 +313,9 @@ the contract a caller must handle, and what the method really throws (§3.1).
 tools.
 
 **`overrides`** links an implementation to the declaration it fulfils, which is the
-first step of any question about polymorphic behaviour. It is `null` when the method
-overrides nothing in the scanned code (§3.1).
+first step of any question about polymorphic behaviour. It is a list because one method
+can fulfil several declarations; it is empty when the method overrides nothing in the
+scanned code (§3.1).
 
 **`location`** gives the caller a line to open. Together with `type_details`'
 `location.source_file` it locates the method in its source file.
@@ -324,7 +326,8 @@ overrides nothing in the scanned code (§3.1).
 
 | Code | Situation | Extra fields |
 |------|-----------|--------------|
-| `NODE_NOT_FOUND` | `methodId` is not the id of a member: unknown ids, and the ids of types, packages and modules | none |
+| `NODE_NOT_FOUND` | `methodId` names no node | none |
+| `WRONG_NODE_KIND` | `methodId` names a type, package or module | `actual_kind`; the recovery names `type_details` and `list_children` for a type, `list_descendants` otherwise |
 | `WRONG_NODE_KIND` | `methodId` names a field | `actual_kind` (`"java.field"`) |
 | `DETAIL_REBUILDING` | the detail snapshot for the live graph is still being written | none |
 
@@ -333,23 +336,25 @@ All three use the nested shape of
 
 ```json
 { "error": {
-    "code": "NODE_NOT_FOUND",
-    "message": "Node not found: 4711.",
-    "recovery": "Look the method up again via list_children on its declaring type or find_node." } }
+    "code": "WRONG_NODE_KIND",
+    "message": "Node 4711 is a 'java.class', not a method. method_details requires a method-kind node.",
+    "actual_kind": "java.class",
+    "recovery": "To inspect the type, use type_details(typeId: 4711); to find its methods, use list_children(nodeId: 4711)." } }
 ```
 
 `WRONG_NODE_KIND` recovers with "To inspect the field itself, use
 field_details(fieldId: …)." and `DETAIL_REBUILDING` with "Retry the call in a
 moment."
 
-The tool looks ids up in the index of member ids only. An id of a type or package is
-therefore reported as `NODE_NOT_FOUND`, not as `WRONG_NODE_KIND`; the id exists in the
-graph, but not as a member. A field id is found in the index and reported as
-`WRONG_NODE_KIND`; pass it to `field_details` instead.
+An id that names any other node is reported as `WRONG_NODE_KIND` with the tool to use
+instead: a field id points to `field_details`, a type id to `type_details` and
+`list_children`, a package or module id to `list_descendants`. Only an id that names no
+node at all is `NODE_NOT_FOUND`, which recovers with "Look the method up again via
+list_children on its declaring type or find_node."
 
 `DETAIL_REBUILDING` is returned after a rescan while the Parquet snapshot of the live
-graph is still being written. The member id is checked first, so an id that is not a
-member is reported as `NODE_NOT_FOUND` even then. Retrying shortly succeeds.
+graph is still being written. The id is checked first, so an id that is not a method
+is reported as such even then. Retrying shortly succeeds.
 
 The no-graph response is described in the
 [shared spec §8.3](hierograph-mcp-tools.md#83-no-graph-loaded).
@@ -371,8 +376,8 @@ type kinds. An `external.type` id is a placeholder: `type_details` rejects it, b
 dependency tools accept it. A `null` id names a type outside the graph by its
 `qualified_name`.
 
-**Follow an override up.** Pass `overrides.id` back to `method_details` until
-`overrides` is `null`. The last method reached is the topmost declaration in the scanned
+**Follow an override up.** Pass an `overrides[].id` back to `method_details` until
+`overrides` is empty. The last method reached is the topmost declaration in the scanned
 code.
 
 **Find the callers.** `method_details` describes the method, not its use. For "who calls
