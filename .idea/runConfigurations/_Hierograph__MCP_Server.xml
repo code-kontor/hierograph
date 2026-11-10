@@ -1,7 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="[Hierograph] MCP-Server" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
-    <module name="io.hierograph.mcp.server" />
-    <option name="SPRING_BOOT_MAIN_CLASS" value="io.hierograph.mcp.server.McpApplication" />
+  <configuration default="false" name="[Hierograph] MCP-Server" type="JetRunConfigurationType" nameIsGenerated="true">
+    <option name="MAIN_CLASS_NAME" value="io.hierograph.mcp.server.McpApplicationKt" />
+    <module name="io.hierograph.server" />
+    <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
