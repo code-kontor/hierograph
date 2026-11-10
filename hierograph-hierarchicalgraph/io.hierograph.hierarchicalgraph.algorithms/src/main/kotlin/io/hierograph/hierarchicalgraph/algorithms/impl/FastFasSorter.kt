@@ -47,13 +47,23 @@ class FastFasSorter : INodeSorter {
             }
         }
 
+        // Upward dependencies are derived from the refined order, not from FastFAS's skipped edges: the
+        // bubble pass above can swap two vertices and so reverse the direction of the edges between them.
+        // In this (dependents-first) order, an edge from a later vertex to an earlier one points upward.
+        val upwardDeps = mutableListOf<AggregatedDependency>()
+        for (later in ordered.indices) {
+            for (earlier in 0 until later) {
+                val from = ordered[later]
+                val to = ordered[earlier]
+                if (adjacencyMatrix[from][to] > 0) {
+                    hierarchy.getAggregatedDependency(nodes[from], nodes[to])?.let { upwardDeps.add(it) }
+                }
+            }
+        }
+
         ordered = FastFAS.reverse(ordered)
 
         val resultNodes = ordered.map { nodes[it] }
-
-        val upwardDeps = fastFAS.getSkippedEdges().mapNotNull { edge ->
-            hierarchy.getAggregatedDependency(nodes[edge[0]], nodes[edge[1]])
-        }
 
         return object : SortResult {
             override val orderedNodes: List<HGNode> = resultNodes

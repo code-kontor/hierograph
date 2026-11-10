@@ -46,14 +46,27 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
         val ordered = mutableListOf<HGNode>()
         val seen = HashSet<Any>()
 
-        // First: single-node SCCs with no outgoing core dependencies
+        // First: sinks — single-node SCCs with no dependency on any *other* node of the set. Decided from
+        //    the node set's adjacency (which aggregates each node's subtree), not from the node's own core
+        //    dependencies: a container node (module, package) usually has no edges of its own. Placing
+        //    sinks first sends them to the bottom after the reversal, which keeps the order topological.
+        val nodeList = nodes.toList()
+        val adjacency = GraphUtils.computeAdjacencyList(nodeList, hierarchy)
+        val indexOf = HashMap<Any, Int>(nodeList.size * 2).apply {
+            nodeList.forEachIndexed { i, node -> put(node.identifier, i) }
+        }
+        fun isSink(node: HGNode): Boolean {
+            val i = indexOf.getValue(node.identifier)
+            return adjacency[i].all { it == i }
+        }
         for (scc in sortedSccs) {
-            if (scc.size == 1 && scc[0].outgoingCoreDependencies.isEmpty()) {
+            if (scc.size == 1 && isSink(scc[0])) {
                 if (seen.add(scc[0].identifier)) ordered.add(scc[0])
             }
         }
 
-        // Then: all remaining nodes
+        // Then: all remaining nodes. Tarjan emits SCCs in reverse topological order (dependencies
+        //    before their dependents), so after the reversal every dependent precedes its dependencies.
         for (scc in sortedSccs) {
             for (node in scc) {
                 if (seen.add(node.identifier)) {
