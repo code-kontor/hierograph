@@ -3,7 +3,7 @@
 # bump-nonpom-version.sh OLD_VERSION NEW_VERSION
 #
 # Replaces the Hierograph project version in the NON-POM files that carry it.
-# POM files are handled separately by `mvn versions:set` (see RELEASING.md);
+# POM files are handled separately by `mvn versions:set` (see release/docs/performing-a-release.md);
 # this script covers the references Maven doesn't know about.
 #
 # Two kinds of reference are handled:
@@ -19,7 +19,7 @@
 #
 # Deliberately EXCLUDED:
 #   * pom.xml            — owned by mvn versions:set
-#   * RELEASING.md       — its version strings are release-process examples
+#   * release/docs/*.md  — the release guides use X.Y.Z placeholders, not literal versions
 #
 set -euo pipefail
 
@@ -46,7 +46,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"
 
 # Curated list of non-POM files that reference the Hierograph version.
-# Add new ones here as they appear; keep RELEASING.md OUT.
+# Add new ones here as they appear; keep the release guides (release/docs/*.md) OUT.
 FILES=(
   "BUILD.md"
 )
