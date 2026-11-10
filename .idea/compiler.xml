@@ -14,11 +14,14 @@
         <module name="io.hierograph.graphstore.jvm" />
         <module name="io.hierograph.server.graphql" />
         <module name="io.hierograph.server.mapping" />
-        <module name="io.hierograph.itest.tests" />
         <module name="io.hierograph.server.graphservice" />
         <module name="io.hierograph.server" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="hierograph-itest" target="1.5" />
+      <module name="io.hierograph.itest.tests" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">

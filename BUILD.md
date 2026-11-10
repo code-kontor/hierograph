@@ -81,17 +81,17 @@ mvn -o -Pitest verify
 After a successful build, the runnable server jar is at:
 
 ```
-hierograph-server/io.hierograph.server/target/io.hierograph.server-0.2.0-exec.jar
+hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar
 ```
 
 Run it with:
 
 ```bash
-java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.2.0-exec.jar
+java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar
 ```
 
 > The repackaged (self-contained) jar carries the `exec` classifier so the plain
-> `io.hierograph.server-0.2.0.jar` remains the module's main artifact —
+> `io.hierograph.server-0.3.0-SNAPSHOT.jar` remains the module's main artifact —
 > downstream modules (e.g. the integration tests) compile against the server's classes,
 > which a Spring Boot fat jar hides under `BOOT-INF/classes`.
 
@@ -123,7 +123,7 @@ mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package -DskipTests
 This produces the image:
 
 ```
-ghcr.io/code-kontor/hierograph-mcp-server:0.2.0
+ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
 ```
 
 The image is built from the `Dockerfile` next to the server module (`eclipse-temurin:21-jre` over the
@@ -143,7 +143,7 @@ docker run --rm -p 8080:8080 \
   -v ~/.m2:/m2:ro \
   [-v hierograph-state:/hierograph] \
   [-e HIEROGRAPH_MAVEN_ARGS=-Pitest] \
-  ghcr.io/code-kontor/hierograph-mcp-server:0.2.0
+  ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
 ```
 
 - `/m2/repository` serves as a read-only tail of the container's own local repository; only missing
