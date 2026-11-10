@@ -148,6 +148,13 @@
                      Flip with `-Ddocker.push.skip=false` (run `docker login ghcr.io`
                      first). The push is bound to the `deploy` phase. -->
                 <docker.push.skip>true</docker.push.skip>
+                <!-- The image push binds to the `deploy` phase, which also triggers the
+                     default maven-deploy-plugin:deploy. This module has no
+                     distributionManagement, so that goal would fail ("repository element
+                     was not specified") before the push ever runs. The image is not a
+                     Maven artifact, so skip the jar deploy whenever -Pdocker is active;
+                     Maven Central publishing is its own `-Prelease` run. -->
+                <maven.deploy.skip>true</maven.deploy.skip>
                 <!-- The push path builds a multi-arch image with `docker buildx`
                      and pushes the manifest list in one step (multi-arch images
                      cannot be kept in the local image store, so build+push are

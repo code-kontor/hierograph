@@ -5,7 +5,7 @@
 # Creates (OVERWRITES!) ~/.m2/settings.xml from settings.xml.template,
 # resolving the Proton Pass {{ ... }} secret references with pass-cli.
 #
-# The template carries the release settings from RELEASING.md:
+# The template carries the release settings from docs/release-machine-setup.md:
 #   * <server id="central"> — Central Publisher Portal token
 #   * gpg-sign profile       — passphrase for the maven-gpg-plugin
 #
