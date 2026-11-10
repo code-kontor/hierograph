@@ -31,6 +31,8 @@
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.graphservice/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.mapping/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.mapping/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.views/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.views/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/src/main/kotlin" charset="UTF-8" />

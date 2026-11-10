@@ -9,19 +9,17 @@
         <module name="io.hierograph.manifest" />
         <module name="io.hierograph.hierarchicalgraph.model" />
         <module name="io.hierograph.hierarchicalgraph.algorithms" />
+        <module name="io.hierograph.server.views" />
         <module name="io.hierograph.graphstore.jvm.scanner" />
         <module name="hierograph-maven-plugin" />
         <module name="io.hierograph.graphstore.jvm" />
         <module name="io.hierograph.server.graphql" />
         <module name="io.hierograph.server.mapping" />
+        <module name="io.hierograph.itest.tests" />
         <module name="io.hierograph.server.graphservice" />
         <module name="io.hierograph.server" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="hierograph-itest" target="1.5" />
-      <module name="io.hierograph.itest.tests" target="21" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -42,6 +40,7 @@
       <module name="io.hierograph.server.graphql" options="-parameters" />
       <module name="io.hierograph.server.graphservice" options="-parameters" />
       <module name="io.hierograph.server.mapping" options="-parameters" />
+      <module name="io.hierograph.server.views" options="-parameters" />
     </option>
   </component>
 </project>
