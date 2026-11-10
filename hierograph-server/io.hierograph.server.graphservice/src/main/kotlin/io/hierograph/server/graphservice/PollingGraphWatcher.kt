@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -41,6 +42,8 @@ class PollingGraphWatcher(
     private val log = LoggerFactory.getLogger(PollingGraphWatcher::class.java)
 
     private var exec: ScheduledExecutorService? = null
+    // walks the module directories concurrently, for the baseline and every poll
+    private var walkers: ExecutorService? = null
 
     // gav -> signature last reported as changed (the baseline we compare against)
     private val reported = HashMap<String, Long>()
@@ -60,9 +63,9 @@ class PollingGraphWatcher(
         onManifestChange: () -> Unit,
         onBuildFilesChange: (Set<Path>) -> Unit,
     ) {
+        walkers = signaturePool()
         // Baseline = current state, so only changes after start are reported.
-        for ((gav, dirs) in targets.modules) {
-            val sig = signature(dirs)
+        for ((gav, sig) in signatures(targets.modules)) {
             reported[gav] = sig
             lastSig[gav] = sig
         }
@@ -103,8 +106,7 @@ class PollingGraphWatcher(
         buildFiles?.poll(now)?.takeIf { it.isNotEmpty() }?.let(onBuildFilesChange)
 
         val changed = HashSet<String>()
-        for ((gav, dirs) in targets.modules) {
-            val sig = signature(dirs)
+        for ((gav, sig) in signatures(targets.modules)) {
             val prev = lastSig[gav]
             if (sig != prev) {
                 lastSig[gav] = sig
@@ -117,8 +119,12 @@ class PollingGraphWatcher(
         if (changed.isNotEmpty()) onChange(changed)
     }
 
-    /** One signature over all directories of a module, so a change in any of them reports the module. */
-    private fun signature(dirs: List<Path>): Long = dirs.sumOf { outputSignature(it) }
+    /**
+     * One signature per module over all of its directories, so a change in any of them reports the module;
+     * the modules are walked concurrently.
+     */
+    private fun signatures(modules: Map<String, List<Path>>): Map<String, Long> =
+        modules.keys.zip(outputSignatures(modules.values.toList(), walkers)).toMap()
 
     private fun fileSignature(file: Path): Long {
         val attrs = runCatching { Files.readAttributes(file, BasicFileAttributes::class.java) }.getOrNull() ?: return 0L
@@ -128,5 +134,7 @@ class PollingGraphWatcher(
     override fun close() {
         exec?.shutdownNow()
         exec = null
+        walkers?.shutdownNow()
+        walkers = null
     }
 }

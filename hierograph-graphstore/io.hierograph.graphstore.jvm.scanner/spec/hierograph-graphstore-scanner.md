@@ -351,11 +351,16 @@ These are computed by the loader, over all artifacts loaded together:
 BytecodeScanner(parallelism = Runtime.getRuntime().availableProcessors())
 ```
 
-The scanner runs **one task per artifact** on up to `parallelism` threads (and never
-more threads than artifacts). The classes of one artifact are scanned sequentially,
-within its task. The speed-up therefore comes from scanning many artifacts at
-once, for example the jars of a dependency closure. A scan of a single artifact runs
-on one thread whatever `parallelism` is set to.
+The scanner runs **one task per class file** on up to `parallelism` threads (and never
+more threads than class files). It first lists the class files of every artifact,
+then scans them all through one pool. The work therefore spreads evenly however
+unequal the artifacts are: a single large artifact uses every thread, and a few
+large artifacts at the end of the input do not leave the other threads idle.
+
+`scanByKey` scans like `scan` and splits the result by artifact key (keys in order of
+first appearance, an empty result for a key without class files). The server scans
+all module outputs of a manifest in one `scanByKey` call, so the modules share the
+pool instead of being scanned one after another.
 
 Output order is fixed:
 

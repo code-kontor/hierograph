@@ -70,72 +70,116 @@ data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<Det
  * virtual + resolved calls) are **not** derived here: a per-artifact scan cannot see across artifacts, so
  * they are computed at load over the fully-assembled graph (`HierarchyResolution` in the graph service).
  *
- * Artifacts are scanned in parallel, one task per artifact on up to [parallelism] threads; the results are
- * collected in input order, so the output is identical to a sequential scan.
+ * The class files of all artifacts are scanned in parallel, one task per class file on up to [parallelism]
+ * threads: the work spreads evenly however unequal the artifacts are, and a single large artifact uses every
+ * thread too. The results are collected in input order, so the output is identical to a sequential scan.
  */
-class BytecodeScanner(private val parallelism: Int = Runtime.getRuntime().availableProcessors()) {
+class BytecodeScanner(val parallelism: Int = Runtime.getRuntime().availableProcessors()) {
 
     init {
         require(parallelism >= 1) { "parallelism must be >= 1, was $parallelism" }
     }
 
-    fun scan(artifacts: List<ScanArtifact>): ScanResult {
-        val scanned = scanArtifacts(artifacts).flatMap { (artifact, classes) -> classes.map { artifact.key to it } }
+    /** Scans [artifacts] into one result: artifacts in input order, the classes of each in path/entry order. */
+    fun scan(artifacts: List<ScanArtifact>): ScanResult =
+        toResult(scanArtifacts(artifacts).flatMap { (artifact, classes) -> classes.map { artifact.key to it } })
+
+    /**
+     * Scans [artifacts] like [scan], with the result split by artifact key: one entry per distinct key, in order
+     * of first appearance, each holding the classes of that key's artifacts in input order. A key whose
+     * artifacts hold no class file maps to an empty result. One call scans everything on the shared pool —
+     * cheaper and better balanced than one [scan] per key.
+     */
+    fun scanByKey(artifacts: List<ScanArtifact>): Map<String, ScanResult> {
+        val byKey = LinkedHashMap<String, MutableList<Pair<String, ScannedClass>>>()
+        for (artifact in artifacts) byKey.getOrPut(artifact.key) { ArrayList() }
+        for ((artifact, classes) in scanArtifacts(artifacts)) classes.mapTo(byKey.getValue(artifact.key)) { artifact.key to it }
+        return byKey.mapValues { (_, scanned) -> toResult(scanned) }
+    }
+
+    private fun toResult(scanned: List<Pair<String, ScannedClass>>): ScanResult {
         val classes = scanned.map { (key, c) -> ArtifactClass(key, c.facts) }
         // Direct edges only; overrides / virtual + resolved calls are derived at load (see the class doc).
         val detailRefs = scanned.flatMap { it.second.detailRefs }
         return ScanResult(classes, detailRefs)
     }
 
-    /** Scans each artifact as its own task; returns the per-artifact results in input order. */
+    /** One class file of an artifact: its path or entry [name] (for error messages) and how to [read] it. */
+    private class ClassFile(val name: String, val read: () -> ByteArray)
+
+    /**
+     * Scans every class file of [artifacts] as its own task; returns the per-artifact results in input order,
+     * the classes of each in path/entry order.
+     */
     private fun scanArtifacts(artifacts: List<ScanArtifact>): List<Pair<ScanArtifact, List<ScannedClass>>> {
-        fun scanOne(artifact: ScanArtifact): List<ScannedClass> =
-            ArrayList<ScannedClass>().also { out -> classFiles(artifact.path) { bytes -> out += ClassScanner.scan(bytes) } }
-
-        val threads = minOf(parallelism, artifacts.size)
-        if (threads <= 1) return artifacts.map { it to scanOne(it) }
-
-        val counter = AtomicInteger()
-        val pool = Executors.newFixedThreadPool(threads) { task ->
-            Thread(task, "hierograph-scan-${counter.incrementAndGet()}").apply { isDaemon = true }
-        }
+        val zips = ArrayList<ZipFile>()
         try {
-            val futures = artifacts.map { artifact -> pool.submit(Callable { scanOne(artifact) }) }
-            return artifacts.zip(futures).map { (artifact, future) ->
+            val files = artifacts.map { classFiles(it.path, zips) }
+            fun scanOne(artifact: ScanArtifact, file: ClassFile): ScannedClass =
                 try {
-                    artifact to future.get()
-                } catch (e: ExecutionException) {
-                    throw IllegalStateException("Scanning ${artifact.path} failed: ${e.cause?.message}", e.cause)
+                    ClassScanner.scan(file.read())
+                } catch (e: Exception) {
+                    throw IllegalStateException("Scanning ${file.name} of ${artifact.path} failed: ${e.message}", e)
                 }
+
+            val threads = minOf(parallelism, files.sumOf { it.size })
+            if (threads <= 1) return artifacts.zip(files).map { (artifact, fs) -> artifact to fs.map { scanOne(artifact, it) } }
+
+            val counter = AtomicInteger()
+            val pool = Executors.newFixedThreadPool(threads) { task ->
+                Thread(task, "hierograph-scan-${counter.incrementAndGet()}").apply { isDaemon = true }
+            }
+            try {
+                val futures = artifacts.zip(files).map { (artifact, fs) ->
+                    artifact to fs.map { file -> pool.submit(Callable { scanOne(artifact, file) }) }
+                }
+                return futures.map { (artifact, fs) ->
+                    artifact to fs.map { future ->
+                        try {
+                            future.get()
+                        } catch (e: ExecutionException) {
+                            throw e.cause ?: e
+                        }
+                    }
+                }
+            } finally {
+                pool.shutdownNow()
             }
         } finally {
-            pool.shutdownNow()
+            zips.forEach { runCatching { it.close() } }
         }
     }
 
-    private fun classFiles(path: Path, consume: (ByteArray) -> Unit) {
-        when {
-            path.isDirectory() -> Files.walk(path).use { files ->
-                files.filter { Files.isRegularFile(it) && isScannable(path.relativize(it).toString().replace('\\', '/')) }
-                    .sorted()
-                    .forEach { consume(Files.readAllBytes(it)) }
-            }
-            path.extension == "jar" || path.extension == "zip" -> ZipFile(path.toFile()).use { zip ->
-                val entries = zip.entries().asSequence().filter { !it.isDirectory }.toList()
-                // Each class once, in its newest version: a multi-release overlay (META-INF/versions/<n>/…)
-                // replaces the base class, as it does at run time on a current JDK.
-                val byName = HashMap<String, Pair<Int, ZipEntry>>()
-                for (e in entries) {
-                    val overlay = MULTI_RELEASE.matchEntire(e.name)
-                    val name = overlay?.groupValues?.get(2) ?: e.name
-                    val version = overlay?.groupValues?.get(1)?.toInt() ?: 0
-                    if (!isScannable(name)) continue
-                    if (version >= (byName[name]?.first ?: -1)) byName[name] = version to e
-                }
-                byName.toSortedMap().values.forEach { (_, entry) -> zip.getInputStream(entry).use { consume(it.readAllBytes()) } }
-            }
-            else -> throw IllegalArgumentException("Not a JAR or class directory: $path")
+    /**
+     * The class files of the artifact at [path], in path order (directory) or entry-name order (JAR). A JAR is
+     * opened and added to [zips], to be closed by the caller once every file has been read.
+     */
+    private fun classFiles(path: Path, zips: MutableList<ZipFile>): List<ClassFile> = when {
+        path.isDirectory() -> Files.walk(path).use { files ->
+            files.filter { Files.isRegularFile(it) && isScannable(path.relativize(it).toString().replace('\\', '/')) }
+                .sorted()
+                .map { file -> ClassFile(path.relativize(file).toString()) { Files.readAllBytes(file) } }
+                .toList()
         }
+        path.extension == "jar" || path.extension == "zip" -> {
+            val zip = ZipFile(path.toFile()).also { zips += it }
+            val entries = zip.entries().asSequence().filter { !it.isDirectory }.toList()
+            // Each class once, in its newest version: a multi-release overlay (META-INF/versions/<n>/…)
+            // replaces the base class, as it does at run time on a current JDK.
+            val byName = HashMap<String, Pair<Int, ZipEntry>>()
+            for (e in entries) {
+                val overlay = MULTI_RELEASE.matchEntire(e.name)
+                val name = overlay?.groupValues?.get(2) ?: e.name
+                val version = overlay?.groupValues?.get(1)?.toInt() ?: 0
+                if (!isScannable(name)) continue
+                if (version >= (byName[name]?.first ?: -1)) byName[name] = version to e
+            }
+            // ZipFile is thread-safe: the entries are read concurrently from the scan tasks.
+            byName.toSortedMap().values.map { (_, entry) ->
+                ClassFile(entry.name) { zip.getInputStream(entry).use { it.readAllBytes() } }
+            }
+        }
+        else -> throw IllegalArgumentException("Not a JAR or class directory: $path")
     }
 
     private companion object {
