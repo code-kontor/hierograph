@@ -28,7 +28,8 @@ them.
 7. [Registry and service](#7-registry-and-service)
 8. [Tools and GraphQL](#8-tools-and-graphql)
 9. [API](#9-api)
-10. [Boundaries](#10-boundaries)
+10. [Decisions](#10-decisions)
+11. [Boundaries](#11-boundaries)
 
 ---
 
@@ -417,6 +418,160 @@ before; and `newCycles`, those the restructuring creates. It answers "does this
 extraction introduce a cycle?" without a second query. Materializing a restructuring
 view of the Spring 7.0.8 fixture, effect included, takes some 100–150 ms.
 
+#### 6.4.5 Examples
+
+The examples restructure the `io.hierograph` reactor itself. The figures were
+measured by applying each document with `ViewMaterializer` to the graph of commit
+`84e7741c` (0.3.0-SNAPSHOT, test artifacts included); they are type-level weights.
+Module names are shortened: `graphstore.jvm` stands for
+`io.hierograph:io.hierograph.graphstore.jvm:0.3.0-SNAPSHOT`, and so on.
+
+**Example 1 — extract a package into a new module, and find the cycle.** The
+snapshot format, `io.hierograph.graphstore.jvm.parquet` (35 types), is a candidate
+for a module of its own. The first draft is the document at the top of §6.4: one
+virtual module, one move.
+
+```
+base                                         view "extract-parquet"
+graphstore.jvm                               graphstore.jvm
+└─ io ─ … ─ io.hierograph.graphstore.jvm     └─ io ─ … ─ io.hierograph.graphstore.jvm
+   ├─ (11 types: GraphStore, …)                 ├─ (11 types: GraphStore, …)
+   ├─ detail   (12 types)                       ├─ detail
+   ├─ model    (18 types)                       └─ model
+   └─ parquet  (35 types)                    io.hierograph.graphstore.parquet        [virtual]
+                                             └─ io ─ … ─ io.hierograph.graphstore.jvm [virtual packages]
+                                                └─ parquet  (35 types, same handles)
+```
+
+| Effect | Weight |
+|--------|--------|
+| added `graphstore.parquet → graphstore.jvm` | 146 |
+| added `graphstore.jvm → graphstore.parquet` | 9 — `detail` reads the snapshot |
+| `new_cycles` | {`graphstore.parquet`, `graphstore.jvm`} |
+
+The extraction as drafted creates a module cycle, and `outgoing_dependencies` from
+`graphstore.jvm` to the new module, in the view, names the edges that cause it. The
+report also has a `SPLIT_PACKAGE` info: the tests of `parquet` stay in
+`graphstore.jvm`'s test artifact.
+
+**Example 2 — fix the draft: move the detail queries along.** Nothing else in
+`graphstore.jvm` depends on `detail`, so the second draft moves both packages:
+
+```json
+{ "name": "extract-parquet", "restructure": true,
+  "modules": [ { "name": "io.hierograph.graphstore.parquet" } ],
+  "moves": [
+    { "select": { "match": "io.hierograph.graphstore.jvm.parquet", "kind": "java.package",
+                  "within": "io.hierograph:io.hierograph.graphstore.jvm:*" },
+      "to": "io.hierograph.graphstore.parquet" },
+    { "select": { "match": "io.hierograph.graphstore.jvm.detail", "kind": "java.package",
+                  "within": "io.hierograph:io.hierograph.graphstore.jvm:*" },
+      "to": "io.hierograph.graphstore.parquet" } ] }
+```
+
+| Effect | Weight |
+|--------|--------|
+| added `graphstore.parquet → graphstore.jvm` | 217 |
+| `graphstore.jvm → graphstore.parquet` | none |
+| added consumers of the new module | `server` 32, `server.graphservice` 24, `graphstore.jvm.scanner` 14, `hierograph-maven-plugin` 6, and the test artifacts |
+| `new_cycles` | none |
+
+The added consumers are the list of builds that need a dependency on the new module
+— the shopping list for the real refactoring. Defining the document again replaces
+the first draft: draft, read the effect, adjust.
+
+**Example 3 — split a module by types.** `server.graphservice` holds the graph
+service and the file watching in one package. The watcher types depend only on each
+other and on a few helpers:
+
+```json
+{ "name": "split-watching", "restructure": true,
+  "modules": [ { "name": "io.hierograph.server.watch" } ],
+  "moves": [
+    { "select": { "match": "io.hierograph.server.graphservice.*Watcher", "kind": "types",
+                  "within": "io.hierograph:io.hierograph.server.graphservice:*" },
+      "to": "io.hierograph.server.watch" },
+    { "select": { "match": "io.hierograph.server.graphservice.{WatchTargets,BuildFileTracker,OutputSignatureKt}",
+                  "kind": "types", "within": "io.hierograph:io.hierograph.server.graphservice:*" },
+      "to": "io.hierograph.server.watch" } ] }
+```
+
+Ten types move, nested and synthetic classes included. They keep their package: the
+new module gets a virtual `io.hierograph.server.graphservice` package, and the report
+notes the split package. The effect: `server.graphservice → server.watch` is added
+with weight 13, nothing points back, no cycle. A further move into
+`io.hierograph.server.watch/io.hierograph.server.watch` would give the types a
+package of their own and remove the split.
+
+**Example 4 — move one type to where its knowledge lives.** `HierarchyResolution`
+resolves overrides and virtual calls over JVM types; apart from its nested types it
+depends only on `graphstore.jvm`:
+
+```json
+{ "name": "jvm-resolution", "restructure": true,
+  "moves": [ { "select": { "match": "io.hierograph.server.graphservice.HierarchyResolution", "kind": "types" },
+               "to": "io.hierograph:io.hierograph.graphstore.jvm:*/io.hierograph.graphstore.jvm.detail" } ] }
+```
+
+No module dependency is added or removed; only weights change, which is why the
+effect lists `changed`. `server.graphservice → graphstore.jvm` falls from 222 to 203:
+the type's own dependencies on `graphstore.jvm` leave the module and outweigh the new
+use of the moved type. The test artifact that exercises the type
+(`server.graphservice:test → graphstore.jvm`, 78 → 108) shows where its tests would
+have to go.
+
+**Example 5 — merge two modules.** `server.mapping` connects the GraphStore to the
+hierarchical graph. Merging it into the graph service:
+
+```json
+{ "name": "merge-mapping", "restructure": true,
+  "moves": [ { "select": "io.hierograph:io.hierograph.server.mapping:*",
+               "to": "io.hierograph:io.hierograph.server.graphservice:*" } ] }
+```
+
+`*` does not cross `:`, so the selector takes the main artifact only; the test
+artifact stays, and the report notes the split package. `:**` would take the test
+artifact too, but merge it into the graph service's *main* artifact. The precise
+view adds a second move, from `…mapping:*:test` to `…graphservice:*:test`.
+
+| Effect | Weight |
+|--------|--------|
+| removed `server.graphservice → server.mapping` | 15, now internal |
+| removed `server → server.mapping`; changed `server → server.graphservice` | 15; 241 → 256 |
+| changed `server.graphservice → hierarchicalgraph.model` | 142 → 187, the mapping's 45 |
+| changed `server.graphservice → graphstore.jvm` | 222 → 253, the mapping's 31 |
+
+One module fewer, no new edge between the remaining main artifacts, no cycle.
+
+**Example 6 — a target architecture: restructuring and grouping together.** A view
+can describe where the system should go as a whole: the moves of examples 2 and 3,
+and groups over real and virtual modules.
+
+```json
+{ "name": "target-2027", "restructure": true,
+  "modules": [ { "name": "io.hierograph.graphstore.parquet" }, { "name": "io.hierograph.server.watch" } ],
+  "moves": [ "the four moves of examples 2 and 3" ],
+  "groups": [
+    { "name": "core",    "members": ["io.hierograph:io.hierograph.hierarchicalgraph.*:*",
+                                     "io.hierograph:io.hierograph.graphstore.jvm:*"] },
+    { "name": "storage", "members": ["io.hierograph.graphstore.parquet",
+                                     "io.hierograph:io.hierograph.graphstore.jvm.scanner:*"] },
+    { "name": "server",  "members": ["io.hierograph:io.hierograph.server*:*",
+                                     "io.hierograph.server.watch"] } ] }
+```
+
+(`moves` stands for the four move objects; the parser takes objects only.) The
+group-level DSM is the target's layering: `storage → core` 294, `server → core`
+1892, `server → storage` 87, and nothing pointing up. Kept in `.hierograph/views/`,
+the document is the architecture decision in reviewable form, and every rebuild
+re-checks the code against it.
+
+**From an assistant.** The hierograph-extract skill turns "extract the snapshot
+format into its own module" into the first draft, reads `new_cycles`, finds the edges
+behind the cycle in the view, proposes the smallest additional moves that remove it
+— moving `detail` along — and defines the next draft. The result is a view known to
+be acyclic, and the list of build changes the real refactoring needs.
+
 ---
 
 ## 7. Registry and service
@@ -599,7 +754,70 @@ with the MCP tools.
 
 ---
 
-## 10. Boundaries
+## 10. Decisions
+
+The choices that shaped views, with the reason for each. They were taken in the
+design of views (2026) and are recorded here because the code shows what was
+decided, not why.
+
+1. **"View" and `view.group`.** An alternative hierarchy defined by a document is a
+   *view*; its group nodes have the kind `view.group`. The word says that nothing
+   about the code changes, only how it is looked at.
+2. **Views replace the *module groups* design.** That design carried one grouping,
+   the build's multi-modules, through the manifest, the plugin, the GraphStore, the
+   snapshot format and the tools. A view solves the general case in one place, with
+   no change to any of them; multi-modules are one view document among many.
+3. **Grouping first, restructuring behind a flag.** Pure grouping (members share a
+   parent, levels are inserted) came first; moves followed, and need an explicit
+   `"restructure": true`, so a grouping view can never move code by accident.
+4. **Selectors on qualified names**, with `*`, `**`, `{a,b}` and optional `kind` and
+   `within`, resolved anew for every graph generation. Qualified names are what the
+   tools show and what a person or an assistant writes; resolving per generation lets
+   a pattern pick up a module that appears later. `*` crosses `.` but not `:`, so a
+   GAV pattern keeps main and test artifacts apart.
+5. **A node is in at most one group per view.** Otherwise a node would sit in two
+   places of one tree. Overlapping groupings, such as layers and teams over the same
+   modules, are separate views.
+6. **Two sources, the state wins.** Project views are versioned and reviewed with the
+   code; state views are runtime experiments. A state view shadows a project view of
+   the same name without touching the project. State views default to
+   `<state dir>/runtime-views`, because without a configured state directory
+   `<state dir>/views` would be the project directory itself. Documents are re-read on
+   access when their files change, not watched: views are only read on request.
+7. **Lazy materialization per snapshot**, cached until the graph or the document
+   changes, and only for the live snapshot. A view costs nothing until it is used,
+   and an idle view does not keep a replaced graph in memory.
+8. **A `view` parameter, not session state.** Each call names its view, so calls are
+   independent, cursors stay verifiable, and two clients can use different views at
+   once. The tool wrapper adds the parameter centrally, so every tool — present and
+   future — supports it without code of its own. GraphQL answers one view per
+   request, because the properties batch cannot tell fields apart.
+9. **Virtual modules are `java.module`** (and virtual packages `java.package`),
+   marked `virtual: true`, so module-level analyses, DSMs and kind filters treat them
+   as what they stand for.
+10. **Moves keep qualified names.** A package moved into a module keeps its name and
+    gets its package path there; a type moved into a module lands in the package of
+    its own package name. Renaming happens only when a move targets a package, and
+    moving a module into a module merges them. This matches what the real refactoring
+    would do in the common case.
+11. **The report carries the module-level effect** — added, removed and changed
+    module dependencies, and the module cycles before and after — so a draft is
+    judged without further queries. Changed weights are part of it because a move
+    between existing modules often changes no edge, only its weight (example 4).
+    Nodes a restructuring empties leave the view through `Hierarchy.remove`.
+12. **Sibling position is not modelled.** Groups are appended under their parent in
+    document order, members in base-hierarchy order; the model has no positional
+    insert, because no tool or analysis depends on sibling order (§6.1). Only
+    determinism matters.
+13. **The model guards the tree, materialization reports.** The model rejects a move
+    into a node's own subtree, a second placement and a taken local identifier
+    (hierarchical-graph model specification, §7.2, §7.3); materialization checks
+    before it changes anything and turns each case into a report entry instead of
+    failing the request.
+
+---
+
+## 11. Boundaries
 
 | Concern | Where |
 |---------|-------|
