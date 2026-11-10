@@ -69,3 +69,5 @@ out/
 .claude/skills/hierograph-structure
 .claude/skills/hierograph-extract
 .claude/skills/hierograph-bootstrap
+.claude/skills/hierograph-rescan
+.claude/skills/layered-dependency-graph
