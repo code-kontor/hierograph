@@ -16,6 +16,9 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
       {"name": "API",  "patterns": ["-api"]},
       {"name": "Core", "names": ["model", "algorithms"], "span": true}
     ],
+    "view_groups": {                                # optional, see Groups below
+      "web": [5968189658062703, 23815330338705]     # a view's group -> its members' node ids
+    },
     "aggregator_groups": {                          # optional, see Groups below
       "hierograph-server": ["io.hierograph.server", "io.hierograph.server.graphql"]
     }
@@ -41,6 +44,12 @@ as one box around its members.
 
 A placed group owns its level and also names it. Edges that no longer point downward because of pinning are reported as
 violations, not hidden.
+
+`view_groups` maps the path of a group of a hierograph view (get_view) to its
+members, the nodes directly below it in the view, by node id (or exact name). Each
+becomes a spanning group, after the `pin_groups` and before the
+`aggregator_groups`. This is how the boxes of a layered graph come from a view
+rather than from hand-collected membership.
 
 `aggregator_groups` maps the name of a multi-module (a Maven aggregator, a Gradle
 parent project) to its member modules, by exact node name. Each becomes a spanning
@@ -134,6 +143,14 @@ def main():
     # which therefore win any overlap. A multi-module with fewer than two members
     # in the node set is skipped - a box around one module says nothing.
     present = set(names.values())
+    for name, members in spec.get("view_groups", {}).items():
+        # Members by node id, so two nodes of one name (a main and a test artifact) stay apart.
+        member_names = [names.get(str(m), m) for m in members]
+        hits = [n for n in member_names if n in present]
+        if len(hits) >= 2:
+            pins.append({"name": name, "names": member_names, "span": True})
+        else:
+            print(f"  view group '{name}' skipped: {len(hits)} member(s) in the node set")
     for name, members in spec.get("aggregator_groups", {}).items():
         hits = [n for n in members if n in present]
         if len(hits) >= 2:

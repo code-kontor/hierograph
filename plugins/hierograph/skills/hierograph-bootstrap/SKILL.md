@@ -263,6 +263,36 @@ session** (or after reconnecting via `/mcp`).
 Report what is running (mode, server or container, port, how to restart it), that a new session is
 needed before the tools are usable, and how the graph stays current (below).
 
+### 7. Optional: a multi-module view
+
+If the reactor has aggregators below the root — POMs that list `<modules>` themselves — offer a
+**view** that groups the modules by them. With it, the analysis skills answer "by multi-module"
+with one `view = "multi-modules"` instead of collecting the membership by hand. Skip this step for
+a flat reactor, and skip it unless the user wants it.
+
+Derive the document from the POMs, never from module names:
+
+```bash
+python3 -I <this skill's dir>/scripts/multimodule_view.py "$BUILD_ROOT" [--profile <id> ...] > <scratch dir>/multi-modules.json
+```
+
+It walks `<modules>` recursively (pass the `PROFILES` that add modules), makes one group per
+aggregator below the root, named by its `artifactId`, with its modules as members by GAV
+(`groupId:artifactId:**`, test artifacts included; `--main-only` leaves them out); nested
+aggregators become nested groups, and modules the root lists directly stay ungrouped. Show the
+groups to the user, then let them choose where the view lives:
+
+| Where | How | Note |
+|-------|-----|------|
+| in the project, versioned | save the document as `BUILD_ROOT/.hierograph/views/multi-modules.json` | the server reads it in both modes; in `docker` mode this is the one change to the project, so ask first |
+| on the server only | after reconnecting, `define_view(document = <the JSON>)` | kept in the server's state (the state volume in `docker` mode); the project is untouched |
+
+The tools are not available in this session, so the server-only variant happens in the next one;
+hand the document over for it. In the next session, `graph_overview(view = "multi-modules")`
+shows the groups and the view's report: zero errors means every module was placed. A
+`SELECTOR_MATCHES_NOTHING` warning names a module without compiled output, which is not in the
+graph.
+
 ## Keeping the graph current
 
 There is no rescan step.
@@ -281,7 +311,8 @@ There is no rescan step.
 ## Handing off
 
 Once verified, point the user at the analysis skills — **hierograph-structure** (dependency
-structure, DSM, layering, cycles) and **hierograph-extract** (plan a module extraction) — or let
+structure, DSM, layering, cycles, and views by multi-module, layer or context) and
+**hierograph-extract** (plan a module extraction, projected as a restructuring view) — or let
 them ask directly, e.g. *"use hierograph: what's the most fragile coupling in this codebase?"* If the
 AI starts reading source files instead of querying, nudge it with **"use hierograph"**.
 

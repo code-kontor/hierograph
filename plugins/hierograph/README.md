@@ -10,9 +10,13 @@ Skills included:
   Alternatively it runs the server as a local Java process on a manifest from the host
   (`hierograph:manifest`). Then it registers the server with your client. Afterwards the server follows
   code, module and POM changes on its own; there is no rescan step. Gradle builds are not supported yet.
+  Optionally it derives a multi-module view from the POMs.
 - **`/hierograph:hierograph-structure`** — dependency structure: DSM, layered dependency graph,
-  layering and cycle analysis.
-- **`/hierograph:hierograph-extract`** — plan a module / package extraction.
+  layering and cycle analysis, also in a view — by multi-module, layer, context or target
+  architecture — which it can propose and define.
+- **`/hierograph:hierograph-extract`** — plan a module / package extraction, projected as a
+  restructuring view: the server shows the new module's dependencies and any cycle before code is
+  touched.
 
 ## Install
 

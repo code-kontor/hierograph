@@ -74,7 +74,24 @@ no outsider lands inside the box, including on a spanned level that has no membe
 Use it when the group is a unit but has its own internal layering, such as a core
 module and an extension built on it. `place` does not apply to a spanning group.
 
-To box multi-modules, list them under `aggregator_groups`, mapping each
+**Boxes from a view.** When the grouping is a hierograph view, take the boxes from
+it: map each group's path to its members' node ids under `view_groups`
+(`references/views.md` shows how to collect them). Each becomes a spanning group,
+exactly as below, and membership comes from the view the server applied rather than
+from a list you assembled:
+
+```json
+"view_groups": {
+  "core-container": [7802159431405318, 23815330338705],
+  "web": [5968189658062703, 1146938817291530]
+}
+```
+
+Prefer this whenever a view exists or can be defined: the same document then
+drives the group-level DSM, the boxes and every other tool, and the server's report
+says what it could not apply.
+
+Without a view, to box multi-modules, list them under `aggregator_groups`, mapping each
 multi-module's name to its member modules (exact node names):
 
 ```json
@@ -88,8 +105,9 @@ multi-module's name to its member modules (exact node names):
 Each becomes a spanning group. Take the membership from the build — a Maven
 aggregator's `<modules>`, a Gradle parent's subprojects — not from name
 similarity. Test artifacts are members only when listed. A multi-module with fewer
-than two members in the node set is skipped and reported. Explicit `pin_groups`
-come first and win any overlap.
+than two members in the node set is skipped and reported, and so is a view group.
+Explicit `pin_groups` come first and win any overlap, then `view_groups`, then
+`aggregator_groups`.
 
 `place` overrides the computed depth and stacks a group above everything else,
 lowest value nearest the rest of the graph — `{"name": "Tests", "place": 2}` with
