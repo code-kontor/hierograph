@@ -47,4 +47,10 @@ data class GraphSnapshot(
      */
     val memberHandles: Map<Long, String> = emptyMap(),
     val generation: Long = 0,
+    /**
+     * The name of the view this snapshot shows, or `null` for the base hierarchy. A view's snapshot shares
+     * everything with its base snapshot except [model] (a fork with the view's group nodes), [searchIndex]
+     * (which also finds the group nodes) and [dataHash] (which also covers the view document).
+     */
+    val view: String? = null,
 )

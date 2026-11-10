@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -213,6 +214,12 @@ class HierarchicalGraphService {
 
     private fun buildRoot(): Path = configuredBuildRoot() ?: ManifestGraphSource.defaultBuildRoot(manifestPath()) ?: manifestPath().parent
 
+    /** Where the server writes its state: the configured state directory, or the manifest's directory. */
+    val stateDirectory: Path get() = stateDir()
+
+    /** The local build root: the configured one, or the one derived from the manifest's location. */
+    val buildRootDirectory: Path get() = buildRoot()
+
     /**
      * In `manifest` mode without a manifest yet, generate it with the configured regeneration command before
      * loading (a container's first start). A no-op when a manifest exists or no command is configured.
@@ -275,6 +282,29 @@ class HierarchicalGraphService {
      */
     private val snapshotRef = AtomicReference<GraphSnapshot>()
 
+    /** Called with every snapshot [publish] makes live; see [onSnapshotPublished]. */
+    private val snapshotListeners = CopyOnWriteArrayList<(GraphSnapshot) -> Unit>()
+
+    /**
+     * Registers [listener] to be called, on the publishing thread, after each new snapshot becomes live — for
+     * caches derived from a snapshot, which can drop what belongs to the replaced one. A failing listener is
+     * logged and does not stop the publication.
+     */
+    fun onSnapshotPublished(listener: (GraphSnapshot) -> Unit) {
+        snapshotListeners += listener
+    }
+
+    private fun publish(snapshot: GraphSnapshot) {
+        snapshotRef.set(snapshot)
+        for (listener in snapshotListeners) {
+            try {
+                listener(snapshot)
+            } catch (e: Exception) {
+                log.warn("A snapshot listener failed", e)
+            }
+        }
+    }
+
     /** The snapshot pinned to the current thread by [withPinnedSnapshot], if any. */
     private val pinned = ThreadLocal<GraphSnapshot?>()
 
@@ -295,6 +325,9 @@ class HierarchicalGraphService {
 
     /** The live snapshot, or `null` without a loaded graph: what [withPinnedSnapshot] would pin right now. */
     fun liveSnapshot(): GraphSnapshot? = snapshotRef.get()
+
+    /** The snapshot this thread reads: the one pinned by [withPinnedSnapshot], else the live one; `null` without a graph. */
+    fun currentSnapshot(): GraphSnapshot? = live()
 
     /**
      * Runs [block] with [snapshot] pinned to the current thread, like [withPinnedSnapshot] does with the
@@ -335,7 +368,7 @@ class HierarchicalGraphService {
         try {
             generateManifestIfMissing()
             val built = loadSnapshot()
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
         } catch (e: Exception) {
@@ -370,7 +403,7 @@ class HierarchicalGraphService {
         return try {
             generateManifestIfMissing()
             val (built, elapsed) = measureTimedValue { loadSnapshot() }
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
             val snapshot = built.snapshot
@@ -404,7 +437,7 @@ class HierarchicalGraphService {
      * in tests; production code loads via [init] / [reload].
      */
     fun seed(model: HGModel) {
-        snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), generation = graphGen.incrementAndGet()))
+        publish(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), generation = graphGen.incrementAndGet()))
     }
 
     /**
@@ -414,7 +447,7 @@ class HierarchicalGraphService {
      */
     fun seedFromParquet(dir: Path) {
         val built = buildFromParquet(dir)
-        snapshotRef.set(built.snapshot)
+        publish(built.snapshot)
         built.publishDetail()
     }
 
@@ -556,7 +589,7 @@ class HierarchicalGraphService {
                 currentScanned = rescanned
                 buildManifestSnapshot(rescanned)
             }
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             val rootChildren = built.snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
             log.info(
@@ -588,7 +621,7 @@ class HierarchicalGraphService {
                 log.info("Manifest applied in {}: hash {}", elapsed, built.snapshot.dataHash)
                 built
             }
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
         } catch (e: Exception) {

@@ -64,7 +64,11 @@ stays simple:
 for one build: the hierarchical `model`, its `searchIndex`, a `dataHash`
 fingerprint of the model, the optional type-level graph store, a member-handle
 index, and the build `generation`. It is immutable; the service never mutates a
-live snapshot, it builds a new one and replaces the old.
+live snapshot, it builds a new one and replaces the old. A **view's** snapshot is
+derived from a base snapshot by `ViewService`: the same snapshot with the view's
+model (a fork with group nodes), a search index that also finds the groups, a data
+hash that also covers the view document, and `view` set to the view's name (views
+specification, §7).
 
 **Atomic swap.** The current snapshot lives behind a single atomic reference.
 Every public read resolves it once, so concurrent tool calls each see one coherent
@@ -304,6 +308,9 @@ the pinned one inside `withPinnedSnapshot`):
 | `isGraphAvailable` | whether any graph is loaded; tools check this before answering |
 | `withPinnedSnapshot { … }` | run a block against one snapshot, whatever reloads happen meanwhile |
 | `liveSnapshot()` / `withPinnedSnapshot(snapshot) { … }` | capture the live snapshot once and pin it later, for work that spans callbacks or threads (the GraphQL API pins each request this way) |
+| `currentSnapshot()` | the snapshot this thread reads: the pinned one, else the live one |
+| `onSnapshotPublished(listener)` | called after each new snapshot becomes live, for caches derived from a snapshot (the view cache drops the views of the replaced one) |
+| `stateDirectory` / `buildRootDirectory` | the resolved state directory and build root; the defaults of the view directories derive from them |
 | `model` | the hierarchical model (navigation, hierarchy, dependencies) |
 | `searchIndex` | the node search index for the current model |
 | `dataHash` | fingerprint of the current model; the basis for pagination-cursor validity |
@@ -338,6 +345,8 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |
 | `hierograph.graph.dump.enabled` | `false` | Write a one-line-per-node text dump after each build. |
 | `hierograph.graph.dumpFile` | `hierarchical-graph.txt` | Where the dump is written. |
+| `hierograph.views.projectDir` | *(`<build root>/.hierograph/views`)* | Project view documents, read-only (views specification, §7.1). |
+| `hierograph.views.stateDir` | *(`<state dir>/runtime-views`)* | Views defined at runtime (views specification, §7.1). |
 
 In `manifest` mode the detail snapshot is written to a `snapshot/` directory in the
 state directory (one `gen-<nnnn>` subdirectory per build; superseded ones are

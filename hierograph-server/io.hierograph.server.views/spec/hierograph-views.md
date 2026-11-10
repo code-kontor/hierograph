@@ -6,9 +6,11 @@ possibly nested. This module defines the view document, its member selectors, an
 how a document is resolved against a hierarchy, with the report of everything that
 could not be applied.
 
-It is a plain library, without Spring. It only reads hierarchies; creating the group
-nodes in a fork of the hierarchy (materialization), the registry of view documents
-and the tools' `view` parameter are built on top of it.
+The format, the selectors, resolution and materialization (§2–§6) are a plain
+library in this module, without Spring; materialization only ever changes a fork.
+The registry of view documents and the cache of materialized views (§7) live in the
+graph service (`io.hierograph.server.graphservice.views`). The tools' `view`
+parameter is built on top of them.
 
 ---
 
@@ -19,8 +21,10 @@ and the tools' `view` parameter are built on top of it.
 3. [The document](#3-the-document)
 4. [Member selectors](#4-member-selectors)
 5. [Resolution](#5-resolution)
-6. [API](#6-api)
-7. [Boundaries](#7-boundaries)
+6. [Materialization](#6-materialization)
+7. [Registry and service](#7-registry-and-service)
+8. [API](#8-api)
+9. [Boundaries](#9-boundaries)
 
 ---
 
@@ -35,7 +39,10 @@ and the tools' `view` parameter are built on top of it.
  Hierarchy ─────┘
         │
         ▼
- materialization: fork the hierarchy, create a local node per group, move the members
+ ViewMaterializer.materialize            → MaterializedView: forked model + group nodes + report (§6)
+        │
+        ▼
+ ViewService.view(name)                  → ViewSnapshot: a GraphSnapshot of the view, cached per graph snapshot (§7)
 ```
 
 | Depends on | For |
@@ -239,7 +246,132 @@ and the nodes it is about.
 
 ---
 
-## 6. API
+## 6. Materialization
+
+`ViewMaterializer.materialize(base, resolved)` applies a resolved view to a
+**fork** of the base model; the base model is never changed.
+
+1. For each group of `ResolvedView.groups`, in document order, create a local node
+   and add it below the group's `parent`.
+2. Move the group's members below it, in base-hierarchy order.
+3. Do the same for the nested groups, below their enclosing group's node.
+
+The result, `MaterializedView`, holds the model, the group nodes by path, and the
+report. When no group can be applied, the model is the base model itself, not a
+fork.
+
+### 6.1 Order
+
+A child's position among its siblings carries no meaning: the navigation tools sort
+children by qualified name, the DSM computes its own order, and aggregation ignores
+order. The model's `addChild` and `move` append, and materialization keeps it that
+way; it only makes the order deterministic — groups in document order, members in
+base-hierarchy order — so the same document over the same graph gives the same
+tree.
+
+### 6.2 Group nodes
+
+| Property | Value |
+|----------|-------|
+| Kind | `view.group` (`ViewGroups.KIND`) |
+| Source | `SyntheticNodeSource`: name = the group's name, qualified name = `<view>:<path>` (`multi-modules:core/hierograph-graphstore`) |
+| Handle | `NodeHandle.of("view:<view>:<path>")` |
+
+A group's handle depends only on the view's name and the group's path: it is stable
+across rebuilds and re-materialization, and distinct per view. Real nodes keep their
+handles in every view.
+
+A group handle must not be the handle of a node of the base hierarchy:
+`lookupNode` searches a hierarchy's local nodes first, so the group would hide that
+node, and the model rejects such a local node. Materialization checks every group
+handle first; on a collision it applies **no** group and adds a
+`GROUP_HANDLE_COLLISION` error naming the group and the node.
+
+| Code | Severity | Effect |
+|------|----------|--------|
+| `GROUP_HANDLE_COLLISION` | error | the view is not applied |
+
+### 6.3 What a view changes
+
+Grouping never changes a fact. A group has no dependencies of its own; its
+accumulated and aggregated dependencies are those of its members, so a group is a
+first-class node for every analysis: the aggregated dependency between two groups
+is the sum over their members, and a group-level DSM is the member-level DSM summed
+into blocks.
+
+---
+
+## 7. Registry and service
+
+### 7.1 Where documents come from
+
+| Source | Location (property) | Written by the server | For |
+|--------|---------------------|-----------------------|-----|
+| project | `hierograph.views.projectDir`, default `<build root>/.hierograph/views` | no | views kept with the code: versioned, reviewed, shared |
+| state | `hierograph.views.stateDir`, default `<state dir>/runtime-views` | yes | views defined at runtime |
+
+Every `*.json` file directly in one of the directories (not starting with `.`) is a
+view document, named by its `name` field, not by its file name. The state default is
+`runtime-views`, not `views`, because without a configured state directory the state
+directory is the manifest's directory, `<build root>/.hierograph`, and runtime views
+must not land among the project's. When both properties name the same directory,
+its documents are state views.
+
+| Situation | Effect |
+|-----------|--------|
+| A name in both directories | the state document applies and is marked as shadowing the project one; deleting it restores the project view |
+| A name twice in one directory | the first file in file-name order applies; the others are listed as invalid |
+| A document that does not parse | listed under its file name without `.json`, with its problems; it is not applied |
+| A file added, edited or removed | takes effect with the next request: every read compares the files' modification times and sizes with the last read |
+
+`define(json)` parses the document and writes it as `<state dir>/<name>.json`
+(atomically, replacing a state view of the same name, also one stored under another
+file name); an invalid document is rejected and nothing is written. `delete(name)`
+removes a state view; a project view is changed in the project, not through the
+server.
+
+### 7.2 Views as snapshots
+
+`ViewService.view(name)` applies a view to the graph snapshot the calling thread
+reads — the pinned one inside a tool call, else the live one — and returns a
+`ViewSnapshot`: the registry entry, the materialized view, and a `GraphSnapshot` of
+the view.
+
+| Snapshot field | In the view's snapshot |
+|----------------|------------------------|
+| `model` | the materialized fork |
+| `searchIndex` | the base index plus the group nodes; the entries of real nodes are shared |
+| `dataHash` | the base data hash combined with the document's text: a cursor issued in a view is rejected when the graph or the document changes |
+| `view` | the view's name |
+| everything else | the base snapshot's: graph store, member handles, generation |
+
+### 7.3 Caching
+
+A view is materialized lazily, on its first request against a snapshot, and cached
+until the graph or the document changes:
+
+1. The first request for a view and snapshot materializes it under a lock per view,
+   so concurrent first requests build it once.
+2. Only views of the **live** snapshot are cached. A call still pinned to a replaced
+   snapshot gets a view built for it, without evicting the live one.
+3. When a new snapshot is published, the views of the replaced one are dropped, so an
+   idle view does not keep an old graph alive.
+4. A changed document (another text) is materialized again on its next request.
+
+A materialized view is never changed after it is returned: the model's reads are
+thread-safe, its changes are not. Materializing a view of the Spring 7.0.8 fixture
+(22 jars) takes some 40 ms.
+
+| Failure | Exception |
+|---------|-----------|
+| unknown name | `UnknownViewException`, listing the known views |
+| document does not parse | `InvalidViewException`, with the problems |
+| invalid document passed to `define` | `ViewDocumentException`, with the problems |
+| project view passed to `delete` | `IllegalArgumentException` |
+
+---
+
+## 8. API
 
 | Type | Description |
 |------|-------------|
@@ -250,16 +382,18 @@ and the nodes it is about.
 | `ViewResolver.resolve(document)` | the `ResolvedView` |
 | `ViewResolver.select(selector)` | the nodes one selector selects, in pre-order |
 | `ViewReport` | `findings`, `errors`, `warnings`, `hasErrors` |
+| `ViewMaterializer.materialize(base, document \| resolved)` | the `MaterializedView`: `model`, `groupNodes` by path, `report` |
+| `ViewGroups` | `KIND`, `qualifiedName(view, path)`, `handle(view, path)`, `isGroup(node)` |
+| `ViewRegistry(projectDir, stateDir)` | `entries()`, `find(name)`, `names()`, `define(json)`, `delete(name)` (graph service) |
+| `ViewService` | `view(name)`, `entry(name)`, `entries()`, `define(json)`, `delete(name)` (graph service, Spring) |
 
 `ViewResolver` is safe for concurrent use while the hierarchy does not change.
 
 ---
 
-## 7. Boundaries
+## 9. Boundaries
 
 | Concern | Where |
 |---------|-------|
-| Group nodes: kind, source, handles | materialization (views design, part B) |
-| Registry of project and state documents | graph service (views design, part B) |
 | The `view` parameter and the view tools | MCP tools (views design, part C) |
 | Restructuring: virtual modules and moves | rejected by the parser for now (views design, part D) |

@@ -40,6 +40,18 @@ class NodeSearchIndex private constructor(val entries: List<Entry>) {
         val fqnLower: String,
     )
 
+    /**
+     * This index plus [nodes], for a view whose group nodes are added to an otherwise unchanged graph: the
+     * entries of the real nodes are shared, not recomputed.
+     */
+    fun withAdditional(nodes: Collection<HGNode>): NodeSearchIndex {
+        if (nodes.isEmpty()) return this
+        val combined = ArrayList<Entry>(entries.size + nodes.size)
+        combined.addAll(entries)
+        nodes.mapTo(combined) { Entry(it, NodeMetadata.getName(it).lowercase(), NodeMetadata.getQualifiedName(it).lowercase()) }
+        return NodeSearchIndex(combined)
+    }
+
     companion object {
 
         /**

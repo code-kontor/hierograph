@@ -15,77 +15,34 @@
  */
 package io.hierograph.server.views
 
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
-import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.hierarchicalgraph.model.HierarchyFactory
-import io.hierograph.hierarchicalgraph.model.SyntheticNodeSource
 import io.hierograph.server.views.ViewFinding.Code
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-/**
- * [ViewResolver] on a small reactor:
- * ```
- * acme:app:1.0          com.acme.app      { Main, MainHelper }
- * acme:app:1.0:test     com.acme.app      { MainTest }
- * acme:core:1.0         com.acme.core     { Engine, EngineImpl }, com.acme.core.spi { Plugin }
- * acme:core-util:1.0    com.acme.util     { Strings }
- * ```
- * Each module holds the nested package path `com` → `com.acme` → … as the scanner produces it.
- */
+/** [ViewResolver] on the [TestReactor]. */
 class ViewResolverTest {
 
-    private var nextId = 1L
-    private val graph = HGGraphFactory.createHGGraph()
-    private val root = node("", null, parent = null)
-    private val hierarchy = HierarchyFactory.createHierarchy(graph, root)
-    private val byName = HashMap<String, MutableList<HGNode>>()
-
-    private fun node(qualifiedName: String, kind: JavaNodeKind?, parent: HGNode?): HGNode {
-        val simple = qualifiedName.substringAfterLast('.')
-        val node = HGGraphFactory.createNode(graph) { SyntheticNodeSource(nextId++, simple, qualifiedName) }
-        node.kind = kind
-        if (parent != null) {
-            HierarchyFactory.addChild(hierarchy, parent, node)
-            byName.getOrPut(qualifiedName) { mutableListOf() } += node
-        }
-        return node
-    }
-
-    private fun module(gav: String) = node(gav, JavaNodeKind.MODULE, root)
-
-    /** Creates the package path down to [fqn] below [module] and returns the innermost package. */
-    private fun pkg(module: HGNode, fqn: String): HGNode {
-        var parent = module
-        val parts = fqn.split('.')
-        for (i in parts.indices) {
-            val name = parts.take(i + 1).joinToString(".")
-            parent = hierarchy.childrenOf(parent).firstOrNull { it.nodeSource.qualifiedName == name }
-                ?: node(name, JavaNodeKind.PACKAGE, parent)
-        }
-        return parent
-    }
-
-    private fun type(pkg: HGNode, simple: String) = node("${pkg.nodeSource.qualifiedName}.$simple", JavaNodeKind.CLASS, pkg)
-
-    private val app = module("acme:app:1.0")
-    private val appTest = module("acme:app:1.0:test")
-    private val core = module("acme:core:1.0")
-    private val coreUtil = module("acme:core-util:1.0")
-
-    private val appPkg = pkg(app, "com.acme.app")
-    private val main = type(appPkg, "Main")
-    private val mainHelper = type(appPkg, "MainHelper")
-    private val appTestPkg = pkg(appTest, "com.acme.app")
-    private val mainTest = type(appTestPkg, "MainTest")
-    private val corePkg = pkg(core, "com.acme.core")
-    private val engine = type(corePkg, "Engine")
-    private val engineImpl = type(corePkg, "EngineImpl")
-    private val spiPkg = pkg(core, "com.acme.core.spi")
-    private val plugin = type(spiPkg, "Plugin")
-    private val utilPkg = pkg(coreUtil, "com.acme.util")
-    private val strings = type(utilPkg, "Strings")
+    private val r = TestReactor()
+    private val hierarchy = r.hierarchy
+    private val root = r.root
+    private val byName = r.byName
+    private val app = r.app
+    private val appTest = r.appTest
+    private val core = r.core
+    private val coreUtil = r.coreUtil
+    private val appPkg = r.appPkg
+    private val main = r.main
+    private val mainHelper = r.mainHelper
+    private val appTestPkg = r.appTestPkg
+    private val mainTest = r.mainTest
+    private val corePkg = r.corePkg
+    private val engine = r.engine
+    private val engineImpl = r.engineImpl
+    private val spiPkg = r.spiPkg
+    private val plugin = r.plugin
+    private val utilPkg = r.utilPkg
+    private val strings = r.strings
 
     private fun resolve(json: String): ResolvedView = ViewResolver(hierarchy).resolve(ViewDocumentParser.parse(json))
 

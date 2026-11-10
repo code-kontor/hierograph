@@ -67,5 +67,8 @@ data class ViewFinding(
 
         /** A group has no members after resolution and no applied subgroups. It is not created. */
         EMPTY_GROUP(Severity.WARNING),
+
+        /** A group's handle is already taken by a node of the graph. The whole view is not applied. */
+        GROUP_HANDLE_COLLISION(Severity.ERROR),
     }
 }
