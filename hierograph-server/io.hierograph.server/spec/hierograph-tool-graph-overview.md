@@ -64,9 +64,13 @@ also returns the modules. The two differ in what they add:
 
 ## 2. Parameters
 
-The tool has no parameters. It always describes the complete loaded graph.
+The tool has one optional parameter, `view`, which every tool that reads the graph
+takes ([MCP tools specification, §5](hierograph-mcp-tools.md#5-parameters)). Without
+it the tool describes the complete loaded graph as scanned; with it, the same graph in
+that [view](../../io.hierograph.server.views/spec/hierograph-views.md): `hierarchy` lists the view's top level — its groups and the nodes no
+group takes — and the response gains a `view` section.
 
-**Why none.** An orientation call that needs arguments needs knowledge the caller does
+**Why nothing else.** An orientation call that needs arguments needs knowledge the caller does
 not have yet. Everything that could be narrowed (a module, a kind) is the job of the
 navigation tools that follow.
 
@@ -200,11 +204,12 @@ root has id `4600`.
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |
 | `build_state` | present only when the server reads a build manifest | tells the caller whether the graph still matches the build files |
+| `view` | present only when called with `view`: the view's name, description, source, file, shadowing, `group_count`, `errors`, `warnings` and its `report` | tells the caller what the view regroups and what could not be applied |
 
 **`kinds.structural`** lists the ten node kinds of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): the nine
 `java.*` kinds and `external.type`, so every `kind` a node reference or
-`nodes_by_kind` can carry is defined here.
+`nodes_by_kind` can carry is defined here. In a view it also lists `view.group`.
 
 **`build_state`** has the shape and status values defined in the
 [hierarchical graph service specification](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md#build-files):
@@ -220,8 +225,10 @@ compare.
 | Situation | Response | Recovery |
 |-----------|----------|----------|
 | No graph is loaded | `{"status": "no_graph_available", …}` (see [§8.3](hierograph-mcp-tools.md#83-no-graph-loaded)) | make the graph source available, then call `reload_graph` |
+| `view` names no view | `VIEW_NOT_FOUND`, listing the known views | call `list_views` |
+| the view's document does not parse | `VIEW_INVALID`, with its problems | fix the document, define it again |
 
-The tool has no inputs to validate, so it has no other errors.
+Apart from `view`, the tool has no inputs to validate, so it has no other errors.
 
 ---
 

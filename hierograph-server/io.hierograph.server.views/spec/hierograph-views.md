@@ -9,8 +9,9 @@ could not be applied.
 The format, the selectors, resolution and materialization (§2–§6) are a plain
 library in this module, without Spring; materialization only ever changes a fork.
 The registry of view documents and the cache of materialized views (§7) live in the
-graph service (`io.hierograph.server.graphservice.views`). The tools' `view`
-parameter is built on top of them.
+graph service (`io.hierograph.server.graphservice.views`). The MCP tools' `view`
+parameter, the view tools and the GraphQL `view` argument (§8) are built on top of
+them.
 
 ---
 
@@ -23,8 +24,9 @@ parameter is built on top of them.
 5. [Resolution](#5-resolution)
 6. [Materialization](#6-materialization)
 7. [Registry and service](#7-registry-and-service)
-8. [API](#8-api)
-9. [Boundaries](#9-boundaries)
+8. [Tools and GraphQL](#8-tools-and-graphql)
+9. [API](#9-api)
+10. [Boundaries](#10-boundaries)
 
 ---
 
@@ -43,6 +45,9 @@ parameter is built on top of them.
         │
         ▼
  ViewService.view(name)                  → ViewSnapshot: a GraphSnapshot of the view, cached per graph snapshot (§7)
+        │
+        ▼
+ MCP tools (view = name) · GraphQL hierarchicalGraph(view: name)   → answers in the view (§8)
 ```
 
 | Depends on | For |
@@ -345,6 +350,14 @@ the view.
 | `view` | the view's name |
 | everything else | the base snapshot's: graph store, member handles, generation |
 
+`ViewService.withView(view) { … }` runs a block in a view: it pins the view's
+snapshot to the thread, so every read of the graph service inside sees the view's
+hierarchy, and `currentView()` returns the view, report included. Asking for a view
+inside `withView` materializes it from the base snapshot of the view in use, so views
+never stack. A view snapshot pinned without `withView` cannot serve as a base
+(`IllegalStateException`), and `withView` inside a call already pinned to another
+snapshot fails rather than silently answering from the wrong graph.
+
 ### 7.3 Caching
 
 A view is materialized lazily, on its first request against a snapshot, and cached
@@ -371,7 +384,70 @@ thread-safe, its changes are not. Materializing a view of the Spring 7.0.8 fixtu
 
 ---
 
-## 8. API
+## 8. Tools and GraphQL
+
+### 8.1 The `view` parameter
+
+Every MCP tool that reads the graph takes an optional `view` parameter: the name of a
+view to answer in. The tools themselves do not declare it.
+`GraphAvailabilityToolCallbackProvider` adds it to their input schema, takes it out
+of the call's input, and runs the call inside `ViewService.withView`. A tool thus
+answers in a view without knowing about views:
+
+- navigation (`graph_overview`, `list_children`, `list_descendants`) walks the
+  view's tree; the groups are nodes of kind `view.group`;
+- `find_node` also finds the groups, by name or with the kind filter `view.group`;
+- every tool that takes node ids accepts a group's id: a group scope is the subtree
+  below it in the view, so aggregated, pairwise, type-level and detail-level
+  queries, `affected_by` and `find_dependency_path` work on groups unchanged;
+- a cursor holds only in the view it was issued in, because the view's data hash
+  covers the document (§7.2); used elsewhere it is rejected as `STALE_CURSOR_DATA`.
+
+Without `view`, or with a blank one, a tool answers from the hierarchy as scanned,
+exactly as before. The tools that manage views and `reload_graph` take no `view`.
+
+| Situation | Answer, without running the tool |
+|-----------|----------------------------------|
+| `view` names no view | `VIEW_NOT_FOUND`, listing the known views |
+| the view's document does not parse | `VIEW_INVALID`, with the problems |
+
+A group in a tool result is an ordinary node reference with `kind: "view.group"`,
+its qualified name `<view>:<path>`, and `child_count`, `descendant_module_count` and
+`descendant_type_count`. `graph_overview` in a view lists the view's top level —
+the groups and the nodes no group takes — names `view.group` in its kind vocabulary,
+and adds a `view` section: the view's entry, its group, error and warning counts,
+and its report.
+
+### 8.2 View tools
+
+| Tool | Effect |
+|------|--------|
+| `define_view(document)` | validates the document (a JSON object), stores it as a state view replacing one of the same name, applies it; returns the entry, the applied groups (path, id, parent id, child count) and the report. An invalid document is an `INVALID_VIEW_DOCUMENT` error with the problems; nothing is stored |
+| `list_views()` | every view: name, description, source (`project`/`state`), file, shadowing, validity; a valid view with its group, error and warning counts, an invalid one with its problems |
+| `get_view(name)` | the entry, the document, the applied groups and the full report; for an invalid document its problems |
+| `delete_view(name)` | removes a state view; returns the project view that applies again, or `null`. A project view is a `PROJECT_VIEW` error |
+
+A report lists at most 50 findings (`finding_count` then gives the total), each with
+at most 10 nodes (`node_count` then gives the total). `list_views`, `get_view` and
+`delete_view` work without a loaded graph; without one, the listing and `get_view`
+leave out what applying the view would report.
+
+### 8.3 GraphQL
+
+`hierarchicalGraph(view: String)` answers in the view: `QueryController` resolves
+it and stores the view's snapshot as the request's view, and `GraphSnapshotPinning`
+pins it around every data fetcher that follows and in the properties batch. Group
+nodes have the type `view.group`, `findNodes` finds them, and their ids work in every
+field that takes node ids.
+
+A request answers in one view. A second `hierarchicalGraph` field that names another
+view, or none, is a `BAD_REQUEST`. An unknown view is a `VIEW_NOT_FOUND` error, an
+invalid one a `VIEW_INVALID` error (`ViewExceptionResolver`). Defining views stays
+with the MCP tools.
+
+---
+
+## 9. API
 
 | Type | Description |
 |------|-------------|
@@ -385,15 +461,17 @@ thread-safe, its changes are not. Materializing a view of the Spring 7.0.8 fixtu
 | `ViewMaterializer.materialize(base, document \| resolved)` | the `MaterializedView`: `model`, `groupNodes` by path, `report` |
 | `ViewGroups` | `KIND`, `qualifiedName(view, path)`, `handle(view, path)`, `isGroup(node)` |
 | `ViewRegistry(projectDir, stateDir)` | `entries()`, `find(name)`, `names()`, `define(json)`, `delete(name)` (graph service) |
-| `ViewService` | `view(name)`, `entry(name)`, `entries()`, `define(json)`, `delete(name)` (graph service, Spring) |
+| `ViewService` | `view(name)`, `entry(name)`, `entries()`, `define(json)`, `delete(name)`, `withView(view) { … }`, `currentView()` (graph service, Spring) |
+| `ViewParameter` | `addTo(definition)`, `split(input)`: the tools' `view` parameter (MCP server) |
+| `ViewTools` | `define_view`, `list_views`, `get_view`, `delete_view` (MCP server) |
 
 `ViewResolver` is safe for concurrent use while the hierarchy does not change.
 
 ---
 
-## 9. Boundaries
+## 10. Boundaries
 
 | Concern | Where |
 |---------|-------|
-| The `view` parameter and the view tools | MCP tools (views design, part C) |
 | Restructuring: virtual modules and moves | rejected by the parser for now (views design, part D) |
+| Analyses and the layered graph in a view, proposing views | the hierograph skills (views design, part E) |

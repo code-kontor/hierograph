@@ -423,6 +423,9 @@ for its own mistake or a server fault.
 | A dependency id not of the form `<number>_<number>_<type>` | `BAD_REQUEST`: `Invalid dependency id '…': expected <source id>_<target id>_<type>` |
 | A node or dependency id that is well-formed but names nothing | `NOT_FOUND`, non-fatal: the field answers without the id, and the error lists it |
 | No graph loaded yet | `GRAPH_UNAVAILABLE`; `hierarchicalGraph` is `null` |
+| `hierarchicalGraph(view)` naming no view | `VIEW_NOT_FOUND`, listing the known views; `hierarchicalGraph` is `null` |
+| `hierarchicalGraph(view)` naming a view whose document does not parse | `VIEW_INVALID`, with its problems |
+| Two `hierarchicalGraph` fields in one request with different views (or one without) | `BAD_REQUEST`: `A request answers in one view, …` |
 
 **Unknown ids** are a fourth class. A client that holds ids across a rebuild can
 legitimately ask for a node that has since disappeared, so an unknown id does not
@@ -471,7 +474,14 @@ in two roles:
   outside any data fetcher and pins the same snapshot itself.
 
 A response is therefore computed entirely from the graph that was live when the
-request arrived, as an MCP tool call is. A reload that completes meanwhile takes
+request arrived, as an MCP tool call is.
+
+**One view per request.** `hierarchicalGraph(view: …)` answers in a
+[view](../../io.hierograph.server.views/spec/hierograph-views.md#83-graphql). `QueryController` resolves the view against the request's
+snapshot and stores the view's snapshot in the GraphQL context; from then on
+`GraphSnapshotPinning` pins that snapshot instead, around every data fetcher and in
+the properties batch. A request therefore answers in one view: a second
+`hierarchicalGraph` field naming another view, or none, is rejected. A reload that completes meanwhile takes
 effect from the next request on. Different requests may see different graphs, so ids
 and page numbers held across requests follow the rules of §4 and §8.
 
@@ -506,11 +516,14 @@ resolvers.
 
 ```graphql
 type Query {
-    hierarchicalGraph: HierarchicalGraph
+    hierarchicalGraph(view: String): HierarchicalGraph
 }
 ```
 
-`hierarchicalGraph` returns the served hierarchy (`QueryController`). Its fields
+`hierarchicalGraph` returns the served hierarchy (`QueryController`); with `view`,
+the hierarchy of that [view](../../io.hierograph.server.views/spec/hierograph-views.md), whose groups are nodes of type `view.group` above
+the nodes they group. Their ids work in every field that takes node ids, and
+`findNodes` finds them. Its fields
 (`HierarchicalGraphController`):
 
 | Field | Returns | Description |

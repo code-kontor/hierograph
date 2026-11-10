@@ -18,6 +18,7 @@ package io.hierograph.server.graphservice
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.server.views.ViewGroups
 import org.springframework.stereotype.Component
 
 /**
@@ -33,7 +34,7 @@ import org.springframework.stereotype.Component
 class NodeSearch(private val graphService: HierarchicalGraphService) {
 
     /** The `kindFilter` values that [search] accepts: the [JavaKinds.ALL_KINDS] values plus the group aliases. */
-    val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value } + JavaKinds.EXTERNAL_TYPE
+    val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value } + JavaKinds.EXTERNAL_TYPE + ViewGroups.KIND
     val validAliases: List<String> get() = JavaKinds.ALL_ALIASES.toList()
 
     /** The entries of [kindFilter] that are neither a kind value nor a group alias. */
@@ -83,6 +84,7 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
             when {
                 expanded != null -> result.addAll(expanded)
                 entry == JavaKinds.EXTERNAL_TYPE -> result.add(JavaKinds.EXTERNAL_TYPE)
+                entry == ViewGroups.KIND -> result.add(ViewGroups.KIND)
                 else -> JavaNodeKind.fromValue(entry)?.let { result.add(it) }
             }
         }

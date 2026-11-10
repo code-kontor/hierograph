@@ -240,4 +240,51 @@ class ViewServiceTest {
         assertThat(view.materialized.report.warnings).hasSize(2)
         assertThat(view.materialized.groupNodes.keys).containsExactly("app")
     }
+
+    @Test
+    fun `withView pins the view's snapshot and names the view`() {
+        project("layers.json", layers)
+        val view = service.view("layers")
+
+        val (model, current) = service.withView(view) { graphService.model to service.currentView() }
+
+        assertThat(model).isSameAs(view.snapshot.model)
+        assertThat(current).isSameAs(view)
+        assertThat(service.currentView()).isNull()
+        assertThat(graphService.model).isSameAs(view.base.model)
+    }
+
+    @Test
+    fun `asking for a view inside a view materializes it from the base, never on top of the view`() {
+        project("layers.json", layers)
+        project("other.json", """{ "name": "other", "groups": [ { "name": "all", "members": ["acme:*:*"] } ] }""")
+        val layersView = service.view("layers")
+
+        val other = service.withView(layersView) { service.view("other") }
+        val same = service.withView(layersView) { service.view("layers") }
+
+        assertThat(other.base).isSameAs(layersView.base)
+        assertThat(other.materialized.report.findings).isEmpty()
+        assertThat(same).isSameAs(layersView)
+    }
+
+    @Test
+    fun `a view snapshot pinned without withView cannot be the base of another view`() {
+        project("layers.json", layers)
+        val view = service.view("layers")
+
+        assertThatThrownBy { graphService.withPinnedSnapshot(view.snapshot) { service.view("layers") } }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessageContaining("views do not stack")
+    }
+
+    @Test
+    fun `withView fails inside a call already pinned to another snapshot`() {
+        project("layers.json", layers)
+        val view = service.view("layers")
+
+        assertThatThrownBy { graphService.withPinnedSnapshot { service.withView(view) { } } }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessageContaining("already pinned")
+    }
 }

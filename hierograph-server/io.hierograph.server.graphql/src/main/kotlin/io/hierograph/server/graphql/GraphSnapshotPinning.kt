@@ -36,6 +36,10 @@ import reactor.core.publisher.Mono
  * instrumentation, it pins that snapshot around every data fetcher, whichever thread runs it. A reload
  * that completes mid-request therefore never mixes two graphs into one response. Batch loaders run outside
  * any data fetcher and pin through [pinned] themselves.
+ *
+ * A request may name a view (`hierarchicalGraph(view: …)`): `QueryController` then stores the view's
+ * snapshot as the request's [RequestView], and every data fetcher after it is pinned to that snapshot
+ * instead, so the whole response is answered in the view.
  */
 @Component
 class GraphSnapshotPinning(private val graphService: HierarchicalGraphService) : WebGraphQlInterceptor, Instrumentation {
@@ -56,12 +60,24 @@ class GraphSnapshotPinning(private val graphService: HierarchicalGraphService) :
         if (parameters.isTrivialDataFetcher) dataFetcher
         else DataFetcher { env -> pinned(env.graphQlContext) { dataFetcher.get(env) } }
 
-    /** Runs [block] with the snapshot captured for the request of [context] pinned; unpinned if none was. */
+    /**
+     * Runs [block] with the request's snapshot pinned: the view's, once the request has selected a view,
+     * else the one captured for the request of [context]; unpinned if none was.
+     */
     fun <T> pinned(context: GraphQLContext, block: () -> T): T =
-        graphService.withPinnedSnapshot(context.get<GraphSnapshot?>(SNAPSHOT_KEY), block)
+        graphService.withPinnedSnapshot(
+            context.get<RequestView?>(VIEW_KEY)?.snapshot ?: context.get<GraphSnapshot?>(SNAPSHOT_KEY),
+            block,
+        )
+
+    /** The view a request answers in: its [name] and [snapshot], both `null` for the hierarchy as scanned. */
+    class RequestView(val name: String?, val snapshot: GraphSnapshot?)
 
     companion object {
         /** The [GraphQLContext] key under which [intercept] stores the request's snapshot. */
         internal val SNAPSHOT_KEY = GraphSnapshotPinning::class.qualifiedName + ".snapshot"
+
+        /** The [GraphQLContext] key under which `QueryController` stores the request's [RequestView]. */
+        internal val VIEW_KEY = GraphSnapshotPinning::class.qualifiedName + ".view"
     }
 }

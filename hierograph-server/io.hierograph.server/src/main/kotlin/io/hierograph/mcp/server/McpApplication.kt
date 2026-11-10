@@ -32,6 +32,8 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesToo
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
+import io.hierograph.mcp.server.tools.views.ViewTools
+import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -63,7 +65,9 @@ class McpApplication {
         typeDetailsTool: TypeDetailsTool,
         methodDetailsTool: MethodDetailsTool,
         fieldDetailsTool: FieldDetailsTool,
-        reloadGraphTool: ReloadGraphTool
+        reloadGraphTool: ReloadGraphTool,
+        viewTools: ViewTools,
+        viewService: ViewService,
     ): ToolCallbackProvider {
         val delegate = MethodToolCallbackProvider.builder()
             .toolObjects(
@@ -72,15 +76,20 @@ class McpApplication {
                 outgoingDependenciesTool, incomingDependenciesTool,
                 affectedByTool, findDependencyPathTool,
                 typeDetailsTool, methodDetailsTool, fieldDetailsTool,
-                reloadGraphTool
+                reloadGraphTool,
+                viewTools
             )
             .build()
         // Short-circuit every tool with the standard "no graph available" description while the server
-        // runs empty. `reload_graph` is exempt so a graph can still be loaded once a database is set up.
+        // runs empty. `reload_graph` is exempt so a graph can still be loaded once a database is set up, and
+        // the view tools that only read or delete documents work without a graph too.
+        // Every other tool takes the optional `view` parameter and answers in the view it names.
         val guarded = GraphAvailabilityToolCallbackProvider(
             delegate,
             graphService,
-            toolsAllowedWithoutGraph = setOf("reload_graph")
+            toolsAllowedWithoutGraph = setOf("reload_graph", "list_views", "get_view", "delete_view"),
+            viewService = viewService,
+            toolsWithoutView = setOf("reload_graph", "define_view", "list_views", "get_view", "delete_view"),
         )
         return if (logToolCalls) LoggingToolCallbackProvider(guarded) else guarded
     }

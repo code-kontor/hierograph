@@ -17,21 +17,22 @@ package io.hierograph.mcp.server.tools
 
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.server.views.ViewGroups
 
 /**
  * The `kindFilter` parameter shared by `find_node`, `list_children`, `list_descendants` and
  * `affected_by`: one parser and one `INVALID_KIND` error, so every tool accepts the same values and
  * rejects the same mistakes the same way.
  *
- * A filter holds kind values ([FILTER_KINDS]: the Java kinds and `external.type`) and group aliases
+ * A filter holds kind values ([FILTER_KINDS]: the Java kinds, `external.type` and a view's `view.group`) and group aliases
  * ([JavaKinds.ALL_ALIASES]), mixed freely. An absent or empty filter is no filter. A tool whose results
  * can only be of some kinds passes them as `allowed`; a value or alias outside them is rejected rather
  * than silently matching nothing.
  */
 object KindFilter {
 
-    /** Every kind a filter can name: the Java node kinds and the external-type kind. */
-    val FILTER_KINDS: Set<Any> = JavaKinds.ALL_KINDS + JavaKinds.EXTERNAL_TYPE
+    /** Every kind a filter can name: the Java node kinds, the external-type kind and the group kind of views. */
+    val FILTER_KINDS: Set<Any> = JavaKinds.ALL_KINDS + JavaKinds.EXTERNAL_TYPE + ViewGroups.KIND
 
     /** The kinds a type-level result can have: the Java type kinds and `external.type`. */
     val TYPE_RESULT_KINDS: Set<Any> = JavaKinds.TYPE_KINDS + JavaKinds.EXTERNAL_TYPE
@@ -57,10 +58,12 @@ object KindFilter {
         return if (invalid.isEmpty()) Valid(kinds) else Invalid(invalid, allowed)
     }
 
-    /** The kind object for a filter value: a JavaNodeKind, the external-type string, or `null`. */
-    private fun kindOf(value: String): Any? =
-        if (value == JavaKinds.EXTERNAL_TYPE) JavaKinds.EXTERNAL_TYPE
-        else JavaNodeKind.fromValue(value)?.takeIf { it in JavaKinds.ALL_KINDS }
+    /** The kind object for a filter value: a JavaNodeKind, the external-type or view-group string, or `null`. */
+    private fun kindOf(value: String): Any? = when (value) {
+        JavaKinds.EXTERNAL_TYPE -> JavaKinds.EXTERNAL_TYPE
+        ViewGroups.KIND -> ViewGroups.KIND
+        else -> JavaNodeKind.fromValue(value)?.takeIf { it in JavaKinds.ALL_KINDS }
+    }
 
     /** The values [allowed] admits, in the order of [FILTER_KINDS]. */
     fun validKinds(allowed: Set<Any> = FILTER_KINDS): List<String> = FILTER_KINDS.filter { it in allowed }.map { it.toString() }

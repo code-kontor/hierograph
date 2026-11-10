@@ -22,6 +22,7 @@ import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreNodeSource
+import io.hierograph.server.views.ViewGroups
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
 
@@ -71,6 +72,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             in JavaKinds.TYPE_KINDS -> enrichType(ref, node)
             JavaKinds.METHOD -> enrichMethod(ref, node)
             JavaKinds.FIELD -> enrichField(ref, node)
+            ViewGroups.KIND -> enrichGroup(ref, node)
         }
 
         return ref
@@ -82,6 +84,13 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         ref["child_count"] = children.size
         ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
         ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaKinds.METHOD))
+    }
+
+    /** A view's group: what it holds directly, and the modules and types below it. */
+    private fun enrichGroup(ref: LinkedHashMap<String, Any?>, node: HGNode) {
+        ref["child_count"] = graphService.model.hierarchy.childrenOf(node).size
+        ref["descendant_module_count"] = countDescendantsByKind(node, setOf(JavaKinds.MODULE))
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
     }
 
     private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: HGNode) {

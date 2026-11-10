@@ -159,6 +159,7 @@ dependency on `BigDecimal` is as visible as a dependency on `Money`.
 | `java.method` | A method or constructor |
 | `java.field` | A field |
 | `external.type` | A type referenced from outside the scanned code |
+| `view.group` | A group of a view (§5); exists only in the view that defines it |
 
 One further kind appears only inside responses and never as a tree node:
 `java.primitive`, for primitive types such as `int` and `void` (always with `id: null`).
@@ -247,6 +248,10 @@ relationship vocabulary is listed in the
 | [`method_details`](hierograph-tool-method-details.md) | Entity detail | What is this method's signature? | no |
 | [`field_details`](hierograph-tool-field-details.md) | Entity detail | What is this field, and which methods use it? | no |
 | [`reload_graph`](hierograph-tool-reload-graph.md) | Maintenance | Rebuild the graph from its source now. | no |
+| [`define_view`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | Regroup the hierarchy: store and apply a view document. | no |
+| [`list_views`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | Which views are there, and do they apply cleanly? | no |
+| [`get_view`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | What does this view define, and what did applying it report? | no |
+| [`delete_view`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | Remove a view defined at runtime. | no |
 
 Each tool description starts with its category in brackets, for example
 `[Discovery and navigation]`, so a client that lists the tools sees them grouped.
@@ -268,6 +273,14 @@ value outside the set.
 
 Optional numeric limits are clamped to the tool's range, not rejected: a `limit` of
 `0` becomes `1`, a `limit` above the cap becomes the cap.
+
+**`view`.** Every tool that reads the graph — all but `reload_graph` and the view
+tools — takes an optional `view`: the name of a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to answer in. A view
+regroups the hierarchy: its groups are nodes of kind `view.group` above the nodes
+they group, and a group's id is accepted wherever a node id is. Dependencies are the
+same in every view; only where nodes sit changes. The parameter is added to each
+tool's schema by the server ([views specification, §8.1](../../io.hierograph.server.views/spec/hierograph-views.md#81-the-view-parameter));
+without it, or with a blank value, a tool answers from the hierarchy as scanned.
 
 ---
 
@@ -310,6 +323,7 @@ each candidate is and whether it is part of an API.
 | `java.method` | `modifiers` | tells API from implementation without a detail call |
 | `java.field` | `modifiers` | tells constants and state apart |
 | `external.type` | none | it was not scanned, so nothing beyond its identity is known |
+| `view.group` | `child_count`, `descendant_module_count`, `descendant_type_count` | what a group of a view holds |
 
 `descendant_type_count` and `direct_type_count` count the five Java type kinds, not
 `external.type`. Packages under `External Types` therefore report `0`.
@@ -402,7 +416,7 @@ A cursor is checked in this order, and the first failure is reported:
 | `STALE_CURSOR_VERSION` | a format version the server does not support |
 | `WRONG_TOOL_CURSOR` | issued by another tool; the error names `issued_by` and `called_on` |
 | `STALE_CURSOR_QUERY` | the query parameters differ from those it was issued for |
-| `STALE_CURSOR_DATA` | the graph changed since it was issued |
+| `STALE_CURSOR_DATA` | the graph changed since it was issued, or it was issued in another view (or none): a view's data hash also covers its document |
 
 Every cursor error carries a `recovery` that says to restart without a cursor (or, for
 `WRONG_TOOL_CURSOR` and `STALE_CURSOR_QUERY`, to restore the original tool or
@@ -463,19 +477,25 @@ Each tool specification lists its errors and their extra fields.
 | `INPUT_TOO_SMALL` / `INPUT_TOO_LARGE` | a list parameter has too few or too many entries |
 | `DETAIL_REBUILDING` | the entity-detail tools cannot read the detail-level snapshot yet; retry shortly |
 | `DETAIL_UNAVAILABLE` | the detail-level engine finds no detail-level data for the loaded graph |
+| `VIEW_NOT_FOUND` | `view` (or a view tool's `name`) names no view; the message lists the known views |
+| `VIEW_INVALID` | the view's document does not parse; the message lists its problems |
+| `INVALID_VIEW_DOCUMENT` | `define_view` was given an invalid document; `problems` lists what is wrong |
+| `PROJECT_VIEW` | `delete_view` was given a project view, which only the project can remove |
 | cursor codes | §7.2 |
 
 ### 8.3 No graph loaded
 
 The server starts even when no graph can be built, for example before the project has
-been compiled. While no graph is loaded, every tool except `reload_graph` returns:
+been compiled. While no graph is loaded, every tool except `reload_graph`, `list_views`,
+`get_view` and `delete_view` returns:
 
 ```json
 { "status": "no_graph_available", "message": "No hierarchical graph is available. …" }
 ```
 
 `status` is stable and meant for programmatic checks. `reload_graph` is exempt because it is the
-way to load a graph once the input exists.
+way to load a graph once the input exists; the three view tools only read or remove
+documents.
 
 ---
 
@@ -507,6 +527,11 @@ that transitively depends on `t`. `find_dependency_path(fromId = a, toId = b)` s
 **Read a declaration.** `type_details`, `method_details` and `field_details` describe
 one element's signature, modifiers and annotations.
 
+**Look through a view.** `define_view(document = {…})` groups modules into layers,
+contexts or teams; then `pairwise_dependencies(nodeIds = [<group ids>], view = "<name>")`
+shows whether the groups are layered, and every other tool answers in the view with
+`view = "<name>"`. The report of `define_view` says what could not be applied.
+
 **Page.** When a response carries `next_cursor`, pass it back unchanged with the same
 parameters. When only the summary is needed, ask for `limit = 1`.
 
@@ -515,7 +540,9 @@ parameters. When only the summary is needed, ask for `limit = 1`.
 ## 10. Guarantees
 
 1. **Stable ids.** Within one loaded graph, a node's id does not change, and every id a
-   tool returns is accepted by every tool that takes an id of that kind.
+   tool returns is accepted by every tool that takes an id of that kind. A node has the
+   same id in every view; a group's id depends only on its view and its path, so it
+   survives rebuilds, and it is accepted in that view.
 2. **Deterministic order.** For the same graph and parameters, a tool returns the same
    items in the same order. Pagination relies on this.
 3. **Full-result summaries.** Summary fields of a paginated tool describe the whole
@@ -528,7 +555,9 @@ parameters. When only the summary is needed, ask for `limit = 1`.
 6. **One graph per call.** Each tool call is computed from the graph that is live
    when it starts, even when a reload replaces the graph while it runs. Its data hash,
    and the cursor it issues, belong to that same graph.
-7. **Read-only.** No tool other than `reload_graph` changes server state.
+7. **Read-only.** No tool other than `reload_graph`, `define_view` and `delete_view`
+   changes server state, and the view tools change only the view documents in the
+   state directory, never the graph.
 
 ---
 

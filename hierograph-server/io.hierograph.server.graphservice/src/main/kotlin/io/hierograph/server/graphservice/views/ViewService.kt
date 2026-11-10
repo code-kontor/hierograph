@@ -120,14 +120,47 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
 
     /**
      * The view named [name] applied to the snapshot this thread reads ([HierarchicalGraphService.currentSnapshot]):
-     * the pinned one inside a tool call, else the live one. Fails with [UnknownViewException] for an unknown
+     * the pinned one inside a tool call, else the live one; inside [withView], the base of the view in use.
+     * Fails with [UnknownViewException] for an unknown
      * name, [InvalidViewException] for a document that does not parse, and [IllegalStateException] without a
      * loaded graph.
      */
-    fun view(name: String): ViewSnapshot {
-        val base = graphService.currentSnapshot() ?: error("Hierarchical graph has not been loaded yet")
-        return view(entry(name), base)
+    fun view(name: String): ViewSnapshot = view(entry(name), base())
+
+    /**
+     * The snapshot views are materialized from on this thread: inside [withView] the base of the view in
+     * use, so asking for a view inside a view never stacks one view on another; else the current snapshot.
+     */
+    private fun base(): GraphSnapshot {
+        currentView()?.let { return it.base }
+        val snapshot = graphService.currentSnapshot() ?: error("Hierarchical graph has not been loaded yet")
+        check(snapshot.view == null) { "This thread reads view '${snapshot.view}' outside withView; views do not stack" }
+        return snapshot
     }
+
+    private val current = ThreadLocal<ViewSnapshot?>()
+
+    /** The view [withView] runs this thread in, or `null` outside one. */
+    fun currentView(): ViewSnapshot? = current.get()
+
+    /**
+     * Runs [block] in [view]: its snapshot is pinned to the current thread ([HierarchicalGraphService.withPinnedSnapshot]),
+     * so every read of the graph sees the view's hierarchy, and [currentView] returns it. Fails when the
+     * thread is already pinned to another snapshot, because the pin would then not take effect.
+     */
+    fun <T> withView(view: ViewSnapshot, block: () -> T): T =
+        graphService.withPinnedSnapshot(view.snapshot) {
+            check(graphService.currentSnapshot() === view.snapshot) {
+                "Cannot apply view '${view.entry.name}': this thread is already pinned to another snapshot"
+            }
+            val previous = current.get()
+            current.set(view)
+            try {
+                block()
+            } finally {
+                current.set(previous)
+            }
+        }
 
     /**
      * Stores [json] as a state view and applies it to the current snapshot; returns the applied view. Fails
@@ -136,8 +169,7 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
     fun define(json: String): ViewSnapshot {
         val entry = registry.define(json)
         cache.remove(entry.name)
-        val base = graphService.currentSnapshot() ?: error("Hierarchical graph has not been loaded yet")
-        return view(entry, base)
+        return view(entry, base())
     }
 
     /** Deletes the state view [name]; returns the project view that applies now, or `null`. See [ViewRegistry.delete]. */

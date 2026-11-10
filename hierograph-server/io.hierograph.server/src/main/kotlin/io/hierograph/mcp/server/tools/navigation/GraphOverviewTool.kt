@@ -21,6 +21,9 @@ import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
+import io.hierograph.mcp.server.tools.views.ViewResponses
+import io.hierograph.server.graphservice.views.ViewService
+import io.hierograph.server.views.ViewGroups
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.stereotype.Component
 
@@ -29,12 +32,13 @@ import org.springframework.stereotype.Component
  *
  * Returns a structural overview of the loaded codebase: statistics, the kind and
  * relationship vocabularies, top-level module structure, and the zoom-level model.
- * No parameters — always describes the full loaded graph.
+ * No parameters of its own — it describes the full loaded graph, or, called with `view`, the graph in that view.
  */
 @Component
 class GraphOverviewTool(
     private val graphService: HierarchicalGraphService,
-    private val nodeRefFactory: INodeRefFactory
+    private val nodeRefFactory: INodeRefFactory,
+    private val viewService: ViewService? = null,
 ) {
 
     @Tool(
@@ -47,12 +51,15 @@ class GraphOverviewTool(
                 "counts by attribute), the kind and relationship vocabularies, top-level " +
                 "module structure, and the zoom-level model. In manifest mode it also returns the " +
                 "build_state ('current', or 'stale' with the build files edited since the graph's manifest was " +
-                "written). No parameters needed. For known codebases, this can be skipped."
+                "written). With view=<name>, the hierarchy is the view's top level — its groups and the nodes no group " +
+                "takes — and a 'view' section summarizes the view and what applying it reported. " +
+                "No other parameters. For known codebases, this can be skipped."
     )
     fun graphOverview(): Map<String, Any?> {
 
         val hierarchy = graphService.model.hierarchy
         val rootNode = hierarchy.rootNode
+        val view = viewService?.currentView()
 
         // ── stats: count nodes by kind ─────────────────────────────────
         // traverse visits the descendants of its start node, so starting at the root counts every node
@@ -102,6 +109,14 @@ class GraphOverviewTool(
                     "description" to "Type referenced by the scanned code but not scanned itself; " +
                             "lives under the 'External Types' module and has no members"
                 )
+            ) + listOfNotNull(
+                view?.let {
+                    mapOf(
+                        "kind" to ViewGroups.KIND,
+                        "description" to "Group of the view '${it.entry.name}'; exists only in the view and " +
+                                "aggregates the dependencies of the nodes below it"
+                    )
+                }
             ),
             "group_aliases" to mapOf(
                 JavaKinds.ALIAS_TYPES to JavaKinds.TYPE_KINDS.map { it.value },
@@ -191,7 +206,15 @@ class GraphOverviewTool(
             "hierarchy" to hierarchySection,
             "model" to model,
             "scan_metadata" to scanMetadata
-        ).apply { graphService.buildState()?.let { put("build_state", it) } }
+        ).apply {
+            view?.let {
+                put("view", ViewResponses.entry(it.entry).apply {
+                    putAll(ViewResponses.summary(it))
+                    put("report", ViewResponses.report(it.materialized.report))
+                })
+            }
+            graphService.buildState()?.let { put("build_state", it) }
+        }
     }
 
     private fun kindEntry(kind: JavaNodeKind, description: String) =

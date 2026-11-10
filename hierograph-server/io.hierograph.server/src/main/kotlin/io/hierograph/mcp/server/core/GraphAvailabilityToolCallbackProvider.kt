@@ -17,6 +17,9 @@ package io.hierograph.mcp.server.core
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.views.InvalidViewException
+import io.hierograph.server.graphservice.views.UnknownViewException
+import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.ai.chat.model.ToolContext
 import org.springframework.ai.tool.ToolCallback
 import org.springframework.ai.tool.ToolCallbackProvider
@@ -30,11 +33,18 @@ import org.springframework.ai.tool.definition.ToolDefinition
  *
  * Tools whose names are in [toolsAllowedWithoutGraph] are exempt: they must run even without a graph so
  * that a graph can be loaded in the first place (`reload_graph`). Everything else answers with the one modular description.
+ *
+ * With a [viewService], every tool not in [toolsWithoutView] gains the optional `view` parameter
+ * ([ViewParameter]): a call that names a view runs with the view's snapshot pinned instead of the graph's
+ * ([ViewService.withView]), and an unknown or invalid view is answered with a `VIEW_NOT_FOUND` or
+ * `VIEW_INVALID` error without running the tool.
  */
 class GraphAvailabilityToolCallbackProvider(
     private val delegate: ToolCallbackProvider,
     private val graphService: HierarchicalGraphService,
-    private val toolsAllowedWithoutGraph: Set<String>
+    private val toolsAllowedWithoutGraph: Set<String>,
+    private val viewService: ViewService? = null,
+    private val toolsWithoutView: Set<String> = emptySet(),
 ) : ToolCallbackProvider {
 
     private val objectMapper = ObjectMapper()
@@ -46,22 +56,44 @@ class GraphAvailabilityToolCallbackProvider(
         private val delegate: ToolCallback
     ) : ToolCallback {
 
-        override fun getToolDefinition(): ToolDefinition = delegate.toolDefinition
+        private val name = delegate.toolDefinition.name()
+
+        private val takesView = viewService != null && name !in toolsWithoutView
+
+        private val definition: ToolDefinition =
+            if (takesView) ViewParameter.addTo(delegate.toolDefinition) else delegate.toolDefinition
+
+        override fun getToolDefinition(): ToolDefinition = definition
 
         override fun call(toolInput: String): String =
-            guard { delegate.call(toolInput) }
+            guard(toolInput) { delegate.call(it) }
 
         override fun call(toolInput: String, toolContext: ToolContext?): String =
-            guard { delegate.call(toolInput, toolContext) }
+            guard(toolInput) { delegate.call(it, toolContext) }
 
-        private inline fun guard(crossinline invoke: () -> String): String {
-            val name = delegate.toolDefinition.name()
-            return if (graphService.isGraphAvailable || name in toolsAllowedWithoutGraph) {
-                // One snapshot per call: a reload during the call cannot mix two graphs into one answer.
-                graphService.withPinnedSnapshot { invoke() }
-            } else {
-                objectMapper.writeValueAsString(GraphUnavailable.response())
+        private inline fun guard(toolInput: String, crossinline invoke: (String) -> String): String {
+            if (!graphService.isGraphAvailable && name !in toolsAllowedWithoutGraph) {
+                return objectMapper.writeValueAsString(GraphUnavailable.response())
             }
+            val split = if (takesView) ViewParameter.split(toolInput) else ViewParameter.Split(null, toolInput)
+            val viewName = split.view
+            // One snapshot per call: a reload during the call cannot mix two graphs into one answer.
+            if (viewName == null) return graphService.withPinnedSnapshot { invoke(split.input) }
+            val views = viewService!!
+            val base = graphService.liveSnapshot()
+            val view = try {
+                graphService.withPinnedSnapshot(base) { views.view(viewName) }
+            } catch (e: UnknownViewException) {
+                return error("VIEW_NOT_FOUND", e.message!!, "Call list_views for the views there are, or define_view to define one.")
+            } catch (e: InvalidViewException) {
+                return error("VIEW_INVALID", e.message!!, "Fix the document and define it again with define_view; get_view shows its problems.")
+            }
+            return views.withView(view) { invoke(split.input) }
         }
+
+        private fun error(code: String, message: String, recovery: String): String =
+            objectMapper.writeValueAsString(
+                mapOf("error" to linkedMapOf("code" to code, "message" to message, "recovery" to recovery)),
+            )
     }
 }
