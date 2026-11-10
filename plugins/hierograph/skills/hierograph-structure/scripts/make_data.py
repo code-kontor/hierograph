@@ -145,10 +145,10 @@ def main():
     present = set(names.values())
     for name, members in spec.get("view_groups", {}).items():
         # Members by node id, so two nodes of one name (a main and a test artifact) stay apart.
-        member_names = [names.get(str(m), m) for m in members]
-        hits = [n for n in member_names if n in present]
+        member_ids = [str(m) for m in members]
+        hits = [m for m in member_ids if m in names]
         if len(hits) >= 2:
-            pins.append({"name": name, "names": member_names, "span": True})
+            pins.append({"name": name, "ids": set(member_ids), "span": True})
         else:
             print(f"  view group '{name}' skipped: {len(hits)} member(s) in the node set")
     for name, members in spec.get("aggregator_groups", {}).items():
@@ -157,12 +157,15 @@ def main():
             pins.append({"name": name, "names": list(members), "span": True})
         else:
             print(f"  multi-module '{name}' skipped: {len(hits)} member(s) in the node set")
-    def pin_of(nm):
+    def pin_of(n):
+        nm = names[n]
         # First match wins, so list order is precedence. `names` is exact and is
         # the right tool when membership comes from something the name does not
         # encode - a source folder, an owning team - where a substring pattern
         # would quietly capture the wrong modules.
         for gi, g in enumerate(pins):
+            if n in g.get("ids", ()):
+                return gi
             if nm in set(g.get("names", ())):
                 return gi
             if any(p in nm for p in g.get("patterns", [])):
@@ -170,7 +173,7 @@ def main():
         return None
     # A `span` group is only drawn as a box: its members keep their own levels
     # and the box stretches over the levels they occupy.
-    group = {n: pin_of(names[n]) for n in ids}
+    group = {n: pin_of(n) for n in ids}
     pinned = lambda gi: gi is not None and not pins[gi].get("span")
     key = {n: (f"P{group[n]}" if pinned(group[n]) else f"N{n}") for n in ids}
     keys = sorted(set(key.values()))

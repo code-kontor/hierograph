@@ -184,6 +184,20 @@ class ViewServiceTest {
     }
 
     @Test
+    fun `a publication between materializing and caching a view leaves nothing of the replaced snapshot cached`() {
+        project("layers.json", layers)
+        val old = graphService.liveSnapshot()!!
+        service.beforeCacheWrite = { service.beforeCacheWrite = null; graphService.seed(model()) }
+
+        val view = service.view("layers")
+
+        assertThat(view.base).isSameAs(old)
+        assertThat(service.cachedViewCount).isZero()
+        assertThat(service.view("layers").base).isSameAs(graphService.liveSnapshot())
+        assertThat(service.cachedViewCount).isEqualTo(1)
+    }
+
+    @Test
     fun `a call pinned to a replaced snapshot gets its own view without evicting the live one`() {
         project("layers.json", layers)
         val old = graphService.liveSnapshot()!!

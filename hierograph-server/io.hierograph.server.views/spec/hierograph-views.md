@@ -414,7 +414,10 @@ The **effect** (`RestructuringEffect`, in `MaterializedView.effect`) compares th
 modules of the restructured hierarchy, before the groups, with the base hierarchy's:
 the module dependencies added, removed and changed in weight, by qualified name; the
 module cycles — strongly connected components of more than one module — after and
-before; and `newCycles`, those the restructuring creates. It answers "does this
+before; and `newCycles`, those the restructuring creates: the cycles whose modules
+were not all in one base cycle. A base cycle that a move shrinks is therefore not new;
+one that gains a module — the new virtual module, typically — or merges with another
+is, because modules that could be built apart before now cannot. It answers "does this
 extraction introduce a cycle?" without a second query. Materializing a restructuring
 view of the Spring 7.0.8 fixture, effect included, takes some 100–150 ms.
 

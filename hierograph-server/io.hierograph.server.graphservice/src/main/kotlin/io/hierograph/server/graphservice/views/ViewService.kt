@@ -106,6 +106,9 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
     /** How many materialized views are cached; for tests and diagnostics. */
     internal val cachedViewCount: Int get() = cache.size
 
+    /** Runs after a view of the live snapshot is materialized, before it is cached; for tests of that window. */
+    internal var beforeCacheWrite: (() -> Unit)? = null
+
     @PostConstruct
     fun init() {
         // A view of a replaced snapshot would keep the whole old graph alive; drop it with the snapshot.
@@ -187,7 +190,14 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
             val view = materialize(entry, base)
             // Only views of the live snapshot are cached: a call still pinned to a replaced snapshot gets its
             // view built for it, without evicting the live one.
-            if (base === graphService.liveSnapshot()) cache[entry.name] = Cached(entry.text, view)
+            if (base === graphService.liveSnapshot()) {
+                beforeCacheWrite?.invoke()
+                val cached = Cached(entry.text, view)
+                cache[entry.name] = cached
+                // A publication between the check and the write ran its eviction too early to see this entry;
+                // remove it here, or it would keep the replaced graph alive until the view's next request.
+                if (base !== graphService.liveSnapshot()) cache.remove(entry.name, cached)
+            }
             return view
         }
     }

@@ -101,6 +101,29 @@ class ViewRestructurerTest {
         }
     }
 
+    @Nested
+    inner class NewCycles {
+
+        private fun effect(cycles: List<List<String>>, baseCycles: List<List<String>>) =
+            RestructuringEffect(emptyList(), emptyList(), emptyList(), cycles, baseCycles)
+
+        @Test
+        fun `a base cycle that a move shrinks or leaves alone is not new`() {
+            val base = listOf(listOf("a", "b", "c"))
+
+            assertThat(effect(listOf(listOf("a", "b")), base).newCycles).isEmpty()
+            assertThat(effect(base, base).newCycles).isEmpty()
+        }
+
+        @Test
+        fun `a base cycle that gains a module, or merges with another, is new`() {
+            val base = listOf(listOf("a", "b"), listOf("c", "d"))
+
+            assertThat(effect(listOf(listOf("a", "b", "virtual")), base).newCycles).containsExactly(listOf("a", "b", "virtual"))
+            assertThat(effect(listOf(listOf("a", "b", "c", "d")), base).newCycles).containsExactly(listOf("a", "b", "c", "d"))
+        }
+    }
+
     @Test
     fun `moving the dependent package along removes the cycle and shows the dependencies that move with the code`() {
         val view = view(

@@ -64,8 +64,12 @@ data class RestructuringEffect(
     val cycles: List<List<String>>,
     val baseCycles: List<List<String>>,
 ) {
-    /** The cycles the restructuring creates: those that are not cycles of the base hierarchy. */
-    val newCycles: List<List<String>> get() = cycles.filter { it !in baseCycles }
+    /**
+     * The cycles the restructuring creates: those whose modules were not all in one cycle of the base hierarchy.
+     * A base cycle that a move shrinks is not new; one that gains a module, virtual or real, or that merges with
+     * another, is: modules that could be built apart before now cannot.
+     */
+    val newCycles: List<List<String>> get() = cycles.filter { cycle -> baseCycles.none { it.containsAll(cycle) } }
 }
 
 /**

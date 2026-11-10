@@ -134,6 +134,14 @@ class ViewToolCallsTest {
     }
 
     @Test
+    fun `the define_view description documents restructuring views`() {
+        val description = tools.getValue("define_view").toolDefinition.description()
+
+        assertThat(description).contains("\"restructure\": true", "\"modules\"", "\"moves\"", "\"select\"", "\"to\"")
+        assertThat(description).contains("virtual_modules", "new_cycles", "introduces_cycles")
+    }
+
+    @Test
     fun `list_children in a view shows the groups, without one the modules`() {
         project("layers.json", layers)
 
