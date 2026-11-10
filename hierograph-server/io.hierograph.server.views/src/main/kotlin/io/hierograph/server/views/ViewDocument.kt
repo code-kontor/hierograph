@@ -16,7 +16,8 @@
 package io.hierograph.server.views
 
 /**
- * A view: a named, declarative grouping of graph nodes (views specification, §2).
+ * A view: a named, declarative grouping of graph nodes (views specification, §2), and, with [restructure],
+ * a virtual refactoring that moves nodes into other or new modules and packages first (§6.4).
  *
  * Instances come from [ViewDocumentParser], which checks the rules of §3; a document that reaches a
  * [ViewResolver] is therefore well-formed, and everything that can still go wrong is a matter of the graph
@@ -28,6 +29,12 @@ data class ViewDocument(
     val description: String? = null,
     /** The top-level groups, in document order. */
     val groups: List<GroupDefinition> = emptyList(),
+    /** Whether the view restructures; required for [modules] and [moves], so grouping never moves by accident. */
+    val restructure: Boolean = false,
+    /** The virtual modules the [moves] can target, in document order. */
+    val modules: List<VirtualModuleDefinition> = emptyList(),
+    /** The moves, applied in document order before the [groups]. */
+    val moves: List<MoveDefinition> = emptyList(),
 ) {
     companion object {
         /** The allowed form of a view name: lower-case, digits, `.`, `_` and `-`, not starting with a separator. */
@@ -49,6 +56,36 @@ data class GroupDefinition(
     companion object {
         /** Separates the names in a group's path (`core/hierograph-graphstore`). */
         const val PATH_SEPARATOR = '/'
+    }
+}
+
+/**
+ * A module that exists only in a restructuring view. Its [name] is how moves and groups refer to it, and
+ * its qualified name in the view.
+ */
+data class VirtualModuleDefinition(
+    /** Unique among the view's modules; matches [NAME_PATTERN]. */
+    val name: String,
+    val description: String? = null,
+) {
+    companion object {
+        /** Letters, digits, `.`, `_` and `-`; never `:` or `/`, so a name cannot be taken for a GAV or a package target. */
+        val NAME_PATTERN = Regex("[A-Za-z0-9][A-Za-z0-9._-]*")
+    }
+}
+
+/**
+ * Moves the nodes [select] selects — modules, packages or types — to [to]: an existing module (its
+ * qualified name, a pattern that must match exactly one module), a virtual module (its name), or a
+ * package inside one of them (`<module>/<package fqn>`). See views specification, §6.4.
+ */
+data class MoveDefinition(
+    val select: MemberSelector,
+    val to: String,
+) {
+    companion object {
+        /** Separates the module from the package in a package target. */
+        const val PACKAGE_SEPARATOR = '/'
     }
 }
 

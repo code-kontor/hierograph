@@ -138,8 +138,21 @@ class ParquetTypeDetails(
         )
     }
 
-    /** The key of [node]'s owning module (the artifact its `types.parquet` row is filed under). */
+    /**
+     * The key of [node]'s owning module (the artifact its `types.parquet` row is filed under). Taken from the
+     * GraphStore's own containment, so a type a restructuring view moves into another or a virtual module
+     * still reads its facts from the artifact that defines it; the hierarchy is the fallback.
+     */
     private fun owningArtifact(node: HGNode): String? {
+        val store = graphService.graphStore
+        var key = (node.nodeSource as? GraphStoreNodeSource)?.key
+        if (store != null) {
+            while (key != null) {
+                val stored = store.node(key) ?: break
+                if (stored.kind == JavaKinds.MODULE) return stored.key
+                key = stored.parent
+            }
+        }
         var n: HGNode? = node
         while (n != null && n.kind != JavaKinds.MODULE) n = graphService.model.hierarchy.parentOf(n)
         return (n?.nodeSource as? GraphStoreNodeSource)?.key

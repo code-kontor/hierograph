@@ -38,6 +38,7 @@ import io.hierograph.server.graphservice.views.ViewRegistry
 import io.hierograph.server.graphservice.views.ViewService
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import io.hierograph.server.views.ViewGroups
+import io.hierograph.server.views.ViewNodes
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -311,5 +312,67 @@ class ViewToolCallsTest {
         assertThat((deleted["restored"] as Map<String, Any?>)["source"]).isEqualTo("project")
         val error = call("delete_view", "name" to "layers")["error"] as Map<String, Any?>
         assertThat(error["code"]).isEqualTo("PROJECT_VIEW")
+    }
+
+    private val extractUtil = mapOf(
+        "name" to "extract-util", "restructure" to true,
+        "modules" to listOf(mapOf("name" to "acme.text")),
+        "moves" to listOf(mapOf("select" to mapOf("match" to "com.acme.util", "kind" to "java.package"), "to" to "acme.text")),
+        "groups" to listOf(mapOf("name" to "base", "members" to listOf("acme.text", "acme:core:*"))),
+    )
+
+    @Test
+    fun `define_view of a restructuring view returns its virtual modules and the module-level effect`() {
+        val defined = call("define_view", "document" to extractUtil)
+
+        val modules = defined["virtual_modules"] as List<Map<String, Any?>>
+        assertThat(modules.single()["name"]).isEqualTo("acme.text")
+        assertThat(modules.single()["child_count"]).isEqualTo(1)
+        val effect = defined["restructuring"] as Map<String, Any?>
+        assertThat(effect["added"] as List<Map<String, Any?>>).containsExactlyInAnyOrder(
+            mapOf("from" to "acme:app:1.0", "to" to "acme.text", "weight" to 1),
+            mapOf("from" to "acme:core:1.0", "to" to "acme.text", "weight" to 1),
+        )
+        assertThat((effect["removed"] as List<Map<String, Any?>>).map { it["from"] to it["to"] })
+            .containsExactlyInAnyOrder("acme:app:1.0" to "acme:util:1.0", "acme:core:1.0" to "acme:util:1.0")
+        assertThat(effect["introduces_cycles"]).isEqualTo(false)
+        // the emptied real module stays and is reported
+        val findings = (defined["report"] as Map<String, Any?>)["findings"] as List<Map<String, Any?>>
+        assertThat(findings.map { it["code"] }).containsExactly("REAL_MODULE_EMPTY")
+        assertThat(findings.single()["severity"]).isEqualTo("info")
+    }
+
+    @Test
+    fun `in a restructuring view virtual nodes are marked and moved real nodes keep their ids`() {
+        call("define_view", "document" to extractUtil)
+        val moduleId = ViewNodes.moduleHandle("extract-util", "acme.text")
+        val strings = graphService.model.hierarchy.descendantsOf(graphService.model.hierarchy.rootNode)
+            .single { io.hierograph.hierarchicalgraph.model.NodeMetadata.getQualifiedName(it) == "com.acme.util.Strings" }
+
+        val module = call("list_children", "nodeId" to groupId("extract-util", "base"), "view" to "extract-util")
+        val packages = call("list_descendants", "nodeId" to moduleId, "view" to "extract-util")
+        val found = call("find_node", "name" to "Strings", "view" to "extract-util")
+
+        val text = (module["results"] as List<Map<String, Any?>>).single { it["name"] == "acme.text" }
+        assertThat(text["virtual"]).isEqualTo(true)
+        assertThat(text["kind"]).isEqualTo("java.module")
+        val descendants = packages["results"] as List<Map<String, Any?>>
+        assertThat(descendants.filter { it["kind"] == "java.package" }).allMatch { it["virtual"] == true || it["qualified_name"] == "com.acme.util" }
+        assertThat(descendants.single { it["qualified_name"] == "com.acme.util" }).doesNotContainKey("virtual")
+        val ref = (found["results"] as List<Map<String, Any?>>).single { it["qualified_name"] == "com.acme.util.Strings" }
+        assertThat(ref["id"]).isEqualTo(strings.identifier)
+        assertThat(ref).doesNotContainKey("virtual")
+    }
+
+    @Test
+    fun `graph_overview of a restructuring view summarizes the restructuring`() {
+        call("define_view", "document" to extractUtil)
+
+        val view = call("graph_overview", "view" to "extract-util")["view"] as Map<String, Any?>
+
+        assertThat(view["restructure"]).isEqualTo(true)
+        assertThat(view["virtual_module_count"]).isEqualTo(1)
+        assertThat(view["introduces_cycles"]).isEqualTo(false)
+        assertThat(view).containsKeys("virtual_modules", "restructuring")
     }
 }

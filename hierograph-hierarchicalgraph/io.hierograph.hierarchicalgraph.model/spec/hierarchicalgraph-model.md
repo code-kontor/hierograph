@@ -423,18 +423,26 @@ Scenarios restructure; they do not edit facts.
 |--------|--------|
 | `move(node, newParent)` | detaches `node` from its current parent and appends it to `newParent`'s children, with its whole subtree |
 | `addChild(parent, child)` | appends `child` to `parent`'s children; for a node that is not yet in the tree |
+| `remove(node)` | takes a childless `node` out of the tree; `lookupNode` no longer finds it in this hierarchy |
 
-Both clear the hierarchy's caches (§9). Use `move` to re-parent a node that is
+All three clear the hierarchy's caches (§9). Use `move` to re-parent a node that is
 already placed, and `addChild` only for a node that has no parent in this
 hierarchy yet.
 
-Both keep the hierarchy a tree and fail with `IllegalArgumentException`, leaving it
+`remove` is for nodes a restructuring leaves empty, such as a package whose types
+moved elsewhere. A removed local node is dropped. A removed core node stays in the
+core graph and in every other hierarchy, but this hierarchy, and the forks made from
+it afterwards, no longer find it with `lookupNode`; its own dependencies drop out of
+every accumulation here. Adding it again with `addChild` makes it visible again.
+
+All of them keep the hierarchy a tree and fail with `IllegalArgumentException`, leaving it
 unchanged, when a call would break it:
 
 | Call | Rejected when |
 |------|---------------|
 | `move(node, newParent)` | `node` is the root; `newParent` is `node` or lies in its subtree |
 | `addChild(parent, child)` | `child` already has a parent (use `move`); `child` is the root; `parent` lies in `child`'s subtree |
+| `remove(node)` | `node` is the root; `node` has children (move them first) |
 
 The subtree check walks `newParent`'s (or `parent`'s) parent chain, so it costs the
 depth of the target, not the size of the subtree.
@@ -448,7 +456,7 @@ a package is moved into. **Local nodes** belong to one hierarchy only:
 |--------|-------------|
 | `createLocalNode(kind, sourceSupplier)` | creates a node that is known to this hierarchy (and its later forks), but not to the core graph; fails with `IllegalArgumentException` when a core node or a local node of this hierarchy already has the source's identifier |
 | `localNodes` | the hierarchy's local nodes |
-| `lookupNode(identifier)` | finds a node among the local nodes first, then in the core graph |
+| `lookupNode(identifier)` | finds a node among the local nodes first, then in the core graph, leaving out core nodes removed from this hierarchy (§7.2) |
 
 A local node is placed with `addChild` like any other node and works everywhere a
 node does in that hierarchy: traversal, accumulation, aggregation. It has no core
@@ -658,7 +666,7 @@ model.withScope { billing.outgoingTo(money)?.aggregatedWeight }   // still 4
 - **Reads.** Any number of threads may query the same hierarchy at the same time —
   structure, traversal, accumulation, aggregation — also while its caches are still
   empty (§9).
-- **Changes.** `move`, `addChild` and `createLocalNode` change the hierarchy's maps
+- **Changes.** `move`, `addChild`, `remove` and `createLocalNode` change the hierarchy's maps
   and clear its caches. A change while another thread reads the hierarchy, or two
   changes at the same time, is never safe.
 - **Build, then publish.** Build or restructure a hierarchy on one thread, then hand

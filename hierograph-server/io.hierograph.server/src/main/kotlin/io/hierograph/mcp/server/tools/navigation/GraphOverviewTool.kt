@@ -210,6 +210,7 @@ class GraphOverviewTool(
             view?.let {
                 put("view", ViewResponses.entry(it.entry).apply {
                     putAll(ViewResponses.summary(it))
+                    with(ViewResponses) { putRestructuring(it) }
                     put("report", ViewResponses.report(it.materialized.report))
                 })
             }

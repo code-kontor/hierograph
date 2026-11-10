@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.hierograph.itest.fwk.AbstractMcpApplicationIntegrationTest
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.views.ViewGroups
+import io.hierograph.server.views.ViewNodes
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -176,5 +177,59 @@ class ViewToolsIT : AbstractMcpApplicationIntegrationTest() {
 
         val base = call("list_children", "nodeId" to rootId())["results"] as List<Map<String, Any?>>
         assertThat(base).hasSize(22).noneMatch { it["kind"] == ViewGroups.KIND }
+    }
+
+    private val extractCoreIo = mapOf(
+        "name" to "extract-core-io", "restructure" to true,
+        "modules" to listOf(mapOf("name" to "spring-core-io")),
+        "moves" to listOf(
+            mapOf(
+                "select" to mapOf("match" to "org.springframework.core.io", "kind" to "java.package", "within" to "spring-core-7.0.8.jar"),
+                "to" to "spring-core-io",
+            ),
+        ),
+    )
+
+    @Test
+    fun `extracting core io from spring-core is reported as a new module cycle`() {
+        try {
+            val defined = call("define_view", "document" to extractCoreIo)
+
+            val effect = defined["restructuring"] as Map<String, Any?>
+            assertThat(effect["introduces_cycles"]).isEqualTo(true)
+            assertThat(effect["new_cycles"] as List<List<String>>).anySatisfy { assertThat(it).contains("spring-core-io", "spring-core-7.0.8.jar") }
+            val added = (effect["added"] as List<Map<String, Any?>>).map { it["from"] to it["to"] }
+            assertThat(added).contains("spring-core-io" to "spring-core-7.0.8.jar", "spring-core-7.0.8.jar" to "spring-core-io")
+            assertThat((defined["report"] as Map<String, Any?>)["errors"]).isEqualTo(0)
+        } finally {
+            call("delete_view", "name" to "extract-core-io")
+        }
+    }
+
+    @Test
+    fun `a type moved into a virtual module keeps its id and its details`() {
+        try {
+            call("define_view", "document" to extractCoreIo)
+            val resource = (call("find_node", "name" to "Resource", "kindFilter" to listOf("types"))["results"] as List<Map<String, Any?>>)
+                .single { it["qualified_name"] == "org.springframework.core.io.Resource" }
+            val id = (resource["id"] as Number).toLong()
+
+            val inView = call("type_details", "typeId" to id, "view" to "extract-core-io")
+            val base = call("type_details", "typeId" to id)
+            val path = call("list_descendants", "nodeId" to ViewNodes.moduleHandle("extract-core-io", "spring-core-io"),
+                "kindFilter" to listOf("packages"), "view" to "extract-core-io")["results"] as List<Map<String, Any?>>
+
+            assertThat(inView).doesNotContainKey("error")
+            // the facts come from spring-core's snapshot although the type now sits in a virtual module
+            assertThat(inView["member_summary"]).isEqualTo(base["member_summary"])
+            assertThat((inView["member_summary"] as Map<String, Any?>)["method_count"] as Int).isPositive()
+            assertThat(inView["interfaces"]).isEqualTo(base["interfaces"])
+            assertThat(inView["location"]).isNotNull().isEqualTo(base["location"])
+            assertThat(path.map { it["qualified_name"] }).contains("org", "org.springframework", "org.springframework.core", "org.springframework.core.io")
+            assertThat(path.filter { it["qualified_name"] != "org.springframework.core.io" && it["qualified_name"].toString().count { c -> c == '.' } < 3 })
+                .allMatch { it["virtual"] == true }
+        } finally {
+            call("delete_view", "name" to "extract-core-io")
+        }
     }
 }

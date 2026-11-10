@@ -308,6 +308,10 @@ val minimal = mapOf(
 `parent_id` and `parent_kind` let a caller place a node in the tree without a second
 call.
 
+In a restructuring view ([views specification, §6.4](../../io.hierograph.server.views/spec/hierograph-views.md#64-restructuring)),
+a node reference of a virtual module or package also carries `virtual: true`, and so
+does its entry in a slim node map (§6.3). The key is absent for every other node.
+
 ### 6.2 Enriched NodeRef
 
 A minimal NodeRef plus counts and modifiers that depend on the kind. Browse results

@@ -33,6 +33,9 @@ class HierarchyImpl(
 
     override val localNodes: Collection<HGNode> get() = localNodeMap.values
 
+    // core nodes taken out of this hierarchy by remove; lookupNode no longer finds them here
+    private val removedIds: MutableSet<Any> = HashSet()
+
     override fun createLocalNode(kind: Any?, nodeSourceSupplier: () -> INodeSource): HGNode {
         val source = nodeSourceSupplier()
         // lookupNode searches the local nodes first: a colliding identifier would hide the other node.
@@ -47,7 +50,7 @@ class HierarchyImpl(
     }
 
     override fun lookupNode(identifier: Any): HGNode? =
-        localNodeMap[identifier] ?: coreGraph.lookupNode(identifier)
+        localNodeMap[identifier] ?: if (identifier in removedIds) null else coreGraph.lookupNode(identifier)
 
     // Caches, filled lazily by reads and cleared on structural mutation. Concurrent reads are safe: an entry
     // is computed outside the map and published with putIfAbsent, so two threads racing on one key may both
@@ -204,6 +207,7 @@ class HierarchyImpl(
         requireNotInSubtree(parentId, childId) { "Adding $childId below $parentId would make it its own ancestor" }
         parentMap[childId] = parentId
         childrenMap.getOrPut(parentId) { mutableListOf() }.add(childId)
+        removedIds.remove(childId)
     }
 
     /**
@@ -232,6 +236,16 @@ class HierarchyImpl(
         clearCaches()
     }
 
+    override fun remove(node: HGNode) {
+        val id = node.identifier
+        require(id != rootNode.identifier) { "The root node $id cannot be removed" }
+        require(childrenMap[id].isNullOrEmpty()) { "Node $id has children; move them before removing it" }
+        parentMap.remove(id)?.let { childrenMap[it]?.remove(id) }
+        childrenMap.remove(id)
+        if (localNodeMap.remove(id) == null) removedIds.add(id)
+        clearCaches()
+    }
+
     override fun fork(): Hierarchy {
         val forked = HierarchyImpl(
             coreGraph = coreGraph,
@@ -241,6 +255,7 @@ class HierarchyImpl(
         )
         forked.name = name
         forked.localNodeMap.putAll(localNodeMap)
+        forked.removedIds.addAll(removedIds)
         return forked
     }
 

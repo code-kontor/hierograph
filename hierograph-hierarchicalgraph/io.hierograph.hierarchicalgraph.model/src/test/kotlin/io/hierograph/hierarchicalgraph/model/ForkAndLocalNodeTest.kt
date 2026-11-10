@@ -202,6 +202,75 @@ class ForkAndLocalNodeTest {
     }
 
     @Nested
+    inner class Remove {
+
+        @Test
+        fun `a removed node leaves the tree and is no longer found in the hierarchy`() {
+            val fork = g.hierarchy.fork()
+
+            fork.remove(g.a3)
+
+            assertThat(fork.childrenOf(g.a2)).isEmpty()
+            assertThat(fork.parentOf(g.a3)).isNull()
+            assertThat(fork.lookupNode(g.a3.identifier)).isNull()
+            assertThat(fork.descendantsOf(fork.rootNode)).doesNotContain(g.a3)
+            // the core graph and the original keep it
+            assertThat(g.coreGraph.lookupNode(g.a3.identifier)).isSameAs(g.a3)
+            assertThat(g.hierarchy.lookupNode(g.a3.identifier)).isSameAs(g.a3)
+            assertThat(g.hierarchy.childrenOf(g.a2)).containsExactly(g.a3)
+        }
+
+        @Test
+        fun `a removed node's own dependencies drop out of the accumulation`() {
+            val fork = g.hierarchy.fork()
+            assertThat(fork.getAggregatedDependency(g.a1, g.b1)!!.aggregatedWeight).isEqualTo(4)
+
+            fork.remove(g.a3)
+
+            assertThat(fork.accumulatedOutgoing(g.a1)).doesNotContain(g.dep_a3_b3_depends_on)
+            assertThat(fork.getAggregatedDependency(g.a1, g.b1)!!.aggregatedWeight).isEqualTo(3)
+            assertThat(g.hierarchy.getAggregatedDependency(g.a1, g.b1)!!.aggregatedWeight).isEqualTo(4)
+        }
+
+        @Test
+        fun `a removed local node is dropped`() {
+            val group = g.hierarchy.group("g")
+
+            g.hierarchy.remove(group)
+
+            assertThat(g.hierarchy.localNodes).isEmpty()
+            assertThat(g.hierarchy.lookupNode(group.identifier)).isNull()
+            assertThat(g.hierarchy.childrenOf(g.root)).containsExactly(g.a1, g.b1)
+        }
+
+        @Test
+        fun `a forked hierarchy inherits what was removed`() {
+            g.hierarchy.remove(g.a3)
+
+            assertThat(g.hierarchy.fork().lookupNode(g.a3.identifier)).isNull()
+        }
+
+        @Test
+        fun `a removed core node can be added again`() {
+            g.hierarchy.remove(g.a3)
+
+            g.hierarchy.addChild(g.b3, g.a3)
+
+            assertThat(g.hierarchy.lookupNode(g.a3.identifier)).isSameAs(g.a3)
+            assertThat(g.hierarchy.parentOf(g.a3)).isSameAs(g.b3)
+        }
+
+        @Test
+        fun `the root and a node with children cannot be removed`() {
+            assertThatThrownBy { g.hierarchy.remove(g.root) }
+                .isInstanceOf(IllegalArgumentException::class.java).hasMessageContaining("root")
+            assertThatThrownBy { g.hierarchy.remove(g.a2) }
+                .isInstanceOf(IllegalArgumentException::class.java).hasMessageContaining("children")
+            assertThat(g.hierarchy.childrenOf(g.a2)).containsExactly(g.a3)
+        }
+    }
+
+    @Nested
     inner class Guards {
 
         private fun Hierarchy.snapshot() = descendantsOf(rootNode).map { it to parentOf(it) }

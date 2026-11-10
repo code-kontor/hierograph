@@ -84,5 +84,13 @@ interface Hierarchy {
      * subtree: the parent chain would become a cycle.
      */
     fun move(node: HGNode, newParent: HGNode)
+
+    /**
+     * Takes [node], which must have no children, out of this hierarchy: it is detached from its parent, and
+     * [lookupNode] no longer finds it here (a local node is dropped, a core node stays in the core graph and
+     * in other hierarchies). Its own dependencies drop out of every accumulation in this hierarchy. Fails
+     * with [IllegalArgumentException] when [node] is the root or has children: move them first.
+     */
+    fun remove(node: HGNode)
     fun fork(): Hierarchy
 }

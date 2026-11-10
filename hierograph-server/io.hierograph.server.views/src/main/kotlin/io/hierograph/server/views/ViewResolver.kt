@@ -73,9 +73,10 @@ class ViewResolver(private val hierarchy: Hierarchy) {
     /** The nodes [selector] selects, in pre-order. */
     fun select(selector: MemberSelector): List<HGNode> = matching(selector).nodes
 
-    private class Selected(val nodes: List<HGNode>, val withinMatchedNothing: Boolean)
+    internal class Selected(val nodes: List<HGNode>, val withinMatchedNothing: Boolean)
 
-    private fun matching(selector: MemberSelector): Selected {
+    /** The nodes [selector] selects, in pre-order, and whether its `within` matched nothing. */
+    internal fun matching(selector: MemberSelector): Selected {
         val kinds = selector.kind?.let { kind -> JavaKinds.expandAlias(kind)?.map { it.value }?.toSet() ?: setOf(kind) }
         val within = selector.within?.let { nodesMatching(NamePattern.compile(it)).toSet() }
         if (within != null && within.isEmpty()) return Selected(emptyList(), withinMatchedNothing = true)

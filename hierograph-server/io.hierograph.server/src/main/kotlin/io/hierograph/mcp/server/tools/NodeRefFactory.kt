@@ -23,6 +23,7 @@ import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreNodeSource
 import io.hierograph.server.views.ViewGroups
+import io.hierograph.server.views.ViewNodes
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
 
@@ -40,7 +41,8 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     // ── minimal NodeRef ────────────────────────────────────────────────
 
     /**
-     * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`.
+     * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`, and
+     * `virtual: true` for a virtual module or package of a restructuring view.
      * Used when a NodeRef appears inside a larger structure (edge endpoint, path step, etc.).
      */
     override fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
@@ -53,7 +55,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             "kind" to node.kind?.toString(),
             "parent_id" to parent?.identifier,
             "parent_kind" to parent?.kind?.toString()
-        )
+        ).apply { if (ViewNodes.isVirtual(node)) put("virtual", true) }
     }
 
     // ── enriched NodeRef ───────────────────────────────────────────────
@@ -148,6 +150,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
         val id = (node.identifier as? Number)?.toLong() ?: 0L
         putSlimNode(nodes, id, NodeMetadata.getName(node), NodeMetadata.getQualifiedName(node), NodeMetadata.getKind(node))
+        if (ViewNodes.isVirtual(node)) (nodes[id.toString()] as? MutableMap<String, Any?>)?.put("virtual", true)
     }
 
     // ── primitive ref ──────────────────────────────────────────────────

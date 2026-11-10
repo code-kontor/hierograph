@@ -2,7 +2,9 @@
 
 A **view** is an alternative hierarchy over the observed system: a JSON document
 that groups nodes of the graph — modules, packages, types — into named groups,
-possibly nested. This module defines the view document, its member selectors, and
+possibly nested. A **restructuring view** also moves packages and types into other or
+new modules and packages first: a virtual refactoring whose module dependencies and
+cycles can be read before any code is touched (§6.4). This module defines the view document, its member selectors, and
 how a document is resolved against a hierarchy, with the report of everything that
 could not be applied.
 
@@ -114,6 +116,9 @@ cycle between packages disappears from the group level when both are in one grou
 | `groups[].description` | string, optional | free text |
 | `groups[].members` | array of selectors, optional | §4; default empty |
 | `groups[].groups` | array, optional | nested groups; default empty |
+| `restructure` | boolean, optional | `true` for a restructuring view; required for `modules` and `moves` (§6.4) |
+| `modules` | array, optional | virtual modules: `name` (letters, digits, `.`, `_`, `-`; no `:` or `/`; unique) and `description` |
+| `moves` | array, optional | moves, applied in document order: `select` (a selector, §4) and `to` (a target, §6.4.1) |
 
 A group's **path** is the names from its top-level group down, joined by `/`
 (`core/hierograph-graphstore`). Sibling names are unique, so paths are unique within
@@ -129,7 +134,9 @@ with every problem and its location (`groups[1].members[0].kind: unknown kind �
 | invalid view or group name | `name: 'Multi' is not a valid view name; …` |
 | duplicate sibling name | `groups: the group name 'core' is used more than once among sibling groups` |
 | unknown field | `groups[0].member: unknown field; allowed are name, description, members, groups` |
-| restructuring field (`restructure`, `modules`, `moves`) | `moves: restructuring views are not supported yet` |
+| `modules` or `moves` without `"restructure": true` | `moves: only a restructuring view has moves; set "restructure": true` |
+| invalid or duplicate module name | `modules[0].name: 'a:b' is not a valid module name; …` |
+| move without `select`, or with a malformed target | `moves[2].to: 'm/' is not a target; use a module, a virtual module or <module>/<package>` |
 | malformed pattern or unknown kind in a selector | §4 |
 
 A document with a parse error is not applied at all.
@@ -247,7 +254,9 @@ document stays usable while it is being fixed.
 | `EMPTY_GROUP` | warning | a group without members and without applied subgroups is not created |
 
 Each finding carries the group's path, the selector where one is involved, a message,
-and the nodes it is about.
+and the nodes it is about. A restructuring view adds the findings of §6.4.4, which
+name the move (`moves[2]`) or module (`modules[0]`) instead of a group; their
+severity may also be `info`.
 
 ---
 
@@ -303,6 +312,110 @@ accumulated and aggregated dependencies are those of its members, so a group is 
 first-class node for every analysis: the aggregated dependency between two groups
 is the sum over their members, and a group-level DSM is the member-level DSM summed
 into blocks.
+
+### 6.4 Restructuring
+
+Grouping inserts levels and never takes a node away from its parent. A
+**restructuring view** does: it moves packages and types into other or new modules
+and packages, and shows what the system would look like afterwards — its module
+dependencies, its cycles, its layering. `ViewRestructurer` applies the moves to a
+fork; the view's groups are then resolved against, and placed in, the restructured
+hierarchy, so a group can collect virtual modules as well as real ones.
+
+```json
+{ "name": "extract-parquet", "restructure": true,
+  "modules": [ { "name": "io.hierograph.graphstore.parquet" } ],
+  "moves": [
+    { "select": { "match": "io.hierograph.graphstore.jvm.parquet", "kind": "java.package",
+                  "within": "io.hierograph:io.hierograph.graphstore.jvm:*" },
+      "to": "io.hierograph.graphstore.parquet" } ] }
+```
+
+#### 6.4.1 Selection and targets
+
+A move's selector is resolved against the **base** hierarchy, like a group's. Of the
+selected nodes, those inside another selected node of the same move go with it and
+are not moved on their own. A node two moves select is moved by the first
+(`NODE_MOVED_TWICE` on the second).
+
+A move's **target** is resolved against the restructured hierarchy when the move is
+applied, so a move can target a package an earlier move created:
+
+| `to` | Target |
+|------|--------|
+| a virtual module's name | that module |
+| a module pattern (`io.hierograph:io.hierograph.server:*`) | the one real module it matches; none is `UNKNOWN_MOVE_TARGET`, more than one `AMBIGUOUS_MOVE_TARGET` |
+| `<module>/<package fqn>` | that package in that module, created with its path when missing |
+
+#### 6.4.2 What a move does
+
+| Moved node | Target | Effect |
+|------------|--------|--------|
+| a package | a module | the package, with its subtree, goes into the module under its **own qualified name**: the package path above it is reused where the module has it and created as virtual packages where it does not. A package of the same name already there **absorbs** it: the moved package's children join it, same-named sub-packages merging in turn |
+| a package | a package | the package becomes a sub-package of the target, its qualified name the target's plus its simple name (a virtual rename): virtual packages of the new names take its children, sub-packages renamed alike, and the emptied real packages leave the view |
+| a type | a module | the type goes into the package of its own package name in that module, created when missing |
+| a type | a package | the type goes into that package |
+| a module | a module | **merge**: the module's packages and types move into the target as above, and the emptied module leaves the view |
+
+Further rules:
+
+- **Nested types follow their type.** `Reader$Page` moves with `Reader`, unless a
+  move selects it on its own.
+- **Empty packages leave the view.** A package the moves leave without children
+  disappears, and so do the packages above it that become empty in turn
+  (`Hierarchy.remove`). A real module left empty stays (`REAL_MODULE_EMPTY`).
+- **Real nodes keep their handles.** A moved package or type has the same handle in
+  the base hierarchy and in the view, so results compare node by node. A renamed
+  package is a new, virtual package; the real one leaves the view.
+- **Facts are untouched.** A move changes where a node sits, never what it depends
+  on. A virtual module's dependencies are the aggregation of what was moved into it.
+- **What cannot move:** members, external types, groups and the root
+  (`CANNOT_MOVE`); a module into a package (`CANNOT_MOVE`); a package into its own
+  subtree (`MOVE_INTO_OWN_SUBTREE`). Each skips that node only.
+
+#### 6.4.3 Virtual modules and packages
+
+| Property | Virtual module | Virtual package |
+|----------|----------------|-----------------|
+| Kind | `java.module` | `java.package` |
+| Source | `VirtualNodeSource`: name and qualified name = its `name` | `VirtualNodeSource`: name = last segment, qualified name = the package's |
+| Handle | `NodeHandle.of("view:<view>:module:<name>")` | `NodeHandle.of("view:<view>:package:<module>/<fqn>")`, the module by its qualified name |
+| Place | below the root, in document order | below its parent package, or the module |
+
+Virtual modules have the kind of a module, so module-level analyses and `kind`
+filters treat them as what they stand for. `ViewNodes.isVirtual(node)` tells them
+apart, and the tools mark them `virtual: true` (§8.1). A virtual node's handle must
+not be taken by a node of the graph; on a collision the whole view is not applied
+(`VIRTUAL_HANDLE_COLLISION`). A virtual module no move fills stays, empty
+(`VIRTUAL_MODULE_EMPTY`).
+
+Code that reads a type's facts from its artifact must not take the artifact from the
+type's module in the view: a moved type may sit in a virtual module.
+`type_details` therefore finds the owning artifact through the GraphStore's own
+containment.
+
+#### 6.4.4 The report and the effect
+
+| Code | Severity | Effect |
+|------|----------|--------|
+| `MOVE_SELECTS_NOTHING` | warning | the move is ignored |
+| `UNKNOWN_MOVE_TARGET` | error | the move is skipped |
+| `AMBIGUOUS_MOVE_TARGET` | error | the move is skipped; the finding names the matching modules |
+| `NODE_MOVED_TWICE` | error | the first move in document order moves the node |
+| `MOVE_INTO_OWN_SUBTREE` | error | that node's move is skipped |
+| `CANNOT_MOVE` | error | that node's move is skipped |
+| `VIRTUAL_HANDLE_COLLISION` | error | the view is not applied |
+| `VIRTUAL_MODULE_EMPTY` | warning | the module stays, empty |
+| `REAL_MODULE_EMPTY` | info | the module stays, empty: it may be meant to go, or a move is missing |
+| `SPLIT_PACKAGE` | info | a package now has types in more modules than in the base hierarchy |
+
+The **effect** (`RestructuringEffect`, in `MaterializedView.effect`) compares the
+modules of the restructured hierarchy, before the groups, with the base hierarchy's:
+the module dependencies added, removed and changed in weight, by qualified name; the
+module cycles — strongly connected components of more than one module — after and
+before; and `newCycles`, those the restructuring creates. It answers "does this
+extraction introduce a cycle?" without a second query. Materializing a restructuring
+view of the Spring 7.0.8 fixture, effect included, takes some 100–150 ms.
 
 ---
 
@@ -418,6 +531,11 @@ the groups and the nodes no group takes — names `view.group` in its kind vocab
 and adds a `view` section: the view's entry, its group, error and warning counts,
 and its report.
 
+In a restructuring view, every node reference and slim node entry of a virtual
+module or package carries `virtual: true`; real nodes, moved or not, carry no flag
+and keep their ids. A moved type's details (`type_details`) are read from the
+artifact that defines it, wherever the view places it.
+
 ### 8.2 View tools
 
 | Tool | Effect |
@@ -427,8 +545,17 @@ and its report.
 | `get_view(name)` | the entry, the document, the applied groups and the full report; for an invalid document its problems |
 | `delete_view(name)` | removes a state view; returns the project view that applies again, or `null`. A project view is a `PROJECT_VIEW` error |
 
+For a restructuring view, `define_view`, `get_view` and the `view` section of
+`graph_overview` add `virtual_modules` (name, id, child count) and `restructuring`,
+the effect of §6.4.4: `added` and `removed` module dependencies (`from`, `to`,
+`weight`), `changed` ones (`weight_before`, `weight_after`), `cycles`, `new_cycles`
+and `introduces_cycles`. `list_views` and the summaries add `restructure`,
+`virtual_module_count` and `introduces_cycles`. Each dependency list holds at most
+100 entries (`<list>_count` then gives the total).
+
 A report lists at most 50 findings (`finding_count` then gives the total), each with
-at most 10 nodes (`node_count` then gives the total). `list_views`, `get_view` and
+at most 10 nodes (`node_count` then gives the total). It counts `errors`, `warnings`
+and `infos`. `list_views`, `get_view` and
 `delete_view` work without a loaded graph; without one, the listing and `get_view`
 leave out what applying the view would report.
 
@@ -458,8 +585,11 @@ with the MCP tools.
 | `ViewResolver.resolve(document)` | the `ResolvedView` |
 | `ViewResolver.select(selector)` | the nodes one selector selects, in pre-order |
 | `ViewReport` | `findings`, `errors`, `warnings`, `hasErrors` |
-| `ViewMaterializer.materialize(base, document \| resolved)` | the `MaterializedView`: `model`, `groupNodes` by path, `report` |
+| `ViewMaterializer.materialize(base, document \| resolved)` | the `MaterializedView`: `model`, `groupNodes` by path, `report`; for a restructuring view also `virtualModules` and `effect` |
 | `ViewGroups` | `KIND`, `qualifiedName(view, path)`, `handle(view, path)`, `isGroup(node)` |
+| `ViewRestructurer.restructure(base, document)` | the `Restructured` fork: `model`, `virtualModules`, `findings`, `effect`, `applied` |
+| `ViewNodes` | `moduleHandle(view, name)`, `packageHandle(view, module, fqn)`, `isVirtual(node)` |
+| `RestructuringEffect` | `added`, `removed`, `changed`, `cycles`, `baseCycles`, `newCycles` |
 | `ViewRegistry(projectDir, stateDir)` | `entries()`, `find(name)`, `names()`, `define(json)`, `delete(name)` (graph service) |
 | `ViewService` | `view(name)`, `entry(name)`, `entries()`, `define(json)`, `delete(name)`, `withView(view) { … }`, `currentView()` (graph service, Spring) |
 | `ViewParameter` | `addTo(definition)`, `split(input)`: the tools' `view` parameter (MCP server) |
@@ -473,5 +603,4 @@ with the MCP tools.
 
 | Concern | Where |
 |---------|-------|
-| Restructuring: virtual modules and moves | rejected by the parser for now (views design, part D) |
 | Analyses and the layered graph in a view, proposing views | the hierograph skills (views design, part E) |

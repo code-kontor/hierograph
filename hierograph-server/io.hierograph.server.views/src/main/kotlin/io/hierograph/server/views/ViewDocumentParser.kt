@@ -28,7 +28,8 @@ class ViewDocumentException(val problems: List<String>) :
 
 /**
  * Parses a view document from JSON (views specification, §3) and checks its form: required fields, types,
- * names, duplicate sibling names, selector patterns and kinds. It collects every problem rather than
+ * names, duplicate sibling names, selector patterns and kinds, and for a restructuring view its modules and
+ * moves (§6.4). It collects every problem rather than
  * stopping at the first, so one round trip shows everything to fix.
  *
  * Whether the selectors match anything is not checked here; that depends on the graph and is reported by
@@ -38,10 +39,11 @@ object ViewDocumentParser {
 
     private val mapper = ObjectMapper()
 
-    private val DOCUMENT_FIELDS = setOf("name", "description", "groups")
+    private val DOCUMENT_FIELDS = setOf("name", "description", "groups", "restructure", "modules", "moves")
     private val GROUP_FIELDS = setOf("name", "description", "members", "groups")
     private val SELECTOR_FIELDS = setOf("match", "kind", "within")
-    private val RESTRUCTURING_FIELDS = setOf("restructure", "modules", "moves")
+    private val MODULE_FIELDS = setOf("name", "description")
+    private val MOVE_FIELDS = setOf("select", "to")
 
     /** Kind values a selector may name, besides the aliases of [JavaKinds.ALL_ALIASES]. */
     private val SELECTABLE_KINDS: Set<String> =
@@ -73,11 +75,7 @@ object ViewDocumentParser {
                 return null
             }
             for (field in node.fieldNames()) {
-                when (field) {
-                    in DOCUMENT_FIELDS -> Unit
-                    in RESTRUCTURING_FIELDS -> problem(field, "restructuring views are not supported yet")
-                    else -> problem(field, "unknown field; allowed are ${DOCUMENT_FIELDS.joinToString()}")
-                }
+                if (field !in DOCUMENT_FIELDS) problem(field, "unknown field; allowed are ${DOCUMENT_FIELDS.joinToString()}")
             }
             val name = requiredString(node, "name", "name")
             if (name != null && !ViewDocument.NAME_PATTERN.matches(name)) {
@@ -85,7 +83,77 @@ object ViewDocumentParser {
             }
             val description = optionalString(node, "description", "description")
             val groups = groups(node, "")
-            return name?.let { ViewDocument(it, description, groups) }
+            val restructure = optionalBoolean(node, "restructure", "restructure") ?: false
+            val modules = modules(node)
+            val moves = moves(node)
+            if (!restructure) {
+                if (node.has("modules")) problem("modules", "only a restructuring view has modules; set \"restructure\": true")
+                if (node.has("moves")) problem("moves", "only a restructuring view has moves; set \"restructure\": true")
+            }
+            return name?.let { ViewDocument(it, description, groups, restructure, modules, moves) }
+        }
+
+        private fun modules(owner: ObjectNode): List<VirtualModuleDefinition> {
+            val array = optionalArray(owner, "modules", "modules") ?: return emptyList()
+            val modules = array.mapIndexedNotNull { i, element -> module(element, "modules[$i]") }
+            modules.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
+                problem("modules", "the module name '$it' is used more than once")
+            }
+            return modules
+        }
+
+        private fun module(node: JsonNode, path: String): VirtualModuleDefinition? {
+            if (node !is ObjectNode) {
+                problem(path, "a module must be a JSON object")
+                return null
+            }
+            for (field in node.fieldNames()) {
+                if (field !in MODULE_FIELDS) problem(child(path, field), "unknown field; allowed are ${MODULE_FIELDS.joinToString()}")
+            }
+            val name = requiredString(node, "name", child(path, "name"))
+            if (name != null && !VirtualModuleDefinition.NAME_PATTERN.matches(name)) {
+                problem(child(path, "name"), "'$name' is not a valid module name; use letters, digits, '.', '_' and '-', without ':' or '/'")
+            }
+            val description = optionalString(node, "description", child(path, "description"))
+            return name?.let { VirtualModuleDefinition(it, description) }
+        }
+
+        private fun moves(owner: ObjectNode): List<MoveDefinition> {
+            val array = optionalArray(owner, "moves", "moves") ?: return emptyList()
+            return array.mapIndexedNotNull { i, element -> move(element, "moves[$i]") }
+        }
+
+        private fun move(node: JsonNode, path: String): MoveDefinition? {
+            if (node !is ObjectNode) {
+                problem(path, "a move must be a JSON object")
+                return null
+            }
+            for (field in node.fieldNames()) {
+                if (field !in MOVE_FIELDS) problem(child(path, field), "unknown field; allowed are ${MOVE_FIELDS.joinToString()}")
+            }
+            val selectNode = node.get("select")
+            val select = if (selectNode == null || selectNode.isNull) {
+                problem(child(path, "select"), "required")
+                null
+            } else {
+                selector(selectNode, child(path, "select"))
+            }
+            val to = requiredString(node, "to", child(path, "to"))
+            var validTarget = to != null
+            if (to != null) {
+                val module = to.substringBefore(MoveDefinition.PACKAGE_SEPARATOR)
+                val pkg = to.substringAfter(MoveDefinition.PACKAGE_SEPARATOR, "")
+                if (module.isBlank() || (MoveDefinition.PACKAGE_SEPARATOR in to && pkg.isBlank())) {
+                    problem(child(path, "to"), "'$to' is not a target; use a module, a virtual module or <module>/<package>")
+                    validTarget = false
+                } else if (!pattern(module, child(path, "to"))) {
+                    validTarget = false
+                } else if (pkg.isNotEmpty() && (pkg.startsWith('.') || pkg.endsWith('.') || ".." in pkg || pkg.any { it in "*{},:/" })) {
+                    problem(child(path, "to"), "'$pkg' is not a package name")
+                    validTarget = false
+                }
+            }
+            return if (select != null && validTarget) MoveDefinition(select, to!!) else null
         }
 
         private fun groups(owner: ObjectNode, ownerPath: String): List<GroupDefinition> {
@@ -175,6 +243,16 @@ object ViewDocumentParser {
                 return null
             }
             return value.textValue()
+        }
+
+        private fun optionalBoolean(node: ObjectNode, field: String, path: String): Boolean? {
+            val value = node.get(field)
+            if (value == null || value.isNull) return null
+            if (!value.isBoolean) {
+                problem(path, "must be true or false")
+                return null
+            }
+            return value.booleanValue()
         }
 
         private fun optionalArray(node: ObjectNode, field: String, path: String): List<JsonNode>? {

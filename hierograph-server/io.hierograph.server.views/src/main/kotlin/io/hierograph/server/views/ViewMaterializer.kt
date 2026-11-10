@@ -26,14 +26,17 @@ import io.hierograph.server.views.ViewFinding.Code
  * A view applied to a model (views specification, §6): a fork of the base model with a local node per
  * applied group, and the report of the resolution and the materialization.
  *
- * [model] is the base model itself when no group was created, and a fork otherwise; the base model is never
- * changed. [groupNodes] maps each created group's path to its node.
+ * [model] is the base model itself when nothing was changed, and a fork otherwise; the base model is never
+ * changed. [groupNodes] maps each created group's path to its node. A restructuring view also has its
+ * [virtualModules] by name and the [effect] of its moves on the modules (§6.4).
  */
 class MaterializedView(
     val document: ViewDocument,
     val model: HGModel,
     val groupNodes: Map<String, HGNode>,
     val report: ViewReport,
+    val virtualModules: Map<String, HGNode> = emptyMap(),
+    val effect: RestructuringEffect? = null,
 )
 
 /** The identities of group nodes (views specification, §6.2). */
@@ -65,24 +68,39 @@ object ViewGroups {
  */
 object ViewMaterializer {
 
-    /** Resolves [document] against [base] and materializes it. */
-    fun materialize(base: HGModel, document: ViewDocument): MaterializedView =
-        materialize(base, ViewResolver(base.hierarchy).resolve(document))
+    /**
+     * Resolves [document] against [base] and materializes it. A restructuring view first applies its moves
+     * to a fork ([ViewRestructurer]); its groups are then resolved against, and placed in, the result.
+     */
+    fun materialize(base: HGModel, document: ViewDocument): MaterializedView {
+        if (!document.restructure) return materialize(base, ViewResolver(base.hierarchy).resolve(document))
+        val restructured = ViewRestructurer.restructure(base, document)
+        if (!restructured.applied) return MaterializedView(document, base, emptyMap(), ViewReport(restructured.findings))
+        val resolved = ViewResolver(restructured.model.hierarchy).resolve(document)
+        val grouped = place(restructured.model, resolved, fork = false)
+        return MaterializedView(
+            document, grouped.model, grouped.groupNodes, ViewReport(restructured.findings + grouped.report.findings),
+            restructured.virtualModules, restructured.effect,
+        )
+    }
 
     /** Materializes [resolved], which must have been resolved against [base]'s hierarchy. */
-    fun materialize(base: HGModel, resolved: ResolvedView): MaterializedView {
-        val document = resolved.document
-        if (resolved.groups.isEmpty()) return MaterializedView(document, base, emptyMap(), resolved.report)
+    fun materialize(base: HGModel, resolved: ResolvedView): MaterializedView = place(base, resolved, fork = true)
 
-        val collisions = collisions(base.hierarchy, document.name, resolved.groups)
+    /** Places the groups of [resolved] in [model], or in a fork of it when [fork] is set. */
+    private fun place(model: HGModel, resolved: ResolvedView, fork: Boolean): MaterializedView {
+        val document = resolved.document
+        if (resolved.groups.isEmpty()) return MaterializedView(document, model, emptyMap(), resolved.report)
+
+        val collisions = collisions(model.hierarchy, document.name, resolved.groups)
         if (collisions.isNotEmpty()) {
-            return MaterializedView(document, base, emptyMap(), ViewReport(resolved.report.findings + collisions))
+            return MaterializedView(document, model, emptyMap(), ViewReport(resolved.report.findings + collisions))
         }
 
-        val fork = base.fork()
+        val target = if (fork) model.fork() else model
         val nodes = LinkedHashMap<String, HGNode>()
-        for (group in resolved.groups) place(fork.hierarchy, document.name, group, group.parent, nodes)
-        return MaterializedView(document, fork, nodes, resolved.report)
+        for (group in resolved.groups) place(target.hierarchy, document.name, group, group.parent, nodes)
+        return MaterializedView(document, target, nodes, resolved.report)
     }
 
     private fun place(hierarchy: Hierarchy, view: String, group: ResolvedGroup, parent: HGNode, nodes: MutableMap<String, HGNode>) {

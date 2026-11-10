@@ -121,13 +121,8 @@ class ViewDocumentParserTest {
     }
 
     @Test
-    fun `unknown fields are rejected, restructuring fields with their own message`() {
+    fun `unknown fields are rejected`() {
         assertThat(problems("""{ "name": "v", "group": [] }""")).singleElement().asString().startsWith("group: unknown field")
-        assertThat(problems("""{ "name": "v", "restructure": true, "moves": [] }"""))
-            .containsExactly(
-                "restructure: restructuring views are not supported yet",
-                "moves: restructuring views are not supported yet",
-            )
         assertThat(problems("""{ "name": "v", "groups": [ { "name": "g", "member": [] } ] }"""))
             .singleElement().asString().startsWith("groups[0].member: unknown field")
         assertThat(problems("""{ "name": "v", "groups": [ { "name": "g", "members": [ { "match": "a", "kinds": "types" } ] } ] }"""))
@@ -190,5 +185,76 @@ class ViewDocumentParserTest {
             .containsExactly("description: must be a string", "groups: must be an array")
         assertThat(problems("""{ "name": "v", "groups": [ { "name": "g", "members": "a" } ] }"""))
             .containsExactly("groups[0].members: must be an array")
+    }
+
+    @Test
+    fun `parses a restructuring view with modules, moves and groups`() {
+        val document = ViewDocumentParser.parse(
+            """
+            { "name": "extract-parquet", "restructure": true,
+              "modules": [ { "name": "io.hierograph.graphstore.parquet", "description": "the snapshot format" } ],
+              "moves": [
+                { "select": { "match": "io.hierograph.graphstore.jvm.parquet", "kind": "java.package",
+                              "within": "io.hierograph:io.hierograph.graphstore.jvm:*" },
+                  "to": "io.hierograph.graphstore.parquet" },
+                { "select": "io.hierograph.server.graphservice.HierarchyResolution",
+                  "to": "io.hierograph:io.hierograph.graphstore.jvm:*/io.hierograph.graphstore.jvm.detail" } ],
+              "groups": [ { "name": "storage", "members": ["io.hierograph.graphstore.parquet"] } ] }
+            """,
+        )
+
+        assertThat(document.restructure).isTrue()
+        assertThat(document.modules).containsExactly(VirtualModuleDefinition("io.hierograph.graphstore.parquet", "the snapshot format"))
+        assertThat(document.moves).containsExactly(
+            MoveDefinition(
+                MemberSelector("io.hierograph.graphstore.jvm.parquet", "java.package", "io.hierograph:io.hierograph.graphstore.jvm:*"),
+                "io.hierograph.graphstore.parquet",
+            ),
+            MoveDefinition(
+                MemberSelector("io.hierograph.server.graphservice.HierarchyResolution"),
+                "io.hierograph:io.hierograph.graphstore.jvm:*/io.hierograph.graphstore.jvm.detail",
+            ),
+        )
+        assertThat(document.groups.single().name).isEqualTo("storage")
+    }
+
+    @Test
+    fun `modules and moves need restructure set to true`() {
+        assertThat(problems("""{ "name": "v", "modules": [ { "name": "m" } ], "moves": [] }"""))
+            .containsExactly(
+                "modules: only a restructuring view has modules; set \"restructure\": true",
+                "moves: only a restructuring view has moves; set \"restructure\": true",
+            )
+        assertThat(problems("""{ "name": "v", "restructure": "yes" }""")).containsExactly("restructure: must be true or false")
+        assertThat(ViewDocumentParser.parse("""{ "name": "v", "restructure": false }""").restructure).isFalse()
+    }
+
+    @Test
+    fun `module names are unique and cannot look like a GAV or a package target`() {
+        assertThat(problems("""{ "name": "v", "restructure": true, "modules": [ { "name": "m" }, { "name": "m" } ] }"""))
+            .containsExactly("modules: the module name 'm' is used more than once")
+        assertThat(problems("""{ "name": "v", "restructure": true, "modules": [ { "name": "a:b" }, { "name": "a/b" }, {} ] }"""))
+            .hasSize(3).anyMatch { it.startsWith("modules[0].name: 'a:b' is not a valid module name") }
+            .anyMatch { it == "modules[2].name: required" }
+    }
+
+    @Test
+    fun `a move needs a valid selector and target`() {
+        val problems = problems(
+            """{ "name": "v", "restructure": true, "moves": [
+                 { "to": "m" },
+                 { "select": "a{b", "to": "m" },
+                 { "select": "a", "to": "m/" },
+                 { "select": "a", "to": "m/a..b" },
+                 { "select": "a", "to": "m", "into": "x" } ] }""",
+        )
+
+        assertThat(problems).containsExactly(
+            "moves[0].select: required",
+            "moves[1].select: '{' at position 2 is not closed in 'a{b'",
+            "moves[2].to: 'm/' is not a target; use a module, a virtual module or <module>/<package>",
+            "moves[3].to: 'a..b' is not a package name",
+            "moves[4].into: unknown field; allowed are select, to",
+        )
     }
 }

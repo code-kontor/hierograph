@@ -28,13 +28,16 @@ data class ViewReport(val findings: List<ViewFinding>) {
     val warnings: List<ViewFinding> get() = findings.filter { it.severity == ViewFinding.Severity.WARNING }
 
     val hasErrors: Boolean get() = findings.any { it.severity == ViewFinding.Severity.ERROR }
+
+    val infos: List<ViewFinding> get() = findings.filter { it.severity == ViewFinding.Severity.INFO }
 }
 
 /**
  * One finding of a [ViewReport].
  *
- * [group] is the path of the group it concerns (`core/hierograph-graphstore`), [selector] the selector
- * where one is involved, and [nodes] the graph nodes it is about, in the order the [message] names them.
+ * [group] is the path of the group it concerns (`core/hierograph-graphstore`), or for a restructuring
+ * finding the move (`moves[2]`) or module (`modules[0]`) of the document; [selector] is the selector where
+ * one is involved, and [nodes] the graph nodes it is about, in the order the [message] names them.
  */
 data class ViewFinding(
     val severity: Severity,
@@ -44,7 +47,7 @@ data class ViewFinding(
     val selector: MemberSelector? = null,
     val nodes: List<HGNode> = emptyList(),
 ) {
-    enum class Severity { ERROR, WARNING }
+    enum class Severity { ERROR, WARNING, INFO }
 
     enum class Code(val severity: Severity) {
         /** A selector matches no node. The selector is ignored. */
@@ -70,5 +73,37 @@ data class ViewFinding(
 
         /** A group's handle is already taken by a node of the graph. The whole view is not applied. */
         GROUP_HANDLE_COLLISION(Severity.ERROR),
+
+        // restructuring (views specification, §6.4)
+
+        /** A move's selector selects nothing. The move is ignored. */
+        MOVE_SELECTS_NOTHING(Severity.WARNING),
+
+        /** A move's target names no module, or no virtual module. The move is skipped. */
+        UNKNOWN_MOVE_TARGET(Severity.ERROR),
+
+        /** A move's target pattern matches more than one module. The move is skipped. */
+        AMBIGUOUS_MOVE_TARGET(Severity.ERROR),
+
+        /** A node is selected by two moves. The first move in document order moves it. */
+        NODE_MOVED_TWICE(Severity.ERROR),
+
+        /** A package would move into its own subtree. That node's move is skipped. */
+        MOVE_INTO_OWN_SUBTREE(Severity.ERROR),
+
+        /** A node that cannot be moved there: a member, an external type, or a module into a package. Skipped. */
+        CANNOT_MOVE(Severity.ERROR),
+
+        /** A virtual node's handle is already taken by a node of the graph. The whole view is not applied. */
+        VIRTUAL_HANDLE_COLLISION(Severity.ERROR),
+
+        /** A virtual module that no move fills. It stays, empty. */
+        VIRTUAL_MODULE_EMPTY(Severity.WARNING),
+
+        /** A real module the moves left without children. It stays, empty: it may be meant to go, or a move is missing. */
+        REAL_MODULE_EMPTY(Severity.INFO),
+
+        /** A package that now exists, with types, in more modules than before (a split package). */
+        SPLIT_PACKAGE(Severity.INFO),
     }
 }
