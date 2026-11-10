@@ -5,13 +5,13 @@ Next: [`performing-a-release.md`](performing-a-release.md).
 
 Turn a local machine into one that can cut a release, using the credentials from
 [`credentials.md`](credentials.md). **Once per machine.** For day-to-day building see
-[`BUILD.md`](../BUILD.md).
+[`BUILD.md`](../../BUILD.md).
 
 ---
 
 ## Prerequisites (tooling)
 
-- **Java 21+** and **Maven 3.9+** — see [`BUILD.md`](../BUILD.md).
+- **Java 21+** and **Maven 3.9+** — see [`BUILD.md`](../../BUILD.md).
 - **git**.
 - **GnuPG** (`gpg`).
 - **Docker Desktop** — only for the GHCR image step (Step 3). It must be **running**, and it provides
@@ -29,8 +29,8 @@ Pick one route.
 
 ### Route A — Proton Pass automation (what the repo scripts support)
 
-The committed [`settings.xml.template`](../release/settings.xml.template) holds `{{ pass://VAULT/ITEM/FIELD }}`
-references that [`setup-m2-settings.sh`](../release/setup-m2-settings.sh) resolves with the Proton Pass CLI.
+The committed [`settings.xml.template`](../settings.xml.template) holds `{{ pass://VAULT/ITEM/FIELD }}`
+references that [`setup-m2-settings.sh`](../setup-m2-settings.sh) resolves with the Proton Pass CLI.
 
 1. Install the **Proton Pass CLI** (`pass-cli`) and authenticate/unlock a session (see the tool's own
    documentation — it must be on your `PATH` and logged in).
