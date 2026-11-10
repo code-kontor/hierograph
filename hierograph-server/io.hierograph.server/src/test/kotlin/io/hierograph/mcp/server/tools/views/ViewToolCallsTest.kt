@@ -286,6 +286,19 @@ class ViewToolCallsTest {
     }
 
     @Test
+    fun `list_views describes the scanned hierarchy as default beside the views`() {
+        project("layers.json", layers)
+
+        val result = call("list_views")
+        val default = result["default"] as Map<String, Any?>
+
+        assertThat(default["description"] as String).contains("Omit view")
+        assertThat(default["top_level_count"]).isEqualTo(call("graph_overview")["hierarchy"].let { (it as List<*>).size })
+        assertThat((result["views"] as List<Map<String, Any?>>).map { it["name"] }).containsExactly("layers")
+        assertThat((result["summary"] as Map<String, Any?>)["total"]).isEqualTo(1)
+    }
+
+    @Test
     fun `get_view returns the document, the groups and the report, an invalid one its problems`() {
         project("layers.json", layers)
         project("broken.json", """{ "name": "broken", "groups": 1 }""")

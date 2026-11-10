@@ -696,7 +696,7 @@ artifact that defines it, wherever the view places it.
 | Tool | Effect |
 |------|--------|
 | `define_view(document)` | validates the document (a JSON object), stores it as a state view replacing one of the same name, applies it; returns the entry, the applied groups (path, id, parent id, child count) and the report. An invalid document is an `INVALID_VIEW_DOCUMENT` error with the problems; nothing is stored |
-| `list_views()` | every view: name, description, source (`project`/`state`), file, shadowing, validity; a valid view with its group, error and warning counts, an invalid one with its problems |
+| `list_views()` | every view: name, description, source (`project`/`state`), file, shadowing, validity; a valid view with its group, error and warning counts, an invalid one with its problems. Beside the views, `default` describes the hierarchy as scanned, which a call without `view` answers in: a description and its `top_level_count` |
 | `get_view(name)` | the entry, the document, the applied groups and the full report; for an invalid document its problems |
 | `delete_view(name)` | removes a state view; returns the project view that applies again, or `null`. A project view is a `PROJECT_VIEW` error |
 
@@ -712,7 +712,9 @@ A report lists at most 50 findings (`finding_count` then gives the total), each 
 at most 10 nodes (`node_count` then gives the total). It counts `errors`, `warnings`
 and `infos`. `list_views`, `get_view` and
 `delete_view` work without a loaded graph; without one, the listing and `get_view`
-leave out what applying the view would report.
+leave out what applying the view would report, and `default` its
+`top_level_count`. `default` is not a view name: no view is reserved for the scanned
+hierarchy, and `view = "default"` names a view like any other.
 
 ### 8.3 GraphQL
 

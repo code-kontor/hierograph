@@ -17,7 +17,8 @@ report](#reading-the-report) · [Things that bite](#things-that-bite)
 1. `list_views()` — the views there are: `source` `project` (versioned with the code,
    in `.hierograph/views/`) or `state` (defined at runtime), `valid`, and counts of
    groups, errors and warnings. An invalid view lists its `problems`; fix it before
-   using it.
+   using it. `default` beside them is the hierarchy as scanned — what a call without
+   `view` answers in; it is not a name to pass.
 2. `graph_overview(view = "<name>")` — the view's top level (`hierarchy`: its groups
    and the modules no group takes) and a `view` section with the report. A report
    with errors means part of the document was not applied; say so before

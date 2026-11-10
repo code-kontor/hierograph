@@ -71,7 +71,8 @@ class ViewTools(
             "List the views that can be passed as view=<name>: project views kept with the code and views " +
             "defined at runtime with define_view (a runtime view shadows a project view of the same name). " +
             "Each entry has name, description, source, file and, for a valid view, how many groups it applies " +
-            "and how many errors and warnings applying it reported; an invalid document is listed with its problems."
+            "and how many errors and warnings applying it reported; an invalid document is listed with its problems. " +
+            "'default' describes the hierarchy as scanned, which a call without view answers in; it is not a view name."
     )
     fun listViews(): Map<String, Any?> {
         val views = viewService.entries().map { entry ->
@@ -81,7 +82,20 @@ class ViewTools(
                 }
             }
         }
-        return linkedMapOf("views" to views, "summary" to linkedMapOf("total" to views.size))
+        return linkedMapOf("default" to defaultEntry(), "views" to views, "summary" to linkedMapOf("total" to views.size))
+    }
+
+    /**
+     * The hierarchy as scanned: what a call without `view` answers in. Listed beside the views rather than
+     * among them, so no view name is reserved for it; its top-level count is left out while no graph is loaded.
+     */
+    private fun defaultEntry(): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "description" to "The hierarchy as scanned. Omit view to use it.",
+    ).apply {
+        if (graphService.isGraphAvailable) {
+            val hierarchy = graphService.model.hierarchy
+            put("top_level_count", hierarchy.childrenOf(hierarchy.rootNode).size)
+        }
     }
 
     @Tool(

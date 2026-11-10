@@ -132,6 +132,15 @@ class ViewToolsIT : AbstractMcpApplicationIntegrationTest() {
     }
 
     @Test
+    fun `list_views describes the scanned hierarchy as default, not as a view`() {
+        val result = call("list_views")
+
+        val default = result["default"] as Map<String, Any?>
+        assertThat(default["top_level_count"]).isEqualTo((call("graph_overview")["hierarchy"] as List<*>).size)
+        assertThat((result["views"] as List<Map<String, Any?>>).map { it["name"] }).doesNotContain("default")
+    }
+
+    @Test
     fun `GraphQL answers a request in the view it names`() {
         val result = graphQl("""{ hierarchicalGraph(view: "spring-modules") { rootNode { children { nodes { text type } } } } }""")
 
