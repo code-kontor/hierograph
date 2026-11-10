@@ -100,16 +100,15 @@ Log out again with `docker logout ghcr.io` if you want to clear the stored crede
 Central rejects `-SNAPSHOT`. Bump the whole reactor in one shot:
 
 ```bash
-mvn versions:set -DnewVersion=0.1.0 -DprocessAllModules=true
+mvn versions:set -DnewVersion=0.2.0 -DprocessAllModules=true
 mvn versions:commit          # once happy; removes the *.versionsBackup files
 ```
 
-`versions:set` only rewrites POMs. A handful of non-POM files (the itest image
-`Dockerfile`/`README.md` and `BUILD.md`) also carry the version — bump those with the helper
-script:
+`versions:set` only rewrites POMs. A couple of non-POM files (`BUILD.md` and the Claude plugin
+manifest `plugin.json`) also carry the version — bump those with the helper script:
 
 ```bash
-./release/bump-nonpom-version.sh 0.1.0-SNAPSHOT 0.1.0
+./release/bump-nonpom-version.sh 0.2.0-SNAPSHOT 0.2.0
 ```
 
 It reports what it changed and prints a `git diff --stat`; review before committing. (It
@@ -152,7 +151,7 @@ profile.
 ### 3. Build and push the Docker image to GHCR
 
 ```bash
-mvn -pl hierograph-mcp/io.hierograph.mcp.server -Pdocker deploy -Ddocker.push.skip=false
+mvn -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.skip=false
 ```
 
 This builds `ghcr.io/code-kontor/hierograph-mcp-server:<version>` and pushes it. Override
@@ -168,14 +167,14 @@ This builds `ghcr.io/code-kontor/hierograph-mcp-server:<version>` and pushes it.
 ### 4. Tag and bump to the next development version
 
 ```bash
-git commit -am "Release 0.1.0"
-git tag v0.1.0
+git commit -am "Release 0.2.0"
+git tag v0.2.0
 git push && git push --tags
 
-mvn versions:set -DnewVersion=0.2.0-SNAPSHOT -DprocessAllModules=true
+mvn versions:set -DnewVersion=0.3.0-SNAPSHOT -DprocessAllModules=true
 mvn versions:commit
-./release/bump-nonpom-version.sh 0.1.0 0.2.0-SNAPSHOT   # the non-POM files again
-git commit -am "Start 0.2.0-SNAPSHOT"
+./release/bump-nonpom-version.sh 0.2.0 0.3.0-SNAPSHOT   # the non-POM files again
+git commit -am "Start 0.3.0-SNAPSHOT"
 git push
 ```
 
