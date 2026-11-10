@@ -8,9 +8,6 @@ This document describes how to build the Hierograph project from source.
 - **Maven 3.9+** — a recent Maven 3.9.x is recommended.
 - **Kotlin** — no separate install needed; the Kotlin compiler (2.1.21) is driven by the
   `kotlin-maven-plugin` as part of the Maven build.
-- **Docker** — only required to run the integration tests (they use Testcontainers + Neo4j).
-  Not needed for a normal build.
-
 Verify your toolchain:
 
 ```bash
@@ -73,7 +70,7 @@ The integration tests are deliberately kept out of the default build and enabled
 ### Integration tests — `-Pitest`
 
 The integration tests live in `hierograph-itest` and are **not** part of the default reactor.
-They require Docker (Testcontainers spins up Neo4j).
+They run against a Parquet snapshot fixture (Spring jars scanned once per JVM) and need no Docker.
 
 ```bash
 mvn -o -Pitest verify

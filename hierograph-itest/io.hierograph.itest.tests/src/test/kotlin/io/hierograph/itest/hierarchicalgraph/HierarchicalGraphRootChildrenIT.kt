@@ -21,8 +21,7 @@ import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 
 /**
- * Asserts that the root children (the top-level modules) of the hierarchical graph built from the
- * served jQAssistant store have the expected names, fully qualified names, and kinds. The graph is
+ * Asserts that the root children (the top-level modules) of the hierarchical graph have the expected names, fully qualified names, and kinds. The graph is
  * created once and shared across all hierarchical-graph integration tests —
  * see [io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest].
  */

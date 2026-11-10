@@ -25,7 +25,7 @@ import java.security.MessageDigest
  *
  * Because the handle is a pure function of the identity (no allocation counter, no backend id, no
  * persisted state), the same node yields the same handle across rescans, restarts, fresh clones, and even
- * across the two graph backends (Neo4j vs Parquet) — provided the node's semantic coordinates are
+ * across different graph backends — provided the node's semantic coordinates are
  * unchanged. A rename or package move changes the identity, hence the handle, which is correct: that is a
  * different node.
  *

@@ -14,7 +14,7 @@
     <artifactId>io.hierograph.server.mapping</artifactId>
     <packaging>jar</packaging>
     <name>Hierograph Server Mapping</name>
-    <description>Builds the production hierarchical graph (HGModel) from a GraphStore, so the existing API can run off Parquet instead of Neo4j.</description>
+    <description>Builds the production hierarchical graph (HGModel) from a GraphStore, so the existing API runs off Parquet.</description>
 
     <dependencies>
         <dependency>

@@ -277,7 +277,7 @@ class HierographRoundTripTest {
     }
 
     @Test
-    fun `a combined table directory still loads (legacy jQA export layout)`(@TempDir dir: Path) {
+    fun `a combined table directory still loads (legacy combined layout)`(@TempDir dir: Path) {
         ParquetWriter.writeSnapshot(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
 
         val store = GraphStore()

@@ -24,7 +24,7 @@ interface HGNode {
     fun <T : Any> getNodeSource(clazz: Class<T>): T?
 
     /**
-     * Store-backed labels of this node, delegated from its [nodeSource] (e.g. the Neo4j labels of a
+     * Store-backed labels of this node, delegated from its [nodeSource] (e.g. the labels of a
      * graph-DB-backed node). Empty when the source carries no classification. Lets callers classify a
      * node without knowing — or importing — the concrete node-source type.
      */

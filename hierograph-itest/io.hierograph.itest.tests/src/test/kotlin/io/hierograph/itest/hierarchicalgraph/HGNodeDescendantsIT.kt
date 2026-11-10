@@ -26,7 +26,7 @@ import org.junit.jupiter.params.provider.CsvSource
 
 /**
  * Retrieves the full descendant subtree of the `spring-core` module from the hierarchical graph
- * built from the served jQAssistant store and asserts its shape (packages, types and members). The
+ * and asserts its shape (packages, types and members). The
  * graph is created once and shared across all hierarchical-graph integration tests —
  * see [io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest].
  */
@@ -54,8 +54,7 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
             "org.springframework.util.StringUtils",
         )
 
-        // the subtree has the exact expected size (scanner-derived; differs from the old jQA numbers —
-        // the scanner materializes fewer synthetic members and nested types, see the scanner-vs-jQA notes) ...
+        // the subtree has the exact expected size (scanner-derived counts).
         Assertions.assertThat(descendants).hasSize(13_824)
 
         // ... broken down per Java node kind (packages, the five type kinds, and both members)

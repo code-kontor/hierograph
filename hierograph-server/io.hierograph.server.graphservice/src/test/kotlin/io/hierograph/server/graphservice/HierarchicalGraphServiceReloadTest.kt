@@ -29,9 +29,9 @@ import org.junit.jupiter.api.assertThrows
 /**
  * Covers the snapshot-swap behavior added for `reload_graph`: installing a new snapshot swaps the
  * model, its search index, and its data hash together, and [DataHashProvider] observes the change
- * live. [HierarchicalGraphService.seed] is the non-Bolt entry point that performs the exact same
+ * live. [HierarchicalGraphService.seed] is the direct entry point that performs the exact same
  * atomic swap as [HierarchicalGraphService.reload], so exercising it validates the swap and the
- * live delegation without needing a live Bolt store.
+ * live delegation without needing a live backing store.
  */
 class HierarchicalGraphServiceReloadTest {
 

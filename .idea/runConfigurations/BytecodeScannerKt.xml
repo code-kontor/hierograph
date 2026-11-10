@@ -2,7 +2,7 @@
   <configuration default="false" name="BytecodeScannerKt" type="JetRunConfigurationType" nameIsGenerated="true">
     <option name="MAIN_CLASS_NAME" value="io.hierograph.graphstore.jvm.scanner.BytecodeScannerKt" />
     <module name="io.hierograph.graphstore.jvm.scanner" />
-    <option name="PROGRAM_PARAMETERS" value="--out jqa-parquet-export --threads 10 $ProjectFileDir$/example/*.jar" />
+    <option name="PROGRAM_PARAMETERS" value="--out parquet-export --threads 10 $ProjectFileDir$/example/*.jar" />
     <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />

@@ -27,11 +27,11 @@ import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 
 /**
  * Builds the production hierarchical graph ([HGModel]) directly from a [GraphStore] — the bridge that
- * lets the existing Hierograph API run off a Parquet-loaded graph instead of Neo4j.
+ * lets the existing Hierograph API run off a Parquet-loaded graph.
  *
- * It mirrors what `DefaultMappingService.convert` does from the Neo4j side (root → top-level modules →
- * parent/child → type dependencies, using the same `HGGraphFactory` / `HierarchyFactory`), but reads
- * everything from the in-memory GraphStore and needs no bolt client. Each `HGNode`'s identifier is a
+ * It builds the standard hierarchy shape (root → top-level modules →
+ * parent/child → type dependencies, using the same `HGGraphFactory` / `HierarchyFactory`), reading
+ * everything from the in-memory GraphStore. Each `HGNode`'s identifier is a
  * content-addressed [NodeHandle] derived from its stable GraphStore key (so handles survive rescans and
  * restarts), while the key itself is carried as `fqn`/`name` on the node source for the metadata provider
  * and detail lookups to read; the type-dependency flags are encoded into the [JavaEdgeAttributes] bitmap
@@ -56,7 +56,7 @@ object GraphStoreToHGModel {
         val hierarchy = HierarchyFactory.createHierarchy(coreGraph, rootNode)
 
         // One HGNode per GraphStore node; identifier = the content-addressed handle, with the stable key as
-        // name/fqn on the node source so the metadata provider (and detail lookups) resolve them without bolt.
+        // name/fqn on the node source so the metadata provider (and detail lookups) can read them.
         val byKey = HashMap<String, HGNode>()
         for (n in store.nodes()) {
             val hg = HGGraphFactory.createNode(coreGraph) {

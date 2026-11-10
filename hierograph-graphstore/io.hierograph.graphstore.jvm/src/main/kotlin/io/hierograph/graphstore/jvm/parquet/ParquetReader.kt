@@ -38,8 +38,7 @@ import java.nio.file.Path
  *
  * The loader reconstructs one [ClassFacts] per type from the flat `types` / `members` / `refs` tables
  * and feeds it through [GraphStore.applyClass] — the *same* ingest path a live scan uses — then calls
- * [GraphStore.resolvePlaceholders] once. Referenced-but-undefined types (jQAssistant's "required" types
- * that were never exported) surface as placeholders through their incoming refs, so snapshots stay
+ * [GraphStore.resolvePlaceholders] once. Referenced-but-undefined types (targets that were never scanned) surface as placeholders through their incoming refs, so snapshots stay
  * composable and never duplicate external nodes.
  */
 class ParquetReader {
@@ -65,7 +64,7 @@ class ParquetReader {
     /**
      * Loads a snapshot into [store]. [parquetDir] is a directory of per-artifact `.hierograph` artifacts —
      * archives, exploded directories or `collect` containers, each loaded in turn — or a single combined
-     * table directory (the legacy jQA export), or a single `.hierograph` file. Archives are read in place
+     * table directory (a legacy combined layout), or a single `.hierograph` file. Archives are read in place
      * (see [SnapshotSources]). Missing tables are treated as empty; [GraphStore.resolvePlaceholders] runs
      * once after all artifacts are in, so cross-artifact references resolve against the full set.
      */

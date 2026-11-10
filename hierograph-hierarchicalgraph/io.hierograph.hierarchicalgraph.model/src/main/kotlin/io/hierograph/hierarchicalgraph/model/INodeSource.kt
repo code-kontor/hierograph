@@ -20,7 +20,7 @@ interface INodeSource {
     var node: HGNode?
 
     /**
-     * Store-backed labels (tags) classifying the underlying node, e.g. the Neo4j labels of a
+     * Store-backed labels (tags) classifying the underlying node, e.g. the labels of a
      * graph-DB-backed source. Empty for sources that carry no such classification. Exposed here (and
      * surfaced on [HGNode.labels]) so callers can branch on node classification without downcasting to
      * a concrete, store-specific [INodeSource] implementation.

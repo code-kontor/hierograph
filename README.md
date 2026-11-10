@@ -74,21 +74,20 @@ Think of the flat-graph tools as a street map: every road and intersection, comp
 Your Java project
        │
        ▼
-jQAssistant (scan)
+Hierograph bytecode scanner (ASM)
        │
        ▼
-Neo4j (graph database)
-       │
-       ▼
-Hierograph (MCP server)
+Hierograph (MCP server) — in-memory hierarchical model + Parquet snapshot
        │
        ▼
 Agentic AI (Claude, Cursor, …)
 ```
 
-Hierograph builds on **[jQAssistant](https://jqassistant.org)** — a mature open-source tool that scans Java *bytecode* and produces a structural graph in Neo4j. Bytecode matters: where syntactic parsers see `foo.bar()` and record a call to *some* `bar`, jQAssistant knows *which* `bar`, on which resolved type, reached through which inheritance path — including across library dependencies and generics. The dependencies are resolved facts, not textual guesses.
+Hierograph reads your compiled Java *bytecode* with its own ASM-based scanner. Bytecode matters: where syntactic parsers see `foo.bar()` and record a call to *some* `bar`, the scanner knows *which* `bar`, on which resolved type, reached through which inheritance path — including across library dependencies and generics. The dependencies are resolved facts, not textual guesses.
 
-From that graph, **Hierograph** derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level — modules, packages, types, or arbitrary subtrees. It then serves this model through MCP tools designed for AI reasoning.
+The server scans a project's compiled output directly — the [Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage) records the reactor's module layout and resolved classpath in a small build manifest, and the server scans from there. There is no separate graph database to stand up, and nothing leaves your machine.
+
+From those resolved facts, **Hierograph** derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level — modules, packages, types, or arbitrary subtrees. Member-level detail is persisted alongside it as a Parquet snapshot. It then serves this model through MCP tools designed for AI reasoning.
 
 An **agentic AI** — Claude (via Claude Code or Claude Desktop), Cursor, or any other MCP-compatible agent — calls the tools to navigate, query, and reason about your project's architecture.
 
@@ -102,7 +101,7 @@ For detailed explanations, see the specifications of the [bytecode scanner](hier
 
 Hierograph is not a generalist. It goes deep on the JVM rather than wide across twenty languages, and it's aimed at the engineer who needs that depth: someone working a large, long-lived Java system — Spring, Elasticsearch, a sprawling enterprise monolith — who needs to reason about structure, coupling, and architectural integrity, not just trace a single function.
 
-If that's you, the things a generalist treats as edge cases — resolved generic types, deep inheritance hierarchies, annotation-driven wiring — are exactly the things Hierograph gets right, because jQAssistant gets them right.
+If that's you, the things a generalist treats as edge cases — resolved generic types, deep inheritance hierarchies, annotation-driven wiring — are exactly the things Hierograph gets right, because it reads them straight from resolved bytecode.
 
 ---
 
@@ -112,7 +111,7 @@ Install Hierograph. Point it at a Java codebase you know well. Register it with 
 
 The first answer tells you whether this is the missing piece.
 
-Hierograph's core is scanner-agnostic: it derives its hierarchical model from any structural graph, and jQAssistant provides that for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
+Hierograph's core is scanner-agnostic: it derives its hierarchical model from resolved structural facts, and its own bytecode scanner provides those for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
 
 For a step-by-step description, see the [usage guide of the Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
 

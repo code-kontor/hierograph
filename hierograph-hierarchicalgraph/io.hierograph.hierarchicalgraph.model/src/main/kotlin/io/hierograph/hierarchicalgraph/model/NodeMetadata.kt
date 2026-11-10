@@ -18,8 +18,7 @@ package io.hierograph.hierarchicalgraph.model
 /**
  * Reads display metadata (name, qualified name, kind) off an [HGNode] via its [HGNode.nodeSource]. A thin,
  * source-agnostic accessor used across the tool and GraphQL surfaces so every reader agrees on a node's
- * name and kind. (Formerly `JQAssistantNodeMetadataProvider` in the retired jQAssistant module.)
- */
+ * name and kind. */
 object NodeMetadata {
 
     fun getName(node: HGNode): String = node.nodeSource.name

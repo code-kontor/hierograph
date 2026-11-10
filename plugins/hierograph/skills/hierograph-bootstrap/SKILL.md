@@ -63,7 +63,7 @@ a Gradle producer is planned. Do not improvise a manifest by hand.
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| `HIEROGRAPH_VERSION` | latest **release** | Version of the image, the server jar and the Maven plugin (released together). Determined in Step 1. Must be **0.2.0 or later** (earlier releases are the retired jQAssistant generation). Never a `-SNAPSHOT`. |
+| `HIEROGRAPH_VERSION` | latest **release** | Version of the image, the server jar and the Maven plugin (released together). Determined in Step 1. Must be **0.2.0 or later** (earlier releases are a retired generation). Never a `-SNAPSHOT`. |
 | `RUN_MODE` | `docker` | `docker` or `jvm` (see above). Asked in Step 1. |
 | `BUILD_ROOT` | the current project directory | The directory holding the root `pom.xml` — where Maven runs and, in `jvm` mode, where `.hierograph/` is written. Use its **absolute** path in Docker mounts. |
 | `MAVEN` | `./mvnw` if `BUILD_ROOT/mvnw` exists, else `mvn` | The host's Maven, for the host build (both modes) and the manifest (`jvm`). |

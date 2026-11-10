@@ -16,7 +16,7 @@
     <name>Hierograph GraphStore Scanner (JVM)</name>
     <description>
         The own bytecode scanner (ASM): reads JARs and class directories into ClassFacts and member-level
-        DetailRefs, and writes them as a Parquet snapshot — the replacement for the jQAssistant export.
+        DetailRefs, and writes them as a Parquet snapshot.
     </description>
 
     <dependencies>

@@ -25,8 +25,8 @@ import org.springframework.test.context.DynamicPropertySource
 
 /**
  * Base for integration tests that operate on the hierarchical graph. It boots the
- * [HierarchicalGraphService], which connects to the container's jQAssistant store and builds the
- * graph once (in its `@PostConstruct`). The built [model] is exposed to subclasses.
+ * [HierarchicalGraphService], which scans the build manifest and builds the graph once (in its
+ * `@PostConstruct`). The built [model] is exposed to subclasses.
  *
  * Only the graph service is loaded into the context; the shared, identical configuration across
  * subclasses means the graph is built exactly once for the whole test run.
@@ -37,7 +37,7 @@ abstract class AbstractHierarchicalGraphIntegrationTest : AbstractSpringIntegrat
     @Autowired
     protected lateinit var graphService: HierarchicalGraphService
 
-    /** The hierarchical graph model built from the served jQAssistant store. */
+    /** The hierarchical graph model built from the manifest-scanned graph. */
     protected val model: HGModel
         get() = graphService.model
 

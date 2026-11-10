@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired
  * the scanner's raw stub edge and a parallel canonical edge tagged `resolved = true` both reach the
  * same type, so it would otherwise appear twice. This covers both flavours of resolution:
  *  - hierograph's virtual-external lift (stub → `:Virtual` canonical node), and
- *  - jQAssistant's own java-classpath:Resolve (stub → real, parsed type) — neither node is `:Virtual`.
+ *  - the scanner's own classpath resolution (stub → real, parsed type) — neither node is `:Virtual`.
  * The response must collapse each to a single entry, preferring the resolved (canonical) one.
  */
 class ResolvedTypeRefDedupIT : AbstractMcpApplicationIntegrationTest() {
@@ -73,7 +73,7 @@ class ResolvedTypeRefDedupIT : AbstractMcpApplicationIntegrationTest() {
 
     @Test
     fun `an internally-resolved interface (stub plus real) is listed once as the real type`() {
-        // DefaultSimpUserRegistry implements SimpUserRegistry, which jQAssistant scanned as a stub
+        // DefaultSimpUserRegistry implements SimpUserRegistry, which the scanner recorded as a stub
         // and resolved to the real parsed type — both nodes are non-:Virtual, so only the resolved
         // edge marker distinguishes them. The dedup must keep the single resolved (real) entry.
         val id = resolveNodeId(

@@ -13,7 +13,7 @@ logs/
 hierarchical-graph.txt
 
 # Manual Parquet export (ExportParquetManualIT)
-jqa-parquet-export/
+parquet-export/
 
 # Local example inputs for the scanner CLI (Spring jars, demo snapshots, …)
 /example/

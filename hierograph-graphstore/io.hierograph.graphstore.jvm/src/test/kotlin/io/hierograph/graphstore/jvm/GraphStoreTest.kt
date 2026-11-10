@@ -225,7 +225,7 @@ class GraphStoreTest {
 
     @Test
     fun `a structural edge coexisting with a non-structural ref sets both extends and other`() {
-        // Documents the spec's open 'other'-flag divergence from the jQAssistant DependencyRule.
+        // Documents the spec's open 'other'-flag divergence.
         val store = GraphStore()
         store.registerArtifact(artifact("app"))
         store.applyClass(

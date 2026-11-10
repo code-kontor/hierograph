@@ -18,8 +18,7 @@ package io.hierograph.graphstore.jvm.model
 /**
  * One declared member of a type.
  *
- * [key] is the member key `<owner fqn>#<signature>`; [signature] doubles as the display name, matching
- * the current jQAssistant mapping. [kind] is a member-level [JavaNodeKind] (FIELD, METHOD, CONSTRUCTOR).
+ * [key] is the member key `<owner fqn>#<signature>`; [signature] doubles as the display name. [kind] is a member-level [JavaNodeKind] (FIELD, METHOD, CONSTRUCTOR).
  */
 data class MemberFacts(
     val key: String,

@@ -27,8 +27,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 /**
- * The adapter check: the existing (jQAssistant) node-metadata provider must resolve name / qualified
- * name / kind from a GraphStore-backed HGModel — i.e. off the `INodeSource` abstraction, with no Neo4j.
+ * The adapter check: the node-metadata provider must resolve name / qualified
+ * name / kind from a GraphStore-backed HGModel — i.e. off the `INodeSource` abstraction.
  */
 class GraphStoreMetadataTest {
 

@@ -28,8 +28,7 @@ import kotlin.time.measureTimedValue
  * The shared integration-test data source: a Spring 7.0.8 `.hierograph` snapshot produced by the ASM
  * scanner. The 21 Spring jars are downloaded from Maven Central and scanned into a temp directory **once
  * per JVM** (built lazily on first access); every integration test boots the server against this snapshot
- * via `hierograph.graph.parquetDir`. This replaces the retired jQAssistant/Neo4j Testcontainers image.
- */
+ * via `hierograph.graph.parquetDir`. */
 object SpringFixture {
 
     private val log = LoggerFactory.getLogger(SpringFixture::class.java)

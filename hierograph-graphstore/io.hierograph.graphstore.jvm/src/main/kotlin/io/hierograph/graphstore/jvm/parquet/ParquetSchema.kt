@@ -25,8 +25,7 @@ import dev.hardwood.schema.FileSchema
  * sides agree on file names, column names and types.
  *
  * This is the MVP schema (spec §7): kinds are stored as **strings** (the enum names `CLASS`, `METHOD`,
- * `EXTENDS`, …) rather than the int32 ordinals of the full §4 schema, which keeps it identical to what
- * the jQAssistant CSV export produces and makes snapshots human-readable. A single snapshot can mix
+ * `EXTENDS`, …) rather than the int32 ordinals of the full §4 schema, which keeps snapshots human-readable. A single snapshot can mix
  * artifacts, so `types` carries an explicit `artifact` column.
  */
 object ParquetSchema {

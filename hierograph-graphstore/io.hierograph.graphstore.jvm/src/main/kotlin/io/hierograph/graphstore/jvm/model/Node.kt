@@ -18,8 +18,7 @@ package io.hierograph.graphstore.jvm.model
 /**
  * A node in the GraphStore hierarchy: module, package, type, member, or external-type placeholder.
  *
- * [key] is the stable, content-derived identity (type FQN, member key, package or artifact key); it
- * replaces Neo4j's internal `id()`. [kind] is an `Any` because it spans [io.hierograph.graphstore.jvm.model
+ * [key] is the stable, content-derived identity (type FQN, member key, package or artifact key). [kind] is an `Any` because it spans [io.hierograph.graphstore.jvm.model
  * JavaNodeKind] values and the `EXTERNAL_TYPE` string. [parent] is the parent node's key, `null` for
  * top-level modules. A [placeholder] node is a referenced-but-unscanned type; it is upgraded in place
  * when the real class is scanned, so incoming edges stay valid. [modifiers] holds the packed access flags

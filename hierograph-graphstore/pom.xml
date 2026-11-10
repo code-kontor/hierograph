@@ -15,7 +15,7 @@
     <packaging>pom</packaging>
 
     <name>Hierograph GraphStore</name>
-    <description>In-memory GraphStore backed by Parquet snapshots; backend-neutral replacement for the jQA/Neo4j read path.</description>
+    <description>In-memory GraphStore backed by Parquet snapshots; a backend-neutral in-memory read path.</description>
 
     <modules>
         <module>io.hierograph.graphstore.jvm</module>

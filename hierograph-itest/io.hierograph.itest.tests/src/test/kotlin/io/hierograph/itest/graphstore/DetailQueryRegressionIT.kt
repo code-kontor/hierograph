@@ -25,7 +25,7 @@ import org.junit.jupiter.api.TestInstance
 
 /**
  * [DetailQueryEngine] / `ParquetReader.readDetailRefs` behaviour on the real Spring snapshot, including
- * regressions for the three bugs the jQA retirement surfaced in the Neo4j-free detail path:
+ * regressions for three bugs in the detail path:
  * the single-predicate push-down (hardwood AND mis-pruning), class-level `annotated_by` edges (bare
  * `from_key`), and scoped query summaries/paging.
  */
