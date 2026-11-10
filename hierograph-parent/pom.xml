@@ -306,6 +306,11 @@ limitations under the License.]]></inlineHeader>
                 <artifactId>io.hierograph.server.graphservice</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.hierograph</groupId>
+                <artifactId>io.hierograph.server.views</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- ==================== -->
             <!-- GraphStore           -->

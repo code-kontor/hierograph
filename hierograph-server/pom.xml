@@ -18,6 +18,7 @@
 
     <modules>
         <module>io.hierograph.server.mapping</module>
+        <module>io.hierograph.server.views</module>
         <module>io.hierograph.server.graphservice</module>
         <module>io.hierograph.server</module>
         <module>io.hierograph.server.graphql</module>
