@@ -148,14 +148,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      */
     fun scan(manifestPath: Path, includeTests: Boolean = false, buildRoot: Path? = null): Scanned {
         val plan = readPlan(manifestPath, includeTests, buildRoot)
-        val modules = LinkedHashMap<String, ModuleScan>()
-        for (output in plan.declared.values) {
-            if (output.present) {
-                modules[output.gav] = scanOutput(output)
-            } else {
-                log.info("Output of {} not compiled yet ({}); watching for it", output.gav, output.dirs)
-            }
-        }
+        val (present, missing) = plan.declared.values.partition { it.present }
+        for (output in missing) log.info("Output of {} not compiled yet ({}); watching for it", output.gav, output.dirs)
+        val modules = scanOutputs(present)
         log.info(
             "Scanned {} of {} declared artifact(s) from manifest {} (includeTests={})",
             modules.size, plan.declared.size, manifestPath, includeTests,
@@ -175,19 +170,25 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      */
     fun reload(previous: Scanned, manifestPath: Path, includeTests: Boolean = false, buildRoot: Path? = null): Scanned {
         val plan = readPlan(manifestPath, includeTests, buildRoot)
-        val modules = LinkedHashMap<String, ModuleScan>()
-        var reused = 0
-        for (output in plan.declared.values) {
+        val present = plan.declared.values.filter { it.present }
+        // Only an output scanned before from the same directories can be reused; their signatures are walked at once.
+        val reusable = present.filter { previous.modules[it.gav]?.outputDirs == it.dirs }
+        val current = reusable.map { it.gav }.zip(outputSignatures(reusable.map { it.dirs })).toMap()
+        val kept = LinkedHashMap<String, ModuleScan>()
+        val toScan = ArrayList<DeclaredOutput>()
+        for (output in present) {
             val prev = previous.modules[output.gav]
-            when {
-                !output.present -> {}
-                prev != null && prev.outputDirs == output.dirs && prev.signature == signatureOf(output.dirs) -> {
-                    modules[output.gav] = prev.copy(name = output.name, origin = output.origin)
-                    reused++
-                }
-                else -> modules[output.gav] = scanOutput(output)
+            if (prev != null && current[output.gav] == prev.signature) {
+                kept[output.gav] = prev.copy(name = output.name, origin = output.origin)
+            } else {
+                toScan += output
             }
         }
+        val reused = kept.size
+        val scanned = scanOutputs(toScan)
+        // In declared order, as a sequential pass would have built it.
+        val modules = LinkedHashMap<String, ModuleScan>()
+        for (gav in plan.declared.keys) (kept[gav] ?: scanned[gav])?.let { modules[gav] = it }
         val dropped = previous.declared.keys.count { it !in plan.declared }
         log.info(
             "Applied manifest {}: {} of {} declared artifact(s) present, {} reused, {} scanned, {} dropped",
@@ -271,36 +272,46 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      */
     fun rescan(previous: Scanned, changedGavs: Set<String>): Scanned {
         val modules = LinkedHashMap(previous.modules)
+        val toScan = ArrayList<DeclaredOutput>()
         for (gav in changedGavs) {
             val prev = previous.modules[gav]
             if (prev == null) {
                 val output = previous.declared[gav] ?: continue
-                if (output.present) modules[gav] = scanOutput(output)
+                if (output.present) toScan += output
                 continue
             }
             if (prev.outputDirs.none { it.isDirectory() }) {
                 modules.remove(gav)
                 continue
             }
-            val signature = signatureOf(prev.outputDirs)
-            modules[gav] = prev.copy(result = scanModule(gav, prev.outputDirs), signature = signature)
+            // A rescan keeps the scanned directories, name and origin; only the classes and signature change.
+            toScan += DeclaredOutput(gav, prev.name, prev.outputDirs, prev.origin)
         }
+        modules.putAll(scanOutputs(toScan))
         return previous.copy(modules = modules)
     }
 
-    private fun scanOutput(output: DeclaredOutput): ModuleScan {
-        val signature = signatureOf(output.dirs) // before the scan: a write during the scan then shows as stale
-        return ModuleScan(output.gav, output.name, output.dirs, scanModule(output.gav, output.dirs), output.origin, signature)
-    }
-
-    private fun signatureOf(dirs: List<Path>): Long = dirs.sumOf { outputSignature(it) }
-
-    /** Scans the existing [dirs] of one artifact, all under the key [gav]. */
-    private fun scanModule(gav: String, dirs: List<Path>): ScanResult {
-        val artifacts = dirs.filter { it.isDirectory() }.map { ScanArtifact(gav, it) }
-        val (result, elapsed) = measureTimedValue { scanner.scan(artifacts) }
-        log.info("Scanned {}: {} types, {} detail refs in {}", gav, result.classes.size, result.detailRefs.size, elapsed)
-        return result
+    /**
+     * Scans [outputs] in one [BytecodeScanner.scanByKey] call, so the class files of all of them share the
+     * scanner's threads; returns their [ModuleScan]s in the order of [outputs].
+     */
+    private fun scanOutputs(outputs: List<DeclaredOutput>): LinkedHashMap<String, ModuleScan> {
+        val modules = LinkedHashMap<String, ModuleScan>()
+        if (outputs.isEmpty()) return modules
+        // Each signature before the scan: a write during the scan then shows as stale.
+        val signatures = outputSignatures(outputs.map { it.dirs })
+        val artifacts = outputs.flatMap { output -> output.dirs.filter { it.isDirectory() }.map { ScanArtifact(output.gav, it) } }
+        val (results, elapsed) = measureTimedValue { scanner.scanByKey(artifacts) }
+        outputs.zip(signatures).forEach { (output, signature) ->
+            val result = results[output.gav] ?: EMPTY_SCAN
+            log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.detailRefs.size)
+            modules[output.gav] = ModuleScan(output.gav, output.name, output.dirs, result, output.origin, signature)
+        }
+        log.info(
+            "Scanned {} output(s): {} types in {} on {} thread(s)",
+            outputs.size, modules.values.sumOf { it.result.classes.size }, elapsed, scanner.parallelism,
+        )
+        return modules
     }
 
     /**
@@ -376,6 +387,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
 
     companion object {
         private val log = LoggerFactory.getLogger(ManifestGraphSource::class.java)
+        private val EMPTY_SCAN = ScanResult(emptyList(), emptyList())
 
         /**
          * The local build root of a manifest at [manifestPath] when none is configured: its grandparent, because a

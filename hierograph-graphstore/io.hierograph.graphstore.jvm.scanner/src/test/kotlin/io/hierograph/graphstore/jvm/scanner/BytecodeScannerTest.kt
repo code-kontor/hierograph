@@ -356,6 +356,29 @@ class BytecodeScannerTest {
     }
 
     @Test
+    fun `a single artifact scanned in parallel gives exactly the sequential result`() {
+        val artifacts = listOf(ScanArtifact.of(classesDir))
+
+        assertThat(BytecodeScanner(parallelism = 4).scan(artifacts)).isEqualTo(BytecodeScanner(parallelism = 1).scan(artifacts))
+    }
+
+    @Test
+    fun `scanByKey splits the scan by key, in order of first appearance`(@TempDir tmp: Path) {
+        val empty = Files.createDirectories(tmp.resolve("empty"))
+        val artifacts = listOf(
+            ScanArtifact("b", classesDir),
+            ScanArtifact("a", empty),
+            ScanArtifact("b", classesDir),
+        )
+
+        val byKey = BytecodeScanner(parallelism = 4).scanByKey(artifacts)
+
+        assertThat(byKey.keys).containsExactly("b", "a")
+        assertThat(byKey.getValue("a")).isEqualTo(ScanResult(emptyList(), emptyList()))
+        assertThat(byKey.getValue("b")).isEqualTo(BytecodeScanner(parallelism = 1).scan(artifacts))
+    }
+
+    @Test
     fun `the result round-trips through a Parquet snapshot into the GraphStore`(@TempDir tmp: Path) {
         result.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
 
