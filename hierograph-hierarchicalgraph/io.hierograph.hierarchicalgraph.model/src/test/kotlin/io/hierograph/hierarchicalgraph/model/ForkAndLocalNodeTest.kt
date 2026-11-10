@@ -16,6 +16,7 @@
 package io.hierograph.hierarchicalgraph.model
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -197,6 +198,107 @@ class ForkAndLocalNodeTest {
             assertThat(g.hierarchy.childrenOf(group)).containsExactly(g.a1, g.b1)
             // the whole graph is still reachable from the root, plus the group
             assertThat(g.hierarchy.descendantsOf(g.root)).containsExactly(group, g.a1, g.a2, g.a3, g.b1, g.b2, g.b3)
+        }
+    }
+
+    @Nested
+    inner class Guards {
+
+        private fun Hierarchy.snapshot() = descendantsOf(rootNode).map { it to parentOf(it) }
+
+        @Test
+        fun `moving a node into its own subtree is rejected and leaves the hierarchy unchanged`() {
+            val before = g.hierarchy.snapshot()
+
+            assertThatThrownBy { g.hierarchy.move(g.a1, g.a3) }
+                .isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("own ancestor")
+            assertThatThrownBy { g.hierarchy.move(g.a2, g.a2) }
+                .isInstanceOf(IllegalArgumentException::class.java)
+
+            assertThat(g.hierarchy.snapshot()).isEqualTo(before)
+            assertThat(g.hierarchy.predecessorsOf(g.a3)).containsExactly(g.a2, g.a1, g.root)
+        }
+
+        @Test
+        fun `moving a node into a local node below it is rejected`() {
+            val group = g.hierarchy.group("g", parent = g.a2)
+
+            assertThatThrownBy { g.hierarchy.move(g.a1, group) }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThat(g.hierarchy.parentOf(g.a1)).isSameAs(g.root)
+        }
+
+        @Test
+        fun `the root cannot be moved or added as a child`() {
+            assertThatThrownBy { g.hierarchy.move(g.root, g.a1) }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThatThrownBy { g.hierarchy.addChild(g.a1, g.root) }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThat(g.hierarchy.parentOf(g.root)).isNull()
+        }
+
+        @Test
+        fun `adding a node that is already placed is rejected`() {
+            assertThatThrownBy { g.hierarchy.addChild(g.b1, g.a2) }
+                .isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("use move")
+            assertThatThrownBy { HierarchyFactory.addChild(g.hierarchy, g.b1, g.a2) }
+                .isInstanceOf(IllegalArgumentException::class.java)
+
+            assertThat(g.hierarchy.parentOf(g.a2)).isSameAs(g.a1)
+            assertThat(g.hierarchy.childrenOf(g.b1)).containsExactly(g.b2)
+        }
+
+        @Test
+        fun `adding the same local node twice is rejected`() {
+            val group = g.hierarchy.group("g")
+
+            assertThatThrownBy { g.hierarchy.addChild(g.b1, group) }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThat(g.hierarchy.childrenOf(g.root)).containsExactly(g.a1, g.b1, group)
+        }
+
+        @Test
+        fun `adding an unplaced node below its own subtree is rejected`() {
+            val outer = g.hierarchy.createLocalNode("view.group") { SyntheticNodeSource(nextLocalId++, "outer") }
+            val inner = g.hierarchy.createLocalNode("view.group") { SyntheticNodeSource(nextLocalId++, "inner") }
+            g.hierarchy.addChild(outer, inner)
+
+            assertThatThrownBy { g.hierarchy.addChild(inner, outer) }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThat(g.hierarchy.parentOf(outer)).isNull()
+        }
+
+        @Test
+        fun `a local node may not reuse the identifier of a core node`() {
+            assertThatThrownBy {
+                g.hierarchy.createLocalNode("view.group") { SyntheticNodeSource(g.a1.identifier, "clash") }
+            }.isInstanceOf(IllegalArgumentException::class.java)
+
+            assertThat(g.hierarchy.lookupNode(g.a1.identifier)).isSameAs(g.a1)
+            assertThat(g.hierarchy.localNodes).isEmpty()
+        }
+
+        @Test
+        fun `a local node may not reuse the identifier of another local node, also one inherited by a fork`() {
+            val group = g.hierarchy.group("g")
+            val fork = g.hierarchy.fork()
+
+            assertThatThrownBy {
+                g.hierarchy.createLocalNode("view.group") { SyntheticNodeSource(group.identifier, "again") }
+            }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThatThrownBy {
+                fork.createLocalNode("view.group") { SyntheticNodeSource(group.identifier, "again") }
+            }.isInstanceOf(IllegalArgumentException::class.java)
+            assertThat(fork.lookupNode(group.identifier)).isSameAs(group)
+        }
+
+        @Test
+        fun `separate forks may each create a local node with the same identifier`() {
+            val first = g.hierarchy.fork()
+            val second = g.hierarchy.fork()
+
+            val a = first.createLocalNode("view.group") { SyntheticNodeSource(4711L, "g") }
+            val b = second.createLocalNode("view.group") { SyntheticNodeSource(4711L, "g") }
+
+            assertThat(first.lookupNode(4711L)).isSameAs(a)
+            assertThat(second.lookupNode(4711L)).isSameAs(b)
         }
     }
 

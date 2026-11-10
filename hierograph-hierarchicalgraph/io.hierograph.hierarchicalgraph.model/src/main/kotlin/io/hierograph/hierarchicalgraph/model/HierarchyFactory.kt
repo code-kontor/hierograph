@@ -28,11 +28,12 @@ object HierarchyFactory {
         )
     }
 
+    /**
+     * Places [child] under [parent] without clearing caches: the fast path for building a hierarchy before
+     * its first query. Checks, like [Hierarchy.addChild], that [child] is not placed yet, is not the root
+     * and does not contain [parent].
+     */
     fun addChild(hierarchy: Hierarchy, parent: HGNode, child: HGNode) {
-        val impl = hierarchy as HierarchyImpl
-        impl.parentMap[child.identifier] = parent.identifier
-        impl.childrenMap
-            .getOrPut(parent.identifier) { mutableListOf() }
-            .add(child.identifier)
+        (hierarchy as HierarchyImpl).placeChild(parent.identifier, child.identifier)
     }
 }

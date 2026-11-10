@@ -60,11 +60,29 @@ interface Hierarchy {
 
     // local nodes (scenario-only)
     val localNodes: Collection<HGNode>
+
+    /**
+     * Creates a node known only to this hierarchy and its later forks. Fails with
+     * [IllegalArgumentException] when the source's identifier is already taken by a core node or a local
+     * node of this hierarchy, because [lookupNode] would otherwise resolve only one of them.
+     */
     fun createLocalNode(kind: Any?, nodeSourceSupplier: () -> INodeSource): HGNode
     fun lookupNode(identifier: Any): HGNode?
 
     // mutation (for scenarios)
+
+    /**
+     * Appends [child], a node not yet placed in this hierarchy, to [parent]'s children. Fails with
+     * [IllegalArgumentException] when [child] already has a parent (use [move]), is the root, or contains
+     * [parent] in its subtree.
+     */
     fun addChild(parent: HGNode, child: HGNode)
+
+    /**
+     * Detaches [node] from its parent and appends it, with its subtree, to [newParent]'s children. Fails
+     * with [IllegalArgumentException] when [node] is the root, or [newParent] is [node] or lies in its
+     * subtree: the parent chain would become a cycle.
+     */
     fun move(node: HGNode, newParent: HGNode)
     fun fork(): Hierarchy
 }

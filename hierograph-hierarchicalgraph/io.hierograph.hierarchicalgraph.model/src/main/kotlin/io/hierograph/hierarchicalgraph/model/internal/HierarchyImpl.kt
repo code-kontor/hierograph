@@ -35,6 +35,10 @@ class HierarchyImpl(
 
     override fun createLocalNode(kind: Any?, nodeSourceSupplier: () -> INodeSource): HGNode {
         val source = nodeSourceSupplier()
+        // lookupNode searches the local nodes first: a colliding identifier would hide the other node.
+        require(lookupNode(source.identifier) == null) {
+            "A node with identifier ${source.identifier} already exists in this hierarchy or its core graph"
+        }
         val node = HGNodeImpl(nodeSource = source)
         node.kind = kind
         source.node = node
@@ -183,13 +187,42 @@ class HierarchyImpl(
     // mutation
 
     override fun addChild(parent: HGNode, child: HGNode) {
-        parentMap[child.identifier] = parent.identifier
-        childrenMap.getOrPut(parent.identifier) { mutableListOf() }.add(child.identifier)
+        placeChild(parent.identifier, child.identifier)
         clearCaches()
+    }
+
+    /**
+     * Appends [childId] to [parentId]'s children after checking that this keeps the hierarchy a tree: the
+     * child is not placed yet, is not the root, and does not contain the parent. Shared with
+     * [HierarchyFactory.addChild], which places nodes without clearing caches.
+     */
+    internal fun placeChild(parentId: Any, childId: Any) {
+        require(childId != rootNode.identifier) { "The root node $childId cannot be added as a child" }
+        parentMap[childId]?.let { placed ->
+            throw IllegalArgumentException("Node $childId is already a child of $placed; use move to re-parent it")
+        }
+        requireNotInSubtree(parentId, childId) { "Adding $childId below $parentId would make it its own ancestor" }
+        parentMap[childId] = parentId
+        childrenMap.getOrPut(parentId) { mutableListOf() }.add(childId)
+    }
+
+    /**
+     * Fails when [targetId] is [subtreeRootId] or lies below it. Walks the target's parent chain in
+     * [parentMap], not the cached predecessors, so it costs the target's depth and works before and between
+     * cache refills.
+     */
+    private inline fun requireNotInSubtree(targetId: Any, subtreeRootId: Any, message: () -> String) {
+        var current: Any? = targetId
+        while (current != null) {
+            require(current != subtreeRootId, message)
+            current = parentMap[current]
+        }
     }
 
     override fun move(node: HGNode, newParent: HGNode) {
         val id = node.identifier
+        require(id != rootNode.identifier) { "The root node $id cannot be moved" }
+        requireNotInSubtree(newParent.identifier, id) { "Moving $id below ${newParent.identifier} would make it its own ancestor" }
         val oldParentId = parentMap[id]
         if (oldParentId != null) {
             childrenMap[oldParentId]?.remove(id)
