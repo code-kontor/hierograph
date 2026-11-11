@@ -15,6 +15,7 @@
  */
 package io.hierograph.server.views
 
+import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -115,6 +116,22 @@ object ViewRestructurer {
         /** Real modules something was moved out of. */
         private val sourceModules = LinkedHashSet<HGNode>()
 
+        /**
+         * Packages a move emptied by merging or renaming them, with the package that took their content and the
+         * move that did it. A later move that selects such a package follows it (see [follow]).
+         */
+        private val replacedBy = HashMap<HGNode, Pair<HGNode, String>>()
+
+        /** The label of the move being applied, for [replacedBy]. */
+        private var applying = ""
+
+        /** The module holding the types the scan did not cover ("External Types"): neither moved nor a target. */
+        private val external: HGNode? = base.hierarchy.childrenOf(base.hierarchy.rootNode)
+            .firstOrNull { it.kind == JavaKinds.MODULE && qn(it) == GraphStore.EXTERNAL_ARTIFACT_NAME }
+
+        private fun isExternal(node: HGNode): Boolean =
+            external != null && (node === external || base.hierarchy.isPredecessorOf(external, node))
+
         fun run(): Restructured {
             try {
                 createModules()
@@ -211,11 +228,17 @@ object ViewRestructurer {
             val packageFqn = move.to.substringAfter(MoveDefinition.PACKAGE_SEPARATOR, "").takeIf { it.isNotEmpty() }
             val module = virtualModules[moduleSpec] ?: run {
                 val pattern = NamePattern.compile(moduleSpec)
-                val modules = h.childrenOf(h.rootNode).filter { it.kind == JavaKinds.MODULE && !ViewNodes.isVirtual(it) && pattern.matches(qn(it)) }
+                val matching = h.childrenOf(h.rootNode).filter { it.kind == JavaKinds.MODULE && !ViewNodes.isVirtual(it) && pattern.matches(qn(it)) }
+                val modules = matching.filter { it !== external }
                 when (modules.size) {
                     1 -> modules.single()
                     0 -> {
-                        findings += finding(Code.UNKNOWN_MOVE_TARGET, label, "the target '${move.to}' names no module or virtual module; the move is skipped", move.select)
+                        val why = if (matching.isNotEmpty()) {
+                            "it names ${GraphStore.EXTERNAL_ARTIFACT_NAME}, which holds code that was not scanned and cannot be a target"
+                        } else {
+                            "it names no module or virtual module"
+                        }
+                        findings += finding(Code.UNKNOWN_MOVE_TARGET, label, "the target '${move.to}' cannot be used: $why; the move is skipped", move.select)
                         return null
                     }
                     else -> {
@@ -235,8 +258,11 @@ object ViewRestructurer {
         private fun apply(label: String, move: MoveDefinition, nodes: List<HGNode>) {
             if (nodes.isEmpty()) return
             val target = target(label, move) ?: return
-            for (node in nodes) {
+            applying = label
+            for (selectedNode in nodes) {
+                val node = follow(label, move, selectedNode) ?: continue
                 when {
+                    isExternal(node) -> cannotMove(label, move, node, "${GraphStore.EXTERNAL_ARTIFACT_NAME} holds code that was not scanned")
                     node.kind == JavaKinds.MODULE -> when (target) {
                         is ModuleTarget -> if (node !== target.module) mergeModule(node, target.module)
                         is PackageTarget -> cannotMove(label, move, node, "a module can only be merged into a module")
@@ -259,6 +285,29 @@ object ViewRestructurer {
                     }
                     else -> cannotMove(label, move, node, "only modules, packages and scanned types can be moved")
                 }
+            }
+        }
+
+        /**
+         * The node a move of [node] moves. Selectors resolve against the base hierarchy, but a merge or rename by an
+         * earlier move empties a package and puts its content into another one: the move then follows the content
+         * when it went into a package this view created, and is skipped with [Code.MOVE_OF_MERGED_PACKAGE] when it
+         * went into a package of the graph, which also holds content of its own.
+         */
+        private fun follow(label: String, move: MoveDefinition, node: HGNode): HGNode? {
+            var current = node
+            while (true) {
+                val (next, by) = replacedBy[current] ?: return current
+                if (!ViewNodes.isVirtual(next)) {
+                    findings += finding(
+                        Code.MOVE_OF_MERGED_PACKAGE, label,
+                        "${qn(node)} was merged into the existing package ${qn(next)} by $by, which has content of its own; " +
+                            "this move is skipped: move ${qn(node)} in an earlier move, or select its content",
+                        move.select, listOf(node, next),
+                    )
+                    return null
+                }
+                current = next
             }
         }
 
@@ -322,6 +371,7 @@ object ViewRestructurer {
                 }
                 if (same != null) merge(child, same) else relocate(child, target)
             }
+            replacedBy[source] = target to applying
             vacated += source
         }
 
@@ -341,6 +391,7 @@ object ViewRestructurer {
                 if (child.kind == JavaKinds.PACKAGE) rename(child, fqn + "." + NodeMetadata.getName(child), destination, module)
                 else relocate(child, destination)
             }
+            replacedBy[source] = destination to applying
             vacated += source
         }
 

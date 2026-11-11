@@ -91,8 +91,11 @@ data class ViewFinding(
         /** A package would move into its own subtree. That node's move is skipped. */
         MOVE_INTO_OWN_SUBTREE(Severity.ERROR),
 
-        /** A node that cannot be moved there: a member, an external type, or a module into a package. Skipped. */
+        /** A node that cannot be moved there: a member, external code, or a module into a package. Skipped. */
         CANNOT_MOVE(Severity.ERROR),
+
+        /** A package an earlier move merged into an existing package of the graph. Its move is skipped. */
+        MOVE_OF_MERGED_PACKAGE(Severity.ERROR),
 
         /** A virtual node's handle is already taken by a node of the graph. The whole view is not applied. */
         VIRTUAL_HANDLE_COLLISION(Severity.ERROR),

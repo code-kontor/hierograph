@@ -102,6 +102,93 @@ class ViewRestructurerTest {
     }
 
     @Nested
+    inner class LaterMovesOfEmptiedPackages {
+
+        @Test
+        fun `a sub-package selected after its parent was renamed moves with its types`() {
+            val v = view(
+                listOf("x"),
+                move(pkg("com.acme.store"), "acme:store:1.0/com.acme.legacy"),
+                move(pkg("com.acme.store.parquet"), "x"),
+            )
+            val h = v.model.hierarchy
+
+            assertThat(r.path(r.node("com.acme.store.parquet.Reader", h = h), h).first()).isEqualTo("x")
+            assertThat(r.path(r.node("com.acme.store.model.Node", h = h), h)).contains("com.acme.legacy.store.model")
+            assertThat(codes(v)).doesNotContain(Code.VIRTUAL_MODULE_EMPTY, Code.MOVE_OF_MERGED_PACKAGE)
+        }
+
+        @Test
+        fun `the same moves in the other order give the same placement`() {
+            val renameFirst = view(
+                listOf("x"),
+                move(pkg("com.acme.store"), "acme:store:1.0/com.acme.legacy"),
+                move(pkg("com.acme.store.parquet"), "x"),
+            )
+            val moveFirst = view(
+                listOf("x"),
+                move(pkg("com.acme.store.parquet"), "x"),
+                move(pkg("com.acme.store"), "acme:store:1.0/com.acme.legacy"),
+            )
+
+            fun module(v: MaterializedView, fqn: String) = r.path(r.node(fqn, h = v.model.hierarchy), v.model.hierarchy).first()
+            for (type in listOf("com.acme.store.parquet.Reader", "com.acme.store.parquet.Writer", "com.acme.store.detail.Query")) {
+                assertThat(module(renameFirst, type)).describedAs(type).isEqualTo(module(moveFirst, type))
+            }
+        }
+
+        @Test
+        fun `a sub-package moved back after its package stays in its module`() {
+            val v = view(
+                listOf("x"),
+                move(pkg("com.acme.store"), "x"),
+                move(pkg("com.acme.store.parquet"), "acme:store:1.0"),
+            )
+            val h = v.model.hierarchy
+
+            assertThat(r.path(r.node("com.acme.store.Store", h = h), h).first()).isEqualTo("x")
+            assertThat(r.path(r.node("com.acme.store.parquet.Reader", h = h), h).first()).isEqualTo("acme:store:1.0")
+            assertThat(v.report.hasErrors).isFalse()
+        }
+
+        @Test
+        fun `a package merged into an existing package of the graph is not moved again`() {
+            val v = view(
+                emptyList(),
+                move("""{ "match": "acme:mapping:1.0", "kind": "java.module" }""", "acme:store:1.0"),
+                move(pkg("com.acme", "acme:mapping:1.0"), "acme:server:1.0"),
+            )
+
+            val finding = v.report.findings.single { it.code == Code.MOVE_OF_MERGED_PACKAGE }
+            assertThat(finding.group).isEqualTo("moves[1]")
+            assertThat(finding.message).contains("merged into the existing package com.acme", "by moves[0]")
+            // the store's own com.acme stays where it is
+            assertThat(r.path(r.node("com.acme.store.Store", h = v.model.hierarchy), v.model.hierarchy).first()).isEqualTo("acme:store:1.0")
+        }
+    }
+
+    @Nested
+    inner class ExternalTypes {
+
+        @Test
+        fun `external packages cannot be moved`() {
+            val v = view(listOf("x"), move("""{ "match": "org.slf4j", "kind": "java.package" }""", "x"))
+
+            assertThat(codes(v)).contains(Code.CANNOT_MOVE)
+            assertThat(r.path(r.node("org.slf4j.Logger", h = v.model.hierarchy), v.model.hierarchy).first()).isEqualTo("External Types")
+        }
+
+        @Test
+        fun `External Types is not a move target, so no cycle can run through it`() {
+            val v = view(emptyList(), move(pkg("com.acme.store.parquet"), "External Types"))
+
+            val finding = v.report.findings.single { it.code == Code.UNKNOWN_MOVE_TARGET }
+            assertThat(finding.message).contains("not scanned")
+            assertThat(v.effect!!.cycles.flatten()).doesNotContain("External Types")
+        }
+    }
+
+    @Nested
     inner class NewCycles {
 
         private fun effect(cycles: List<List<String>>, baseCycles: List<List<String>>) =

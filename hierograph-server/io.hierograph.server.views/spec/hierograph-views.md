@@ -339,6 +339,13 @@ selected nodes, those inside another selected node of the same move go with it a
 are not moved on their own. A node two moves select is moved by the first
 (`NODE_MOVED_TWICE` on the second).
 
+A merge or a rename empties a package and puts its content into another one (§6.4.2).
+A later move that selects such a package, or a sub-package of it, follows the
+content: when it went into a package the view created, that package moves. When it
+went into a package of the graph, which has content of its own, the move is skipped
+(`MOVE_OF_MERGED_PACKAGE`): moving it would take that content too. The order of moves
+therefore matters only where a package is merged into an existing one.
+
 A move's **target** is resolved against the restructured hierarchy when the move is
 applied, so a move can target a package an earlier move created:
 
@@ -370,9 +377,12 @@ Further rules:
   package is a new, virtual package; the real one leaves the view.
 - **Facts are untouched.** A move changes where a node sits, never what it depends
   on. A virtual module's dependencies are the aggregation of what was moved into it.
-- **What cannot move:** members, external types, groups and the root
-  (`CANNOT_MOVE`); a module into a package (`CANNOT_MOVE`); a package into its own
-  subtree (`MOVE_INTO_OWN_SUBTREE`). Each skips that node only.
+- **What cannot move:** members, external code (the `External Types` module, its
+  packages and its types), groups and the root (`CANNOT_MOVE`); a module into a package
+  (`CANNOT_MOVE`); a package into its own subtree (`MOVE_INTO_OWN_SUBTREE`). Each skips
+  that node only. `External Types` is no move target either (`UNKNOWN_MOVE_TARGET`):
+  code that was not scanned does not depend on the project's code, and a move into it
+  would invent dependencies and cycles.
 
 #### 6.4.3 Virtual modules and packages
 
@@ -405,6 +415,7 @@ containment.
 | `NODE_MOVED_TWICE` | error | the first move in document order moves the node |
 | `MOVE_INTO_OWN_SUBTREE` | error | that node's move is skipped |
 | `CANNOT_MOVE` | error | that node's move is skipped |
+| `MOVE_OF_MERGED_PACKAGE` | error | that node's move is skipped: an earlier move merged it into an existing package of the graph |
 | `VIRTUAL_HANDLE_COLLISION` | error | the view is not applied |
 | `VIRTUAL_MODULE_EMPTY` | warning | the module stays, empty |
 | `REAL_MODULE_EMPTY` | info | the module stays, empty: it may be meant to go, or a move is missing |
