@@ -259,7 +259,16 @@ ran and the end of its output):
 
 **Starting without output.** When the manifest is readable but no declared output
 exists, or the graph cannot be built, the service starts without a graph and
-still starts the watcher; the first output that appears builds the graph. A
+still starts the watcher on the outputs the manifest declares; the first output
+that appears or changes builds the graph, with a full scan when no scan has
+succeeded yet.
+
+**Outputs that disappear.** A running build deletes and recreates output
+directories at any time. An output that disappears before or during a scan is left
+out like an output not compiled yet: it stays declared and watched, and its
+classes leave the graph until it appears again. When it disappears while the
+scanner reads it, the scan starts again with the outputs still present, up to
+three times. A
 failed `reload` or manifest reload also re-targets the watcher, so the service
 follows a changed module set even before any of it is compiled.
 

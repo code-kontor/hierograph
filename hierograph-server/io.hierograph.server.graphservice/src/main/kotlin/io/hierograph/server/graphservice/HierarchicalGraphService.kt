@@ -554,12 +554,20 @@ class HierarchicalGraphService {
     /**
      * Start (or restart) watching the current module set, if `manifest` mode and watching is enabled. Also
      * re-evaluates the build state against the (re)applied manifest, which may start a regeneration.
+     *
+     * Without a successful scan yet (the scan at startup failed), it watches the outputs the manifest
+     * declares, and the first change they report loads the graph with a full scan ([applyIncremental]).
      */
     private fun startWatchingIfEnabled() {
         if (!manifestMode) return
         val mode = watchMode.lowercase()
         if (mode == "off") return
-        val scanned = currentScanned ?: return
+        val scanned = currentScanned ?: try {
+            manifestGraphSource.declare(manifestPath(), includeTests, configuredBuildRoot())
+        } catch (e: Exception) {
+            log.warn("Cannot watch for changes: the manifest {} cannot be read ({})", manifestPath(), e.message)
+            return
+        }
         stopWatcher()
         buildFileMonitor.refresh()
         val w = when (mode) {
@@ -588,9 +596,15 @@ class HierarchicalGraphService {
         watcher = null
     }
 
-    /** Rescan only the changed modules, rebuild the graph from the cached union, and swap it in. */
+    /**
+     * Rescan only the changed modules, rebuild the graph from the cached union, and swap it in. Without a
+     * successful scan to start from, load the whole graph instead.
+     */
     private fun applyIncremental(changedGavs: Set<String>) {
-        val previous = currentScanned ?: return
+        val previous = currentScanned ?: run {
+            log.info("Change in {} before any scan succeeded; loading the whole graph", changedGavs)
+            return reloadFromManifest()
+        }
         try {
             val (built, elapsed) = measureTimedValue {
                 val rescanned = manifestGraphSource.rescan(previous, changedGavs)

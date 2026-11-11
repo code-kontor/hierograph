@@ -31,6 +31,7 @@ import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import io.hierograph.graphstore.jvm.scanner.ScanResult
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.security.MessageDigest
 import kotlin.io.path.exists
@@ -53,7 +54,13 @@ import kotlin.time.measureTimedValue
  * Host paths recorded in the manifest are remapped onto the local workspace (see [PathRemap]) so the same
  * manifest works whether the server runs on the build host or in a container with the workspace mounted.
  */
-class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner()) {
+class ManifestGraphSource internal constructor(
+    private val scanner: BytecodeScanner,
+    /** Scans artifacts by key; [BytecodeScanner.scanByKey] except in tests, which make an output vanish mid-scan. */
+    private val scanArtifacts: (List<ScanArtifact>) -> Map<String, ScanResult>,
+) {
+
+    constructor(scanner: BytecodeScanner = BytecodeScanner()) : this(scanner, scanner::scanByKey)
 
     /**
      * One scanned artifact: its GAV (a module's tests carry a `:test` suffix), display name, the (local)
@@ -157,6 +164,13 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         )
         return plan.toScanned(modules)
     }
+
+    /**
+     * Reads [manifestPath] without scanning anything: the declared outputs, classpaths and build files, and
+     * no module scans. The file watcher can follow a build from this even when no scan has succeeded yet.
+     */
+    fun declare(manifestPath: Path, includeTests: Boolean = false, buildRoot: Path? = null): Scanned =
+        readPlan(manifestPath, includeTests, buildRoot).toScanned(emptyMap())
 
     /**
      * Applies a changed manifest to [previous] as a **diff**, keyed by declared output: a removed output is
@@ -287,21 +301,46 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             // A rescan keeps the scanned directories, name and origin; only the classes and signature change.
             toScan += DeclaredOutput(gav, prev.name, prev.outputDirs, prev.origin)
         }
-        modules.putAll(scanOutputs(toScan))
+        val rescanned = scanOutputs(toScan)
+        // An output that disappeared before or during its scan is no longer scanned: its old classes go too.
+        for (output in toScan) if (output.gav !in rescanned) modules.remove(output.gav)
+        modules.putAll(rescanned)
         return previous.copy(modules = modules)
     }
 
     /**
      * Scans [outputs] in one [BytecodeScanner.scanByKey] call, so the class files of all of them share the
      * scanner's threads; returns their [ModuleScan]s in the order of [outputs].
+     *
+     * A running build deletes and recreates output directories at any time (`mvn clean`), also while they
+     * are scanned. An output that has disappeared is left out, like an output not compiled yet: it stays
+     * declared, and the watcher reports it when it appears again. When one disappears during the scan
+     * (the scanner fails on a missing directory or file), the scan starts again with the outputs still
+     * present, up to [MAX_SCAN_ATTEMPTS] times.
      */
     private fun scanOutputs(outputs: List<DeclaredOutput>): LinkedHashMap<String, ModuleScan> {
+        var attempt = 1
+        while (true) {
+            val present = outputs.filter { it.present }
+            val artifacts = present.flatMap { output -> output.dirs.filter { it.isDirectory() }.map { ScanArtifact(output.gav, it) } }
+            try {
+                return scanPresent(present, artifacts)
+            } catch (e: Exception) {
+                val vanished = artifacts.any { !it.path.isDirectory() } ||
+                    generateSequence<Throwable>(e) { it.cause }.any { it is NoSuchFileException }
+                if (!vanished || attempt >= MAX_SCAN_ATTEMPTS) throw e
+                log.info("An output disappeared during the scan ({}); scanning again", e.message)
+                attempt++
+            }
+        }
+    }
+
+    private fun scanPresent(outputs: List<DeclaredOutput>, artifacts: List<ScanArtifact>): LinkedHashMap<String, ModuleScan> {
         val modules = LinkedHashMap<String, ModuleScan>()
         if (outputs.isEmpty()) return modules
         // Each signature before the scan: a write during the scan then shows as stale.
         val signatures = outputSignatures(outputs.map { it.dirs })
-        val artifacts = outputs.flatMap { output -> output.dirs.filter { it.isDirectory() }.map { ScanArtifact(output.gav, it) } }
-        val (results, elapsed) = measureTimedValue { scanner.scanByKey(artifacts) }
+        val (results, elapsed) = measureTimedValue { scanArtifacts(artifacts) }
         outputs.zip(signatures).forEach { (output, signature) ->
             val result = results[output.gav] ?: EMPTY_SCAN
             log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.detailRefs.size)
@@ -392,6 +431,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     companion object {
         private val log = LoggerFactory.getLogger(ManifestGraphSource::class.java)
         private val EMPTY_SCAN = ScanResult(emptyList(), emptyList())
+
+        /** How often [scanOutputs] scans when outputs keep disappearing during the scan. */
+        private const val MAX_SCAN_ATTEMPTS = 3
 
         /**
          * The local build root of a manifest at [manifestPath] when none is configured: its grandparent, because a

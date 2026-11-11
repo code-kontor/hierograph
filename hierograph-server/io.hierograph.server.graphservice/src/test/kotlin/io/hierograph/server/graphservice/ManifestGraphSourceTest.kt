@@ -20,6 +20,7 @@ import io.hierograph.graphstore.jvm.PlaceholderPolicy
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -235,6 +236,91 @@ class ManifestGraphSourceTest {
         val cleaned = source.rescan(after, setOf(gav))
         assertThat(cleaned.modules).isEmpty()
         assertThat(cleaned.declared.keys).containsExactly(gav)
+    }
+
+    /** Two modules, `a` and `b`, each with a copy of this module's classes, and their manifest. */
+    private fun twoModules(tmp: Path): Triple<Path, Path, Path> {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        val a = copyTree(classesDir, tmp.resolve("a/target/classes"))
+        val b = copyTree(classesDir, tmp.resolve("b/target/classes"))
+        val manifest = Files.createDirectories(tmp.resolve(".hierograph")).resolve("manifest.json")
+        fun module(name: String, dir: Path) = """
+            { "gav": "io.hierograph:$name:0", "name": "$name", "mainOutputDir": "${dir.toUri().path}",
+              "testOutputDir": null, "sourceRoots": [], "classpath": [] }
+        """
+        Files.writeString(
+            manifest,
+            """
+            { "schemaVersion": 1, "generator": "test", "generatedAt": "2026-01-01T00:00:00Z",
+              "reactorRoot": "${tmp.toUri().path}", "modules": [ ${module("a", a)}, ${module("b", b)} ] }
+            """.trimIndent(),
+        )
+        return Triple(manifest, a, b)
+    }
+
+    /** A source whose first scan deletes [dir] just before the scanner reads it, as a concurrent `mvn clean` does. */
+    private fun deletingOnFirstScan(dir: Path): Pair<ManifestGraphSource, () -> Int> {
+        val scanner = BytecodeScanner()
+        var calls = 0
+        val source = ManifestGraphSource(scanner) { artifacts ->
+            if (calls++ == 0) deleteTree(dir)
+            scanner.scanByKey(artifacts)
+        }
+        return source to { calls }
+    }
+
+    @Test
+    fun `an output deleted during the scan is left out, and the scan of the others succeeds`(@TempDir tmp: Path) {
+        val (manifest, _, b) = twoModules(tmp)
+        val (source, calls) = deletingOnFirstScan(b)
+
+        val scanned = source.scan(manifest)
+
+        assertThat(calls()).`as`("scanned again after the output disappeared").isEqualTo(2)
+        assertThat(scanned.modules.keys).containsExactly("io.hierograph:a:0")
+        assertThat(scanned.modules.getValue("io.hierograph:a:0").result.classes).isNotEmpty()
+        // b stays declared and watched, and is scanned once it appears again.
+        assertThat(scanned.declared.keys).containsExactly("io.hierograph:a:0", "io.hierograph:b:0")
+        assertThat(scanned.moduleDirs).containsEntry("io.hierograph:b:0", listOf(b))
+        copyTree(Path.of("target/classes").toAbsolutePath(), b)
+        assertThat(source.rescan(scanned, setOf("io.hierograph:b:0")).modules.keys)
+            .containsExactly("io.hierograph:a:0", "io.hierograph:b:0")
+    }
+
+    @Test
+    fun `a rescan drops a module whose output is deleted during the scan`(@TempDir tmp: Path) {
+        val (manifest, _, b) = twoModules(tmp)
+        val scanned = ManifestGraphSource().scan(manifest)
+        assertThat(scanned.modules.keys).containsExactly("io.hierograph:a:0", "io.hierograph:b:0")
+
+        val (source, _) = deletingOnFirstScan(b)
+        val rescanned = source.rescan(scanned, setOf("io.hierograph:a:0", "io.hierograph:b:0"))
+
+        assertThat(rescanned.modules.keys).containsExactly("io.hierograph:a:0")
+        assertThat(rescanned.declared.keys).contains("io.hierograph:b:0")
+    }
+
+    @Test
+    fun `a scan failure without a disappeared output is not retried`(@TempDir tmp: Path) {
+        val (manifest, _, _) = twoModules(tmp)
+        var calls = 0
+        val source = ManifestGraphSource(BytecodeScanner()) { calls++; error("broken class file") }
+
+        assertThatThrownBy { source.scan(manifest) }.hasMessage("broken class file")
+        assertThat(calls).isEqualTo(1)
+    }
+
+    @Test
+    fun `declare reads the declared outputs without scanning`(@TempDir tmp: Path) {
+        val (manifest, a, b) = twoModules(tmp)
+        var calls = 0
+        val source = ManifestGraphSource(BytecodeScanner()) { calls++; emptyMap() }
+
+        val declared = source.declare(manifest)
+
+        assertThat(calls).isZero()
+        assertThat(declared.modules).isEmpty()
+        assertThat(declared.moduleDirs).containsEntry("io.hierograph:a:0", listOf(a)).containsEntry("io.hierograph:b:0", listOf(b))
     }
 
     /** A manifest that declares no output directory at all is rejected. */
