@@ -32,6 +32,7 @@ import io.hierograph.mcp.server.tools.navigation.GraphOverviewTool
 import io.hierograph.mcp.server.tools.navigation.ListChildrenTool
 import io.hierograph.mcp.server.tools.navigation.ListDescendantsTool
 import io.hierograph.server.graphservice.pagination.DataHashProvider
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.graphservice.NodeSearch
 import io.hierograph.server.graphservice.views.ViewRegistry
@@ -383,6 +384,24 @@ class ViewToolCallsTest {
         val ref = (found["results"] as List<Map<String, Any?>>).single { it["qualified_name"] == "com.acme.util.Strings" }
         assertThat(ref["id"]).isEqualTo(strings.identifier)
         assertThat(ref).doesNotContainKey("virtual")
+    }
+
+    @Test
+    fun `find_node in a restructuring view finds the virtual nodes and not the nodes the moves removed`() {
+        call("define_view", "document" to extractUtil)
+        val base = graphService.model.hierarchy
+        val util = base.childrenOf(base.rootNode).single { NodeMetadata.getQualifiedName(it) == "acme:util:1.0" }
+        val emptied = base.descendantsOf(util).single { NodeMetadata.getQualifiedName(it) == "com.acme" }
+
+        val module = call("find_node", "name" to "acme.text", "kindFilter" to listOf("java.module"), "view" to "extract-util")
+        val packages = call("find_node", "name" to "com.acme", "kindFilter" to listOf("java.package"), "view" to "extract-util")
+
+        assertThat((module["results"] as List<Map<String, Any?>>).map { it["id"] })
+            .containsExactly(ViewNodes.moduleHandle("extract-util", "acme.text"))
+        val found = packages["results"] as List<Map<String, Any?>>
+        assertThat(found.map { it["id"] }).doesNotContain(emptied.identifier)
+        assertThat(found).anyMatch { it["virtual"] == true }
+        assertThat(found).allMatch { it["parent_id"] != null }
     }
 
     @Test

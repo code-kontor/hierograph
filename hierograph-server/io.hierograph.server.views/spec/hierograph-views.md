@@ -678,7 +678,10 @@ answers in a view without knowing about views:
 
 - navigation (`graph_overview`, `list_children`, `list_descendants`) walks the
   view's tree; the groups are nodes of kind `view.group`;
-- `find_node` also finds the groups, by name or with the kind filter `view.group`;
+- `find_node` also finds the groups, by name or with the kind filter `view.group`; in
+  a restructuring view it finds the virtual modules and packages, and no longer the
+  real packages the moves removed, because the view's search index is built from its
+  own hierarchy;
 - every tool that takes node ids accepts a group's id: a group scope is the subtree
   below it in the view, so aggregated, pairwise, type-level and detail-level
   queries, `affected_by` and `find_dependency_path` work on groups unchanged;

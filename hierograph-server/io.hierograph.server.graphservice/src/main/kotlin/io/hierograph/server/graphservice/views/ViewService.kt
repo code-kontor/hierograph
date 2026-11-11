@@ -17,6 +17,7 @@ package io.hierograph.server.graphservice.views
 
 import io.hierograph.server.graphservice.GraphSnapshot
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.NodeSearchIndex
 import io.hierograph.server.graphservice.pagination.DataHash
 import io.hierograph.server.views.MaterializedView
 import io.hierograph.server.views.ViewDocumentException
@@ -215,7 +216,13 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
         )
         val snapshot = base.copy(
             model = materialized.model,
-            searchIndex = base.searchIndex.withAdditional(materialized.groupNodes.values),
+            // A grouping view only adds group nodes; a restructuring view also adds virtual nodes and removes
+            // real ones, so its index is built from its own hierarchy.
+            searchIndex = if (materialized.document.restructure && materialized.model !== base.model) {
+                NodeSearchIndex.build(materialized.model)
+            } else {
+                base.searchIndex.withAdditional(materialized.groupNodes.values)
+            },
             dataHash = DataHash.combine(base.dataHash, entry.text),
             view = entry.name,
         )

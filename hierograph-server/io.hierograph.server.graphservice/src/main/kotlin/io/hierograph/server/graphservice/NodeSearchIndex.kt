@@ -41,8 +41,9 @@ class NodeSearchIndex private constructor(val entries: List<Entry>) {
     )
 
     /**
-     * This index plus [nodes], for a view whose group nodes are added to an otherwise unchanged graph: the
-     * entries of the real nodes are shared, not recomputed.
+     * This index plus [nodes], for a grouping view whose group nodes are added to an otherwise unchanged graph:
+     * the entries of the real nodes are shared, not recomputed. A restructuring view changes the graph's nodes
+     * and needs [build] instead.
      */
     fun withAdditional(nodes: Collection<HGNode>): NodeSearchIndex {
         if (nodes.isEmpty()) return this
