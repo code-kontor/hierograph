@@ -250,7 +250,7 @@ document stays usable while it is being fixed.
 | `WITHIN_MATCHES_NOTHING` | warning | the selector cannot match and is ignored |
 | `NODE_IN_TWO_GROUPS` | error | the node stays in the first group in document order; the finding is on the later group and names both |
 | `MEMBER_INSIDE_OTHER_GROUPS_MEMBER` | error | the inner member is dropped |
-| `MEMBER_INSIDE_OWN_MEMBER` | warning | the inner member is dropped; its group already includes it |
+| `MEMBER_INSIDE_OWN_MEMBER` | warning | the inner members are dropped; their group already includes them. One finding per group, with their number and one example |
 | `MEMBERS_WITH_DIFFERENT_PARENTS` | error | the group is not applied; the finding names the parents; its applied subgroups are placed on their own |
 | `EMPTY_GROUP` | warning | a group without members and without applied subgroups is not created |
 
@@ -725,8 +725,9 @@ and `introduces_cycles`. `list_views` and the summaries add `restructure`,
 `virtual_module_count` and `introduces_cycles`. Each dependency list holds at most
 100 entries (`<list>_count` then gives the total).
 
-A report lists at most 50 findings (`finding_count` then gives the total), each with
-at most 10 nodes (`node_count` then gives the total). It counts `errors`, `warnings`
+A report lists at most 50 findings (`finding_count` then gives the total), errors
+first, then warnings, then infos, so the cap never hides an error; each lists at most
+10 nodes (`node_count` then gives the total). It counts `errors`, `warnings`
 and `infos`. `list_views`, `get_view` and
 `delete_view` work without a loaded graph; without one, the listing and `get_view`
 leave out what applying the view would report, and `default` its

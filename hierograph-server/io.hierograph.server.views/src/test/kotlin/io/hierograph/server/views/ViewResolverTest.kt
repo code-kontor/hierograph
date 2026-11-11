@@ -203,6 +203,16 @@ class ViewResolverTest {
     }
 
     @Test
+    fun `members inside the group's own members are reported once per group, with their number`() {
+        val view = resolve(view("""{ "name": "core", "members": ["acme:core:1.0", "com.acme.core*"] }"""))
+
+        val finding = view.report.findings.single { it.code == Code.MEMBER_INSIDE_OWN_MEMBER }
+        assertThat(finding.message).containsPattern("\\d+ selected nodes lie inside other members of 'core'")
+        assertThat(finding.nodes).hasSize(2)
+        assertThat(view.group("core").members).containsExactly(core)
+    }
+
+    @Test
     fun `members with different parents keep the group from being applied`() {
         val view = resolve(
             view(

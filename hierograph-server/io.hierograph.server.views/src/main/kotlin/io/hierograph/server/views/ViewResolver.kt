@@ -149,17 +149,19 @@ class ViewResolver(private val hierarchy: Hierarchy) {
             return owner
         }
 
-        /** Drops every member that lies inside another member, of the same group or another one. */
+        /**
+         * Drops every member that lies inside another member, of the same group or another one. Members inside a
+         * member of their own group change nothing and are reported once per group, with their number: a pattern
+         * such as `com.acme.*` selects a package and everything below it, and a finding per node would bury the
+         * findings that matter.
+         */
         private fun dropNestedMembers(owner: Map<HGNode, Work>) {
+            val ownNested = LinkedHashMap<Work, MutableList<Pair<HGNode, HGNode>>>()
             val dropped = owner.mapNotNull { (node, work) ->
                 val outer = hierarchy.predecessorsOf(node).firstOrNull { it in owner } ?: return@mapNotNull null
                 val outerWork = owner.getValue(outer)
                 if (outerWork === work) {
-                    finding(
-                        Code.MEMBER_INSIDE_OWN_MEMBER, work,
-                        "${qualifiedName(node)} lies inside ${qualifiedName(outer)}, which '${work.path}' already includes; it is dropped",
-                        nodes = listOf(node, outer),
-                    )
+                    ownNested.getOrPut(work) { mutableListOf() } += node to outer
                 } else {
                     finding(
                         Code.MEMBER_INSIDE_OTHER_GROUPS_MEMBER, work,
@@ -168,6 +170,16 @@ class ViewResolver(private val hierarchy: Hierarchy) {
                     )
                 }
                 node to work
+            }
+            for ((work, nested) in ownNested) {
+                val (node, outer) = nested.first()
+                val count = if (nested.size == 1) "1 selected node lies" else "${nested.size} selected nodes lie"
+                finding(
+                    Code.MEMBER_INSIDE_OWN_MEMBER, work,
+                    "$count inside other members of '${work.path}', which already include them; they are dropped " +
+                        "(e.g. ${qualifiedName(node)} inside ${qualifiedName(outer)}). A 'kind' on the selector avoids this",
+                    nodes = listOf(node, outer),
+                )
             }
             for ((node, work) in dropped) work.members -= node
         }

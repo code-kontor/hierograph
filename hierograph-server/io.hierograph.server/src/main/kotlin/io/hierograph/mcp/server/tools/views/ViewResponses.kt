@@ -95,7 +95,8 @@ object ViewResponses {
         "errors" to report.errors.size,
         "warnings" to report.warnings.size,
         "infos" to report.infos.size,
-        "findings" to report.findings.take(MAX_FINDINGS).map { finding ->
+        // Errors first: under the cap, a flood of warnings must not hide the error that explains the result.
+        "findings" to report.findings.sortedBy { it.severity.ordinal }.take(MAX_FINDINGS).map { finding ->
             linkedMapOf<String, Any?>(
                 "severity" to finding.severity.name.lowercase(),
                 "code" to finding.code.name,
