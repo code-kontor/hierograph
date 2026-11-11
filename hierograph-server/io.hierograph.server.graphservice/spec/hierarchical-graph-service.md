@@ -264,10 +264,16 @@ failed `reload` or manifest reload also re-targets the watcher, so the service
 follows a changed module set even before any of it is compiled.
 
 **Asynchronous detail.** Each manifest build schedules its Parquet detail write on
-a background writer. When the write for a generation finishes, it is published as
-the detail source **only if no newer build has started meanwhile** — otherwise the
-work is discarded. Superseded snapshot directories are pruned; only the live
-generation's directory is kept.
+a single background writer. At most one write waits: a build scheduled while an
+earlier one still waits replaces it, so the replaced build's graph is released
+without being written. A write is published as the detail source **only if no newer
+build has started meanwhile**. The writer checks this before the write, before
+deriving the detail edges and before publishing, so outdated work stops as early as
+possible. Superseded snapshot directories are pruned; only the live generation's
+directory is kept.
+
+Without the single waiting slot, a running build that triggers rescans faster than
+one write completes would queue one whole graph per rescan and exhaust the heap.
 
 ---
 

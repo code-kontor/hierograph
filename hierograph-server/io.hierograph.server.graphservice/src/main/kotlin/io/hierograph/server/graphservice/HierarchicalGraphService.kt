@@ -243,7 +243,10 @@ class HierarchicalGraphService {
     /** Monotonic build id; each [buildSnapshot] takes the next value and stamps its snapshot + detail source. */
     private val graphGen = AtomicLong(0)
 
-    /** Single background thread that writes the Parquet snapshot off the hot path in `manifest` mode. */
+    /**
+     * Single background thread that writes the Parquet snapshot off the hot path in `manifest` mode. Fed
+     * only through [detailWrites], which keeps at most one write waiting.
+     */
     private val detailWriter = Executors.newSingleThreadExecutor { r ->
         Thread(r, "hierograph-snapshot-writer").apply { isDaemon = true }
     }
@@ -630,32 +633,51 @@ class HierarchicalGraphService {
         }
     }
 
+    /** A build whose detail snapshot is still to be written. */
+    private class PendingDetailWrite(val scanned: ManifestGraphSource.Scanned, val store: GraphStore, val generation: Long)
+
     /**
-     * Write the Parquet snapshot for [generation] on the background writer, then publish it as the detail
-     * source — but only if no newer build has started meanwhile (otherwise the work is discarded). Reuses
-     * the live [store] (immutable after build) for the hierarchy-derived edges; reads the just-written
-     * members/calls back from Parquet, matching the `parquet`-mode path exactly.
+     * Writes the detail snapshot of the newest build only. A build arriving while an earlier one waits
+     * replaces it, so a burst of rescans (a running build) never queues one whole graph per rescan.
      */
+    private val detailWrites = NewestOnlyWriter<PendingDetailWrite>(detailWriter) { writeDetail(it) }
+
+    /** Queue the detail snapshot of [generation] for the background writer; see [writeDetail]. */
     private fun scheduleDetailWrite(scanned: ManifestGraphSource.Scanned, store: GraphStore, generation: Long) {
-        detailWriter.submit {
-            val base = snapshotDir()
-            val genDir = base.resolve("gen-%04d".format(generation))
-            try {
-                val elapsed = kotlin.time.measureTime {
-                    manifestGraphSource.writeSnapshot(scanned, genDir)
-                }
-                val derived = deriveDetailRefs(genDir, store, ParquetReader())
-                if (graphGen.get() == generation) {
-                    detailSource.set(DetailSource(generation, genDir, derived))
-                    pruneSnapshotDir(base, keep = genDir)
-                    log.info("Detail snapshot ready (generation {}) at {} ({} write)", generation, genDir, elapsed)
-                } else {
-                    deleteRecursively(genDir) // a newer rescan superseded this one
-                    log.info("Discarded superseded detail snapshot (generation {})", generation)
-                }
-            } catch (e: Exception) {
-                log.error("Async detail-snapshot write failed (generation {}); detail stays unavailable until the next reload.", generation, e)
+        detailWrites.schedule(PendingDetailWrite(scanned, store, generation))
+    }
+
+    /**
+     * Write the Parquet snapshot for [write]'s generation, then publish it as the detail source — but only
+     * while no newer build has started: the generation is checked before the write, before the derivation
+     * and before publishing, so outdated work stops as early as possible. Reuses the build's store
+     * (immutable after build) for the hierarchy-derived edges; reads the just-written members/calls back
+     * from Parquet, matching the `parquet`-mode path exactly.
+     */
+    private fun writeDetail(write: PendingDetailWrite) {
+        val generation = write.generation
+        fun superseded() = graphGen.get() != generation
+        if (superseded()) {
+            log.info("Skipped superseded detail snapshot (generation {})", generation)
+            return
+        }
+        val base = snapshotDir()
+        val genDir = base.resolve("gen-%04d".format(generation))
+        try {
+            val elapsed = kotlin.time.measureTime {
+                manifestGraphSource.writeSnapshot(write.scanned, genDir)
             }
+            val derived = if (superseded()) null else deriveDetailRefs(genDir, write.store, ParquetReader())
+            if (derived != null && !superseded()) {
+                detailSource.set(DetailSource(generation, genDir, derived))
+                pruneSnapshotDir(base, keep = genDir)
+                log.info("Detail snapshot ready (generation {}) at {} ({} write)", generation, genDir, elapsed)
+            } else {
+                deleteRecursively(genDir) // a newer rescan superseded this one
+                log.info("Discarded superseded detail snapshot (generation {})", generation)
+            }
+        } catch (e: Exception) {
+            log.error("Async detail-snapshot write failed (generation {}); detail stays unavailable until the next reload.", generation, e)
         }
     }
 
