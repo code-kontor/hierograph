@@ -13,10 +13,15 @@ groups. Modules listed directly by the root stay ungrouped: the root is the whol
 reactor, and a box around everything says nothing. An aggregator with no members
 and no subgroups is left out.
 
+Property references (`${...}`) in a groupId or artifactId are resolved from the POM's
+<properties>, those of the aggregators above it, and project.groupId / project.version /
+project.parent.groupId. A module whose coordinates still contain an unresolved reference
+is left out with a warning: its selector could not match anything.
+
 Prints the view document as JSON on stdout and a short summary on stderr. It only
 reads the POMs; it never writes into the project.
 """
-import argparse, json, os, sys
+import argparse, json, os, re, sys
 import xml.etree.ElementTree as ET
 
 NS = "{http://maven.apache.org/POM/4.0.0}"
@@ -41,6 +46,31 @@ def children(el, tag):
     return list(c) if c is not None else []
 
 
+REFERENCE = re.compile(r"\$\{([^}]+)\}")
+
+
+def resolve(value, props):
+    """[value] with its ${...} references replaced from [props], repeatedly; unresolved ones stay."""
+    if value is None:
+        return None
+    for _ in range(10):
+        new = REFERENCE.sub(lambda m: props.get(m.group(1), m.group(0)), value)
+        if new == value:
+            break
+        value = new
+    return value
+
+
+def properties(project):
+    """The <properties> of [project], by name."""
+    out = {}
+    for p in children(project, "properties"):
+        tag = p.tag.split("}")[-1]
+        if p.text:
+            out[tag] = p.text.strip()
+    return out
+
+
 def module_dirs(project, profiles):
     """The <module> entries of the project and of the named profiles, in order."""
     out = [m.text.strip() for m in children(project, "modules") if m.text]
@@ -50,7 +80,7 @@ def module_dirs(project, profiles):
     return out
 
 
-def read(pom_dir, parent_group, profiles, main_only, warnings):
+def read(pom_dir, parent_group, parent_props, profiles, main_only, warnings):
     """(artifactId, groupId, group-or-None-for-a-leaf) for the module in `pom_dir`."""
     path = os.path.join(pom_dir, "pom.xml") if os.path.isdir(pom_dir) else pom_dir
     try:
@@ -58,19 +88,33 @@ def read(pom_dir, parent_group, profiles, main_only, warnings):
     except (OSError, ET.ParseError) as e:
         warnings.append(f"skipped {path}: {e}")
         return None
-    artifact = text(project, "artifactId")
-    group = text(project, "groupId") or text(child(project, "parent"), "groupId") or parent_group
+    parent = child(project, "parent")
+    props = dict(parent_props)
+    props.update(properties(project))
+    parent_group_id = resolve(text(parent, "groupId"), props)
+    if parent_group_id:
+        props["project.parent.groupId"] = parent_group_id
+    group = resolve(text(project, "groupId") or text(parent, "groupId"), props) or parent_group
+    props["project.groupId"] = group
+    version = resolve(text(project, "version") or text(parent, "version"), props)
+    if version:
+        props["project.version"] = version
+    artifact = resolve(text(project, "artifactId"), props)
     modules = module_dirs(project, profiles)
     if not modules:
         return artifact, group, None
     members, groups = [], []
     base = os.path.dirname(path)
     for m in modules:
-        sub = read(os.path.join(base, m), group, profiles, main_only, warnings)
+        sub = read(os.path.join(base, m), group, props, profiles, main_only, warnings)
         if sub is None:
             continue
         sub_artifact, sub_group, sub_def = sub
         if sub_def is None:
+            unresolved = [v for v in (sub_group, sub_artifact) if v is None or REFERENCE.search(v)]
+            if unresolved:
+                warnings.append(f"left out module {m} of {artifact}: cannot resolve {', '.join(map(str, unresolved))}")
+                continue
             members.append(f"{sub_group}:{sub_artifact}:{'*' if main_only else '**'}")
         elif sub_def.get("members") or sub_def.get("groups"):
             groups.append(sub_def)
@@ -91,7 +135,7 @@ def main():
     args = ap.parse_args()
 
     warnings = []
-    root = read(args.build_root, None, set(args.profile), args.main_only, warnings)
+    root = read(args.build_root, None, {}, set(args.profile), args.main_only, warnings)
     if root is None:
         sys.exit("no readable pom.xml in " + args.build_root)
     _, _, definition = root

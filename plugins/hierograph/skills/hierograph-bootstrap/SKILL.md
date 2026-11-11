@@ -288,11 +288,17 @@ groups to the user, then let them choose where the view lives:
 | in the project, versioned | save the document as `BUILD_ROOT/.hierograph-views/multi-modules.json` and commit it | the server reads it in both modes; in `docker` mode this is the one change to the project, so ask first |
 | on the server only | after reconnecting, `define_view(document = <the JSON>)` | kept in the server's state (the state volume in `docker` mode); the project is untouched |
 
+Pass on every warning the script prints. It resolves `${...}` references in a groupId or artifactId
+from the POMs' properties; a module whose coordinates it cannot resolve is left out of the view, and
+the warning names it.
+
 The tools are not available in this session, so the server-only variant happens in the next one;
 hand the document over for it. In the next session, `graph_overview(view = "multi-modules")`
-shows the groups and the view's report: zero errors means every module was placed. A
-`SELECTOR_MATCHES_NOTHING` warning names a module without compiled output, which is not in the
-graph.
+shows the groups and the view's report. Zero errors means no group conflicts; it does not mean
+every module was placed. A `SELECTOR_MATCHES_NOTHING` warning names a selector that found no
+module: a module without compiled output, which is not in the graph, or coordinates that differ
+from the POM's (check the module's `groupId:artifactId` with `find_node`). Every module is placed
+when the report has no errors and no such warning, and the script printed no warning.
 
 ## Keeping the graph current
 

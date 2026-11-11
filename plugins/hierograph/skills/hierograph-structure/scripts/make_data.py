@@ -46,7 +46,7 @@ A placed group owns its level and also names it. Edges that no longer point down
 violations, not hidden.
 
 `view_groups` maps the path of a group of a hierograph view (get_view) to its
-members, the nodes directly below it in the view, by node id (or exact name). Each
+members, the nodes directly below it in the view, by node id. Each
 becomes a spanning group, after the `pin_groups` and before the
 `aggregator_groups`. This is how the boxes of a layered graph come from a view
 rather than from hand-collected membership.

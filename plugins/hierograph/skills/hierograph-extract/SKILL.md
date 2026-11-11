@@ -55,7 +55,12 @@ define_view(document = {
 
 - One `moves` entry per package or type of step 1. Select by the **exact** qualified name, with
   `kind` and `within` (the containing module's GAV, version as `*`) so a same-named package in
-  the test artifact is not dragged along. A package moves with its subtree; a type with its
+  the test artifact is not dragged along.
+- **A package moves with all its sub-packages**, whatever the selector says: moving
+  `com.acme.billing` also moves `com.acme.billing.internal`. An exact name does not prevent that.
+  To keep a sub-package where it is, add a second move that puts it back into its module, after
+  the first: `{ "select": { "match": "com.acme.billing.internal", "kind": "java.package",
+  "within": "com.acme:acme-core:*" }, "to": "com.acme:acme-core:*" }`. A type moves with its
   nested types.
 - `to` is a virtual module's name, an existing module (`com.acme:acme-api:*`, must match exactly
   one), or a package in one (`<module>/<package fqn>`).
@@ -63,10 +68,13 @@ define_view(document = {
   server; reuse the name for every draft so `define_view` replaces the previous one.
 
 **Check the report before anything else.** `report.errors` must be `0`, and the warnings must be
-understood: `MOVE_SELECTS_NOTHING` or `NODE_MOVED_TWICE` means the view moves something other than
-the move-set, and every later number describes a different split. Then confirm the moved set:
+understood. The errors `NODE_MOVED_TWICE`, `MOVE_OF_MERGED_PACKAGE` and `CANNOT_MOVE`, and the
+warning `MOVE_SELECTS_NOTHING`, mean the view moves something other than the move-set, and every
+later number describes a different split. Then confirm the moved set:
 `list_descendants(nodeId = <virtual module id from virtual_modules>, kindFilter = ["types"],
-view = "<name>")` must list exactly the types of step 1 (plus their nested types).
+view = "<name>")` must list exactly the types of step 1: the listed types with their nested types,
+and every type in the listed packages **and their sub-packages**, minus the sub-packages moved
+back. Read that list back to the user when step 1 named packages.
 
 ### 3. Read the projected effect
 
@@ -180,7 +188,8 @@ against the planned split whenever it is asked.
 - ❌ Forgetting `view = "<name>"` on a call. The answer silently comes from the current graph, and
   the virtual module's id is unknown there (`NODE_NOT_FOUND`).
 - ❌ Selecting by a broad pattern (`com.acme.billing*`) instead of the exact extract-set: it
-  catches sub-packages and test artifacts the user did not ask to move.
+  catches test artifacts and same-prefixed packages (`com.acme.billingadmin`) the user did not ask
+  to move. Sub-packages move with their package either way; keep one out with a move back (step 2).
 - ❌ Skipping the grep in step 5 because hierograph "should have" caught it. hierograph is a
   scan; grep is ground truth. Both. Always.
 - ❌ Inverting the `incoming_dependencies` direction. `fromId` is the *depended-upon*, `toId` the
