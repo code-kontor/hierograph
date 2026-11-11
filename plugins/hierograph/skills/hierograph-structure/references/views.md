@@ -15,7 +15,7 @@ report](#reading-the-report) · [Things that bite](#things-that-bite)
 ## Use an existing view
 
 1. `list_views()` — the views there are: `source` `project` (versioned with the code,
-   in `.hierograph/views/`) or `state` (defined at runtime), `valid`, and counts of
+   in `.hierograph-views/`) or `state` (defined at runtime), `valid`, and counts of
    groups, errors and warnings. An invalid view lists its `problems`; fix it before
    using it. `default` beside them is the hierarchy as scanned — what a call without
    `view` answers in; it is not a name to pass.
@@ -77,10 +77,11 @@ Then:
 3. **Read the report** and fix what it names; define again. Repeat until it has no
    errors and the warnings are understood.
 4. **Analyse** with the group ids: group-level DSM, layered graph.
-5. **Keeping it.** A defined view lives in the server's state directory, not in the
-   project. To version it, the user saves the document as
-   `.hierograph/views/<name>.json` in the build root; offer the content, and let them
-   decide. Clean up experiments with `delete_view(name)`.
+5. **Keeping it.** A defined view lives in the server's state directory: the state
+   volume when the server runs in Docker, `<build root>/.hierograph/runtime-views` when
+   it runs as a local process. Neither is versioned (`.hierograph/` is git-ignored). To
+   version it, the user saves the document as `.hierograph-views/<name>.json` in the
+   build root and commits it; offer the content, and let them decide. Clean up experiments with `delete_view(name)`.
 
 ## The document
 

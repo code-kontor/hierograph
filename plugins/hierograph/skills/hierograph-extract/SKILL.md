@@ -167,8 +167,9 @@ A plan file (markdown) with these sections:
   real module graph then matches the projection
 
 When the plan is done, ask whether to keep the view. `delete_view(name)` removes it; to keep it
-with the code, the user saves the document as `.hierograph/views/<name>.json` in the build root,
-and every rebuild then re-checks the code against the planned split.
+with the code, the user saves the document as `.hierograph-views/<name>.json` in the build root and
+commits it; the server then applies it on every rebuilt graph, so `get_view(name)` re-checks the code
+against the planned split whenever it is asked.
 
 ## Anti-patterns to avoid
 

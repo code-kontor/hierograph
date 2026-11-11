@@ -55,7 +55,7 @@ class InvalidViewException(val entry: ViewEntry) : IllegalStateException(
  * snapshot until the graph or the document changes (§7.3). The first request builds it under a lock per
  * view, so concurrent first requests build it once. A materialized view is never changed afterwards.
  *
- * Directories: `hierograph.views.projectDir` (default `<build root>/.hierograph/views`) and
+ * Directories: `hierograph.views.projectDir` (default `<build root>/.hierograph-views`) and
  * `hierograph.views.stateDir` (default `<state dir>/runtime-views`).
  */
 @Service
@@ -86,7 +86,7 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
     }
 
     private fun projectDir(): Path =
-        setting(projectDirSetting) ?: graphService.buildRootDirectory.resolve(".hierograph").resolve("views")
+        setting(projectDirSetting) ?: graphService.buildRootDirectory.resolve(".hierograph-views")
 
     private fun stateDir(): Path =
         setting(stateDirSetting) ?: graphService.stateDirectory.resolve("runtime-views")

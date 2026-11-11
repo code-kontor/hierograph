@@ -576,7 +576,7 @@ and groups over real and virtual modules.
 
 (`moves` stands for the four move objects; the parser takes objects only.) The
 group-level DSM is the target's layering: `storage → core` 294, `server → core`
-1892, `server → storage` 87, and nothing pointing up. Kept in `.hierograph/views/`,
+1892, `server → storage` 87, and nothing pointing up. Kept in `.hierograph-views/`,
 the document is the architecture decision in reviewable form, and every rebuild
 re-checks the code against it.
 
@@ -594,14 +594,17 @@ be acyclic, and the list of build changes the real refactoring needs.
 
 | Source | Location (property) | Written by the server | For |
 |--------|---------------------|-----------------------|-----|
-| project | `hierograph.views.projectDir`, default `<build root>/.hierograph/views` | no | views kept with the code: versioned, reviewed, shared |
+| project | `hierograph.views.projectDir`, default `<build root>/.hierograph-views` | no | views kept with the code: versioned, reviewed, shared |
 | state | `hierograph.views.stateDir`, default `<state dir>/runtime-views` | yes | views defined at runtime |
 
 Every `*.json` file directly in one of the directories (not starting with `.`) is a
-view document, named by its `name` field, not by its file name. The state default is
-`runtime-views`, not `views`, because without a configured state directory the state
-directory is the manifest's directory, `<build root>/.hierograph`, and runtime views
-must not land among the project's. When both properties name the same directory,
+view document, named by its `name` field, not by its file name. The project default
+is `.hierograph-views`, beside `.hierograph/` and not inside it: `.hierograph/` holds
+the manifest and the server's state and is git-ignored, while project views are
+versioned with the code, so a project ignores `.hierograph/` and commits
+`.hierograph-views/`. Without a configured state directory the state directory is the
+manifest's directory, `<build root>/.hierograph`, so runtime views default to
+`<build root>/.hierograph/runtime-views`: on the build machine, but never versioned. When both properties name the same directory,
 its documents are state views.
 
 | Situation | Effect |
@@ -801,9 +804,9 @@ decided, not why.
    modules, are separate views.
 6. **Two sources, the state wins.** Project views are versioned and reviewed with the
    code; state views are runtime experiments. A state view shadows a project view of
-   the same name without touching the project. State views default to
-   `<state dir>/runtime-views`, because without a configured state directory
-   `<state dir>/views` would be the project directory itself. Documents are re-read on
+   the same name without touching the project. Project views default to
+   `<build root>/.hierograph-views`, outside `.hierograph/`, which holds generated
+   files and is git-ignored; state views default to `<state dir>/runtime-views`. Documents are re-read on
    access when their files change, not watched: views are only read on request.
 7. **Lazy materialization per snapshot**, cached until the graph or the document
    changes, and only for the live snapshot. A view costs nothing until it is used,

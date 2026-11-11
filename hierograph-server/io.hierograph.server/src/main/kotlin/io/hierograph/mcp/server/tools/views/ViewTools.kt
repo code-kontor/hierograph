@@ -144,7 +144,7 @@ class ViewTools(
         } catch (e: IllegalArgumentException) {
             return ViewResponses.error(
                 "PROJECT_VIEW", e.message ?: "'$name' is a project view.",
-                "Edit or remove the file in the project's .hierograph/views directory, or shadow it with define_view.",
+                "Edit or remove the file in the project's .hierograph-views directory, or shadow it with define_view.",
             )
         }
         return linkedMapOf("deleted" to name, "restored" to restored?.let { ViewResponses.entry(it) })

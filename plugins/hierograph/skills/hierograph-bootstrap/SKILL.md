@@ -194,8 +194,9 @@ from the graph.
 In both cases, **Read `BUILD_ROOT/.hierograph/manifest.json`** and check: `schemaVersion` is `2`;
 `modules` lists every module the user expects (a missing one usually means a missing profile); the
 `mainOutputDirs` point at existing `target/classes` directories. Then **suggest adding `.hierograph/`
-to the project's `.gitignore`** (manifest, snapshot, logs, the server jar) — an edit to the user's
-file, so ask.
+to the project's `.gitignore`** (manifest, snapshot, logs, the server jar, runtime views) — an edit to
+the user's file, so ask. Exactly `.hierograph/`, not a pattern like `.hierograph*`: project views live
+beside it in `.hierograph-views/` and are versioned.
 
 **Start the server.** Download it once into the project's `.hierograph/`, as one plain command
 (replace `VERSION`):
@@ -284,7 +285,7 @@ groups to the user, then let them choose where the view lives:
 
 | Where | How | Note |
 |-------|-----|------|
-| in the project, versioned | save the document as `BUILD_ROOT/.hierograph/views/multi-modules.json` | the server reads it in both modes; in `docker` mode this is the one change to the project, so ask first |
+| in the project, versioned | save the document as `BUILD_ROOT/.hierograph-views/multi-modules.json` and commit it | the server reads it in both modes; in `docker` mode this is the one change to the project, so ask first |
 | on the server only | after reconnecting, `define_view(document = <the JSON>)` | kept in the server's state (the state volume in `docker` mode); the project is untouched |
 
 The tools are not available in this session, so the server-only variant happens in the next one;

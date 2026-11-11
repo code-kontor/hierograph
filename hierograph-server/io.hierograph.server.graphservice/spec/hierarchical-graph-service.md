@@ -345,7 +345,7 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |
 | `hierograph.graph.dump.enabled` | `false` | Write a one-line-per-node text dump after each build. |
 | `hierograph.graph.dumpFile` | `hierarchical-graph.txt` | Where the dump is written. |
-| `hierograph.views.projectDir` | *(`<build root>/.hierograph/views`)* | Project view documents, read-only (views specification, §7.1). |
+| `hierograph.views.projectDir` | *(`<build root>/.hierograph-views`)* | Project view documents, read-only (views specification, §7.1). |
 | `hierograph.views.stateDir` | *(`<state dir>/runtime-views`)* | Views defined at runtime (views specification, §7.1). |
 
 In `manifest` mode the detail snapshot is written to a `snapshot/` directory in the

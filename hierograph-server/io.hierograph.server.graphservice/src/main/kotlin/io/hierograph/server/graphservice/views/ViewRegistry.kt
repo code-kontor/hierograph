@@ -32,7 +32,7 @@ import kotlin.io.path.nameWithoutExtension
 
 /** Where a view document comes from (views specification, §7.1). */
 enum class ViewSource {
-    /** `<build root>/.hierograph/views`: kept with the code, versioned and reviewed; read-only for the server. */
+    /** `<build root>/.hierograph-views`: kept with the code, versioned and reviewed; read-only for the server. */
     PROJECT,
 
     /** The server's state directory: views defined at runtime through the tools. */
