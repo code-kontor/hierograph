@@ -20,9 +20,8 @@ import io.hierograph.hierarchicalgraph.model.INodeSource
 
 /**
  * The node source for a GraphStore-backed [io.hierograph.hierarchicalgraph.model.HGModel]. It
- * carries the node's display [name] and [qualifiedName] eagerly (from the GraphStore), so the existing
- * node-metadata provider resolves them off [INodeSource] entirely in memory — the GraphStore node
- * source. [key] is the node's stable
+ * carries the node's display [name] and [qualifiedName] (copied from the GraphStore), so node metadata
+ * resolves off [INodeSource] entirely in memory. [key] is the node's stable
  * GraphStore key, so on-demand lookups (e.g. per-node properties from the snapshot) can map back to it.
  * [modifiers] holds the packed access flags of a scanned type or a member (see
  * [io.hierograph.graphstore.jvm.model.TypeModifiers] and

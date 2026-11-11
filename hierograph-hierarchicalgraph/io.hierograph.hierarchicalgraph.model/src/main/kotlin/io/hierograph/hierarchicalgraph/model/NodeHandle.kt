@@ -30,7 +30,7 @@ import java.security.MessageDigest
  * different node.
  *
  * A node's identity is its [nodeKey] — the GraphStore key, which is already **artifact-scoped**
- * (`type:<artifact>:<fqn>`, `pkg:<artifact>:<fqn>`, or the artifact key itself). Because the artifact is
+ * (`type:<n>:<artifact>:<fqn>`, `pkg:<artifact>:<fqn>`, or the artifact key itself). Because the artifact is
  * baked into the key, the same fully-qualified type name defined in two artifacts has two distinct keys
  * and therefore two distinct handles — no separate artifact component is needed here.
  *

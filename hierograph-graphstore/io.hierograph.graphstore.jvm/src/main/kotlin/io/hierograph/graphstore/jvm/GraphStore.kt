@@ -173,7 +173,7 @@ class GraphStore(
     fun incomingOwnersOf(fqn: String): Set<String> =
         incomingByFqn[fqn].orEmpty().mapNotNullTo(linkedSetOf()) { nodesByKey[it]?.fqn }
 
-    /** The artifact-scoped key of a type node (`type:<artifact>:<fqn>`). */
+    /** The artifact-scoped key of a type node (`type:<n>:<artifact>:<fqn>`, `<n>` = the artifact key's length). */
     fun typeKey(artifactKey: String, fqn: String): String = "type:${artifactKey.length}:$artifactKey:$fqn"
 
     /** A type (or external-type placeholder) node by FQN; the first when an FQN is defined more than once. */
@@ -196,7 +196,7 @@ class GraphStore(
     /** Every type (or external-type placeholder) node with this FQN — more than one only across artifacts. */
     fun typesWithFqn(fqn: String): List<Node> = typeKeysByFqn[fqn].orEmpty().mapNotNull { nodesByKey[it] }
 
-    /** The artifact-scoped key of a member node (`member:<artifact>:<owner fqn>#<signature>`). */
+    /** The artifact-scoped key of a member node (`member:<n>:<artifact>:<owner fqn>#<signature>`). */
     fun memberKey(artifactKey: String, memberKey: String): String = "member:${artifactKey.length}:$artifactKey:$memberKey"
 
     /**
