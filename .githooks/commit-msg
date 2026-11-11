@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Checks the subject prefix of a commit message (CONTRIBUTING.md, "Commit messages"):
+# `<prefix>: <subject>`, where the prefix is a kind or a feature name from CONTRIBUTING.md.
+#
+# Enable with: git config core.hooksPath .githooks
+# Bypass once with: git commit --no-verify
+
+set -euo pipefail
+
+kinds="fix perf refactor test docs build chore"
+
+root=$(git rev-parse --show-toplevel)
+contributing="$root/CONTRIBUTING.md"
+
+# The first line that is not a comment is the subject.
+subject=$(grep -v '^#' "$1" | sed -n '/[^[:space:]]/{p;q;}')
+
+# Messages git writes itself, and commits that will be squashed away.
+case "$subject" in
+    "Merge "* | "Revert \""* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+# The feature names: the first column of the table below "### Feature names".
+features=""
+if [[ -f "$contributing" ]]; then
+    features=$(sed -n '/^### Feature names/,/^#/p' "$contributing" \
+        | sed -n 's/^| `\([a-z0-9-]*\)` |.*/\1/p' | tr '\n' ' ' | xargs)
+fi
+
+prefix=${subject%%:*}
+if [[ "$subject" =~ ^[a-z0-9-]+:\ [^[:space:]] ]]; then
+    for allowed in $kinds $features; do
+        [[ "$prefix" == "$allowed" ]] && exit 0
+    done
+    reason="'$prefix' is neither a kind nor a feature name"
+else
+    reason="the subject does not start with '<prefix>: '"
+fi
+
+cat >&2 <<EOF
+commit-msg: $reason.
+
+  Subject:  $subject
+
+A commit subject starts with '<prefix>: ' (see CONTRIBUTING.md, "Commit messages"):
+  kinds:     ${kinds// /, }
+  features:  ${features:-(none listed)}
+
+A new feature is added to the feature list in CONTRIBUTING.md in its first commit.
+Bypass the check once with: git commit --no-verify
+EOF
+exit 1

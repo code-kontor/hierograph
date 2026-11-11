@@ -32,6 +32,16 @@ chore: Update IntelliJ compiler.xml from Maven reimport
 `git log --oneline --grep '^views:'` lists everything that built a feature, and `--grep '^fix:'` lists
 the fixes outside features.
 
+A `commit-msg` hook checks the prefix against the kinds and the feature names listed below. Enable it once
+per clone:
+
+```
+git config core.hooksPath .githooks
+```
+
+`git commit --no-verify` bypasses it for a single commit. Merge, revert, `fixup!` and `squash!` commits
+are not checked.
+
 ### Kinds
 
 | Kind | Explanation |
