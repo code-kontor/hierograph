@@ -188,7 +188,7 @@ time. The service counts the modules reported as changed in the last 20 seconds;
 a report of several modules counts each of them. A single change finds the build
 calm and is rescanned at once. Each further module within the 20 seconds
 lengthens a batch window by one second, up to
-`hierograph.graph.watch.batch.max-delay` (6 s): pending changes are rescanned
+`hierograph.graph.watch.batch.max-delay` (10 s): pending changes are rescanned
 only once that long has passed since the first of them arrived, so the modules
 compiled within the window share one rescan. The window counts from the first
 pending change, so the graph lags a running build by at most the window plus one
@@ -380,7 +380,7 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.watch.mode` | `polling` | `off` / `polling` / `native` (`manifest` mode). |
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
 | `hierograph.graph.watch.settle` | `400` | Quiet period, ms, before rebuilding after a change. |
-| `hierograph.graph.watch.batch.max-delay` | `6000` | Longest batch window, ms, over which a busy build's changes share one rescan (§6); `0` rescans each change at once. |
+| `hierograph.graph.watch.batch.max-delay` | `10000` | Longest batch window, ms, over which a busy build's changes share one rescan (§6); `0` rescans each change at once. |
 | `hierograph.graph.detail.quiet-period` | `1000` | Time, ms, without a new build before the detail snapshot is written while the build is calm; longer while it is busy (`manifest` mode, §6). |
 | `hierograph.graph.watch.build-files` | `notify` | `off` / `notify` / `regenerate`: reaction to edited build files (§6). |
 | `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command override; empty uses the manifest's `regenerate` command. |

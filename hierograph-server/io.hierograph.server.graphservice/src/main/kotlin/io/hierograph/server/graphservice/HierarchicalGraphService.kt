@@ -107,8 +107,8 @@ class HierarchicalGraphService {
     private var detailQuietPeriodMs: Long = 1_000
 
     /** Longest time, ms, a busy build's changes are collected into one rescan (`0` rescans each at once). */
-    @Value("\${hierograph.graph.watch.batch.max-delay:6000}")
-    private var watchBatchMaxDelayMs: Long = 6_000
+    @Value("\${hierograph.graph.watch.batch.max-delay:10000}")
+    private var watchBatchMaxDelayMs: Long = 10_000
 
     /** Reaction to edited build files (`manifest` mode, watching on): `off` | `notify` | `regenerate`. */
     @Value("\${hierograph.graph.watch.build-files:notify}")
