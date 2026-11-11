@@ -100,8 +100,8 @@ class HierarchicalGraphService {
     private var watchSettleMs: Long = 400
 
     /** `manifest` mode: how long, ms, no new build must arrive before the detail snapshot is written. */
-    @Value("\${hierograph.graph.detail.quiet-period:2000}")
-    private var detailQuietPeriodMs: Long = 2_000
+    @Value("\${hierograph.graph.detail.quiet-period:3000}")
+    private var detailQuietPeriodMs: Long = 3_000
 
     /** Reaction to edited build files (`manifest` mode, watching on): `off` | `notify` | `regenerate`. */
     @Value("\${hierograph.graph.watch.build-files:notify}")
