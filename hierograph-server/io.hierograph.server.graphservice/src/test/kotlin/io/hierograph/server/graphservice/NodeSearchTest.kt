@@ -55,6 +55,22 @@ class NodeSearchTest {
     }
 
     @Test
+    fun `matching and ranking ignore case on both sides`() {
+        assertThat(search.search("HANDLER", null, 50)).containsExactly(pkg, handler, handlerFactory, textHandler)
+        assertThat(search.search("TextHANDLER", null, 50)).containsExactly(textHandler)
+        assertThat(search.search("COM.FOO.HANDLER.handler", null, 50).first()).isEqualTo(handler) // exact fqn
+        assertThat(search.search("hAnDlErF", null, 50)).containsExactly(handlerFactory) // name prefix
+    }
+
+    @Test
+    fun `the index refers to the node's own strings instead of copying them`() {
+        val entry = HierarchicalGraphService().also { it.seed(HGModel(graph, hierarchy)) }
+            .searchIndex.entries.single { it.node == textHandler }
+        assertThat(entry.name).isSameAs(textHandler.nodeSource.name)
+        assertThat(entry.fqn).isSameAs(textHandler.nodeSource.qualifiedName)
+    }
+
+    @Test
     fun `kind filter accepts kinds and aliases, and limit takes the top matches`() {
         assertThat(search.search("handle", listOf("members"), 50)).containsExactly(handleMethod)
         assertThat(search.search("handler", listOf("java.interface", "packages"), 50)).containsExactly(pkg, handlerFactory)

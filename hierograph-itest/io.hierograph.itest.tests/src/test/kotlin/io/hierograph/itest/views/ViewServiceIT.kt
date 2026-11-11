@@ -100,7 +100,7 @@ class ViewServiceIT : AbstractHierarchicalGraphIntegrationTest() {
 
         val snapshot = views.view("spring-modules").snapshot
 
-        assertThat(snapshot.searchIndex.entries.filter { it.fqnLower.startsWith("spring-modules:") }.map { it.nameLower })
+        assertThat(snapshot.searchIndex.entries.filter { it.fqn.startsWith("spring-modules:") }.map { it.name })
             .containsExactlyInAnyOrder("core-container", "data-access", "web")
         assertThat(snapshot.searchIndex.entries).hasSize(base.searchIndex.entries.size + 3)
         assertThat(snapshot.dataHash).isNotEqualTo(base.dataHash)

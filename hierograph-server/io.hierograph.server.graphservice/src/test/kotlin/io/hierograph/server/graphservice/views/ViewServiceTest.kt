@@ -108,7 +108,7 @@ class ViewServiceTest {
         val index = service.view("layers").snapshot.searchIndex
 
         assertThat(index.entries).hasSize(base.searchIndex.entries.size + 2)
-        assertThat(index.entries.filter { ViewGroups.isGroup(it.node) }.map { it.fqnLower }).containsExactly("layers:front", "layers:back")
+        assertThat(index.entries.filter { ViewGroups.isGroup(it.node) }.map { it.fqn }).containsExactly("layers:front", "layers:back")
         assertThat(base.searchIndex.entries.none { ViewGroups.isGroup(it.node) }).isTrue()
     }
 
