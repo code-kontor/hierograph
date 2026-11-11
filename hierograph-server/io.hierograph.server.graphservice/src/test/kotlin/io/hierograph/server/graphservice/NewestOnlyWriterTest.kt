@@ -232,6 +232,24 @@ class NewestOnlyWriterTest {
         assertThat(written).containsExactly(1)
     }
 
+    @Test
+    fun `nothing is written while held, and the newest item once released`() {
+        val written = Collections.synchronizedList(ArrayList<Int>())
+        val held = java.util.concurrent.atomic.AtomicBoolean(true)
+        val writer = NewestOnlyWriter<Item>(executor, quietPeriodMs = { 0 }, hold = { held.get() }) { written += it.generation }
+
+        writer.schedule(Item(1))
+        Thread.sleep(300)
+        writer.schedule(Item(2))
+        Thread.sleep(300)
+        assertThat(written).isEmpty()
+        held.set(false)
+        awaitWritten(written, 1)
+        Thread.sleep(300)
+
+        assertThat(written).containsExactly(2)
+    }
+
         private fun awaitWritten(written: List<Int>, count: Int) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
         while (written.size < count && System.nanoTime() < deadline) Thread.sleep(10)

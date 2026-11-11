@@ -16,15 +16,17 @@
 package io.hierograph.server.graphservice
 
 /**
- * How busy the build is, judged by how many changes the watcher reported recently, and the two delays
- * that follow from it. A single edit finds the build calm: its rescan runs at once and its detail
- * snapshot follows after [baseQuietMs]. While a build changes one module after another, changes pile up
- * in the trailing [windowMs]:
+ * How busy the build is, judged by how many modules the watcher reported as changed recently, and the
+ * two delays that follow from it. A single edit finds the build calm: its rescan runs at once and its
+ * detail snapshot follows after [baseQuietMs]. While a build changes one module after another, the
+ * changed modules pile up in the trailing [windowMs]:
  *
- *  - [rescanDelayMs] grows by [stepMs] per further change, up to [maxRescanDelayMs], so the coalescer
- *    collects the modules of a few seconds into one rescan instead of rebuilding the graph per module;
- *  - [quietPeriodMs] grows with it, so the detail writer waits out the gaps between those batched
- *    rescans instead of writing a snapshot the next one makes outdated.
+ *  - [rescanDelayMs] grows by [stepMs] per further module, up to [maxRescanDelayMs], so the coalescer
+ *    collects the modules of a few seconds into one rescan instead of rebuilding the graph per module.
+ *    Modules count, not reports, because a build reports several modules at once as often as one;
+ *  - [quietPeriodMs] grows by [BUSY_QUIET_MS], so the detail writer waits out the short pauses between
+ *    two modules. The writer waits for a pending rescan by itself, so the quiet period does not include
+ *    the batch window.
  *
  * Both drop back once the changes leave the window. A [maxRescanDelayMs] of `0` turns batching off; the
  * quiet period then stays at [baseQuietMs].
@@ -38,13 +40,13 @@ class BuildActivity(
     private val stepMs: Long = 1_000,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    private val changes = ArrayDeque<Long>() // report timestamps within the trailing window
+    private val changes = ArrayDeque<Long>() // one timestamp per changed module within the trailing window
 
-    /** Records that the watcher reported a change. */
+    /** Records that the watcher reported [modules] changed modules. */
     @Synchronized
-    fun recordChange() {
+    fun recordChange(modules: Int = 1) {
         val now = clock()
-        changes.addLast(now)
+        repeat(modules.coerceAtLeast(1)) { changes.addLast(now) }
         evict(now)
     }
 
@@ -57,14 +59,10 @@ class BuildActivity(
 
     /**
      * How long, ms, no new build must arrive before the detail snapshot is written: [baseQuietMs] when
-     * calm; while busy, longer than the gap between two batched rescans (the batch window plus the rescan
-     * itself), up to [baseQuietMs] + [maxRescanDelayMs] + [RESCAN_ALLOWANCE_MS].
+     * calm, [BUSY_QUIET_MS] more while busy, to wait out the pauses between two modules of a build.
      */
     @Synchronized
-    fun quietPeriodMs(): Long {
-        val delay = rescanDelayMs()
-        return if (delay == 0L) baseQuietMs else baseQuietMs + delay + RESCAN_ALLOWANCE_MS
-    }
+    fun quietPeriodMs(): Long = if (rescanDelayMs() == 0L) baseQuietMs else baseQuietMs + BUSY_QUIET_MS
 
     private fun evict(now: Long) {
         val cutoff = now - windowMs
@@ -72,7 +70,7 @@ class BuildActivity(
     }
 
     private companion object {
-        /** About how long one rescan of a large build takes; a batched rescan arrives this much after its window. */
-        const val RESCAN_ALLOWANCE_MS = 2_000L
+        /** A build often pauses 2-3 s between a module's main and test compilation, or between two modules. */
+        const val BUSY_QUIET_MS = 2_000L
     }
 }

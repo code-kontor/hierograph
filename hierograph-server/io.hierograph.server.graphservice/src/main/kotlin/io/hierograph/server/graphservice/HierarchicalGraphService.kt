@@ -595,7 +595,7 @@ class HierarchicalGraphService {
                 if (buildFileMonitor.watchesBuildFiles) scanned.buildFiles.keys else emptySet(),
             ),
             onChange = { gavs ->
-                buildActivity.recordChange()
+                buildActivity.recordChange(gavs.size)
                 coalescer.scheduleIncremental(gavs)
             },
             onManifestChange = { coalescer.scheduleManifestReload() },
@@ -674,12 +674,17 @@ class HierarchicalGraphService {
 
     /**
      * Writes the detail snapshot of the newest build only, once no newer build has arrived for the quiet
-     * period, which [buildActivity] lengthens while the build is busy. A build arriving while an earlier one waits replaces it, so a burst of rescans (a running
+     * period, which [buildActivity] lengthens while the build is busy, and while no rebuild is pending or
+     * running, which would make it outdated. A build arriving while an earlier one waits replaces it, so a burst of rescans (a running
      * build) never queues one whole graph per rescan, and writes no snapshot that the next rescan would
      * make outdated. Created on first use, after the configuration is injected.
      */
     private val detailWrites by lazy {
-        NewestOnlyWriter<PendingDetailWrite>(detailWriter, { buildActivity.quietPeriodMs() }) { writeDetail(it) }
+        NewestOnlyWriter<PendingDetailWrite>(
+            detailWriter,
+            quietPeriodMs = { buildActivity.quietPeriodMs() },
+            hold = { manifestMode && coalescer.isBusy() },
+        ) { writeDetail(it) }
     }
 
     /** Queue the detail snapshot of [generation] for the background writer; see [writeDetail]. */

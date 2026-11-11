@@ -57,6 +57,13 @@ class UpdateCoalescer(
     private var draining = false          // a drain task is queued or running
     private var firstPendingAt = 0L       // when the oldest pending GAV arrived (valid while any is pending)
 
+    /**
+     * Whether a rebuild is pending or running: from a change until the drain finds no more work, including
+     * a batch wait and a breaker pause. A rebuild that is due makes the current graph outdated, so a detail
+     * snapshot of it would be wasted.
+     */
+    fun isBusy(): Boolean = synchronized(lock) { draining }
+
     /** Fold a settled burst into the pending set; start the drain only if one isn't already pending. */
     fun scheduleIncremental(gavs: Set<String>) {
         synchronized(lock) {

@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicReference
  * most one item is being written and at most one waits, however often [schedule] is called. With a
  * single-thread [executor], writes never overlap.
  *
+ * While [hold] is true, for example because a rebuild is due that will make the waiting item outdated, no
+ * item is taken either; the task checks again every [HOLD_RECHECK_MS].
+ *
  * An item is taken only after it has stayed in the slot for [quietPeriodMs]; until then the task
  * re-arms itself for the remaining time. During a burst of [schedule] calls closer together than the
  * quiet period, nothing is written, and the last item is written once the burst ends. A quiet period
@@ -43,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class NewestOnlyWriter<T : Any>(
     private val executor: ScheduledExecutorService,
     private val quietPeriodMs: () -> Long = { 0L },
+    private val hold: () -> Boolean = { false },
     private val nanoTime: () -> Long = System::nanoTime,
     private val write: (T) -> Unit,
 ) {
@@ -78,6 +82,11 @@ internal class NewestOnlyWriter<T : Any>(
                 executor.schedule(::drain, minOf(remaining, RECHECK_NANOS), TimeUnit.NANOSECONDS)
                 return
             }
+            if (hold()) {
+                // A newer item is on its way: wait for it instead of writing this one.
+                executor.schedule(::drain, HOLD_RECHECK_MS, TimeUnit.MILLISECONDS)
+                return
+            }
             if (!pending.compareAndSet(next, null)) continue // replaced meanwhile: check the newer item
             try {
                 write(next.item)
@@ -92,5 +101,8 @@ internal class NewestOnlyWriter<T : Any>(
 
         /** The longest a waiting task sleeps before it asks for the quiet period again. */
         private val RECHECK_NANOS = TimeUnit.SECONDS.toNanos(1)
+
+        /** How often a held task checks whether it may write. */
+        private const val HOLD_RECHECK_MS = 200L
     }
 }

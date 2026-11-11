@@ -184,9 +184,10 @@ the previous graph.
 
 **Busy builds.** A build that compiles one module after another reports a change
 every second or two, and a rescan per module would rebuild the whole graph each
-time. The service counts the changes reported in the last 20 seconds. A single
-change finds the build calm and is rescanned at once. Each further change within
-the 20 seconds lengthens a batch window by one second, up to
+time. The service counts the modules reported as changed in the last 20 seconds;
+a report of several modules counts each of them. A single change finds the build
+calm and is rescanned at once. Each further module within the 20 seconds
+lengthens a batch window by one second, up to
 `hierograph.graph.watch.batch.max-delay` (6 s): pending changes are rescanned
 only once that long has passed since the first of them arrived, so the modules
 compiled within the window share one rescan. The window counts from the first
@@ -287,14 +288,14 @@ follows a changed module set even before any of it is compiled.
 **Asynchronous detail.** Each manifest build schedules its Parquet detail write on
 a single background writer. At most one write waits: a build scheduled while an
 earlier one still waits replaces it, so the replaced build's graph is released
-without being written. The writer starts a write only once no newer build has
+without being written. The writer starts a write only once no rescan is pending
+or running, since that would make the snapshot outdated, and no newer build has
 arrived for the quiet period: `hierograph.graph.detail.quiet-period` (1 s) while
-the build is calm, and while it is busy that plus the batch window plus two
-seconds for the rescan, longer than the gap between two batched rescans. While a
-build changes one module after another, no snapshot is written that the next
-rescan would make outdated, and the last build's snapshot follows once the build
-ends. The writer asks for the quiet period again at least every second, so it
-notices when the build calms down. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
+the build is calm, two seconds more while it is busy, to wait out the pauses
+between two modules. While a build changes one module after another, no snapshot
+is written that the next rescan would make outdated, and the last build's
+snapshot follows once the last rescan is done. The writer asks for the quiet
+period again at least every second, so it notices when the build calms down. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
 build has started meanwhile**. The writer checks this before the write, before each
 artifact it writes, before deriving the detail edges and before publishing, so
 outdated work stops as early as possible: a write overtaken by a newer build stops

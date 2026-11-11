@@ -32,16 +32,24 @@ class BuildActivityTest {
     }
 
     @Test
-    fun `changes in quick succession lengthen both delays, up to the maximum`() {
+    fun `changes in quick succession lengthen the batch window up to its maximum, the quiet period by a fixed amount`() {
         activity.recordChange()
         now += 1_500
         activity.recordChange()
         assertThat(activity.rescanDelayMs()).isEqualTo(1_000)
-        assertThat(activity.quietPeriodMs()).isEqualTo(1_000 + 1_000 + 2_000)
+        assertThat(activity.quietPeriodMs()).isEqualTo(1_000 + 2_000)
 
         repeat(10) { now += 1_500; activity.recordChange() }
         assertThat(activity.rescanDelayMs()).isEqualTo(6_000)
-        assertThat(activity.quietPeriodMs()).isEqualTo(1_000 + 6_000 + 2_000)
+        assertThat(activity.quietPeriodMs()).isEqualTo(1_000 + 2_000)
+    }
+
+    @Test
+    fun `a report of several modules counts each of them`() {
+        activity.recordChange(modules = 5)
+
+        assertThat(activity.rescanDelayMs()).isEqualTo(4_000)
+        assertThat(activity.quietPeriodMs()).isEqualTo(3_000)
     }
 
     @Test

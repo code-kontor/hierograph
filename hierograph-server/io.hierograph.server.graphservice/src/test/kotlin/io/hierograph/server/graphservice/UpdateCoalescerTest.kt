@@ -197,4 +197,28 @@ class UpdateCoalescerTest {
         assertThat(ran.await(1, TimeUnit.SECONDS)).isTrue()
         executor.shutdownNow()
     }
+
+    /** Busy from a change until the drain has no more work, including the batch wait. */
+    @Test
+    fun `is busy while a rescan is pending or running`() {
+        val executor = Executors.newSingleThreadScheduledExecutor()
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val coalescer = UpdateCoalescer(executor, rescanDelayMs = { 300L }) { _, _ ->
+            started.countDown()
+            release.await(5, TimeUnit.SECONDS)
+        }
+        assertThat(coalescer.isBusy()).isFalse()
+
+        coalescer.scheduleIncremental(setOf("a"))
+        assertThat(coalescer.isBusy()).`as`("pending, in the batch window").isTrue()
+        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue()
+        assertThat(coalescer.isBusy()).`as`("running").isTrue()
+        release.countDown()
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (coalescer.isBusy() && System.nanoTime() < deadline) Thread.sleep(10)
+
+        assertThat(coalescer.isBusy()).`as`("done").isFalse()
+        executor.shutdownNow()
+    }
 }
