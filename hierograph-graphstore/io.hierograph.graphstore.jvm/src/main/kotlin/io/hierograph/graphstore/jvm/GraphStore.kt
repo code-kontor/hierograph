@@ -73,7 +73,6 @@ class GraphStore(
     private val incomingByFqn = HashMap<String, MutableSet<String>>()
     private val definersByFqn = HashMap<String, MutableSet<String>>()
     private val typeKeysByFqn = HashMap<String, MutableSet<String>>()
-    private val nodeKeysByMemberKey = HashMap<String, MutableSet<String>>()
 
     /** A scanned type's owning artifact plus its outgoing refs (targets are bare-FQN/member-key facts). */
     private class OwnedRefs(val artifactKey: String, val refs: List<Ref>)
@@ -189,9 +188,14 @@ class GraphStore(
      */
     fun resolveType(artifactKey: String, fqn: String): Node? = nodesByKey[resolveTargetKey(artifactKey, fqn)]
 
-    /** The member [memberKey] (`<owner fqn>#<signature>`) of the type node [owner], or `null`. */
-    fun memberOf(owner: Node, memberKey: String): Node? =
-        nodeKeysByMemberKey[memberKey].orEmpty().firstNotNullOfOrNull { k -> nodesByKey[k]?.takeIf { it.parent == owner.key } }
+    /**
+     * The member [memberKey] (`<owner fqn>#<signature>`) of the type node [owner], or `null`. A member's node
+     * key is built from its owner's artifact and its bare key ([memberKey]), so it is looked up directly.
+     */
+    fun memberOf(owner: Node, memberKey: String): Node? {
+        val artifactKey = artifactOfTypeKey(owner.key) ?: return null
+        return nodesByKey[memberKey(artifactKey, memberKey)]?.takeIf { it.parent == owner.key }
+    }
 
     /** Every type (or external-type placeholder) node with this FQN — more than one only across artifacts. */
     fun typesWithFqn(fqn: String): List<Node> = typeKeysByFqn[fqn].orEmpty().mapNotNull { nodesByKey[it] }
@@ -206,7 +210,7 @@ class GraphStore(
      */
     fun memberByKey(memberKey: String): Node? {
         val owner = typeByFqn(typeOf(memberKey)) ?: return null
-        return nodeKeysByMemberKey[memberKey].orEmpty().firstNotNullOfOrNull { k -> nodesByKey[k]?.takeIf { it.parent == owner.key } }
+        return memberOf(owner, memberKey)
     }
 
     // ── internals ──────────────────────────────────────────────────────
@@ -215,21 +219,17 @@ class GraphStore(
 
     private fun isTypeNode(kind: Any): Boolean = JavaKinds.isTypeKind(kind) || kind == JavaKinds.EXTERNAL_TYPE
 
-    private fun isMemberNode(kind: Any): Boolean = kind in JavaKinds.MEMBER_KINDS
-
     private fun putNode(node: Node) {
         nodesByKey[node.key] = node
         node.parent?.let { childKeys.getOrPut(it) { linkedSetOf() } += node.key }
         if (isTypeNode(node.kind)) typeKeysByFqn.getOrPut(node.fqn) { linkedSetOf() } += node.key
-        if (isMemberNode(node.kind)) nodeKeysByMemberKey.getOrPut(node.fqn) { linkedSetOf() } += node.key
     }
 
-    /** Removes [node] from the key map, its parent's child set, and the by-FQN type / by-key member index. */
+    /** Removes [node] from the key map, its parent's child set, and the by-FQN type index. */
     private fun removeNode(node: Node) {
         nodesByKey.remove(node.key)
         node.parent?.let { childKeys[it]?.remove(node.key) }
         if (isTypeNode(node.kind)) typeKeysByFqn[node.fqn]?.let { it.remove(node.key); if (it.isEmpty()) typeKeysByFqn.remove(node.fqn) }
-        if (isMemberNode(node.kind)) nodeKeysByMemberKey[node.fqn]?.let { it.remove(node.key); if (it.isEmpty()) nodeKeysByMemberKey.remove(node.fqn) }
     }
 
     /** Upserts a scanned type under [parentKey] and records its defining artifact. */
@@ -376,6 +376,16 @@ class GraphStore(
     )
 
     private fun packageKey(artifactKey: String, pkgFqn: String) = "pkg:$artifactKey:$pkgFqn"
+
+    /** The artifact key inside a type node key (`type:<n>:<artifact>:<fqn>`), or `null` for any other key. */
+    private fun artifactOfTypeKey(key: String): String? {
+        if (!key.startsWith(TYPE_KEY_PREFIX)) return null
+        val colon = key.indexOf(':', TYPE_KEY_PREFIX.length)
+        if (colon < 0) return null
+        val length = key.substring(TYPE_KEY_PREFIX.length, colon).toIntOrNull() ?: return null
+        val start = colon + 1
+        return if (start + length <= key.length) key.substring(start, start + length) else null
+    }
     private fun packageOf(fqn: String) = fqn.substringBeforeLast('.', "")
     private fun simpleName(fqn: String) = fqn.substringAfterLast('.')
 
@@ -384,6 +394,7 @@ class GraphStore(
 
     companion object {
         const val EXTERNAL_ARTIFACT_KEY = "<external>"
+        private const val TYPE_KEY_PREFIX = "type:"
         const val EXTERNAL_ARTIFACT_NAME = "External Types"
     }
 }

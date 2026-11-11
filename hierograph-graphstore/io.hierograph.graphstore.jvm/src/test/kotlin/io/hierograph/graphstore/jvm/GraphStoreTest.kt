@@ -125,6 +125,26 @@ class GraphStoreTest {
     }
 
     @Test
+    fun `memberOf finds the member of exactly the given owner, with GAV artifact keys`() {
+        val store = GraphStore()
+        val app = "com.acme:app:1.0"
+        val lib = "com.acme:lib:1.0:test"
+        store.registerArtifact(artifact(app))
+        store.registerArtifact(artifact(lib))
+        store.applyClass(lib, classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"))))
+        store.applyClass(app, classFacts("com.foo.A", members = listOf(method("com.foo.A", "a()V"), method("com.foo.A", "b()V"))))
+
+        val inApp = store.typeIn(app, "com.foo.A")!!
+        val inLib = store.typeIn(lib, "com.foo.A")!!
+        assertThat(store.memberOf(inApp, "com.foo.A#a()V")!!.key).isEqualTo(store.memberKey(app, "com.foo.A#a()V"))
+        assertThat(store.memberOf(inLib, "com.foo.A#a()V")!!.key).isEqualTo(store.memberKey(lib, "com.foo.A#a()V"))
+        assertThat(store.memberOf(inLib, "com.foo.A#b()V")).isNull() // only the app's A declares b()
+        assertThat(store.memberOf(inApp, "com.foo.A#c()V")).isNull()
+        // a node that is not a type has no members
+        assertThat(store.memberOf(store.node(app)!!, "com.foo.A#a()V")).isNull()
+    }
+
+    @Test
     fun `unscanned ref targets become placeholders under the external module`() {
         val store = GraphStore()
         store.registerArtifact(artifact("app"))
