@@ -23,7 +23,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Runs [write] on [executor] for the newest scheduled item only, once no newer item has arrived for
- * [quietPeriodMs].
+ * the quiet period [quietPeriodMs] returns. It is asked again at every check, so it may change meanwhile,
+ * for example grow while a build is busy and shrink once it calms down.
  *
  * A single slot holds the item waiting to be written; [schedule] overwrites it, so an item that a newer
  * one replaces before its turn is dropped without being written, and nothing keeps it reachable. At
@@ -41,7 +42,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 internal class NewestOnlyWriter<T : Any>(
     private val executor: ScheduledExecutorService,
-    private val quietPeriodMs: Long = 0,
+    private val quietPeriodMs: () -> Long = { 0L },
     private val nanoTime: () -> Long = System::nanoTime,
     private val write: (T) -> Unit,
 ) {
@@ -70,10 +71,11 @@ internal class NewestOnlyWriter<T : Any>(
                 if (pending.get() != null && active.compareAndSet(false, true)) continue
                 return
             }
-            val remaining = TimeUnit.MILLISECONDS.toNanos(quietPeriodMs) - (nanoTime() - next.scheduledAt)
+            val remaining = TimeUnit.MILLISECONDS.toNanos(quietPeriodMs()) - (nanoTime() - next.scheduledAt)
             if (remaining > 0) {
-                // Not quiet yet: re-arm for the rest of the period; a newer item restarts its own period.
-                executor.schedule(::drain, remaining, TimeUnit.NANOSECONDS)
+                // Not quiet yet: re-arm for the rest of the period, but check at least every second, since
+                // the period may shrink meanwhile; a newer item restarts its own period.
+                executor.schedule(::drain, minOf(remaining, RECHECK_NANOS), TimeUnit.NANOSECONDS)
                 return
             }
             if (!pending.compareAndSet(next, null)) continue // replaced meanwhile: check the newer item
@@ -87,5 +89,8 @@ internal class NewestOnlyWriter<T : Any>(
 
     private companion object {
         private val log = LoggerFactory.getLogger(NewestOnlyWriter::class.java)
+
+        /** The longest a waiting task sleeps before it asks for the quiet period again. */
+        private val RECHECK_NANOS = TimeUnit.SECONDS.toNanos(1)
     }
 }

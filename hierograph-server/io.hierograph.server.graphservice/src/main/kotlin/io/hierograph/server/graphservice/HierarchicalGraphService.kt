@@ -99,9 +99,16 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.watch.settle:400}")
     private var watchSettleMs: Long = 400
 
-    /** `manifest` mode: how long, ms, no new build must arrive before the detail snapshot is written. */
-    @Value("\${hierograph.graph.detail.quiet-period:3000}")
-    private var detailQuietPeriodMs: Long = 3_000
+    /**
+     * `manifest` mode: how long, ms, no new build must arrive before the detail snapshot is written while
+     * the build is calm; longer while it is busy (see [BuildActivity]).
+     */
+    @Value("\${hierograph.graph.detail.quiet-period:1000}")
+    private var detailQuietPeriodMs: Long = 1_000
+
+    /** Longest time, ms, a busy build's changes are collected into one rescan (`0` rescans each at once). */
+    @Value("\${hierograph.graph.watch.batch.max-delay:6000}")
+    private var watchBatchMaxDelayMs: Long = 6_000
 
     /** Reaction to edited build files (`manifest` mode, watching on): `off` | `notify` | `regenerate`. */
     @Value("\${hierograph.graph.watch.build-files:notify}")
@@ -182,11 +189,18 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each, and throttles
-     * sustained churn via [saturationBreaker] (see [UpdateCoalescer]). Lazy so it reads injected config.
+     * How busy the build is, from the watcher's change reports: sets the rescan batch window and the
+     * detail writer's quiet period. Lazy so it reads injected config.
+     */
+    private val buildActivity by lazy { BuildActivity(watchBatchMaxDelayMs, detailQuietPeriodMs) }
+
+    /**
+     * Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each, batches the
+     * changes of a busy build ([buildActivity]), and throttles sustained churn via [saturationBreaker]
+     * (see [UpdateCoalescer]). Lazy so it reads injected config.
      */
     private val coalescer by lazy {
-        UpdateCoalescer(updateExecutor, saturationBreaker) { reload, gavs ->
+        UpdateCoalescer(updateExecutor, saturationBreaker, rescanDelayMs = { buildActivity.rescanDelayMs() }) { reload, gavs ->
             if (reload) reloadFromManifest() else applyIncremental(gavs)
         }
     }
@@ -580,7 +594,10 @@ class HierarchicalGraphService {
                 scanned.moduleDirs,
                 if (buildFileMonitor.watchesBuildFiles) scanned.buildFiles.keys else emptySet(),
             ),
-            onChange = { gavs -> coalescer.scheduleIncremental(gavs) },
+            onChange = { gavs ->
+                buildActivity.recordChange()
+                coalescer.scheduleIncremental(gavs)
+            },
             onManifestChange = { coalescer.scheduleManifestReload() },
             onBuildFilesChange = { updateExecutor.submit { buildFileMonitor.refresh() } },
         )
@@ -615,8 +632,8 @@ class HierarchicalGraphService {
             built.publishDetail()
             val rootChildren = built.snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
             log.info(
-                "Incremental update for {} module(s) in {}: {} root children, hash {}",
-                changedGavs.size, elapsed, rootChildren, built.snapshot.dataHash,
+                "Incremental update for {} module(s) in {}: {} root children, hash {}, batch window {} ms",
+                changedGavs.size, elapsed, rootChildren, built.snapshot.dataHash, buildActivity.rescanDelayMs(),
             )
         } catch (e: Exception) {
             log.error("Incremental update failed for {}; keeping the previous graph.", changedGavs, e)
@@ -657,12 +674,12 @@ class HierarchicalGraphService {
 
     /**
      * Writes the detail snapshot of the newest build only, once no newer build has arrived for the quiet
-     * period. A build arriving while an earlier one waits replaces it, so a burst of rescans (a running
+     * period, which [buildActivity] lengthens while the build is busy. A build arriving while an earlier one waits replaces it, so a burst of rescans (a running
      * build) never queues one whole graph per rescan, and writes no snapshot that the next rescan would
      * make outdated. Created on first use, after the configuration is injected.
      */
     private val detailWrites by lazy {
-        NewestOnlyWriter<PendingDetailWrite>(detailWriter, detailQuietPeriodMs) { writeDetail(it) }
+        NewestOnlyWriter<PendingDetailWrite>(detailWriter, { buildActivity.quietPeriodMs() }) { writeDetail(it) }
     }
 
     /** Queue the detail snapshot of [generation] for the background writer; see [writeDetail]. */

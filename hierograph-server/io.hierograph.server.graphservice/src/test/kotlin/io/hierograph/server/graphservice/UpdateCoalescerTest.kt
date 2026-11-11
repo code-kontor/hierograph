@@ -156,4 +156,45 @@ class UpdateCoalescerTest {
         while (System.currentTimeMillis() < deadline && !cond()) Thread.sleep(2)
         assertThat(cond()).`as`("condition met within $timeoutMs ms").isTrue()
     }
+
+    /** While the build is busy, changes arriving within the batch window share one rescan. */
+    @Test
+    fun `changes within the batch window share one rescan, counted from the first`() {
+        val executor = Executors.newSingleThreadScheduledExecutor()
+        val calls = CopyOnWriteArrayList<Set<String>>()
+        val callTimes = CopyOnWriteArrayList<Long>()
+        val coalescer = UpdateCoalescer(executor, rescanDelayMs = { 400L }) { _, gavs ->
+            calls.add(gavs)
+            callTimes.add(System.nanoTime())
+        }
+
+        val start = System.nanoTime()
+        coalescer.scheduleIncremental(setOf("a"))
+        Thread.sleep(150)
+        coalescer.scheduleIncremental(setOf("b"))
+        Thread.sleep(150)
+        coalescer.scheduleIncremental(setOf("c"))
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (calls.isEmpty() && System.nanoTime() < deadline) Thread.sleep(10)
+        Thread.sleep(300) // nothing else may follow
+        executor.shutdownNow()
+
+        assertThat(calls).containsExactly(setOf("a", "b", "c"))
+        // The window counts from the first change: the rescan starts about 400 ms after "a", not after "c".
+        val waitedMs = TimeUnit.NANOSECONDS.toMillis(callTimes.single() - start)
+        assertThat(waitedMs).isBetween(400L, 650L)
+    }
+
+    /** A manifest reload is never held back by the batch window. */
+    @Test
+    fun `a manifest reload is not delayed by the batch window`() {
+        val executor = Executors.newSingleThreadScheduledExecutor()
+        val ran = CountDownLatch(1)
+        val coalescer = UpdateCoalescer(executor, rescanDelayMs = { 10_000L }) { reload, _ -> if (reload) ran.countDown() }
+
+        coalescer.scheduleManifestReload()
+
+        assertThat(ran.await(1, TimeUnit.SECONDS)).isTrue()
+        executor.shutdownNow()
+    }
 }

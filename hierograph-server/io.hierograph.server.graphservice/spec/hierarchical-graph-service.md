@@ -182,6 +182,18 @@ tick which declared directories exist, reports the ones that appeared or
 disappeared, and re-registers. An incremental update that fails logs and keeps
 the previous graph.
 
+**Busy builds.** A build that compiles one module after another reports a change
+every second or two, and a rescan per module would rebuild the whole graph each
+time. The service counts the changes reported in the last 20 seconds. A single
+change finds the build calm and is rescanned at once. Each further change within
+the 20 seconds lengthens a batch window by one second, up to
+`hierograph.graph.watch.batch.max-delay` (6 s): pending changes are rescanned
+only once that long has passed since the first of them arrived, so the modules
+compiled within the window share one rescan. The window counts from the first
+pending change, so the graph lags a running build by at most the window plus one
+rescan; it drops back as the changes leave the 20 seconds. A manifest reload is
+never delayed.
+
 ### Build files
 
 The manifest lists the build's build files (for Maven, POMs and `.mvn`
@@ -276,10 +288,13 @@ follows a changed module set even before any of it is compiled.
 a single background writer. At most one write waits: a build scheduled while an
 earlier one still waits replaces it, so the replaced build's graph is released
 without being written. The writer starts a write only once no newer build has
-arrived for the quiet period (`hierograph.graph.detail.quiet-period`, 3 s): while a
+arrived for the quiet period: `hierograph.graph.detail.quiet-period` (1 s) while
+the build is calm, and while it is busy that plus the batch window plus two
+seconds for the rescan, longer than the gap between two batched rescans. While a
 build changes one module after another, no snapshot is written that the next
 rescan would make outdated, and the last build's snapshot follows once the build
-ends. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
+ends. The writer asks for the quiet period again at least every second, so it
+notices when the build calms down. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
 build has started meanwhile**. The writer checks this before the write, before each
 artifact it writes, before deriving the detail edges and before publishing, so
 outdated work stops as early as possible: a write overtaken by a newer build stops
@@ -364,7 +379,8 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.watch.mode` | `polling` | `off` / `polling` / `native` (`manifest` mode). |
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
 | `hierograph.graph.watch.settle` | `400` | Quiet period, ms, before rebuilding after a change. |
-| `hierograph.graph.detail.quiet-period` | `3000` | Time, ms, without a new build before the detail snapshot is written (`manifest` mode, §6); `0` writes at once. |
+| `hierograph.graph.watch.batch.max-delay` | `6000` | Longest batch window, ms, over which a busy build's changes share one rescan (§6); `0` rescans each change at once. |
+| `hierograph.graph.detail.quiet-period` | `1000` | Time, ms, without a new build before the detail snapshot is written while the build is calm; longer while it is busy (`manifest` mode, §6). |
 | `hierograph.graph.watch.build-files` | `notify` | `off` / `notify` / `regenerate`: reaction to edited build files (§6). |
 | `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command override; empty uses the manifest's `regenerate` command. |
 | `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |
