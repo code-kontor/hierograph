@@ -98,6 +98,10 @@ class HierarchicalGraphService {
     @Value("\${hierograph.graph.watch.settle:400}")
     private var watchSettleMs: Long = 400
 
+    /** `manifest` mode: how long, ms, no new build must arrive before the detail snapshot is written. */
+    @Value("\${hierograph.graph.detail.quiet-period:2000}")
+    private var detailQuietPeriodMs: Long = 2_000
+
     /** Reaction to edited build files (`manifest` mode, watching on): `off` | `notify` | `regenerate`. */
     @Value("\${hierograph.graph.watch.build-files:notify}")
     private var buildFilesMode: String = "notify"
@@ -247,7 +251,7 @@ class HierarchicalGraphService {
      * Single background thread that writes the Parquet snapshot off the hot path in `manifest` mode. Fed
      * only through [detailWrites], which keeps at most one write waiting.
      */
-    private val detailWriter = Executors.newSingleThreadExecutor { r ->
+    private val detailWriter = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "hierograph-snapshot-writer").apply { isDaemon = true }
     }
 
@@ -637,10 +641,14 @@ class HierarchicalGraphService {
     private class PendingDetailWrite(val scanned: ManifestGraphSource.Scanned, val store: GraphStore, val generation: Long)
 
     /**
-     * Writes the detail snapshot of the newest build only. A build arriving while an earlier one waits
-     * replaces it, so a burst of rescans (a running build) never queues one whole graph per rescan.
+     * Writes the detail snapshot of the newest build only, once no newer build has arrived for the quiet
+     * period. A build arriving while an earlier one waits replaces it, so a burst of rescans (a running
+     * build) never queues one whole graph per rescan, and writes no snapshot that the next rescan would
+     * make outdated. Created on first use, after the configuration is injected.
      */
-    private val detailWrites = NewestOnlyWriter<PendingDetailWrite>(detailWriter) { writeDetail(it) }
+    private val detailWrites by lazy {
+        NewestOnlyWriter<PendingDetailWrite>(detailWriter, detailQuietPeriodMs) { writeDetail(it) }
+    }
 
     /** Queue the detail snapshot of [generation] for the background writer; see [writeDetail]. */
     private fun scheduleDetailWrite(scanned: ManifestGraphSource.Scanned, store: GraphStore, generation: Long) {

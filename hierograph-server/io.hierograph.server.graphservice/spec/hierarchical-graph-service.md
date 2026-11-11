@@ -266,7 +266,11 @@ follows a changed module set even before any of it is compiled.
 **Asynchronous detail.** Each manifest build schedules its Parquet detail write on
 a single background writer. At most one write waits: a build scheduled while an
 earlier one still waits replaces it, so the replaced build's graph is released
-without being written. A write is published as the detail source **only if no newer
+without being written. The writer starts a write only once no newer build has
+arrived for the quiet period (`hierograph.graph.detail.quiet-period`, 2 s): while a
+build changes one module after another, no snapshot is written that the next
+rescan would make outdated, and the last build's snapshot follows once the build
+ends. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
 build has started meanwhile**. The writer checks this before the write, before
 deriving the detail edges and before publishing, so outdated work stops as early as
 possible. Superseded snapshot directories are pruned; only the live generation's
@@ -346,6 +350,7 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.watch.mode` | `polling` | `off` / `polling` / `native` (`manifest` mode). |
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
 | `hierograph.graph.watch.settle` | `400` | Quiet period, ms, before rebuilding after a change. |
+| `hierograph.graph.detail.quiet-period` | `2000` | Time, ms, without a new build before the detail snapshot is written (`manifest` mode, §6); `0` writes at once. |
 | `hierograph.graph.watch.build-files` | `notify` | `off` / `notify` / `regenerate`: reaction to edited build files (§6). |
 | `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command override; empty uses the manifest's `regenerate` command. |
 | `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |

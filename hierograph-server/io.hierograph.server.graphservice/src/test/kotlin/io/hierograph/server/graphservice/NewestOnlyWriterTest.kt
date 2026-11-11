@@ -31,7 +31,7 @@ class NewestOnlyWriterTest {
         @Suppress("unused") val payload = ByteArray(1024 * 1024)
     }
 
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newSingleThreadScheduledExecutor()
 
     @AfterEach
     fun shutdown() {
@@ -156,5 +156,70 @@ class NewestOnlyWriterTest {
 
         assertThat(written.last()).isEqualTo(last)
         assertThat(written).doesNotHaveDuplicates()
+    }
+
+    @Test
+    fun `a burst closer together than the quiet period writes only its last item, once the burst ends`() {
+        val written = Collections.synchronizedList(ArrayList<Int>())
+        val writtenAt = Collections.synchronizedList(ArrayList<Long>())
+        val writer = NewestOnlyWriter<Item>(executor, quietPeriodMs = 300) { item ->
+            writtenAt += System.nanoTime()
+            written += item.generation
+        }
+
+        var lastScheduledAt = 0L
+        for (generation in 1..5) {
+            lastScheduledAt = System.nanoTime()
+            writer.schedule(Item(generation))
+            Thread.sleep(50)
+        }
+        awaitWritten(written, 1)
+        Thread.sleep(500) // nothing else may follow
+
+        assertThat(written).containsExactly(5)
+        assertThat(TimeUnit.NANOSECONDS.toMillis(writtenAt.single() - lastScheduledAt)).isGreaterThanOrEqualTo(300)
+    }
+
+    @Test
+    fun `items separated by more than the quiet period are each written`() {
+        val written = Collections.synchronizedList(ArrayList<Int>())
+        val writer = NewestOnlyWriter<Item>(executor, quietPeriodMs = 100) { written += it.generation }
+
+        writer.schedule(Item(1))
+        awaitWritten(written, 1)
+        writer.schedule(Item(2))
+        awaitWritten(written, 2)
+
+        assertThat(written).containsExactly(1, 2)
+    }
+
+    @Test
+    fun `an item scheduled during a write is written after its own quiet period`() {
+        val written = Collections.synchronizedList(ArrayList<Int>())
+        val firstStarted = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val writer = NewestOnlyWriter<Item>(executor, quietPeriodMs = 200) { item ->
+            if (item.generation == 1) {
+                firstStarted.countDown()
+                release.await(10, TimeUnit.SECONDS)
+            }
+            written += item.generation
+        }
+
+        writer.schedule(Item(1))
+        assertThat(firstStarted.await(10, TimeUnit.SECONDS)).isTrue()
+        writer.schedule(Item(2))
+        release.countDown()
+        Thread.sleep(50)
+        assertThat(written).`as`("item 2 has not been quiet for 200 ms yet").containsExactly(1)
+        awaitWritten(written, 2)
+
+        assertThat(written).containsExactly(1, 2)
+    }
+
+    private fun awaitWritten(written: List<Int>, count: Int) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (written.size < count && System.nanoTime() < deadline) Thread.sleep(10)
+        assertThat(written).hasSizeGreaterThanOrEqualTo(count)
     }
 }
