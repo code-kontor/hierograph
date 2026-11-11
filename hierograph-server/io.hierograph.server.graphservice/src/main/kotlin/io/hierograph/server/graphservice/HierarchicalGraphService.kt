@@ -659,8 +659,9 @@ class HierarchicalGraphService {
 
     /**
      * Write the Parquet snapshot for [write]'s generation, then publish it as the detail source — but only
-     * while no newer build has started: [DetailSnapshotWrite] checks the generation before the write, before
-     * the derivation and before publishing, so outdated work stops as early as possible. Reuses the build's store
+     * while no newer build has started: [DetailSnapshotWrite] checks the generation before the write, between
+     * the artifacts it writes, before the derivation and before publishing, so outdated work stops as early
+     * as possible. Reuses the build's store
      * (immutable after build) for the hierarchy-derived edges; reads the just-written members/calls back
      * from Parquet, matching the `parquet`-mode path exactly.
      */
@@ -673,7 +674,9 @@ class HierarchicalGraphService {
             val outcome = DetailSnapshotWrite.run(
                 genDir,
                 superseded = { graphGen.get() != generation },
-                write = { dir -> elapsed = measureTime { manifestGraphSource.writeSnapshot(write.scanned, dir) } },
+                write = { dir, cancelled ->
+                    elapsed = measureTime { manifestGraphSource.writeSnapshot(write.scanned, dir, cancelled) }
+                },
                 derive = { dir -> deriveDetailRefs(dir, write.store, ParquetReader()) },
                 publish = { derived ->
                     detailSource.set(DetailSource(generation, genDir, derived))
@@ -684,6 +687,7 @@ class HierarchicalGraphService {
                 DetailWriteOutcome.PUBLISHED ->
                     log.info("Detail snapshot ready (generation {}) at {} ({} write)", generation, genDir, elapsed)
                 DetailWriteOutcome.SKIPPED -> log.info("Skipped superseded detail snapshot (generation {})", generation)
+                DetailWriteOutcome.CANCELLED -> log.info("Stopped superseded detail snapshot during the write (generation {})", generation)
                 DetailWriteOutcome.DISCARDED -> log.info("Discarded superseded detail snapshot (generation {})", generation)
             }
         } catch (e: Exception) {

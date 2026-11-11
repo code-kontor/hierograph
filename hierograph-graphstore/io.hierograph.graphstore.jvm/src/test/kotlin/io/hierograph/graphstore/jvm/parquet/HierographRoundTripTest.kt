@@ -29,10 +29,12 @@ import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CancellationException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -73,6 +75,19 @@ class HierographRoundTripTest {
         DetailRef("com.a.A#foo(java.lang.String)", "com.a.A", "java.lang.String", "java.lang.String", "returns", 1),
         DetailRef("com.b.B#bar()", "com.b.B", "com.a.A#foo(java.lang.String)", "com.a.A", "calls", 2),
     )
+
+    @Test
+    fun `writeArtifacts stops before the next artifact once cancelled`(@TempDir dir: Path) {
+        var checks = 0
+        assertThatThrownBy {
+            ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED) { checks++ >= 1 }
+        }.isInstanceOf(CancellationException::class.java)
+
+        // the first artifact was written, the second was not started
+        val written = Files.list(dir).use { s -> s.map { it.fileName.toString() }.sorted().toList() }
+        assertThat(written).containsExactly("a.hierograph")
+        assertThat(checks).isEqualTo(2)
+    }
 
     @Test
     fun `writeArtifacts emits one archive per artifact, read back across the set`(@TempDir dir: Path) {

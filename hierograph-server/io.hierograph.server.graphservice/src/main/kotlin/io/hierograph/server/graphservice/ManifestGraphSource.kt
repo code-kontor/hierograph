@@ -342,12 +342,16 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     /**
      * Writes the union of [scanned] as a Parquet snapshot into [dir] (replacing any previous contents), one
      * exploded artifact per artifact key: the snapshot stays local, so its tables are not zipped, and
-     * deleting [dir] removes everything it holds.
+     * deleting [dir] removes everything it holds. [cancelled] is checked before each artifact; once it
+     * returns `true`, the write stops with a [java.util.concurrent.CancellationException], leaving a partial
+     * snapshot in [dir] for the caller to delete.
      */
-    fun writeSnapshot(scanned: Scanned, dir: Path) {
+    fun writeSnapshot(scanned: Scanned, dir: Path, cancelled: () -> Boolean = { false }) {
         deleteRecursively(dir)
         Files.createDirectories(dir)
-        scanned.combined().writeTo(dir, classpaths = scanned.classpaths, packaging = ParquetWriter.Packaging.EXPLODED)
+        scanned.combined().writeTo(
+            dir, classpaths = scanned.classpaths, packaging = ParquetWriter.Packaging.EXPLODED, cancelled = cancelled,
+        )
     }
 
     /** Convenience for one-shot use (and tests): [scan] then [writeSnapshot]; returns [snapshotDir]. */

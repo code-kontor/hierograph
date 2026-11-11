@@ -17,6 +17,7 @@ package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.model.DetailRef
 import java.nio.file.Path
+import java.util.concurrent.CancellationException
 
 /** What became of one build's detail snapshot; see [DetailSnapshotWrite.run]. */
 internal enum class DetailWriteOutcome {
@@ -26,33 +27,43 @@ internal enum class DetailWriteOutcome {
     /** Not started: a newer build had arrived before the write began. */
     SKIPPED,
 
-    /** Started, then dropped because a newer build arrived; its directory is deleted. */
+    /** Stopped during the write because a newer build arrived; its partial directory is deleted. */
+    CANCELLED,
+
+    /** Written, then dropped because a newer build arrived; its directory is deleted. */
     DISCARDED,
 }
 
 /**
  * The steps of one `manifest`-mode detail snapshot, each taken only while the build is still the newest.
  *
- * [run] checks [superseded][run] before the write, before deriving the detail edges and before
- * publishing, so outdated work stops as early as possible and an outdated generation is never published.
+ * [run] checks [superseded][run] before the write, during it (the write receives the check and stops
+ * between artifacts), before deriving the detail edges and before publishing, so outdated work stops as
+ * early as possible and an outdated generation is never published.
  * The steps themselves are passed in, which lets a test make a newer build arrive at a chosen point.
  */
 internal object DetailSnapshotWrite {
 
     /**
      * Write the snapshot into [genDir], derive its detail edges and publish them, unless [superseded]
-     * reports a newer build first. A generation dropped after the write has its [genDir] deleted.
-     * Exceptions from the steps propagate to the caller.
+     * reports a newer build first. [write] receives [superseded] and stops with a [CancellationException]
+     * once it reports `true`. A generation dropped during or after the write has its [genDir] deleted.
+     * Other exceptions from the steps propagate to the caller.
      */
     fun run(
         genDir: Path,
         superseded: () -> Boolean,
-        write: (Path) -> Unit,
+        write: (dir: Path, cancelled: () -> Boolean) -> Unit,
         derive: (Path) -> List<DetailRef>,
         publish: (List<DetailRef>) -> Unit,
     ): DetailWriteOutcome {
         if (superseded()) return DetailWriteOutcome.SKIPPED
-        write(genDir)
+        try {
+            write(genDir, superseded)
+        } catch (_: CancellationException) {
+            genDir.toFile().deleteRecursively()
+            return DetailWriteOutcome.CANCELLED
+        }
         val derived = if (superseded()) null else derive(genDir)
         if (derived != null && !superseded()) {
             publish(derived)

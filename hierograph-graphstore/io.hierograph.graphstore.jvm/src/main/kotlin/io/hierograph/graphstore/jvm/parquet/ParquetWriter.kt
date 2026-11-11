@@ -29,6 +29,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Arrays
 import java.util.concurrent.Callable
+import java.util.concurrent.CancellationException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -79,6 +80,9 @@ object ParquetWriter {
      *
      * Nothing is written outside [outDir]: an archive's tables are staged in `.staging-<artifact>` there and
      * the staging directory is deleted once zipped; an exploded artifact needs no staging.
+     *
+     * [cancelled] is checked before each artifact. Once it returns `true`, the write stops with a
+     * [CancellationException]; the artifacts written so far stay in [outDir], and the caller discards them.
      */
     fun writeArtifacts(
         outDir: Path,
@@ -87,11 +91,13 @@ object ParquetWriter {
         codec: CompressionCodec = CompressionCodec.ZSTD,
         classpaths: Map<String, ArtifactClasspath> = emptyMap(),
         packaging: Packaging = Packaging.ARCHIVE,
+        cancelled: () -> Boolean = { false },
     ) {
         Files.createDirectories(outDir)
         val artifactByFqn = classes.associate { it.facts.fqn to it.artifactKey }
         val detailByArtifact = detailRefs.groupBy { artifactByFqn[it.fromType] }
         for ((artifactKey, artifactClasses) in classes.groupBy { it.artifactKey }) {
+            if (cancelled()) throw CancellationException("Snapshot write to $outDir cancelled before artifact $artifactKey")
             val fileName = HierographArchive.fileName(artifactKey)
             val target = outDir.resolve(fileName)
             deleteRecursively(target)

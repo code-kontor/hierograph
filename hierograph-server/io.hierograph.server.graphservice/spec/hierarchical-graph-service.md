@@ -271,9 +271,10 @@ arrived for the quiet period (`hierograph.graph.detail.quiet-period`, 2 s): whil
 build changes one module after another, no snapshot is written that the next
 rescan would make outdated, and the last build's snapshot follows once the build
 ends. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
-build has started meanwhile**. The writer checks this before the write, before
-deriving the detail edges and before publishing, so outdated work stops as early as
-possible. Superseded snapshot directories are pruned; only the live generation's
+build has started meanwhile**. The writer checks this before the write, before each
+artifact it writes, before deriving the detail edges and before publishing, so
+outdated work stops as early as possible: a write overtaken by a newer build stops
+after the artifact in progress, and its partial directory is deleted. Superseded snapshot directories are pruned; only the live generation's
 directory is kept.
 
 Without the single waiting slot, a running build that triggers rescans faster than
