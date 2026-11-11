@@ -492,8 +492,13 @@ function computeLayout() {
 
 /* ---------- drawing ---------- */
 const bandsG = el('g'), groupsG = el('g'), edgesG = el('g'), nodesG = el('g');
+// The selection's own edges and nodes are moved into these two layers on top, so
+// a highlighted edge is never covered by a faded edge drawn after it, and never
+// runs behind a faded node, which is only translucent. Everything else stays in
+// edgesG / nodesG in its drawing order.
+const hotEdgesG = el('g'), hotNodesG = el('g');
 const root = el('g');
-root.append(bandsG, groupsG, edgesG, nodesG);
+root.append(bandsG, groupsG, edgesG, nodesG, hotEdgesG, hotNodesG);
 
 // Arrowheads. Without them an edge's direction is only implied by the colour it
 // takes on selection, so the moment a violation turns red the same line reads as
@@ -523,10 +528,14 @@ function wWidth(w) { return (0.6 + 2.6 * (Math.log(w) / LOGMAX)).toFixed(2); }
 function wOpacity(w) { return (0.16 + 0.62 * (Math.log(w) / LOGMAX)).toFixed(2); }
 
 let edgeEls = [], nodeEls = [];
+// Drawing order of the edges: plain ones first, violations on top. Restored on
+// every highlight, so an edge leaving the selection goes back to its place.
+let edgeOrder = [];
 
 function draw() {
   computeLayout();
   bandsG.textContent = ''; groupsG.textContent = ''; edgesG.textContent = ''; nodesG.textContent = '';
+  hotEdgesG.textContent = ''; hotNodesG.textContent = '';
   edgeEls = []; nodeEls = [];
 
   for (let l = 0; l <= MAXL; l++) {
@@ -592,6 +601,7 @@ function draw() {
   }
 
   viol.forEach(p => edgesG.append(p));
+  edgeOrder = Array.from(edgesG.children);
 
   for (const n of visible) {
     const p = pos[n.i];
@@ -721,6 +731,17 @@ function applyHighlight() {
     g.classList.toggle('hasin', inS.has(i));
     g.classList.toggle('dim', sel >= 0 && dimming && i !== sel && !outT.has(i) && !inS.has(i));
   }
+  // Z-order: the selection's edges above every other edge and every other node,
+  // its nodes above its edges. append() moves an element, so re-appending in the
+  // drawing order also restores the order of what leaves the selection. Moving a
+  // focused node drops its focus, so a keyboard user's focus is put back.
+  const focused = document.activeElement;
+  for (const p of edgeOrder) (p._s === sel || p._t === sel ? hotEdgesG : edgesG).append(p);
+  for (const g of nodeEls) {
+    const i = +g.dataset.i;
+    (i === sel || outT.has(i) || inS.has(i) ? hotNodesG : nodesG).append(g);
+  }
+  if (focused && focused !== document.activeElement && nodeEls.includes(focused)) focused.focus({ preventScroll: true });
   renderAside();
 }
 

@@ -49,13 +49,19 @@ Resolve the things of interest to concrete hierograph node IDs:
 - **"By layer / by multi-module / by context", and no view fits:** propose one first
   (`references/views.md`, *Propose a view*), then come back here with its groups.
 
-If the user said "modules" without scoping, default to the top-level projects in
+If the user said "modules" without scoping, default to **all** top-level projects in
 `hierarchy`. **Read the resolved set back to the user before continuing** — the
 set is the one decision that silently changes every later number.
 
-Two things to drop, because they add disconnected boxes that tell the reader
-nothing: hierograph's synthetic **"External Types"** node, and modules with **no
-compiled output**. If the proposed set contains both a parent and one of its
+**Never leave a module out without asking.** If you intend to drop anything from
+the set — test modules (`… (test)`), test tooling, thin `*-api` modules, modules
+with no compiled output, anything you consider noise — you **MUST** first name
+exactly which modules you would drop and why, and get the user's explicit
+permission. Do not decide "main modules only" on your own, and do not present a
+reduced set as if it were the whole system. Only hierograph's synthetic
+**"External Types"** node is not a module of the codebase; say that you omit it.
+
+If the proposed set contains both a parent and one of its
 descendants, surface that before running anything — the strict reading can give
 an empty result (hierograph does not aggregate child edges into a parent–child
 pair), the permissive reading mixes hierarchy with real coupling; let the user pick.
