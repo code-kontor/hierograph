@@ -76,6 +76,7 @@ references, where `affected_by` reports reach.
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
 | `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
+| `view` | string | no | none | the view to answer in |
 
 The names are those of `outgoing_dependencies`, but the roles of `fromId` and `toId`
 are reversed: here `fromId` is the side that is *used*.
@@ -99,6 +100,15 @@ the detail level, for the reasons given in
 type level; a page holds at most 142 type edges or 90 detail rows, the caps that keep
 it within the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
 `outgoing_dependencies` fails here with `WRONG_TOOL_CURSOR`.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 

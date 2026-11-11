@@ -137,6 +137,7 @@ object ViewResponses {
         view.materialized.effect?.let { put("restructuring", effect(it)) }
     }
 
+    /** The standard error shape: `code` first, then `message` and any [extra] fields, `recovery` last. */
     fun error(code: String, message: String, recovery: String, vararg extra: Pair<String, Any?>): Map<String, Any?> =
-        mapOf("error" to linkedMapOf<String, Any?>("code" to code, "message" to message, "recovery" to recovery, *extra))
+        mapOf("error" to linkedMapOf<String, Any?>("code" to code, "message" to message, *extra, "recovery" to recovery))
 }

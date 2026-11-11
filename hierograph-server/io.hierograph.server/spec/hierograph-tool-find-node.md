@@ -65,6 +65,7 @@ fragment. They differ in scope and purpose:
 |------|------|----------|---------|-------------|
 | `name` | string | yes | — | the name or fragment to search for |
 | `kindFilter` | string[] | no | none | kinds and group aliases to restrict the search to |
+| `view` | string | no | none | the view to answer in |
 
 **`name`** is matched case-insensitively as a substring of each node's name and
 qualified name. Matching both lets a caller type a simple name (`Money`) or a dotted
@@ -80,6 +81,16 @@ ambiguous across kinds; `["types"]` keeps a search for `money` from returning th
 package. Omitting it, or passing `[]`, searches modules, packages, types and external
 types but not methods or fields. Naming `java.method`, `java.field` or `members` is
 the only way to search members.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, the search also
+finds the view's groups, by name or with `kindFilter = ["view.group"]`, and in a
+restructuring view the virtual modules and packages instead of the packages the moves
+took away.
 
 ---
 

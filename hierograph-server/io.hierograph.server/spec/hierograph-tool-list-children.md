@@ -63,6 +63,7 @@ call.
 | `namePattern` | string | no | none | case-insensitive substring of the child's name |
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
 | `limit` | integer | no | `200` | maximum children to return, clamped to 1–200 |
+| `view` | string | no | none | the view to answer in |
 
 **`nodeId`** is any node id, including the synthetic root's, which lists the modules.
 On a module the children are top-level packages; on a package, sub-packages and types;
@@ -101,6 +102,15 @@ almost any package or type, and 200 children fill the same 50,000-byte
 observe. A value below 1 becomes 1, a value above 200 becomes 200. For the rare type
 with more members, narrow with `kindFilter`, `namePattern` or `modifierFilter`, or use
 `list_descendants`, which pages.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 

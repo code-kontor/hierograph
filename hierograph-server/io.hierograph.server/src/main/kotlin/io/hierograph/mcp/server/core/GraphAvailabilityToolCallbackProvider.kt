@@ -63,6 +63,9 @@ class GraphAvailabilityToolCallbackProvider(
         private val definition: ToolDefinition =
             if (takesView) ViewParameter.addTo(delegate.toolDefinition) else delegate.toolDefinition
 
+        /** The tool's own argument types; `view` is checked and removed before these are. */
+        private val argumentTypes = ArgumentTypes(delegate.toolDefinition.inputSchema())
+
         override fun getToolDefinition(): ToolDefinition = definition
 
         override fun call(toolInput: String): String =
@@ -82,6 +85,8 @@ class GraphAvailabilityToolCallbackProvider(
                     "Pass the view's name as a string, e.g. \"view\": \"layers\", or leave 'view' out to use the hierarchy as scanned.",
                 )
             }
+            // A value of the wrong JSON type would fail converting to the tool's parameter, before the tool runs.
+            argumentTypes.check(split.input)?.let { return error("INVALID_PARAMETER", it.message, it.recovery) }
             val viewName = split.view
             // One snapshot per call: a reload during the call cannot mix two graphs into one answer.
             if (viewName == null) return graphService.withPinnedSnapshot { invoke(split.input) }

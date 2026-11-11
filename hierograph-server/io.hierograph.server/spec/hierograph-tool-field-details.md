@@ -71,11 +71,20 @@ write digests, so referring to nodes by id keeps the response small.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `fieldId` | integer | yes | Id of a node of kind `java.field`, as returned by `list_children`, `find_node` or the detail-level dependency tools. |
+| `view` | string | no | Name of a view to answer in. |
 
 **`fieldId`** is the field's node id. A field is fully identified by it
 ([shared spec §5](hierograph-mcp-tools.md#5-parameters)), so the tool needs no other
 input. The digest has no size parameter because its caps (§3.3) already bound the
 response.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. A view changes where nodes
+sit, not the facts this tool reports.
 
 ---
 

@@ -75,6 +75,7 @@ Parameter names are camelCase, as for all tools (see
 | `toId` | integer | yes | — | the target scope: module, package or type |
 | `maxPaths` | integer | no | `5` | the number of paths to find, clamped to 1–20 |
 | `maxLength` | integer | no | unbounded | the longest path to consider, in hops |
+| `view` | string | no | none | the view to answer in |
 
 **`fromId`** and **`toId`** accept any node whose dependencies are type-level: a
 module, a package, a type or an external type. Methods and fields are rejected (§5),
@@ -89,6 +90,15 @@ Values outside 1–20 are clamped.
 **`maxLength`** answers "are these within *n* hops of each other?" and stops the
 search from wandering through long chains nobody would act on. A `maxLength` below `1`
 is rejected with `INVALID_PARAMETER` (§5): no path is shorter than one dependency.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 

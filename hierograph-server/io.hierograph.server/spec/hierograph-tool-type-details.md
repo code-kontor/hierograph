@@ -78,6 +78,7 @@ The browse tools and `type_details` both describe a type, and both are needed:
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `typeId` | integer | yes | Id of a node of kind `java.class`, `java.interface`, `java.enum`, `java.record`, `java.annotation` or `external.type`. |
+| `view` | string | no | Name of a view to answer in. |
 
 **`typeId`** is the only input because a type is fully identified by its id
 ([shared spec §5](hierograph-mcp-tools.md#5-parameters)). Every tool that returns a
@@ -86,6 +87,15 @@ names a type: one defined in the scanned code, or an external type (kind
 `external.type`). An external type is accepted because the tool returns external
 type ids itself, as supertypes and annotations; a caller following one must not
 dead-end. Its description is limited to what the graph knows (§4.3).
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. A view changes where nodes
+sit, not the facts this tool reports. A type a restructuring view moves is still read
+from the artifact that defines it.
 
 ---
 

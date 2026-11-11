@@ -716,6 +716,12 @@ artifact that defines it, wherever the view places it.
 
 ### 8.2 View tools
 
+Each view tool has its own specification in the server module:
+[`define_view`](../../io.hierograph.server/spec/hierograph-tool-define-view.md),
+[`list_views`](../../io.hierograph.server/spec/hierograph-tool-list-views.md),
+[`get_view`](../../io.hierograph.server/spec/hierograph-tool-get-view.md) and
+[`delete_view`](../../io.hierograph.server/spec/hierograph-tool-delete-view.md).
+
 | Tool | Effect |
 |------|--------|
 | `define_view(document)` | validates the document (a JSON object), stores it as a state view replacing one of the same name, applies it; returns the entry, the applied groups (path, id, parent id, child count) and the report. An invalid document is an `INVALID_VIEW_DOCUMENT` error with the problems; nothing is stored |

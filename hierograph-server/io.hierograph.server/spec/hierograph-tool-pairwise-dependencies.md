@@ -78,6 +78,7 @@ cell list follows it.
 | `minWeight` | integer | no | `1` | Smallest weight an edge must have to be listed |
 | `limit` | integer | no | `25` | Edges per page, clamped to 1–200 |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
+| `view` | string | no | none | the view to answer in |
 
 **`nodeIds`** names the subtrees that become the rows and columns. Each id stands for
 the node and everything below it. Any node except a method or a field is accepted,
@@ -108,6 +109,15 @@ small. Values are clamped as described in
 **`cursor`** continues an edge list. It is bound to this tool, to `nodeIds` (in their
 given order), `edgeSort` and `minWeight`, and to the loaded graph; see
 [Cursors](hierograph-mcp-tools.md#72-cursors). `limit` may change between pages.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 

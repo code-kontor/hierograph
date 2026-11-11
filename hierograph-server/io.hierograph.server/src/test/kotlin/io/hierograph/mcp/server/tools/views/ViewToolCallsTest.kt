@@ -278,6 +278,39 @@ class ViewToolCallsTest {
     }
 
     @Test
+    fun `define_view without a document is an INVALID_PARAMETER error, and the schema still requires it`() {
+        val error = call("define_view")["error"] as Map<String, Any?>
+
+        assertThat(error["code"]).isEqualTo("INVALID_PARAMETER")
+        assertThat(error.keys.last()).isEqualTo("recovery")
+        assertThat(error["message"] as String).contains("'document' is required")
+        assertThat(tools.getValue("define_view").toolDefinition.inputSchema()).contains("\"required\"").contains("\"document\"")
+        assertThat(Files.exists(tmp.resolve("state"))).isFalse()
+    }
+
+    @Test
+    fun `define_view with a document that is not an object is an INVALID_PARAMETER error, and the tool does not run`() {
+        for (document in listOf(layers, listOf(1), 3)) {
+            val error = call("define_view", "document" to document)["error"] as Map<String, Any?>
+
+            assertThat(error["code"]).isEqualTo("INVALID_PARAMETER")
+            assertThat(error["message"] as String).startsWith("'document' must be an object, not a")
+            assertThat(error.keys.last()).isEqualTo("recovery")
+        }
+        assertThat(Files.exists(tmp.resolve("state"))).isFalse()
+    }
+
+    @Test
+    fun `a node id of the wrong type is an INVALID_PARAMETER error naming the parameter`() {
+        val error = call("list_children", "nodeId" to "abc")["error"] as Map<String, Any?>
+
+        assertThat(error["code"]).isEqualTo("INVALID_PARAMETER")
+        assertThat(error["message"]).isEqualTo("'nodeId' must be an integer, not a string.")
+        // a numeric string still converts, as before
+        assertThat(call("list_children", "nodeId" to rootId().toString())).doesNotContainKey("error")
+    }
+
+    @Test
     fun `define_view rejects an invalid document with its problems and stores nothing`() {
         val result = call("define_view", "document" to mapOf("name" to "Bad Name", "groups" to listOf(mapOf("members" to listOf("x")))))
 

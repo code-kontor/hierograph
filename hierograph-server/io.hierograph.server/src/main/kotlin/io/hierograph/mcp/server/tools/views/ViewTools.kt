@@ -57,8 +57,15 @@ class ViewTools(
     )
     fun defineView(
         @ToolParam(description = "The view document as a JSON object.")
-        document: Map<String, Any?>,
+        document: Map<String, Any?>?,
     ): Map<String, Any?> {
+        // Nullable so that a call without a document gets the standard error rather than a tool-execution failure.
+        if (document == null) {
+            return ViewResponses.error(
+                "INVALID_PARAMETER", "'document' is required: the view document as a JSON object.",
+                "Call define_view again with document = {\"name\": \"...\", \"groups\": [...]}.",
+            )
+        }
         val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(document)
         return try {
             ViewResponses.applied(viewService.define(json))

@@ -1,13 +1,14 @@
 # Hierograph MCP Tools — Specification
 
 `io.hierograph.mcp.server` is Hierograph's **architectural query surface for language
-models**: a set of fourteen MCP tools that answer structural and dependency questions
-about a scanned JVM codebase. Every architectural question an assistant asks Hierograph
+models**: a set of eighteen MCP tools that answer structural and dependency questions
+about a scanned JVM codebase, and that manage the views those questions can be
+asked in. Every architectural question an assistant asks Hierograph
 (what is in this module, what depends on this type, is there a path from here to there)
 goes through one of these tools.
 
 This document explains why the tool surface exists, the concepts all tools share (node
-identity, kinds, node references, pagination, errors), and how the tools fit together.
+identity, kinds, views, node references, pagination, errors), and how the tools fit together.
 Each tool has its own specification, linked from §4.
 
 ---
@@ -68,7 +69,7 @@ error knows what to do next without guessing.
                     │
                     ▼
    ┌──────────────────────────────────┐
-   │   MCP tool surface               │  14 tools, node references,
+   │   MCP tool surface               │  18 tools, views, node refs,
    │   (io.hierograph.mcp.server)     │  pagination, errors
    └────────────────┬─────────────────┘
                     │  MCP (JSON over HTTP)
@@ -79,8 +80,10 @@ error knows what to do next without guessing.
 **Producers.** The
 [hierarchical graph service](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md)
 supplies the loaded model, the node search index, the data hash used by cursors (§7.2)
-and the detail-level snapshot read by the detail tools. The tools never read build
-output or Parquet files on their own.
+and the detail-level snapshot read by the detail tools. Its view service supplies the
+view documents and each view applied to the loaded graph (see the
+[views specification](../../io.hierograph.server.views/spec/hierograph-views.md#7-registry-and-service)).
+The tools never read build output, Parquet files or view documents on their own.
 
 **Consumers.**
 
@@ -186,9 +189,9 @@ without a second lookup:
 ```json
 { "error": {
     "code": "INVALID_KIND",
-    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field, external.type. Group aliases: types, members, packages.",
+    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field, external.type, view.group. Group aliases: types, members, packages.",
     "invalid_values": ["classes"],
-    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field", "external.type"],
+    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field", "external.type", "view.group"],
     "valid_aliases": ["types", "members", "packages"],
     "recovery": "Use values from valid_kinds or valid_aliases, or omit kindFilter." } }
 ```
@@ -248,10 +251,10 @@ relationship vocabulary is listed in the
 | [`method_details`](hierograph-tool-method-details.md) | Entity detail | What is this method's signature? | no |
 | [`field_details`](hierograph-tool-field-details.md) | Entity detail | What is this field, and which methods use it? | no |
 | [`reload_graph`](hierograph-tool-reload-graph.md) | Maintenance | Rebuild the graph from its source now. | no |
-| [`define_view`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | Regroup the hierarchy: store and apply a view document. | no |
-| [`list_views`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | Which views are there, and do they apply cleanly? | no |
-| [`get_view`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | What does this view define, and what did applying it report? | no |
-| [`delete_view`](../../io.hierograph.server.views/spec/hierograph-views.md#82-view-tools) | Views | Remove a view defined at runtime. | no |
+| [`define_view`](hierograph-tool-define-view.md) | Views | Regroup the hierarchy: store and apply a view document. | no |
+| [`list_views`](hierograph-tool-list-views.md) | Views | Which views are there, and do they apply cleanly? | no |
+| [`get_view`](hierograph-tool-get-view.md) | Views | What does this view define, and what did applying it report? | no |
+| [`delete_view`](hierograph-tool-delete-view.md) | Views | Remove a view defined at runtime. | no |
 
 Each tool description starts with its category in brackets, for example
 `[Discovery and navigation]`, so a client that lists the tools sees them grouped.
@@ -270,6 +273,16 @@ Node ids are JSON integers (Kotlin `Long`). List parameters are JSON arrays. Par
 whose values form a closed set (`direction`, `detailLevel`, `edgeSort`) are plain
 strings in the schema; the tool validates them and returns `INVALID_PARAMETER` for a
 value outside the set.
+
+**Argument types.** Before a tool runs, the server checks each argument against the
+JSON type its schema declares, and the item type of an array. A value that cannot be
+converted to the tool's parameter, such as `"abc"` for a node id, an object for a
+string, or a string holding JSON for an object, is answered with `INVALID_PARAMETER`
+naming the argument (`'nodeIds[1]' must be an integer, not a string.`). The check
+accepts what the conversion accepts: a numeric string or a fraction for an integer
+(`"12"`, `1.5` becomes `1`), a number or boolean for a string, a number or
+`"true"`/`"false"` for a boolean. `null` passes; each tool decides whether a missing
+argument is allowed.
 
 Optional numeric limits are clamped to the tool's range, not rejected: a `limit` of
 `0` becomes `1`, a `limit` above the cap becomes the cap.
@@ -477,7 +490,7 @@ Each tool specification lists its errors and their extra fields.
 | `NODE_NOT_FOUND` | an id names no node |
 | `INVALID_NODE_KIND` / `WRONG_NODE_KIND` | an id names a node of the wrong kind for this tool (for example a method passed to a type-level tool) |
 | `INVALID_KIND` | a kind filter contains an unknown kind |
-| `INVALID_PARAMETER` | a parameter is missing or outside its value set |
+| `INVALID_PARAMETER` | a parameter is missing, of the wrong JSON type (§5), or outside its value set |
 | `INPUT_TOO_SMALL` / `INPUT_TOO_LARGE` | a list parameter has too few or too many entries |
 | `DETAIL_REBUILDING` | the entity-detail tools cannot read the detail-level snapshot yet; retry shortly |
 | `DETAIL_UNAVAILABLE` | the detail-level engine finds no detail-level data for the loaded graph |

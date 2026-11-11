@@ -84,6 +84,7 @@ It is needed beside `outgoing_dependencies` because it stops at the aggregate. I
 |------|------|----------|---------|-------------|
 | `sourceIds` | array of node ids | yes | — | The depending subtrees: modules, packages or types |
 | `targetIds` | array of node ids | yes | — | The depended-upon subtrees: modules, packages or types |
+| `view` | string | no | none | the view to answer in |
 
 Parameter names follow the conventions in
 [Parameters](hierograph-mcp-tools.md#5-parameters).
@@ -103,6 +104,15 @@ Each list needs at least one id; an empty list fails with `INPUT_TOO_SMALL` (§5
 because a dependency needs two ends. A repeated id adds nothing and is ignored after
 its first occurrence. The order of each list is kept: it determines the order of the
 edges (§3.3).
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 

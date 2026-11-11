@@ -70,12 +70,21 @@ and most of them once, so a separate map would add size rather than remove it.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `methodId` | integer | yes | Id of a method or constructor, as returned by `list_children`, `find_node` or the detail-level dependency tools. |
+| `view` | string | no | Name of a view to answer in. |
 
 **`methodId`** is the member's node id. In the tree, constructors are members of kind
 `java.method` named `void <init>(…)`
 ([shared spec §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)), so any
 `java.method` id is accepted, constructors and the static initializer `<clinit>`
 included. A single id is enough because a member id already distinguishes overloads.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. A view changes where nodes
+sit, not the facts this tool reports.
 
 ---
 

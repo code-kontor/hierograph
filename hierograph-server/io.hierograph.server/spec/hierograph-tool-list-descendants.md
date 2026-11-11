@@ -68,6 +68,7 @@ linked by cursors (see [§7 of the MCP tools specification](hierograph-mcp-tools
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
 | `limit` | integer | no | `150` | items per page, clamped to 1–200 |
 | `cursor` | string | no | none | `next_cursor` of the previous page |
+| `view` | string | no | none | the view to answer in |
 
 **`nodeId`** is any node id, including the synthetic root's, which searches the whole
 graph. The node itself is never part of the result, because the caller already has it.
@@ -105,6 +106,15 @@ that fits the response budget (§3.3), and a larger value is clamped to it.
 **`cursor`** resumes a walk. Pass the previous page's `next_cursor` unchanged, with the
 same `nodeId`, `kindFilter`, `namePattern` and `modifierFilter`. `limit` may change
 between pages.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 

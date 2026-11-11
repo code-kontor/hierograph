@@ -80,6 +80,7 @@ of view.
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
 | `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
+| `view` | string | no | none | the view to answer in |
 
 **`fromId`** names the subtree whose outgoing dependencies are listed. It stands for
 the node and everything below it: a module, a package, a type, the root (the whole
@@ -121,6 +122,15 @@ larger than a type edge. Values are clamped as described in
 graph; see [Cursors](hierograph-mcp-tools.md#72-cursors). A type-level cursor passed
 to a detail-level call fails with `STALE_CURSOR_QUERY`. `limit` may change between
 pages.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 
