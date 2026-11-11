@@ -76,6 +76,12 @@ class GraphAvailabilityToolCallbackProvider(
                 return objectMapper.writeValueAsString(GraphUnavailable.response())
             }
             val split = if (takesView) ViewParameter.split(toolInput) else ViewParameter.Split(null, toolInput)
+            split.invalid?.let { value ->
+                return error(
+                    "INVALID_PARAMETER", "'view' must be a string naming a view, not $value.",
+                    "Pass the view's name as a string, e.g. \"view\": \"layers\", or leave 'view' out to use the hierarchy as scanned.",
+                )
+            }
             val viewName = split.view
             // One snapshot per call: a reload during the call cannot mix two graphs into one answer.
             if (viewName == null) return graphService.withPinnedSnapshot { invoke(split.input) }

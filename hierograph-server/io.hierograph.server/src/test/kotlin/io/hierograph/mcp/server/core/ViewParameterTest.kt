@@ -57,12 +57,22 @@ class ViewParameterTest {
     }
 
     @Test
-    fun `a missing, null, blank or non-text view is no view`() {
+    fun `a missing, null or blank view is no view`() {
         assertThat(ViewParameter.split("""{"nodeId":1}""")).isEqualTo(ViewParameter.Split(null, """{"nodeId":1}"""))
-        for (input in listOf("""{"view":null}""", """{"view":"  "}""", """{"view":3}""")) {
+        for (input in listOf("""{"view":null}""", """{"view":"  "}""")) {
             val split = ViewParameter.split(input)
             assertThat(split.view).isNull()
+            assertThat(split.invalid).isNull()
             assertThat(mapper.readTree(split.input).has("view")).isFalse()
+        }
+    }
+
+    @Test
+    fun `a view that is not a string is invalid, not no view`() {
+        for ((input, value) in listOf("""{"view":2025}""" to "2025", """{"view":["a"]}""" to """["a"]""", """{"view":{}}""" to "{}")) {
+            val split = ViewParameter.split(input)
+            assertThat(split.view).isNull()
+            assertThat(split.invalid).isEqualTo(value)
         }
     }
 

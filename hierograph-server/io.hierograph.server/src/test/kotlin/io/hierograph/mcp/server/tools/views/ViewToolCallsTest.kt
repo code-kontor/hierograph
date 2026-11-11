@@ -143,6 +143,15 @@ class ViewToolCallsTest {
     }
 
     @Test
+    fun `a view that is not a string is refused rather than ignored`() {
+        val result = call("list_children", "nodeId" to rootId(), "view" to 2025)
+
+        val error = result["error"] as Map<String, Any?>
+        assertThat(error["code"]).isEqualTo("INVALID_PARAMETER")
+        assertThat(error["message"] as String).contains("2025")
+    }
+
+    @Test
     fun `list_children in a view shows the groups, without one the modules`() {
         project("layers.json", layers)
 

@@ -695,6 +695,7 @@ exactly as before. The tools that manage views and `reload_graph` take no `view`
 |-----------|----------------------------------|
 | `view` names no view | `VIEW_NOT_FOUND`, listing the known views |
 | the view's document does not parse | `VIEW_INVALID`, with the problems |
+| `view` is not a string (a number, an array, an object) | `INVALID_PARAMETER`; it is not taken as "no view" |
 
 A group in a tool result is an ordinary node reference with `kind: "view.group"`,
 its qualified name `<view>:<path>`, and `child_count`, `descendant_module_count` and

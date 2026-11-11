@@ -52,18 +52,25 @@ object ViewParameter {
             .build()
     }
 
-    /** A call's input split into the view it names, if any, and the input without the `view` argument. */
-    data class Split(val view: String?, val input: String)
+    /**
+     * A call's input split into the view it names, if any, and the input without the `view` argument.
+     * [invalid] is the `view` value as given when it is neither a string nor `null`; the call is then refused.
+     */
+    data class Split(val view: String?, val input: String, val invalid: String? = null)
 
     /**
      * Splits [toolInput]: the view it names (`null` when absent, `null` or blank) and the input without it.
-     * An input that is not a JSON object is passed on unchanged, for the tool to report.
+     * A `view` that is not a string (a number, an array, an object) is not taken as "no view", which would
+     * silently answer from the scanned hierarchy: it is returned as [Split.invalid]. An input that is not a
+     * JSON object is passed on unchanged, for the tool to report.
      */
     fun split(toolInput: String): Split {
         val tree = runCatching { mapper.readTree(toolInput) }.getOrNull() as? ObjectNode ?: return Split(null, toolInput)
         if (!tree.has(NAME)) return Split(null, toolInput)
         val value = tree.remove(NAME)
+        val input = mapper.writeValueAsString(tree)
+        if (value != null && !value.isNull && !value.isTextual) return Split(null, input, invalid = value.toString())
         val view = value?.takeIf { it.isTextual }?.asText()?.trim()?.takeIf { it.isNotEmpty() }
-        return Split(view, mapper.writeValueAsString(tree))
+        return Split(view, input)
     }
 }
