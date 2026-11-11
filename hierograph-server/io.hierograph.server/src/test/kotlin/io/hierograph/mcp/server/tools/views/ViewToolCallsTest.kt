@@ -317,6 +317,22 @@ class ViewToolCallsTest {
     }
 
     @Test
+    fun `without a loaded graph list_views still lists the views and leaves out what needs the graph`() {
+        project("layers.json", layers)
+        val noGraph = HierarchicalGraphService()
+        val viewTools = ViewTools(ViewService(noGraph, ViewRegistry(tmp.resolve("project"), tmp.resolve("state"))), noGraph)
+
+        val result = viewTools.listViews()
+
+        val default = result["default"] as Map<String, Any?>
+        assertThat(default["description"] as String).contains("Omit view")
+        assertThat(default).doesNotContainKey("top_level_count")
+        val view = (result["views"] as List<Map<String, Any?>>).single()
+        assertThat(view["name"]).isEqualTo("layers")
+        assertThat(view).doesNotContainKey("group_count")
+    }
+
+    @Test
     fun `get_view returns the document, the groups and the report, an invalid one its problems`() {
         project("layers.json", layers)
         project("broken.json", """{ "name": "broken", "groups": 1 }""")
