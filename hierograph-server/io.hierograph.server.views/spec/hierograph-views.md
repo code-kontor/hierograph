@@ -513,9 +513,11 @@ other and on a few helpers:
 Ten types move, nested and synthetic classes included. They keep their package: the
 new module gets a virtual `io.hierograph.server.graphservice` package, and the report
 notes the split package. The effect: `server.graphservice → server.watch` is added
-with weight 13, nothing points back, no cycle. A further move into
-`io.hierograph.server.watch/io.hierograph.server.watch` would give the types a
-package of their own and remove the split.
+with weight 13, nothing points back, no cycle. Targeting the package
+`io.hierograph.server.watch/io.hierograph.server.watch` in both moves instead gives the
+types a package of their own and removes the split, with the same effect. A further
+move cannot do it: moves select in the base hierarchy, where that package does not
+exist.
 
 **Example 4 — move one type to where its knowledge lives.** `HierarchyResolution`
 resolves overrides and virtual calls over JVM types; apart from its nested types it
