@@ -23,7 +23,6 @@ import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.server.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
@@ -517,7 +516,7 @@ class HierarchicalGraphService {
         val reader = ParquetReader()
         reader.load(dir, store)
         val generation = graphGen.incrementAndGet()
-        val derived = deriveDetailRefs(dir, store, reader)
+        val derived = DetailDerivation.derive(store, reader.readAllMembers(dir), reader.readDetailRefs(dir))
         val snapshot = buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles(store), generation)
         return Built(snapshot) { detailSource.set(DetailSource(generation, dir, derived)) }
     }
@@ -661,9 +660,9 @@ class HierarchicalGraphService {
      * Write the Parquet snapshot for [write]'s generation, then publish it as the detail source — but only
      * while no newer build has started: [DetailSnapshotWrite] checks the generation before the write, between
      * the artifacts it writes, before the derivation and before publishing, so outdated work stops as early
-     * as possible. Reuses the build's store
-     * (immutable after build) for the hierarchy-derived edges; reads the just-written members/calls back
-     * from Parquet, matching the `parquet`-mode path exactly.
+     * as possible. The hierarchy-derived edges come from the build's store (immutable after build) and its
+     * scan in memory ([DetailDerivation.fromScan]), not from the snapshot just written, with the same result
+     * as the `parquet`-mode path.
      */
     private fun writeDetail(write: PendingDetailWrite) {
         val generation = write.generation
@@ -677,7 +676,7 @@ class HierarchicalGraphService {
                 write = { dir, cancelled ->
                     elapsed = measureTime { manifestGraphSource.writeSnapshot(write.scanned, dir, cancelled) }
                 },
-                derive = { dir -> deriveDetailRefs(dir, write.store, ParquetReader()) },
+                derive = { DetailDerivation.fromScan(write.store, write.scanned.combined()) },
                 publish = { derived ->
                     detailSource.set(DetailSource(generation, genDir, derived))
                     pruneSnapshotDir(base, keep = genDir)
@@ -718,37 +717,6 @@ class HierarchicalGraphService {
     private fun deleteRecursively(dir: Path) {
         if (!Files.exists(dir)) return
         Files.walk(dir).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
-    }
-
-    /**
-     * Hierarchy-dependent member edges (overrides / virtual + resolved calls) computed over the full
-     * assembled graph — the load-time home of what the scanner cannot derive across independently-scanned
-     * artifacts. Keeps only the edges not already in the snapshot's `detail_refs`, so a single-shot
-     * snapshot (already complete) contributes nothing and a per-artifact snapshot gains its cross-artifact
-     * edges. See [HierarchyResolution].
-     */
-    private fun deriveDetailRefs(dir: Path, store: GraphStore, reader: ParquetReader): List<DetailRef> {
-        val methodsByOwner = reader.readAllMembers(dir)
-            .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
-            .groupBy { it.key.substringBefore('#') }
-        val superByFqn = store.typeDependencies()
-            .filter { it.extends || it.implements }
-            .groupBy({ it.from }, { it.to })
-        val types = store.nodes().asSequence()
-            .filter { JavaKinds.isTypeKind(it.kind) }
-            .map { n ->
-                HierarchyResolution.Type(
-                    fqn = n.fqn,
-                    directSupertypes = superByFqn[n.fqn].orEmpty(),
-                    methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom, it.bridgeTarget) },
-                    external = n.kind == JavaKinds.EXTERNAL_TYPE,
-                )
-            }.toList()
-        val directCalls = reader.readDetailRefs(dir, relationship = "calls")
-        val resolved = HierarchyResolution.resolve(types, directCalls)
-
-        val existing = reader.readDetailRefs(dir).mapTo(HashSet()) { Triple(it.fromKey, it.toKey, it.relationship) }
-        return resolved.filterNot { Triple(it.fromKey, it.toKey, it.relationship) in existing }
     }
 
     /**

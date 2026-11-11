@@ -307,6 +307,10 @@ single-shot snapshot therefore contributes nothing extra, while a set of
 per-artifact snapshots gains exactly its cross-artifact edges. Detail tools union
 these derived edges with the Parquet `detail_refs` for a scope.
 
+In `parquet` mode the inputs, the declared members and the direct detail edges,
+are read from the snapshot. In `manifest` mode they come from the scan in memory,
+not from the snapshot just written from it; both give the same edges.
+
 ---
 
 ## 9. Served interface
