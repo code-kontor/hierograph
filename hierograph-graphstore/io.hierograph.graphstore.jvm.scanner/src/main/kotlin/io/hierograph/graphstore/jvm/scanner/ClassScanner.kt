@@ -102,7 +102,7 @@ internal object ClassScanner {
         fun ref(type: Type, kind: RefKind) {
             val element = JavaNames.element(type)
             if (JavaNames.isPrimitive(element)) return
-            val target = JavaNames.display(element)
+            val target = shared(JavaNames.display(element))
             if (target == fqn) return
             refCounts.merge(target to kind, 1, Int::plus)
         }
@@ -134,7 +134,7 @@ internal object ClassScanner {
 
         override fun visit(version: Int, access: Int, name: String, signature: String?, superName: String?, interfaces: Array<String>?) {
             this.internalName = name
-            this.fqn = JavaNames.fqn(name)
+            this.fqn = shared(JavaNames.fqn(name))
             this.access = access
             this.superFqn = superName?.let { JavaNames.fqn(it) }
             // A class signature opens with its formal type parameters, `<T:…>`, exactly when it declares any.
@@ -157,7 +157,7 @@ internal object ClassScanner {
             // Class-level annotation: also emit a member-level detail edge from the type to the annotation
             // (mirroring member annotations below), so `detail_dependencies(annotated_by)` surfaces
             // class-level annotations. The annotated element IS the type, so from_key == the type fqn.
-            val target = JavaNames.display(JavaNames.element(annotation))
+            val target = typeTarget(annotation)
             detailRefs += DetailRef(fqn, fqn, target, target, "annotated_by", null)
             return AnnotationValues()
         }
@@ -178,12 +178,13 @@ internal object ClassScanner {
         // ── fields ───────────────────────────────────────────────────
 
         override fun visitField(access: Int, name: String, descriptor: String, signature: String?, value: Any?): FieldVisitor {
-            val key = "$fqn#${JavaNames.fieldSignature(name, descriptor)}"
+            val fieldSignature = shared(JavaNames.fieldSignature(name, descriptor))
+            val key = shared("$fqn#$fieldSignature")
             members += MemberFacts(
                 key = key,
                 kind = JavaNodeKind.FIELD,
-                signature = JavaNames.fieldSignature(name, descriptor),
-                name = name,
+                signature = fieldSignature,
+                name = shared(name),
                 modifiers = MemberModifiers.pack(
                     visibility = visibility(access),
                     static = access and Opcodes.ACC_STATIC != 0,
@@ -225,8 +226,8 @@ internal object ClassScanner {
             private val descriptor: String,
             private val exceptions: List<String>,
         ) : MethodVisitor(Opcodes.ASM9) {
-            private val signature = JavaNames.methodSignature(name, descriptor)
-            private val key = "$fqn#$signature"
+            private val signature = shared(JavaNames.methodSignature(name, descriptor))
+            private val key = shared("$fqn#$signature")
             private val argumentTypes = Type.getArgumentTypes(descriptor)
             private var line: Int? = null
             private var minLine: Int? = null
@@ -275,7 +276,7 @@ internal object ClassScanner {
             override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) {
                 call(owner, name, descriptor)
                 // A constructor call leaves the built object on the stack; anything else consumes the stack.
-                constructed = if (opcode == Opcodes.INVOKESPECIAL && name == "<init>") JavaNames.fqn(owner) else null
+                constructed = if (opcode == Opcodes.INVOKESPECIAL && name == "<init>") shared(JavaNames.fqn(owner)) else null
             }
 
             override fun visitInvokeDynamicInsn(name: String, descriptor: String, bootstrap: Handle, vararg arguments: Any?) {
@@ -302,17 +303,17 @@ internal object ClassScanner {
                     bridgeTarget = "$fqn#${JavaNames.methodSignature(name, descriptor)}"
                 }
                 refInternal(owner, RefKind.INVOKES)
-                val ownerFqn = JavaNames.fqn(owner)
-                bodyRefs += DetailRef(key, fqn, "$ownerFqn#${JavaNames.methodSignature(name, descriptor)}", ownerFqn, "calls", line)
+                val ownerFqn = shared(JavaNames.fqn(owner))
+                bodyRefs += DetailRef(key, fqn, shared("$ownerFqn#${JavaNames.methodSignature(name, descriptor)}"), ownerFqn, "calls", line)
             }
 
             override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
                 constructed = null
                 val write = opcode == Opcodes.PUTFIELD || opcode == Opcodes.PUTSTATIC
                 refInternal(owner, if (write) RefKind.WRITES else RefKind.READS)
-                val ownerFqn = JavaNames.fqn(owner)
+                val ownerFqn = shared(JavaNames.fqn(owner))
                 bodyRefs += DetailRef(
-                    key, fqn, "$ownerFqn#${JavaNames.fieldSignature(name, descriptor)}", ownerFqn,
+                    key, fqn, shared("$ownerFqn#${JavaNames.fieldSignature(name, descriptor)}"), ownerFqn,
                     if (write) "writes_field" else "reads_field", line,
                 )
             }
@@ -355,7 +356,7 @@ internal object ClassScanner {
                     key = key,
                     kind = if (name == "<init>") JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD,
                     signature = signature,
-                    name = name,
+                    name = shared(name),
                     modifiers = MemberModifiers.pack(
                         visibility = visibility(access),
                         static = isStatic,
@@ -376,7 +377,7 @@ internal object ClassScanner {
                 val methodType = Type.getMethodType(descriptor)
                 detail(key, typeTarget(methodType.returnType), "returns", minLine)
                 argumentTypes.map { typeTarget(it) }.distinct().forEach { detail(key, it, "parameter_type", minLine) }
-                exceptions.forEach { detail(key, JavaNames.fqn(it), "throws", minLine) }
+                exceptions.forEach { detail(key, shared(JavaNames.fqn(it)), "throws", minLine) }
                 raised.forEach { detail(key, it, "raises", minLine) }
                 annotations.forEach { detail(key, typeTarget(it), "annotated_by", null) }
                 parameterAnnotations.values.flatten().map { typeTarget(it) }.distinct()
@@ -396,7 +397,7 @@ internal object ClassScanner {
                         ?: "arg$i"
                     slot += type.size
                     ParameterFacts(
-                        index = i, name = name, typeFqn = typeTarget(type),
+                        index = i, name = shared(name), typeFqn = typeTarget(type),
                         annotations = parameterAnnotations[i].orEmpty().map { typeTarget(it) }.distinct(),
                     )
                 }
@@ -404,12 +405,21 @@ internal object ClassScanner {
         }
 
         /** A type reference target for detail refs: the element type, primitives (and `void`) included. */
-        private fun typeTarget(type: Type): String = JavaNames.display(JavaNames.element(type))
+        private fun typeTarget(type: Type): String = shared(JavaNames.display(JavaNames.element(type)))
 
         private fun detail(fromKey: String, toType: String, relationship: String, line: Int?) {
             detailRefs += DetailRef(fromKey, fqn, toType, toType, relationship, line)
         }
     }
+
+    /**
+     * One instance per distinct value for the names the scanner keeps: type names, member keys, call and
+     * field targets, signatures, member and parameter names. They repeat across all scanned classes (every
+     * call to a method carries its target again), and the scan results stay in memory between builds, so
+     * without this most of their memory is copies. `intern()` holds no string alive by itself: an interned
+     * string is collected once nothing else references it.
+     */
+    private fun shared(value: String): String = value.intern()
 
     private fun kindOf(access: Int, superFqn: String?): JavaNodeKind = when {
         access and Opcodes.ACC_ANNOTATION != 0 -> JavaNodeKind.ANNOTATION

@@ -253,6 +253,25 @@ class BytecodeScannerTest {
     }
 
     @Test
+    fun `equal names are one string instance across classes, refs and members`() {
+        // Two classes reference java.lang.String: one instance for both type-level ref targets.
+        val fromBase = type("fix.Base").refs.first { it.toKey == "java.lang.String" }.toKey
+        val fromCircle = type("fix.Circle").refs.first { it.toKey == "java.lang.String" }.toKey
+        assertThat(fromCircle).isSameAs(fromBase)
+
+        // A call target is the same instance as the key of the member it calls, and as other calls to it.
+        val helper = type("fix.Circle").members.single { it.key == "fix.Circle#void helper(int)" }.key
+        val calls = result.detailRefs.filter { it.toKey == helper }
+        assertThat(calls).isNotEmpty
+        calls.forEach { assertThat(it.toKey).isSameAs(helper) }
+
+        // A detail ref's target type is the same instance as the type-level ref target.
+        val listCall = details("fix.Circle#java.util.List tags(int[],java.lang.String[])", "calls")
+            .first { it.toKey.startsWith("java.util.List#") }
+        assertThat(listCall.toType).isSameAs(type("fix.Circle").refs.first { it.toKey == "java.util.List" }.toKey)
+    }
+
+    @Test
     fun `member-level refs use the detail vocabulary`() {
         val tags = "fix.Circle#java.util.List tags(int[],java.lang.String[])"
         assertThat(details(tags, "calls").map { it.toKey }).contains(
