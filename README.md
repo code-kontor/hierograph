@@ -119,6 +119,12 @@ Open source. Self-hosted.
 
 ---
 
+## Contributing
+
+How commits are written and features are named: [CONTRIBUTING.md](CONTRIBUTING.md). How to build: [BUILD.md](BUILD.md).
+
+---
+
 ## License
 
 Hierograph is released under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Gerd Wuetherich.
