@@ -112,9 +112,9 @@ described in the
 | `type`, `parent_container` | the model; nesting from binary names | identity and tree position are the model's job |
 | `modifiers`, `is_abstract` | `types.parquet`, column `modifiers` | the model keeps no declaration flags |
 | `location.source_file` | `types.parquet`, column `source_file` | same |
-| `superclass` | the type's `EXTENDS` row in `refs.parquet` | keeps targets the model leaves out (§3.2) |
-| `interfaces` | the type's `IMPLEMENTS` rows in `refs.parquet` | same |
-| `annotations` | the type's `ANNOTATED_BY` rows in `refs.parquet` | same |
+| `superclass` | the type's `extends` row in `dependencies.parquet` | keeps targets the model leaves out (§3.2) |
+| `interfaces` | the type's `implements` rows in `dependencies.parquet` | same |
+| `annotations` | the type's own `annotated_by` rows in `dependencies.parquet` | same |
 | `member_summary` | the type's rows in `members.parquet` | only the snapshot tells constructors from methods |
 | `inner_types` | the type's siblings in the model, by binary name | see below |
 | `is_generic` | `types.parquet`, the `generic` bit of `modifiers` | the scanner reads it from the class signature |
@@ -125,7 +125,7 @@ modifiers, members or supertypes: each definition is described as it was compile
 [`types.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#41-typesparquet),
 [`members.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#42-membersparquet)
 and
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)
+[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
 for the meaning of each column.
 
 **Superclass.** The `EXTENDS` row is the superclass named in the class file. Every
@@ -203,7 +203,7 @@ The graph does not create placeholder nodes for every external type. The
 [external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
 leaves out ubiquitous names such as `java.lang.*`, `kotlin.*` and the JetBrains
 `@NotNull` / `@Nullable` annotations, because a dependency on them carries no
-architectural information. The type's `refs.parquet` rows still name them, so
+architectural information. The type's `dependencies.parquet` rows still name them, so
 `type_details` reports them with `id: null`. Without this fallback, every interface's
 superclass and every Kotlin type's annotations would be missing from the response. The
 `name` of such a reference is the part of the FQN after the last dot.
@@ -320,7 +320,7 @@ is not generic. It answers "is this a container or a template?" without opening 
 source. Like `modifiers`, it is `null` when the type has no `types.parquet` row.
 
 **`superclass`**, **`interfaces`** and **`annotations`** are the type's structural
-dependencies, the three `refs.parquet` kinds that describe how a type is defined rather
+dependencies, the three kinds of the type's own facts that describe how a type is defined rather
 than how it is used. They are type references (§3.2) so the caller can follow each one.
 `annotations` wraps each reference in `{"type": …}` so the entry shape matches
 `method_details`' annotations.

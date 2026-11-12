@@ -125,8 +125,8 @@ dependencies that end at it. Without `toId` it keeps all of them; with `toId` it
 those whose depending type lies in the `toId` subtree. Each kept dependency becomes
 one edge with `from` the depending type, `to` the anchor type, the dependency's weight
 and its four attribute flags. The weight is the number of individual references from
-`from` to `to`, over all reference kinds (see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)).
+`from` to `to`, over all reference kinds (see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)).
 In the open form on a package, dependencies between types of the package itself are
 included.
 
@@ -155,7 +155,7 @@ then applies unchanged:
   their transitive supertypes, so a use of an interface method that `fromId`
   implements is found; the rows only the closure brings in carry `"inherited": true`;
 - the rows come from the snapshot's
-  [`detail_refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#45-detail_refsparquet)
+  [`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
   plus the load-derived overrides and virtual-call targets, in the same order;
 - the `relationship` vocabulary, including the reverse views `read_by` and
   `written_by`, is the same;

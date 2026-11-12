@@ -18,25 +18,30 @@ package io.hierograph.graphstore.jvm.parquet
 import dev.hardwood.reader.FilterPredicate
 import dev.hardwood.reader.ParquetFileReader
 import dev.hardwood.reader.RowReader
+import dev.hardwood.schema.ColumnProjection
 import dev.hardwood.schema.FileSchema
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.TypeResolver
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DependencyRollup
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.ParameterFacts
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
-import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Loads a GraphStore Parquet snapshot (the [ParquetSchema] tables) back into a [GraphStore].
  *
- * The loader reconstructs one [ClassFacts] per type from the flat `types` / `members` / `refs` tables
- * and feeds it through [GraphStore.applyClass] — the *same* ingest path a live scan uses.
+ * The loader reconstructs one [ClassFacts] per type from the flat `types` / `members` tables, with the
+ * type's aggregated references rolled up from its `dependencies` rows ([DependencyRollup]), and feeds it
+ * through [GraphStore.applyClass] — the *same* ingest path a live scan uses.
  * Referenced-but-undefined types (targets that were never scanned) surface as placeholders through their
  * incoming refs, so snapshots stay composable and never duplicate external nodes.
  */
@@ -62,24 +67,32 @@ class ParquetReader {
 
     /**
      * Loads a snapshot into [store]. [parquetDir] is a directory of per-artifact `.hierograph` artifacts —
-     * archives, exploded directories or `collect` containers, each loaded in turn — or a single combined
-     * table directory (a legacy combined layout), or a single `.hierograph` file. Archives are read in place
-     * (see [SnapshotSources]). Missing tables are treated as empty. A reference into an artifact loaded later
+     * archives, exploded directories or `collect` containers — or a single combined table directory (a
+     * legacy combined layout), or a single `.hierograph` file. Archives are read in place (see
+     * [SnapshotSources]). Missing tables are treated as empty. A reference into an artifact loaded later
      * starts as a placeholder that the later artifact's type replaces, so cross-artifact references resolve
      * against the full set whatever the load order.
+     *
+     * The artifacts are read in parallel, then applied to [store] one after another in snapshot order, so the
+     * result is the same as a sequential load. An artifact written in another format version is rejected
+     * with a [SnapshotFormatException] before anything is applied.
      */
     fun load(parquetDir: Path, store: GraphStore) {
+        val sources = SnapshotSources.of(parquetDir)
+        sources.forEach { checkFormat(it) }
         // Classpath-shadowing resolution: if the snapshot carries manifests, resolve references by each
         // owner's real classpath order instead of the OWNER_FIRST stand-in. Must be installed before ingest.
         val classpaths = readClasspath(parquetDir)
         if (classpaths.isNotEmpty()) {
             store.setTypeResolver(TypeResolver.classpathOrder(classpaths.mapValues { it.value.order }))
         }
-        for (source in SnapshotSources.of(parquetDir)) {
-            val types = readTypes(source, ParquetSchema.TYPES_FILE)
-            val membersByOwner = readMembers(source, ParquetSchema.MEMBERS_FILE)
-            val refsByOwner = readRefs(source, ParquetSchema.REFS_FILE)
-
+        readInParallel(sources) { source ->
+            ArtifactTables(
+                types = readTypes(source, ParquetSchema.TYPES_FILE),
+                membersByOwner = readMembers(source, ParquetSchema.MEMBERS_FILE),
+                refs = rollUpDependencies(source),
+            )
+        }.forEach { (types, membersByOwner, refs) ->
             val registered = HashSet<String>()
             for (t in types) {
                 if (registered.add(t.artifact)) {
@@ -95,7 +108,7 @@ class ParquetReader {
                         kind = JavaNodeKind.valueOf(t.kind),
                         modifiers = t.modifiers ?: 0,
                         members = membersByOwner[t.fqn].orEmpty(),
-                        refs = refsByOwner[t.fqn].orEmpty(),
+                        refs = refs.refsOf(t.fqn),
                         classHash = t.classHash.orEmpty(),
                         sourceFile = t.sourceFile,
                     ),
@@ -104,7 +117,79 @@ class ParquetReader {
         }
     }
 
-    /** Reads [file] across every artifact of the snapshot at [parquetDir] and concatenates the mapped rows. */
+    /** One artifact's tables as [load] needs them, read off the ingest thread. */
+    private data class ArtifactTables(
+        val types: List<TypeRow>,
+        val membersByOwner: Map<String, List<MemberFacts>>,
+        val refs: DependencyRollup.Accumulator,
+    )
+
+    /**
+     * Rejects an artifact that was not written in [ParquetSchema.FORMAT_VERSION]: one that still has the
+     * dependency tables of format 1, or whose `types` table carries no or another version in its footer. An
+     * artifact without a `types` table holds no types and is not checked.
+     */
+    private fun checkFormat(source: ArtifactSource) {
+        ParquetSchema.FORMAT_1_FILES.firstOrNull { source.table(it) != null }?.let {
+            throw SnapshotFormatException.stale(source.name, "it has `$it`, a table of format 1")
+        }
+        val types = source.table(ParquetSchema.TYPES_FILE) ?: return
+        val version = ParquetFileReader.open(types).use { it.fileMetaData.keyValueMetadata()[ParquetSchema.FORMAT_VERSION_KEY] }
+            ?: throw SnapshotFormatException.stale(source.name, "it carries no format version")
+        val number = version.toIntOrNull()
+        when {
+            number == ParquetSchema.FORMAT_VERSION -> Unit
+            number != null && number > ParquetSchema.FORMAT_VERSION -> throw SnapshotFormatException(
+                "Snapshot artifact ${source.name} was written in format $version; this Hierograph reads format " +
+                    "${ParquetSchema.FORMAT_VERSION}. Update Hierograph to load it.",
+            )
+            else -> throw SnapshotFormatException.stale(source.name, "it was written in format $version")
+        }
+    }
+
+    /**
+     * Rolls an artifact's `dependencies` rows up into its types' aggregated references. Reads only the four
+     * columns the rollup needs (`from_key` tells a type's own annotations from its members').
+     */
+    private fun rollUpDependencies(source: ArtifactSource): DependencyRollup.Accumulator {
+        val acc = DependencyRollup.Accumulator()
+        val input = source.table(ParquetSchema.DEPENDENCIES_FILE) ?: return acc
+        val cols = ParquetSchema.Dependencies
+        ParquetFileReader.open(input).use { reader ->
+            reader.buildRowReader()
+                .projection(ColumnProjection.columns(cols.FROM_TYPE, cols.FROM_KEY, cols.TO_TYPE, cols.RELATIONSHIP))
+                .build().use { rows ->
+                    // A projected reader addresses its columns by their position in the projection.
+                    while (rows.hasNext()) {
+                        rows.next()
+                        acc.add(ownerFqn = rows.getString(0), fromKey = rows.getString(1), toType = rows.getString(2), relationship = rows.getString(3))
+                    }
+                }
+        }
+        return acc
+    }
+
+    /**
+     * Reads every source with [read] on a pool of up to one thread per processor and returns the results in
+     * source order; rethrows the first failure once all reads have finished.
+     */
+    private fun <T> readInParallel(sources: List<ArtifactSource>, read: (ArtifactSource) -> T): List<T> {
+        if (sources.size <= 1) return sources.map(read)
+        val threads = minOf(sources.size, Runtime.getRuntime().availableProcessors())
+        val counter = AtomicInteger()
+        val pool = Executors.newFixedThreadPool(threads) { task ->
+            Thread(task, "hierograph-parquet-read-${counter.incrementAndGet()}").apply { isDaemon = true }
+        }
+        try {
+            val futures = sources.map { source -> pool.submit(Callable { read(source) }) }
+            val results = futures.map { f -> runCatching { f.get() } }
+            results.firstNotNullOfOrNull { it.exceptionOrNull() }?.let { throw (it as? ExecutionException)?.cause ?: it }
+            return results.map { it.getOrThrow() }
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
     /**
      * The artifact a snapshot source holds, read from its `types.parquet`; `null` when the source holds
      * several artifacts (the unpacked layout) or none. The writer files each artifact's detail rows with
@@ -117,7 +202,7 @@ class ParquetReader {
         SnapshotSources.of(parquetDir).flatMap { readRows(it, file, filter, map) }
 
     /**
-     * Scoped read of the member-level `detail_refs` table with predicate push-down: returns the rows
+     * Scoped read of the `dependencies` table with predicate push-down: returns the rows
      * whose `from_type` is in [fromTypes] (unconstrained when null/empty), whose `to_type` is in
      * [toTypes] (likewise), and whose `relationship` matches [relationship] (any when null). Hardwood
      * skips row groups outside the `from_type` range via column statistics; `to_type` filters rows but,
@@ -129,7 +214,7 @@ class ParquetReader {
         toTypes: Collection<String>? = null,
         relationship: String? = null,
     ): List<DetailRef> {
-        val cols = ParquetSchema.DetailRefs
+        val cols = ParquetSchema.Dependencies
         val from = fromTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
         val to = toTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
         // Push down exactly ONE predicate (prefer the sorted `from_type` for row-group skipping) and apply
@@ -144,7 +229,7 @@ class ParquetReader {
             else -> null
         }
         return SnapshotSources.of(parquetDir).flatMap { source ->
-            val rows = readRows(source, ParquetSchema.DETAIL_REFS_FILE, pushdown) { r ->
+            val rows = readRows(source, ParquetSchema.DEPENDENCIES_FILE, pushdown) { r ->
                 DetailRef(
                     fromKey = r.string(cols.FROM_KEY),
                     fromType = r.string(cols.FROM_TYPE),
@@ -184,22 +269,27 @@ class ParquetReader {
         return SnapshotSources.of(parquetDir).flatMap { readTypes(it, ParquetSchema.TYPES_FILE, filter) }
     }
 
-    /** A scanned type's `types.parquet` row together with its members and its type-level refs. */
+    /** A scanned type's `types.parquet` row together with its members and its aggregated references. */
     data class TypeFacts(val row: TypeRow, val members: List<MemberFacts>, val refs: List<Ref>)
 
     /**
-     * The facts of the type [fqn] as defined by [artifact]: its row, members and refs, all read from the
-     * one snapshot artifact whose `types.parquet` holds that row, so a type defined by several artifacts is
-     * never mixed with another definition of the same name. `null` when no artifact defines it. In the
-     * unpacked layout, where one directory holds the tables of every artifact, members and refs carry no
-     * artifact and are read for the FQN.
+     * The facts of the type [fqn] as defined by [artifact]: its row, members and aggregated references
+     * (rolled up from its `dependencies` rows), all read from the one snapshot artifact whose `types.parquet`
+     * holds that row, so a type defined by several artifacts is never mixed with another definition of the
+     * same name. `null` when no artifact defines it. In the unpacked layout, where one directory holds the
+     * tables of every artifact, members and dependencies carry no artifact and are read for the FQN.
      */
     fun readTypeFacts(parquetDir: Path, artifact: String, fqn: String): TypeFacts? {
         val typeFilter = FilterPredicate.eq(ParquetSchema.Types.FQN, fqn)
         for (source in SnapshotSources.of(parquetDir)) {
             val row = readTypes(source, ParquetSchema.TYPES_FILE, typeFilter).firstOrNull { it.artifact == artifact } ?: continue
             val members = readMembers(source, ParquetSchema.MEMBERS_FILE, FilterPredicate.eq(ParquetSchema.Members.OWNER_FQN, fqn))[fqn].orEmpty()
-            val refs = readRefs(source, ParquetSchema.REFS_FILE, FilterPredicate.eq(ParquetSchema.Refs.FROM_TYPE, fqn))[fqn].orEmpty()
+            val cols = ParquetSchema.Dependencies
+            val refs = DependencyRollup.Accumulator().also { acc ->
+                readRows(source, ParquetSchema.DEPENDENCIES_FILE, FilterPredicate.eq(cols.FROM_TYPE, fqn)) { r ->
+                    acc.add(fqn, r.string(cols.FROM_KEY), r.string(cols.TO_TYPE), r.string(cols.RELATIONSHIP))
+                }
+            }.refsOf(fqn)
             return TypeFacts(row, members, refs)
         }
         return null
@@ -275,17 +365,6 @@ class ParquetReader {
                 else emptyList(),
             )
         }.sortedBy { it.index }
-
-    private fun readRefs(source: ArtifactSource, file: String, filter: FilterPredicate? = null): Map<String, List<Ref>> =
-        readRows(source, file, filter) { r ->
-            r.string(ParquetSchema.Refs.FROM_TYPE).let { fromType ->
-                fromType to Ref(
-                    toKey = r.string(ParquetSchema.Refs.TO_TYPE),
-                    kind = RefKind.valueOf(r.string(ParquetSchema.Refs.KIND)),
-                    count = r.intOrNull(ParquetSchema.Refs.COUNT),
-                )
-            }
-        }.groupBy({ it.first }, { it.second })
 
     private fun <T> readRows(source: ArtifactSource, file: String, filter: FilterPredicate? = null, map: (RowCursor) -> T): List<T> {
         val input = source.table(file) ?: return emptyList()

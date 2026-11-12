@@ -759,7 +759,7 @@ class HierarchicalGraphService {
      * The load-derived member edges matching the given scope (same semantics as
      * [ParquetReader.readDetailRefs]): `from_type` in [fromTypes], `to_type` in [toTypes], `relationship`
      * equal to [relationship] — each ignored when null/empty. The detail tools union this with the
-     * Parquet `detail_refs`.
+     * Parquet `dependencies`.
      */
     fun derivedDetailRefs(fromTypes: Collection<String>? = null, toTypes: Collection<String>? = null, relationship: String? = null): List<DetailRef> {
         // Withhold when the detail source does not match the live graph (same guard as readyDetailDir),

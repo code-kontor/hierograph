@@ -18,6 +18,7 @@ package io.hierograph.mcp.server.tools.detail
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
+import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
@@ -96,10 +97,13 @@ class EntityDetailToolsTest {
             ),
         )
         val dir = Files.createTempDirectory("hierograph-twin")
-        ParquetWriter.writeArtifacts(
-            dir, listOf(twinIn("lib-a", 1, "java.io.Serializable"), twinIn("lib-b", 3, "java.lang.Runnable")),
-            emptyList(), packaging = ParquetWriter.Packaging.EXPLODED,
-        )
+        // One write per artifact: the facts of a duplicated FQN are filed with the artifact written alongside them.
+        for ((artifact, count, iface) in listOf(Triple("lib-a", 1, "java.io.Serializable"), Triple("lib-b", 3, "java.lang.Runnable"))) {
+            ParquetWriter.writeArtifacts(
+                dir, listOf(twinIn(artifact, count, iface)),
+                listOf(DetailRef(twin, twin, iface, iface, "implements")), packaging = ParquetWriter.Packaging.EXPLODED,
+            )
+        }
         val service = HierarchicalGraphService().also { it.seedFromParquet(dir) }
         val details = ParquetTypeDetails(service, NodeRefFactory(service))
 

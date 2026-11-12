@@ -41,7 +41,10 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * Tables are ZSTD-compressed by default (the spec's choice; [ParquetSchema]'s dictionary encoding
  * absorbs the repeated FQNs). Pass [CompressionCodec.UNCOMPRESSED] to avoid needing a codec on the
- * classpath (e.g. in tests).
+ * classpath (e.g. in tests). Every table carries [ParquetSchema.FORMAT_VERSION] in its footer.
+ *
+ * The type-level aggregate ([ClassFacts.refs]) is not written: it is the rollup of the dependency rows,
+ * and the reader rolls it up again at load.
  *
  * The tables are independent files, so they are written **in parallel**, one task per file; each file's
  * content (and row order) is the same as a sequential write.
@@ -51,7 +54,7 @@ object ParquetWriter {
     /** One scanned class together with the key of the artifact that owns it. */
     data class ArtifactClass(val artifactKey: String, val facts: ClassFacts)
 
-    /** Writes a complete snapshot — the four type-level tables plus `detail_refs` — all five in parallel. */
+    /** Writes a complete snapshot — `types`, `members`, `parameters` and `dependencies` — all four in parallel. */
     fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) =
         runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDetailRefs(dir, detailRefs, codec) }))
 
@@ -138,7 +141,6 @@ object ParquetWriter {
         { writeTypes(dir, classes, codec) },
         { writeMembers(dir, classes, codec) },
         { writeParameters(dir, classes, codec) },
-        { writeRefs(dir, classes, codec) },
     )
 
     private fun writeTypes(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
@@ -183,28 +185,18 @@ object ParquetWriter {
         }
     }
 
-    private fun writeRefs(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
-        val refs = classes.flatMap { c -> c.facts.refs.map { c.facts.fqn to it } }
-        writeTable(dir.resolve(ParquetSchema.REFS_FILE), ParquetSchema.refsSchema(), codec, refs) { sb, (fromType, r) ->
-            sb.setString(ParquetSchema.Refs.FROM_TYPE, fromType)
-            sb.setString(ParquetSchema.Refs.TO_TYPE, r.toKey)
-            sb.setString(ParquetSchema.Refs.KIND, r.kind.name)
-            sb.setNullableInt(ParquetSchema.Refs.COUNT, r.count)
-        }
-    }
-
     /**
-     * Writes member-level ("detail") refs to the `detail_refs` table, sorted by `from_type` (then
+     * Writes the detail facts to the `dependencies` table, sorted by `from_type` (then
      * `from_key`) so a scoped read via [ParquetReader.readDetailRefs] skips row groups. Defaults to
      * uncompressed (callers that want ZSTD pass it explicitly). The sort runs in parallel; it is stable,
      * so rows equal in all sort keys keep their input order and the file is the same as a sequential write.
      */
     fun writeDetailRefs(dir: Path, refs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
-        val cols = ParquetSchema.DetailRefs
+        val cols = ParquetSchema.Dependencies
         val sorted = refs.toTypedArray()
             .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship })) }
             .asList()
-        writeTable(dir.resolve(ParquetSchema.DETAIL_REFS_FILE), ParquetSchema.detailRefsSchema(), codec, sorted) { sb, r ->
+        writeTable(dir.resolve(ParquetSchema.DEPENDENCIES_FILE), ParquetSchema.dependenciesSchema(), codec, sorted) { sb, r ->
             sb.setString(cols.FROM_KEY, r.fromKey)
             sb.setString(cols.FROM_TYPE, r.fromType)
             sb.setString(cols.TO_KEY, r.toKey)
@@ -233,6 +225,7 @@ object ParquetWriter {
     private fun <T> writeTable(path: Path, schema: FileSchema, codec: CompressionCodec, rows: List<T>, set: (StructBuilder, T) -> Unit) {
         val config = WriterConfig.builder().codec(codec).build()
         ParquetFileWriter.create(OutputFile.of(path), schema, config).use { writer ->
+            writer.keyValueMetadata(ParquetSchema.FORMAT_VERSION_KEY, ParquetSchema.FORMAT_VERSION.toString())
             val rowWriter = writer.rowWriter()
             for (row in rows) {
                 rowWriter.writeRow { sb -> set(sb, row) }

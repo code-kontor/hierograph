@@ -28,7 +28,7 @@ import java.nio.file.Path
 /**
  * The engine behind `method_details`, served from the Parquet snapshot. Identity (name/kind/modifiers/
  * location) and parameters come from `members.parquet` / `parameters.parquet`; return type, throws,
- * raises and annotations from `detail_refs.parquet`; the overridden method from the load-derived
+ * raises and annotations from `dependencies.parquet`; the overridden method from the load-derived
  * `overrides` edges. The method id is a content-addressed member handle, resolved back to its member key
  * via the service's member handle index.
  */

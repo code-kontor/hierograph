@@ -19,7 +19,7 @@ package io.hierograph.graphstore.jvm.model
  * The kind of a detail dependency: one fact in a class file from a source element (a type or a member)
  * to a target element. This is the one vocabulary for type-level facts (`extends`, a type's own
  * annotations, …) and member-level facts (`calls`, `casts`, …). [value] is the wire name, stored in the
- * `relationship` column of `detail_refs.parquet`.
+ * `relationship` column of `dependencies.parquet`.
  *
  * Every kind except [RAISES] is [counted]: it adds 1 to the weight of the aggregated dependency between
  * the source's and the target's owner types (see [DependencyRollup]). [RAISES] is not counted because

@@ -154,8 +154,8 @@ edge:
 | `weight` | the number of individual references from `from` to `to`, over all reference kinds |
 | `attributes` | the dependency's four attribute flags |
 
-The weight comes from the snapshot's type-level references (see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)):
+The weight comes from the snapshot's dependencies, rolled up per pair of types (see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)):
 two calls to `Money` methods and one `Money` return type give a weight of 3. In the
 open form on a package, the edges between types of the package itself are included:
 they are outgoing dependencies of the types, and the caller may filter on `to`.
@@ -193,7 +193,7 @@ whose two types lie in the scopes' own subtrees carries no `inherited` key.
 
 **Edges.** The tool reads every member reference whose depending type lies in the
 `from` side and whose target type lies in the `to` side from the snapshot's
-[`detail_refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#45-detail_refsparquet),
+[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-dependenciesparquet),
 then adds the references derived when the graph was loaded: method overrides and the
 possible run-time targets of virtual calls. It keeps the references whose two types
 are known to the graph and lie in the scopes.
@@ -239,7 +239,7 @@ Each reference becomes one row:
 | `parameter_annotated_by` | method → an annotation on one of its parameters | snapshot |
 
 The stored relationships are defined in the format specification's
-[member-level relationships](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#53-member-level-relationships-detail_refsrelationship).
+[dependency kinds](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#52-dependency-kinds-dependenciesrelationship).
 
 `read_by` and `written_by` exist only as filters; an unfiltered result never contains
 them. They turn the stored field access around: the rows read field → method, and

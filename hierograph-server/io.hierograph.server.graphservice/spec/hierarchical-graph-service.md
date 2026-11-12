@@ -330,7 +330,7 @@ own. The service computes these at load time over the complete graph and keeps o
 the edges not already present in the snapshot's detail tables. A complete
 single-shot snapshot therefore contributes nothing extra, while a set of
 per-artifact snapshots gains exactly its cross-artifact edges. Detail tools union
-these derived edges with the Parquet `detail_refs` for a scope.
+these derived edges with the Parquet `dependencies` for a scope.
 
 In `parquet` mode the inputs, the declared members and the direct detail edges,
 are read from the snapshot. In `manifest` mode they come from the scan in memory,

@@ -125,8 +125,8 @@ For each pair `(s, t)` the tool asks the hierarchy for the aggregated dependency
 lies in the subtree of `s` and whose depended-upon type lies in the subtree of `t`.
 Each such type-level dependency has a **weight**: the number of individual references
 the depending type's bytecode makes to the target type, summed over all kinds of
-reference (calls, field types, parameter types, inheritance, …; see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)
+reference (calls, field types, parameter types, inheritance, …; see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)
 in the format specification).
 
 From the collected dependencies the tool builds the edge:

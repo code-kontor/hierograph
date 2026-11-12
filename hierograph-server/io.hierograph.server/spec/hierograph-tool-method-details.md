@@ -102,10 +102,10 @@ and reads the method's rows from the Parquet snapshot described in the
 |----------------|--------|
 | `method` (`name`, `kind`), `modifiers`, `location` | the method's row in `members.parquet` |
 | `parameters` | the method's rows in `parameters.parquet` |
-| `return_type` | the `returns` edge in `detail_refs.parquet` |
-| `throws` | the `throws` edges in `detail_refs.parquet` |
-| `raises` | the `raises` edges in `detail_refs.parquet` |
-| `annotations` | the method's `annotated_by` edges in `detail_refs.parquet` |
+| `return_type` | the `returns` edge in `dependencies.parquet` |
+| `throws` | the `throws` edges in `dependencies.parquet` |
+| `raises` | the `raises` edges in `dependencies.parquet` |
+| `annotations` | the method's `annotated_by` edges in `dependencies.parquet` |
 | `overrides` | the `overrides` edges derived when the graph is loaded |
 | `declaring_type` | the owner FQN in the member key, resolved against the graph |
 

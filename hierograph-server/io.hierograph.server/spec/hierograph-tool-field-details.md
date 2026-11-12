@@ -101,9 +101,9 @@ and reads the snapshot described in the
 | Response field | Source |
 |----------------|--------|
 | `field`, `modifiers`, `is_constant`, `type`, `type_name` | the field's row in `members.parquet` |
-| `annotations` | the field's `annotated_by` edges in `detail_refs.parquet` |
-| `read_access` | the `reads_field` edges in `detail_refs.parquet` that target the field, directly or through an inheriting subtype |
-| `write_access` | the `writes_field` edges in `detail_refs.parquet` that target the field, the same way |
+| `annotations` | the field's `annotated_by` edges in `dependencies.parquet` |
+| `read_access` | the `reads_field` edges in `dependencies.parquet` that target the field, directly or through an inheriting subtype |
+| `write_access` | the `writes_field` edges in `dependencies.parquet` that target the field, the same way |
 | `declaring_type` | the owner FQN in the member key, resolved against the graph |
 
 **Modifiers.** Modifiers are decoded from the

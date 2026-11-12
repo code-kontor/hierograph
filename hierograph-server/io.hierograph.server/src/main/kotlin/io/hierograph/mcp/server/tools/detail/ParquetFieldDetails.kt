@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component
 
 /**
  * The engine behind `field_details`, served from the Parquet snapshot. Identity, modifiers and the declared
- * type come from `members.parquet`; the annotations from the field's `detail_refs` edges; the read/write
+ * type come from `members.parquet`; the annotations from the field's `dependencies` rows; the read/write
  * access digests from the `reads_field` / `writes_field` edges into the field, including accesses compiled
  * against a subtype that inherits it. Uses the same slim-encoding
  * response shape (a top-level `nodes` map keyed by stringified handle).

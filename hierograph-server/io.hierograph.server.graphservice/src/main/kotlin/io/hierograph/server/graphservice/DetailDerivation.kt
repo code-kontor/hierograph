@@ -34,7 +34,7 @@ import io.hierograph.graphstore.jvm.scanner.ScanResult
  */
 internal object DetailDerivation {
 
-    /** The order of the snapshot's `detail_refs` table; the calls are resolved in it on either path. */
+    /** The order of the snapshot's `dependencies` table; the calls are resolved in it on either path. */
     private val SNAPSHOT_ORDER =
         compareBy<DetailRef>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship })
 

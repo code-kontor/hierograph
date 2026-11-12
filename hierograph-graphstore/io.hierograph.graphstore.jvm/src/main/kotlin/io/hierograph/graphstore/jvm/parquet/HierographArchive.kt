@@ -23,7 +23,7 @@ import java.util.zip.ZipOutputStream
 
 /**
  * A `.hierograph` archive: the per-artifact Parquet snapshot packaged as a single ZIP — one artifact's
- * `types` / `members` / `parameters` / `refs` / `detail_refs` tables. It is the unit of scanning,
+ * `types` / `members` / `parameters` / `dependencies` tables. It is the unit of scanning,
  * caching and exchange: a project snapshot is a directory of these, one per artifact (jar / module), so a
  * library is scanned once and its `.hierograph` reused.
  *

@@ -18,10 +18,11 @@ package io.hierograph.graphstore.jvm.parquet
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.childKeysOf
 import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.MemberFixture
-import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.RefFixture
+import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.DependencyFixture
 import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.TypeFixture
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.assertj.core.api.Assertions.tuple
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -30,7 +31,7 @@ import java.nio.file.Path
 class ParquetReaderTest {
 
     @Test
-    fun `loads types members and refs into the GraphStore via the applyClass path`(@TempDir dir: Path) {
+    fun `loads types members and dependencies into the GraphStore via the applyClass path`(@TempDir dir: Path) {
         ParquetTestWriter.writeTypes(
             dir,
             listOf(
@@ -45,21 +46,20 @@ class ParquetReaderTest {
                 MemberFixture("com.foo.A", "com.foo.A#x", "FIELD", "x", "x"),
             ),
         )
-        ParquetTestWriter.writeRefs(
+        val a = "com.foo.A#a()V"
+        ParquetTestWriter.writeDependencies(
             dir,
-            listOf(
-                RefFixture("com.foo.A", "com.foo.B", "IMPLEMENTS", count = 1),
-                RefFixture("com.foo.A", "java.util.List", "INVOKES", count = 4),
-            ),
+            listOf(DependencyFixture("com.foo.A", "com.foo.B", "implements")) +
+                (1..4).map { DependencyFixture("com.foo.A", "java.util.List", "calls", fromKey = a, toKey = "java.util.List#int size()", line = it) },
         )
 
         val store = GraphStore()
         ParquetReader().load(dir, store)
 
         // scanned types
-        val a = store.typeByFqn("com.foo.A")!!
-        assertThat(a.kind).isEqualTo(JavaKinds.CLASS)
-        assertThat(a.placeholder).isFalse
+        val typeA = store.typeByFqn("com.foo.A")!!
+        assertThat(typeA.kind).isEqualTo(JavaKinds.CLASS)
+        assertThat(typeA.placeholder).isFalse
         assertThat(store.typeByFqn("com.foo.B")!!.kind).isEqualTo(JavaKinds.INTERFACE)
 
         // members are materialized as artifact-scoped children of their type
@@ -81,7 +81,7 @@ class ParquetReaderTest {
             tuple(JavaKinds.EXTERNAL_TYPE, "java.util.List", "java.util"),
         )
 
-        // dependencies
+        // dependencies: rolled up from the dependency rows, four calls weigh 4
         val deps = store.typeDependencies().associateBy { it.toFqn }
         assertThat(deps.getValue("com.foo.B").implements).isTrue
         val toList = deps.getValue("java.util.List")
@@ -124,12 +124,12 @@ class ParquetReaderTest {
     @Test
     fun `type facts read only the type's own refs, external targets included`(@TempDir dir: Path) {
         ParquetTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS"), TypeFixture("app", "com.foo.C", "CLASS")))
-        ParquetTestWriter.writeRefs(
+        ParquetTestWriter.writeDependencies(
             dir,
             listOf(
-                RefFixture("com.foo.A", "java.lang.Object", "EXTENDS", count = 1),
-                RefFixture("com.foo.A", "com.foo.B", "IMPLEMENTS", count = 1),
-                RefFixture("com.foo.C", "com.foo.A", "EXTENDS", count = 1),
+                DependencyFixture("com.foo.A", "java.lang.Object", "extends"),
+                DependencyFixture("com.foo.A", "com.foo.B", "implements"),
+                DependencyFixture("com.foo.C", "com.foo.A", "extends"),
             ),
         )
 
@@ -141,7 +141,7 @@ class ParquetReaderTest {
     }
 
     @Test
-    fun `missing members and refs tables load the types only`(@TempDir dir: Path) {
+    fun `missing members and dependencies tables load the types only`(@TempDir dir: Path) {
         ParquetTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
 
         val store = GraphStore()
@@ -150,5 +150,26 @@ class ParquetReaderTest {
         assertThat(store.typeByFqn("com.foo.A")!!.placeholder).isFalse
         assertThat(store.childKeysOf(store.typeKey("app", "com.foo.A"))).isEmpty()
         assertThat(store.typeDependencies().toList()).isEmpty()
+    }
+
+    @Test
+    fun `an artifact of format 1 or without a version is rejected, one of a newer format too`(@TempDir dir: Path) {
+        val types = listOf(TypeFixture("app", "com.foo.A", "CLASS"))
+
+        val format1 = dir.resolve("format1").also { java.nio.file.Files.createDirectories(it) }
+        ParquetTestWriter.writeTypes(format1, types)
+        ParquetTestWriter.writeFormat1Refs(format1)
+        assertThatThrownBy { ParquetReader().load(format1, GraphStore()) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("refs.parquet").hasMessageContaining("Rescan")
+
+        val unversioned = dir.resolve("unversioned").also { java.nio.file.Files.createDirectories(it) }
+        ParquetTestWriter.writeTypesInFormat(unversioned, null, types)
+        assertThatThrownBy { ParquetReader().load(unversioned, GraphStore()) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("no format version")
+
+        val newer = dir.resolve("newer").also { java.nio.file.Files.createDirectories(it) }
+        ParquetTestWriter.writeTypesInFormat(newer, "${ParquetSchema.FORMAT_VERSION + 1}", types)
+        assertThatThrownBy { ParquetReader().load(newer, GraphStore()) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Update Hierograph")
     }
 }

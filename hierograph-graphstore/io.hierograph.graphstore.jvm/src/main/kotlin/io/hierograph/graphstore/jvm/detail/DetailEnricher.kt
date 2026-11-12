@@ -64,7 +64,7 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
             }
         }
         for (fqn in typeFqns) {
-            // detail_refs endpoints are bare FQNs; resolve display off the by-FQN type index.
+            // dependency rows' endpoints are bare FQNs; resolve display off the by-FQN type index.
             val node = store.typeByFqn(fqn)
             nodes[fqn] = if (node != null) {
                 NodeDisplay(node.name, typeKindDisplay(node.kind), fqn)

@@ -16,13 +16,12 @@
 package io.hierograph.mcp.server.tools.detail
 
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DependencyRollup
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.model.ParameterFacts
-import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -88,7 +87,7 @@ class DetailFixture {
                 method(DOC, "void render()"), method(DOC, "$MONEY total()"),
                 MemberFacts("$DOC#int pages", JavaKinds.FIELD, "int pages", "pages", modifiers = MemberModifiers.pack("protected")),
             ),
-            refs = listOf(Ref(MONEY, RefKind.INVOKES, count = 1)), classHash = "d",
+            refs = refsOf(DOC), classHash = "d",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             RENDERABLE, JavaKinds.INTERFACE, TypeModifiers.pack("public", abstract = true),
@@ -102,11 +101,7 @@ class DetailFixture {
                 method(INVOICE, "void render()"), method(INVOICE, "$MONEY net()"),
                 method(INVOICE, "$MONEY tax()"), method(INVOICE, "void validate()"),
             ),
-            refs = listOf(
-                Ref(DOC, RefKind.EXTENDS, count = 1),
-                Ref(RENDERABLE, RefKind.IMPLEMENTS, count = 1),
-                Ref(MONEY, RefKind.INVOKES, count = 3),
-            ),
+            refs = refsOf(INVOICE),
             classHash = "i",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
@@ -124,7 +119,12 @@ class DetailFixture {
         )),
     )
 
+    /** A type's aggregated references, rolled up from its detail facts as the scanner does. */
+    private fun refsOf(fqn: String) = DependencyRollup.refsOf(fqn, detailRefs().filter { it.fromType == fqn })
+
     private fun detailRefs() = listOf(
+        DetailRef(INVOICE, INVOICE, DOC, DOC, "extends"),
+        DetailRef(INVOICE, INVOICE, RENDERABLE, RENDERABLE, "implements"),
         DetailRef("$DOC#$MONEY total()", DOC, "$MONEY#$MONEY plus($MONEY)", MONEY, "calls", 5),
         DetailRef("$INVOICE#$MONEY net()", INVOICE, MONEY, MONEY, "returns", 9),
         DetailRef("$INVOICE#$MONEY net()", INVOICE, "$MONEY#$MONEY plus($MONEY)", MONEY, "calls", 10),

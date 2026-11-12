@@ -18,9 +18,9 @@ package io.hierograph.graphstore.jvm.parquet
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DependencyRollup
+import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.graphstore.jvm.model.JavaKinds
@@ -31,6 +31,10 @@ import java.nio.file.Path
 
 class ParquetWriterTest {
 
+    /** A's detail facts: it extends B, and its method `a` calls `List.size()` seven times. */
+    private val facts = listOf(DetailRef("com.foo.A", "com.foo.A", "com.foo.B", "com.foo.B", "extends")) +
+        (1..7).map { DetailRef("com.foo.A#a()V", "com.foo.A", "java.util.List#int size()", "java.util.List", "calls", it) }
+
     private val classes = listOf(
         ArtifactClass(
             "app",
@@ -39,10 +43,7 @@ class ParquetWriterTest {
                 kind = JavaKinds.CLASS,
                 modifiers = TypeModifiers.pack("public", abstract = true),
                 members = listOf(MemberFacts("com.foo.A#a()V", JavaKinds.METHOD, "a()V", lineFrom = 1, lineTo = 2)),
-                refs = listOf(
-                    Ref("com.foo.B", RefKind.EXTENDS, count = 1),
-                    Ref("java.util.List", RefKind.INVOKES, count = 7),
-                ),
+                refs = DependencyRollup.refsOf("com.foo.A", facts),
                 classHash = "h1",
                 sourceFile = "A.java",
             ),
@@ -71,16 +72,17 @@ class ParquetWriterTest {
 
     @Test
     fun `writeSnapshot round-trips through the loader uncompressed`(@TempDir dir: Path) {
-        ParquetWriter.writeSnapshot(dir, classes, emptyList(), CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeSnapshot(dir, classes, facts, CompressionCodec.UNCOMPRESSED)
         assertRoundTrip(dir)
     }
 
     @Test
     fun `writeSnapshot round-trips through the loader with zstd`(@TempDir dir: Path) {
-        ParquetWriter.writeSnapshot(dir, classes, emptyList()) // default ZSTD
+        ParquetWriter.writeSnapshot(dir, classes, facts) // default ZSTD
         assertRoundTrip(dir)
     }
 
+    /** The aggregate is not stored: the loader rolls it up again from the dependency rows. */
     private fun assertRoundTrip(dir: Path) {
         val store = GraphStore()
         ParquetReader().load(dir, store)

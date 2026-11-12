@@ -45,7 +45,7 @@ data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<Det
 
     /**
      * Writes the result as one `.hierograph` artifact per artifact key under [dir]
-     * (types/members/parameters/refs/detail_refs), archived or exploded as [packaging] decides. [cancelled]
+     * (types/members/parameters/dependencies), archived or exploded as [packaging] decides. [cancelled]
      * stops the write between artifacts; see [ParquetWriter.writeArtifacts].
      */
     fun writeTo(

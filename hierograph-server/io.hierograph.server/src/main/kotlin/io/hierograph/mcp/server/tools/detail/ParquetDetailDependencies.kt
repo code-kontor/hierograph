@@ -39,7 +39,7 @@ import java.nio.file.Path
 
 /**
  * The detail level of `outgoing_dependencies` and `incoming_dependencies`. It resolves the scope over
- * the in-memory model, reads member-level edges from `detail_refs.parquet` via [DetailQueryEngine]
+ * the in-memory model, reads member-level edges from `dependencies.parquet` via [DetailQueryEngine]
  * plus the load-derived edges, and maps them into the response shape using content-addressed
  * [NodeHandle]s for every endpoint.
  *

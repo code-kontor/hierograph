@@ -181,7 +181,9 @@ from `ClassFacts` because they are large and are read on demand rather than held
 memory.
 
 **`writeTo(dir, codec, classpaths, packaging)`** writes the result as a snapshot
-directory, with one `.hierograph` artifact per artifact key — an archive or an
+directory: the types, members, parameters and detail facts, but not the aggregated
+references, which a reader rolls up again from the detail facts. There is one
+`.hierograph` artifact per artifact key — an archive or an
 exploded directory of the same name, with identical tables. An artifact of the same
 name already in the directory is replaced, whichever its form. Nothing is written
 outside the directory: an archive's tables are staged in a `.staging-<artifact>`

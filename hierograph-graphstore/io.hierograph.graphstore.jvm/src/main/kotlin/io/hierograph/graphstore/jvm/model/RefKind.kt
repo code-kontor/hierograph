@@ -16,8 +16,8 @@
 package io.hierograph.graphstore.jvm.model
 
 /**
- * The kind of an aggregated reference ([Ref]), the vocabulary of the stored type-level aggregate
- * (`refs.parquet`). Each kind is the rollup of one [DependencyKind] (see [DependencyRollup]), except
+ * The kind of an aggregated reference ([Ref]), the vocabulary of the type-level aggregate the scanner and
+ * the snapshot reader roll up from the detail facts. Each kind is the rollup of one [DependencyKind] (see [DependencyRollup]), except
  * [MEMBER_ANNOTATED_BY], which collects the `annotated_by` facts of members and the
  * `parameter_annotated_by` facts.
  */

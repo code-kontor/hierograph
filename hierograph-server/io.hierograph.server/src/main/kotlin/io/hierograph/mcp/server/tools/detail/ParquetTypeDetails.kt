@@ -32,7 +32,7 @@ import java.nio.file.Path
 /**
  * The engine behind `type_details`, served from the Parquet snapshot. Identity, parent and inner types
  * come from the in-memory model; modifiers and source file from `types.parquet`; superclass, interfaces
- * and annotations from the type's `refs.parquet` rows (so targets the external-type filter keeps out of the
+ * and annotations from the type's aggregated references, rolled up from its `dependencies.parquet` rows (so targets the external-type filter keeps out of the
  * model, like `java.lang.Object`, still appear — as id-less external refs); member counts from
  * `members.parquet` (which, unlike the model, distinguishes constructors).
  *

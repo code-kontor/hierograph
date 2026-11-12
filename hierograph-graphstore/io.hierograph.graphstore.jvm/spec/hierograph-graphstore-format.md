@@ -4,7 +4,7 @@ A **snapshot** is the persistent form of Hierograph's GraphStore: everything the
 bytecode scanner learned about a set of JVM artifacts, written as a handful of flat
 Parquet tables. A snapshot can be rebuilt into an in-memory graph at any time, and
 it can be queried directly on disk — the detail-level tools read members,
-parameters and detail references straight from the tables instead of holding
+parameters and dependencies straight from the tables instead of holding
 them in memory.
 
 This document defines that format: the files, the packaging, and every column —
@@ -21,9 +21,8 @@ what it describes and why it exists.
    - [4.1 `types.parquet`](#41-typesparquet)
    - [4.2 `members.parquet`](#42-membersparquet)
    - [4.3 `parameters.parquet`](#43-parametersparquet)
-   - [4.4 `refs.parquet`](#44-refsparquet)
-   - [4.5 `detail_refs.parquet`](#45-detail_refsparquet)
-   - [4.6 `classpath.parquet`](#46-classpathparquet)
+   - [4.4 `dependencies.parquet`](#44-dependenciesparquet)
+   - [4.5 `classpath.parquet`](#45-classpathparquet)
 5. [Vocabularies](#5-vocabularies)
 6. [Loading semantics](#6-loading-semantics)
 7. [Example](#7-example)
@@ -34,7 +33,9 @@ what it describes and why it exists.
 
 **Facts, not conclusions.** A snapshot records only what a single class file can
 answer on its own: what a type declares, which types and members it names, and
-where. Anything that depends on *which other artifacts are present* — override
+where. Every dependency is stored once, as a detail fact; the type-level aggregate
+is rolled up from those facts when a snapshot is loaded (§6.4), so it can never
+disagree with them. Anything that depends on *which other artifacts are present* — override
 relationships, virtual-call targets, which of two same-named classes a reference
 binds to — is derived when snapshots are loaded together, never stored. That is
 what makes an artifact's snapshot reusable: a library is scanned once and its
@@ -53,7 +54,7 @@ renumbering, a reference to a type in another artifact looks exactly like a
 reference to a local one, and a snapshot can be inspected with any Parquet tool.
 
 **Readable vocabularies.** Kinds and relationships are stored as their names
-(`CLASS`, `INVOKES`, `calls`), not as ordinals. Dictionary encoding makes the
+(`CLASS`, `METHOD`, `calls`), not as ordinals. Dictionary encoding makes the
 repeated strings cost almost nothing, and the files stay self-explanatory.
 
 **Sorted for scoped reads.** Tables that are read selectively are sorted by the
@@ -71,10 +72,9 @@ An archive holds the tables of exactly one artifact, packaged as a ZIP file:
 ```
 <artifact>.hierograph
 ├── classpath.parquet     the artifact's ordered classpath        (optional)
-├── detail_refs.parquet   detail references (type- and member-level facts)
+├── dependencies.parquet  every dependency, one detail fact per row
 ├── members.parquet       fields, methods and constructors
 ├── parameters.parquet    method and constructor parameters
-├── refs.parquet          type-level references
 └── types.parquet         the artifact's types
 ```
 
@@ -84,7 +84,7 @@ An archive holds the tables of exactly one artifact, packaged as a ZIP file:
 | Entry method | **STORED** — the tables are already compressed; deflating them again only costs CPU |
 | Entry layout | flat: one entry per table, named exactly as above, no directories |
 | Entry order | sorted by name |
-| Required entries | `types`, `members`, `parameters`, `refs`, `detail_refs` (each may hold zero rows) |
+| Required entries | `types`, `members`, `parameters`, `dependencies` (each may hold zero rows) |
 | Optional entries | `classpath` — present when the producer knows the artifact's classpath |
 
 **File name.** The archive is named after its artifact key (§3.1): a trailing
@@ -108,10 +108,9 @@ would be. This is the exploded form of the artifact:
 ```
 com.example_billing-core_1.4.0.hierograph/
 ├── classpath.parquet
-├── detail_refs.parquet
+├── dependencies.parquet
 ├── members.parquet
 ├── parameters.parquet
-├── refs.parquet
 └── types.parquet
 ```
 
@@ -138,7 +137,7 @@ snapshot/
 A reader loads every `*.hierograph` entry in the directory — file or directory — in
 name order, and treats the union as one graph. The two forms may be mixed freely.
 
-A directory that contains the six table files directly, rather than artifacts, is an
+A directory that contains the table files directly, rather than artifacts, is an
 **unpacked** snapshot. It is read the same way, as if it were the content of a
 single archive. Its tables may cover several artifacts, because every type row
 names its own artifact.
@@ -166,7 +165,8 @@ far below its limits.
 | Integer columns | `INT32` |
 | Repetition | flat: every column is `REQUIRED` or `OPTIONAL`, with no nesting or lists |
 | Row groups | writers currently emit one row group per table; readers must not depend on this |
-| Schema root names | `type`, `member`, `parameter`, `ref`, `detail_ref`, `classpath` |
+| Schema root names | `type`, `member`, `parameter`, `dependency`, `classpath` |
+| Footer key-value metadata | `hierograph.format.version` = `2` in every table (§6.5) |
 
 Readers resolve columns **by name**, not by position.
 
@@ -205,8 +205,8 @@ Where a column holds a *type reference*, two further rules apply:
   reference to `java.lang.String`. Dependency analysis cares about the type named,
   not its dimensionality.
 - **Primitives and `void`** appear by their keyword (`int`, `boolean`, `void`) in
-  columns that describe a member's shape (§4.3, §4.5). They never appear in
-  `refs.parquet`, where only real type dependencies are counted.
+  columns that describe a member's shape (§4.3, §4.4). They never count in the
+  type-level aggregate (§6.4), where only real type dependencies are counted.
 
 ### 3.3 Member signature and member key
 
@@ -268,7 +268,7 @@ unambiguous. It is also how two artifacts that define the *same* FQN (a shaded
 copy, two versions of one library) are kept apart.
 
 **`fqn`** is the type's identity and the join key for every other table:
-`members.owner_fqn`, `refs.from_type`, `detail_refs.from_type`.
+`members.owner_fqn`, `dependencies.from_type`.
 
 **`kind`** is determined from the access flags in this order of precedence: an
 annotation type is `ANNOTATION`; an enum is `ENUM`; a class whose superclass is
@@ -314,7 +314,7 @@ are not repeated: a member appears only under the type that declares it.
 **`owner_fqn`** groups members by type. It is the column a reader filters on to
 fetch "all members of these types" without scanning the whole table.
 
-**`member_key`** is the member's identity. Member-level references (§4.5) point at
+**`member_key`** is the member's identity. Dependencies (§4.4) point at
 it, parameters (§4.3) hang off it, and tools address a single method or field by
 it.
 
@@ -374,7 +374,7 @@ otherwise falls back to `arg<index>` (`arg0`, `arg1`, …). Named parameters mak
 method details readable and give tool schemas meaningful argument names.
 
 **`annotations`** records which annotations sit on which parameter (`@NonNull` on the
-second, say), which a `parameter_annotated_by` row (§5.3) cannot say because it names
+second, say), which a `parameter_annotated_by` row (§5.2) cannot say because it names
 the method only. Annotation types are FQNs and contain no spaces, so one string column
 holds the list without a nested type.
 
@@ -385,56 +385,15 @@ signature; this column answers "which type does this parameter depend on".
 
 ---
 
-### 4.4 `refs.parquet`
+### 4.4 `dependencies.parquet`
 
-The **type-level dependency graph**: one row per distinct (source type, target
-type, reference kind) triple, with the number of times it occurs. This is the
-table Hierograph's structural analysis is built on: dependency matrices, layering
-and cycle detection, and impact analysis all aggregate these rows up the package
-and module hierarchy.
-
-| Column | Type | Null? | Description |
-|--------|------|-------|-------------|
-| `from_type` | string | no | FQN of the type whose bytecode contains the reference. |
-| `to_type` | string | no | FQN of the referenced type (§3.2). |
-| `kind` | string | no | How the target is referenced (§5.2). |
-| `count` | int32 | yes | How many times this (from, to, kind) reference occurs in the source type. |
-
-**`from_type`** is always a type defined in the same archive. References made by
-members are attributed to the type that declares the member, which is what makes
-this a type-to-type graph. Readers filter on it to fetch a type's outgoing
-dependencies.
-
-**`to_type`** may be any type: defined in the same artifact, in another artifact of
-the snapshot, or nowhere in the snapshot at all (an external type, §6.2).
-Self-references are not recorded; primitives and `void` are never targets.
-
-**`kind`** keeps the *nature* of a dependency, so analysis can tell inheritance
-(`EXTENDS`, `IMPLEMENTS`) from use in a signature (`PARAM_TYPE`, `RETURN_TYPE`) from
-use in code (`INVOKES`, `INSTANTIATES`). The same pair of types produces one row per
-kind that connects them.
-
-**`count`** is the dependency's weight: two calls to `Money.add` and one to
-`Money.of` within `Invoice` give one `INVOKES` row from `Invoice` to `Money` with
-count `3`. Weights let a matrix show how strongly two parts are coupled rather than
-merely whether they are. A `null` count reads as `1`.
-
-The rows are the **rollup of the detail facts** (§4.5) of `from_type`: one row per
-(target type, kind), counting every fact except `raises`, and leaving out facts whose
-target is `from_type` itself, a primitive or `void` (§5.2 gives each kind's detail
-relationship). So every unit of a count is one row in `detail_refs`.
-
-Rows appear grouped by `from_type`, in the order the references were first
-encountered.
-
----
-
-### 4.5 `detail_refs.parquet`
-
-The **detail dependencies**: one row per individual fact from a type or a member to a
-member or a type, with its source line. This table answers the precise questions the
-type-level graph cannot: *which* method calls *which* method, which code writes a
-field, where an exception is thrown, which class names which superclass.
+**Every dependency** the artifact's class files contain: one row per individual fact
+from a type or a member to a member or a type, with its source line. The table
+answers the precise questions — *which* method calls *which* method, which code
+writes a field, where an exception is thrown, which class names which superclass —
+and it is also the source of the type-level graph that Hierograph's structural
+analysis is built on: dependency matrices, layering, cycle detection and impact
+analysis all work on the aggregate a reader rolls up from these rows (§6.4).
 
 It is sorted by (`from_type`, `from_key`, `to_type`, `to_key`, `relationship`), so
 a query scoped to a set of types reads only the rows of those types.
@@ -445,33 +404,34 @@ a query scoped to a set of types reads only the rows of those types.
 | `from_type` | string | no | FQN of the type that declares `from_key`. |
 | `to_key` | string | no | Key of the referenced element: a member key, or a type reference. |
 | `to_type` | string | no | FQN of the type that owns `to_key`, or the referenced type itself. |
-| `relationship` | string | no | What the reference means (§5.3). |
-| `line` | int32 | yes | Source line of the reference, where meaningful. |
+| `relationship` | string | no | What the dependency means (§5.2). |
+| `line` | int32 | yes | Source line of the dependency, where meaningful. |
 
-**`from_key`** is the precise source of the reference: the method or field it
+**`from_key`** is the precise source of the dependency: the method or field it
 occurs in, or, for a fact about the type itself (`extends`, `implements`, its own
-annotations, type arguments and annotation values), the type's FQN.
+annotations, type arguments and annotation values), the type's FQN. That a fact is
+the type's own is what tells a type's annotations from its members' (§6.4).
 
 **`from_type`** is redundant with `from_key` by design. It is the sort and filter
-column, and it lets a reader roll detail references up to types without parsing
-keys.
+column, and it lets a reader roll dependencies up to types without parsing keys. It
+is always a type defined in the same artifact.
 
 **`to_key`** is the precise target. For `calls`, `reads_field` and `writes_field` it
 is a member key, named by the *instruction's owner*: a call compiled against
 `List.size()` targets `java.util.List#int size()`, whichever class implements it at
 run time. Resolving such a call to its possible implementations depends on the
-full set of loaded artifacts, so it is done at load time (§6.3). For every other relationship the target is a type reference, and `to_key` equals
-`to_type`. Primitives and `void` are recorded here, so a member's full shape is
-represented.
+full set of loaded artifacts, so it is done at load time (§6.3). For every other
+relationship the target is a type reference, and `to_key` equals `to_type`.
+Primitives and `void` are recorded here, so a member's full shape is represented.
 
-**`to_type`** is the type side of the target. It always holds a type FQN or a
-primitive, so a reader can filter incoming references ("who uses `Money`?") on a
-single column.
+**`to_type`** is the type side of the target. It may be any type: defined in the
+same artifact, in another artifact of the snapshot, or nowhere in the snapshot at
+all (an external type, §6.2). It always holds a type FQN or a primitive, so a reader
+can filter incoming dependencies ("who uses `Money`?") on a single column.
 
-**`relationship`** is the meaning of the edge, using Hierograph's detail
-vocabulary (§5.3).
+**`relationship`** is the meaning of the dependency (§5.2).
 
-**`line`** places the reference in the source. For references made by an
+**`line`** places the dependency in the source. For dependencies made by an
 instruction (`calls`, `reads_field`, `writes_field`, `instantiates`, `casts`,
 `class_literal`) it is the line of that instruction; for `catches`, the line the
 handler's code belongs to. For the relationships that describe a method's signature
@@ -479,12 +439,13 @@ handler's code belongs to. For the relationships that describe a method's signat
 is `null` for type-level facts, annotations, annotation values, type arguments and
 field types, and whenever no line information was compiled in.
 
-A detail reference belongs to the archive of the artifact that defines its
-`from_type`.
+Every row is one occurrence: two calls on different lines are two rows, and a method
+`f(Map, Map)` has two `parameter_type` rows. Nothing is filtered: references to the
+type itself, to primitives and to `void` are rows like any other.
 
 ---
 
-### 4.6 `classpath.parquet`
+### 4.5 `classpath.parquet`
 
 The artifact's **classpath**, in resolution order: one row per entry, with the
 artifact itself at index `0`. It is optional, written when the producer knows the
@@ -555,60 +516,35 @@ carries a `ConstantValue` attribute, a value the compiler inlines into every use
 access-flag layout, so that `default`, which the JVM does not encode as a flag,
 fits alongside the rest.
 
-### 5.2 Type-level reference kinds (`refs.kind`)
+### 5.2 Dependency kinds (`dependencies.relationship`)
 
-Each kind is the rollup of one detail relationship (§5.3); `MEMBER_ANNOTATED_BY`
-collects the `annotated_by` facts of members and the `parameter_annotated_by` facts.
+| Relationship | Group | From | To | The source … |
+|--------------|-------|------|----|--------------|
+| `extends` | structural | type | type | has the target as its superclass |
+| `implements` | structural | type | type | implements (or, as an interface, extends) the target interface |
+| `annotated_by` | declaration | type, method, field | type | carries the target annotation |
+| `parameter_annotated_by` | declaration | method | type | has a parameter carrying the target annotation (once per annotated parameter) |
+| `annotation_value` | declaration | type, method, field | type | uses the target in an annotation value: an enum constant, a class value, or a nested annotation |
+| `type_argument` | declaration | type, method, field | type | names the target inside a generic type argument or bound (`List<Money>` → `Money`) |
+| `has_type` | declaration | field | type | is declared with the target type |
+| `parameter_type` | declaration | method | type | takes a parameter of the target type (once per parameter) |
+| `returns` | declaration | method | type | returns the target type |
+| `throws` | declaration | method | type | declares the target in its `throws` clause |
+| `calls` | body | method | method | invokes the target; also links a lambda or method reference to its implementation method |
+| `reads_field` | body | method | field | reads the target field |
+| `writes_field` | body | method | field | assigns the target field |
+| `instantiates` | body | method | type | creates an instance or an array of the target |
+| `casts` | body | method | type | casts to, or tests `instanceof` against, the target |
+| `catches` | body | method | type | catches the target exception type |
+| `class_literal` | body | method | type | uses the target as a class literal (`Money.class`) |
+| `raises` | body | method | type | executes `throw new <target>(…)` in its body; not counted in the aggregate (§6.4) |
 
-
-| Kind | Group | The source type … |
-|------|-------|-------------------|
-| `EXTENDS` | structural | has the target as its superclass |
-| `IMPLEMENTS` | structural | implements (or, as an interface, extends) the target interface |
-| `ANNOTATED_BY` | structural | carries the target as an annotation on the type itself |
-| `FIELD_TYPE` | signature | declares a field of the target type |
-| `PARAM_TYPE` | signature | declares a method parameter of the target type |
-| `RETURN_TYPE` | signature | declares a method returning the target type |
-| `THROWS` | signature | declares the target in a method's `throws` clause |
-| `MEMBER_ANNOTATED_BY` | signature | carries the target as an annotation on a field, method or parameter |
-| `TYPE_ARGUMENT` | signature | names the target inside a generic type argument or bound (`List<Money>` → `Money`) |
-| `ANNOTATION_VALUE` | signature | uses the target in an annotation value: an enum constant, a class value, or a nested annotation |
-| `INVOKES` | body | calls a method or constructor owned by the target, including lambda and method-reference implementations |
-| `READS` | body | reads a field owned by the target |
-| `WRITES` | body | writes a field owned by the target |
-| `INSTANTIATES` | body | creates an instance or an array of the target |
-| `CAST` | body | casts to, or tests `instanceof` against, the target |
-| `CATCHES` | body | catches the target exception type |
-| `CLASS_LITERAL` | body | uses the target as a class literal (`Money.class`) |
-
-The **structural** kinds describe how a type is defined, **signature** kinds come
-from declarations, and **body** kinds from the bytecode of method bodies. The
-erased types of a generic signature are counted under their position's kind
-(`FIELD_TYPE`, `PARAM_TYPE`, …); `TYPE_ARGUMENT` counts only the types that appear
-*inside* the angle brackets, so no type is counted twice for the same position.
-
-### 5.3 Detail relationships (`detail_refs.relationship`)
-
-| Relationship | From | To | Meaning | Rolls up to (§5.2) |
-|--------------|------|----|---------|--------------------|
-| `extends` | type | type | has the target as its superclass | `EXTENDS` |
-| `implements` | type | type | implements (or, as an interface, extends) the target interface | `IMPLEMENTS` |
-| `annotated_by` | type, method, field | type | carries the target annotation | `ANNOTATED_BY` from a type, `MEMBER_ANNOTATED_BY` from a member |
-| `parameter_annotated_by` | method | type | has a parameter carrying the target annotation (once per annotated parameter) | `MEMBER_ANNOTATED_BY` |
-| `annotation_value` | type, method, field | type | uses the target in an annotation value: an enum constant, a class value, or a nested annotation | `ANNOTATION_VALUE` |
-| `type_argument` | type, method, field | type | names the target inside a generic type argument or bound | `TYPE_ARGUMENT` |
-| `has_type` | field | type | is declared with the target type | `FIELD_TYPE` |
-| `parameter_type` | method | type | takes a parameter of the target type (once per parameter) | `PARAM_TYPE` |
-| `returns` | method | type | returns the target type | `RETURN_TYPE` |
-| `throws` | method | type | declares the target in its `throws` clause | `THROWS` |
-| `calls` | method | method | invokes the target; also links a lambda or method reference to its implementation method | `INVOKES` |
-| `reads_field` | method | field | reads the target field | `READS` |
-| `writes_field` | method | field | assigns the target field | `WRITES` |
-| `instantiates` | method | type | creates an instance or an array of the target | `INSTANTIATES` |
-| `casts` | method | type | casts to, or tests `instanceof` against, the target | `CAST` |
-| `catches` | method | type | catches the target exception type | `CATCHES` |
-| `class_literal` | method | type | uses the target as a class literal (`Money.class`) | `CLASS_LITERAL` |
-| `raises` | method | type | executes `throw new <target>(…)` in its body | not counted |
+The **structural** kinds describe how a type is defined, **declaration** kinds come
+from the declarations of the type and its members, and **body** kinds from the
+bytecode of method bodies. The erased types of a generic signature are recorded under
+their position's kind (`has_type`, `parameter_type`, …); `type_argument` records only
+the types that appear *inside* the angle brackets, so no type is recorded twice for
+the same position.
 
 `throws` and `raises` are complementary. The first is the declared contract; the
 second is what the body actually throws. `raises` records only a freshly
@@ -617,7 +553,8 @@ factory-produced exception is not attributed.
 
 Relationships that depend on more than one class file, such as `overrides`,
 resolved virtual-call targets, and the inverse views (`read_by`, `written_by`,
-callers), are never stored. They are derived at load time (§6.3).
+callers), are never stored. They are derived at load time (§6.3) and never count in
+the aggregate (§6.4).
 
 ---
 
@@ -658,12 +595,52 @@ possible run-time targets of virtual calls, and inverse relationships. Because
 these are computed over whichever archives are loaded together, the same archive is
 correct in every combination it is loaded in.
 
-### 6.4 Robustness
+### 6.4 The type-level aggregate
+
+The type-to-type graph is not stored; a reader **rolls it up** from each type's
+`dependencies` rows when it loads the snapshot. For a type `S`, every row with
+`from_type` = `S` counts 1 towards the aggregated dependency from `S` to the row's
+`to_type`, under the row's kind, with three exceptions:
+
+- `raises` rows do not count: they refine facts that are already counted, the
+  `instantiates` and the constructor `calls` of the thrown exception;
+- rows whose `to_type` is `S` itself, a primitive or `void` do not count;
+- relationships outside §5.2 do not count; derived ones (§6.3) are never stored.
+
+`annotated_by` counts as structural when its `from_key` is the type itself and as an
+ordinary use when it is a member, so the rollup needs `from_key` alongside
+`from_type`, `to_type` and `relationship`. Those four columns are all it reads.
+
+Each aggregated dependency therefore has a weight — the number of rows behind it —
+and the kinds those rows have. Two calls to `Money.add` and one to `Money.of` within
+`Invoice` give a dependency from `Invoice` to `Money` of weight `3`; weights let a
+matrix show how strongly two parts are coupled rather than merely whether they are.
+Then `to_type` is bound to a node as §6.1 describes. Because every unit of weight is
+one row, a reader can always show the rows behind a weight.
+
+### 6.5 Format version
+
+Every table carries the format version in its footer key-value metadata, under
+`hierograph.format.version`. This document describes version `2`.
+
+A reader rejects an artifact it cannot read correctly, before loading anything:
+
+- an artifact with a `refs.parquet` or `detail_refs.parquet` table, or whose `types`
+  table carries no version, was written in **format 1**: a separate type-level
+  aggregate and a `detail_refs` table that lacked part of the dependencies (among
+  them `extends`, `implements`, casts and class literals). Rolling the aggregate up
+  from it would give wrong weights, so it has to be **rescanned** from its classes;
+- an artifact of a **newer** version needs a newer reader.
+
+### 6.6 Robustness
 
 - A table that is absent from an archive is read as empty.
 - Readers ignore columns they do not know, and address known columns by name.
-- Rows may be read in any order; only `parameters` and `detail_refs` guarantee a
-  sort order (§4.3, §4.5).
+- Rows may be read in any order; only `parameters` and `dependencies` guarantee a
+  sort order (§4.3, §4.4).
+- Artifacts are independent of each other, so a reader may read them in parallel and
+  combine them afterwards; the result must not depend on the order in which they
+  are read.
 
 ---
 
@@ -706,26 +683,23 @@ in artifact `com.example:billing-core:1.4.0` produces, among others, these rows.
 |------------|------:|------|----------|
 | `…Invoice#com.example.billing.Money total(java.lang.String)` | `0` | `currency` | `java.lang.String` |
 
-**`refs.parquet`**
-
-| from_type | to_type | kind | count |
-|-----------|---------|------|------:|
-| `…Invoice` | `java.lang.Object` | `EXTENDS` | `1` |
-| `…Invoice` | `java.util.List` | `FIELD_TYPE` | `1` |
-| `…Invoice` | `com.example.billing.Invoice$Line` | `TYPE_ARGUMENT` | `1` |
-| `…Invoice` | `com.example.billing.Money` | `RETURN_TYPE` | `1` |
-| `…Invoice` | `com.example.billing.Money` | `INVOKES` | `2` |
-
-**`detail_refs.parquet`**
+**`dependencies.parquet`**
 
 | from_key | from_type | to_key | to_type | relationship | line |
 |----------|-----------|--------|---------|--------------|-----:|
+| `…Invoice` | `…Invoice` | `java.lang.Object` | `java.lang.Object` | `extends` | |
 | `…Invoice#java.util.List lines` | `…Invoice` | `java.util.List` | `java.util.List` | `has_type` | |
+| `…Invoice#java.util.List lines` | `…Invoice` | `…Invoice$Line` | `…Invoice$Line` | `type_argument` | |
 | `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money zero(java.lang.String)` | `…Money` | `calls` | `13` |
 | `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money add(…Money)` | `…Money` | `calls` | `14` |
 | `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Invoice#java.util.List lines` | `…Invoice` | `reads_field` | `14` |
 | `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `com.example.billing.Money` | `com.example.billing.Money` | `returns` | `13` |
 | `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `java.lang.String` | `java.lang.String` | `parameter_type` | `13` |
+
+From these rows a reader rolls up (§6.4), among others, a dependency from `Invoice`
+to `Money` of weight `3` (one `returns`, two `calls`), and one to `java.lang.Object`
+of weight `1` (`extends`). The `reads_field` row targets `Invoice` itself and adds
+no weight.
 
 **`classpath.parquet`**
 
@@ -736,5 +710,6 @@ in artifact `com.example:billing-core:1.4.0` produces, among others, these rows.
 | `com.example:billing-core:1.4.0` | `billing-core` | `2` | `com.google.guava:guava:33.0.0-jre` | `0` |
 
 *(`…` abbreviates `com.example.billing.` for readability; the tables store full
-names. The example shows a selection of rows: the loop's iterator calls, for
-instance, add further `INVOKES` and `calls` rows.)*
+names. The example shows a selection of rows: the field initializer's `new
+ArrayList<>()`, for instance, adds `instantiates` and `calls` rows to the
+constructor, and the loop's iterator adds further `calls` rows.)*

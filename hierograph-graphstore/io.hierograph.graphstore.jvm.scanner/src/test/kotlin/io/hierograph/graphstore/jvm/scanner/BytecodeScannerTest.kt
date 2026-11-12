@@ -497,6 +497,18 @@ class BytecodeScannerTest {
         assertThat(ParquetReader().readTypeRows(tmp, listOf("fix.Circle")).single().classHash).isEqualTo(type("fix.Circle").classHash)
     }
 
+    @Test
+    fun `a store built from the scan and one loaded from its snapshot have the same dependencies`(@TempDir tmp: Path) {
+        // The snapshot stores no aggregate: the loader rolls it up from the dependency rows, as the scanner did.
+        result.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
+        val loaded = GraphStore().also { ParquetReader().load(tmp, it) }
+        val scanned = GraphStore().also { store ->
+            result.classes.map { it.artifactKey }.distinct().forEach { store.registerArtifact(io.hierograph.graphstore.jvm.model.ArtifactInfo(it, it, it)) }
+            result.classes.forEach { store.applyClass(it.artifactKey, it.facts) }
+        }
+        assertThat(loaded.typeDependencies().toSet()).isNotEmpty.isEqualTo(scanned.typeDependencies().toSet())
+    }
+
     private fun compile(out: Path, sources: Map<String, String>, options: List<String>): Path {
         val srcDir = Files.createDirectories(out.resolveSibling(out.fileName.toString() + "-src"))
         val files = sources.map { (path, code) ->

@@ -32,7 +32,7 @@ data class DetailQuery(
 
 /**
  * The member-level dependency engine over a Parquet snapshot. Scope resolution happens in memory, in the
- * caller; this engine does the member-edge half: a scoped push-down read of `detail_refs.parquet`
+ * caller; this engine does the member-edge half: a scoped push-down read of `dependencies.parquet`
  * (`from_type` / `to_type` ∈ scope, optionally `relationship`) and a stable sort. Paging and summaries
  * are the caller's.
  *

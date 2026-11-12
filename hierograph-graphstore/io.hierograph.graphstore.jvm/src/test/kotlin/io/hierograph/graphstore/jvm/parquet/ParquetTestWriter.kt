@@ -51,11 +51,14 @@ object ParquetTestWriter {
         val lineTo: Int? = null,
     )
 
-    data class RefFixture(
+    /** One dependency row; [fromKey] defaults to [fromType], a type-level fact. */
+    data class DependencyFixture(
         val fromType: String,
         val toType: String,
-        val kind: String,
-        val count: Int? = null,
+        val relationship: String,
+        val fromKey: String = fromType,
+        val toKey: String = toType,
+        val line: Int? = null,
     )
 
     /** Writes `types.parquet` in the layout used before the `modifiers` column existed (an older snapshot). */
@@ -100,18 +103,47 @@ object ParquetTestWriter {
         }
     }
 
-    fun writeRefs(dir: Path, rows: List<RefFixture>) {
-        write(dir.resolve(ParquetSchema.REFS_FILE), ParquetSchema.refsSchema(), rows) { sb, r ->
-            sb.setString(ParquetSchema.Refs.FROM_TYPE, r.fromType)
-            sb.setString(ParquetSchema.Refs.TO_TYPE, r.toType)
-            sb.setString(ParquetSchema.Refs.KIND, r.kind)
-            sb.setNullableInt(ParquetSchema.Refs.COUNT, r.count)
+    fun writeDependencies(dir: Path, rows: List<DependencyFixture>) {
+        val cols = ParquetSchema.Dependencies
+        write(dir.resolve(ParquetSchema.DEPENDENCIES_FILE), ParquetSchema.dependenciesSchema(), rows.sortedBy { it.fromType }) { sb, d ->
+            sb.setString(cols.FROM_KEY, d.fromKey)
+            sb.setString(cols.FROM_TYPE, d.fromType)
+            sb.setString(cols.TO_KEY, d.toKey)
+            sb.setString(cols.TO_TYPE, d.toType)
+            sb.setString(cols.RELATIONSHIP, d.relationship)
+            sb.setNullableInt(cols.LINE, d.line)
         }
     }
 
-    private fun <T> write(path: Path, schema: FileSchema, rows: List<T>, set: (StructBuilder, T) -> Unit) {
+    /** Writes a table of format 1, which a reader must reject: here an (empty) `refs.parquet`. */
+    fun writeFormat1Refs(dir: Path) {
+        val schema = FileSchema.builder("ref")
+            .addColumn("from_type", PhysicalType.BYTE_ARRAY, RepetitionType.REQUIRED, LogicalType.string())
+            .build()
+        write(dir.resolve("refs.parquet"), schema, emptyList<Unit>()) { _, _ -> }
+    }
+
+    /** Writes `types.parquet` with [version] in its footer, or without a version when it is `null`. */
+    fun writeTypesInFormat(dir: Path, version: String?, rows: List<TypeFixture>) {
+        write(dir.resolve(ParquetSchema.TYPES_FILE), ParquetSchema.typesSchema(), rows, version) { sb, t ->
+            sb.setString(ParquetSchema.Types.ARTIFACT, t.artifact)
+            sb.setString(ParquetSchema.Types.FQN, t.fqn)
+            sb.setString(ParquetSchema.Types.KIND, t.kind)
+            sb.setNullable(ParquetSchema.Types.SOURCE_FILE, t.sourceFile)
+            sb.setNullable(ParquetSchema.Types.CLASS_HASH, t.classHash)
+        }
+    }
+
+    private fun <T> write(
+        path: Path,
+        schema: FileSchema,
+        rows: List<T>,
+        version: String? = ParquetSchema.FORMAT_VERSION.toString(),
+        set: (StructBuilder, T) -> Unit,
+    ) {
         val config = WriterConfig.builder().codec(CompressionCodec.UNCOMPRESSED).build()
         ParquetFileWriter.create(OutputFile.of(path), schema, config).use { writer ->
+            version?.let { writer.keyValueMetadata(ParquetSchema.FORMAT_VERSION_KEY, it) }
             val rowWriter = writer.rowWriter()
             for (row in rows) {
                 rowWriter.writeRow { sb -> set(sb, row) }

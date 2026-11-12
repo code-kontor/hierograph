@@ -24,18 +24,31 @@ import dev.hardwood.schema.FileSchema
  * The flat table layout of a GraphStore Parquet snapshot, shared by the loader and the writer so both
  * sides agree on file names, column names and types.
  *
- * This is the MVP schema (spec §7): kinds are stored as **strings** (the enum names `CLASS`, `METHOD`,
- * `EXTENDS`, …) rather than the int32 ordinals of the full §4 schema, which keeps snapshots human-readable. A single snapshot can mix
- * artifacts, so `types` carries an explicit `artifact` column.
+ * Kinds are stored as **strings** (the enum names `CLASS`, `METHOD`, …, and the `DependencyKind` wire names
+ * `extends`, `calls`, …), which keeps snapshots human-readable. A single snapshot can mix artifacts, so
+ * `types` carries an explicit `artifact` column. Every table carries [FORMAT_VERSION] under
+ * [FORMAT_VERSION_KEY] in its footer.
  */
 object ParquetSchema {
 
     const val TYPES_FILE = "types.parquet"
     const val MEMBERS_FILE = "members.parquet"
     const val PARAMETERS_FILE = "parameters.parquet"
-    const val REFS_FILE = "refs.parquet"
-    const val DETAIL_REFS_FILE = "detail_refs.parquet"
+    const val DEPENDENCIES_FILE = "dependencies.parquet"
     const val CLASSPATH_FILE = "classpath.parquet" // per-artifact classpath manifest; absent in CLI/legacy snapshots
+
+    /** The footer key-value entry that every table carries: the snapshot format version it was written in. */
+    const val FORMAT_VERSION_KEY = "hierograph.format.version"
+
+    /**
+     * The format version this code writes and reads. Version 2 holds every dependency as a detail row in
+     * [DEPENDENCIES_FILE]; the aggregate is rolled up from it at load. Version 1 (unmarked) had a separate
+     * `refs.parquet` aggregate and an incomplete `detail_refs.parquet`.
+     */
+    const val FORMAT_VERSION = 2
+
+    /** The dependency tables of format version 1. An artifact that still has one is stale and must be rescanned. */
+    val FORMAT_1_FILES = listOf("refs.parquet", "detail_refs.parquet")
 
     object Types {
         const val ARTIFACT = "artifact"
@@ -68,23 +81,11 @@ object ParquetSchema {
     }
 
     /**
-     * Aggregated type-level references, type→type: one row per (from type, to type, kind) with a count.
-     * The rows are the rollup of the type's [DetailRefs] rows (see `DependencyRollup`), so every unit of a
-     * count is one detail row.
+     * The dependencies: one row per fact in a class file, from the type itself or one of its members to a
+     * member or a type, with a `DependencyKind` wire name as `relationship`. The type-level aggregate is the
+     * rollup of these rows (see `DependencyRollup`). Sorted by `from_type` so scoped reads skip row groups.
      */
-    object Refs {
-        const val FROM_TYPE = "from_type"
-        const val TO_TYPE = "to_type"
-        const val KIND = "kind"                 // RefKind name
-        const val COUNT = "count"
-    }
-
-    /**
-     * Detail references: one row per fact in a class file, from the type itself or one of its members to a
-     * member or a type, with a `DependencyKind` wire name as `relationship`. Sorted by `from_type` so scoped
-     * reads skip row groups.
-     */
-    object DetailRefs {
+    object Dependencies {
         const val FROM_KEY = "from_key"
         const val FROM_TYPE = "from_type"
         const val TO_KEY = "to_key"
@@ -138,22 +139,14 @@ object ParquetSchema {
             .string(Parameters.ANNOTATIONS, RepetitionType.OPTIONAL)
             .build()
 
-    fun refsSchema(): FileSchema =
-        FileSchema.builder("ref")
-            .string(Refs.FROM_TYPE, RepetitionType.REQUIRED)
-            .string(Refs.TO_TYPE, RepetitionType.REQUIRED)
-            .string(Refs.KIND, RepetitionType.REQUIRED)
-            .addColumn(Refs.COUNT, PhysicalType.INT32, RepetitionType.OPTIONAL)
-            .build()
-
-    fun detailRefsSchema(): FileSchema =
-        FileSchema.builder("detail_ref")
-            .string(DetailRefs.FROM_KEY, RepetitionType.REQUIRED)
-            .string(DetailRefs.FROM_TYPE, RepetitionType.REQUIRED)
-            .string(DetailRefs.TO_KEY, RepetitionType.REQUIRED)
-            .string(DetailRefs.TO_TYPE, RepetitionType.REQUIRED)
-            .string(DetailRefs.RELATIONSHIP, RepetitionType.REQUIRED)
-            .addColumn(DetailRefs.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
+    fun dependenciesSchema(): FileSchema =
+        FileSchema.builder("dependency")
+            .string(Dependencies.FROM_KEY, RepetitionType.REQUIRED)
+            .string(Dependencies.FROM_TYPE, RepetitionType.REQUIRED)
+            .string(Dependencies.TO_KEY, RepetitionType.REQUIRED)
+            .string(Dependencies.TO_TYPE, RepetitionType.REQUIRED)
+            .string(Dependencies.RELATIONSHIP, RepetitionType.REQUIRED)
+            .addColumn(Dependencies.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
             .build()
 
     fun classpathSchema(): FileSchema =

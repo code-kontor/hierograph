@@ -551,7 +551,7 @@ What the GraphStore deliberately does **not** do, and where it happens instead:
 | Not in the GraphStore | Where it lives |
 |------------------------|----------------|
 | Persistence | the Parquet snapshot, written by `ParquetWriter` and read by `ParquetReader` |
-| Member-level references (calls, field access, line numbers) | the snapshot's `detail_refs` table, read on demand |
+| Member-level references (calls, field access, line numbers) | the snapshot's `dependencies` table, read on demand |
 | Parameters, type modifiers, source files, line ranges | the snapshot's `members`, `parameters` and `types` tables, read on demand |
 | Overrides and virtual-call targets | load-time resolution, computed from the store's supertype edges together with the snapshot's members |
 | Rolling dependencies up to packages and modules | the hierarchical graph built from the store's projections |

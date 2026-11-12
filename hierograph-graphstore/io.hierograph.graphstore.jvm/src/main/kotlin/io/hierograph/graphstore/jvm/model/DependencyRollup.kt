@@ -16,7 +16,7 @@
 package io.hierograph.graphstore.jvm.model
 
 /**
- * Rolls the detail dependencies of one type up into its aggregated references: one [Ref] per
+ * Rolls detail dependencies up into aggregated references: per owner type, one [Ref] per
  * (target type, [RefKind]) with the number of detail facts behind it as its count. This is the only
  * place the rollup rules live, so the aggregate can always be explained by detail facts:
  *
@@ -24,24 +24,41 @@ package io.hierograph.graphstore.jvm.model
  * - self-dependencies (target type = the owner type) and primitive or `void` targets are left out;
  * - relationships outside [DependencyKind] (derived ones such as `overrides`) are left out.
  *
- * The facts must all belong to the one owner type ([DetailRef.fromType] = [ownerFqn]), as a class file's
- * facts do. Each counted kind maps onto the [RefKind] the stored aggregate uses; [DependencyKind.ANNOTATED_BY]
- * maps to [RefKind.ANNOTATED_BY] when the source is the type itself and to [RefKind.MEMBER_ANNOTATED_BY]
- * when it is a member. Refs are listed in the order their first fact appears.
+ * Each counted kind maps onto the [RefKind] of the aggregate; [DependencyKind.ANNOTATED_BY] maps to
+ * [RefKind.ANNOTATED_BY] when the source is the type itself and to [RefKind.MEMBER_ANNOTATED_BY] when it
+ * is a member. Refs are listed in the order their first fact appears.
+ *
+ * The scanner rolls up each class as it finishes it ([refsOf]); a snapshot reader feeds the rows of a
+ * dependency table into an [Accumulator] without building a [DetailRef] per row.
  */
 object DependencyRollup {
 
+    /** The aggregated references of [ownerFqn], rolled up from its detail [facts]. */
     fun refsOf(ownerFqn: String, facts: Iterable<DetailRef>): List<Ref> {
-        val counts = LinkedHashMap<Pair<String, RefKind>, Int>()
-        for (fact in facts) {
-            val kind = DependencyKind.fromValue(fact.relationship) ?: continue
-            if (!kind.counted) continue
-            val target = fact.toType
-            if (target == ownerFqn || target in JavaKinds.JAVA_PRIMITIVES) continue
-            val refKind = refKindOf(kind, sourceIsType = fact.fromKey == ownerFqn) ?: continue
-            counts.merge(target to refKind, 1, Int::plus)
+        val acc = Accumulator()
+        for (fact in facts) acc.add(ownerFqn, fact.fromKey, fact.toType, fact.relationship)
+        return acc.refsOf(ownerFqn)
+    }
+
+    /** Collects detail facts of any number of owner types and rolls them up per owner. Not thread-safe. */
+    class Accumulator {
+        private val countsByOwner = LinkedHashMap<String, LinkedHashMap<Pair<String, RefKind>, Int>>()
+
+        /** Adds one detail fact: from [fromKey] (the owner's FQN for a type-level fact) of [ownerFqn] to [toType]. */
+        fun add(ownerFqn: String, fromKey: String, toType: String, relationship: String) {
+            val kind = DependencyKind.fromValue(relationship) ?: return
+            if (!kind.counted) return
+            if (toType == ownerFqn || toType in JavaKinds.JAVA_PRIMITIVES) return
+            val refKind = refKindOf(kind, sourceIsType = fromKey == ownerFqn) ?: return
+            countsByOwner.getOrPut(ownerFqn) { LinkedHashMap() }.merge(toType to refKind, 1, Int::plus)
         }
-        return counts.map { (key, count) -> Ref(toKey = key.first, kind = key.second, count = count) }
+
+        /** The owner types that have at least one counted fact, in the order their first fact appeared. */
+        val owners: Set<String> get() = countsByOwner.keys
+
+        /** The aggregated references of [ownerFqn]; empty when it has no counted fact. */
+        fun refsOf(ownerFqn: String): List<Ref> =
+            countsByOwner[ownerFqn].orEmpty().map { (key, count) -> Ref(toKey = key.first, kind = key.second, count = count) }
     }
 
     /** The [RefKind] a counted [kind] is stored under; `null` for a kind that is not counted. */
