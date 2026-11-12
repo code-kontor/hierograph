@@ -18,6 +18,9 @@ parquet-export/
 # Local example inputs for the scanner CLI (Spring jars, demo snapshots, …)
 /example/
 
+# Local benchmark snapshots and their input jar lists (load-time measurements)
+/benchmark_snapshot/
+
 # Maven wrapper local cache
 .mvn/
 
