@@ -88,6 +88,9 @@ synthetic root. The root itself is not counted, so:
 - `total_type_level_edges` counts every type-level dependency once, at its source.
   `type_level_edges_by_attribute` counts each edge once per attribute flag it carries,
   so the attribute counts can add up to more than the total.
+- `type_level_weight_by_kind` sums the `kinds` of every type-level dependency: the
+  number of references of each kind in the whole graph. Its values add up to the total
+  weight of the type-level dependencies.
 
 The `hierarchy` section lists the root's children in the model's order, the
 `External Types` module included. For each module:
@@ -138,6 +141,9 @@ for every graph.
     "total_type_level_edges": 7,
     "type_level_edges_by_attribute": {
       "is_extends": 0, "is_implements": 0, "is_annotated_by": 0, "is_depends_on_other": 7
+    },
+    "type_level_weight_by_kind": {
+      "has_type": 2, "parameter_type": 1, "returns": 2, "type_argument": 1, "calls": 9, "reads_field": 1, "instantiates": 1
     }
   },
   "kinds": {
@@ -157,8 +163,17 @@ for every graph.
       { "attribute": "is_extends", "description": "At least one type in the source subtree extends a type in the target subtree" },
       …
     ],
+    "type_level_kinds": [
+      { "kind": "extends", "description": "extends facts of the type and its members" },
+      …
+      { "kind": "member_annotated_by", "description": "annotated_by facts of members and parameter_annotated_by facts" },
+      …
+    ],
     "detail_level": [
-      { "kind": "throws", "source": "method", "description": "Method declares it throws this exception type" },
+      { "kind": "extends", "source": "type", "description": "Type has this superclass" },
+      …
+      { "kind": "raises", "source": "method", "description": "Method body constructs and throws this exception type (throw new X(...)); not counted in weights", "counted": false },
+      { "kind": "overrides", "source": "method", "description": "Method overrides another method (derived at load)", "derived": true },
       …
     ]
   },
@@ -196,10 +211,12 @@ root has id `4600`.
 | `stats.nodes_by_kind` | node count per kind, in order of first occurrence | shows the mix: a codebase of records reads differently from one of interfaces |
 | `stats.total_type_level_edges` | number of type-level dependencies | the density of the graph |
 | `stats.type_level_edges_by_attribute` | edge count per attribute flag, every flag present | how much coupling is inheritance or annotation rather than use |
+| `stats.type_level_weight_by_kind` | number of references per kind over all type-level dependencies, kinds with a count only | what the coupling of the whole graph consists of: calls, signatures, casts, annotation values, … |
 | `kinds.structural` | the nine `java.*` node kinds and `external.type`, each with a description | defines the `kind` values of node references |
 | `kinds.group_aliases` | each alias with its expansion | tells the caller what `types`, `members` and `packages` select in a kind filter |
 | `relationships.type_level_attributes` | the four attribute flags with a description | defines the flags on type-level and aggregated edges |
-| `relationships.detail_level` | the thirteen detail-level relationships with their source kind | defines the `relationship` values of detail-level edges; eleven are stored in the snapshot or derived at load, two are reverse views (`read_by`, `written_by`) |
+| `relationships.type_level_kinds` | the seventeen kinds of a type-level `kinds` breakdown, with a description | defines the keys of `kinds` and `by_kind` on type-level and aggregated edges; each is a detail-level relationship, except `member_annotated_by` |
+| `relationships.detail_level` | the twenty-one detail-level relationships with their source kind | defines the `relationship` values of detail-level edges and filters; eighteen are stored in the snapshot (`raises` with `"counted": false`, since it adds no weight), three are derived (`"derived": true`): `overrides` at load, `read_by` and `written_by` as reverse views |
 | `hierarchy` | every module as an enriched node reference plus `outgoing_dep_count` and `incoming_dep_count` | the ids and sizes needed to start navigating, and a first impression of coupling |
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |

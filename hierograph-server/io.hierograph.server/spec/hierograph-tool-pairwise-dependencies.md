@@ -76,7 +76,7 @@ cell list follows it.
 | `nodeIds` | array of node ids | yes | — | The nodes of the matrix, 2 to 1,000 |
 | `edgeSort` | string | no | `"dsm"` | Order of the edge list: `"dsm"` or `"weight_desc"` |
 | `minWeight` | integer | no | `1` | Smallest weight an edge must have to be listed |
-| `limit` | integer | no | `25` | Edges per page, clamped to 1–200 |
+| `limit` | integer | no | `25` | Edges per page, clamped to 1–166 |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
 | `view` | string | no | none | the view to answer in |
 
@@ -241,10 +241,12 @@ The first page of the call in §3.4, with `limit = 2`:
   "edges": [
     { "from": 4702, "to": 4720, "weight": 6, "type_pair_count": 3,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "returns": 2, "calls": 4 } },
     { "from": 4702, "to": 4803, "weight": 1, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 1 } }
   ],
   "next_cursor": "eyJ2IjoxLCJ0b29sIjoicGFpcndpc2VfZGVwZW5kZW5jaWVzIiwi…"
 }
@@ -258,7 +260,8 @@ The second page, called with the cursor, holds the page counts and the edge list
   "edges": [
     { "from": 4720, "to": 4803, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "instantiates": 1, "calls": 3 } }
   ]
 }
 ```
@@ -326,13 +329,16 @@ not a layering.
 | `weight` | integer | Summed weight of the type-level dependencies in the cell |
 | `type_pair_count` | integer | Number of distinct type pairs in the cell |
 | `attributes` | object | The four attribute flags, each `true` or `false` |
+| `kinds` | object | Number of references per kind in the cell; the counts sum to `weight` |
 
-**`weight`**, **`type_pair_count`** and **`attributes`** have the meaning they have in
+**`weight`**, **`type_pair_count`**, **`attributes`** and **`kinds`** have the meaning
+they have in
 [`aggregated_dependencies`](hierograph-tool-aggregated-dependencies.md#43-edge-fields):
-the strength, the breadth and the kinds of the coupling. The attribute flags are
+the strength, the breadth and the nature of the coupling. The attribute flags are
 defined in
 [Two levels of dependency](hierograph-mcp-tools.md#33-two-levels-of-dependency). The
-same pair of nodes gives the same three values in both tools.
+same pair of nodes gives the same four values in both tools. `kinds` is computed only
+for the edges on the returned page.
 
 ---
 
@@ -358,7 +364,7 @@ at once. `INVALID_NODE_KIND` carries the member's declaring type as a
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef), with a recovery that
 says to pass that id instead.
 
-The cap of 200 edges at 250 bytes each is the largest page that fits the
+The cap of 166 edges at 300 bytes each is the largest page that fits the
 [response budget](hierograph-mcp-tools.md#73-the-response-budget).
 
 While no graph is loaded the tool returns the

@@ -448,8 +448,8 @@ point where an MCP client truncates a response:
 | Tool | Default `limit` | Cap | Bytes per item | Full page |
 |------|-----------------|-----|----------------|-----------|
 | `list_descendants` | 150 | 200 | 250 | 50,000 |
-| `pairwise_dependencies` | 25 | 200 | 250 | 50,000 |
-| `outgoing_dependencies`, `incoming_dependencies` (type level) | 100 | 142 | 350 | 49,700 |
+| `pairwise_dependencies` | 25 | 166 | 300 | 49,800 |
+| `outgoing_dependencies`, `incoming_dependencies` (type level) | 100 | 125 | 400 | 50,000 |
 | `outgoing_dependencies`, `incoming_dependencies` (detail level) | 80 | 90 | 550 | 49,500 |
 | `affected_by` | 100 | 111 | 450 | 49,950 |
 

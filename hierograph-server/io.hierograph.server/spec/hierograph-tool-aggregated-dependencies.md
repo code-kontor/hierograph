@@ -136,6 +136,7 @@ From the collected dependencies the tool builds the edge:
 | `weight` | the sum of the collected weights |
 | `type_pair_count` | the number of distinct (depending type, depended-upon type) pairs collected |
 | `attributes` | the union of the four attribute flags of the collected dependencies |
+| `kinds` | the sum of the collected dependencies' counts per kind |
 
 A pair whose aggregated weight is 0 has no edge and is left out of `edges`. The summary
 still counts it (§4.3), so the caller can tell "no dependency" apart from "not asked".
@@ -211,13 +212,16 @@ The response to the call in §3.2:
   "edges": [
     { "from": 4702, "to": 4720, "weight": 6, "type_pair_count": 3,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "returns": 2, "calls": 4 } },
     { "from": 4702, "to": 4803, "weight": 1, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 1 } },
     { "from": 4720, "to": 4803, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "instantiates": 1, "calls": 3 } }
   ],
   "summary": {
     "total_pairs_requested": 4,
@@ -249,6 +253,7 @@ the endpoints of the edges without repeating the names in every edge.
 | `weight` | integer | Summed weight of the collected type-level dependencies |
 | `type_pair_count` | integer | Number of distinct type pairs behind the edge |
 | `attributes` | object | The four attribute flags, each `true` or `false` |
+| `kinds` | object | Number of references per kind; the counts sum to `weight` |
 
 **`from`** and **`to`** are the input ids, not the types inside them. An edge says
 "something in this subtree depends on something in that one"; the evidence tools
@@ -269,6 +274,14 @@ apart.
 flag is `true` when at least one collected dependency carries it. Inheritance is a far
 stronger tie than a method call, and the flags let a caller see that without asking
 for the type-level edges.
+
+**`kinds`** goes one step further: it breaks `weight` down by kind, summed over the
+collected dependencies, for example `{"annotation_value": 2}` for a module pair held
+together only by Spring wiring, or `{"returns": 2, "calls": 4}`. Only kinds with a
+count appear. Each name is the detail-level relationship that lists those references,
+except `member_annotated_by`, which counts members' `annotated_by` and the
+`parameter_annotated_by` facts together (see
+[`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#41-type-level)).
 
 ### 4.4 Summary fields
 

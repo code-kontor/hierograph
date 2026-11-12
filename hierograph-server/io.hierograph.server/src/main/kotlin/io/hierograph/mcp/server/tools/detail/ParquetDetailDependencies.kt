@@ -350,10 +350,7 @@ class ParquetDetailDependencies(
          */
         private val ROW_ORDER = compareBy<Dependency>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value }, { it.line ?: -1 })
 
-        /** The relationship values accepted by the `relationship` filter. */
-        private val RELATIONSHIP_KINDS = setOf(
-            "throws", "raises", "returns", "has_type", "calls", "overrides", "reads_field", "writes_field",
-            "read_by", "written_by", "annotated_by", "parameter_type", "parameter_annotated_by",
-        )
+        /** The relationship values accepted by the `relationship` filter: every detail kind, derived ones included. */
+        private val RELATIONSHIP_KINDS: Set<String> = DependencyKind.entries.mapTo(linkedSetOf()) { it.value }
     }
 }

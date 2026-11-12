@@ -47,7 +47,9 @@ class IncomingDependenciesTool(
                 "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
                 "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
-                "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
+                "At type level each edge carries `kinds`: how many facts of each kind (calls, extends, casts, …) " +
+                "make up its weight; a kind name is also the detail-level relationship that lists those facts. " +
+                "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size. " +
                 "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
                 "you will not read. If you only need the ranking or attribute breakdown " +
@@ -78,14 +80,15 @@ class IncomingDependenciesTool(
         )
         detailLevel: String?,
         @ToolParam(
-            description = "Filter to a specific detail-level relationship kind. Only valid when detailLevel='detail'.",
+            description = "Filter to a specific detail-level relationship kind (e.g. calls, extends, casts, read_by; " +
+                    "graph_overview lists them all). Only valid when detailLevel='detail'.",
             required = false
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 142 / 90, the most " +
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 125 / 90, the most " +
                     "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
-                    "only need the summary (by_target / by_source_type / by_attribute).",
+                    "only need the summary (by_target / by_source_type / by_attribute / by_kind).",
             required = false
         )
         limit: Int?,
@@ -150,8 +153,8 @@ class IncomingDependenciesTool(
     }
 
     companion object {
-        /** Type-level pagination for incoming_dependencies (~350 bytes/edge): default 100, cap 142 (the budget's fill). */
-        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 142, bytesPerItem = 350)
+        /** Type-level pagination for incoming_dependencies (~400 bytes/edge with its kinds): default 100, cap 125 (the budget's fill). */
+        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 125, bytesPerItem = 400)
 
         /** Detail-level pagination for incoming_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
         val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)

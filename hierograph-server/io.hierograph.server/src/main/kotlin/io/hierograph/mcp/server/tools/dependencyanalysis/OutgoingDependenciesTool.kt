@@ -18,6 +18,9 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.server.mapping.GraphStoreDependencySource
+import java.util.EnumMap
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -55,7 +58,9 @@ class OutgoingDependenciesTool(
                 "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
                 "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
-                "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
+                "At type level each edge carries `kinds`: how many facts of each kind (calls, extends, casts, …) " +
+                "make up its weight; a kind name is also the detail-level relationship that lists those facts. " +
+                "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size — they give the shape without " +
                 "processing all edges. " +
                 "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
@@ -87,14 +92,15 @@ class OutgoingDependenciesTool(
         )
         detailLevel: String?,
         @ToolParam(
-            description = "Filter to a specific detail-level relationship kind. Only valid when detailLevel='detail'.",
+            description = "Filter to a specific detail-level relationship kind (e.g. calls, extends, casts, read_by; " +
+                    "graph_overview lists them all). Only valid when detailLevel='detail'.",
             required = false
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 142 / 90, the most " +
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 125 / 90, the most " +
                     "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
-                    "only need the summary (by_target / by_source_type / by_attribute).",
+                    "only need the summary (by_target / by_source_type / by_attribute / by_kind).",
             required = false
         )
         limit: Int?,
@@ -211,7 +217,8 @@ class OutgoingDependenciesTool(
             val from: HGNode,
             val to: HGNode,
             val weight: Int,
-            val bitmap: Int
+            val bitmap: Int,
+            val kinds: Map<RefKind, Int>,
         )
 
         val allEdges = mutableListOf<TypeEdge>()
@@ -219,6 +226,7 @@ class OutgoingDependenciesTool(
         for ((_, name) in JavaEdgeAttributes.ALL) {
             byAttribute[name] = 0
         }
+        val byKind = EnumMap<RefKind, Int>(RefKind::class.java)
         val sourceTypeCounts = linkedMapOf<Any, Int>()
         // Summed edge weight per depended-upon endpoint (dep.to). Used only by the
         // open form's by_target rollup; accumulated over the full result set.
@@ -230,7 +238,9 @@ class OutgoingDependenciesTool(
             for (dep in deps) {
                 val otherEndpoint = if (outgoing) dep.to else dep.from
                 if (otherSideTypeIds == null || otherEndpoint.identifier in otherSideTypeIds) {
-                    allEdges.add(TypeEdge(dep.from, dep.to, dep.weight, dep.attributesBitmap))
+                    val kinds = GraphStoreDependencySource.kindsOf(dep)
+                    allEdges.add(TypeEdge(dep.from, dep.to, dep.weight, dep.attributesBitmap, kinds))
+                    for ((kind, count) in kinds) byKind.merge(kind, count, Int::plus)
 
                     for ((pos, name) in JavaEdgeAttributes.ALL) {
                         if (JavaEdgeAttributes.isSet(dep.attributesBitmap, pos)) {
@@ -288,7 +298,8 @@ class OutgoingDependenciesTool(
                 "to" to edge.to.identifier,
                 "weight" to edge.weight,
                 "type_pair_count" to 1,
-                "attributes" to JavaEdgeAttributes.toMap(edge.bitmap)
+                "attributes" to JavaEdgeAttributes.toMap(edge.bitmap),
+                "kinds" to RefKind.toMap(edge.kinds),
             )
         }
 
@@ -305,6 +316,7 @@ class OutgoingDependenciesTool(
             "returned" to page.size,
             "truncated" to truncated,
             "by_attribute" to byAttribute,
+            "by_kind" to RefKind.toMap(byKind),
             "by_source_type" to bySourceType
         )
 
@@ -402,8 +414,8 @@ class OutgoingDependenciesTool(
     )
 
     companion object {
-        /** Type-level pagination for outgoing_dependencies (~350 bytes/edge): default 100, cap 142 (the budget's fill). */
-        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 142, bytesPerItem = 350)
+        /** Type-level pagination for outgoing_dependencies (~400 bytes/edge with its kinds): default 100, cap 125 (the budget's fill). */
+        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 125, bytesPerItem = 400)
 
         /** Detail-level pagination for outgoing_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
         val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)

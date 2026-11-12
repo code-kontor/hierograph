@@ -78,7 +78,7 @@ of view.
 | `toId` | node id | at detail level | — | The depended-upon subtree |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
-| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
+| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 125 (type), 90 (detail) |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
 | `view` | string | no | none | the view to answer in |
 
@@ -113,7 +113,7 @@ being silently ignored. An empty string counts as absent.
 
 **`limit`** is the page size. The defaults differ per level because a detail row is
 larger than a type edge. Values are clamped as described in
-[Parameters](hierograph-mcp-tools.md#5-parameters): the caps are 142 type edges and
+[Parameters](hierograph-mcp-tools.md#5-parameters): the caps are 125 type edges and
 90 detail rows, the largest pages that fit the
 [response budget](hierograph-mcp-tools.md#73-the-response-budget).
 
@@ -153,6 +153,7 @@ edge:
 | `to` | the depended-upon type; may be an external type |
 | `weight` | the number of individual references from `from` to `to`, over all reference kinds |
 | `attributes` | the dependency's four attribute flags |
+| `kinds` | the number of references per kind; they sum to `weight` |
 
 The weight comes from the snapshot's dependencies, rolled up per pair of types (see the
 [type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)):
@@ -170,6 +171,8 @@ ids as tiebreakers. The order is total, so pages are stable.
 - `by_source_type`: the anchor types ranked by number of edges, top 10. This shows
   which types of a package carry its dependencies.
 - `by_attribute`: for each of the four flags, the number of edges that carry it.
+- `by_kind`: for each kind, the number of references over all kept edges, the
+  `kinds` of every edge summed.
 
 Rankings with equal values keep the order in which the edges were found.
 
@@ -234,6 +237,14 @@ Each reference becomes one row:
 | `raises` | method → a type it constructs and throws | snapshot |
 | `has_type` | field → its declared type | snapshot |
 | `annotated_by` | type, method or field → its annotation | snapshot |
+| `extends` | type → its superclass | snapshot |
+| `implements` | type → an interface it implements | snapshot |
+| `annotation_value` | type, method or field → a type used in an annotation value | snapshot |
+| `type_argument` | type, method or field → a type in a generic type argument or bound | snapshot |
+| `instantiates` | method → a type it creates an instance or array of | snapshot |
+| `casts` | method → a type it casts to or tests with `instanceof` | snapshot |
+| `catches` | method → an exception type it catches | snapshot |
+| `class_literal` | method → a type it uses as a class literal | snapshot |
 | `read_by` | field → method that reads it | reverse view of `reads_field` |
 | `written_by` | field → method that assigns it | reverse view of `writes_field` |
 | `parameter_annotated_by` | method → an annotation on one of its parameters | snapshot |
@@ -363,16 +374,19 @@ The open form of §3.3 with `limit = 2`:
   "edges": [
     { "from": 4711, "to": 4712, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "has_type": 1, "type_argument": 1, "calls": 2 } },
     { "from": 4711, "to": 4713, "weight": 1, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 1 } }
   ],
   "summary": {
     "total": 4,
     "returned": 2,
     "truncated": true,
     "by_attribute": { "is_extends": 0, "is_implements": 0, "is_annotated_by": 0, "is_depends_on_other": 4 },
+    "by_kind": { "has_type": 2, "returns": 1, "type_argument": 1, "calls": 6 },
     "by_source_type": [ { "id": 4711, "count": 4 } ],
     "by_target": [
       { "id": 4712, "weight": 4 },
@@ -407,6 +421,7 @@ Edge fields:
 | `weight` | integer | Number of references from `from` to `to` |
 | `type_pair_count` | integer | Always `1` |
 | `attributes` | object | The four attribute flags of the dependency |
+| `kinds` | object | Number of references per kind; the counts sum to `weight` |
 
 **`type_pair_count`** is always 1 because each edge is one type pair. The field
 exists so that type edges have the same shape as the aggregated edges of
@@ -418,6 +433,15 @@ three with the same code.
 whether `from` extends, implements or is annotated with `to`, or uses it in any
 other way. It tells inheritance apart from use without a detail-level call.
 
+**`kinds`** breaks `weight` down by what the references are: `{"calls": 14,
+"class_literal": 1}` says fourteen calls and one class literal. Only kinds with a
+count appear, in a fixed vocabulary order. Each name is the detail-level relationship
+that lists those references, so `relationship: "class_literal"` at detail level shows
+the one class literal. The one exception is `member_annotated_by`, which counts the
+`annotated_by` facts of members and the `parameter_annotated_by` facts together. The
+kinds are defined in the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate).
+
 Summary fields:
 
 | Field | Type | Description |
@@ -426,6 +450,7 @@ Summary fields:
 | `returned` | integer | Number of edges on this page |
 | `truncated` | boolean | `true` when `total > returned` |
 | `by_attribute` | object | For each of the four flags, the number of matching edges that carry it |
+| `by_kind` | object | For each kind, the number of references over all matching edges |
 | `by_source_type` | array of `{id, count}` | Depending types by number of edges, top 10 |
 | `by_target` | array of `{id, weight}` | Depended-upon types by summed weight, top 10 |
 
@@ -434,6 +459,11 @@ Summary fields:
 
 **`by_attribute`** always lists all four flags, with 0 for absent ones, so a caller
 can test "does anything here inherit?" by reading one number.
+
+**`by_kind`** is the `kinds` of every matching edge summed. It shows what the
+dependencies consist of — calls, signatures, annotation values, casts — without
+fetching the edges, for example that a module pair is held together only by Spring
+wiring (`annotation_value`, `class_literal`).
 
 **`by_source_type`** counts edges, not weight: it shows how many distinct targets each
 depending type has, which is the measure of how spread out its dependencies are.
@@ -641,7 +671,7 @@ before paging through a large result.
 `"written_by"` with the fields' type as `fromId` and the suspected users as `toId`.
 
 **Page.** Pass `next_cursor` back with the same `fromId`, `toId`, `detailLevel` and
-`relationship`. A page holds at most 142 type edges or 90 detail rows.
+`relationship`. A page holds at most 125 type edges or 90 detail rows.
 
 **Read the other direction.** For "what uses X?", call
 [`incoming_dependencies`](hierograph-tool-incoming-dependencies.md) with the same

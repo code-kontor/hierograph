@@ -16,7 +16,6 @@
 package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel
@@ -80,7 +79,7 @@ object GraphStoreToHGModel {
             val from = byKey[dep.fromKey] ?: continue
             val to = byKey[dep.toKey] ?: continue
             val coreDep = HGGraphFactory.createCoreDependency(from, to, DEPENDS_ON) {
-                DefaultDependencySource("${dep.fromKey} -> ${dep.toKey}")
+                GraphStoreDependencySource("${dep.fromKey} -> ${dep.toKey}", dep.kinds)
             }
             coreDep.weight = dep.weight
             coreDep.attributesBitmap = bitmapOf(dep.extends, dep.implements, dep.annotatedBy, dep.other)

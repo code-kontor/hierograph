@@ -16,7 +16,11 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.server.mapping.GraphStoreDependencySource
+import java.util.EnumMap
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -77,11 +81,13 @@ class GraphOverviewTool(
         for ((_, name) in JavaEdgeAttributes.ALL) {
             edgesByAttribute[name] = 0
         }
+        val weightByKind = EnumMap<RefKind, Int>(RefKind::class.java)
         var totalEdges = 0
         for (child in hierarchy.childrenOf(rootNode)) {
             hierarchy.traverse(child) { node ->
                 for (dep in node.outgoingCoreDependencies) {
                     totalEdges++
+                    for ((kind, count) in GraphStoreDependencySource.kindsOf(dep)) weightByKind.merge(kind, count, Int::plus)
                     val bitmap = dep.attributesBitmap
                     for ((pos, name) in JavaEdgeAttributes.ALL) {
                         if (JavaEdgeAttributes.isSet(bitmap, pos)) {
@@ -130,21 +136,16 @@ class GraphOverviewTool(
             "type_level_attributes" to JavaEdgeAttributes.ALL.map { (_, name) ->
                 attrEntry(name)
             },
-            "detail_level" to listOf(
-                detailRelEntry("throws", "method", "Method declares it throws this exception type"),
-                detailRelEntry("raises", "method", "Method body constructs and throws this exception type (throw new X(...))"),
-                detailRelEntry("calls", "method", "Method invokes a method"),
-                detailRelEntry("returns", "method", "Method's return type"),
-                detailRelEntry("parameter_type", "method", "Method has a parameter of this type"),
-                detailRelEntry("reads_field", "method", "Method reads a field"),
-                detailRelEntry("writes_field", "method", "Method writes a field"),
-                detailRelEntry("overrides", "method", "Method overrides another method"),
-                detailRelEntry("annotated_by", "method/field", "Entity has this annotation type"),
-                detailRelEntry("parameter_annotated_by", "method", "Method has a parameter with this annotation type"),
-                detailRelEntry("has_type", "field", "Field is of this type"),
-                detailRelEntry("read_by", "field", "Field is read by this method"),
-                detailRelEntry("written_by", "field", "Field is written by this method")
-            )
+            "type_level_kinds" to RefKind.entries.map { kind ->
+                mapOf("kind" to kind.value, "description" to typeLevelKindDescription(kind))
+            },
+            "detail_level" to DependencyKind.entries.map { kind ->
+                val (source, description) = detailKindDescription(kind)
+                linkedMapOf<String, Any>("kind" to kind.value, "source" to source, "description" to description).apply {
+                    if (kind.derived) put("derived", true)
+                    if (!kind.counted && !kind.derived) put("counted", false)
+                }
+            },
         )
 
         // ── hierarchy: top-level modules with enriched metadata ────────
@@ -199,7 +200,8 @@ class GraphOverviewTool(
                 "total_nodes" to totalNodes,
                 "nodes_by_kind" to nodesByKind,
                 "total_type_level_edges" to totalEdges,
-                "type_level_edges_by_attribute" to edgesByAttribute
+                "type_level_edges_by_attribute" to edgesByAttribute,
+                "type_level_weight_by_kind" to RefKind.toMap(weightByKind),
             ),
             "kinds" to kinds,
             "relationships" to relationships,
@@ -232,6 +234,34 @@ class GraphOverviewTool(
         return mapOf("attribute" to attribute, "description" to description)
     }
 
-    private fun detailRelEntry(kind: String, source: String, description: String) =
-        mapOf("kind" to kind, "source" to source, "description" to description)
+    /** The source and description of a detail-level kind, as graph_overview lists it. */
+    private fun detailKindDescription(kind: DependencyKind): Pair<String, String> = when (kind) {
+        DependencyKind.EXTENDS -> "type" to "Type has this superclass"
+        DependencyKind.IMPLEMENTS -> "type" to "Type implements (or, as an interface, extends) this interface"
+        DependencyKind.ANNOTATED_BY -> "type/method/field" to "Entity has this annotation type"
+        DependencyKind.PARAMETER_ANNOTATED_BY -> "method" to "Method has a parameter with this annotation type"
+        DependencyKind.ANNOTATION_VALUE -> "type/method/field" to "An annotation on the entity uses this type as a value (enum constant, class value, nested annotation)"
+        DependencyKind.TYPE_ARGUMENT -> "type/method/field" to "The entity's generic signature names this type in a type argument or bound"
+        DependencyKind.HAS_TYPE -> "field" to "Field is of this type"
+        DependencyKind.PARAMETER_TYPE -> "method" to "Method has a parameter of this type"
+        DependencyKind.RETURNS -> "method" to "Method's return type"
+        DependencyKind.THROWS -> "method" to "Method declares it throws this exception type"
+        DependencyKind.CALLS -> "method" to "Method invokes a method"
+        DependencyKind.READS_FIELD -> "method" to "Method reads a field"
+        DependencyKind.WRITES_FIELD -> "method" to "Method writes a field"
+        DependencyKind.INSTANTIATES -> "method" to "Method creates an instance or an array of this type"
+        DependencyKind.CASTS -> "method" to "Method casts to, or tests instanceof against, this type"
+        DependencyKind.CATCHES -> "method" to "Method catches this exception type"
+        DependencyKind.CLASS_LITERAL -> "method" to "Method uses this type as a class literal (X.class)"
+        DependencyKind.RAISES -> "method" to "Method body constructs and throws this exception type (throw new X(...)); not counted in weights"
+        DependencyKind.OVERRIDES -> "method" to "Method overrides another method (derived at load)"
+        DependencyKind.READ_BY -> "field" to "Field is read by this method (reads_field viewed from the field)"
+        DependencyKind.WRITTEN_BY -> "field" to "Field is written by this method (writes_field viewed from the field)"
+    }
+
+    /** The description of a type-level kind: the facts its count is made of. */
+    private fun typeLevelKindDescription(kind: RefKind): String = when (kind) {
+        RefKind.MEMBER_ANNOTATED_BY -> "annotated_by facts of members and parameter_annotated_by facts"
+        else -> "${kind.value} facts of the type and its members"
+    }
 }

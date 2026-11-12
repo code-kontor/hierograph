@@ -74,7 +74,7 @@ references, where `affected_by` reports reach.
 | `toId` | node id | at detail level | — | The depending subtree |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
-| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
+| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 125 (type), 90 (detail) |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
 | `view` | string | no | none | the view to answer in |
 
@@ -97,7 +97,7 @@ the detail level, for the reasons given in
 **`detailLevel`**, **`relationship`**, **`limit`** and **`cursor`** behave as in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
 `detailLevel` accepts only `"type"` and `"detail"`; `relationship` is an error at the
-type level; a page holds at most 142 type edges or 90 detail rows, the caps that keep
+type level; a page holds at most 125 type edges or 90 detail rows, the caps that keep
 it within the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
 `outgoing_dependencies` fails here with `WRONG_TOOL_CURSOR`.
 
@@ -123,8 +123,8 @@ the `toId` subtree.
 **Edges.** For each anchor type, in tree order, the tool takes the type-level
 dependencies that end at it. Without `toId` it keeps all of them; with `toId` it keeps
 those whose depending type lies in the `toId` subtree. Each kept dependency becomes
-one edge with `from` the depending type, `to` the anchor type, the dependency's weight
-and its four attribute flags. The weight is the number of individual references from
+one edge with `from` the depending type, `to` the anchor type, the dependency's weight,
+its four attribute flags and its `kinds`. The weight is the number of individual references from
 `from` to `to`, over all reference kinds (see the
 [type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)).
 In the open form on a package, dependencies between types of the package itself are
@@ -142,6 +142,8 @@ ids as tiebreakers: the users appear grouped and in name order.
 - `by_attribute`: for each of the four flags, the number of edges that carry it.
   `is_extends` and `is_implements` count the subclasses and implementations, which are
   the users hardest to change.
+- `by_kind`: for each kind, the number of references over all kept edges: how the
+  anchor types are used — called, extended, named in signatures, cast to, …
 
 ### 3.2 Detail level
 
@@ -231,16 +233,19 @@ The open form on `Money` with `limit = 2`:
   "edges": [
     { "from": 4711, "to": 4730, "weight": 3, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "returns": 1, "calls": 2 } },
     { "from": 4712, "to": 4730, "weight": 2, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 2 } }
   ],
   "summary": {
     "total": 3,
     "returned": 2,
     "truncated": true,
     "by_attribute": { "is_extends": 0, "is_implements": 0, "is_annotated_by": 0, "is_depends_on_other": 3 },
+    "by_kind": { "returns": 1, "calls": 5 },
     "by_source_type": [
       { "id": 4711, "count": 1 },
       { "id": 4712, "count": 1 },
@@ -264,8 +269,10 @@ readings:
 | `edges[].weight` | number of references from `from` to `to` |
 | `edges[].type_pair_count` | always `1`: each edge is one type pair, shaped like an aggregated edge |
 | `edges[].attributes` | the four attribute flags of the dependency |
+| `edges[].kinds` | the number of references per kind; they sum to `weight` |
 | `summary.total`, `returned`, `truncated` | as in [Pages and summaries](hierograph-mcp-tools.md#71-pages-and-summaries) |
 | `summary.by_attribute` | all four flags with their edge counts, 0 included |
+| `summary.by_kind` | the number of references per kind over all matching edges |
 | `summary.by_source_type` | `{id, count}`: the users by number of edges, top 10 |
 | `summary.by_target` | `{id, weight}`: the anchor types by summed incoming weight, top 10 |
 | `next_cursor` | present when more edges follow, absent on the last page |

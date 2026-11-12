@@ -19,6 +19,8 @@ import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.server.mapping.GraphStoreDependencySource
+import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
@@ -71,7 +73,7 @@ class PairwiseDependenciesTool(
                 "the layers? where are the cycles?) in a few hundred bytes, with no need to fetch edges at " +
                 "all. Only page through the edge list when you need specific pairwise weights. " +
                 "WARNING: the edge list can be large — a full all-modules query is often hundreds of edges " +
-                "(~250 bytes each), and a full page of 200 fills the ~50 KB response budget. Do NOT fetch it " +
+                "(~300 bytes each), and a full page of 166 fills the ~50 KB response budget. Do NOT fetch it " +
                 "all at once. Instead: keep limit small (default 25, stay <= 50) and walk next_cursor " +
                 "only as far as needed; raise minWeight to drop noise (a threshold like 100+ usually " +
                 "leaves a handful of edges); and use edgeSort='weight_desc' so the first small page " +
@@ -99,7 +101,7 @@ class PairwiseDependenciesTool(
         )
         minWeight: Int?,
         @ToolParam(
-            description = "Max edges per page (1-200, default 25). Keep this small — a full page fills the " +
+            description = "Max edges per page (1-166, default 25). Keep this small — a full page fills the " +
                     "~50 KB response budget. Increase only when you know the filtered edge count is low.",
             required = false
         )
@@ -209,12 +211,15 @@ class PairwiseDependenciesTool(
         }
 
         val edges = page.items.map { e ->
+            // The kinds of the type-level dependencies under this pair, for the returned edges only.
+            val coreDeps = hierarchy.getAggregatedDependency(orderedNodes[e.fromIdx], orderedNodes[e.toIdx])?.coreDependencies.orEmpty()
             linkedMapOf<String, Any?>(
                 "from" to e.fromId,
                 "to" to e.toId,
                 "weight" to e.weight,
                 "type_pair_count" to e.typePairCount,
-                "attributes" to JavaEdgeAttributes.toMap(e.attributesBitmap)
+                "attributes" to JavaEdgeAttributes.toMap(e.attributesBitmap),
+                "kinds" to RefKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
             )
         }
 
@@ -329,7 +334,7 @@ class PairwiseDependenciesTool(
         private const val MAX_NODES = 1000
         private val EDGE_SORTS = setOf("dsm", "weight_desc")
 
-        /** Pagination policy for pairwise_dependencies (~250 bytes/edge): default 25, server cap 200. */
-        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 200, bytesPerItem = 250)
+        /** Pagination policy for pairwise_dependencies (~300 bytes/edge with its kinds): default 25, server cap 166. */
+        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 166, bytesPerItem = 300)
     }
 }
