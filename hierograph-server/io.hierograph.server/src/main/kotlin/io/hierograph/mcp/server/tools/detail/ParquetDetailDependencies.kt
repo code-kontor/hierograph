@@ -19,7 +19,8 @@ import io.hierograph.graphstore.jvm.detail.DetailEnricher
 import io.hierograph.graphstore.jvm.detail.DetailQuery
 import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
 import io.hierograph.graphstore.jvm.detail.NodeDisplay
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.Node
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
@@ -35,7 +36,6 @@ import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import java.nio.file.Path
 
 /**
  * The detail level of `outgoing_dependencies` and `incoming_dependencies`. It resolves the scope over
@@ -115,8 +115,8 @@ class ParquetDetailDependencies(
         // A row's types resolve in the context of the artifact that holds the row: its depending type is that
         // artifact's own definition, its target the definer that artifact's classpath picks. Without a known
         // artifact (unpacked snapshots, load-derived rows), an FQN resolves to its first definer.
-        fun fromTypeNode(r: DetailRef): Node? = r.fromArtifact?.let { store.typeIn(it, r.fromType) } ?: store.typeByFqn(r.fromType)
-        fun toTypeNode(r: DetailRef): Node? = r.fromArtifact?.let { store.resolveType(it, r.toType) } ?: store.typeByFqn(r.toType)
+        fun fromTypeNode(r: Dependency): Node? = r.fromArtifact?.let { store.typeIn(it, r.fromType) } ?: store.typeByFqn(r.fromType)
+        fun toTypeNode(r: Dependency): Node? = r.fromArtifact?.let { store.resolveType(it, r.toType) } ?: store.typeByFqn(r.toType)
         fun handle(n: Node): Long = NodeHandle.of(n.key)
         fun memberHandle(owner: Node, key: String): Long =
             store.memberOf(owner, key)?.let { handle(it) } ?: graphService.memberHandle(key)
@@ -125,9 +125,10 @@ class ParquetDetailDependencies(
         val toScopeHandles = toScope.mapTo(HashSet()) { it.identifier as Long }
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
+        val effectiveKind = effectiveRel?.let { DependencyKind.fromValue(it) }
         val raw = DetailQueryEngine(parquetDir)
-            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, relationship = effectiveRel)) +
-            graphService.derivedDetailRefs(fromTypes, toTypes, effectiveRel)
+            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind)) +
+            graphService.derivedDependencies(fromTypes, toTypes, effectiveKind)
         // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
         // ones rather than trailing them.
         val edges = raw.filter {
@@ -137,16 +138,16 @@ class ParquetDetailDependencies(
         }.sortedWith(ROW_ORDER)
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
-        fun fromHandle(r: DetailRef): Long = fromTypeNode(r)!!.let { if ('#' in r.fromKey) memberHandle(it, r.fromKey) else handle(it) }
-        fun toHandle(r: DetailRef): Long = toTypeNode(r)!!.let { if ('#' in r.toKey) memberHandle(it, r.toKey) else handle(it) }
+        fun fromHandle(r: Dependency): Long = fromTypeNode(r)!!.let { if ('#' in r.fromKey) memberHandle(it, r.fromKey) else handle(it) }
+        fun toHandle(r: Dependency): Long = toTypeNode(r)!!.let { if ('#' in r.toKey) memberHandle(it, r.toKey) else handle(it) }
 
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
         val sourceTypeCounts = LinkedHashMap<Long, Int>()
-        fun inherited(e: DetailRef) = e.fromType !in ownFromTypes || e.toType !in ownToTypes
+        fun inherited(e: Dependency) = e.fromType !in ownFromTypes || e.toType !in ownToTypes
         val inheritedCount = edges.count(::inherited)
         for (e in edges) {
-            byRelationship.merge(e.relationship, 1, Int::plus)
+            byRelationship.merge(e.kind.value, 1, Int::plus)
             sourceTypeCounts.merge(handle(fromTypeNode(e)!!), 1, Int::plus)
         }
         if (effectiveRel != null) byRelationship.putIfAbsent(effectiveRel, 0)
@@ -161,7 +162,7 @@ class ParquetDetailDependencies(
                 "to" to toHandle(ref),
             )
             if ('#' in ref.toKey) row["to_parent"] = handle(toTypeNode(ref)!!)
-            row["relationship"] = ref.relationship
+            row["relationship"] = ref.kind.value
             row["location"] = ref.line?.let { mapOf("line_number" to it.toLong()) }
             if (inherited(ref)) row["inherited"] = true
             Row(row, ref)
@@ -222,8 +223,8 @@ class ParquetDetailDependencies(
         return result
     }
 
-    /** Pairs an edge row with the [DetailRef] it came from, so pagination keeps them aligned. */
-    private class Row(val row: LinkedHashMap<String, Any?>, val ref: DetailRef)
+    /** Pairs an edge row with the [Dependency] it came from, so pagination keeps them aligned. */
+    private class Row(val row: LinkedHashMap<String, Any?>, val ref: Dependency)
 
     /** Puts a slim node for [handle]: a model node when it is a type, else the member display for [key]. */
     private fun registerEndpoint(nodes: MutableMap<String, Any>, handle: Long, key: String, display: Map<String, NodeDisplay>) {
@@ -347,7 +348,7 @@ class ParquetDetailDependencies(
          * The order of the edge list: depending type, depending member, target type, target member,
          * relationship, line. The same order [DetailQueryEngine] sorts the stored rows in.
          */
-        private val ROW_ORDER = compareBy<DetailRef>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }, { it.line ?: -1 })
+        private val ROW_ORDER = compareBy<Dependency>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value }, { it.line ?: -1 })
 
         /** The relationship values accepted by the `relationship` filter. */
         private val RELATIONSHIP_KINDS = setOf(

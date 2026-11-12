@@ -18,7 +18,7 @@ package io.hierograph.graphstore.jvm.scanner
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.model.ParameterFacts
@@ -40,13 +40,13 @@ import java.security.MessageDigest
 /** One scanned class file: its facts and its member-level refs. */
 internal class ScannedClass(
     val facts: ClassFacts,
-    val detailRefs: List<DetailRef>,
+    val dependencies: List<Dependency>,
 )
 
 /**
  * Scans one class file — its declarations, signatures and method bodies — into a [ScannedClass].
  *
- * Every dependency the class file contains becomes one detail fact ([DetailRef], one [DependencyKind]),
+ * Every dependency the class file contains becomes one detail fact ([Dependency], one [DependencyKind]),
  * through a single emission point ([Visitor.emit]): type-level facts (`extends`, `implements`, the type's
  * annotations, its type arguments and annotation values) with the type itself as source, and
  * member-level facts with the field or method as source. Each fact is one occurrence. Only the
@@ -76,7 +76,7 @@ internal object ClassScanner {
         private var superFqn: String? = null
         private var sourceFile: String? = null
         private val members = ArrayList<MemberFacts>()
-        private val detailRefs = ArrayList<DetailRef>()
+        private val dependencies = ArrayList<Dependency>()
         private var generic = false
 
         fun result(): ScannedClass {
@@ -92,11 +92,11 @@ internal object ClassScanner {
                     generic = generic,
                 ),
                 members = members,
-                refs = DependencyRollup.refsOf(fqn, detailRefs),
+                refs = DependencyRollup.refsOf(fqn, dependencies),
                 classHash = classHash,
                 sourceFile = sourceFile,
             )
-            return ScannedClass(facts, detailRefs)
+            return ScannedClass(facts, dependencies)
         }
 
         // ── detail facts ─────────────────────────────────────────────
@@ -108,18 +108,18 @@ internal object ClassScanner {
          * [into] is the list the fact goes to: a method buffers its body facts until its signature facts
          * are recorded.
          */
-        fun emit(fromKey: String, toKey: String, toType: String, kind: DependencyKind, line: Int?, into: MutableList<DetailRef> = detailRefs) {
-            into += DetailRef(fromKey, fqn, toKey, toType, kind.value, line)
+        fun emit(fromKey: String, toKey: String, toType: String, kind: DependencyKind, line: Int?, into: MutableList<Dependency> = dependencies) {
+            into += Dependency(fromKey, fqn, toKey, toType, kind, line)
         }
 
         /** Emits a fact whose target is [type]'s element type (primitives and `void` included). */
-        fun emitType(fromKey: String, type: Type, kind: DependencyKind, line: Int?, into: MutableList<DetailRef> = detailRefs) {
+        fun emitType(fromKey: String, type: Type, kind: DependencyKind, line: Int?, into: MutableList<Dependency> = dependencies) {
             val target = typeTarget(type)
             emit(fromKey, target, target, kind, line, into)
         }
 
         /** [emitType] for an internal name or an array descriptor, as instructions name their operand types. */
-        fun emitInternal(fromKey: String, internalNameOrDescriptor: String, kind: DependencyKind, line: Int?, into: MutableList<DetailRef> = detailRefs) =
+        fun emitInternal(fromKey: String, internalNameOrDescriptor: String, kind: DependencyKind, line: Int?, into: MutableList<Dependency> = dependencies) =
             emitType(fromKey, JavaNames.operandType(internalNameOrDescriptor), kind, line, into)
 
         /**
@@ -242,7 +242,7 @@ internal object ClassScanner {
             private val localNames = HashMap<Int, String>()
             private val annotations = ArrayList<Type>()
             private val parameterAnnotations = HashMap<Int, MutableList<Type>>()
-            private val bodyRefs = ArrayList<DetailRef>()
+            private val bodyRefs = ArrayList<Dependency>()
             private var bridgeTarget: String? = null
             // The type whose constructor was the last real bytecode instruction — i.e. a freshly-built
             // object sitting on the stack top. `throw new X(...)` ends `...; invokespecial X.<init>; athrow`,
@@ -404,7 +404,7 @@ internal object ClassScanner {
                 raised.forEach { emit(key, it, it, DependencyKind.RAISES, minLine) }
                 annotations.forEach { emitType(key, it, DependencyKind.ANNOTATED_BY, null) }
                 parameterAnnotations.values.flatten().forEach { emitType(key, it, DependencyKind.PARAMETER_ANNOTATED_BY, null) }
-                detailRefs += bodyRefs
+                dependencies += bodyRefs
             }
 
             /**

@@ -29,14 +29,14 @@ package io.hierograph.graphstore.jvm.model
  * is a member. Refs are listed in the order their first fact appears.
  *
  * The scanner rolls up each class as it finishes it ([refsOf]); a snapshot reader feeds the rows of a
- * dependency table into an [Accumulator] without building a [DetailRef] per row.
+ * dependency table into an [Accumulator] without building a [Dependency] per row.
  */
 object DependencyRollup {
 
     /** The aggregated references of [ownerFqn], rolled up from its detail [facts]. */
-    fun refsOf(ownerFqn: String, facts: Iterable<DetailRef>): List<Ref> {
+    fun refsOf(ownerFqn: String, facts: Iterable<Dependency>): List<Ref> {
         val acc = Accumulator()
-        for (fact in facts) acc.add(ownerFqn, fact.fromKey, fact.toType, fact.relationship)
+        for (fact in facts) acc.add(ownerFqn, fact.fromKey, fact.toType, fact.kind)
         return acc.refsOf(ownerFqn)
     }
 
@@ -45,8 +45,7 @@ object DependencyRollup {
         private val countsByOwner = LinkedHashMap<String, LinkedHashMap<Pair<String, RefKind>, Int>>()
 
         /** Adds one detail fact: from [fromKey] (the owner's FQN for a type-level fact) of [ownerFqn] to [toType]. */
-        fun add(ownerFqn: String, fromKey: String, toType: String, relationship: String) {
-            val kind = DependencyKind.fromValue(relationship) ?: return
+        fun add(ownerFqn: String, fromKey: String, toType: String, kind: DependencyKind) {
             if (!kind.counted) return
             if (toType == ownerFqn || toType in JavaKinds.JAVA_PRIMITIVES) return
             val refKind = refKindOf(kind, sourceIsType = fromKey == ownerFqn) ?: return
@@ -80,6 +79,6 @@ object DependencyRollup {
         DependencyKind.CASTS -> RefKind.CAST
         DependencyKind.CATCHES -> RefKind.CATCHES
         DependencyKind.CLASS_LITERAL -> RefKind.CLASS_LITERAL
-        DependencyKind.RAISES -> null
+        DependencyKind.RAISES, DependencyKind.OVERRIDES, DependencyKind.READ_BY, DependencyKind.WRITTEN_BY -> null
     }
 }

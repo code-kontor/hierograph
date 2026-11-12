@@ -21,7 +21,8 @@ import io.hierograph.server.mapping.GraphStoreToHGModel
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.server.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
@@ -253,9 +254,9 @@ class HierarchicalGraphService {
      * for. In `parquet` mode it is set synchronously with the snapshot (always current). In `manifest`
      * mode the live graph comes from a direct in-memory ingest and this is published **asynchronously**
      * once the Parquet write for that generation finishes — until then its generation lags the live
-     * snapshot, and [readyDetailDir] / [derivedDetailRefs] withhold it so no *stale* detail is served.
+     * snapshot, and [readyDetailDir] / [derivedDependencies] withhold it so no *stale* detail is served.
      */
-    private data class DetailSource(val generation: Long, val dir: Path?, val derived: List<DetailRef>)
+    private data class DetailSource(val generation: Long, val dir: Path?, val derived: List<Dependency>)
 
     private val detailSource = AtomicReference(DetailSource(generation = -1, dir = null, derived = emptyList()))
 
@@ -530,7 +531,7 @@ class HierarchicalGraphService {
         val reader = ParquetReader()
         reader.load(dir, store)
         val generation = graphGen.incrementAndGet()
-        val derived = DetailDerivation.derive(store, reader.readAllMembers(dir), reader.readDetailRefs(dir))
+        val derived = DetailDerivation.derive(store, reader.readAllMembers(dir), reader.readDependencies(dir))
         val snapshot = buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles(store), generation)
         return Built(snapshot) { detailSource.set(DetailSource(generation, dir, derived)) }
     }
@@ -757,11 +758,11 @@ class HierarchicalGraphService {
 
     /**
      * The load-derived member edges matching the given scope (same semantics as
-     * [ParquetReader.readDetailRefs]): `from_type` in [fromTypes], `to_type` in [toTypes], `relationship`
-     * equal to [relationship] — each ignored when null/empty. The detail tools union this with the
+     * [ParquetReader.readDependencies]): `from_type` in [fromTypes], `to_type` in [toTypes], kind [kind]
+     * — each ignored when null/empty. The detail tools union this with the
      * Parquet `dependencies`.
      */
-    fun derivedDetailRefs(fromTypes: Collection<String>? = null, toTypes: Collection<String>? = null, relationship: String? = null): List<DetailRef> {
+    fun derivedDependencies(fromTypes: Collection<String>? = null, toTypes: Collection<String>? = null, kind: DependencyKind? = null): List<Dependency> {
         // Withhold when the detail source does not match the live graph (same guard as readyDetailDir),
         // so a rescan in flight never surfaces the previous scan's derived edges.
         if (readyDetailDir() == null) return emptyList()
@@ -770,7 +771,7 @@ class HierarchicalGraphService {
         return detailSource.get().derived.filter { edge ->
             (from == null || edge.fromType in from) &&
                 (to == null || edge.toType in to) &&
-                (relationship == null || edge.relationship == relationship)
+                (kind == null || edge.kind == kind)
         }
     }
 

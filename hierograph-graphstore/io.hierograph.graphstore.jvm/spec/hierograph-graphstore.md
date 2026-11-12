@@ -231,11 +231,16 @@ target type)**:
 |-------|---------|
 | `fromKey`, `toKey` | the source type and the resolved target, as node keys |
 | `fromFqn`, `toFqn` | the same endpoints, as FQNs |
-| `weight` | the sum of the references' `count`s (a missing count counts as 1): how strongly the source depends on the target |
-| `extends` | at least one `EXTENDS` reference |
-| `implements` | at least one `IMPLEMENTS` reference |
-| `annotatedBy` | at least one `ANNOTATED_BY` reference (an annotation on the type itself) |
-| `other` | at least one reference of any **non-structural** kind (a signature or body use) |
+| `kinds` | per reference kind (`RefKind`), the sum of the references' `count`s (a missing count counts as 1) |
+| `weight` | the sum of `kinds`: how strongly the source depends on the target |
+| `extends` | `kinds` has `EXTENDS` |
+| `implements` | `kinds` has `IMPLEMENTS` |
+| `annotatedBy` | `kinds` has `ANNOTATED_BY` (an annotation on the type itself) |
+| `other` | `kinds` has a **non-structural** kind (a signature or body use) |
+
+`kinds` is the data; the weight and the four flags are derived from it. Because a
+type's references are the rollup of its detail facts, each count is the number of
+detail facts of that kind behind the dependency.
 
 The flags are not mutually exclusive. A class that extends `Base` and also calls
 one of its methods has an edge with both `extends` and `other` set. This lets an

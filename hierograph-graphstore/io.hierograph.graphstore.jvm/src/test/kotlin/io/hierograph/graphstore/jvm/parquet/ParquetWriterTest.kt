@@ -15,11 +15,12 @@
  */
 package io.hierograph.graphstore.jvm.parquet
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
@@ -32,8 +33,8 @@ import java.nio.file.Path
 class ParquetWriterTest {
 
     /** A's detail facts: it extends B, and its method `a` calls `List.size()` seven times. */
-    private val facts = listOf(DetailRef("com.foo.A", "com.foo.A", "com.foo.B", "com.foo.B", "extends")) +
-        (1..7).map { DetailRef("com.foo.A#a()V", "com.foo.A", "java.util.List#int size()", "java.util.List", "calls", it) }
+    private val facts = listOf(Dependency("com.foo.A", "com.foo.A", "com.foo.B", "com.foo.B", DependencyKind.EXTENDS)) +
+        (1..7).map { Dependency("com.foo.A#a()V", "com.foo.A", "java.util.List#int size()", "java.util.List", DependencyKind.CALLS, it) }
 
     private val classes = listOf(
         ArtifactClass(

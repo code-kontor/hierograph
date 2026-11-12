@@ -18,9 +18,9 @@ package io.hierograph.graphstore.jvm.model
 /**
  * One detail dependency: a fact from a source element — a member, or the type itself for type-level
  * facts such as `extends` or the type's own annotations — to a target element: a member for
- * `calls`/`reads_field`/`writes_field`, a type for every other kind. [relationship] is a
- * [DependencyKind.value] for facts read from a class file, or the name of a relationship derived at load
- * (`overrides`, …). [toKey] equals [toType] when the target is a type. [fromArtifact] is the artifact
+ * `calls`/`reads_field`/`writes_field`/`overrides`, a type for every other kind. [kind] says what the fact
+ * means; a [derived][DependencyKind.derived] kind marks a fact computed at load rather than read from a
+ * class file. [toKey] equals [toType] when the target is a type. [fromArtifact] is the artifact
  * whose snapshot holds the row, which is the artifact that defines [fromType]; it is set when a row is
  * read from a per-artifact snapshot and lets a reader resolve both types in that artifact's context when
  * an FQN is defined more than once, and is `null` when the artifact is not known.
@@ -28,12 +28,12 @@ package io.hierograph.graphstore.jvm.model
  * The aggregated references of a type ([Ref]) are the rollup of its detail dependencies, see
  * [DependencyRollup].
  */
-data class DetailRef(
+data class Dependency(
     val fromKey: String,
     val fromType: String,
     val toKey: String,
     val toType: String,
-    val relationship: String,
+    val kind: DependencyKind,
     val line: Int? = null,
     val fromArtifact: String? = null,
 )

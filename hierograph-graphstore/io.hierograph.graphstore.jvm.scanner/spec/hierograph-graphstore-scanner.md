@@ -73,7 +73,7 @@ order, however many threads the scan uses.
   ┌──────────────────┐        ScanResult
   │  BytecodeScanner │ ────────────────────────────────┐
   └──────────────────┘   classes: ClassFacts per type   │
-                         detailRefs: detail facts       │
+                         dependencies: detail facts     │
            ┌────────────────────────┬───────────────────┘
            ▼                        ▼
    ScanResult.writeTo        GraphStore.applyClass
@@ -150,7 +150,7 @@ in a version directory is scanned too.
 ```kotlin
 data class ScanResult(
     val classes: List<ArtifactClass>,   // one per scanned class: (artifactKey, ClassFacts)
-    val detailRefs: List<DetailRef>,    // the detail facts of all scanned classes
+    val dependencies: List<Dependency>, // the detail facts of all scanned classes
 )
 ```
 
@@ -173,7 +173,7 @@ data class ClassFacts(
 This is the GraphStore's ingest unit: each element of `classes` can be passed to
 `GraphStore.applyClass` as it is.
 
-**`detailRefs`** holds the detail facts: every dependency a class file contains, one
+**`dependencies`** holds the detail facts: every dependency a class file contains, one
 per occurrence, from the type itself (its superclass, interfaces, annotations, …) or
 from one of its members (which method calls which, which code reads or writes which
 field, what each member's signature names), with source lines. They are kept apart
@@ -244,7 +244,7 @@ Each method and constructor parameter becomes a `ParameterFacts` with its 0-base
 
 ### 5.4 Detail facts
 
-Every dependency a class file contains is recorded as one detail fact (`DetailRef`):
+Every dependency a class file contains is recorded as one detail fact (`Dependency`):
 from a source element (the class itself, or one of its fields or methods) to a target
 element (a member or a type), with a kind (`DependencyKind`) and, where the class file
 has one, a line. Type-level facts use the class's FQN as their source.
@@ -411,7 +411,7 @@ A scan either succeeds completely or fails. It never returns a partial result.
 | `ScanArtifact(key, path)` | one input, with its artifact key |
 | `ScanArtifact.of(path)` | an input keyed by its file or directory name |
 | `ScanResult.classes` | the scanned classes, as `ArtifactClass(artifactKey, facts)` |
-| `ScanResult.detailRefs` | the detail facts |
+| `ScanResult.dependencies` | the detail facts |
 | `ScanResult.writeTo(dir, codec, classpaths, packaging)` | writes the result as a snapshot of `.hierograph` artifacts, archived or exploded, one per artifact (§4) |
 
 ---
@@ -496,7 +496,7 @@ for (a in artifacts) store.registerArtifact(ArtifactInfo(a.key, a.key, a.key))
 for (c in result.classes) store.applyClass(c.artifactKey, c.facts)
 ```
 
-`result.detailRefs` are not part of the GraphStore. Write them to a snapshot so
+`result.dependencies` are not part of the GraphStore. Write them to a snapshot so
 detail-level queries can read them.
 
 ### 11.4 Rescan a changed class

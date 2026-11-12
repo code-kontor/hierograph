@@ -15,7 +15,8 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 import io.hierograph.graphstore.jvm.model.MemberModifiers
@@ -60,7 +61,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         putSlimNode(nodes, fieldId, member.signature, memberKey, JavaKinds.FIELD.value)
         val declaringTypeHandle = putType(nodes, ownerFqn)
 
-        val ownEdges = reader.readDetailRefs(dir, fromTypes = listOf(ownerFqn)).filter { it.fromKey == memberKey }
+        val ownEdges = reader.readDependencies(dir, fromTypes = listOf(ownerFqn)).filter { it.fromKey == memberKey }
 
         // The declared type, from the signature `<type> <name>`: a keyword, an FQN, or an array of either.
         // `type` is the id of its element type when that is a node; `type_name` always names it.
@@ -69,17 +70,17 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         val typeIdForResponse = if (elementType in JAVA_PRIMITIVES) null else putType(nodes, elementType)
 
         // annotations ({type: id or null, type_name}): an annotation type without a node is kept, by name
-        val annotations = ownEdges.filter { it.relationship == "annotated_by" }.map { it.toType }.distinct()
+        val annotations = ownEdges.filter { it.kind == DependencyKind.ANNOTATED_BY }.map { it.toType }.distinct()
             .map { fqn -> linkedMapOf<String, Any?>("type" to putType(nodes, fqn), "type_name" to fqn) }
 
         // read/write access: edges into this field, compiled against its declaring type or against a subtype
         // that inherits it without declaring a field of the same name
         val owners = inheritingTypes(ownerFqn, member.name)
         val signature = member.signature
-        fun accesses(relationship: String) = reader.readDetailRefs(dir, toTypes = owners, relationship = relationship)
+        fun accesses(kind: DependencyKind) = reader.readDependencies(dir, toTypes = owners, kind = kind)
             .filter { it.toType in owners && it.toKey == "${it.toType}#$signature" }
-        val readAccess = accessDigest(accesses("reads_field"), nodes)
-        val writeAccess = accessDigest(accesses("writes_field"), nodes)
+        val readAccess = accessDigest(accesses(DependencyKind.READS_FIELD), nodes)
+        val writeAccess = accessDigest(accesses(DependencyKind.WRITES_FIELD), nodes)
 
         return linkedMapOf(
             "nodes" to nodes,
@@ -129,7 +130,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
      * Builds a read/write digest from the accessing-method edges (each edge's `from_key` is the
      * reading/writing method, `from_type` its declaring type) and registers the referenced nodes.
      */
-    private fun accessDigest(edges: List<DetailRef>, nodes: MutableMap<String, Any>): MutableMap<String, Any> {
+    private fun accessDigest(edges: List<Dependency>, nodes: MutableMap<String, Any>): MutableMap<String, Any> {
         val methods = edges.associateBy { it.fromKey }.values.sortedBy { it.fromKey } // distinct accessing methods, by type then signature
         val sample = methods.take(10)
         val sampleIds = sample.map { graphService.memberHandle(it.fromKey) }

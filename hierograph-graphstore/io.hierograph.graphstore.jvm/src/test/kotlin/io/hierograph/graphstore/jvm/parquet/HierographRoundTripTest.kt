@@ -15,12 +15,13 @@
  */
 package io.hierograph.graphstore.jvm.parquet
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactClasspath
 import io.hierograph.graphstore.jvm.model.ClasspathEntry
 import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.ParameterFacts
 import io.hierograph.graphstore.jvm.model.Ref
@@ -72,16 +73,16 @@ class HierographRoundTripTest {
         ),
     )
 
-    private val detailRefs = listOf(
-        DetailRef("com.a.A#foo(java.lang.String)", "com.a.A", "java.lang.String", "java.lang.String", "returns", 1),
-        DetailRef("com.b.B#bar()", "com.b.B", "com.a.A#foo(java.lang.String)", "com.a.A", "calls", 2),
+    private val dependencies = listOf(
+        Dependency("com.a.A#foo(java.lang.String)", "com.a.A", "java.lang.String", "java.lang.String", DependencyKind.RETURNS, 1),
+        Dependency("com.b.B#bar()", "com.b.B", "com.a.A#foo(java.lang.String)", "com.a.A", DependencyKind.CALLS, 2),
     )
 
     @Test
     fun `writeArtifacts stops before the next artifact once cancelled`(@TempDir dir: Path) {
         var checks = 0
         assertThatThrownBy {
-            ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED) { checks++ >= 1 }
+            ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED) { checks++ >= 1 }
         }.isInstanceOf(CancellationException::class.java)
 
         // the first artifact was written, the second was not started
@@ -92,7 +93,7 @@ class HierographRoundTripTest {
 
     @Test
     fun `writeArtifacts emits one archive per artifact, read back across the set`(@TempDir dir: Path) {
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
 
         // one .hierograph per artifact, named with the .jar suffix stripped
         val archives = Files.list(dir).use { s -> s.map { it.fileName.toString() }.sorted().toList() }
@@ -106,8 +107,8 @@ class HierographRoundTripTest {
 
         // detail reads span the set; each ref landed in its from-side artifact's archive
         val reader = ParquetReader()
-        assertThat(reader.readDetailRefs(dir)).hasSize(2)
-        assertThat(reader.readDetailRefs(dir, fromTypes = listOf("com.b.B")).map { it.relationship })
+        assertThat(reader.readDependencies(dir)).hasSize(2)
+        assertThat(reader.readDependencies(dir, fromTypes = listOf("com.b.B")).map { it.kind.value })
             .containsExactly("calls")
 
         // a member + its parameters resolve from whichever archive holds them
@@ -118,8 +119,8 @@ class HierographRoundTripTest {
 
     @Test
     fun `exploded artifacts read like archives, also mixed with them`(@TempDir dir: Path) {
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
-        val archived = ParquetReader().readDetailRefs(dir).toSet()
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDependencies(dir).toSet()
 
         // explode b: its archive becomes a directory of the same name holding the same tables (mixed snapshot)
         explode(dir.resolve("b.hierograph"))
@@ -139,15 +140,15 @@ class HierographRoundTripTest {
         Files.delete(tmp)
     }
 
-    private fun assertReadsBoth(dir: Path, detailRefs: Set<DetailRef>) {
+    private fun assertReadsBoth(dir: Path, dependencies: Set<Dependency>) {
         val store = GraphStore()
         ParquetReader().load(dir, store)
         assertThat(store.typeByFqn("com.a.A")).isNotNull()
         assertThat(store.typeByFqn("com.b.B")).isNotNull()
         val reader = ParquetReader()
-        val read = reader.readDetailRefs(dir)
+        val read = reader.readDependencies(dir)
         // Rows read from a per-artifact snapshot are tagged with the artifact that holds them.
-        assertThat(read.map { it.copy(fromArtifact = null) }.toSet()).isEqualTo(detailRefs.map { it.copy(fromArtifact = null) }.toSet())
+        assertThat(read.map { it.copy(fromArtifact = null) }.toSet()).isEqualTo(dependencies.map { it.copy(fromArtifact = null) }.toSet())
         assertThat(read).allSatisfy { assertThat(it.fromArtifact).isEqualTo(it.fromType.substringAfter("com.").substringBefore('.') + ".jar") }
         assertThat(reader.readMember(dir, "com.a.A#foo(java.lang.String)")!!.parameters.map { it.name })
             .containsExactly("x")
@@ -157,8 +158,8 @@ class HierographRoundTripTest {
     fun `archive and exploded packaging write identical tables`(@TempDir dir: Path) {
         val archives = dir.resolve("archives")
         val exploded = dir.resolve("exploded")
-        ParquetWriter.writeArtifacts(archives, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
-        ParquetWriter.writeArtifacts(exploded, classes, detailRefs, CompressionCodec.UNCOMPRESSED,
+        ParquetWriter.writeArtifacts(archives, classes, dependencies, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeArtifacts(exploded, classes, dependencies, CompressionCodec.UNCOMPRESSED,
             packaging = ParquetWriter.Packaging.EXPLODED)
 
         for (name in listOf("a.hierograph", "b.hierograph")) {
@@ -167,12 +168,12 @@ class HierographRoundTripTest {
             unzip(archives.resolve(name), unzipped)
             assertThat(tableBytes(exploded.resolve(name))).isEqualTo(tableBytes(unzipped))
         }
-        assertReadsBoth(exploded, ParquetReader().readDetailRefs(archives).toSet())
+        assertReadsBoth(exploded, ParquetReader().readDependencies(archives).toSet())
 
         // zipping an exploded artifact yields an archive that reads equal
         val rezipped = Files.createDirectories(dir.resolve("rezipped"))
         for (name in listOf("a.hierograph", "b.hierograph")) HierographArchive.zip(exploded.resolve(name), rezipped.resolve(name))
-        assertReadsBoth(rezipped, ParquetReader().readDetailRefs(archives).toSet())
+        assertReadsBoth(rezipped, ParquetReader().readDependencies(archives).toSet())
     }
 
     @Test
@@ -180,20 +181,20 @@ class HierographRoundTripTest {
         val tmp = Path.of(System.getProperty("java.io.tmpdir"))
         val tmpBefore = hierographEntries(tmp)
 
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
         assertThat(Files.list(dir).use { s -> s.map { it.fileName.toString() }.sorted().toList() })
             .containsExactly("a.hierograph", "b.hierograph")
         assertThat(hierographEntries(tmp)).isEqualTo(tmpBefore)
 
         // the archives become exploded directories of the same name, and back
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED,
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED,
             packaging = ParquetWriter.Packaging.EXPLODED)
         assertThat(dir.resolve("a.hierograph")).isDirectory()
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
         assertThat(dir.resolve("a.hierograph")).isRegularFile()
         assertThat(Files.list(dir).use { s -> s.map { it.fileName.toString() }.sorted().toList() })
             .containsExactly("a.hierograph", "b.hierograph")
-        assertReadsBoth(dir, detailRefs.toSet())
+        assertReadsBoth(dir, dependencies.toSet())
     }
 
     private fun tableBytes(dir: Path): Map<String, List<Byte>> =
@@ -202,8 +203,8 @@ class HierographRoundTripTest {
     @Test
     fun `a collect container is read in place, in a snapshot directory or on its own`(@TempDir dir: Path) {
         val artifacts = dir.resolve("artifacts")
-        ParquetWriter.writeArtifacts(artifacts, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
-        val archived = ParquetReader().readDetailRefs(artifacts).toSet()
+        ParquetWriter.writeArtifacts(artifacts, classes, dependencies, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDependencies(artifacts).toSet()
 
         val snapshot = Files.createDirectories(dir.resolve("snapshot"))
         val container = snapshot.resolve("project-collect.hierograph")
@@ -215,8 +216,8 @@ class HierographRoundTripTest {
 
     @Test
     fun `an archive with deflated entries is read`(@TempDir dir: Path) {
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
-        val archived = ParquetReader().readDetailRefs(dir).toSet()
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDependencies(dir).toSet()
 
         for (name in listOf("a.hierograph", "b.hierograph")) deflate(dir.resolve(name))
         assertReadsBoth(dir, archived)
@@ -225,12 +226,12 @@ class HierographRoundTripTest {
     @Test
     fun `reading archives creates no files`(@TempDir dir: Path) {
         val snapshot = dir.resolve("snapshot")
-        ParquetWriter.writeArtifacts(snapshot, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeArtifacts(snapshot, classes, dependencies, CompressionCodec.UNCOMPRESSED)
         val tmp = Path.of(System.getProperty("java.io.tmpdir"))
         val tmpBefore = hierographEntries(tmp)
         val snapshotBefore = Files.walk(dir).use { it.toList() }.toSet()
 
-        assertReadsBoth(snapshot, ParquetReader().readDetailRefs(snapshot).toSet())
+        assertReadsBoth(snapshot, ParquetReader().readDependencies(snapshot).toSet())
         ParquetReader().readClasspath(snapshot)
 
         assertThat(hierographEntries(tmp)).isEqualTo(tmpBefore)
@@ -239,13 +240,13 @@ class HierographRoundTripTest {
 
     @Test
     fun `a replaced archive is read anew and a deleted one is dropped`(@TempDir dir: Path) {
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
-        assertThat(ParquetReader().readDetailRefs(dir)).hasSize(2)
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
+        assertThat(ParquetReader().readDependencies(dir)).hasSize(2)
 
         // rewrite b without its detail ref: the cached index of the old b.hierograph must not be used
         Files.delete(dir.resolve("b.hierograph"))
         ParquetWriter.writeArtifacts(dir, classes.filter { it.artifactKey == "b.jar" }, emptyList(), CompressionCodec.UNCOMPRESSED)
-        assertThat(ParquetReader().readDetailRefs(dir).map { it.relationship }).containsExactly("returns")
+        assertThat(ParquetReader().readDependencies(dir).map { it.kind.value }).containsExactly("returns")
 
         Files.delete(dir.resolve("b.hierograph"))
         val store = GraphStore()
@@ -277,7 +278,7 @@ class HierographRoundTripTest {
             "a.jar" to ArtifactClasspath("a.jar", "A", emptyList()),
             "b.jar" to ArtifactClasspath("b.jar", "B", listOf(ClasspathEntry("a.jar", internal = true))),
         )
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED, classpaths)
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED, classpaths)
 
         val reader = ParquetReader()
         val manifests = reader.readClasspath(dir)
@@ -294,13 +295,13 @@ class HierographRoundTripTest {
 
     @Test
     fun `a combined table directory still loads (legacy combined layout)`(@TempDir dir: Path) {
-        ParquetWriter.writeSnapshot(dir, classes, detailRefs, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeSnapshot(dir, classes, dependencies, CompressionCodec.UNCOMPRESSED)
 
         val store = GraphStore()
         ParquetReader().load(dir, store)
         assertThat(store.typeByFqn("com.a.A")).isNotNull()
         assertThat(store.typeByFqn("com.b.B")).isNotNull()
-        assertThat(ParquetReader().readDetailRefs(dir)).hasSize(2)
+        assertThat(ParquetReader().readDependencies(dir)).hasSize(2)
     }
 
     /** Extracts every entry of [archive] (flat) into [targetDir]. */

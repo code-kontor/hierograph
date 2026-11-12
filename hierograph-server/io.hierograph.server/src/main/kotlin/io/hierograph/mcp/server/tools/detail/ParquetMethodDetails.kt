@@ -15,6 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
@@ -23,7 +24,6 @@ import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
-import java.nio.file.Path
 
 /**
  * The engine behind `method_details`, served from the Parquet snapshot. Identity (name/kind/modifiers/
@@ -65,20 +65,20 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
         )
 
         // Parquet direct edges for this owner + the load-derived ones (overrides/calls), then this member's.
-        val edges = (reader.readDetailRefs(dir, fromTypes = listOf(ownerFqn)) + graphService.derivedDetailRefs(fromTypes = listOf(ownerFqn)))
+        val edges = (reader.readDependencies(dir, fromTypes = listOf(ownerFqn)) + graphService.derivedDependencies(fromTypes = listOf(ownerFqn)))
             .filter { it.fromKey == memberKey }
 
         val returnType: Map<String, Any?> = when {
             isConstructor -> declaringTypeRef
-            else -> edges.firstOrNull { it.relationship == "returns" }?.let { typeRef(it.toType) } ?: primitiveRef("void")
+            else -> edges.firstOrNull { it.kind == DependencyKind.RETURNS }?.let { typeRef(it.toType) } ?: primitiveRef("void")
         }
-        val throwsList = edges.filter { it.relationship == "throws" }.map { it.toType }.distinct().map { typeRef(it) }
+        val throwsList = edges.filter { it.kind == DependencyKind.THROWS }.map { it.toType }.distinct().map { typeRef(it) }
         // `throws` is the declared clause; `raises` is the body-thrown `throw new X(...)` (see ClassScanner).
-        val raisesList = edges.filter { it.relationship == "raises" }.map { it.toType }.distinct().map { typeRef(it) }
-        val annotations = edges.filter { it.relationship == "annotated_by" }.map { it.toType }.distinct()
+        val raisesList = edges.filter { it.kind == DependencyKind.RAISES }.map { it.toType }.distinct().map { typeRef(it) }
+        val annotations = edges.filter { it.kind == DependencyKind.ANNOTATED_BY }.map { it.toType }.distinct()
             .map { linkedMapOf<String, Any?>("type" to typeRef(it)) }
         // Every method this one overrides: a superclass method and interface methods can all apply.
-        val overrides = edges.filter { it.relationship == "overrides" }.distinctBy { it.toKey }
+        val overrides = edges.filter { it.kind == DependencyKind.OVERRIDES }.distinctBy { it.toKey }
             .sortedBy { it.toKey }.map { methodRefFor(it.toKey, it.toType) }
 
         val parameters = member.parameters.map { p ->

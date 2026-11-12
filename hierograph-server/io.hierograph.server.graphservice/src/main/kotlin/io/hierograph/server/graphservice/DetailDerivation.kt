@@ -16,7 +16,8 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.MemberFacts
@@ -36,24 +37,24 @@ internal object DetailDerivation {
 
     /** The order of the snapshot's `dependencies` table; the calls are resolved in it on either path. */
     private val SNAPSHOT_ORDER =
-        compareBy<DetailRef>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship })
+        compareBy<Dependency>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind })
 
     /**
      * Derive from a scan held in memory, without reading back the snapshot written from it. Takes what the
      * snapshot would hold: every scanned member, and the detail edges whose `from` type was scanned (the
      * snapshot files a detail edge under its `from` type's artifact and has no place for any other).
      */
-    fun fromScan(store: GraphStore, scan: ScanResult): List<DetailRef> {
+    fun fromScan(store: GraphStore, scan: ScanResult): List<Dependency> {
         val scannedTypes = scan.classes.mapTo(HashSet()) { it.facts.fqn }
         return derive(
             store,
             scan.classes.flatMap { it.facts.members },
-            scan.detailRefs.filter { it.fromType in scannedTypes },
+            scan.dependencies.filter { it.fromType in scannedTypes },
         )
     }
 
-    /** Derive from the graph's [members] and direct [detailRefs]. */
-    fun derive(store: GraphStore, members: List<MemberFacts>, detailRefs: List<DetailRef>): List<DetailRef> {
+    /** Derive from the graph's [members] and direct [dependencies]. */
+    fun derive(store: GraphStore, members: List<MemberFacts>, dependencies: List<Dependency>): List<Dependency> {
         val methodsByOwner = members
             .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
             .groupBy { it.key.substringBefore('#') }
@@ -71,10 +72,10 @@ internal object DetailDerivation {
                 )
             }.toList()
         // Stable sort: a snapshot's rows are already in this order, a scan's are put into it.
-        val directCalls = detailRefs.filter { it.relationship == "calls" }.sortedWith(SNAPSHOT_ORDER)
+        val directCalls = dependencies.filter { it.kind == DependencyKind.CALLS }.sortedWith(SNAPSHOT_ORDER)
         val resolved = HierarchyResolution.resolve(types, directCalls)
 
-        val existing = detailRefs.mapTo(HashSet()) { Triple(it.fromKey, it.toKey, it.relationship) }
-        return resolved.filterNot { Triple(it.fromKey, it.toKey, it.relationship) in existing }
+        val existing = dependencies.mapTo(HashSet()) { Triple(it.fromKey, it.toKey, it.kind) }
+        return resolved.filterNot { Triple(it.fromKey, it.toKey, it.kind) in existing }
     }
 }

@@ -19,7 +19,7 @@ import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
@@ -130,8 +130,8 @@ class BytecodeScannerTest {
     private fun type(fqn: String): ClassFacts = result.classes.single { it.facts.fqn == fqn }.facts
     private fun refCount(from: String, to: String, kind: RefKind): Int? =
         type(from).refs.singleOrNull { it.toKey == to && it.kind == kind }?.count
-    private fun details(fromKey: String, relationship: String): List<DetailRef> =
-        result.detailRefs.filter { it.fromKey == fromKey && it.relationship == relationship }
+    private fun details(fromKey: String, relationship: String): List<Dependency> =
+        result.dependencies.filter { it.fromKey == fromKey && it.kind.value == relationship }
 
     @Test
     fun `types get their kind and real modifiers, nested and interface ones included`() {
@@ -262,7 +262,7 @@ class BytecodeScannerTest {
 
         // A call target is the same instance as the key of the member it calls, and as other calls to it.
         val helper = type("fix.Circle").members.single { it.key == "fix.Circle#void helper(int)" }.key
-        val calls = result.detailRefs.filter { it.toKey == helper }
+        val calls = result.dependencies.filter { it.toKey == helper }
         assertThat(calls).isNotEmpty
         calls.forEach { assertThat(it.toKey).isSameAs(helper) }
 
@@ -349,7 +349,7 @@ class BytecodeScannerTest {
         val scan = BytecodeScanner().scan(listOf(ScanArtifact.of(compile(tmp.resolve("c"), src, listOf("-g")))))
         val c = scan.classes.single().facts
         fun facts(method: String, relationship: String) =
-            scan.detailRefs.filter { it.fromKey.startsWith("c.C#") && it.fromKey.contains(" $method(") && it.relationship == relationship }
+            scan.dependencies.filter { it.fromKey.startsWith("c.C#") && it.fromKey.contains(" $method(") && it.kind.value == relationship }
         fun count(to: String, kind: RefKind) = c.refs.singleOrNull { it.toKey == to && it.kind == kind }?.count
 
         assertThat(facts("both", "parameter_type").map { it.toType }).containsExactly("java.util.Map", "java.util.Map")
@@ -372,7 +372,7 @@ class BytecodeScannerTest {
 
     @Test
     fun `each class's aggregated refs are the rollup of its detail facts`() {
-        val factsByType = result.detailRefs.groupBy { it.fromType }
+        val factsByType = result.dependencies.groupBy { it.fromType }
         for (scanned in result.classes) {
             val fqn = scanned.facts.fqn
             assertThat(scanned.facts.refs).describedAs(fqn).isEqualTo(DependencyRollup.refsOf(fqn, factsByType[fqn].orEmpty()))
@@ -396,7 +396,7 @@ class BytecodeScannerTest {
     @Test
     fun `the scanner emits only direct member edges - no overrides or virtual dispatch`() {
         // Hierarchy-dependent edges are derived at load (HierarchyResolution), not by the scanner.
-        assertThat(result.detailRefs.map { it.relationship }.toSet()).doesNotContain("overrides")
+        assertThat(result.dependencies.map { it.kind.value }.toSet()).doesNotContain("overrides")
         // A covariant override's real + bridge methods are both scanned (the resolver relies on this).
         val dogMembers = type("fix.Dog").members.associateBy { it.key }
         assertThat(dogMembers.keys).contains("fix.Dog#fix.Dog self()", "fix.Dog#java.lang.Object self()")
@@ -433,7 +433,7 @@ class BytecodeScannerTest {
         assertThat(fromJar.classes.map { it.facts.fqn })
             .containsExactlyInAnyOrderElementsOf(result.classes.map { it.facts.fqn } + "fix.OnlyNew")
         assertThat(fromJar.classes.map { it.artifactKey }.toSet()).containsExactly("fixtures-1.0.jar")
-        assertThat(fromJar.detailRefs.filter { it.fromType != "fix.OnlyNew" }).hasSameSizeAs(result.detailRefs)
+        assertThat(fromJar.dependencies.filter { it.fromType != "fix.OnlyNew" }).hasSameSizeAs(result.dependencies)
     }
 
     @Test
@@ -493,7 +493,7 @@ class BytecodeScannerTest {
         val listRefs = type("fix.Circle").refs.filter { it.toKey == "java.util.List" }
         assertThat(edges.getValue("java.util.List").weight).isEqualTo(listRefs.sumOf { it.count ?: 1 })
         assertThat(listRefs.map { it.kind }).contains(RefKind.FIELD_TYPE, RefKind.RETURN_TYPE, RefKind.INVOKES)
-        assertThat(ParquetReader().readDetailRefs(tmp, fromTypes = listOf("fix.Circle"))).isNotEmpty()
+        assertThat(ParquetReader().readDependencies(tmp, fromTypes = listOf("fix.Circle"))).isNotEmpty()
         assertThat(ParquetReader().readTypeRows(tmp, listOf("fix.Circle")).single().classHash).isEqualTo(type("fix.Circle").classHash)
     }
 

@@ -15,6 +15,7 @@
  */
 package io.hierograph.server.graphservice
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
@@ -74,10 +75,10 @@ class DetailDerivationTest {
         source.writeSnapshot(scanned, snapshot)
         val reader = ParquetReader()
 
-        val fromSnapshot = DetailDerivation.derive(store, reader.readAllMembers(snapshot), reader.readDetailRefs(snapshot))
+        val fromSnapshot = DetailDerivation.derive(store, reader.readAllMembers(snapshot), reader.readDependencies(snapshot))
         val fromScan = DetailDerivation.fromScan(store, scanned.combined())
 
-        assertThat(fromSnapshot.map { it.relationship }.toSet()).`as`("the fixture derives both kinds").contains("overrides", "calls")
+        assertThat(fromSnapshot.map { it.kind }.toSet()).`as`("the fixture derives both kinds").contains(DependencyKind.OVERRIDES, DependencyKind.CALLS)
         assertThat(fromScan).containsExactlyInAnyOrderElementsOf(fromSnapshot)
         // The detail tools list a member's edges in this order; the artifacts may be read in another order.
         assertThat(fromScan.groupBy { it.fromKey }).isEqualTo(fromSnapshot.groupBy { it.fromKey })

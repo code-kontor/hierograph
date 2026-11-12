@@ -18,12 +18,11 @@ package io.hierograph.graphstore.jvm.detail
 import dev.hardwood.reader.FilterPredicate
 import dev.hardwood.reader.ParquetFileReader
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.parquet.ParquetSchema
 import io.hierograph.graphstore.jvm.parquet.SnapshotSources
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
-import java.nio.file.Files
 import java.nio.file.Path
 
 /** Display metadata for one node referenced by a detail edge — what the key *is*. */
@@ -40,7 +39,7 @@ data class NodeDisplay(val name: String, val kind: String, val qualifiedName: St
  */
 class DetailEnricher(private val store: GraphStore, private val membersDir: Path) {
 
-    fun nodesFor(edges: Collection<DetailRef>): Map<String, NodeDisplay> {
+    fun nodesFor(edges: Collection<Dependency>): Map<String, NodeDisplay> {
         val memberKeys = linkedSetOf<String>()
         val typeFqns = linkedSetOf<String>()
         for (e in edges) {

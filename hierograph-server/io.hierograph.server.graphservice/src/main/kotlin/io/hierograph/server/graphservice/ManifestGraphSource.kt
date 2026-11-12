@@ -106,7 +106,7 @@ class ManifestGraphSource internal constructor(
         /** The union of every module's classes and detail refs — for [ingest] and [writeSnapshot]. */
         fun combined(): ScanResult = ScanResult(
             modules.values.flatMap { it.result.classes },
-            modules.values.flatMap { it.result.detailRefs },
+            modules.values.flatMap { it.result.dependencies },
         )
     }
 
@@ -340,7 +340,7 @@ class ManifestGraphSource internal constructor(
         val (results, elapsed) = measureTimedValue { scanArtifacts(artifacts) }
         outputs.zip(signatures).forEach { (output, signature) ->
             val result = results[output.gav] ?: EMPTY_SCAN
-            log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.detailRefs.size)
+            log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.dependencies.size)
             modules[output.gav] = ModuleScan(output.gav, output.name, output.dirs, result, signature = signature)
         }
         log.info(

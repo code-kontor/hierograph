@@ -22,7 +22,7 @@ import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
-import java.util.EnumSet
+import java.util.EnumMap
 
 /**
  * Hierograph's in-memory structural model, built directly from [ClassFacts] during ingest: the
@@ -112,7 +112,7 @@ class GraphStore(
 
     /**
      * The aggregated type-to-type dependencies: each owner's refs grouped by resolved target node, with
-     * summed weights and the ref kinds as flags (see [TypeDependency]). Includes targets the external-type
+     * their counts per kind (see [TypeDependency]). Includes targets the external-type
      * filter keeps out of the graph; their [TypeDependency.toKey] names no node.
      */
     fun typeDependencies(): Sequence<TypeDependency> =
@@ -122,17 +122,14 @@ class GraphStore(
                 .asSequence()
                 .filter { (targetKey, _) -> targetKey != ownerKey }
                 .map { (targetKey, rs) ->
-                    val kinds = rs.mapTo(EnumSet.noneOf(RefKind::class.java)) { it.kind }
+                    val kinds = EnumMap<RefKind, Int>(RefKind::class.java)
+                    for (r in rs) kinds.merge(r.kind, r.count ?: 1, Int::plus)
                     TypeDependency(
                         fromKey = ownerKey,
                         toKey = targetKey,
                         fromFqn = ownerFqn,
                         toFqn = typeOf(rs.first().toKey),
-                        weight = rs.sumOf { it.count ?: 1 },
-                        extends = RefKind.EXTENDS in kinds,
-                        implements = RefKind.IMPLEMENTS in kinds,
-                        annotatedBy = RefKind.ANNOTATED_BY in kinds,
-                        other = kinds.any { it !in RefKind.STRUCTURAL },
+                        kinds = kinds,
                     )
                 }
         }

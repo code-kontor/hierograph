@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import java.nio.file.Path
 import java.util.concurrent.CancellationException
 
@@ -54,8 +54,8 @@ internal object DetailSnapshotWrite {
         genDir: Path,
         superseded: () -> Boolean,
         write: (dir: Path, cancelled: () -> Boolean) -> Unit,
-        derive: (Path) -> List<DetailRef>,
-        publish: (List<DetailRef>) -> Unit,
+        derive: (Path) -> List<Dependency>,
+        publish: (List<Dependency>) -> Unit,
     ): DetailWriteOutcome {
         if (superseded()) return DetailWriteOutcome.SKIPPED
         try {

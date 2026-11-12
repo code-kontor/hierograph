@@ -34,7 +34,6 @@ import kotlin.io.path.createTempDirectory
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
-import kotlin.time.Duration
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
@@ -116,7 +115,7 @@ class HierographSelfScanBenchmark {
             │ snapshot write      : {}
             └───────────────────────────────────────────────────────────────
             """.trimIndent(),
-            artifacts.size, scan.classes.size, members, scan.detailRefs.size, nodes, rootChildren.size,
+            artifacts.size, scan.classes.size, members, scan.dependencies.size, nodes, rootChildren.size,
             scanTime, loadTime, modelTime, graphTime, writeTime,
         )
 

@@ -15,12 +15,13 @@
  */
 package io.hierograph.graphstore.jvm.detail
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
 import io.hierograph.graphstore.jvm.model.JavaKinds
@@ -82,9 +83,9 @@ class DetailEnricherTest {
     @Test
     fun `nodes map carries member and type display, with tree names and kinds`() {
         val edges = listOf(
-            DetailRef(place, "com.shop.OrderService", charge, "com.shop.PaymentGateway", "calls", 50),
-            DetailRef(place, "com.shop.OrderService", log, "com.shop.OrderService", "reads_field", 48),
-            DetailRef(ctor, "com.shop.OrderService", "java.math.BigDecimal", "java.math.BigDecimal", "has_type", null),
+            Dependency(place, "com.shop.OrderService", charge, "com.shop.PaymentGateway", DependencyKind.CALLS, 50),
+            Dependency(place, "com.shop.OrderService", log, "com.shop.OrderService", DependencyKind.READS_FIELD, 48),
+            Dependency(ctor, "com.shop.OrderService", "java.math.BigDecimal", "java.math.BigDecimal", DependencyKind.HAS_TYPE, null),
         )
 
         val nodes = enricher.nodesFor(edges)

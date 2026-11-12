@@ -16,17 +16,20 @@
 package io.hierograph.graphstore.jvm.model
 
 /**
- * The kind of a detail dependency: one fact in a class file from a source element (a type or a member)
- * to a target element. This is the one vocabulary for type-level facts (`extends`, a type's own
- * annotations, …) and member-level facts (`calls`, `casts`, …). [value] is the wire name, stored in the
- * `relationship` column of `dependencies.parquet`.
+ * The kind of a detail dependency: one fact from a source element (a type or a member) to a target
+ * element. This is the one vocabulary for type-level facts (`extends`, a type's own annotations, …),
+ * member-level facts (`calls`, `casts`, …) and the facts derived at load. [value] is the wire name, stored
+ * in the `relationship` column of `dependencies.parquet` and used by the tools.
  *
- * Every kind except [RAISES] is [counted]: it adds 1 to the weight of the aggregated dependency between
- * the source's and the target's owner types (see [DependencyRollup]). [RAISES] is not counted because
- * it refines facts that are counted already: `throw new X(…)` is an [INSTANTIATES] of `X`, a [CALLS] of
- * its constructor, and then the throw.
+ * A kind read from a class file is [counted] unless it is [RAISES]: it adds 1 to the weight of the
+ * aggregated dependency between the source's and the target's owner types (see [DependencyRollup]).
+ * [RAISES] is not counted because it refines facts that are counted already: `throw new X(…)` is an
+ * [INSTANTIATES] of `X`, a [CALLS] of its constructor, and then the throw.
+ *
+ * The [derived] kinds ([OVERRIDES], [READ_BY], [WRITTEN_BY]) are never stored and never counted: they are
+ * computed at load across class files, or are another view of stored facts.
  */
-enum class DependencyKind(val value: String, val counted: Boolean = true) {
+enum class DependencyKind(val value: String, val counted: Boolean = true, val derived: Boolean = false) {
     // ── type-level: the source is the type itself ──
     /** The source type has the target as its superclass. */
     EXTENDS("extends"),
@@ -67,7 +70,15 @@ enum class DependencyKind(val value: String, val counted: Boolean = true) {
     /** The source method uses the target as a class literal (`Money.class`). */
     CLASS_LITERAL("class_literal"),
     /** The source method executes `throw new <target>(…)`. Not counted, see the class comment. */
-    RAISES("raises", counted = false);
+    RAISES("raises", counted = false),
+
+    // ── derived at load: never stored, never counted ──
+    /** The source method overrides (or implements) the target method; derived from the type hierarchy. */
+    OVERRIDES("overrides", counted = false, derived = true),
+    /** The source field is read by the target method: [READS_FIELD] viewed from the field. */
+    READ_BY("read_by", counted = false, derived = true),
+    /** The source field is assigned by the target method: [WRITES_FIELD] viewed from the field. */
+    WRITTEN_BY("written_by", counted = false, derived = true);
 
     companion object {
         private val byValue = entries.associateBy { it.value }

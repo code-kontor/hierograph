@@ -17,7 +17,7 @@ package io.hierograph.graphstore.jvm.scanner
 
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.model.ArtifactClasspath
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
 import java.nio.file.Files
@@ -30,7 +30,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
-import kotlin.io.path.name
 
 /** One scan input: a JAR file or a class directory. [key] becomes the module's artifact key. */
 data class ScanArtifact(val key: String, val path: Path) {
@@ -41,7 +40,7 @@ data class ScanArtifact(val key: String, val path: Path) {
 }
 
 /** The scanned classes (type level) and their member-level references. */
-data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<DetailRef>) {
+data class ScanResult(val classes: List<ArtifactClass>, val dependencies: List<Dependency>) {
 
     /**
      * Writes the result as one `.hierograph` artifact per artifact key under [dir]
@@ -56,13 +55,13 @@ data class ScanResult(val classes: List<ArtifactClass>, val detailRefs: List<Det
         cancelled: () -> Boolean = { false },
     ) {
         Files.createDirectories(dir)
-        ParquetWriter.writeArtifacts(dir, classes, detailRefs, codec, classpaths, packaging, cancelled)
+        ParquetWriter.writeArtifacts(dir, classes, dependencies, codec, classpaths, packaging, cancelled)
     }
 }
 
 /**
  * Hierograph's bytecode scanner: reads every class file of the given [ScanArtifact]s with ASM — declarations,
- * signatures and method bodies — into `ClassFacts` and member-level `DetailRef`s, using the snapshot's key
+ * signatures and method bodies — into `ClassFacts` and detail facts (`Dependency`), using the snapshot's key
  * conventions (see `spec/hierograph-graphstore-scanner.md`). `module-info` is skipped; of a multi-release JAR, each
  * class is scanned once, in its newest version (`META-INF/versions/<n>/…` overrides the base — what runs on
  * a current JDK); `package-info` and nested/anonymous classes are types.
@@ -102,8 +101,8 @@ class BytecodeScanner(val parallelism: Int = Runtime.getRuntime().availableProce
     private fun toResult(scanned: List<Pair<String, ScannedClass>>): ScanResult {
         val classes = scanned.map { (key, c) -> ArtifactClass(key, c.facts) }
         // Direct edges only; overrides / virtual + resolved calls are derived at load (see the class doc).
-        val detailRefs = scanned.flatMap { it.second.detailRefs }
-        return ScanResult(classes, detailRefs)
+        val dependencies = scanned.flatMap { it.second.dependencies }
+        return ScanResult(classes, dependencies)
     }
 
     /** One class file of an artifact: its path or entry [name] (for error messages) and how to [read] it. */
@@ -221,7 +220,7 @@ fun main(args: Array<String>) {
     result.writeTo(Path.of(out.second))
     println(
         "Scanned ${inputs.size} artifacts on $parallelism threads: ${result.classes.size} types, " +
-            "${result.classes.sumOf { it.facts.members.size }} members, ${result.detailRefs.size} detail refs " +
+            "${result.classes.sumOf { it.facts.members.size }} members, ${result.dependencies.size} detail refs " +
             "→ ${out.second} in ${(System.nanoTime() - started) / 1_000_000} ms"
     )
 }

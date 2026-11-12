@@ -15,9 +15,10 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
@@ -57,7 +58,7 @@ class DetailFixture {
     init {
         val dir = Files.createTempDirectory("hierograph-detail-fixture")
         ParquetWriter.writeArtifacts(
-            dir, classes(), detailRefs(), packaging = ParquetWriter.Packaging.EXPLODED,
+            dir, classes(), dependencies(), packaging = ParquetWriter.Packaging.EXPLODED,
         )
         graphService.seedFromParquet(dir)
         val engine = ParquetDetailDependencies(graphService, DataHashProvider(graphService))
@@ -120,21 +121,21 @@ class DetailFixture {
     )
 
     /** A type's aggregated references, rolled up from its detail facts as the scanner does. */
-    private fun refsOf(fqn: String) = DependencyRollup.refsOf(fqn, detailRefs().filter { it.fromType == fqn })
+    private fun refsOf(fqn: String) = DependencyRollup.refsOf(fqn, dependencies().filter { it.fromType == fqn })
 
-    private fun detailRefs() = listOf(
-        DetailRef(INVOICE, INVOICE, DOC, DOC, "extends"),
-        DetailRef(INVOICE, INVOICE, RENDERABLE, RENDERABLE, "implements"),
-        DetailRef("$DOC#$MONEY total()", DOC, "$MONEY#$MONEY plus($MONEY)", MONEY, "calls", 5),
-        DetailRef("$INVOICE#$MONEY net()", INVOICE, MONEY, MONEY, "returns", 9),
-        DetailRef("$INVOICE#$MONEY net()", INVOICE, "$MONEY#$MONEY plus($MONEY)", MONEY, "calls", 10),
-        DetailRef("$INVOICE#$MONEY net()", INVOICE, "$DOC#$MONEY total()", DOC, "calls", 11),
-        DetailRef("$INVOICE#$MONEY tax()", INVOICE, "$MONEY#$MONEY times(int)", MONEY, "calls", 20),
-        DetailRef("$INVOICE#void validate()", INVOICE, "$DOC#void render()", DOC, "calls", 30),
-        DetailRef("$MONEY#int cents", MONEY, "int", "int", "has_type"),
+    private fun dependencies() = listOf(
+        Dependency(INVOICE, INVOICE, DOC, DOC, DependencyKind.EXTENDS),
+        Dependency(INVOICE, INVOICE, RENDERABLE, RENDERABLE, DependencyKind.IMPLEMENTS),
+        Dependency("$DOC#$MONEY total()", DOC, "$MONEY#$MONEY plus($MONEY)", MONEY, DependencyKind.CALLS, 5),
+        Dependency("$INVOICE#$MONEY net()", INVOICE, MONEY, MONEY, DependencyKind.RETURNS, 9),
+        Dependency("$INVOICE#$MONEY net()", INVOICE, "$MONEY#$MONEY plus($MONEY)", MONEY, DependencyKind.CALLS, 10),
+        Dependency("$INVOICE#$MONEY net()", INVOICE, "$DOC#$MONEY total()", DOC, DependencyKind.CALLS, 11),
+        Dependency("$INVOICE#$MONEY tax()", INVOICE, "$MONEY#$MONEY times(int)", MONEY, DependencyKind.CALLS, 20),
+        Dependency("$INVOICE#void validate()", INVOICE, "$DOC#void render()", DOC, DependencyKind.CALLS, 30),
+        Dependency("$MONEY#int cents", MONEY, "int", "int", DependencyKind.HAS_TYPE),
         // net() reads the inherited field pages through the subclass, as javac compiles `this.pages`
-        DetailRef("$INVOICE#$MONEY net()", INVOICE, "$INVOICE#int pages", INVOICE, "reads_field", 12),
-        DetailRef("$MONEY#int cents", MONEY, "java.lang.Deprecated", "java.lang.Deprecated", "annotated_by"),
+        Dependency("$INVOICE#$MONEY net()", INVOICE, "$INVOICE#int pages", INVOICE, DependencyKind.READS_FIELD, 12),
+        Dependency("$MONEY#int cents", MONEY, "java.lang.Deprecated", "java.lang.Deprecated", DependencyKind.ANNOTATED_BY),
     )
 
     companion object {

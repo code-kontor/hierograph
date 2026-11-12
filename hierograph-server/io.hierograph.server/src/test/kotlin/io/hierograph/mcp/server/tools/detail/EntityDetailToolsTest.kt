@@ -15,10 +15,11 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
@@ -101,7 +102,7 @@ class EntityDetailToolsTest {
         for ((artifact, count, iface) in listOf(Triple("lib-a", 1, "java.io.Serializable"), Triple("lib-b", 3, "java.lang.Runnable"))) {
             ParquetWriter.writeArtifacts(
                 dir, listOf(twinIn(artifact, count, iface)),
-                listOf(DetailRef(twin, twin, iface, iface, "implements")), packaging = ParquetWriter.Packaging.EXPLODED,
+                listOf(Dependency(twin, twin, iface, iface, DependencyKind.IMPLEMENTS)), packaging = ParquetWriter.Packaging.EXPLODED,
             )
         }
         val service = HierarchicalGraphService().also { it.seedFromParquet(dir) }

@@ -24,8 +24,9 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.TypeResolver
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.ParameterFacts
 import io.hierograph.graphstore.jvm.model.Ref
@@ -162,12 +163,17 @@ class ParquetReader {
                     // A projected reader addresses its columns by their position in the projection.
                     while (rows.hasNext()) {
                         rows.next()
-                        acc.add(ownerFqn = rows.getString(0), fromKey = rows.getString(1), toType = rows.getString(2), relationship = rows.getString(3))
+                        acc.add(ownerFqn = rows.getString(0), fromKey = rows.getString(1), toType = rows.getString(2), kind = kindOf(rows.getString(3)))
                     }
                 }
         }
         return acc
     }
+
+    /** The kind a stored `relationship` names; a name outside the vocabulary means a corrupt or foreign table. */
+    private fun kindOf(relationship: String): DependencyKind =
+        DependencyKind.fromValue(relationship)
+            ?: throw SnapshotFormatException("Unknown dependency kind '$relationship' in a `dependencies` table.")
 
     /**
      * Reads every source with [read] on a pool of up to one thread per processor and returns the results in
@@ -204,16 +210,16 @@ class ParquetReader {
     /**
      * Scoped read of the `dependencies` table with predicate push-down: returns the rows
      * whose `from_type` is in [fromTypes] (unconstrained when null/empty), whose `to_type` is in
-     * [toTypes] (likewise), and whose `relationship` matches [relationship] (any when null). Hardwood
+     * [toTypes] (likewise), and whose kind is [kind] (any when null). Hardwood
      * skips row groups outside the `from_type` range via column statistics; `to_type` filters rows but,
      * not being the sort key, does not drive row-group skipping.
      */
-    fun readDetailRefs(
+    fun readDependencies(
         parquetDir: Path,
         fromTypes: Collection<String>? = null,
         toTypes: Collection<String>? = null,
-        relationship: String? = null,
-    ): List<DetailRef> {
+        kind: DependencyKind? = null,
+    ): List<Dependency> {
         val cols = ParquetSchema.Dependencies
         val from = fromTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
         val to = toTypes?.takeIf { it.isNotEmpty() }?.toHashSet()
@@ -225,17 +231,17 @@ class ParquetReader {
         val pushdown = when {
             from != null -> FilterPredicate.`in`(cols.FROM_TYPE, *from.toTypedArray())
             to != null -> FilterPredicate.`in`(cols.TO_TYPE, *to.toTypedArray())
-            relationship != null -> FilterPredicate.eq(cols.RELATIONSHIP, relationship)
+            kind != null -> FilterPredicate.eq(cols.RELATIONSHIP, kind.value)
             else -> null
         }
         return SnapshotSources.of(parquetDir).flatMap { source ->
             val rows = readRows(source, ParquetSchema.DEPENDENCIES_FILE, pushdown) { r ->
-                DetailRef(
+                Dependency(
                     fromKey = r.string(cols.FROM_KEY),
                     fromType = r.string(cols.FROM_TYPE),
                     toKey = r.string(cols.TO_KEY),
                     toType = r.string(cols.TO_TYPE),
-                    relationship = r.string(cols.RELATIONSHIP),
+                    kind = kindOf(r.string(cols.RELATIONSHIP)),
                     line = r.intOrNull(cols.LINE),
                 )
             }
@@ -243,7 +249,7 @@ class ParquetReader {
         }.filter {
             (from == null || it.fromType in from) &&
                 (to == null || it.toType in to) &&
-                (relationship == null || it.relationship == relationship)
+                (kind == null || it.kind == kind)
         }
     }
 
@@ -287,7 +293,7 @@ class ParquetReader {
             val cols = ParquetSchema.Dependencies
             val refs = DependencyRollup.Accumulator().also { acc ->
                 readRows(source, ParquetSchema.DEPENDENCIES_FILE, FilterPredicate.eq(cols.FROM_TYPE, fqn)) { r ->
-                    acc.add(fqn, r.string(cols.FROM_KEY), r.string(cols.TO_TYPE), r.string(cols.RELATIONSHIP))
+                    acc.add(fqn, r.string(cols.FROM_KEY), r.string(cols.TO_TYPE), kindOf(r.string(cols.RELATIONSHIP)))
                 }
             }.refsOf(fqn)
             return TypeFacts(row, members, refs)

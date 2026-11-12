@@ -15,9 +15,10 @@
  */
 package io.hierograph.itest.graphstore
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.server.graphservice.HierarchyResolution
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
@@ -31,7 +32,7 @@ import org.junit.jupiter.api.TestInstance
 /**
  * The load-time hierarchy resolver ([HierarchyResolution]) exercised end-to-end over the real Spring
  * snapshot — the counterpart of the scanner's direct edges. Builds the same inputs the graph service does
- * (`deriveDetailRefs`) and asserts: `overrides` are derived (the scanner emits none), virtual/resolved
+ * (`DetailDerivation.derive`) and asserts: `overrides` are derived (the scanner emits none), virtual/resolved
  * `calls` are produced, no edge targets a synthetic bridge method (bridge→real redirect), and the
  * virtual-dispatch fan does not explode (the external-placeholder fan-root guard).
  */
@@ -40,8 +41,8 @@ class LoadTimeResolutionIT {
 
     private val dir = SpringFixture.directory
     private val reader = ParquetReader()
-    private lateinit var directCalls: List<DetailRef>
-    private lateinit var derived: List<DetailRef>
+    private lateinit var directCalls: List<Dependency>
+    private lateinit var derived: List<Dependency>
     private lateinit var bridgeKeys: Set<String>
 
     @BeforeAll
@@ -63,19 +64,19 @@ class LoadTimeResolutionIT {
                 external = n.kind.toString() == JavaKinds.EXTERNAL_TYPE,
             )
         }.toList()
-        directCalls = reader.readDetailRefs(dir, relationship = "calls")
+        directCalls = reader.readDependencies(dir, kind = DependencyKind.CALLS)
         derived = HierarchyResolution.resolve(types, directCalls)
     }
 
     @Test
     fun `the scanner emits no overrides directly - they are derived at load`() {
-        assertThat(reader.readDetailRefs(dir, relationship = "overrides")).isEmpty()
-        assertThat(derived.count { it.relationship == "overrides" }).isGreaterThan(0)
+        assertThat(reader.readDependencies(dir, kind = DependencyKind.OVERRIDES)).isEmpty()
+        assertThat(derived.count { it.kind == DependencyKind.OVERRIDES }).isGreaterThan(0)
     }
 
     @Test
     fun `virtual and resolved calls are derived`() {
-        assertThat(derived.count { it.relationship == "calls" }).isGreaterThan(0)
+        assertThat(derived.count { it.kind == DependencyKind.CALLS }).isGreaterThan(0)
     }
 
     @Test
@@ -89,7 +90,7 @@ class LoadTimeResolutionIT {
         // Before the external-fan fix, fanning calls to JDK interfaces (java.util.Iterator#hasNext, ...)
         // inflated the derived set far past the direct-call set. The derived virtual/resolved calls must
         // stay well under the direct `calls` count.
-        val derivedCalls = derived.count { it.relationship == "calls" }
+        val derivedCalls = derived.count { it.kind == DependencyKind.CALLS }
         assertThat(derivedCalls).isLessThan(directCalls.size)
     }
 }

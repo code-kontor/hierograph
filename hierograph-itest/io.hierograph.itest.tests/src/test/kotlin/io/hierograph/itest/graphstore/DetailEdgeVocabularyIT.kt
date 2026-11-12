@@ -15,7 +15,8 @@
  */
 package io.hierograph.itest.graphstore
 
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
@@ -34,17 +35,18 @@ class DetailEdgeVocabularyIT {
 
     private val dir = SpringFixture.directory
     private val reader = ParquetReader()
-    private lateinit var all: List<DetailRef>
+    private lateinit var all: List<Dependency>
 
     @BeforeAll
     fun load() {
-        all = reader.readDetailRefs(dir)
+        all = reader.readDependencies(dir)
     }
 
     @Test
     fun `every scanner-emitted detail relationship is present`() {
-        val byRel = all.groupingBy { it.relationship }.eachCount()
-        for (rel in listOf("calls", "reads_field", "writes_field", "throws", "raises", "annotated_by", "returns", "parameter_type", "has_type")) {
+        val byRel = all.groupingBy { it.kind.value }.eachCount()
+        // Every kind a class file can carry; the derived ones (overrides, read_by, written_by) never appear.
+        for (rel in DependencyKind.entries.filterNot { it.derived }.map { it.value }) {
             assertThat(byRel[rel]).describedAs(rel).isNotNull.matches { it!! > 0 }
         }
         // overrides is derived at load (HierarchyResolution), never emitted directly by the scanner.
@@ -53,8 +55,8 @@ class DetailEdgeVocabularyIT {
 
     @Test
     fun `throws is the declared clause and raises is the body-thrown set, and some method has both`() {
-        val throwsFrom = all.filter { it.relationship == "throws" }.map { it.fromKey }.toSet()
-        val raisesFrom = all.filter { it.relationship == "raises" }.map { it.fromKey }.toSet()
+        val throwsFrom = all.filter { it.kind == DependencyKind.THROWS }.map { it.fromKey }.toSet()
+        val raisesFrom = all.filter { it.kind == DependencyKind.RAISES }.map { it.fromKey }.toSet()
         assertThat(throwsFrom).isNotEmpty
         assertThat(raisesFrom).isNotEmpty
         // A method that declares `throws X` and also does `throw new Y(...)` appears in both.

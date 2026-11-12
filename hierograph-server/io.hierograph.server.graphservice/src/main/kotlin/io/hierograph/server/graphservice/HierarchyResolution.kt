@@ -15,7 +15,8 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 
 /**
@@ -61,13 +62,13 @@ object HierarchyResolution {
      */
     class Type(val fqn: String, val directSupertypes: List<String>, val methods: List<Method>, val external: Boolean = false)
 
-    fun resolve(types: List<Type>, directCalls: List<DetailRef>): List<DetailRef> {
+    fun resolve(types: List<Type>, directCalls: List<Dependency>): List<Dependency> {
         val hierarchy = Hierarchy(types)
         return overrides(types, hierarchy) + virtualCalls(directCalls, hierarchy)
     }
 
-    private fun overrides(types: List<Type>, hierarchy: Hierarchy): List<DetailRef> {
-        val out = LinkedHashSet<DetailRef>()
+    private fun overrides(types: List<Type>, hierarchy: Hierarchy): List<Dependency> {
+        val out = LinkedHashSet<Dependency>()
         for (c in types) {
             val candidates = c.methods.filter { overridable(it) }
             if (candidates.isEmpty()) continue
@@ -75,20 +76,20 @@ object HierarchyResolution {
             for (m in candidates) for (s in supertypes) {
                 val exact = hierarchy.declaredMethod(s, m.signature)?.takeIf { overridable(it) }
                 val overridden = if (exact != null) listOf(exact) else hierarchy.overridableMethods(s)[nameAndParameters(m.signature)].orEmpty()
-                overridden.forEach { out += DetailRef(m.key, c.fqn, realKey(it), s, "overrides", m.lineFrom) }
+                overridden.forEach { out += Dependency(m.key, c.fqn, realKey(it), s, DependencyKind.OVERRIDES, m.lineFrom) }
             }
         }
         return out.toList()
     }
 
-    private fun virtualCalls(directCalls: List<DetailRef>, hierarchy: Hierarchy): List<DetailRef> {
-        val out = LinkedHashSet<DetailRef>()
+    private fun virtualCalls(directCalls: List<Dependency>, hierarchy: Hierarchy): List<Dependency> {
+        val out = LinkedHashSet<Dependency>()
         for (call in directCalls) {
             if (!hierarchy.isScanned(call.toType)) continue
             val signature = call.toKey.substringAfter('#')
             if (hierarchy.declaredMethod(call.toType, signature) == null) {
                 hierarchy.inheritedDeclaration(call.toType, signature)?.let { (declarer, m) ->
-                    if (realKey(m) != call.fromKey) out += DetailRef(call.fromKey, call.fromType, realKey(m), declarer, "calls", call.line)
+                    if (realKey(m) != call.fromKey) out += Dependency(call.fromKey, call.fromType, realKey(m), declarer, DependencyKind.CALLS, call.line)
                 }
             }
             if (signature.contains(" <init>(")) continue
@@ -96,7 +97,7 @@ object HierarchyResolution {
             if (hierarchy.declaredMethod(call.toType, signature)?.let { it.modifiers and MemberModifiers.STATIC != 0 } == true) continue
             for (sub in hierarchy.subtypesOf(call.toType)) {
                 val impl = hierarchy.declaredMethod(sub, signature)?.takeIf { overridable(it) } ?: continue
-                if (realKey(impl) != call.fromKey) out += DetailRef(call.fromKey, call.fromType, realKey(impl), sub, "calls", call.line)
+                if (realKey(impl) != call.fromKey) out += Dependency(call.fromKey, call.fromType, realKey(impl), sub, DependencyKind.CALLS, call.line)
             }
         }
         return out.toList()

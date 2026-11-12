@@ -15,12 +15,13 @@
  */
 package io.hierograph.graphstore.jvm.detail
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
@@ -50,14 +51,14 @@ class DetailQueryEngineTest {
         store.applyClass("app", type("com.foo.Other"))
 
         // Member edges.
-        ParquetWriter.writeDetailRefs(
+        ParquetWriter.writeDependencies(
             dir,
             listOf(
-                DetailRef("com.foo.Base#m()V", "com.foo.Base", "com.foo.Other#x()V", "com.foo.Other", "calls", 10),
-                DetailRef("com.foo.Sub#n()V", "com.foo.Sub", "com.foo.Other#f", "com.foo.Other", "reads_field", 20),
-                DetailRef("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#m()V", "com.foo.Base", "calls", 30),
+                Dependency("com.foo.Base#m()V", "com.foo.Base", "com.foo.Other#x()V", "com.foo.Other", DependencyKind.CALLS, 10),
+                Dependency("com.foo.Sub#n()V", "com.foo.Sub", "com.foo.Other#f", "com.foo.Other", DependencyKind.READS_FIELD, 20),
+                Dependency("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#m()V", "com.foo.Base", DependencyKind.CALLS, 30),
                 // a write into a field of Base, by a method of Other (outside the {Sub,Base} forward scope)
-                DetailRef("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#f", "com.foo.Base", "writes_field", 40),
+                Dependency("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#f", "com.foo.Base", DependencyKind.WRITES_FIELD, 40),
             ),
         )
         engine = DetailQueryEngine(dir)
@@ -77,13 +78,13 @@ class DetailQueryEngineTest {
 
         assertThat(edges.map { it.fromKey })
             .containsExactly("com.foo.Base#m()V", "com.foo.Sub#n()V") // Base#m is inherited into Sub's scope; sorted by from_type
-        assertThat(edges.map { it.relationship }).containsExactly("calls", "reads_field")
+        assertThat(edges.map { it.kind.value }).containsExactly("calls", "reads_field")
     }
 
     @Test
     fun `relationship filter narrows to one kind`() {
         val from = DetailScope.expand(store, "com.foo.Sub")
-        val edges = engine.query(DetailQuery(fromTypes = from, relationship = "calls"))
+        val edges = engine.query(DetailQuery(fromTypes = from, kind = DependencyKind.CALLS))
 
         assertThat(edges.single().fromKey).isEqualTo("com.foo.Base#m()V")
     }
@@ -98,9 +99,9 @@ class DetailQueryEngineTest {
     @Test
     fun `read_by returns the readers of fields in the scope, endpoints swapped`() {
         // "what reads fields declared in Other" — scope anchors on the field side (to_type = Other).
-        val edge = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Other"), relationship = "read_by")).single()
+        val edge = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Other"), kind = DependencyKind.READ_BY)).single()
 
-        assertThat(edge.relationship).isEqualTo("read_by")
+        assertThat(edge.kind).isEqualTo(DependencyKind.READ_BY)
         assertThat(edge.fromKey).isEqualTo("com.foo.Other#f")   // the field is the source
         assertThat(edge.toKey).isEqualTo("com.foo.Sub#n()V")    // the reading method is the target
         assertThat(edge.line).isEqualTo(20)
@@ -108,9 +109,9 @@ class DetailQueryEngineTest {
 
     @Test
     fun `written_by returns the writers of fields in the scope, endpoints swapped`() {
-        val edge = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Base"), relationship = "written_by")).single()
+        val edge = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Base"), kind = DependencyKind.WRITTEN_BY)).single()
 
-        assertThat(edge.relationship).isEqualTo("written_by")
+        assertThat(edge.kind).isEqualTo(DependencyKind.WRITTEN_BY)
         assertThat(edge.fromKey).isEqualTo("com.foo.Base#f")      // the field is the source
         assertThat(edge.toKey).isEqualTo("com.foo.Other#x()V")    // the writing method is the target
     }

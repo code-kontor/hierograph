@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -38,7 +38,7 @@ class DetailSnapshotWriteTest {
      */
     private inner class Steps(private val newerBuildAfter: String? = null) {
         val taken = mutableListOf<String>()
-        var published: List<DetailRef>? = null
+        var published: List<Dependency>? = null
         private var newerBuild = newerBuildAfter == "start"
 
         fun run() = DetailSnapshotWrite.run(

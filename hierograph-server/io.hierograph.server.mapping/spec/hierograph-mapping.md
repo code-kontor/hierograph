@@ -139,12 +139,14 @@ data class TypeDependency(
     val toKey: String,        // the resolved target's node key
     val fromFqn: String,      // the same endpoints by name (not read by the bridge)
     val toFqn: String,
-    val weight: Int,          // sum of the references' counts
-    val extends: Boolean,     // at least one EXTENDS reference
-    val implements: Boolean,  // at least one IMPLEMENTS reference
-    val annotatedBy: Boolean, // at least one ANNOTATED_BY reference
-    val other: Boolean,       // at least one non-structural reference
-)
+    val kinds: Map<RefKind, Int>, // count per reference kind
+) {
+    val weight: Int           // sum of kinds
+    val extends: Boolean      // kinds has EXTENDS
+    val implements: Boolean   // kinds has IMPLEMENTS
+    val annotatedBy: Boolean  // kinds has ANNOTATED_BY
+    val other: Boolean        // kinds has a non-structural kind
+}
 ```
 
 **Why node keys and not FQNs.** Each `TypeDependency` names its endpoints both as

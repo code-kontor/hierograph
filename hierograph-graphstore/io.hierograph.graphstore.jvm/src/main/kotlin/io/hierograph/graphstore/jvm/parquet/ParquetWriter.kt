@@ -24,7 +24,7 @@ import dev.hardwood.writer.WriterConfig
 import io.hierograph.graphstore.jvm.model.ArtifactClasspath
 import io.hierograph.graphstore.jvm.model.ClasspathEntry
 import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Arrays
@@ -55,8 +55,8 @@ object ParquetWriter {
     data class ArtifactClass(val artifactKey: String, val facts: ClassFacts)
 
     /** Writes a complete snapshot — `types`, `members`, `parameters` and `dependencies` — all four in parallel. */
-    fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) =
-        runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDetailRefs(dir, detailRefs, codec) }))
+    fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, dependencies: List<Dependency>, codec: CompressionCodec = CompressionCodec.ZSTD) =
+        runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDependencies(dir, dependencies, codec) }))
 
     /** How [writeArtifacts] packages each artifact's tables (`spec/hierograph-graphstore-format.md` §2). */
     enum class Packaging {
@@ -69,7 +69,7 @@ object ParquetWriter {
 
     /**
      * Writes a project snapshot as **one `.hierograph` artifact per artifact key** under [outDir], packaged
-     * as [packaging] decides: the classes are grouped by [ArtifactClass.artifactKey], the [detailRefs] by the
+     * as [packaging] decides: the classes are grouped by [ArtifactClass.artifactKey], the [dependencies] by the
      * artifact that owns their `from` side (its declaring type's artifact), and each group's tables become
      * `<artifact>.hierograph` — an archive or an exploded directory, with identical tables. An artifact of
      * the same name already in [outDir] is replaced, whichever its form. This is the scanner's output shape;
@@ -86,7 +86,7 @@ object ParquetWriter {
     fun writeArtifacts(
         outDir: Path,
         classes: List<ArtifactClass>,
-        detailRefs: List<DetailRef>,
+        dependencies: List<Dependency>,
         codec: CompressionCodec = CompressionCodec.ZSTD,
         classpaths: Map<String, ArtifactClasspath> = emptyMap(),
         packaging: Packaging = Packaging.ARCHIVE,
@@ -94,7 +94,7 @@ object ParquetWriter {
     ) {
         Files.createDirectories(outDir)
         val artifactByFqn = classes.associate { it.facts.fqn to it.artifactKey }
-        val detailByArtifact = detailRefs.groupBy { artifactByFqn[it.fromType] }
+        val detailByArtifact = dependencies.groupBy { artifactByFqn[it.fromType] }
         for ((artifactKey, artifactClasses) in classes.groupBy { it.artifactKey }) {
             if (cancelled()) throw CancellationException("Snapshot write to $outDir cancelled before artifact $artifactKey")
             val fileName = HierographArchive.fileName(artifactKey)
@@ -187,21 +187,21 @@ object ParquetWriter {
 
     /**
      * Writes the detail facts to the `dependencies` table, sorted by `from_type` (then
-     * `from_key`) so a scoped read via [ParquetReader.readDetailRefs] skips row groups. Defaults to
+     * `from_key`) so a scoped read via [ParquetReader.readDependencies] skips row groups. Defaults to
      * uncompressed (callers that want ZSTD pass it explicitly). The sort runs in parallel; it is stable,
      * so rows equal in all sort keys keep their input order and the file is the same as a sequential write.
      */
-    fun writeDetailRefs(dir: Path, refs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
+    fun writeDependencies(dir: Path, refs: List<Dependency>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
         val cols = ParquetSchema.Dependencies
         val sorted = refs.toTypedArray()
-            .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship })) }
+            .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value })) }
             .asList()
         writeTable(dir.resolve(ParquetSchema.DEPENDENCIES_FILE), ParquetSchema.dependenciesSchema(), codec, sorted) { sb, r ->
             sb.setString(cols.FROM_KEY, r.fromKey)
             sb.setString(cols.FROM_TYPE, r.fromType)
             sb.setString(cols.TO_KEY, r.toKey)
             sb.setString(cols.TO_TYPE, r.toType)
-            sb.setString(cols.RELATIONSHIP, r.relationship)
+            sb.setString(cols.RELATIONSHIP, r.kind.value)
             sb.setNullableInt(cols.LINE, r.line)
         }
     }

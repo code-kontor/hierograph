@@ -15,9 +15,12 @@
  */
 package io.hierograph.graphstore.jvm
 
+import io.hierograph.graphstore.jvm.model.RefKind
+
 /**
- * An aggregated type-to-type dependency: all refs from one type to one **resolved** target type collapsed
- * into one row with a summed [weight] and the structural classification flags.
+ * An aggregated type-to-type dependency: all detail facts from one type (and its members) to one
+ * **resolved** target type, collapsed into one row. [kinds] counts them per [RefKind]; the [weight] and the
+ * structural classification flags follow from it.
  *
  * Each endpoint is given twice. [fromKey] / [toKey] are the artifact-scoped node keys: the target is
  * resolved (see [TypeResolver]) to a concrete node, so two same-FQN types in different artifacts stay
@@ -26,26 +29,28 @@ package io.hierograph.graphstore.jvm
  * endpoints by name, for display, for comparing stores, and for reasoning that has to include excluded
  * targets (following `extends` reaches `java.lang.Object`).
  *
- * The flags are not mutually exclusive: [extends] / [implements] / [annotatedBy] mark the structural ref
- * kinds, and [other] means the dependency *also* has at least one non-structural (signature or body) ref
- * (`kinds.any { it !in STRUCTURAL }`). A class that extends `Base` and calls one of its methods has both
- * [extends] and [other] set.
+ * [weight] is the number of facts behind the dependency, the sum of [kinds]. The flags are not mutually
+ * exclusive: [extends] / [implements] / [annotatedBy] mark the structural kinds, and [other] means the
+ * dependency *also* has at least one non-structural (signature or body) fact. A class that extends `Base`
+ * and calls one of its methods has both [extends] and [other] set.
  *
  * Example, from Hierograph's own scanner module. `ClassScanner.Visitor` is declared as
  * `private class Visitor(…) : ClassVisitor(Opcodes.ASM9)`. ASM is a library that is not scanned, so
- * `ClassVisitor` is an external placeholder. The class holds two refs to it: the `EXTENDS` ref to its
- * superclass and the call to the superclass constructor `ClassVisitor.<init>(int)`. They aggregate to:
+ * `ClassVisitor` is an external placeholder. The class holds two facts about it: an `extends` fact for its
+ * superclass and a `calls` fact for the call to the superclass constructor `ClassVisitor.<init>(int)`.
+ * They aggregate to:
  *
  * ```
  * fromKey     = "type:65:io.hierograph:io.hierograph.graphstore.jvm.scanner:0.3.0-SNAPSHOT:io.hierograph.graphstore.jvm.scanner.ClassScanner$Visitor"
  * toKey       = "type:10:<external>:org.objectweb.asm.ClassVisitor"
  * fromFqn     = "io.hierograph.graphstore.jvm.scanner.ClassScanner$Visitor"
  * toFqn       = "org.objectweb.asm.ClassVisitor"
- * weight      = 2        // one EXTENDS ref + one call
- * extends     = true     // the EXTENDS ref
+ * kinds       = {EXTENDS=1, INVOKES=1}
+ * weight      = 2        // the sum of kinds
+ * extends     = true     // EXTENDS
  * implements  = false
  * annotatedBy = false
- * other       = true     // the constructor call is a body use
+ * other       = true     // INVOKES, a body use
  * ```
  *
  * A key is `type:<length of the artifact key>:<artifact key>:<fqn>` (see [GraphStore.typeKey]); external
@@ -58,9 +63,20 @@ data class TypeDependency(
     val toKey: String,
     val fromFqn: String,
     val toFqn: String,
-    val weight: Int,
-    val extends: Boolean,
-    val implements: Boolean,
-    val annotatedBy: Boolean,
-    val other: Boolean,
-)
+    val kinds: Map<RefKind, Int>,
+) {
+    /** The number of detail facts behind this dependency. */
+    val weight: Int get() = kinds.values.sum()
+
+    /** At least one [RefKind.EXTENDS] fact: the source has the target as its superclass. */
+    val extends: Boolean get() = RefKind.EXTENDS in kinds
+
+    /** At least one [RefKind.IMPLEMENTS] fact. */
+    val implements: Boolean get() = RefKind.IMPLEMENTS in kinds
+
+    /** At least one [RefKind.ANNOTATED_BY] fact: the target annotates the source type itself. */
+    val annotatedBy: Boolean get() = RefKind.ANNOTATED_BY in kinds
+
+    /** At least one non-structural fact: the source uses the target in a signature or a body. */
+    val other: Boolean get() = kinds.keys.any { it !in RefKind.STRUCTURAL }
+}

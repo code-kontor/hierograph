@@ -23,7 +23,7 @@ class DependencyRollupTest {
     private val owner = "com.foo.A"
     private val method = "com.foo.A#void m()"
 
-    private fun fact(from: String, toType: String, kind: String, toKey: String = toType) = DetailRef(from, owner, toKey, toType, kind)
+    private fun fact(from: String, toType: String, kind: String, toKey: String = toType) = Dependency(from, owner, toKey, toType, DependencyKind.fromValue(kind)!!)
 
     @Test
     fun `counted facts roll up per target type and kind, in order of first appearance`() {
@@ -68,7 +68,7 @@ class DependencyRollupTest {
                 fact(method, "int", "parameter_type"),                         // primitive
                 fact(method, "void", "returns"),                               // void
                 fact(method, "java.lang.IllegalStateException", "raises"),     // not counted
-                fact(method, "com.foo.B", "overrides", "com.foo.B#void m()"),  // derived, outside the vocabulary
+                fact(method, "com.foo.B", "overrides", "com.foo.B#void m()"),  // derived: never counted
             ),
         )
         assertThat(refs).isEmpty()

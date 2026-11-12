@@ -211,7 +211,7 @@ class GraphStoreTest {
     }
 
     @Test
-    fun `typeDependencies aggregates weight and sets structural flags`() {
+    fun `typeDependencies counts the kinds and derives weight and structural flags from them`() {
         val store = GraphStore()
         store.registerArtifact(artifact("app"))
         store.applyClass(
@@ -221,6 +221,7 @@ class GraphStoreTest {
                 refs = listOf(
                     Ref("com.foo.B", RefKind.EXTENDS, count = 1),
                     Ref("java.util.List", RefKind.INVOKES, count = 3),
+                    Ref("java.util.List", RefKind.RETURN_TYPE, count = 2),
                 ),
             ),
         )
@@ -234,9 +235,10 @@ class GraphStoreTest {
         assertThat(toB.weight).isEqualTo(1)
 
         val toList = deps.getValue("java.util.List")
+        assertThat(toList.kinds).containsExactlyInAnyOrderEntriesOf(mapOf(RefKind.INVOKES to 3, RefKind.RETURN_TYPE to 2))
         assertThat(toList.extends).isFalse
         assertThat(toList.other).isTrue
-        assertThat(toList.weight).isEqualTo(3)
+        assertThat(toList.weight).isEqualTo(5)
     }
 
     @Test

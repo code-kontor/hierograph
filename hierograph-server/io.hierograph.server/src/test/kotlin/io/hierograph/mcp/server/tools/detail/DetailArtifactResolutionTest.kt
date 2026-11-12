@@ -15,8 +15,9 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.Ref
@@ -57,8 +58,8 @@ class DetailArtifactResolutionTest {
             dir,
             artifact("lib-a", "com.example.a.UserA") + artifact("lib-b", "com.example.b.UserB"),
             listOf(
-                DetailRef("com.example.a.UserA#void run()", "com.example.a.UserA", "$twin#void m()", twin, "calls", 3),
-                DetailRef("com.example.b.UserB#void run()", "com.example.b.UserB", "$twin#void m()", twin, "calls", 7),
+                Dependency("com.example.a.UserA#void run()", "com.example.a.UserA", "$twin#void m()", twin, DependencyKind.CALLS, 3),
+                Dependency("com.example.b.UserB#void run()", "com.example.b.UserB", "$twin#void m()", twin, DependencyKind.CALLS, 7),
             ),
             packaging = ParquetWriter.Packaging.EXPLODED,
         )

@@ -15,6 +15,7 @@
  */
 package io.hierograph.itest.graphstore
 
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.detail.DetailQuery
 import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
@@ -24,7 +25,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
 /**
- * [DetailQueryEngine] / `ParquetReader.readDetailRefs` behaviour on the real Spring snapshot, including
+ * [DetailQueryEngine] / `ParquetReader.readDependencies` behaviour on the real Spring snapshot, including
  * regressions for three bugs in the detail path:
  * the single-predicate push-down (hardwood AND mis-pruning), class-level `annotated_by` edges (bare
  * `from_key`), and scoped queries.
@@ -40,11 +41,11 @@ class DetailQueryRegressionIT {
         val cls = "org.springframework.cache.annotation.ProxyCachingConfiguration"
         val cfg = "org.springframework.context.annotation.Configuration"
         // Ground truth: read by from_type only (one predicate, correct), filter the rest in memory.
-        val expected = reader.readDetailRefs(dir, fromTypes = listOf(cls))
-            .filter { it.toType == cfg && it.relationship == "annotated_by" }
+        val expected = reader.readDependencies(dir, fromTypes = listOf(cls))
+            .filter { it.toType == cfg && it.kind == DependencyKind.ANNOTATED_BY }
             .map { it.fromKey to it.toKey }.toSet()
         // The three-predicate call must return exactly the same set (not fewer — the bug dropped rows).
-        val actual = reader.readDetailRefs(dir, fromTypes = listOf(cls), toTypes = listOf(cfg), relationship = "annotated_by")
+        val actual = reader.readDependencies(dir, fromTypes = listOf(cls), toTypes = listOf(cfg), kind = DependencyKind.ANNOTATED_BY)
             .map { it.fromKey to it.toKey }.toSet()
         assertThat(actual).isEqualTo(expected)
         assertThat(actual).isNotEmpty
@@ -53,7 +54,7 @@ class DetailQueryRegressionIT {
     @Test
     fun `a class-level annotated_by edge (bare from_key) is readable`() {
         val cls = "org.springframework.cache.annotation.ProxyCachingConfiguration"
-        val edges = reader.readDetailRefs(dir, fromTypes = listOf(cls), relationship = "annotated_by")
+        val edges = reader.readDependencies(dir, fromTypes = listOf(cls), kind = DependencyKind.ANNOTATED_BY)
         // The class itself (from_key == the type fqn, no '#') is annotated — not only its members.
         assertThat(edges).anyMatch { it.fromKey == cls }
     }
@@ -62,10 +63,10 @@ class DetailQueryRegressionIT {
     fun `a scoped forward query returns only the scope's edges of the requested kind`() {
         val engine = DetailQueryEngine(dir)
         val scope = setOf("org.springframework.web.servlet.DispatcherServlet")
-        val edges = engine.query(DetailQuery(fromTypes = scope, relationship = "calls"))
+        val edges = engine.query(DetailQuery(fromTypes = scope, kind = DependencyKind.CALLS))
         assertThat(edges.size).isGreaterThan(5)
         assertThat(edges).allSatisfy {
-            assertThat(it.relationship).isEqualTo("calls")
+            assertThat(it.kind).isEqualTo(DependencyKind.CALLS)
             assertThat(it.fromType).isIn(scope)
         }
     }
@@ -74,11 +75,11 @@ class DetailQueryRegressionIT {
     fun `read_by is the reads_field edge viewed field to reader`() {
         val engine = DetailQueryEngine(dir)
         // Anchor on a real field read, then ask "who reads this field's owner's fields?" in reverse.
-        val aRead = reader.readDetailRefs(dir, relationship = "reads_field").first()
+        val aRead = reader.readDependencies(dir, kind = DependencyKind.READS_FIELD).first()
         val fieldOwner = aRead.toType
-        val reverse = engine.query(DetailQuery(fromTypes = setOf(fieldOwner), relationship = "read_by"))
+        val reverse = engine.query(DetailQuery(fromTypes = setOf(fieldOwner), kind = DependencyKind.READ_BY))
         assertThat(reverse).isNotEmpty
-        assertThat(reverse).allSatisfy { assertThat(it.relationship).isEqualTo("read_by") }
+        assertThat(reverse).allSatisfy { assertThat(it.kind).isEqualTo(DependencyKind.READ_BY) }
         // endpoints are swapped: the field side is now the source.
         assertThat(reverse).allSatisfy { assertThat(it.fromType).isEqualTo(fieldOwner) }
     }

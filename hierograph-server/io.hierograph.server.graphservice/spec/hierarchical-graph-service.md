@@ -314,7 +314,7 @@ Because detail lags the live graph in manifest mode, detail access is guarded:
 - `readyDetailDir()` returns the Parquet directory **only** when its generation
   matches the live snapshot; otherwise `null`. A detail tool must treat `null` as
   *rebuilding* and must **not** fall back to a previous directory.
-- `derivedDetailRefs(…)` — the load-computed cross-artifact edges (§8) — applies
+- `derivedDependencies(…)` — the load-computed cross-artifact edges (§8) — applies
   the same guard, returning nothing while detail is not current.
 
 The rule is deliberate: it is better to answer "detail is rebuilding, retry" than
@@ -357,7 +357,7 @@ the pinned one inside `withPinnedSnapshot`):
 | `graphStore` | the type-level store backing the snapshot, when present |
 | `memberHandleIndex` / `memberHandle(key)` | map member node handles ↔ member keys for the detail tools |
 | `readyDetailDir()` | the Parquet detail directory, or `null` while rebuilding (§7) |
-| `derivedDetailRefs(from, to, relationship)` | load-derived cross-artifact edges for a scope (§8) |
+| `derivedDependencies(from, to, kind)` | load-derived cross-artifact edges for a scope (§8) |
 | `parquetDirectory` | directory the node-property provider reads (may lag during a rescan) |
 | `reload()` | rebuild and swap; returns a status map, with `build_state` in `manifest` mode |
 | `buildState()` | the `build_state` map (§6), or `null` outside `manifest` mode |
@@ -412,7 +412,7 @@ not relocated and may be regenerated.
 (§9). Guard every entry point with `isGraphAvailable`. For member-level detail,
 take `readyDetailDir()`; if it is `null`, return a "detail rebuilding, retry"
 status rather than an empty or stale result, and union the Parquet rows with
-`derivedDetailRefs(…)` for the same scope. Build pagination cursors on `dataHash`
+`derivedDependencies(…)` for the same scope. Build pagination cursors on `dataHash`
 and treat a changed hash as cursor invalidation. Never cache a snapshot-derived
 value across calls — read it fresh, so a concurrent reload is picked up.
 

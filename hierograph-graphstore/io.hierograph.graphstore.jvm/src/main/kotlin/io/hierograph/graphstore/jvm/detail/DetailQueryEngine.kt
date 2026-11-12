@@ -15,7 +15,8 @@
  */
 package io.hierograph.graphstore.jvm.detail
 
-import io.hierograph.graphstore.jvm.model.DetailRef
+import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.model.DependencyKind
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import java.nio.file.Path
 
@@ -27,7 +28,7 @@ import java.nio.file.Path
 data class DetailQuery(
     val fromTypes: Set<String>,
     val toTypes: Set<String>? = null,
-    val relationship: String? = null,
+    val kind: DependencyKind? = null,
 )
 
 /**
@@ -45,35 +46,35 @@ class DetailQueryEngine(private val parquetDir: Path) {
     private val loader = ParquetReader()
 
     /** Every edge [q] matches, in a stable order. */
-    fun query(q: DetailQuery): List<DetailRef> {
-        val reverseStored = REVERSE[q.relationship]
+    fun query(q: DetailQuery): List<Dependency> {
+        val reverseStored = REVERSE[q.kind]
         val edges = if (reverseStored != null) reverseEdges(q, reverseStored) else forwardEdges(q)
         return edges.sortedWith(
-            compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }, { it.line ?: -1 }),
+            compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value }, { it.line ?: -1 }),
         )
     }
 
     /** Forward relationships: the scope is the source; `from_type` (sorted) drives row-group skipping. */
-    private fun forwardEdges(q: DetailQuery): List<DetailRef> =
-        loader.readDetailRefs(parquetDir, fromTypes = q.fromTypes, toTypes = q.toTypes, relationship = q.relationship)
+    private fun forwardEdges(q: DetailQuery): List<Dependency> =
+        loader.readDependencies(parquetDir, fromTypes = q.fromTypes, toTypes = q.toTypes, kind = q.kind)
 
     /**
      * Reverse relationships (`read_by` / `written_by`): the scope anchors on the field side, so it maps
      * to the stored edge's `to_type`; the optional target constraint maps to `from_type`. Endpoints are
      * swapped on the way out so the result reads field → reading/writing method under the requested kind.
      */
-    private fun reverseEdges(q: DetailQuery, stored: String): List<DetailRef> =
-        loader.readDetailRefs(parquetDir, fromTypes = q.toTypes, toTypes = q.fromTypes, relationship = stored)
+    private fun reverseEdges(q: DetailQuery, stored: DependencyKind): List<Dependency> =
+        loader.readDependencies(parquetDir, fromTypes = q.toTypes, toTypes = q.fromTypes, kind = stored)
             .map {
-                DetailRef(
+                Dependency(
                     fromKey = it.toKey, fromType = it.toType,
                     toKey = it.fromKey, toType = it.fromType,
-                    relationship = q.relationship!!, line = it.line,
+                    kind = q.kind!!, line = it.line,
                 )
             }
 
     private companion object {
         /** Reverse relationship → the stored forward kind it reads target→source. */
-        val REVERSE = mapOf("read_by" to "reads_field", "written_by" to "writes_field")
+        val REVERSE = mapOf(DependencyKind.READ_BY to DependencyKind.READS_FIELD, DependencyKind.WRITTEN_BY to DependencyKind.WRITES_FIELD)
     }
 }
