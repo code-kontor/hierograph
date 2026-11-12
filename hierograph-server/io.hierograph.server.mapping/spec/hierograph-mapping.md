@@ -77,7 +77,7 @@ and filtering read them directly, without going back to the store or the snapsho
           └────────────┬─────────────┘
                        ▼
             ┌─────────────────────┐
-            │     GraphStore      │   nodes() + typeDependencyEdges()
+            │     GraphStore      │   nodes() + typeDependencies()
             └──────────┬──────────┘
                        ▼
             ┌─────────────────────┐
@@ -97,7 +97,7 @@ and filtering read them directly, without going back to the store or the snapsho
 **Producers.** The `HierarchicalGraphService` fills a GraphStore, either from a
 stored Parquet snapshot (`ParquetReader`) or from a fresh scan of the build's
 modules (`ManifestGraphSource`), and passes it to `GraphStoreToHGModel.build`. Both
-paths use the placeholder policy `EXCLUDE_UBIQUITOUS`.
+paths use the external-type filter `EXCLUDE_UBIQUITOUS`.
 
 **Consumers** read the built model and the node sources on it:
 
@@ -121,7 +121,7 @@ paths use the placeholder policy `EXCLUDE_UBIQUITOUS`.
 | Projection | Type | What the bridge takes from it |
 |------------|------|-------------------------------|
 | `store.nodes()` | `Collection<Node>` | every module, package, type, member and external-type placeholder, with key, kind, name, FQN, parent key and modifiers |
-| `store.typeDependencyEdges()` | `Sequence<TypeEdge>` | one aggregated dependency per (source type, resolved target type), with both endpoints as node keys, a weight and four flags |
+| `store.typeDependencies()` | `Sequence<TypeDependency>` | one aggregated dependency per (source type, resolved target type), with both endpoints as node keys, a weight and four flags |
 
 ```kotlin
 data class Node(
@@ -134,9 +134,11 @@ data class Node(
     val modifiers: Int,       // packed access flags of a type or member; 0 otherwise
 )
 
-data class TypeEdge(
+data class TypeDependency(
     val fromKey: String,      // the referencing type's node key
     val toKey: String,        // the resolved target's node key
+    val fromFqn: String,      // the same endpoints by name (not read by the bridge)
+    val toFqn: String,
     val weight: Int,          // sum of the references' counts
     val extends: Boolean,     // at least one EXTENDS reference
     val implements: Boolean,  // at least one IMPLEMENTS reference
@@ -145,12 +147,12 @@ data class TypeEdge(
 )
 ```
 
-**Why `typeDependencyEdges()` and not `typeDependencies()`.** The store offers the
-same aggregated dependencies with FQN endpoints (`typeDependencies()`) and with
-node-key endpoints (`typeDependencyEdges()`). An FQN can be defined in more than one
-artifact (shaded jars, duplicate classes), and each definition is a distinct node.
-Only the node keys, already resolved through the store's `TypeResolver`, say which
-of those nodes an edge connects. The bridge therefore never resolves a name itself.
+**Why node keys and not FQNs.** Each `TypeDependency` names its endpoints both as
+FQNs and as node keys. An FQN can be defined in more than one artifact (shaded
+jars, duplicate classes), and each definition is a distinct node. Only the node
+keys, already resolved through the store's `TypeResolver`, say which of those nodes
+an edge connects. The bridge therefore reads only `fromKey` and `toKey`, and never
+resolves a name itself.
 
 The bridge does not read references, member-level facts or any snapshot table.
 
@@ -212,13 +214,13 @@ operations this does not occur (see the GraphStore's *closed hierarchy* invarian
 
 ### 4.3 Core dependencies
 
-Each `TypeEdge` becomes one `HGCoreDependency`:
+Each `TypeDependency` becomes one `HGCoreDependency`:
 
 | `HGCoreDependency` | Value | Why |
 |--------------------|-------|-----|
 | `from`, `to` | the nodes for `fromKey` and `toKey` | edges connect artifact-scoped nodes, so two same-FQN types stay distinct |
 | `type` | `DEPENDS_ON` | the hierarchical graph needs a type string; the four flags carry the distinction |
-| `weight` | `TypeEdge.weight` | how strongly the source depends on the target; rollups sum it |
+| `weight` | `TypeDependency.weight` | how strongly the source depends on the target; rollups sum it |
 | `attributesBitmap` | the four flags, encoded with `JavaEdgeAttributes` | lets tools tell "inherits from" from "uses" without a second edge type |
 | `dependencySource` | `DefaultDependencySource("<fromKey> -> <toKey>")` | a readable identifier for diagnostics |
 
@@ -232,13 +234,13 @@ The bitmap uses these bit positions:
 | `other` | `IS_DEPENDS_ON_OTHER` = 3 | 8 | the source uses the target in a signature or a body |
 
 A class that extends `Base` and calls one of its methods gets one edge with bitmap
-`1 + 8 = 9`. Tools turn the bitmap into JSON with `JavaEdgeAttributes.toMap` or
-`toTrueMap`, which name the bits `is_extends`, `is_implements`, `is_annotated_by` and
+`1 + 8 = 9`. Tools turn the bitmap into JSON with `JavaEdgeAttributes.toMap`, which
+names the bits `is_extends`, `is_implements`, `is_annotated_by` and
 `is_depends_on_other`.
 
-**Edges to absent nodes are dropped.** A `TypeEdge` whose `fromKey` or `toKey` names
-no node in the store produces no core dependency. This happens when the placeholder
-policy keeps an unscanned target out of the store (`java.lang.String` under
+**Edges to absent nodes are dropped.** A `TypeDependency` whose `fromKey` or `toKey` names
+no node in the store produces no core dependency. This happens when the external-type
+filter keeps an unscanned target out of the store (`java.lang.String` under
 `EXCLUDE_UBIQUITOUS`): the store still reports the edge, because it keeps references
 as facts, but the model has no node to attach it to. The reference stays available
 to detail queries, which read the snapshot.
@@ -324,7 +326,7 @@ snapshot (§4.4).
 | Not produced | Why |
 |--------------|-----|
 | Member-to-member or member-to-type dependencies | the store keeps member-level references in the snapshot only; detail tools read them on demand |
-| Edges to targets the placeholder policy excludes | the model has no node for them (§4.3) |
+| Edges to targets the external-type filter excludes | the model has no node for them (§4.3) |
 | Self-edges | the store drops a reference that resolves to its own type |
 | Parallel edges between the same pair of types | the store aggregates to one edge per pair; the four flags record the reference kinds |
 | A second hierarchy | views fork the model and add their own groups (view service) |
@@ -335,7 +337,7 @@ snapshot (§4.4).
 ## 7. Determinism, errors and concurrency
 
 **Determinism.** Handles depend on keys alone. Node creation follows the order of
-`store.nodes()`, and edge creation the order of `store.typeDependencyEdges()`; both
+`store.nodes()`, and edge creation the order of `store.typeDependencies()`; both
 are deterministic for a given sequence of store operations. Equal stores therefore
 yield models with equal identifiers, equal hierarchies and equal edges.
 
@@ -345,7 +347,7 @@ yield models with equal identifiers, equal hierarchies and equal edges.
 |-----------|--------|
 | Two different keys hash to the same handle | `IllegalStateException` from `NodeHandle.assertNoCollision`, naming both keys; no model is returned |
 | A node's `parent` names no node | the node is placed under the root |
-| A `TypeEdge` endpoint names no node | the edge is skipped |
+| A `TypeDependency` endpoint names no node | the edge is skipped |
 | An empty store | a model with the root and the external module only |
 
 The graph service catches a failed build and keeps serving the last good snapshot.
@@ -368,8 +370,8 @@ types, built with `EXCLUDE_UBIQUITOUS`:
 | `com.example.billing.Ledger` | `com.example.billing.Invoice` (4 uses) |
 | `com.example.money.Money` | `java.lang.String` (2 uses) |
 
-The store has 12 nodes. `java.math.BigDecimal` is unscanned and allowed by the
-policy, so it becomes a placeholder under the external module. `java.lang.String`
+The store has 12 nodes. `java.math.BigDecimal` is unscanned and included by the
+filter, so it becomes a placeholder under the external module. `java.lang.String`
 is excluded, so it has no node. The bridge builds 13 nodes (the 12 plus the root):
 
 ```
@@ -431,7 +433,7 @@ class GraphStoreNodeSource(
 | `GraphStoreNodeSource.name`, `qualifiedName` | Display name and qualified name, as `INodeSource` defines them. |
 
 The module has no configuration. Which unscanned types appear as nodes is decided
-by the `PlaceholderPolicy` the store was created with; which artifact a name
+by the `ExternalTypeFilter` the store was created with; which artifact a name
 resolves to is decided by the store's `TypeResolver`.
 
 ---
@@ -441,7 +443,7 @@ resolves to is decided by the store's `TypeResolver`.
 ### 10.1 Build a model from a snapshot
 
 ```kotlin
-val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
 ParquetReader().load(snapshotDir, store)
 val model: HGModel = GraphStoreToHGModel.build(store)
 ```
@@ -479,7 +481,7 @@ val visibility = MemberModifiers.visibility(source.modifiers)  // types share th
 ```kotlin
 for (dep in invoice.outgoingCoreDependencies) {
     val inherits = JavaEdgeAttributes.isSet(dep.attributesBitmap, JavaEdgeAttributes.IS_EXTENDS)
-    val flags: Map<String, Boolean> = JavaEdgeAttributes.toTrueMap(dep.attributesBitmap)
+    val flags: Map<String, Boolean> = JavaEdgeAttributes.toMap(dep.attributesBitmap)
 }
 ```
 
@@ -490,13 +492,13 @@ for (dep in invoice.outgoingCoreDependencies) {
 For any store built by the GraphStore's ingest operations, the model `build`
 returns satisfies:
 
-1. **One node per store node.** The core graph has exactly `store.nodeCount() + 1`
+1. **One node per store node.** The core graph has exactly `store.nodes().size + 1`
    nodes: one per GraphStore node and the root.
 2. **Same tree.** Every node's parent in the hierarchy is the node for its
    GraphStore parent; top-level modules are children of the root.
 3. **Key-derived identity.** Every mapped node's identifier is
    `NodeHandle.of(key)`, and no two nodes share an identifier.
-4. **One edge per materialised type edge.** For every `TypeEdge` whose endpoints
+4. **One edge per materialised type dependency.** For every `TypeDependency` whose endpoints
    both exist in the store, the model has exactly one core dependency between the
    two nodes, with the same weight and the four flags in its bitmap. There are no
    other core dependencies.
@@ -518,8 +520,8 @@ returns satisfies:
 | Not in the mapping | Where it lives |
 |--------------------|----------------|
 | Name resolution, shadowing, duplicate FQNs | the GraphStore's `TypeResolver` |
-| Which unscanned types become nodes | the GraphStore's `PlaceholderPolicy` |
-| Aggregating references into weighted, flagged edges | the GraphStore's `typeDependencyEdges()` |
+| Which unscanned types become nodes | the GraphStore's `ExternalTypeFilter` |
+| Aggregating references into weighted, flagged edges | the GraphStore's `typeDependencies()` |
 | Rollups, dependency matrices, cycles, layering | the hierarchical graph and its algorithms module |
 | Snapshot lifecycle, search index, reload and file watching | the graph service |
 | Views and restructurings | the view service, which forks the built model |

@@ -40,8 +40,8 @@ class ParquetWriterTest {
                 modifiers = TypeModifiers.pack("public", abstract = true),
                 members = listOf(MemberFacts("com.foo.A#a()V", JavaKinds.METHOD, "a()V", lineFrom = 1, lineTo = 2)),
                 refs = listOf(
-                    Ref("com.foo.A", "com.foo.B", RefKind.EXTENDS, count = 1),
-                    Ref("com.foo.A", "java.util.List", RefKind.DEPENDS_ON, count = 7),
+                    Ref("com.foo.B", RefKind.EXTENDS, count = 1),
+                    Ref("java.util.List", RefKind.DEPENDS_ON, count = 7),
                 ),
                 classHash = "h1",
                 sourceFile = "A.java",
@@ -52,7 +52,7 @@ class ParquetWriterTest {
 
     @Test
     fun `type modifiers round-trip through types parquet`(@TempDir dir: Path) {
-        ParquetWriter.writeClassFacts(dir, classes, CompressionCodec.UNCOMPRESSED)
+        ParquetWriter.writeSnapshot(dir, classes, emptyList(), CompressionCodec.UNCOMPRESSED)
 
         val rows = ParquetReader().readTypeRows(dir, listOf("com.foo.A", "com.foo.B")).associateBy { it.fqn }
         assertThat(TypeModifiers.modifiers(rows.getValue("com.foo.A").modifiers!!)).containsExactly("public", "abstract")
@@ -70,14 +70,14 @@ class ParquetWriterTest {
     }
 
     @Test
-    fun `writeClassFacts round-trips through the loader uncompressed`(@TempDir dir: Path) {
-        ParquetWriter.writeClassFacts(dir, classes, CompressionCodec.UNCOMPRESSED)
+    fun `writeSnapshot round-trips through the loader uncompressed`(@TempDir dir: Path) {
+        ParquetWriter.writeSnapshot(dir, classes, emptyList(), CompressionCodec.UNCOMPRESSED)
         assertRoundTrip(dir)
     }
 
     @Test
-    fun `writeClassFacts round-trips through the loader with zstd`(@TempDir dir: Path) {
-        ParquetWriter.writeClassFacts(dir, classes) // default ZSTD
+    fun `writeSnapshot round-trips through the loader with zstd`(@TempDir dir: Path) {
+        ParquetWriter.writeSnapshot(dir, classes, emptyList()) // default ZSTD
         assertRoundTrip(dir)
     }
 
@@ -89,7 +89,7 @@ class ParquetWriterTest {
         assertThat(store.memberByKey("com.foo.A#a()V")!!.kind).isEqualTo(JavaKinds.METHOD)   // members round-trip as nodes
         assertThat(store.typeByFqn("java.util.List")!!.placeholder).isTrue
 
-        val deps = store.typeDependencies().associateBy { it.to }
+        val deps = store.typeDependencies().associateBy { it.toFqn }
         assertThat(deps.getValue("com.foo.B").extends).isTrue
         assertThat(deps.getValue("java.util.List").weight).isEqualTo(7)
     }

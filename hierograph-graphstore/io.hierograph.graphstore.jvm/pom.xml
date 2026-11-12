@@ -14,7 +14,7 @@
     <artifactId>io.hierograph.graphstore.jvm</artifactId>
     <packaging>jar</packaging>
     <name>Hierograph GraphStore (JVM)</name>
-    <description>In-memory GraphStore: the scanned-fact model, applyClass / removeClass ingest, the hierarchy + type-dependency query surface, Parquet snapshot I/O (via Hardwood), and the detail-dependency query engine.</description>
+    <description>In-memory GraphStore: the scanned-fact model, applyClass ingest, the hierarchy + type-dependency query surface, Parquet snapshot I/O (via Hardwood), and the detail-dependency query engine.</description>
 
     <dependencies>
         <dependency>

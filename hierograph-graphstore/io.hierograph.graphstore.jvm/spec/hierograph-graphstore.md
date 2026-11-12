@@ -52,10 +52,10 @@ record the bytecode scanner produces and the Parquet reader reconstructs. Buildi
 from a fresh scan and building from a stored snapshot run identical code, so the
 two can never diverge.
 
-**Incremental by construction.** A class is the unit of change. Applying a new
-version of a class replaces exactly what that class owns: its members and its
-outgoing references. Nothing else is touched. A rescan of one changed class costs
-time proportional to that class, not to the codebase.
+**Rebuilt, not patched.** A class is the unit of ingest. Applying a class adds what
+it owns, its members and its outgoing references, and applying it again replaces
+exactly that. Types are never removed: when the code changes, the server ingests
+the current scans into a fresh store (§8.3).
 
 **Stable identity.** Every node has a deterministic, content-derived key. Keys do
 not depend on load order or process lifetime, so the handles built from them stay
@@ -77,7 +77,7 @@ dependency matrices, cycle detection and layering.
 
 The **GraphStore** is the **ingest model**. It is JVM-aware: it takes class files'
 facts as they come, in terms of artifacts, FQNs and member keys, and turns them
-into a consistent structure that can be maintained one class at a time.
+into a consistent structure that is built one class at a time.
 
 | | GraphStore | Hierarchical graph |
 |---|---|---|
@@ -85,16 +85,16 @@ into a consistent structure that can be maintained one class at a time.
 | Domain knowledge | JVM: artifacts, FQNs, member keys, classpaths | none: opaque nodes and edges |
 | References | stored as facts, by **name**, per owning type, with their kind | **resolved** edges, one per node pair, with a weight and four flags |
 | Duplicate FQNs, shadowing | resolved by the `TypeResolver` | already decided |
-| Unscanned types | placeholders, managed by policy | ordinary nodes |
+| Unscanned types | placeholders, chosen by a filter | ordinary nodes |
 | Hierarchies | exactly one, given by the code's structure | any number over the same nodes |
-| Change | per class: `applyClass` / `removeClass` | rebuilt from the GraphStore |
+| Change | rebuilt from the scans (§8.3) | rebuilt from the GraphStore |
 | Algorithms | none | rollups, DSM, SCC, feedback-arc ordering |
 
 The hierarchical graph is **derived** from the GraphStore. A bridge creates one
 node for each GraphStore node, with a handle computed from its key, places it under
-its parent, and turns each resolved type dependency (`typeDependencyEdges()`) into a
-weighted edge. When the code changes, the GraphStore is updated and a fresh
-hierarchical graph is built from it.
+its parent, and turns each resolved type dependency (`typeDependencies()`) into a
+weighted edge. When the code changes, a fresh GraphStore is built, and a fresh
+hierarchical graph from it.
 
 The hierarchical graph is not enough on its own, for four reasons:
 
@@ -103,14 +103,13 @@ The hierarchical graph is not enough on its own, for four reasons:
    knowing which artifacts define a name, which one the referencing artifact's
    classpath picks, and what to do when no artifact defines it. That is JVM
    knowledge, and keeping it in the GraphStore keeps the hierarchical graph generic.
-2. **Incremental change needs late binding.** In the hierarchical graph, replacing a
-   class would mean finding and rewiring every edge that points at it, including
-   edges from classes that did not change. The GraphStore keeps references as names
-   and binds them only when they are read, so applying or removing a class touches
-   that class alone. The hierarchical graph can then simply be rebuilt.
+2. **Ingest order must not matter.** Classes arrive in any order, so a reference is
+   often applied before the class it names. The GraphStore keeps references as names
+   and binds them only when they are read, so a target that appears later needs no
+   rewiring. The hierarchical graph is then built once from the result.
 3. **Projection loses information.** The hierarchical graph keeps one edge per pair
    of nodes, with a weight and four flags. The GraphStore keeps each reference's
-   exact kind. It also keeps references to targets the placeholder policy excludes,
+   exact kind. It also keeps references to targets the external-type filter excludes,
    which supertype walks rely on: following `extends` reaches `java.lang.Object`.
    And it can look up a type by its FQN, which detail queries need to map their
    results back to the structure.
@@ -136,12 +135,11 @@ The hierarchical graph is not enough on its own, for four reasons:
                  ┌───────────────────┐
                  │    GraphStore     │   hierarchy + type-level refs
                  └─────────┬─────────┘
-          ┌────────────────┼──────────────────┐
-          ▼                ▼                  ▼
-  hierarchical graph   DetailScope       derived facts
-  (navigation, DSM,    (scope → type     (overrides,
-   layering, cycles)    FQNs for detail   virtual calls)
-                        queries)
+          ┌────────────────┴──────────────────┐
+          ▼                                   ▼
+  hierarchical graph                    derived facts
+  (navigation, DSM,                     (overrides,
+   layering, cycles)                     virtual calls)
 ```
 
 **Producers** feed the store `ClassFacts`. The `ParquetReader` loads a stored
@@ -153,8 +151,6 @@ aggregated type dependencies:
 
 - The **hierarchical-graph bridge** turns them into the graph model behind
   Hierograph's navigation and dependency tools.
-- **`DetailScope`** expands a scope (a module, package or type) into the set of
-  type FQNs whose member-level references a detail query should read.
 - **Load-time resolution** combines the store's supertype edges with the
   snapshot's members to derive overrides and virtual-call targets.
 
@@ -213,15 +209,15 @@ Each applied type owns a list of **type-level references** (`Ref`), taken direct
 from its `ClassFacts`:
 
 ```kotlin
-data class Ref(val fromKey: String, val toKey: String, val kind: RefKind, val line: Int?, val count: Int?)
+data class Ref(val toKey: String, val kind: RefKind, val count: Int?)
 ```
 
 A reference names its target **by FQN only**. It is a fact about the class file,
 and the class file cannot know which artifact will provide the target. References
 are not stored as links between nodes. They are kept per owning type and bound to
-target nodes when they are read (§5). This late binding is what makes incremental
-updates cheap: when a target appears, disappears or moves, no edge has to be
-rewritten.
+target nodes when they are read (§5). This late binding is what lets classes be
+applied in any order: when a target appears later, or a placeholder is superseded,
+no edge has to be rewritten.
 
 Member-level references are deliberately absent. They stay in the snapshot and are
 read on demand.
@@ -233,7 +229,8 @@ target type)**:
 
 | Field | Meaning |
 |-------|---------|
-| endpoints | the source type and the resolved target, as FQNs (`TypeDependency`) or as node keys (`TypeEdge`) |
+| `fromKey`, `toKey` | the source type and the resolved target, as node keys |
+| `fromFqn`, `toFqn` | the same endpoints, as FQNs |
 | `weight` | the sum of the references' `count`s (a missing count counts as 1): how strongly the source depends on the target |
 | `extends` | at least one `EXTENDS` reference |
 | `implements` | at least one `IMPLEMENTS` reference |
@@ -357,34 +354,33 @@ The store represents it with a **placeholder** node:
 
 | Event | Effect |
 |-------|--------|
-| A reference to an undefined FQN is applied | its placeholder is created (if the policy allows it) |
+| A reference to an undefined FQN is applied | its placeholder is created (if the filter includes it) |
 | A class defining that FQN is applied | the placeholder is removed, together with any packages it leaves empty under the external module; references now bind to the real type |
-| The last defining class is removed while references remain | the placeholder is created again |
 
 Because references bind to nodes at query time (§5), these transitions never leave
 an edge pointing at the wrong node, and nothing outside the affected class has to
 be updated.
 
-**Placeholder policy.** Some types are referenced by almost every class and carry no
-analytical value as nodes: `java.lang.String`, `java.lang.Object`, primitives. A
-`PlaceholderPolicy` decides which external FQNs become placeholder nodes:
+**External-type filter.** Some types are referenced by almost every class and carry no
+analytical value as nodes: `java.lang.String`, `java.lang.Object`, primitives. An
+`ExternalTypeFilter` decides which external FQNs become placeholder nodes:
 
 ```kotlin
-fun interface PlaceholderPolicy {
-    fun shouldMaterialize(fqn: String): Boolean
+fun interface ExternalTypeFilter {
+    fun includes(fqn: String): Boolean
 }
 ```
 
-| Policy | Materializes a placeholder for … |
+| Filter | Materializes a placeholder for … |
 |--------|-----------------------------------|
-| `PlaceholderPolicy.ALL` (default) | every external FQN |
-| `PlaceholderPolicy.EXCLUDE_UBIQUITOUS` | every external FQN **except** primitives, JVM array descriptors, default-package names, `java.lang.*`, `kotlin.*`, and the JetBrains `@NotNull` / `@Nullable` annotations |
+| `ExternalTypeFilter.ALL` (default) | every external FQN |
+| `ExternalTypeFilter.EXCLUDE_UBIQUITOUS` | every external FQN **except** primitives, JVM array descriptors, default-package names, `java.lang.*`, `kotlin.*`, and the JetBrains `@NotNull` / `@Nullable` annotations |
 
-The policy only shapes the **in-memory projection**. It never removes a reference:
+The filter only shapes the **in-memory projection**. It never removes a reference:
 the reference stays with its owner, still appears in `typeDependencies()`, and
 stays in the snapshot. It only means that no node exists for the target. A type
 that is actually *scanned* is never affected, so a scanned `java.lang.String` is a
-regular type node under any policy.
+regular type node under any filter.
 
 ---
 
@@ -394,7 +390,7 @@ regular type node under any policy.
 
 ```kotlin
 class GraphStore(
-    placeholderPolicy: PlaceholderPolicy = PlaceholderPolicy.ALL,
+    externalTypeFilter: ExternalTypeFilter = ExternalTypeFilter.ALL,
     resolver: TypeResolver = TypeResolver.OWNER_FIRST,
 )
 ```
@@ -411,30 +407,25 @@ A new store contains only the external module.
 |--------|-------------|
 | `registerArtifact(artifact: ArtifactInfo)` | Creates the artifact's `MODULE` node from its key, display name and FQN. Idempotent: the first registration of a key wins. Register an artifact before applying its classes. |
 | `applyClass(artifactKey, facts: ClassFacts)` | Adds or replaces one type under the artifact. In one step it removes the type's previous members and outgoing references, ensures the package chain, creates or updates the type node, creates a node for each member, stores the new references, and creates placeholders for any newly referenced external FQNs. If the FQN had a placeholder, the placeholder is removed. |
-| `removeClass(artifactKey, fqn)` | Removes one type with its members and outgoing references. If other types still reference the FQN and no other artifact defines it, a placeholder takes its place. The type's package nodes are kept, even if they are now empty. Does nothing for a type that is not present. |
-| `resolvePlaceholders()` | Ensures that every referenced FQN without a definer has its placeholder (subject to the policy). Idempotent. Call it once after a bulk ingest. |
 
-`ArtifactInfo` describes an artifact: `key`, display `name`, `fqn` and `origin`
-(`MODULE_MAIN`, `MODULE_TEST`, `LIBRARY` or `JDK`).
+`ArtifactInfo` describes an artifact: `key`, display `name` and `fqn`.
 
 ### 7.3 Projections
 
 | Method | Returns |
 |--------|---------|
 | `nodes()` | every node, in insertion order |
-| `hierarchyRows()` | one `HierarchyRow(kind, fqn, parentFqn)` per node: the hierarchy expressed purely in qualified names, with `parentFqn = null` for top-level modules |
-| `typeDependencies()` | the aggregated dependencies (§3.3) with **FQN** endpoints (`TypeDependency(from, to, …)`) |
-| `typeDependencyEdges()` | the same aggregated dependencies with **node-key** endpoints (`TypeEdge(fromKey, toKey, …)`) |
+| `typeDependencies()` | the aggregated dependencies (§3.3), as `TypeDependency` rows |
 
-Choose between the last two by what the caller needs:
+Each `TypeDependency` names its endpoints both ways. Choose by what the caller needs:
 
-- **`typeDependencyEdges()`** connects the exact nodes, so two same-named types in
-  different artifacts stay distinct. Use it to build a graph. A `toKey` may name a
-  node that does not exist, because the placeholder policy excluded it, and graph
-  builders skip such edges.
-- **`typeDependencies()`** speaks in names. Use it for display, for comparing two
+- **`fromKey` / `toKey`** connect the exact nodes, so two same-named types in
+  different artifacts stay distinct. Use them to build a graph. A `toKey` may name
+  a node that does not exist, because the external-type filter excluded it, and
+  graph builders skip such rows.
+- **`fromFqn` / `toFqn`** speak in names. Use them for display, for comparing two
   stores, and for reasoning that has to include excluded targets. Following
-  `extends` and `implements` here reaches all the way up to `java.lang.Object`.
+  `extends` and `implements` by name reaches all the way up to `java.lang.Object`.
 
 All projections are computed lazily from the current state and are not cached.
 
@@ -443,13 +434,8 @@ All projections are computed lazily from the current state and are not cached.
 | Method | Returns |
 |--------|---------|
 | `node(key)` | the node with this key, or `null` |
-| `contains(key)` | whether a node with this key exists |
-| `childKeysOf(key)` | the keys of the node's children, in insertion order |
-| `nodeCount()` | the number of nodes, including the external module |
 | `typeByFqn(fqn)` | a type or placeholder node with this FQN: the first one applied when several artifacts define it |
-| `typesWithFqn(fqn)` | every type or placeholder node with this FQN |
 | `memberByKey(memberKey)` | the member node for a bare member key, looked up on the type `typeByFqn` returns for its owner, so a member and its owner always resolve consistently; `null` when the owner is external or does not declare it |
-| `incomingOwnersOf(fqn)` | the FQNs of the types that hold at least one reference to `fqn` |
 | `typeKey(artifactKey, fqn)` | the key of a type node (§4) |
 | `memberKey(artifactKey, memberKey)` | the key of a member node (§4) |
 
@@ -467,7 +453,7 @@ registers the artifacts, installs a classpath-order resolver when the snapshot
 carries classpaths, applies every type, and resolves placeholders:
 
 ```kotlin
-val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
 ParquetReader().load(Path.of("snapshot"), store)
 ```
 
@@ -480,47 +466,46 @@ order of steps matters: **resolver → artifacts → classes → placeholders**.
 val key = "com.example:billing-core:1.4.0"
 val result = BytecodeScanner().scan(listOf(ScanArtifact(key, Path.of("billing-core/target/classes"))))
 
-val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
 store.setTypeResolver(TypeResolver.classpathOrder(classpathByOwner))   // when classpaths are known
-store.registerArtifact(ArtifactInfo(key, "billing-core", key, Origin.MODULE_MAIN))
+store.registerArtifact(ArtifactInfo(key, "billing-core", key))
 for (c in result.classes) store.applyClass(c.artifactKey, c.facts)
-store.resolvePlaceholders()
 ```
 
 ### 8.3 Apply a change
 
-When a class file changes, apply its new facts; when it is deleted, remove it.
-Nothing else needs to be told:
+A store is not patched when the code changes: build a new one from the current
+scans, as in §8.2, and swap it in (§8.5). In build-watching mode the server rescans
+only the modules whose output changed, reuses the cached scans of the others, and
+ingests all of them into a fresh store. A deleted class is simply absent from the
+new scan; if other classes still reference it, their references give it a
+placeholder as they are applied.
 
-```kotlin
-store.applyClass(key, rescanned.facts)               // changed or added class
-store.removeClass(key, "com.example.billing.Draft")  // deleted class
-```
-
-References from unchanged classes to the changed type stay valid. If its kind
-changed (a class became an interface), the node is updated in place and keeps its
-key.
+Within one ingest, applying a class again replaces its previous version: its
+members and outgoing references are those of the last `ClassFacts` applied. If its
+kind changed (a class became an interface), the node is updated in place and keeps
+its key.
 
 ### 8.4 Query
 
 ```kotlin
 // Navigate: the packages of an artifact.
-store.childKeysOf("com.example:billing-core:1.4.0").map { store.node(it)!! }
+store.nodes().filter { it.parent == "com.example:billing-core:1.4.0" }
 
 // Who depends on Money, and how strongly?
-store.typeDependencies().filter { it.to == "com.example.billing.Money" }
+store.typeDependencies().filter { it.toFqn == "com.example.billing.Money" }
     .sortedByDescending { it.weight }
 
 // Everything that merely *uses* a type, as opposed to inheriting from it.
-store.typeDependencies().filter { it.to == "com.example.billing.Base" && it.other && !it.extends }
+store.typeDependencies().filter { it.toFqn == "com.example.billing.Base" && it.other && !it.extends }
 
 // A method node, from a key found in a detail reference.
 store.memberByKey("com.example.billing.Invoice#java.math.BigDecimal total()")
 ```
 
 For member-level questions, such as which methods call `Money.add`, expand the
-scope with `DetailScope.expand(store, rootKey)` and query the snapshot's detail
-references with that set of type FQNs.
+scope to its types plus their transitive supertypes, and query the snapshot's detail
+references (`DetailQueryEngine`) with that set of type FQNs.
 
 ### 8.5 Concurrency
 
@@ -531,8 +516,7 @@ structure, and it does no locking of its own. The intended pattern is
 1. Populate a store on one thread.
 2. Publish it, for example through an atomic reference, and from then on treat it
    as read-only. Concurrent reads of an unchanging store are safe.
-3. To change the graph, either build a new store and swap it in, or apply the
-   changes while no reader can see the store.
+3. To change the graph, build a new store and swap it in.
 
 Readers must never observe a store while it is being modified.
 
@@ -540,7 +524,7 @@ Readers must never observe a store while it is being modified.
 
 ## 9. Invariants
 
-After any sequence of `applyClass`, `removeClass` and `resolvePlaceholders` calls,
+After any sequence of `registerArtifact` and `applyClass` calls,
 the following hold:
 
 1. **Unique keys.** No two nodes share a key, and a node's key is a pure function
@@ -552,8 +536,8 @@ the following hold:
    those of the last `ClassFacts` applied for it. Nothing survives from a previous
    version.
 4. **Defined or external, never both.** An FQN has a placeholder only if no applied
-   class defines it. An FQN that is referenced, undefined and permitted by the
-   policy has a placeholder.
+   class defines it. An FQN that is referenced, undefined and included by the
+   filter has a placeholder.
 5. **No self-edges.** No aggregated dependency connects a type to itself.
 6. **Deterministic projections.** For the same sequence of operations, every
    projection yields the same content in the same order.
@@ -574,5 +558,5 @@ What the GraphStore deliberately does **not** do, and where it happens instead:
 | A query language | Hierograph's tool surface (MCP tools, GraphQL), built on the projections |
 | Thread safety | the owner of the store (§8.5) |
 
-Keeping the store to structure alone is what keeps it small, fast to rebuild, and
-cheap to update one class at a time.
+Keeping the store to structure alone is what keeps it small and fast to rebuild on
+every change.

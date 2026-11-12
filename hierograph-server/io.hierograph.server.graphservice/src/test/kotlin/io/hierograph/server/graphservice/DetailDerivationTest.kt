@@ -16,7 +16,7 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -69,7 +69,7 @@ class DetailDerivationTest {
         )
         val source = ManifestGraphSource()
         val scanned = source.scan(manifest)
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS).also { source.ingest(scanned, it) }
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS).also { source.ingest(scanned, it) }
         val snapshot = tmp.resolve("snapshot")
         source.writeSnapshot(scanned, snapshot)
         val reader = ParquetReader()

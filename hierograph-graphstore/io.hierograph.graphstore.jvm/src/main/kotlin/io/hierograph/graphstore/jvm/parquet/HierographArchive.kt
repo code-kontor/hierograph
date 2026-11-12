@@ -19,7 +19,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
@@ -62,22 +61,6 @@ object HierographArchive {
                     zos.write(bytes)
                     zos.closeEntry()
                 }
-            }
-        }
-    }
-
-    /** Extracts every entry of [archive] (flat) into [targetDir]. */
-    fun unzip(archive: Path, targetDir: Path) {
-        Files.createDirectories(targetDir)
-        ZipInputStream(Files.newInputStream(archive).buffered()).use { zis ->
-            var entry = zis.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory) {
-                    val name = Path.of(entry.name).fileName.toString()
-                    Files.newOutputStream(targetDir.resolve(name)).use { zis.copyTo(it) }
-                }
-                zis.closeEntry()
-                entry = zis.nextEntry
             }
         }
     }

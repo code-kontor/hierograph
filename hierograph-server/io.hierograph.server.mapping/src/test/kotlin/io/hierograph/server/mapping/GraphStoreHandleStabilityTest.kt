@@ -18,7 +18,6 @@ package io.hierograph.server.mapping
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
@@ -43,7 +42,7 @@ class GraphStoreHandleStabilityTest {
 
     private fun storeWith(vararg typeKeys: String): GraphStore {
         val store = GraphStore()
-        store.registerArtifact(ArtifactInfo(artifact, artifact, artifact, Origin.MODULE_MAIN))
+        store.registerArtifact(ArtifactInfo(artifact, artifact, artifact))
         for (key in typeKeys) {
             store.applyClass(artifact, ClassFacts(key, JavaKinds.CLASS, 0, emptyList(), emptyList(), "h"))
         }

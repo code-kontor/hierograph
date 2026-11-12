@@ -27,7 +27,7 @@ import org.junit.jupiter.api.TestInstance
  * [DetailQueryEngine] / `ParquetReader.readDetailRefs` behaviour on the real Spring snapshot, including
  * regressions for three bugs in the detail path:
  * the single-predicate push-down (hardwood AND mis-pruning), class-level `annotated_by` edges (bare
- * `from_key`), and scoped query summaries/paging.
+ * `from_key`), and scoped queries.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DetailQueryRegressionIT {
@@ -59,19 +59,15 @@ class DetailQueryRegressionIT {
     }
 
     @Test
-    fun `a scoped forward query reports summaries over the full set and pages the result`() {
+    fun `a scoped forward query returns only the scope's edges of the requested kind`() {
         val engine = DetailQueryEngine(dir)
         val scope = setOf("org.springframework.web.servlet.DispatcherServlet")
-        val full = engine.query(DetailQuery(fromTypes = scope, relationship = "calls", limit = Int.MAX_VALUE))
-        assertThat(full.total).isGreaterThan(5)
-        assertThat(full.edges).hasSize(full.total)
-        assertThat(full.byRelationship.keys).containsExactly("calls")
-        assertThat(full.byRelationship["calls"]).isEqualTo(full.total)
-
-        val firstPage = engine.query(DetailQuery(fromTypes = scope, relationship = "calls", limit = 5))
-        assertThat(firstPage.edges).hasSize(5)
-        assertThat(firstPage.nextOffset).isEqualTo(5)
-        assertThat(firstPage.total).isEqualTo(full.total)
+        val edges = engine.query(DetailQuery(fromTypes = scope, relationship = "calls"))
+        assertThat(edges.size).isGreaterThan(5)
+        assertThat(edges).allSatisfy {
+            assertThat(it.relationship).isEqualTo("calls")
+            assertThat(it.fromType).isIn(scope)
+        }
     }
 
     @Test
@@ -81,9 +77,9 @@ class DetailQueryRegressionIT {
         val aRead = reader.readDetailRefs(dir, relationship = "reads_field").first()
         val fieldOwner = aRead.toType
         val reverse = engine.query(DetailQuery(fromTypes = setOf(fieldOwner), relationship = "read_by"))
-        assertThat(reverse.edges).isNotEmpty
-        assertThat(reverse.edges).allSatisfy { assertThat(it.relationship).isEqualTo("read_by") }
+        assertThat(reverse).isNotEmpty
+        assertThat(reverse).allSatisfy { assertThat(it.relationship).isEqualTo("read_by") }
         // endpoints are swapped: the field side is now the source.
-        assertThat(reverse.edges).allSatisfy { assertThat(it.fromType).isEqualTo(fieldOwner) }
+        assertThat(reverse).allSatisfy { assertThat(it.fromType).isEqualTo(fieldOwner) }
     }
 }

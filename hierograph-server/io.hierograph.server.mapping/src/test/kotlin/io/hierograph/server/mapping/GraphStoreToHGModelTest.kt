@@ -18,7 +18,6 @@ package io.hierograph.server.mapping
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.hierarchicalgraph.model.NodeHandle
@@ -38,15 +37,15 @@ class GraphStoreToHGModelTest {
     @BeforeEach
     fun setUp() {
         store = GraphStore()
-        store.registerArtifact(ArtifactInfo("app", "app", "app", Origin.MODULE_MAIN))
+        store.registerArtifact(ArtifactInfo("app", "app", "app"))
         store.applyClass("app", ClassFacts("com.foo.Base", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
         store.applyClass(
             "app",
             ClassFacts(
                 "com.foo.Sub", JavaKinds.CLASS, 0, emptyList(),
                 refs = listOf(
-                    Ref("com.foo.Sub", "com.foo.Base", RefKind.EXTENDS, count = 1),
-                    Ref("com.foo.Sub", "java.util.List", RefKind.DEPENDS_ON, count = 3),
+                    Ref("com.foo.Base", RefKind.EXTENDS, count = 1),
+                    Ref("java.util.List", RefKind.DEPENDS_ON, count = 3),
                 ),
                 classHash = "h2",
             ),
@@ -58,7 +57,7 @@ class GraphStoreToHGModelTest {
         val model = GraphStoreToHGModel.build(store)
 
         // every GraphStore node + the synthetic root
-        assertThat(model.coreGraph.nodes).hasSize(store.nodeCount() + 1)
+        assertThat(model.coreGraph.nodes).hasSize(store.nodes().size + 1)
 
         // top-level modules hang under the root: the app module and the External Types module
         val rootChildren = model.hierarchy.childrenOf(model.hierarchy.rootNode).map { it.identifier }

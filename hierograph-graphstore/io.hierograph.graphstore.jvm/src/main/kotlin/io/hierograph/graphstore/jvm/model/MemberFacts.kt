@@ -33,7 +33,7 @@ data class MemberFacts(
     /** Declared parameters, ordered by [ParameterFacts.index]; empty for fields and no-arg methods. */
     val parameters: List<ParameterFacts> = emptyList(),
     /**
-     * For a synthetic bridge method (see [MemberModifiers.isBridge]), the key of the real method it
+     * For a synthetic bridge method (see [MemberModifiers.BRIDGE]), the key of the real method it
      * forwards to on the same type — a covariant/generic override's actual implementation. `null` for
      * everything else. Lets load-time resolution point virtual-call/override edges at the real method
      * rather than the bridge trampoline.

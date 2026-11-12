@@ -196,7 +196,7 @@ so a reference reads the same wherever it appears.
 | an external type without a node | `null` | `external.type` | `java.lang.String`, `java.lang.IllegalStateException` |
 
 The
-[placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
 creates no nodes for ubiquitous names (`java.lang.*`, `kotlin.*`, the JetBrains
 nullability annotations). The snapshot still names them, so the tool reports them with
 `id: null` and `name` set to the part of the FQN after the last dot. Without this

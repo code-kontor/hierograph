@@ -15,13 +15,6 @@
  */
 package io.hierograph.graphstore.jvm
 
-/**
- * One row of the hierarchy projection: a node's [kind] and [fqn], plus the [parentFqn] of its parent
- * (`null` for top-level modules). It expresses the hierarchy purely in qualified names, independent of
- * node keys, so two stores can be compared and the hierarchy displayed without decoding keys.
- */
-data class HierarchyRow(
-    val kind: Any,
-    val fqn: String,
-    val parentFqn: String?,
-)
+/** Test helper: the keys of the node [key]'s children, in node insertion order. */
+fun GraphStore.childKeysOf(key: String): Set<String> =
+    nodes().filter { it.parent == key }.mapTo(linkedSetOf()) { it.key }

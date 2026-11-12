@@ -20,7 +20,6 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.mcp.server.core.GraphAvailabilityToolCallbackProvider
@@ -63,14 +62,14 @@ class ViewToolCallsTest {
 
     /** Three modules; app → core (weight 2), app → util (1), core → util (1). */
     private val store = GraphStore().apply {
-        for (name in listOf("app", "core", "util")) registerArtifact(ArtifactInfo("acme:$name:1.0", name, "acme:$name:1.0", Origin.MODULE_MAIN))
+        for (name in listOf("app", "core", "util")) registerArtifact(ArtifactInfo("acme:$name:1.0", name, "acme:$name:1.0"))
         applyClass(
             "acme:app:1.0",
             ClassFacts(
                 "com.acme.app.App", JavaKinds.CLASS, 0, emptyList(),
                 refs = listOf(
-                    Ref("com.acme.app.App", "com.acme.core.Core", RefKind.DEPENDS_ON, count = 2),
-                    Ref("com.acme.app.App", "com.acme.util.Strings", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.acme.core.Core", RefKind.DEPENDS_ON, count = 2),
+                    Ref("com.acme.util.Strings", RefKind.DEPENDS_ON, count = 1),
                 ),
                 classHash = "a",
             ),
@@ -79,7 +78,7 @@ class ViewToolCallsTest {
             "acme:core:1.0",
             ClassFacts(
                 "com.acme.core.Core", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(Ref("com.acme.core.Core", "com.acme.util.Strings", RefKind.DEPENDS_ON, count = 1)),
+                refs = listOf(Ref("com.acme.util.Strings", RefKind.DEPENDS_ON, count = 1)),
                 classHash = "c",
             ),
         )

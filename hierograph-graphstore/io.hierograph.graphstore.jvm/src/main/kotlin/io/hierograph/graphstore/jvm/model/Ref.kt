@@ -16,15 +16,13 @@
 package io.hierograph.graphstore.jvm.model
 
 /**
- * A single reference (edge) from [fromKey] to [toKey].
+ * A type-level reference from its owning type (the [ClassFacts] that holds it) to [toKey].
  *
- * Both ends are **key strings** (a type FQN or a member key `<owner fqn>#<signature>`), never node
- * objects; internal and external targets look identical. [count] carries pre-aggregated duplicates; [line] is populated only by FULL-mode body scanning.
+ * The target is a **key string** (a type FQN or a member key `<owner fqn>#<signature>`), never a node
+ * object; internal and external targets look identical. [count] carries pre-aggregated duplicates.
  */
 data class Ref(
-    val fromKey: String,
     val toKey: String,
     val kind: RefKind,
-    val line: Int? = null,
     val count: Int? = null,
 )

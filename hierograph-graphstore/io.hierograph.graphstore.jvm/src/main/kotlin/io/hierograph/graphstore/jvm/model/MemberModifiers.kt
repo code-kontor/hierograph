@@ -86,8 +86,6 @@ object MemberModifiers {
         return bits
     }
 
-    fun isBridge(bits: Int): Boolean = bits and BRIDGE != 0
-    fun isSynthetic(bits: Int): Boolean = bits and SYNTHETIC != 0
     fun isConstant(bits: Int): Boolean = bits and CONSTANT != 0
 
     fun visibility(bits: Int): String = when {

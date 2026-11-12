@@ -628,7 +628,7 @@ artifact**:
 A type that is referenced but defined by no loaded archive is **external**. The
 reader represents it as a placeholder node, created from its incoming references.
 If an archive that defines it is loaded later, the placeholder is replaced by the
-real type and every edge pointing at it stays valid. A reader may decide by policy
+real type and every edge pointing at it stays valid. A reader may filter
 which external types become placeholders (for example, omitting
 `java.lang.Object`). The references themselves are facts and always remain in the
 tables.

@@ -31,7 +31,7 @@ import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
  *
  * The model has one node per GraphStore node under a synthetic root (top-level modules hang under the
  * root, every other node under its GraphStore parent) and one `DEPENDS_ON` core dependency per
- * [GraphStore.typeDependencyEdges] entry whose endpoints both exist. Each node's identifier is the
+ * [GraphStore.typeDependencies] entry whose endpoints both exist. Each node's identifier is the
  * content-addressed [NodeHandle] of its GraphStore key, so handles survive rescans and restarts; its
  * [GraphStoreNodeSource] carries the display name, the FQN, the key and the modifier bits. The
  * type-dependency flags are encoded into the [JavaEdgeAttributes] bitmap.
@@ -76,7 +76,7 @@ object GraphStoreToHGModel {
 
         // Type-to-type dependencies, keyed on resolved artifact-scoped node keys (so edges connect the
         // correct distinct nodes when an FQN is defined in more than one artifact).
-        for (dep in store.typeDependencyEdges()) {
+        for (dep in store.typeDependencies()) {
             val from = byKey[dep.fromKey] ?: continue
             val to = byKey[dep.toKey] ?: continue
             val coreDep = HGGraphFactory.createCoreDependency(from, to, DEPENDS_ON) {

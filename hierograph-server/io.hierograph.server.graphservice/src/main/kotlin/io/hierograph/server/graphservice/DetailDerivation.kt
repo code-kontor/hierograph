@@ -59,7 +59,7 @@ internal object DetailDerivation {
             .groupBy { it.key.substringBefore('#') }
         val superByFqn = store.typeDependencies()
             .filter { it.extends || it.implements }
-            .groupBy({ it.from }, { it.to })
+            .groupBy({ it.fromFqn }, { it.toFqn })
         val types = store.nodes().asSequence()
             .filter { JavaKinds.isTypeKind(it.kind) }
             .map { n ->

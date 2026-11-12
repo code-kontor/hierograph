@@ -19,7 +19,6 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.hierarchicalgraph.model.HGModel
@@ -50,7 +49,7 @@ class StoreReactor {
 
     val store = GraphStore().apply {
         for (name in listOf("store", "server", "mapping")) {
-            registerArtifact(ArtifactInfo("acme:$name:1.0", name, "acme:$name:1.0", Origin.MODULE_MAIN))
+            registerArtifact(ArtifactInfo("acme:$name:1.0", name, "acme:$name:1.0"))
         }
         type("acme:store:1.0", "com.acme.store.Store", "com.acme.store.model.Node" to 1, "org.slf4j.Logger" to 1)
         type("acme:store:1.0", "com.acme.store.model.Node")
@@ -68,7 +67,7 @@ class StoreReactor {
     private fun GraphStore.type(artifact: String, fqn: String, vararg refs: Pair<String, Int>) =
         applyClass(
             artifact,
-            ClassFacts(fqn, JavaKinds.CLASS, 0, emptyList(), refs.map { (to, n) -> Ref(fqn, to, RefKind.DEPENDS_ON, count = n) }, fqn),
+            ClassFacts(fqn, JavaKinds.CLASS, 0, emptyList(), refs.map { (to, n) -> Ref(to, RefKind.DEPENDS_ON, count = n) }, fqn),
         )
 
     val model: HGModel = GraphStoreToHGModel.build(store)

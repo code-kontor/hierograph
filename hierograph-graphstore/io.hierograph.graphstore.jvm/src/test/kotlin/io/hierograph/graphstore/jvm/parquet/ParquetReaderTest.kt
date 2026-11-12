@@ -16,12 +16,13 @@
 package io.hierograph.graphstore.jvm.parquet
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.HierarchyRow
+import io.hierograph.graphstore.jvm.childKeysOf
 import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.MemberFixture
 import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.RefFixture
 import io.hierograph.graphstore.jvm.parquet.ParquetTestWriter.TypeFixture
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.tuple
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -72,16 +73,16 @@ class ParquetReaderTest {
         assertThat(list.kind).isEqualTo(JavaKinds.EXTERNAL_TYPE)
 
         // hierarchy projection
-        val rows = store.hierarchyRows().toList()
+        val rows = store.nodes().map { tuple(it.kind, it.fqn, it.parent?.let(store::node)?.fqn) }
         assertThat(rows).contains(
-            HierarchyRow(JavaKinds.MODULE, "app", null),
-            HierarchyRow(JavaKinds.CLASS, "com.foo.A", "com.foo"),
-            HierarchyRow(JavaKinds.INTERFACE, "com.foo.B", "com.foo"),
-            HierarchyRow(JavaKinds.EXTERNAL_TYPE, "java.util.List", "java.util"),
+            tuple(JavaKinds.MODULE, "app", null),
+            tuple(JavaKinds.CLASS, "com.foo.A", "com.foo"),
+            tuple(JavaKinds.INTERFACE, "com.foo.B", "com.foo"),
+            tuple(JavaKinds.EXTERNAL_TYPE, "java.util.List", "java.util"),
         )
 
         // dependencies
-        val deps = store.typeDependencies().associateBy { it.to }
+        val deps = store.typeDependencies().associateBy { it.toFqn }
         assertThat(deps.getValue("com.foo.B").implements).isTrue
         val toList = deps.getValue("java.util.List")
         assertThat(toList.other).isTrue
@@ -121,7 +122,8 @@ class ParquetReaderTest {
     }
 
     @Test
-    fun `scoped refs read returns only the requested source types, external targets included`(@TempDir dir: Path) {
+    fun `type facts read only the type's own refs, external targets included`(@TempDir dir: Path) {
+        ParquetTestWriter.writeTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS"), TypeFixture("app", "com.foo.C", "CLASS")))
         ParquetTestWriter.writeRefs(
             dir,
             listOf(
@@ -131,12 +133,11 @@ class ParquetReaderTest {
             ),
         )
 
-        val refs = ParquetReader().readRefsFrom(dir, listOf("com.foo.A"))
+        val facts = ParquetReader().readTypeFacts(dir, "app", "com.foo.A")!!
 
-        assertThat(refs.keys).containsExactly("com.foo.A")
-        assertThat(refs.getValue("com.foo.A").map { it.kind.name to it.toKey })
-            .containsExactlyInAnyOrder("EXTENDS" to "java.lang.Object", "IMPLEMENTS" to "com.foo.B")
-        assertThat(ParquetReader().readRefsFrom(dir, emptyList())).isEmpty()
+        assertThat(facts.refs.map { it.kind.name to it.toKey })
+            .containsExactlyInAnyOrder("EXTENDS" to "java.lang.Object", "IMPLEMENTS" to "com.foo.B") // not C's ref to A
+        assertThat(ParquetReader().readTypeFacts(dir, "app", "com.foo.Missing")).isNull()
     }
 
     @Test

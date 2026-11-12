@@ -57,7 +57,7 @@ class TypeDependencyRollupIT {
 
     @Test
     fun `at most one aggregated edge per (from, to) pair`() {
-        val dup = deps.groupingBy { it.from to it.to }.eachCount().filterValues { it > 1 }
+        val dup = deps.groupingBy { it.fromFqn to it.toFqn }.eachCount().filterValues { it > 1 }
         assertThat(dup).describedAs("duplicate (from,to) edges").isEmpty()
     }
 
@@ -65,8 +65,8 @@ class TypeDependencyRollupIT {
     fun `a known subtype carries the extends edge to its superclass`() {
         // ClassPathResource extends AbstractFileResolvingResource.
         val from = "org.springframework.core.io.ClassPathResource"
-        val extendsEdges = deps.filter { it.from == from && it.extends }
+        val extendsEdges = deps.filter { it.fromFqn == from && it.extends }
         assertThat(extendsEdges).describedAs("extends edges from $from").isNotEmpty
-        assertThat(extendsEdges).anyMatch { it.to == "org.springframework.core.io.AbstractFileResolvingResource" }
+        assertThat(extendsEdges).anyMatch { it.toFqn == "org.springframework.core.io.AbstractFileResolvingResource" }
     }
 }

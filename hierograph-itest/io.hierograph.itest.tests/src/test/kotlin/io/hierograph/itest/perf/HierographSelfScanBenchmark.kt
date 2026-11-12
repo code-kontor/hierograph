@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
@@ -86,7 +86,7 @@ class HierographSelfScanBenchmark {
         val writeTime = measureTime { scan.writeTo(snapshotDir) }
 
         // 2b) HIERARCHICAL-GRAPH CREATION — load into a GraphStore, then build the HGModel.
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         val loadTime = measureTime { ParquetReader().load(snapshotDir, store) }
         val (model, modelTime) = measureTimedValue { GraphStoreToHGModel.build(store) }
         val graphTime = loadTime + modelTime

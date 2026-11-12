@@ -406,7 +406,7 @@ class BytecodeScannerTest {
 
         assertThat(store.typeByFqn("fix.Circle")!!.placeholder).isFalse
         assertThat(store.memberByKey("fix.Circle#java.lang.String name()")).isNotNull
-        val edges = store.typeDependencies().filter { it.from == "fix.Circle" }.associateBy { it.to }
+        val edges = store.typeDependencies().filter { it.fromFqn == "fix.Circle" }.associateBy { it.toFqn }
         assertThat(edges.getValue("fix.Base").extends).isTrue()
         // weight = number of references: the sum of the counts over all ref kinds to that target
         val listRefs = type("fix.Circle").refs.filter { it.toKey == "java.util.List" }

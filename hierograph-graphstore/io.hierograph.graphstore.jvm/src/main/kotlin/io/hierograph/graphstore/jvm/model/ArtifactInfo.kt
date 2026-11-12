@@ -15,16 +15,12 @@
  */
 package io.hierograph.graphstore.jvm.model
 
-/** Where a scanned artifact comes from; drives API-vs-FULL detail and snapshot caching. */
-enum class Origin { MODULE_MAIN, MODULE_TEST, LIBRARY, JDK }
-
 /**
- * Identity and provenance of one scanned artifact (module, library jar, or JDK), surfaced as a
- * top-level MODULE node in the GraphStore. [key] is the content-derived snapshot key.
+ * Identity of one scanned artifact (module, library jar, or JDK), surfaced as a top-level MODULE node
+ * in the GraphStore. [key] is the content-derived snapshot key.
  */
 data class ArtifactInfo(
     val key: String,
     val name: String,
     val fqn: String,
-    val origin: Origin,
 )

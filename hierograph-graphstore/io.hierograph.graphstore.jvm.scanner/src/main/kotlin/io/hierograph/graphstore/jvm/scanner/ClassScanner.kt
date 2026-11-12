@@ -89,7 +89,7 @@ internal object ClassScanner {
                     generic = generic,
                 ),
                 members = members,
-                refs = refCounts.map { (k, count) -> Ref(fromKey = fqn, toKey = k.first, kind = k.second, count = count) },
+                refs = refCounts.map { (k, count) -> Ref(toKey = k.first, kind = k.second, count = count) },
                 classHash = classHash,
                 sourceFile = sourceFile,
             )

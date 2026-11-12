@@ -36,6 +36,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CancellationException
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
@@ -65,7 +66,7 @@ class HierographRoundTripTest {
             "b.jar",
             ClassFacts(
                 fqn = "com.b.B", kind = JavaKinds.CLASS, modifiers = 0, members = emptyList(),
-                refs = listOf(Ref("com.b.B", "com.a.A", RefKind.EXTENDS, count = 1)),
+                refs = listOf(Ref("com.a.A", RefKind.EXTENDS, count = 1)),
                 classHash = "h2", sourceFile = null,
             ),
         ),
@@ -134,7 +135,7 @@ class HierographRoundTripTest {
     private fun explode(archive: Path) {
         val tmp = archive.resolveSibling(archive.fileName.toString() + ".tmp")
         Files.move(archive, tmp)
-        HierographArchive.unzip(tmp, archive)
+        unzip(tmp, archive)
         Files.delete(tmp)
     }
 
@@ -163,7 +164,7 @@ class HierographRoundTripTest {
         for (name in listOf("a.hierograph", "b.hierograph")) {
             assertThat(exploded.resolve(name)).isDirectory()
             val unzipped = dir.resolve("unzipped").resolve(name)
-            HierographArchive.unzip(archives.resolve(name), unzipped)
+            unzip(archives.resolve(name), unzipped)
             assertThat(tableBytes(exploded.resolve(name))).isEqualTo(tableBytes(unzipped))
         }
         assertReadsBoth(exploded, ParquetReader().readDetailRefs(archives).toSet())
@@ -259,7 +260,7 @@ class HierographRoundTripTest {
     /** Repacks [archive] with DEFLATED entries, as a tool other than Hierograph might. */
     private fun deflate(archive: Path) {
         val tables = archive.resolveSibling(archive.fileName.toString() + ".tables")
-        HierographArchive.unzip(archive, tables)
+        unzip(archive, tables)
         ZipOutputStream(Files.newOutputStream(archive)).use { zos ->
             Files.list(tables).use { it.sorted().toList() }.forEach { f ->
                 zos.putNextEntry(ZipEntry(f.fileName.toString()).apply { method = ZipEntry.DEFLATED })
@@ -300,5 +301,21 @@ class HierographRoundTripTest {
         assertThat(store.typeByFqn("com.a.A")).isNotNull()
         assertThat(store.typeByFqn("com.b.B")).isNotNull()
         assertThat(ParquetReader().readDetailRefs(dir)).hasSize(2)
+    }
+
+    /** Extracts every entry of [archive] (flat) into [targetDir]. */
+    private fun unzip(archive: Path, targetDir: Path) {
+        Files.createDirectories(targetDir)
+        ZipInputStream(Files.newInputStream(archive).buffered()).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    val name = Path.of(entry.name).fileName.toString()
+                    Files.newOutputStream(targetDir.resolve(name)).use { zis.copyTo(it) }
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry
+            }
+        }
     }
 }

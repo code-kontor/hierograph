@@ -16,7 +16,7 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.HGModel
@@ -526,7 +526,7 @@ class HierarchicalGraphService {
      * published synchronously (post-swap) with the same generation, so it is ready at once.
      */
     private fun buildFromParquet(dir: Path = snapshotDir()): Built {
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         val reader = ParquetReader()
         reader.load(dir, store)
         val generation = graphGen.incrementAndGet()
@@ -555,7 +555,7 @@ class HierarchicalGraphService {
 
     /** Build the nav snapshot from a (cached) set of per-module scans; detail is published post-swap. */
     private fun buildManifestSnapshot(scanned: ManifestGraphSource.Scanned): Built {
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         manifestGraphSource.ingest(scanned, store)
         val model = GraphStoreToHGModel.build(store)
         val generation = graphGen.incrementAndGet()

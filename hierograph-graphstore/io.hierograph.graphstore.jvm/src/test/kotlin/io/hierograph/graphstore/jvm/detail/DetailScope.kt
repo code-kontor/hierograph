@@ -16,11 +16,12 @@
 package io.hierograph.graphstore.jvm.detail
 
 import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.childKeysOf
 import io.hierograph.graphstore.jvm.model.JavaKinds
 
 /**
- * Resolves a detail-query scope against the **type-level** GraphStore — the in-memory half of the
- * detail query. A scope node (module / package / type key) expands to the set of type FQNs whose member
+ * Test helper: resolves a detail-query scope against the **type-level** GraphStore — the in-memory half
+ * of the detail query (the server does the same over the hierarchical graph). A scope node (module / package / type key) expands to the set of type FQNs whose member
  * edges are in scope: every type in the node's subtree **plus their transitive supertypes**, because an
  * inherited member is declared by a supertype (the detail tool's `EXTENDS|IMPLEMENTS*0..` expansion).
  * The member-edge lookup then filters `from_type` (or `to_type`) against this set.
@@ -46,7 +47,7 @@ object DetailScope {
     private fun withSupertypes(store: GraphStore, seed: Set<String>): Set<String> {
         val superEdges = HashMap<String, MutableList<String>>()
         for (dep in store.typeDependencies()) {
-            if (dep.extends || dep.implements) superEdges.getOrPut(dep.from) { mutableListOf() } += dep.to
+            if (dep.extends || dep.implements) superEdges.getOrPut(dep.fromFqn) { mutableListOf() } += dep.toFqn
         }
         val result = linkedSetOf<String>()
         val queue = ArrayDeque(seed)

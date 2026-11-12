@@ -200,7 +200,7 @@ it is filled depends on whether the referenced type is a node in the graph:
 | an external type without a node | `null` | `external.type` | `java.lang.Object`, `java.lang.Comparable`, `kotlin.Metadata` |
 
 The graph does not create placeholder nodes for every external type. The
-[placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
 leaves out ubiquitous names such as `java.lang.*`, `kotlin.*` and the JetBrains
 `@NotNull` / `@Nullable` annotations, because a dependency on them carries no
 architectural information. The type's `refs.parquet` rows still name them, so

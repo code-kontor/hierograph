@@ -16,6 +16,7 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.itest.fwk.SpringFixture
@@ -37,7 +38,7 @@ class GraphStoreKeysAndHandlesIT {
 
     private fun freshStore(): GraphStore {
         val (store, elapsed) = measureTimedValue { GraphStore().also { ParquetReader().load(dir, it) } }
-        log.info("freshStore: loaded GraphStore ({} nodes) from the snapshot in {}", store.nodeCount(), elapsed)
+        log.info("freshStore: loaded GraphStore ({} nodes) from the snapshot in {}", store.nodes().size, elapsed)
         return store
     }
 
@@ -74,7 +75,7 @@ class GraphStoreKeysAndHandlesIT {
             "org.springframework.beans.factory.BeanFactory",
             "org.springframework.web.bind.annotation.RequestMapping",
         )) {
-            assertThat(store.typesWithFqn(fqn)).describedAs(fqn).hasSize(1)
+            assertThat(store.nodes().filter { it.fqn == fqn && JavaKinds.isTypeKind(it.kind) }).describedAs(fqn).hasSize(1)
         }
     }
 }

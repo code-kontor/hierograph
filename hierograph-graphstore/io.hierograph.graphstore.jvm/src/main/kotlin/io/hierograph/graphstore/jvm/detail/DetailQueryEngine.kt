@@ -21,34 +21,20 @@ import java.nio.file.Path
 
 /**
  * A resolved detail-dependency query over a Parquet snapshot. [fromTypes] / [toTypes] are the
- * already-expanded type-FQN sets from [DetailScope] (so inheritance has already been applied);
+ * already-expanded type-FQN sets of the caller's scopes, supertypes included (so inheritance has already been applied);
  * [toTypes] = null leaves the target side unconstrained ("all dependencies of the source").
  */
 data class DetailQuery(
     val fromTypes: Set<String>,
     val toTypes: Set<String>? = null,
     val relationship: String? = null,
-    val limit: Int = 100,
-    val offset: Int = 0,
 )
 
 /**
- * One page of detail edges plus full-result-set summaries. [total] / [byRelationship] / [bySourceType]
- * are computed over the whole result set, independent of the page; [nextOffset] is null on the last page.
- */
-data class DetailQueryResult(
-    val edges: List<DetailRef>,
-    val total: Int,
-    val byRelationship: Map<String, Int>,
-    val bySourceType: List<Pair<String, Int>>,
-    val nextOffset: Int?,
-)
-
-/**
- * The member-level dependency engine over a Parquet snapshot. Scope resolution happens in memory (see
- * [DetailScope]); this engine does the member-edge half: a scoped push-down read of `detail_refs.parquet`
- * (`from_type` / `to_type` ∈ scope, optionally `relationship`), a stable sort, the summaries, and offset
- * paging.
+ * The member-level dependency engine over a Parquet snapshot. Scope resolution happens in memory, in the
+ * caller; this engine does the member-edge half: a scoped push-down read of `detail_refs.parquet`
+ * (`from_type` / `to_type` ∈ scope, optionally `relationship`) and a stable sort. Paging and summaries
+ * are the caller's.
  *
  * The reverse relationships `read_by` / `written_by` are the stored `reads_field` / `writes_field` edges
  * viewed target→source: the scope anchors on the field side (`to_type`) and the endpoints are swapped so
@@ -58,22 +44,13 @@ class DetailQueryEngine(private val parquetDir: Path) {
 
     private val loader = ParquetReader()
 
-    fun query(q: DetailQuery): DetailQueryResult {
+    /** Every edge [q] matches, in a stable order. */
+    fun query(q: DetailQuery): List<DetailRef> {
         val reverseStored = REVERSE[q.relationship]
         val edges = if (reverseStored != null) reverseEdges(q, reverseStored) else forwardEdges(q)
-
-        val sorted = edges.sortedWith(
+        return edges.sortedWith(
             compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }, { it.line ?: -1 }),
         )
-
-        val byRelationship = sorted.groupingBy { it.relationship }.eachCount().toSortedMap()
-        val bySourceType = sorted.groupingBy { it.fromType }.eachCount()
-            .entries.sortedByDescending { it.value }.take(10).map { it.key to it.value }
-
-        val page = sorted.drop(q.offset).take(q.limit)
-        val nextOffset = (q.offset + q.limit).takeIf { it < sorted.size }
-
-        return DetailQueryResult(page, sorted.size, byRelationship, bySourceType, nextOffset)
     }
 
     /** Forward relationships: the scope is the source; `from_type` (sorted) drives row-group skipping. */

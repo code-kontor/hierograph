@@ -24,7 +24,6 @@ import io.hierograph.graphstore.jvm.TypeResolver
 import io.hierograph.graphstore.jvm.model.ArtifactClasspath
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClasspathEntry
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
@@ -64,15 +63,13 @@ class ManifestGraphSource internal constructor(
 
     /**
      * One scanned artifact: its GAV (a module's tests carry a `:test` suffix), display name, the (local)
-     * compiled-output directories scanned, the scanned classes, whether it is main or test output, and the
-     * directories' [signature] at scan time.
+     * compiled-output directories scanned, the scanned classes, and the directories' [signature] at scan time.
      */
     data class ModuleScan(
         val gav: String,
         val name: String,
         val outputDirs: List<Path>,
         val result: ScanResult,
-        val origin: Origin = Origin.MODULE_MAIN,
         val signature: Long = 0L, // outputSignature over outputDirs, taken just before the scan; tells a stale scan apart
     )
 
@@ -82,7 +79,7 @@ class ManifestGraphSource internal constructor(
      * directories). The directories need not exist: an output not compiled yet is declared, watched, and
      * scanned once one of them appears.
      */
-    data class DeclaredOutput(val gav: String, val name: String, val dirs: List<Path>, val origin: Origin) {
+    data class DeclaredOutput(val gav: String, val name: String, val dirs: List<Path>) {
         /** Whether any of the directories exists, i.e. there is something to scan. */
         val present: Boolean get() = dirs.any { it.isDirectory() }
     }
@@ -193,7 +190,7 @@ class ManifestGraphSource internal constructor(
         for (output in present) {
             val prev = previous.modules[output.gav]
             if (prev != null && current[output.gav] == prev.signature) {
-                kept[output.gav] = prev.copy(name = output.name, origin = output.origin)
+                kept[output.gav] = prev.copy(name = output.name)
             } else {
                 toScan += output
             }
@@ -252,7 +249,7 @@ class ManifestGraphSource internal constructor(
             classpaths[module.gav] = ArtifactClasspath(module.gav, name, mainCp)
             // The directory lists, falling back to the single directory a manifest from an older producer records.
             val mainDirs = (module.mainOutputDirs ?: listOfNotNull(module.mainOutputDir)).map { remap.map(Path.of(it)) }
-            if (mainDirs.isNotEmpty()) declared[module.gav] = DeclaredOutput(module.gav, name, mainDirs, Origin.MODULE_MAIN)
+            if (mainDirs.isNotEmpty()) declared[module.gav] = DeclaredOutput(module.gav, name, mainDirs)
 
             if (includeTests) {
                 val testDirs = (module.testOutputDirs ?: listOfNotNull(module.testOutputDir)).map { remap.map(Path.of(it)) }
@@ -266,7 +263,7 @@ class ManifestGraphSource internal constructor(
                     val testCp = module.testClasspath?.map { ClasspathEntry(it.gav, it.internal) } ?: mainCp
                     val selfMain = if (mainDirs.isNotEmpty()) listOf(ClasspathEntry(module.gav, internal = true)) else emptyList()
                     classpaths[testKey] = ArtifactClasspath(testKey, testName, selfMain + testCp)
-                    declared[testKey] = DeclaredOutput(testKey, testName, testDirs, Origin.MODULE_TEST)
+                    declared[testKey] = DeclaredOutput(testKey, testName, testDirs)
                 }
             }
         }
@@ -298,8 +295,8 @@ class ManifestGraphSource internal constructor(
                 modules.remove(gav)
                 continue
             }
-            // A rescan keeps the scanned directories, name and origin; only the classes and signature change.
-            toScan += DeclaredOutput(gav, prev.name, prev.outputDirs, prev.origin)
+            // A rescan keeps the scanned directories and name; only the classes and signature change.
+            toScan += DeclaredOutput(gav, prev.name, prev.outputDirs)
         }
         val rescanned = scanOutputs(toScan)
         // An output that disappeared before or during its scan is no longer scanned: its old classes go too.
@@ -344,7 +341,7 @@ class ManifestGraphSource internal constructor(
         outputs.zip(signatures).forEach { (output, signature) ->
             val result = results[output.gav] ?: EMPTY_SCAN
             log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.detailRefs.size)
-            modules[output.gav] = ModuleScan(output.gav, output.name, output.dirs, result, output.origin, signature)
+            modules[output.gav] = ModuleScan(output.gav, output.name, output.dirs, result, signature = signature)
         }
         log.info(
             "Scanned {} output(s): {} types in {} on {} thread(s)",
@@ -355,8 +352,7 @@ class ManifestGraphSource internal constructor(
 
     /**
      * Ingests a [Scanned] straight into [store] — the same ingest path a Parquet load uses
-     * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass] / [resolvePlaceholders]
-     * [GraphStore.resolvePlaceholders]), fed from memory. Installs the real per-owner classpath-order
+     * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass]), fed from memory. Installs the real per-owner classpath-order
      * [TypeResolver] from the manifest (index 0 = the owner itself, then its deps) before ingest.
      */
     fun ingest(scanned: Scanned, store: GraphStore) {
@@ -370,12 +366,11 @@ class ManifestGraphSource internal constructor(
                 val key = artifactClass.artifactKey
                 if (registered.add(key)) {
                     val name = scanned.classpaths[key]?.name ?: key
-                    store.registerArtifact(ArtifactInfo(key, name, key, module.origin))
+                    store.registerArtifact(ArtifactInfo(key, name, key))
                 }
                 store.applyClass(key, artifactClass.facts)
             }
         }
-        store.resolvePlaceholders()
     }
 
     /**

@@ -20,7 +20,6 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter
 import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
@@ -46,11 +45,11 @@ class DetailEnricherTest {
     @BeforeEach
     fun setUp() {
         val store = GraphStore()
-        store.registerArtifact(ArtifactInfo("app", "app", "app", Origin.MODULE_MAIN))
+        store.registerArtifact(ArtifactInfo("app", "app", "app"))
         store.applyClass("app", ClassFacts("com.shop.OrderService", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
         store.applyClass("app", ClassFacts("com.shop.PaymentGateway", JavaKinds.INTERFACE, 0, emptyList(), emptyList(), "h2"))
 
-        ParquetWriter.writeClassFacts(
+        ParquetWriter.writeSnapshot(
             membersDir,
             listOf(
                 ArtifactClass(
@@ -74,6 +73,7 @@ class DetailEnricherTest {
                     ),
                 ),
             ),
+            emptyList(),
             CompressionCodec.UNCOMPRESSED,
         )
         enricher = DetailEnricher(store, membersDir)

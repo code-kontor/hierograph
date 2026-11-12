@@ -92,7 +92,7 @@ class EntityDetailToolsTest {
             artifact, ClassFacts(
                 twin, JavaKinds.CLASS, TypeModifiers.pack("public"),
                 members = List(memberCount) { MemberFacts("$twin#void m$it()", JavaKinds.METHOD, "void m$it()", "m$it") },
-                refs = listOf(Ref(twin, iface, RefKind.IMPLEMENTS, count = 1)), classHash = artifact,
+                refs = listOf(Ref(iface, RefKind.IMPLEMENTS, count = 1)), classHash = artifact,
             ),
         )
         val dir = Files.createTempDirectory("hierograph-twin")

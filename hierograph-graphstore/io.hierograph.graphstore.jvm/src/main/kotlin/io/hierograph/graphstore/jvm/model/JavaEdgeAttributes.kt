@@ -68,10 +68,4 @@ object JavaEdgeAttributes {
     @JvmStatic
     fun toMap(bitmap: Int): Map<String, Boolean> =
         ALL.associate { (pos, name) -> name to isSet(bitmap, pos) }
-
-    /** Converts [bitmap] to a `Map<String, Boolean>` containing only the `true` entries. */
-    @JvmStatic
-    fun toTrueMap(bitmap: Int): Map<String, Boolean> =
-        ALL.filter { (pos, _) -> isSet(bitmap, pos) }
-            .associate { (_, name) -> name to true }
 }

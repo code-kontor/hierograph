@@ -47,7 +47,7 @@ class DetailArtifactResolutionTest {
         )),
         ParquetWriter.ArtifactClass(key, ClassFacts(
             user, JavaKinds.CLASS, 0, listOf(MemberFacts("$user#void run()", JavaKinds.METHOD, "void run()", "run")),
-            listOf(Ref(user, twin, RefKind.DEPENDS_ON, count = 1)), "u-$key",
+            listOf(Ref(twin, RefKind.DEPENDS_ON, count = 1)), "u-$key",
         )),
     )
 

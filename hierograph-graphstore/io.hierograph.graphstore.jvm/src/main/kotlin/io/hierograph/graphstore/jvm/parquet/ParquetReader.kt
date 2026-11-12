@@ -25,7 +25,6 @@ import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.ParameterFacts
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
@@ -37,9 +36,9 @@ import java.nio.file.Path
  * Loads a GraphStore Parquet snapshot (the [ParquetSchema] tables) back into a [GraphStore].
  *
  * The loader reconstructs one [ClassFacts] per type from the flat `types` / `members` / `refs` tables
- * and feeds it through [GraphStore.applyClass] — the *same* ingest path a live scan uses — then calls
- * [GraphStore.resolvePlaceholders] once. Referenced-but-undefined types (targets that were never scanned) surface as placeholders through their incoming refs, so snapshots stay
- * composable and never duplicate external nodes.
+ * and feeds it through [GraphStore.applyClass] — the *same* ingest path a live scan uses.
+ * Referenced-but-undefined types (targets that were never scanned) surface as placeholders through their
+ * incoming refs, so snapshots stay composable and never duplicate external nodes.
  */
 class ParquetReader {
 
@@ -65,8 +64,9 @@ class ParquetReader {
      * Loads a snapshot into [store]. [parquetDir] is a directory of per-artifact `.hierograph` artifacts —
      * archives, exploded directories or `collect` containers, each loaded in turn — or a single combined
      * table directory (a legacy combined layout), or a single `.hierograph` file. Archives are read in place
-     * (see [SnapshotSources]). Missing tables are treated as empty; [GraphStore.resolvePlaceholders] runs
-     * once after all artifacts are in, so cross-artifact references resolve against the full set.
+     * (see [SnapshotSources]). Missing tables are treated as empty. A reference into an artifact loaded later
+     * starts as a placeholder that the later artifact's type replaces, so cross-artifact references resolve
+     * against the full set whatever the load order.
      */
     fun load(parquetDir: Path, store: GraphStore) {
         // Classpath-shadowing resolution: if the snapshot carries manifests, resolve references by each
@@ -86,7 +86,7 @@ class ParquetReader {
                     // Display name from the classpath manifest when present (the plugin keys artifacts by GAV
                     // but names them by artifactId); else the artifact key itself (CLI snapshots).
                     val name = classpaths[t.artifact]?.name ?: t.artifact
-                    store.registerArtifact(ArtifactInfo(t.artifact, name, t.artifact, Origin.MODULE_MAIN))
+                    store.registerArtifact(ArtifactInfo(t.artifact, name, t.artifact))
                 }
                 store.applyClass(
                     t.artifact,
@@ -102,7 +102,6 @@ class ParquetReader {
                 )
             }
         }
-        store.resolvePlaceholders()
     }
 
     /** Reads [file] across every artifact of the snapshot at [parquetDir] and concatenates the mapped rows. */
@@ -219,19 +218,6 @@ class ParquetReader {
             .groupBy({ it.key }, { it.value }).mapValues { (_, lists) -> lists.flatten() }
     }
 
-    /**
-     * Scoped read of the type-level `refs.parquet`: the outgoing refs (extends / implements / annotated_by /
-     * depends_on) of the types in [fromTypes], grouped by source type FQN. Targets are bare FQNs, kept even
-     * when the placeholder policy keeps them out of the in-memory graph (e.g. `java.lang.Object`).
-     */
-    fun readRefsFrom(parquetDir: Path, fromTypes: Collection<String>): Map<String, List<Ref>> {
-        if (fromTypes.isEmpty()) return emptyMap()
-        val filter = FilterPredicate.`in`(ParquetSchema.Refs.FROM_TYPE, *fromTypes.toTypedArray())
-        return SnapshotSources.of(parquetDir)
-            .flatMap { readRefs(it, ParquetSchema.REFS_FILE, filter).entries }
-            .groupBy({ it.key }, { it.value }).mapValues { (_, lists) -> lists.flatten() }
-    }
-
     private fun readTypes(source: ArtifactSource, file: String, filter: FilterPredicate? = null): List<TypeRow> =
         readRows(source, file, filter) { r ->
             TypeRow(
@@ -273,10 +259,6 @@ class ParquetReader {
         return member.copy(parameters = readParameters(parquetDir, memberKey))
     }
 
-    /** Every member key in the snapshot (for building a handle→key index). */
-    fun readMemberKeys(parquetDir: Path): List<String> =
-        readAcross(parquetDir, ParquetSchema.MEMBERS_FILE) { it.string(ParquetSchema.Members.MEMBER_KEY) }
-
     /** Every member in the snapshot (no parameters attached); for enumeration/diagnostics. */
     fun readAllMembers(parquetDir: Path): List<MemberFacts> =
         readAcross(parquetDir, ParquetSchema.MEMBERS_FILE) { memberFacts(it) }
@@ -298,7 +280,6 @@ class ParquetReader {
         readRows(source, file, filter) { r ->
             r.string(ParquetSchema.Refs.FROM_TYPE).let { fromType ->
                 fromType to Ref(
-                    fromKey = fromType, // type-level refs are type→type: source key == owning type
                     toKey = r.string(ParquetSchema.Refs.TO_TYPE),
                     kind = RefKind.valueOf(r.string(ParquetSchema.Refs.KIND)),
                     count = r.intOrNull(ParquetSchema.Refs.COUNT),

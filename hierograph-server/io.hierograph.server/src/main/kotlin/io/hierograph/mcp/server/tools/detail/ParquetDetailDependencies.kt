@@ -126,8 +126,8 @@ class ParquetDetailDependencies(
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val raw = DetailQueryEngine(parquetDir)
-            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, relationship = effectiveRel, limit = Int.MAX_VALUE))
-            .edges + graphService.derivedDetailRefs(fromTypes, toTypes, effectiveRel)
+            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, relationship = effectiveRel)) +
+            graphService.derivedDetailRefs(fromTypes, toTypes, effectiveRel)
         // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
         // ones rather than trailing them.
         val edges = raw.filter {

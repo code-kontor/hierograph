@@ -30,7 +30,7 @@ import java.nio.file.Path
 data class NodeDisplay(val name: String, val kind: String, val qualifiedName: String)
 
 /**
- * Turns the key-only edges of a [DetailQueryResult] page into a `key → NodeDisplay` map (the response's
+ * Turns the key-only edges of a [DetailQueryEngine] result into a `key → NodeDisplay` map (the response's
  * `nodes` block). Member display (`name`, `kind`) is read from `members.parquet` scoped to just the keys
  * the page references; type display comes from the in-memory type graph, with a simple-name / external
  * fallback for unresolved type references. See the "Member Display Enrichment" design note.
@@ -50,14 +50,14 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
             typeFqns += e.toType
         }
 
-        val memberDisplay = MemberDisplayReader.readByKeys(membersDir, memberKeys)
+        val memberKinds = MemberKindReader.readByKeys(membersDir, memberKeys)
 
         val nodes = LinkedHashMap<String, NodeDisplay>()
         for (key in memberKeys) {
-            val md = memberDisplay[key]
-            nodes[key] = if (md != null) {
+            val kind = memberKinds[key]
+            nodes[key] = if (kind != null) {
                 // Named and kinded as in the containment tree: by signature, a constructor as a method.
-                NodeDisplay(key.substringAfterLast('#'), memberKindDisplay(md.kind), key)
+                NodeDisplay(key.substringAfterLast('#'), memberKindDisplay(kind), key)
             } else {
                 // A referenced member we never scanned (e.g. a member of an external type): best-effort.
                 NodeDisplay(key.substringAfterLast('#'), "unknown", key)
@@ -89,16 +89,14 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
 }
 
 /**
- * Reads `(name, kind)` for a bounded set of member keys from `members.parquet` across every artifact of
- * the snapshot at [membersDir][readByKeys], via push-down.
+ * Reads the kind of a bounded set of member keys from `members.parquet` across every artifact of the
+ * snapshot at [membersDir][readByKeys], via push-down.
  */
-internal object MemberDisplayReader {
+internal object MemberKindReader {
 
-    data class MemberDisplay(val name: String, val kind: String)
-
-    fun readByKeys(membersDir: Path, keys: Collection<String>): Map<String, MemberDisplay> {
+    fun readByKeys(membersDir: Path, keys: Collection<String>): Map<String, String> {
         if (keys.isEmpty()) return emptyMap()
-        val out = HashMap<String, MemberDisplay>(keys.size * 2)
+        val out = HashMap<String, String>(keys.size * 2)
         for (source in SnapshotSources.of(membersDir)) {
             val input = source.table(ParquetSchema.MEMBERS_FILE) ?: continue
             ParquetFileReader.open(input).use { reader ->
@@ -107,11 +105,10 @@ internal object MemberDisplayReader {
                     .build().use { rowReader ->
                         val schema = reader.fileSchema
                         val iKey = schema.getColumn(ParquetSchema.Members.MEMBER_KEY).columnIndex()
-                        val iName = schema.getColumn(ParquetSchema.Members.NAME).columnIndex()
                         val iKind = schema.getColumn(ParquetSchema.Members.KIND).columnIndex()
                         while (rowReader.hasNext()) {
                             rowReader.next()
-                            out[rowReader.getString(iKey)] = MemberDisplay(rowReader.getString(iName), rowReader.getString(iKind))
+                            out[rowReader.getString(iKey)] = rowReader.getString(iKind)
                         }
                     }
             }

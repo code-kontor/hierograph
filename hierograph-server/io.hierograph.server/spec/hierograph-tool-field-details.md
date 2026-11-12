@@ -133,7 +133,7 @@ for a `Money[]` field. `type` is the id of the element type when that type is a 
 
 `type_name` is never `null`: the signature always names the type. Types without a node
 are explained by the
-[placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders).
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders).
 
 **Annotations.** The annotations on the field, each once, as
 `{"type": <id>, "type_name": <qualified name>}`. An annotation whose type has no node

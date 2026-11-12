@@ -18,7 +18,6 @@ package io.hierograph.graphstore.jvm.detail
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.DetailRef
@@ -45,9 +44,9 @@ class DetailQueryEngineTest {
     fun setUp() {
         // Type graph: Sub extends Base; Other unrelated.
         store = GraphStore()
-        store.registerArtifact(ArtifactInfo("app", "app", "app", Origin.MODULE_MAIN))
+        store.registerArtifact(ArtifactInfo("app", "app", "app"))
         store.applyClass("app", type("com.foo.Base"))
-        store.applyClass("app", type("com.foo.Sub", listOf(Ref("com.foo.Sub", "com.foo.Base", RefKind.EXTENDS, count = 1))))
+        store.applyClass("app", type("com.foo.Sub", listOf(Ref("com.foo.Base", RefKind.EXTENDS, count = 1))))
         store.applyClass("app", type("com.foo.Other"))
 
         // Member edges.
@@ -74,39 +73,33 @@ class DetailQueryEngineTest {
     @Test
     fun `querying Sub includes inherited Base members and excludes unrelated sources`() {
         val from = DetailScope.expand(store, "com.foo.Sub") // {Sub, Base}
-        val result = engine.query(DetailQuery(fromTypes = from))
+        val edges = engine.query(DetailQuery(fromTypes = from))
 
-        assertThat(result.total).isEqualTo(2)
-        assertThat(result.edges.map { it.fromKey })
-            .containsExactlyInAnyOrder("com.foo.Base#m()V", "com.foo.Sub#n()V") // Base#m is inherited into Sub's scope
-        assertThat(result.edges.map { it.fromKey }).doesNotContain("com.foo.Other#x()V")
-        assertThat(result.byRelationship).containsExactlyInAnyOrderEntriesOf(mapOf("calls" to 1, "reads_field" to 1))
-        assertThat(result.bySourceType).containsExactlyInAnyOrder("com.foo.Base" to 1, "com.foo.Sub" to 1)
+        assertThat(edges.map { it.fromKey })
+            .containsExactly("com.foo.Base#m()V", "com.foo.Sub#n()V") // Base#m is inherited into Sub's scope; sorted by from_type
+        assertThat(edges.map { it.relationship }).containsExactly("calls", "reads_field")
     }
 
     @Test
     fun `relationship filter narrows to one kind`() {
         val from = DetailScope.expand(store, "com.foo.Sub")
-        val result = engine.query(DetailQuery(fromTypes = from, relationship = "calls"))
+        val edges = engine.query(DetailQuery(fromTypes = from, relationship = "calls"))
 
-        assertThat(result.total).isEqualTo(1)
-        assertThat(result.edges.single().fromKey).isEqualTo("com.foo.Base#m()V")
+        assertThat(edges.single().fromKey).isEqualTo("com.foo.Base#m()V")
     }
 
     @Test
     fun `toTypes constrains the target side`() {
         val from = DetailScope.expand(store, "com.foo.Sub")
-        assertThat(engine.query(DetailQuery(fromTypes = from, toTypes = setOf("com.foo.Other"))).total).isEqualTo(2)
-        assertThat(engine.query(DetailQuery(fromTypes = from, toTypes = setOf("com.foo.Base"))).total).isEqualTo(0)
+        assertThat(engine.query(DetailQuery(fromTypes = from, toTypes = setOf("com.foo.Other")))).hasSize(2)
+        assertThat(engine.query(DetailQuery(fromTypes = from, toTypes = setOf("com.foo.Base")))).isEmpty()
     }
 
     @Test
     fun `read_by returns the readers of fields in the scope, endpoints swapped`() {
         // "what reads fields declared in Other" — scope anchors on the field side (to_type = Other).
-        val result = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Other"), relationship = "read_by"))
+        val edge = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Other"), relationship = "read_by")).single()
 
-        assertThat(result.total).isEqualTo(1)
-        val edge = result.edges.single()
         assertThat(edge.relationship).isEqualTo("read_by")
         assertThat(edge.fromKey).isEqualTo("com.foo.Other#f")   // the field is the source
         assertThat(edge.toKey).isEqualTo("com.foo.Sub#n()V")    // the reading method is the target
@@ -115,27 +108,10 @@ class DetailQueryEngineTest {
 
     @Test
     fun `written_by returns the writers of fields in the scope, endpoints swapped`() {
-        val result = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Base"), relationship = "written_by"))
+        val edge = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Base"), relationship = "written_by")).single()
 
-        assertThat(result.total).isEqualTo(1)
-        val edge = result.edges.single()
         assertThat(edge.relationship).isEqualTo("written_by")
         assertThat(edge.fromKey).isEqualTo("com.foo.Base#f")      // the field is the source
         assertThat(edge.toKey).isEqualTo("com.foo.Other#x()V")    // the writing method is the target
-    }
-
-    @Test
-    fun `paging returns one page at a time with a next offset`() {
-        val from = DetailScope.expand(store, "com.foo.Sub")
-        val first = engine.query(DetailQuery(fromTypes = from, limit = 1, offset = 0))
-        assertThat(first.edges).hasSize(1)
-        assertThat(first.total).isEqualTo(2)
-        assertThat(first.nextOffset).isEqualTo(1)
-
-        val second = engine.query(DetailQuery(fromTypes = from, limit = 1, offset = 1))
-        assertThat(second.edges).hasSize(1)
-        assertThat(second.nextOffset).isNull()
-        assertThat((first.edges + second.edges).map { it.fromKey })
-            .containsExactlyInAnyOrder("com.foo.Base#m()V", "com.foo.Sub#n()V")
     }
 }

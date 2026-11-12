@@ -50,11 +50,11 @@ class LoadTimeResolutionIT {
         val members = reader.readAllMembers(dir)
         // Only bridges whose real target the scanner actually captured are redirectable; a handful of
         // bridges forward in a way the scanner can't resolve (null bridgeTarget) and legitimately remain.
-        bridgeKeys = members.filter { MemberModifiers.isBridge(it.modifiers) && it.bridgeTarget != null }.map { it.key }.toHashSet()
+        bridgeKeys = members.filter { (it.modifiers and MemberModifiers.BRIDGE != 0) && it.bridgeTarget != null }.map { it.key }.toHashSet()
         val methodsByOwner = members
             .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
             .groupBy { it.key.substringBefore('#') }
-        val superByFqn = store.typeDependencies().filter { it.extends || it.implements }.groupBy({ it.from }, { it.to })
+        val superByFqn = store.typeDependencies().filter { it.extends || it.implements }.groupBy({ it.fromFqn }, { it.toFqn })
         val types = store.nodes().asSequence().filter { JavaKinds.isTypeKind(it.kind) }.map { n ->
             HierarchyResolution.Type(
                 n.fqn,

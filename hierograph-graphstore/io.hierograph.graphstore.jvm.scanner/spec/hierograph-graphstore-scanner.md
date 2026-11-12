@@ -475,14 +475,13 @@ BytecodeScanner().scan(listOf(ScanArtifact(key, classesDir)))
 ### 11.3 Scan straight into a GraphStore
 
 To build the in-memory model without writing to disk, apply the classes directly.
-Register each artifact first, then apply its classes, then resolve placeholders:
+Register each artifact first, then apply its classes:
 
 ```kotlin
 val result = BytecodeScanner().scan(artifacts)
-val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
-for (a in artifacts) store.registerArtifact(ArtifactInfo(a.key, a.key, a.key, Origin.MODULE_MAIN))
+val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
+for (a in artifacts) store.registerArtifact(ArtifactInfo(a.key, a.key, a.key))
 for (c in result.classes) store.applyClass(c.artifactKey, c.facts)
-store.resolvePlaceholders()
 ```
 
 `result.detailRefs` are not part of the GraphStore. Write them to a snapshot so

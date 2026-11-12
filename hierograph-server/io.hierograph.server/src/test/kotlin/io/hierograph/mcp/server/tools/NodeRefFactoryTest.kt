@@ -21,7 +21,6 @@ import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.server.graphservice.HierarchicalGraphService
@@ -36,7 +35,7 @@ import org.junit.jupiter.api.Test
 class NodeRefFactoryTest {
 
     private val store = GraphStore().apply {
-        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core", Origin.MODULE_MAIN))
+        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core"))
         applyClass(
             "billing-core",
             ClassFacts(

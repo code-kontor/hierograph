@@ -22,7 +22,6 @@ import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -53,7 +52,7 @@ class ModifierFilterTest {
     @BeforeEach
     fun setUp() {
         store = GraphStore()
-        store.registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core", Origin.MODULE_MAIN))
+        store.registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core"))
         store.applyClass(
             "billing-core",
             ClassFacts(

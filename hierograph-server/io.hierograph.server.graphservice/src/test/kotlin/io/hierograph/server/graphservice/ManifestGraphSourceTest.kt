@@ -16,9 +16,8 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.parquet.ParquetReader
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import org.assertj.core.api.Assertions.assertThat
@@ -75,15 +74,15 @@ class ManifestGraphSourceTest {
         }
 
         // …and it loads back into a GraphStore with this class present as a scanned type.
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         ParquetReader().load(snapshotDir, store)
         val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSource")
     }
 
-    /** With includeTests, a module's test output is scanned as a separate `<gav>:test` MODULE_TEST artifact. */
+    /** With includeTests, a module's test output is scanned as a separate `<gav>:test` artifact. */
     @Test
-    fun `includeTests scans test output as a separate MODULE_TEST artifact`(@TempDir tmp: Path) {
+    fun `includeTests scans test output as a separate artifact`(@TempDir tmp: Path) {
         val classesDir = Path.of("target/classes").toAbsolutePath()
         val testClassesDir = Path.of("target/test-classes").toAbsolutePath()
         assertThat(Files.isDirectory(classesDir)).`as`("main classes compiled").isTrue()
@@ -116,16 +115,14 @@ class ManifestGraphSourceTest {
         // Default (tests off): only the main artifact is scanned.
         assertThat(ManifestGraphSource().scan(manifest).modules.keys).containsExactly(gav)
 
-        // Tests on: a second `:test` artifact appears, tagged MODULE_TEST, with the main one MODULE_MAIN.
+        // Tests on: a second `:test` artifact appears next to the main one.
         val scanned = ManifestGraphSource().scan(manifest, includeTests = true)
         assertThat(scanned.modules.keys).contains(gav, "$gav:test")
-        assertThat(scanned.modules.getValue(gav).origin).isEqualTo(Origin.MODULE_MAIN)
         val test = scanned.modules.getValue("$gav:test")
-        assertThat(test.origin).isEqualTo(Origin.MODULE_TEST)
         assertThat(test.result.classes).`as`("test output scanned").isNotEmpty()
 
         // The ingested graph carries a test type (this very class) that the tests-off scan does not.
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         ManifestGraphSource().ingest(scanned, store)
         val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSourceTest")
@@ -175,12 +172,11 @@ class ManifestGraphSourceTest {
         // Default (tests off): the test-only module has no main output and is skipped entirely.
         assertThat(ManifestGraphSource().scan(manifest).modules.keys).containsExactly(mainGav)
 
-        // Tests on: the test-only module appears only as `<gav>:test` (MODULE_TEST), never as a main `<gav>`.
+        // Tests on: the test-only module appears only as `<gav>:test`, never as a main `<gav>`.
         val scanned = ManifestGraphSource().scan(manifest, includeTests = true)
         assertThat(scanned.modules.keys).contains("$itestGav:test")
         assertThat(scanned.modules.keys).doesNotContain(itestGav)
         val itest = scanned.modules.getValue("$itestGav:test")
-        assertThat(itest.origin).isEqualTo(Origin.MODULE_TEST)
         assertThat(itest.result.classes).`as`("test-only output scanned").isNotEmpty()
     }
 

@@ -19,7 +19,6 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
 import io.hierograph.graphstore.jvm.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.Origin
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.mcp.server.tools.NodeRefFactory
@@ -33,14 +32,14 @@ import org.junit.jupiter.api.Test
 class GraphOverviewToolTest {
 
     private val store = GraphStore().apply {
-        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core", Origin.MODULE_MAIN))
+        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core"))
         applyClass(
             "billing-core",
             ClassFacts(
                 "com.example.billing.Invoice", JavaKinds.CLASS, 0, emptyList(),
                 refs = listOf(
-                    Ref("com.example.billing.Invoice", "org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1),
-                    Ref("com.example.billing.Invoice", "com.example.money.Money", RefKind.DEPENDS_ON, count = 2),
+                    Ref("org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.example.money.Money", RefKind.DEPENDS_ON, count = 2),
                 ),
                 classHash = "h",
             ),
@@ -57,7 +56,7 @@ class GraphOverviewToolTest {
         assertThat(byKind["java.module"]).isEqualTo(2) // billing-core and External Types
         assertThat(byKind["external.type"]).isEqualTo(1)
         assertThat(byKind["java.record"]).isEqualTo(1)
-        assertThat(stats["total_nodes"]).isEqualTo(store.nodeCount())
+        assertThat(stats["total_nodes"]).isEqualTo(store.nodes().size)
         assertThat(byKind.values.sum()).isEqualTo(stats["total_nodes"])
     }
 

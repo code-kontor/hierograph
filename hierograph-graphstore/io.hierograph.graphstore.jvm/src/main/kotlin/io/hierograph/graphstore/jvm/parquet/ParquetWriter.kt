@@ -51,10 +51,6 @@ object ParquetWriter {
     /** One scanned class together with the key of the artifact that owns it. */
     data class ArtifactClass(val artifactKey: String, val facts: ClassFacts)
 
-    /** Writes the four type-level tables (`types`, `members`, `parameters`, `refs`) in parallel. */
-    fun writeClassFacts(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec = CompressionCodec.ZSTD) =
-        runInParallel(classFactsTasks(dir, classes, codec))
-
     /** Writes a complete snapshot — the four type-level tables plus `detail_refs` — all five in parallel. */
     fun writeSnapshot(dir: Path, classes: List<ArtifactClass>, detailRefs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.ZSTD) =
         runInParallel(classFactsTasks(dir, classes, codec) + ({ writeDetailRefs(dir, detailRefs, codec) }))
