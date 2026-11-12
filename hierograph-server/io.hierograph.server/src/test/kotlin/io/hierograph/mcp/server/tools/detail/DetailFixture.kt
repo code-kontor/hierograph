@@ -88,7 +88,7 @@ class DetailFixture {
                 method(DOC, "void render()"), method(DOC, "$MONEY total()"),
                 MemberFacts("$DOC#int pages", JavaKinds.FIELD, "int pages", "pages", modifiers = MemberModifiers.pack("protected")),
             ),
-            refs = listOf(Ref(MONEY, RefKind.DEPENDS_ON, count = 1)), classHash = "d",
+            refs = listOf(Ref(MONEY, RefKind.INVOKES, count = 1)), classHash = "d",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
             RENDERABLE, JavaKinds.INTERFACE, TypeModifiers.pack("public", abstract = true),
@@ -105,7 +105,7 @@ class DetailFixture {
             refs = listOf(
                 Ref(DOC, RefKind.EXTENDS, count = 1),
                 Ref(RENDERABLE, RefKind.IMPLEMENTS, count = 1),
-                Ref(MONEY, RefKind.DEPENDS_ON, count = 3),
+                Ref(MONEY, RefKind.INVOKES, count = 3),
             ),
             classHash = "i",
         )),

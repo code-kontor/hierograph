@@ -67,11 +67,12 @@ object ParquetSchema {
         const val ANNOTATIONS = "annotations"   // the parameter's annotation types, space-separated; null for none
     }
 
+    /**
+     * Aggregated type-level references, type→type: one row per (from type, to type, kind) with a count.
+     * The rows are the rollup of the type's [DetailRefs] rows (see `DependencyRollup`), so every unit of a
+     * count is one detail row.
+     */
     object Refs {
-        // Type-level refs are type→type: both endpoints are types, so the columns are `from_type` /
-        // `to_type`. The member-grained `from_key` / `to_key` of the full §4 schema are omitted (they
-        // would equal the type FQNs); member-grained refs live in [DetailRefs] until the two merge
-        // (see the "type-level vs detail refs" decision).
         const val FROM_TYPE = "from_type"
         const val TO_TYPE = "to_type"
         const val KIND = "kind"                 // RefKind name
@@ -79,9 +80,8 @@ object ParquetSchema {
     }
 
     /**
-     * Member-level ("detail") references. Prototype table (written to its own `detail_refs.parquet`) so
-     * the validated type-level snapshot stays untouched; in the production model these rows merge into
-     * [Refs] (with `to_type` / `line` added, distinguished by kind). Sorted by `from_type` so scoped
+     * Detail references: one row per fact in a class file, from the type itself or one of its members to a
+     * member or a type, with a `DependencyKind` wire name as `relationship`. Sorted by `from_type` so scoped
      * reads skip row groups.
      */
     object DetailRefs {
@@ -89,7 +89,7 @@ object ParquetSchema {
         const val FROM_TYPE = "from_type"
         const val TO_KEY = "to_key"
         const val TO_TYPE = "to_type"
-        const val RELATIONSHIP = "relationship" // Hierograph detail vocabulary: calls | reads_field | …
+        const val RELATIONSHIP = "relationship" // DependencyKind.value: extends | calls | casts | …
         const val LINE = "line"
     }
 

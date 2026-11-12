@@ -16,12 +16,12 @@
 package io.hierograph.graphstore.jvm.scanner
 
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.model.DependencyRollup
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.model.ParameterFacts
-import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.graphstore.jvm.model.TypeModifiers
 import io.hierograph.graphstore.jvm.model.JavaNodeKind
 import org.objectweb.asm.AnnotationVisitor
@@ -46,12 +46,16 @@ internal class ScannedClass(
 /**
  * Scans one class file — its declarations, signatures and method bodies — into a [ScannedClass].
  *
- * Type-level [Ref]s are aggregated per (target, kind) with a **count** of individual references, so the
- * dependency weight is "number of references". Member-level [DetailRef]s use the snapshot's detail
- * vocabulary (`calls`, `reads_field`, `writes_field`, `throws`, `raises`, `returns`, `has_type`,
- * `parameter_type`, `annotated_by`) — the **direct** edges only; `overrides` and virtual/resolved calls need the type
- * hierarchy and are derived at load (see `HierarchyResolution` in the graph service). Annotation *values*
- * (enum constants, class values, nested annotations) count as [RefKind.ANNOTATION_VALUE].
+ * Every dependency the class file contains becomes one detail fact ([DetailRef], one [DependencyKind]),
+ * through a single emission point ([Visitor.emit]): type-level facts (`extends`, `implements`, the type's
+ * annotations, its type arguments and annotation values) with the type itself as source, and
+ * member-level facts with the field or method as source. Each fact is one occurrence. Only the
+ * **direct** facts are emitted; `overrides` and virtual/resolved calls need the type hierarchy and are
+ * derived at load (see `HierarchyResolution` in the graph service).
+ *
+ * The class's aggregated references ([ClassFacts.refs]) are not counted separately: at the end of the
+ * class they are rolled up from its detail facts by [DependencyRollup], so the aggregate is exactly what
+ * the facts say.
  */
 internal object ClassScanner {
 
@@ -74,7 +78,6 @@ internal object ClassScanner {
         private val members = ArrayList<MemberFacts>()
         private val detailRefs = ArrayList<DetailRef>()
         private var generic = false
-        private val refCounts = LinkedHashMap<Pair<String, RefKind>, Int>()
 
         fun result(): ScannedClass {
             val effective = innerAccess ?: access
@@ -89,45 +92,58 @@ internal object ClassScanner {
                     generic = generic,
                 ),
                 members = members,
-                refs = refCounts.map { (k, count) -> Ref(toKey = k.first, kind = k.second, count = count) },
+                refs = DependencyRollup.refsOf(fqn, detailRefs),
                 classHash = classHash,
                 sourceFile = sourceFile,
             )
             return ScannedClass(facts, detailRefs)
         }
 
-        // ── type-level refs ──────────────────────────────────────────
+        // ── detail facts ─────────────────────────────────────────────
 
-        /** Counts one reference to [type]'s element type; primitives, `void` and self-references are skipped. */
-        fun ref(type: Type, kind: RefKind) {
-            val element = JavaNames.element(type)
-            if (JavaNames.isPrimitive(element)) return
-            val target = shared(JavaNames.display(element))
-            if (target == fqn) return
-            refCounts.merge(target to kind, 1, Int::plus)
+        /**
+         * The single emission point: records one detail fact from [fromKey] (a member key, or [fqn] for a
+         * type-level fact) to [toKey] (a member key, or a type) owned by [toType]. Every dependency the
+         * scanner finds goes through here, so the rolled-up [ClassFacts.refs] always match the facts.
+         * [into] is the list the fact goes to: a method buffers its body facts until its signature facts
+         * are recorded.
+         */
+        fun emit(fromKey: String, toKey: String, toType: String, kind: DependencyKind, line: Int?, into: MutableList<DetailRef> = detailRefs) {
+            into += DetailRef(fromKey, fqn, toKey, toType, kind.value, line)
         }
 
-        fun refInternal(internalNameOrDescriptor: String, kind: RefKind) = ref(JavaNames.operandType(internalNameOrDescriptor), kind)
+        /** Emits a fact whose target is [type]'s element type (primitives and `void` included). */
+        fun emitType(fromKey: String, type: Type, kind: DependencyKind, line: Int?, into: MutableList<DetailRef> = detailRefs) {
+            val target = typeTarget(type)
+            emit(fromKey, target, target, kind, line, into)
+        }
 
-        /** Type arguments and type-parameter bounds of a generic signature (the erased types are counted elsewhere). */
-        fun genericRefs(signature: String?, isFieldSignature: Boolean = false) {
+        /** [emitType] for an internal name or an array descriptor, as instructions name their operand types. */
+        fun emitInternal(fromKey: String, internalNameOrDescriptor: String, kind: DependencyKind, line: Int?, into: MutableList<DetailRef> = detailRefs) =
+            emitType(fromKey, JavaNames.operandType(internalNameOrDescriptor), kind, line, into)
+
+        /**
+         * Emits a [DependencyKind.TYPE_ARGUMENT] fact from [fromKey] for every type argument and type-parameter
+         * bound of a generic signature (the erased types are facts of their own position elsewhere).
+         */
+        fun emitTypeArguments(fromKey: String, signature: String?, isFieldSignature: Boolean = false) {
             if (signature == null) return
             val reader = SignatureReader(signature)
             // A field's signature is a type signature; class and method signatures are read with accept().
-            if (isFieldSignature) reader.acceptType(TypeArgumentCollector(inArgument = false))
-            else reader.accept(TypeArgumentCollector(inArgument = false))
+            if (isFieldSignature) reader.acceptType(TypeArgumentCollector(fromKey, inArgument = false))
+            else reader.accept(TypeArgumentCollector(fromKey, inArgument = false))
         }
 
         /**
-         * Counts the class types that appear *inside* type arguments or bounds. ASM hands out a child visitor
+         * Collects the class types that appear *inside* type arguments or bounds. ASM hands out a child visitor
          * per type argument/bound; every other position (superclass, parameter, return, array, …) keeps the
-         * current visitor, so erased top-level types are not counted twice.
+         * current visitor, so erased top-level types are not emitted twice.
          */
-        private inner class TypeArgumentCollector(private val inArgument: Boolean) : SignatureVisitor(Opcodes.ASM9) {
-            override fun visitClassType(name: String) { if (inArgument) refInternal(name, RefKind.TYPE_ARGUMENT) }
-            override fun visitTypeArgument(wildcard: Char): SignatureVisitor = TypeArgumentCollector(inArgument = true)
-            override fun visitClassBound(): SignatureVisitor = TypeArgumentCollector(inArgument = true)
-            override fun visitInterfaceBound(): SignatureVisitor = TypeArgumentCollector(inArgument = true)
+        private inner class TypeArgumentCollector(private val fromKey: String, private val inArgument: Boolean) : SignatureVisitor(Opcodes.ASM9) {
+            override fun visitClassType(name: String) { if (inArgument) emitInternal(fromKey, name, DependencyKind.TYPE_ARGUMENT, null) }
+            override fun visitTypeArgument(wildcard: Char): SignatureVisitor = TypeArgumentCollector(fromKey, inArgument = true)
+            override fun visitClassBound(): SignatureVisitor = TypeArgumentCollector(fromKey, inArgument = true)
+            override fun visitInterfaceBound(): SignatureVisitor = TypeArgumentCollector(fromKey, inArgument = true)
         }
 
         // ── class ────────────────────────────────────────────────────
@@ -139,9 +155,9 @@ internal object ClassScanner {
             this.superFqn = superName?.let { JavaNames.fqn(it) }
             // A class signature opens with its formal type parameters, `<T:…>`, exactly when it declares any.
             this.generic = signature?.startsWith('<') == true
-            superName?.let { refInternal(it, RefKind.EXTENDS) }
-            interfaces.orEmpty().forEach { refInternal(it, RefKind.IMPLEMENTS) }
-            genericRefs(signature)
+            superName?.let { emitInternal(fqn, it, DependencyKind.EXTENDS, null) }
+            interfaces.orEmpty().forEach { emitInternal(fqn, it, DependencyKind.IMPLEMENTS, null) }
+            emitTypeArguments(fqn, signature)
         }
 
         override fun visitSource(source: String?, debug: String?) { sourceFile = source }
@@ -152,24 +168,23 @@ internal object ClassScanner {
         }
 
         override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor {
-            val annotation = Type.getType(descriptor)
-            ref(annotation, RefKind.ANNOTATED_BY)
-            // Class-level annotation: also emit a member-level detail edge from the type to the annotation
-            // (mirroring member annotations below), so `detail_dependencies(annotated_by)` surfaces
-            // class-level annotations. The annotated element IS the type, so from_key == the type fqn.
-            val target = typeTarget(annotation)
-            detailRefs += DetailRef(fqn, fqn, target, target, "annotated_by", null)
-            return AnnotationValues()
+            // The type's own annotation: the annotated element is the type, so the source is the type's FQN.
+            emitType(fqn, Type.getType(descriptor), DependencyKind.ANNOTATED_BY, null)
+            return AnnotationValues(fqn)
         }
 
-        /** Walks an annotation's values: enum constants, class values and nested annotations are type references. */
-        inner class AnnotationValues : AnnotationVisitor(Opcodes.ASM9) {
+        /**
+         * Walks an annotation's values on the element [fromKey]: enum constants, class values and nested
+         * annotations are [DependencyKind.ANNOTATION_VALUE] facts of that element.
+         */
+        inner class AnnotationValues(private val fromKey: String) : AnnotationVisitor(Opcodes.ASM9) {
             override fun visit(name: String?, value: Any?) {
-                if (value is Type && (value.sort == Type.OBJECT || value.sort == Type.ARRAY)) ref(value, RefKind.ANNOTATION_VALUE)
+                if (value is Type && (value.sort == Type.OBJECT || value.sort == Type.ARRAY)) emitType(fromKey, value, DependencyKind.ANNOTATION_VALUE, null)
             }
-            override fun visitEnum(name: String?, descriptor: String, value: String) = ref(Type.getType(descriptor), RefKind.ANNOTATION_VALUE)
+            override fun visitEnum(name: String?, descriptor: String, value: String) =
+                emitType(fromKey, Type.getType(descriptor), DependencyKind.ANNOTATION_VALUE, null)
             override fun visitAnnotation(name: String?, descriptor: String): AnnotationVisitor {
-                ref(Type.getType(descriptor), RefKind.ANNOTATION_VALUE)
+                emitType(fromKey, Type.getType(descriptor), DependencyKind.ANNOTATION_VALUE, null)
                 return this
             }
             override fun visitArray(name: String?): AnnotationVisitor = this
@@ -195,35 +210,26 @@ internal object ClassScanner {
                     constant = value != null, // a ConstantValue attribute: inlined at every use
                 ),
             )
-            val type = Type.getType(descriptor)
-            ref(type, RefKind.FIELD_TYPE)
-            genericRefs(signature, isFieldSignature = true)
-            detail(key, typeTarget(type), "has_type", null)
+            emitType(key, Type.getType(descriptor), DependencyKind.HAS_TYPE, null)
+            emitTypeArguments(key, signature, isFieldSignature = true)
             return object : FieldVisitor(Opcodes.ASM9) {
                 override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor {
-                    val annotation = Type.getType(descriptor)
-                    ref(annotation, RefKind.MEMBER_ANNOTATED_BY)
-                    detail(key, typeTarget(annotation), "annotated_by", null)
-                    return AnnotationValues()
+                    emitType(key, Type.getType(descriptor), DependencyKind.ANNOTATED_BY, null)
+                    return AnnotationValues(key)
                 }
             }
         }
 
         // ── methods ──────────────────────────────────────────────────
 
-        override fun visitMethod(access: Int, name: String, descriptor: String, signature: String?, exceptions: Array<String>?): MethodVisitor {
-            val methodType = Type.getMethodType(descriptor)
-            ref(methodType.returnType, RefKind.RETURN_TYPE)
-            methodType.argumentTypes.forEach { ref(it, RefKind.PARAM_TYPE) }
-            exceptions.orEmpty().forEach { refInternal(it, RefKind.THROWS) }
-            genericRefs(signature)
-            return MethodScanner(access, name, descriptor, exceptions?.toList().orEmpty())
-        }
+        override fun visitMethod(access: Int, name: String, descriptor: String, signature: String?, exceptions: Array<String>?): MethodVisitor =
+            MethodScanner(access, name, descriptor, signature, exceptions?.toList().orEmpty())
 
         private inner class MethodScanner(
             private val access: Int,
             private val name: String,
             private val descriptor: String,
+            private val genericSignature: String?,
             private val exceptions: List<String>,
         ) : MethodVisitor(Opcodes.ASM9) {
             private val signature = shared(JavaNames.methodSignature(name, descriptor))
@@ -244,11 +250,27 @@ internal object ClassScanner {
             // it, so an exception that is stored, returned, or rethrown is not mistaken for a `throw new`.
             private var constructed: String? = null
             private val raised = LinkedHashSet<String>()
+            // Catch clauses by handler label, until the handler's code is reached and its line is known.
+            private val catchesByHandler = HashMap<Label, MutableList<String>>()
+            private val catches = ArrayList<Catch>()
+            private var handlerLabel: Label? = null
+            private var atHandler: List<Catch> = emptyList()
 
             override fun visitLineNumber(line: Int, start: Label) {
                 this.line = line
                 minLine = minOf(minLine ?: line, line)
                 maxLine = maxOf(maxLine ?: line, line)
+                // A line entry that starts exactly at the handler gives its catch clauses that line.
+                if (start === handlerLabel) atHandler.forEach { it.line = line }
+            }
+
+            override fun visitLabel(label: Label) {
+                // A catch clause's line is the line its handler's code belongs to: the line entry in effect at
+                // the handler, as in a stack trace, unless an entry starts exactly there (see visitLineNumber).
+                // javac starts no new entry when the handler is on the same line as the code before it.
+                atHandler = catchesByHandler.remove(label)?.map { Catch(it, line) }.orEmpty()
+                catches += atHandler
+                handlerLabel = label.takeIf { atHandler.isNotEmpty() }
             }
 
             override fun visitParameter(name: String?, access: Int) { declaredNames += name }
@@ -258,20 +280,17 @@ internal object ClassScanner {
             }
 
             override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor {
-                val annotation = Type.getType(descriptor)
-                ref(annotation, RefKind.MEMBER_ANNOTATED_BY)
-                annotations += annotation
-                return AnnotationValues()
+                annotations += Type.getType(descriptor)
+                return AnnotationValues(key)
             }
 
             override fun visitParameterAnnotation(parameter: Int, descriptor: String, visible: Boolean): AnnotationVisitor {
-                ref(Type.getType(descriptor), RefKind.MEMBER_ANNOTATED_BY)
                 parameterAnnotations.getOrPut(parameter) { ArrayList() } += Type.getType(descriptor)
-                return AnnotationValues()
+                return AnnotationValues(key)
             }
 
             /** The default value of an annotation type's element. */
-            override fun visitAnnotationDefault(): AnnotationVisitor = AnnotationValues()
+            override fun visitAnnotationDefault(): AnnotationVisitor = AnnotationValues(key)
 
             override fun visitMethodInsn(opcode: Int, owner: String, name: String, descriptor: String, isInterface: Boolean) {
                 call(owner, name, descriptor)
@@ -302,27 +321,25 @@ internal object ClassScanner {
                 if (access and Opcodes.ACC_BRIDGE != 0 && bridgeTarget == null && owner == internalName && name == this.name) {
                     bridgeTarget = "$fqn#${JavaNames.methodSignature(name, descriptor)}"
                 }
-                refInternal(owner, RefKind.INVOKES)
                 val ownerFqn = shared(JavaNames.fqn(owner))
-                bodyRefs += DetailRef(key, fqn, shared("$ownerFqn#${JavaNames.methodSignature(name, descriptor)}"), ownerFqn, "calls", line)
+                emit(key, shared("$ownerFqn#${JavaNames.methodSignature(name, descriptor)}"), ownerFqn, DependencyKind.CALLS, line, bodyRefs)
             }
 
             override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
                 constructed = null
                 val write = opcode == Opcodes.PUTFIELD || opcode == Opcodes.PUTSTATIC
-                refInternal(owner, if (write) RefKind.WRITES else RefKind.READS)
                 val ownerFqn = shared(JavaNames.fqn(owner))
-                bodyRefs += DetailRef(
-                    key, fqn, shared("$ownerFqn#${JavaNames.fieldSignature(name, descriptor)}"), ownerFqn,
-                    if (write) "writes_field" else "reads_field", line,
+                emit(
+                    key, shared("$ownerFqn#${JavaNames.fieldSignature(name, descriptor)}"), ownerFqn,
+                    if (write) DependencyKind.WRITES_FIELD else DependencyKind.READS_FIELD, line, bodyRefs,
                 )
             }
 
             override fun visitTypeInsn(opcode: Int, type: String) {
                 constructed = null // NEW leaves an *uninitialized* ref; it becomes a candidate only after its <init>
                 when (opcode) {
-                    Opcodes.NEW, Opcodes.ANEWARRAY -> refInternal(type, RefKind.INSTANTIATES)
-                    Opcodes.CHECKCAST, Opcodes.INSTANCEOF -> refInternal(type, RefKind.CAST)
+                    Opcodes.NEW, Opcodes.ANEWARRAY -> emitInternal(key, type, DependencyKind.INSTANTIATES, line, bodyRefs)
+                    Opcodes.CHECKCAST, Opcodes.INSTANCEOF -> emitInternal(key, type, DependencyKind.CASTS, line, bodyRefs)
                 }
             }
 
@@ -336,16 +353,17 @@ internal object ClassScanner {
 
             override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) {
                 constructed = null
-                ref(Type.getType(descriptor), RefKind.INSTANTIATES)
+                emitType(key, Type.getType(descriptor), DependencyKind.INSTANTIATES, line, bodyRefs)
             }
 
             override fun visitLdcInsn(value: Any?) {
                 constructed = null
-                if (value is Type && (value.sort == Type.OBJECT || value.sort == Type.ARRAY)) ref(value, RefKind.CLASS_LITERAL)
+                if (value is Type && (value.sort == Type.OBJECT || value.sort == Type.ARRAY)) emitType(key, value, DependencyKind.CLASS_LITERAL, line, bodyRefs)
             }
 
             override fun visitTryCatchBlock(start: Label, end: Label, handler: Label, type: String?) {
-                type?.let { refInternal(it, RefKind.CATCHES) }
+                // Try-catch blocks are visited before the code; the handler's line is known only once its label is reached.
+                type?.let { catchesByHandler.getOrPut(handler) { ArrayList() } += it }
             }
 
             override fun visitEnd() {
@@ -374,14 +392,18 @@ internal object ClassScanner {
                     bridgeTarget = bridgeTarget,
                 )
 
+                catches.forEach { emitInternal(key, it.type, DependencyKind.CATCHES, it.line, bodyRefs) }
+                // A handler that was never reached in the code (should not happen) still records its catch clauses.
+                catchesByHandler.values.flatten().forEach { emitInternal(key, it, DependencyKind.CATCHES, null, bodyRefs) }
+
                 val methodType = Type.getMethodType(descriptor)
-                detail(key, typeTarget(methodType.returnType), "returns", minLine)
-                argumentTypes.map { typeTarget(it) }.distinct().forEach { detail(key, it, "parameter_type", minLine) }
-                exceptions.forEach { detail(key, shared(JavaNames.fqn(it)), "throws", minLine) }
-                raised.forEach { detail(key, it, "raises", minLine) }
-                annotations.forEach { detail(key, typeTarget(it), "annotated_by", null) }
-                parameterAnnotations.values.flatten().map { typeTarget(it) }.distinct()
-                    .forEach { detail(key, it, "parameter_annotated_by", null) }
+                emitType(key, methodType.returnType, DependencyKind.RETURNS, minLine)
+                argumentTypes.forEach { emitType(key, it, DependencyKind.PARAMETER_TYPE, minLine) }
+                exceptions.forEach { emitInternal(key, it, DependencyKind.THROWS, minLine) }
+                emitTypeArguments(key, genericSignature)
+                raised.forEach { emit(key, it, it, DependencyKind.RAISES, minLine) }
+                annotations.forEach { emitType(key, it, DependencyKind.ANNOTATED_BY, null) }
+                parameterAnnotations.values.flatten().forEach { emitType(key, it, DependencyKind.PARAMETER_ANNOTATED_BY, null) }
                 detailRefs += bodyRefs
             }
 
@@ -404,12 +426,11 @@ internal object ClassScanner {
             }
         }
 
-        /** A type reference target for detail refs: the element type, primitives (and `void`) included. */
-        private fun typeTarget(type: Type): String = shared(JavaNames.display(JavaNames.element(type)))
+        /** A catch clause of a method: the caught type and the line its handler's code belongs to. */
+        private class Catch(val type: String, var line: Int?)
 
-        private fun detail(fromKey: String, toType: String, relationship: String, line: Int?) {
-            detailRefs += DetailRef(fromKey, fqn, toType, toType, relationship, line)
-        }
+        /** A type reference target for detail facts: the element type, primitives (and `void`) included. */
+        private fun typeTarget(type: Type): String = shared(JavaNames.display(JavaNames.element(type)))
     }
 
     /**

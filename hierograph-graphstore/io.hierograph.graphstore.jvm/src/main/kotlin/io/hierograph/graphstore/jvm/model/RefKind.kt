@@ -16,11 +16,10 @@
 package io.hierograph.graphstore.jvm.model
 
 /**
- * The kind of a single reference (edge) between a source and a target key.
- *
- * Structural and signature kinds are produced in both scanner modes; body kinds only in FULL mode.
- * [DEPENDS_ON] is MVP-only: a coarse, pre-aggregated type-level dependency carried until the
- * fine-grained kinds fully replace it.
+ * The kind of an aggregated reference ([Ref]), the vocabulary of the stored type-level aggregate
+ * (`refs.parquet`). Each kind is the rollup of one [DependencyKind] (see [DependencyRollup]), except
+ * [MEMBER_ANNOTATED_BY], which collects the `annotated_by` facts of members and the
+ * `parameter_annotated_by` facts.
  */
 enum class RefKind {
     // structural
@@ -35,13 +34,10 @@ enum class RefKind {
     /** A type used in an annotation's value: an enum constant, a class value, or a nested annotation. */
     ANNOTATION_VALUE,
 
-    // body (FULL mode only)
+    // body
     INVOKES, READS, WRITES, INSTANTIATES, CAST, CATCHES,
     /** A class literal (`Foo.class`, an `ldc` of a type constant). */
-    CLASS_LITERAL,
-
-    // MVP only: coarse, pre-aggregated type-level dependency
-    DEPENDS_ON;
+    CLASS_LITERAL;
 
     companion object {
         /** The structural kinds that drive the extends / implements / annotatedBy dependency flags. */

@@ -18,6 +18,7 @@ package io.hierograph.graphstore.jvm.scanner
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DependencyRollup
 import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.MemberModifiers
 import io.hierograph.graphstore.jvm.model.RefKind
@@ -296,6 +297,86 @@ class BytecodeScannerTest {
         // A class-level annotation emits a detail `annotated_by` edge keyed by the type itself (from == type fqn).
         assertThat(details("fix.Circle\$Marker", "annotated_by").map { it.toType })
             .containsExactly("java.lang.annotation.Retention")
+    }
+
+    @Test
+    fun `type-level facts are detail facts of the type itself`() {
+        assertThat(details("fix.Circle", "extends").map { it.toType }).containsExactly("fix.Base")
+        assertThat(details("fix.Circle", "implements").map { it.toType }).containsExactly("fix.Shape", "java.io.Serializable")
+        assertThat(details("fix.Circle", "extends").single().line).isNull()
+        // a type-parameter bound of the class signature: Box<T extends Comparable<T>>
+        assertThat(details("fix.Box", "type_argument").map { it.toType }).contains("java.lang.Comparable")
+        // type arguments of a field and of a method signature: List<String>
+        assertThat(details("fix.Circle#java.util.List tags", "type_argument").map { it.toType }).containsExactly("java.lang.String")
+        assertThat(details("fix.Circle#java.util.List tags(int[],java.lang.String[])", "type_argument").map { it.toType })
+            .containsExactly("java.lang.String")
+        // the enum constant in @Retention(RetentionPolicy.RUNTIME), a fact of the annotated type
+        assertThat(details("fix.Circle\$Marker", "annotation_value").map { it.toType })
+            .containsExactly("java.lang.annotation.RetentionPolicy")
+    }
+
+    @Test
+    fun `body facts are detail facts with their lines`() {
+        val lines = sources.getValue("fix/Circle.java").trimIndent().lines()
+        fun lineOf(text: String) = lines.indexOfFirst { it.contains(text) } + 1
+        val tags = "fix.Circle#java.util.List tags(int[],java.lang.String[])"
+
+        assertThat(details(tags, "casts").map { it.toType to it.line }).containsExactly("java.lang.String" to lineOf("try {"))
+        assertThat(details(tags, "catches").map { it.toType to it.line })
+            .containsExactly("java.lang.IllegalStateException" to lineOf("try {"))
+        assertThat(details(tags, "class_literal").map { it.toType to it.line }).containsExactly("fix.Shape" to lineOf("Shape.class"))
+
+        // `new ArrayList<>()` in the field initializer runs in the constructor: an instantiation and a constructor call
+        val ctor = "fix.Circle#void <init>(double)"
+        assertThat(details(ctor, "instantiates").map { it.toType to it.line })
+            .containsExactly("java.util.ArrayList" to lineOf("new ArrayList"))
+        assertThat(details(ctor, "calls").map { it.toKey }).contains("java.util.ArrayList#void <init>()")
+    }
+
+    @Test
+    fun `every fact counts once - per parameter, per annotated parameter, and new is two facts`(@TempDir tmp: Path) {
+        val src = mapOf(
+            "c/C.java" to """
+                package c;
+                public class C {
+                    void both(java.util.Map a, java.util.Map b) {}
+                    void marked(@Deprecated String a, @Deprecated String b) {}
+                    Object make() { return new java.util.ArrayList<String>(); }
+                    void fail() { throw new IllegalStateException(); }
+                }
+            """,
+        )
+        val scan = BytecodeScanner().scan(listOf(ScanArtifact.of(compile(tmp.resolve("c"), src, listOf("-g")))))
+        val c = scan.classes.single().facts
+        fun facts(method: String, relationship: String) =
+            scan.detailRefs.filter { it.fromKey.startsWith("c.C#") && it.fromKey.contains(" $method(") && it.relationship == relationship }
+        fun count(to: String, kind: RefKind) = c.refs.singleOrNull { it.toKey == to && it.kind == kind }?.count
+
+        assertThat(facts("both", "parameter_type").map { it.toType }).containsExactly("java.util.Map", "java.util.Map")
+        assertThat(count("java.util.Map", RefKind.PARAM_TYPE)).isEqualTo(2)
+
+        assertThat(facts("marked", "parameter_annotated_by").map { it.toType }).containsExactly("java.lang.Deprecated", "java.lang.Deprecated")
+        assertThat(count("java.lang.Deprecated", RefKind.MEMBER_ANNOTATED_BY)).isEqualTo(2)
+
+        assertThat(facts("make", "instantiates").map { it.toType }).containsExactly("java.util.ArrayList")
+        assertThat(facts("make", "calls").map { it.toKey }).containsExactly("java.util.ArrayList#void <init>()")
+        assertThat(count("java.util.ArrayList", RefKind.INSTANTIATES)).isEqualTo(1)
+        assertThat(count("java.util.ArrayList", RefKind.INVOKES)).isEqualTo(1)
+
+        // `raises` refines the instantiation and the constructor call; it adds no weight of its own
+        assertThat(facts("fail", "raises").map { it.toType }).containsExactly("java.lang.IllegalStateException")
+        assertThat(count("java.lang.IllegalStateException", RefKind.INSTANTIATES)).isEqualTo(1)
+        assertThat(count("java.lang.IllegalStateException", RefKind.INVOKES)).isEqualTo(1)
+        assertThat(c.refs.filter { it.toKey == "java.lang.IllegalStateException" }.sumOf { it.count ?: 1 }).isEqualTo(2)
+    }
+
+    @Test
+    fun `each class's aggregated refs are the rollup of its detail facts`() {
+        val factsByType = result.detailRefs.groupBy { it.fromType }
+        for (scanned in result.classes) {
+            val fqn = scanned.facts.fqn
+            assertThat(scanned.facts.refs).describedAs(fqn).isEqualTo(DependencyRollup.refsOf(fqn, factsByType[fqn].orEmpty()))
+        }
     }
 
     @Test

@@ -41,7 +41,7 @@ class ParquetWriterTest {
                 members = listOf(MemberFacts("com.foo.A#a()V", JavaKinds.METHOD, "a()V", lineFrom = 1, lineTo = 2)),
                 refs = listOf(
                     Ref("com.foo.B", RefKind.EXTENDS, count = 1),
-                    Ref("java.util.List", RefKind.DEPENDS_ON, count = 7),
+                    Ref("java.util.List", RefKind.INVOKES, count = 7),
                 ),
                 classHash = "h1",
                 sourceFile = "A.java",

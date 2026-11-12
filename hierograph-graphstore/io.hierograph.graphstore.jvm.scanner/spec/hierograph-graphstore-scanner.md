@@ -2,8 +2,8 @@
 
 `io.hierograph.graphstore.jvm.scanner` turns compiled JVM code into **facts**. Its
 `BytecodeScanner` reads the class files of JARs and class directories and produces
-one `ClassFacts` record per class, plus the member-level references found in each
-class's code. Everything Hierograph knows about a codebase starts here: the
+one `ClassFacts` record per class, plus the detail facts: every dependency found in
+each class file, from the type itself or from one of its members. Everything Hierograph knows about a codebase starts here: the
 GraphStore is built from these facts, and the Parquet snapshot stores them.
 
 This document explains why the scanner exists, what it reads, what it extracts,
@@ -73,7 +73,7 @@ order, however many threads the scan uses.
   ┌──────────────────┐        ScanResult
   │  BytecodeScanner │ ────────────────────────────────┐
   └──────────────────┘   classes: ClassFacts per type   │
-                         detailRefs: member-level refs  │
+                         detailRefs: detail facts       │
            ┌────────────────────────┬───────────────────┘
            ▼                        ▼
    ScanResult.writeTo        GraphStore.applyClass
@@ -150,13 +150,13 @@ in a version directory is scanned too.
 ```kotlin
 data class ScanResult(
     val classes: List<ArtifactClass>,   // one per scanned class: (artifactKey, ClassFacts)
-    val detailRefs: List<DetailRef>,    // member-level references of all scanned classes
+    val detailRefs: List<DetailRef>,    // the detail facts of all scanned classes
 )
 ```
 
 **`classes`** holds one `ArtifactClass(artifactKey, facts)` per class file. A
 `ClassFacts` record carries the type itself, its members with their parameters, and
-its type-level references:
+its aggregated references, rolled up from its detail facts (§5.5):
 
 ```kotlin
 data class ClassFacts(
@@ -173,10 +173,12 @@ data class ClassFacts(
 This is the GraphStore's ingest unit: each element of `classes` can be passed to
 `GraphStore.applyClass` as it is.
 
-**`detailRefs`** holds the member-level references: which method calls which, which
-code reads or writes which field, what each member's signature names, with source
-lines. They are kept apart from `ClassFacts` because they are large and are read on
-demand rather than held in memory.
+**`detailRefs`** holds the detail facts: every dependency a class file contains, one
+per occurrence, from the type itself (its superclass, interfaces, annotations, …) or
+from one of its members (which method calls which, which code reads or writes which
+field, what each member's signature names), with source lines. They are kept apart
+from `ClassFacts` because they are large and are read on demand rather than held in
+memory.
 
 **`writeTo(dir, codec, classpaths, packaging)`** writes the result as a snapshot
 directory, with one `.hierograph` artifact per artifact key — an archive or an
@@ -238,70 +240,54 @@ Each method and constructor parameter becomes a `ParameterFacts` with its 0-base
 2. the local-variable table, written when debug information is compiled in;
 3. otherwise `arg<index>`.
 
-### 5.4 Type-level references
+### 5.4 Detail facts
 
-Each reference a class makes to another type is recorded as a `Ref` from the class
-to the target type, with a **kind** and a **count**: the number of places in the
-class file that make that reference. References are aggregated per (target, kind),
-in the order they are first encountered.
+Every dependency a class file contains is recorded as one detail fact (`DetailRef`):
+from a source element (the class itself, or one of its fields or methods) to a target
+element (a member or a type), with a kind (`DependencyKind`) and, where the class file
+has one, a line. Type-level facts use the class's FQN as their source.
 
-| Kind | Recorded for each … |
-|------|---------------------|
-| `EXTENDS` | superclass (one per class) |
-| `IMPLEMENTS` | implemented interface, or extended interface of an interface |
-| `ANNOTATED_BY` | annotation on the class itself |
-| `FIELD_TYPE` | field of the target type |
-| `PARAM_TYPE` | method parameter of the target type |
-| `RETURN_TYPE` | method returning the target type |
-| `THROWS` | entry in a method's `throws` clause |
-| `MEMBER_ANNOTATED_BY` | annotation on a field, a method or a method parameter |
-| `TYPE_ARGUMENT` | type that appears inside a generic signature's type arguments or bounds, in the class, field and method signatures (`List<Money>` → `Money`; `<T extends Money>` → `Money`) |
-| `ANNOTATION_VALUE` | enum constant, class value or nested annotation used as an annotation value, including an annotation element's default value |
-| `INVOKES` | method or constructor call (`invokevirtual`, `invokestatic`, `invokespecial`, `invokeinterface`), on the call's owner type; also the implementation method of a lambda or method reference |
-| `READS` | field read (`getfield`, `getstatic`), on the field's owner type |
-| `WRITES` | field write (`putfield`, `putstatic`), on the field's owner type |
-| `INSTANTIATES` | `new`, and the creation of an array of the target type |
-| `CAST` | `checkcast` or `instanceof` against the target type |
-| `CATCHES` | exception handler for the target type (a `finally` block names no type) |
-| `CLASS_LITERAL` | class constant, such as `Money.class` |
+| Kind | From → To | Recorded for each … | Line |
+|------|-----------|---------------------|------|
+| `extends` | class → type | superclass (one per class) | none |
+| `implements` | class → type | implemented interface, or extended interface of an interface | none |
+| `annotated_by` | class, method or field → type | annotation on the element | none |
+| `parameter_annotated_by` | method → type | annotation on one of the method's parameters | none |
+| `annotation_value` | class, method or field → type | enum constant, class value or nested annotation used as an annotation value on the element, including an annotation element's default value and the values of parameter annotations | none |
+| `type_argument` | class, method or field → type | type that appears inside a generic signature's type arguments or bounds (`List<Money>` → `Money`; `<T extends Money>` → `Money`) | none |
+| `has_type` | field → type | field (its declared type; primitives included) | none |
+| `parameter_type` | method → type | parameter of the method (primitives included) | the method's first line |
+| `returns` | method → type | method (its return type; `void` included) | the method's first line |
+| `throws` | method → type | entry in the method's `throws` clause | the method's first line |
+| `calls` | method → method | call instruction (`invokevirtual`, `invokestatic`, `invokespecial`, `invokeinterface`), naming the call's owner type and the called signature; and the implementation method of a lambda or method reference | the call's line |
+| `reads_field` | method → field | field read instruction (`getfield`, `getstatic`) | the instruction's line |
+| `writes_field` | method → field | field write instruction (`putfield`, `putstatic`) | the instruction's line |
+| `instantiates` | method → type | `new`, and the creation of an array of the target type (`anewarray`, `multianewarray`) | the instruction's line |
+| `casts` | method → type | `checkcast` or `instanceof` against the target type | the instruction's line |
+| `catches` | method → type | exception handler for the target type (a `finally` block names no type) | the line the handler's code belongs to |
+| `class_literal` | method → type | class constant, such as `Money.class` | the instruction's line |
+| `raises` | method → type | `throw new X(…)` in the method's body | the method's first line |
 
 The rules that apply to every kind:
 
+- **One fact per occurrence.** Two calls on different lines are two facts, a method
+  `f(Map, Map)` has two `parameter_type` facts, and two annotated parameters give two
+  `parameter_annotated_by` facts.
 - **Element types.** The target of a reference to an array type is its element type:
-  a `Money[][]` parameter is a `PARAM_TYPE` reference to `Money`.
-- **No primitives, no `void`.** They are not types one can depend on.
-- **No self-references.** A class's references to itself are dropped. References to
-  its own nested types, or from a nested type to its outer type, are kept, because
-  those are separate classes.
+  a `Money[][]` parameter is a `parameter_type` fact to `Money`.
+- **Nothing is filtered.** Primitives, `void` and references to the class itself are
+  facts like any other; a method calling a method of its own class is a `calls` fact.
+  The aggregation leaves them out (§5.5).
 - **Annotations of all retentions in the class file.** `RUNTIME` and `CLASS`
   annotations are both recorded. `SOURCE` annotations are not in the class file.
 
-Some source constructs leave more than one reference. `new Money()` records
-`INSTANTIATES` (the `new`) and `INVOKES` (the constructor call), and every
-constructor records `INVOKES` on its superclass for its `super(…)` call.
+Some source constructs leave more than one fact. `new Money()` records `instantiates`
+(the `new`) and `calls` (the constructor call), and every constructor records `calls`
+on its superclass constructor for its `super(…)` call.
 
-### 5.5 Member-level references
-
-Member-level references (`DetailRef`) record the same code at the finest grain: from
-a member (or a class, for its own annotations) to a member or a type. They use the
-detail vocabulary of the snapshot format.
-
-| Relationship | From → To | Recorded for each … | Line |
-|--------------|-----------|---------------------|------|
-| `calls` | method → method | call instruction, naming the call's owner type and the called signature; and the implementation method of a lambda or method reference | the call's line |
-| `reads_field` | method → field | field read instruction | the instruction's line |
-| `writes_field` | method → field | field write instruction | the instruction's line |
-| `returns` | method → type | method (its return type; `void` included) | the method's first line |
-| `parameter_type` | method → type | distinct parameter type of the method (primitives included) | the method's first line |
-| `throws` | method → type | entry in the method's `throws` clause | the method's first line |
-| `raises` | method → type | `throw new X(…)` in the method's body | the method's first line |
-| `has_type` | field → type | field (its declared type; primitives included) | none |
-| `annotated_by` | class, method or field → type | annotation on the element | none |
-
-Unlike type-level references, member-level references are **not aggregated and not
-filtered for self-reference**. A method calling a method of its own class is a
-`calls` reference like any other, and two calls on different lines are two
-references.
+**A catch clause's line** is the line its handler's code belongs to: the line entry
+in effect where the handler starts, as in a stack trace, unless an entry starts
+exactly there.
 
 **Call targets are named, not resolved.** A call compiled against `Shape.area()` is
 recorded as a call to `Shape#double area()`, whichever subclass implements it, and
@@ -316,6 +302,30 @@ attributed, because the bytecode alone does not say what it is. Together with
 visibly does.
 
 **Calls on arrays** (`array.clone()`) are not recorded; an array has no owner type.
+
+### 5.5 Aggregated references
+
+A class's aggregated references (`ClassFacts.refs`) are not counted separately: at the
+end of the class, its detail facts are rolled up into one `Ref` per (target type,
+`RefKind`), whose count is the number of facts behind it (`DependencyRollup`). The
+rollup:
+
+- counts every fact as 1, except `raises`, which refines facts that are counted
+  already (the `instantiates` and the constructor `calls` of the thrown exception);
+- leaves out facts whose target is the class itself, a primitive or `void`
+  (references to the class's own nested types, or from a nested type to its outer
+  type, are kept, because those are separate classes);
+- stores each kind under the `RefKind` of the type-level vocabulary: `extends` →
+  `EXTENDS`, `implements` → `IMPLEMENTS`, `annotated_by` from the class → `ANNOTATED_BY`,
+  `annotated_by` from a member and `parameter_annotated_by` → `MEMBER_ANNOTATED_BY`,
+  `annotation_value` → `ANNOTATION_VALUE`, `type_argument` → `TYPE_ARGUMENT`,
+  `has_type` → `FIELD_TYPE`, `parameter_type` → `PARAM_TYPE`, `returns` →
+  `RETURN_TYPE`, `throws` → `THROWS`, `calls` → `INVOKES`, `reads_field` → `READS`,
+  `writes_field` → `WRITES`, `instantiates` → `INSTANTIATES`, `casts` → `CAST`,
+  `catches` → `CATCHES`, `class_literal` → `CLASS_LITERAL`.
+
+References are listed in the order their first fact appears. So every unit of an
+aggregated weight is one detail fact.
 
 ---
 
@@ -399,7 +409,7 @@ A scan either succeeds completely or fails. It never returns a partial result.
 | `ScanArtifact(key, path)` | one input, with its artifact key |
 | `ScanArtifact.of(path)` | an input keyed by its file or directory name |
 | `ScanResult.classes` | the scanned classes, as `ArtifactClass(artifactKey, facts)` |
-| `ScanResult.detailRefs` | the member-level references |
+| `ScanResult.detailRefs` | the detail facts |
 | `ScanResult.writeTo(dir, codec, classpaths, packaging)` | writes the result as a snapshot of `.hierograph` artifacts, archived or exploded, one per artifact (§4) |
 
 ---
@@ -427,7 +437,7 @@ missing input, or a pattern that matches nothing, is an error that names it.
 
 The snapshot is written with ZSTD compression and without classpath tables. On
 success the scanner prints a summary line: the number of artifacts and threads,
-types, members and member-level references, the output directory, and the elapsed
+types, members and detail facts, the output directory, and the elapsed
 time.
 
 ```
@@ -485,7 +495,7 @@ for (c in result.classes) store.applyClass(c.artifactKey, c.facts)
 ```
 
 `result.detailRefs` are not part of the GraphStore. Write them to a snapshot so
-member-level queries can read them.
+detail-level queries can read them.
 
 ### 11.4 Rescan a changed class
 

@@ -68,8 +68,8 @@ class ViewToolCallsTest {
             ClassFacts(
                 "com.acme.app.App", JavaKinds.CLASS, 0, emptyList(),
                 refs = listOf(
-                    Ref("com.acme.core.Core", RefKind.DEPENDS_ON, count = 2),
-                    Ref("com.acme.util.Strings", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.acme.core.Core", RefKind.INVOKES, count = 2),
+                    Ref("com.acme.util.Strings", RefKind.INVOKES, count = 1),
                 ),
                 classHash = "a",
             ),
@@ -78,7 +78,7 @@ class ViewToolCallsTest {
             "acme:core:1.0",
             ClassFacts(
                 "com.acme.core.Core", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(Ref("com.acme.util.Strings", RefKind.DEPENDS_ON, count = 1)),
+                refs = listOf(Ref("com.acme.util.Strings", RefKind.INVOKES, count = 1)),
                 classHash = "c",
             ),
         )

@@ -45,7 +45,7 @@ class GraphStoreToHGModelTest {
                 "com.foo.Sub", JavaKinds.CLASS, 0, emptyList(),
                 refs = listOf(
                     Ref("com.foo.Base", RefKind.EXTENDS, count = 1),
-                    Ref("java.util.List", RefKind.DEPENDS_ON, count = 3),
+                    Ref("java.util.List", RefKind.INVOKES, count = 3),
                 ),
                 classHash = "h2",
             ),

@@ -16,18 +16,17 @@
 package io.hierograph.graphstore.jvm.model
 
 /**
- * One member-level ("detail") reference: an edge from a source **member** (or type, for class-level
- * annotations) to a target **symbol** — a member for `calls`/`reads_field`/…, a type for
- * `throws`/`returns`/`has_type`/`parameter_type`/`annotated_by`. [relationship] is the Hierograph
- * detail vocabulary; [toKey] equals [toType] when the target is a type reference. [fromArtifact] is the
- * artifact whose snapshot holds the row, which is the artifact that defines [fromType]; it is set when a
- * row is read from a per-artifact snapshot and lets a reader resolve both types in that artifact's
- * context when an FQN is defined more than once, and is `null` when the artifact is not known.
+ * One detail dependency: a fact from a source element — a member, or the type itself for type-level
+ * facts such as `extends` or the type's own annotations — to a target element: a member for
+ * `calls`/`reads_field`/`writes_field`, a type for every other kind. [relationship] is a
+ * [DependencyKind.value] for facts read from a class file, or the name of a relationship derived at load
+ * (`overrides`, …). [toKey] equals [toType] when the target is a type. [fromArtifact] is the artifact
+ * whose snapshot holds the row, which is the artifact that defines [fromType]; it is set when a row is
+ * read from a per-artifact snapshot and lets a reader resolve both types in that artifact's context when
+ * an FQN is defined more than once, and is `null` when the artifact is not known.
  *
- * Prototype note: detail refs are persisted in a dedicated `detail_refs.parquet` so the validated
- * type-level snapshot stays untouched. In the production model these rows merge into the single `refs`
- * table, distinguished by kind (see the "Types vs Type References" model doc); at that point `DetailRef`
- * folds into an enriched [Ref].
+ * The aggregated references of a type ([Ref]) are the rollup of its detail dependencies, see
+ * [DependencyRollup].
  */
 data class DetailRef(
     val fromKey: String,

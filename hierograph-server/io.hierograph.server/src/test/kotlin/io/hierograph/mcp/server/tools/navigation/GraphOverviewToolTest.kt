@@ -38,8 +38,8 @@ class GraphOverviewToolTest {
             ClassFacts(
                 "com.example.billing.Invoice", JavaKinds.CLASS, 0, emptyList(),
                 refs = listOf(
-                    Ref("org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1),
-                    Ref("com.example.money.Money", RefKind.DEPENDS_ON, count = 2),
+                    Ref("org.slf4j.Logger", RefKind.INVOKES, count = 1),
+                    Ref("com.example.money.Money", RefKind.INVOKES, count = 2),
                 ),
                 classHash = "h",
             ),

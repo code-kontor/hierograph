@@ -67,7 +67,7 @@ class StoreReactor {
     private fun GraphStore.type(artifact: String, fqn: String, vararg refs: Pair<String, Int>) =
         applyClass(
             artifact,
-            ClassFacts(fqn, JavaKinds.CLASS, 0, emptyList(), refs.map { (to, n) -> Ref(to, RefKind.DEPENDS_ON, count = n) }, fqn),
+            ClassFacts(fqn, JavaKinds.CLASS, 0, emptyList(), refs.map { (to, n) -> Ref(to, RefKind.INVOKES, count = n) }, fqn),
         )
 
     val model: HGModel = GraphStoreToHGModel.build(store)

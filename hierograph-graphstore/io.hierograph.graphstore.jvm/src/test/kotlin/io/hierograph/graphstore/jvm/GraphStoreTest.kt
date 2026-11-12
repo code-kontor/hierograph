@@ -82,7 +82,7 @@ class GraphStoreTest {
             classFacts(
                 "com.foo.A",
                 members = listOf(method("com.foo.A", "a()V")),
-                refs = listOf(Ref("com.foo.B", RefKind.DEPENDS_ON, count = 1)),
+                refs = listOf(Ref("com.foo.B", RefKind.INVOKES, count = 1)),
             ),
         )
 
@@ -146,7 +146,7 @@ class GraphStoreTest {
         store.registerArtifact(artifact("app"))
         store.applyClass(
             "app",
-            classFacts("com.foo.A", refs = listOf(Ref("java.util.List", RefKind.DEPENDS_ON, count = 1))),
+            classFacts("com.foo.A", refs = listOf(Ref("java.util.List", RefKind.INVOKES, count = 1))),
         )
 
         val placeholder = store.typeByFqn("java.util.List")
@@ -190,8 +190,8 @@ class GraphStoreTest {
             classFacts(
                 "com.app.A",
                 refs = listOf(
-                    Ref("com.lib.sub.B", RefKind.DEPENDS_ON, count = 1),
-                    Ref("com.ext.C", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.lib.sub.B", RefKind.INVOKES, count = 1),
+                    Ref("com.ext.C", RefKind.INVOKES, count = 1),
                 ),
             ),
         )
@@ -220,7 +220,7 @@ class GraphStoreTest {
                 "com.foo.A",
                 refs = listOf(
                     Ref("com.foo.B", RefKind.EXTENDS, count = 1),
-                    Ref("java.util.List", RefKind.DEPENDS_ON, count = 3),
+                    Ref("java.util.List", RefKind.INVOKES, count = 3),
                 ),
             ),
         )
@@ -250,7 +250,7 @@ class GraphStoreTest {
                 "com.foo.A",
                 refs = listOf(
                     Ref("com.foo.B", RefKind.EXTENDS, count = 1),
-                    Ref("com.foo.B", RefKind.DEPENDS_ON, count = 5),
+                    Ref("com.foo.B", RefKind.INVOKES, count = 5),
                 ),
             ),
         )
@@ -270,15 +270,15 @@ class GraphStoreTest {
             classFacts(
                 "com.foo.A",
                 refs = listOf(
-                    Ref("com.foo.B", RefKind.DEPENDS_ON, count = 1),
-                    Ref("com.foo.C", RefKind.DEPENDS_ON, count = 1),
+                    Ref("com.foo.B", RefKind.INVOKES, count = 1),
+                    Ref("com.foo.C", RefKind.INVOKES, count = 1),
                 ),
             ),
         )
         assertThat(store.typeDependencies().map { it.toFqn }.toList()).containsExactlyInAnyOrder("com.foo.B", "com.foo.C")
 
         // recompile drops the ref to C
-        store.applyClass("app", classFacts("com.foo.A", refs = listOf(Ref("com.foo.B", RefKind.DEPENDS_ON, count = 1))))
+        store.applyClass("app", classFacts("com.foo.A", refs = listOf(Ref("com.foo.B", RefKind.INVOKES, count = 1))))
         assertThat(store.typeDependencies().map { it.toFqn }.toList()).containsExactly("com.foo.B")
         assertThat(store.typeDependencies().filter { it.toFqn == "com.foo.C" }.map { it.fromFqn }.toList()).doesNotContain("com.foo.A")
     }
@@ -292,12 +292,12 @@ class GraphStoreTest {
             classFacts(
                 "com.foo.A",
                 refs = listOf(
-                    Ref("int", RefKind.DEPENDS_ON, count = 1),
-                    Ref("[I", RefKind.DEPENDS_ON, count = 1),
-                    Ref("Task", RefKind.DEPENDS_ON, count = 1),            // default package (no dot)
-                    Ref("java.lang.String", RefKind.DEPENDS_ON, count = 1),
-                    Ref("kotlin.Unit", RefKind.DEPENDS_ON, count = 1),
-                    Ref("com.other.Lib", RefKind.DEPENDS_ON, count = 1),   // normal external -> placeholder
+                    Ref("int", RefKind.INVOKES, count = 1),
+                    Ref("[I", RefKind.INVOKES, count = 1),
+                    Ref("Task", RefKind.INVOKES, count = 1),            // default package (no dot)
+                    Ref("java.lang.String", RefKind.INVOKES, count = 1),
+                    Ref("kotlin.Unit", RefKind.INVOKES, count = 1),
+                    Ref("com.other.Lib", RefKind.INVOKES, count = 1),   // normal external -> placeholder
                 ),
             ),
         )

@@ -49,7 +49,7 @@ class ParquetReaderTest {
             dir,
             listOf(
                 RefFixture("com.foo.A", "com.foo.B", "IMPLEMENTS", count = 1),
-                RefFixture("com.foo.A", "java.util.List", "DEPENDS_ON", count = 4),
+                RefFixture("com.foo.A", "java.util.List", "INVOKES", count = 4),
             ),
         )
 

@@ -4,7 +4,7 @@ A **snapshot** is the persistent form of Hierograph's GraphStore: everything the
 bytecode scanner learned about a set of JVM artifacts, written as a handful of flat
 Parquet tables. A snapshot can be rebuilt into an in-memory graph at any time, and
 it can be queried directly on disk — the detail-level tools read members,
-parameters and member-level references straight from the tables instead of holding
+parameters and detail references straight from the tables instead of holding
 them in memory.
 
 This document defines that format: the files, the packaging, and every column —
@@ -71,7 +71,7 @@ An archive holds the tables of exactly one artifact, packaged as a ZIP file:
 ```
 <artifact>.hierograph
 ├── classpath.parquet     the artifact's ordered classpath        (optional)
-├── detail_refs.parquet   member-level references
+├── detail_refs.parquet   detail references (type- and member-level facts)
 ├── members.parquet       fields, methods and constructors
 ├── parameters.parquet    method and constructor parameters
 ├── refs.parquet          type-level references
@@ -419,6 +419,11 @@ kind that connects them.
 count `3`. Weights let a matrix show how strongly two parts are coupled rather than
 merely whether they are. A `null` count reads as `1`.
 
+The rows are the **rollup of the detail facts** (§4.5) of `from_type`: one row per
+(target type, kind), counting every fact except `raises`, and leaving out facts whose
+target is `from_type` itself, a primitive or `void` (§5.2 gives each kind's detail
+relationship). So every unit of a count is one row in `detail_refs`.
+
 Rows appear grouped by `from_type`, in the order the references were first
 encountered.
 
@@ -426,38 +431,36 @@ encountered.
 
 ### 4.5 `detail_refs.parquet`
 
-The **member-level dependency graph**: one row per individual reference from a
-member (or a type) to a member or a type, with its source line. This table answers
-the precise questions the type-level graph cannot: *which* method calls *which*
-method, which code writes a field, where an exception is thrown.
+The **detail dependencies**: one row per individual fact from a type or a member to a
+member or a type, with its source line. This table answers the precise questions the
+type-level graph cannot: *which* method calls *which* method, which code writes a
+field, where an exception is thrown, which class names which superclass.
 
 It is sorted by (`from_type`, `from_key`, `to_type`, `to_key`, `relationship`), so
 a query scoped to a set of types reads only the rows of those types.
 
 | Column | Type | Null? | Description |
 |--------|------|-------|-------------|
-| `from_key` | string | no | Key of the referencing element: a member key, or a type FQN for a type-level annotation. |
+| `from_key` | string | no | Key of the referencing element: a member key, or the type's FQN for a type-level fact. |
 | `from_type` | string | no | FQN of the type that declares `from_key`. |
 | `to_key` | string | no | Key of the referenced element: a member key, or a type reference. |
 | `to_type` | string | no | FQN of the type that owns `to_key`, or the referenced type itself. |
 | `relationship` | string | no | What the reference means (§5.3). |
 | `line` | int32 | yes | Source line of the reference, where meaningful. |
 
-**`from_key`** is the precise source of the reference: normally the method or
-field it occurs in. For an annotation on the type itself it is the type's FQN, so
-type-level annotations are as queryable as member-level ones.
+**`from_key`** is the precise source of the reference: the method or field it
+occurs in, or, for a fact about the type itself (`extends`, `implements`, its own
+annotations, type arguments and annotation values), the type's FQN.
 
 **`from_type`** is redundant with `from_key` by design. It is the sort and filter
-column, and it lets a reader roll member-level edges up to types without parsing
+column, and it lets a reader roll detail references up to types without parsing
 keys.
 
 **`to_key`** is the precise target. For `calls`, `reads_field` and `writes_field` it
 is a member key, named by the *instruction's owner*: a call compiled against
 `List.size()` targets `java.util.List#int size()`, whichever class implements it at
 run time. Resolving such a call to its possible implementations depends on the
-full set of loaded artifacts, so it is done at load time (§6.3). For the
-type-shaped relationships (`returns`, `parameter_type`, `has_type`, `throws`,
-`raises`, `annotated_by`) the target is a type reference, and `to_key` equals
+full set of loaded artifacts, so it is done at load time (§6.3). For every other relationship the target is a type reference, and `to_key` equals
 `to_type`. Primitives and `void` are recorded here, so a member's full shape is
 represented.
 
@@ -469,10 +472,12 @@ single column.
 vocabulary (§5.3).
 
 **`line`** places the reference in the source. For references made by an
-instruction (`calls`, `reads_field`, `writes_field`) it is the line of that
-instruction. For the relationships that describe a method's signature (`returns`,
-`parameter_type`, `throws`, `raises`) it is the method's first line. It is `null`
-for annotations and field types, and whenever no line information was compiled in.
+instruction (`calls`, `reads_field`, `writes_field`, `instantiates`, `casts`,
+`class_literal`) it is the line of that instruction; for `catches`, the line the
+handler's code belongs to. For the relationships that describe a method's signature
+(`returns`, `parameter_type`, `throws`, `raises`) it is the method's first line. It
+is `null` for type-level facts, annotations, annotation values, type arguments and
+field types, and whenever no line information was compiled in.
 
 A detail reference belongs to the archive of the artifact that defines its
 `from_type`.
@@ -552,6 +557,10 @@ fits alongside the rest.
 
 ### 5.2 Type-level reference kinds (`refs.kind`)
 
+Each kind is the rollup of one detail relationship (§5.3); `MEMBER_ANNOTATED_BY`
+collects the `annotated_by` facts of members and the `parameter_annotated_by` facts.
+
+
 | Kind | Group | The source type … |
 |------|-------|-------------------|
 | `EXTENDS` | structural | has the target as its superclass |
@@ -578,20 +587,28 @@ erased types of a generic signature are counted under their position's kind
 (`FIELD_TYPE`, `PARAM_TYPE`, …); `TYPE_ARGUMENT` counts only the types that appear
 *inside* the angle brackets, so no type is counted twice for the same position.
 
-### 5.3 Member-level relationships (`detail_refs.relationship`)
+### 5.3 Detail relationships (`detail_refs.relationship`)
 
-| Relationship | From | To | Meaning |
-|--------------|------|----|---------|
-| `calls` | method | method | invokes the target; also links a lambda or method reference to its implementation method |
-| `reads_field` | method | field | reads the target field |
-| `writes_field` | method | field | assigns the target field |
-| `returns` | method | type | returns the target type |
-| `parameter_type` | method | type | takes a parameter of the target type (once per distinct type) |
-| `throws` | method | type | declares the target in its `throws` clause |
-| `raises` | method | type | executes `throw new <target>(…)` in its body |
-| `has_type` | field | type | is declared with the target type |
-| `annotated_by` | type, method, field | type | carries the target annotation |
-| `parameter_annotated_by` | method | type | has a parameter carrying the target annotation (once per distinct annotation) |
+| Relationship | From | To | Meaning | Rolls up to (§5.2) |
+|--------------|------|----|---------|--------------------|
+| `extends` | type | type | has the target as its superclass | `EXTENDS` |
+| `implements` | type | type | implements (or, as an interface, extends) the target interface | `IMPLEMENTS` |
+| `annotated_by` | type, method, field | type | carries the target annotation | `ANNOTATED_BY` from a type, `MEMBER_ANNOTATED_BY` from a member |
+| `parameter_annotated_by` | method | type | has a parameter carrying the target annotation (once per annotated parameter) | `MEMBER_ANNOTATED_BY` |
+| `annotation_value` | type, method, field | type | uses the target in an annotation value: an enum constant, a class value, or a nested annotation | `ANNOTATION_VALUE` |
+| `type_argument` | type, method, field | type | names the target inside a generic type argument or bound | `TYPE_ARGUMENT` |
+| `has_type` | field | type | is declared with the target type | `FIELD_TYPE` |
+| `parameter_type` | method | type | takes a parameter of the target type (once per parameter) | `PARAM_TYPE` |
+| `returns` | method | type | returns the target type | `RETURN_TYPE` |
+| `throws` | method | type | declares the target in its `throws` clause | `THROWS` |
+| `calls` | method | method | invokes the target; also links a lambda or method reference to its implementation method | `INVOKES` |
+| `reads_field` | method | field | reads the target field | `READS` |
+| `writes_field` | method | field | assigns the target field | `WRITES` |
+| `instantiates` | method | type | creates an instance or an array of the target | `INSTANTIATES` |
+| `casts` | method | type | casts to, or tests `instanceof` against, the target | `CAST` |
+| `catches` | method | type | catches the target exception type | `CATCHES` |
+| `class_literal` | method | type | uses the target as a class literal (`Money.class`) | `CLASS_LITERAL` |
+| `raises` | method | type | executes `throw new <target>(…)` in its body | not counted |
 
 `throws` and `raises` are complementary. The first is the declared contract; the
 second is what the body actually throws. `raises` records only a freshly
