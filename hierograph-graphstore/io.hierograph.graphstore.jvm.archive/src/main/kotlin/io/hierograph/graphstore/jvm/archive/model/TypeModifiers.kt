@@ -20,12 +20,12 @@ package io.hierograph.graphstore.jvm.archive.model
  * [MemberModifiers] (visibility, [MemberModifiers.STATIC], [MemberModifiers.FINAL],
  * [MemberModifiers.ABSTRACT]); only the flags meaningful for a type are packed and decoded.
  * Package-private visibility is the absence of a visibility bit. [GENERIC] is a type-only bit, above the
- * member bits: it is not a modifier, so [modifiers] never lists it.
+ * member bits (including [MemberModifiers.CONSTANT]): it is not a modifier, so [modifiers] never lists it.
  */
 object TypeModifiers {
 
     /** The type declares type parameters (`class Box<T>`): its class signature starts with `<`. */
-    const val GENERIC = 1 shl 13
+    const val GENERIC = 1 shl 14
 
     /** Packs a type's flags. [visibility] is one of public/protected/private (else package-private). */
     fun pack(
