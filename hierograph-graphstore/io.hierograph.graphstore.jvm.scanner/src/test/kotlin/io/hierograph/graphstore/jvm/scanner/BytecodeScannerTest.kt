@@ -28,10 +28,13 @@ import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -537,6 +540,167 @@ class BytecodeScannerTest {
             result.classes.forEach { store.applyClass(it.artifactKey, it.facts, refs(it.facts.fqn)) }
         }
         assertThat(loaded.typeDependencies().toSet()).isNotEmpty.isEqualTo(scanned.typeDependencies().toSet())
+    }
+
+    /** Scans [src], compiled with line and variable information, as one artifact. */
+    private fun scanSources(tmp: Path, src: Map<String, String>): ScanResult =
+        BytecodeScanner().scan(listOf(ScanArtifact.of(compile(tmp.resolve("classes"), src, listOf("-g")))))
+
+    private fun ScanResult.targets(fromKey: String, kind: DependencyKind): List<String> =
+        dependencies.filter { it.fromKey == fromKey && it.kind == kind }.map { it.toType }
+
+    @Test
+    fun `annotation values of every shape are facts of the annotated element, on fields and in defaults too`(@TempDir tmp: Path) {
+        val scan = scanSources(
+            tmp,
+            mapOf(
+                "a/Tag.java" to """
+                    package a;
+                    public @interface Tag {
+                        Class<?>[] types() default {String.class};
+                        Inner inner() default @Inner;
+                    }
+                """,
+                "a/Inner.java" to """
+                    package a;
+                    public @interface Inner { Class<?> value() default Object.class; }
+                """,
+                "a/A.java" to """
+                    package a;
+                    public class A {
+                        @Tag(types = {java.util.List.class, java.util.Map.class}, inner = @Inner(java.util.Set.class))
+                        java.util.Collection<String> field;
+                    }
+                """,
+            ),
+        )
+
+        // a field's own annotation, and every value inside it: class values, an array of them, a nested
+        // annotation and the class value inside that
+        val field = "a.A#java.util.Collection field"
+        assertThat(scan.targets(field, DependencyKind.ANNOTATED_BY)).containsExactly("a.Tag")
+        assertThat(scan.targets(field, DependencyKind.ANNOTATION_VALUE))
+            .containsExactlyInAnyOrder("java.util.List", "java.util.Map", "a.Inner", "java.util.Set")
+
+        // an annotation element's default value is a fact of the element
+        assertThat(scan.targets("a.Tag#java.lang.Class[] types()", DependencyKind.ANNOTATION_VALUE)).containsExactly("java.lang.String")
+        assertThat(scan.targets("a.Tag#a.Inner inner()", DependencyKind.ANNOTATION_VALUE)).containsExactly("a.Inner")
+        assertThat(scan.targets("a.Inner#java.lang.Class value()", DependencyKind.ANNOTATION_VALUE)).containsExactly("java.lang.Object")
+    }
+
+    @Test
+    fun `class and interface bounds are type arguments, a multi-dimensional array is an instantiation`(@TempDir tmp: Path) {
+        val src = """
+            package b;
+            public class B<T extends Number & Comparable<T>> {
+                Object grid() {
+                    return new String[2][3];   // GRID
+                }
+            }
+        """
+        val scan = scanSources(tmp, mapOf("b/B.java" to src))
+
+        assertThat(scan.targets("b.B", DependencyKind.TYPE_ARGUMENT)).containsExactlyInAnyOrder("java.lang.Number", "java.lang.Comparable")
+        val grid = scan.dependencies.single { it.fromKey == "b.B#java.lang.Object grid()" && it.kind == DependencyKind.INSTANTIATES }
+        assertThat(grid.toType).isEqualTo("java.lang.String")
+        assertThat(grid.line).isEqualTo(src.trimIndent().lines().indexOfFirst { "GRID" in it } + 1)
+    }
+
+    @Test
+    fun `a catch clause takes the line of a line entry that starts at its handler`(@TempDir tmp: Path) {
+        val src = """
+            package c;
+            public class C {
+                void work() {}
+                void handle() {
+                    try {
+                        work();
+                    } catch (IllegalStateException e) {   // CATCH
+                        work();
+                    }
+                }
+            }
+        """
+        val scan = scanSources(tmp, mapOf("c/C.java" to src))
+
+        val catches = scan.dependencies.single { it.fromKey == "c.C#void handle()" && it.kind == DependencyKind.CATCHES }
+        assertThat(catches.toType).isEqualTo("java.lang.IllegalStateException")
+        assertThat(catches.line).isEqualTo(src.trimIndent().lines().indexOfFirst { "CATCH" in it } + 1)
+    }
+
+    @Test
+    fun `an exception that is stored before it is thrown is no raises fact, whatever runs in between`(@TempDir tmp: Path) {
+        val scan = scanSources(
+            tmp,
+            mapOf(
+                "d/D.java" to """
+                    package d;
+                    public class D {
+                        void stored(int i) {
+                            RuntimeException e = new RuntimeException();
+                            i++;
+                            switch (i) { case 1: i--; break; case 2: i -= 2; break; case 3: i -= 3; break; default: break; }
+                            switch (i) { case 1: i--; break; case 1000: i -= 2; break; default: break; }
+                            throw e;
+                        }
+                    }
+                """,
+            ),
+        )
+
+        assertThat(scan.targets("d.D#void stored(int)", DependencyKind.RAISES)).isEmpty()
+        assertThat(scan.targets("d.D#void stored(int)", DependencyKind.INSTANTIATES)).containsExactly("java.lang.RuntimeException")
+    }
+
+    @Test
+    fun `a class file that cannot be parsed fails the scan, naming the file and its artifact`(@TempDir tmp: Path) {
+        val dir = compile(tmp.resolve("broken"), mapOf("e/E.java" to "package e; public class E {}"), emptyList())
+        Files.write(dir.resolve("e/Broken.class"), byteArrayOf(0xCA.toByte(), 0xFE.toByte(), 0xBA.toByte(), 0xBE.toByte(), 1, 2, 3))
+
+        for (parallelism in listOf(1, 4)) {
+            assertThatThrownBy { BytecodeScanner(parallelism).scan(listOf(ScanArtifact("broken", dir))) }
+                .describedAs("parallelism $parallelism")
+                .isInstanceOf(IllegalStateException::class.java)
+                .hasMessageStartingWith("Scanning e/Broken.class of $dir failed")
+                .hasCauseInstanceOf(Exception::class.java)
+        }
+    }
+
+    @Test
+    fun `an input that is neither a JAR nor a directory, and a parallelism below one, are rejected`(@TempDir tmp: Path) {
+        val notes = Files.writeString(tmp.resolve("notes.txt"), "not classes")
+
+        assertThatThrownBy { BytecodeScanner().scan(listOf(ScanArtifact.of(notes))) }
+            .isInstanceOf(IllegalArgumentException::class.java).hasMessage("Not a JAR or class directory: $notes")
+        assertThatThrownBy { BytecodeScanner(parallelism = 0) }
+            .isInstanceOf(IllegalArgumentException::class.java).hasMessage("parallelism must be >= 1, was 0")
+    }
+
+    @Test
+    fun `the command line scans its inputs into a snapshot and prints a summary`(@TempDir tmp: Path) {
+        val out = tmp.resolve("snapshot")
+        val printed = ByteArrayOutputStream()
+        val stdout = System.out
+        System.setOut(PrintStream(printed, true))
+        try {
+            main(arrayOf("--out", out.toString(), "--threads", "2", classesDir.toString()))
+        } finally {
+            System.setOut(stdout)
+        }
+
+        assertThat(Files.isRegularFile(out.resolve("classes.hierograph"))).isTrue()
+        assertThat(ParquetReader().readTypeRows(out, listOf("fix.Circle")).map { it.artifact }).containsExactly("classes")
+        assertThat(printed.toString())
+            .startsWith("Scanned 1 artifacts on 2 threads: ${result.classes.size} types, ")
+            .contains("${result.dependencies.size} detail refs → $out in ")
+    }
+
+    @Test
+    fun `the command line requires --out and at least one input`(@TempDir tmp: Path) {
+        val usage = "usage: scan --out <snapshot-dir> [--threads <n>] <jar-or-class-dir>..."
+        assertThatThrownBy { main(arrayOf(classesDir.toString())) }.isInstanceOf(IllegalArgumentException::class.java).hasMessage(usage)
+        assertThatThrownBy { main(arrayOf("--out", tmp.toString())) }.isInstanceOf(IllegalArgumentException::class.java).hasMessage(usage)
+        assertThatThrownBy { main(arrayOf(classesDir.toString(), "--out")) }.isInstanceOf(IllegalArgumentException::class.java).hasMessage(usage)
     }
 
     private fun compile(out: Path, sources: Map<String, String>, options: List<String>): Path {
