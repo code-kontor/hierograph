@@ -53,6 +53,15 @@ object ParquetTestWriter {
         val lineTo: Int? = null,
     )
 
+    /** One parameter row; [annotations] is the column's raw value, space-separated. */
+    data class ParameterFixture(
+        val methodKey: String,
+        val index: Int,
+        val name: String,
+        val typeFqn: String,
+        val annotations: String? = null,
+    )
+
     /** One dependency row; [fromKey] defaults to [fromType], a type-level fact. */
     data class DependencyFixture(
         val fromType: String,
@@ -102,6 +111,27 @@ object ParquetTestWriter {
             sb.setString(ParquetSchema.Members.SIGNATURE, m.signature)
             sb.setNullableInt(ParquetSchema.Members.LINE_FROM, m.lineFrom)
             sb.setNullableInt(ParquetSchema.Members.LINE_TO, m.lineTo)
+        }
+    }
+
+    /**
+     * Writes `parameters.parquet`; without [withAnnotations], in the layout used before the `annotations`
+     * column existed (an older snapshot).
+     */
+    fun writeParameters(dir: Path, rows: List<ParameterFixture>, withAnnotations: Boolean = true) {
+        val cols = ParquetSchema.Parameters
+        val schema = if (withAnnotations) ParquetSchema.parametersSchema() else FileSchema.builder("parameter")
+            .addColumn(cols.METHOD_KEY, PhysicalType.BYTE_ARRAY, RepetitionType.REQUIRED, LogicalType.string())
+            .addColumn(cols.INDEX, PhysicalType.INT32, RepetitionType.REQUIRED)
+            .addColumn(cols.NAME, PhysicalType.BYTE_ARRAY, RepetitionType.REQUIRED, LogicalType.string())
+            .addColumn(cols.TYPE_FQN, PhysicalType.BYTE_ARRAY, RepetitionType.REQUIRED, LogicalType.string())
+            .build()
+        write(dir.resolve(ParquetSchema.PARAMETERS_FILE), schema, rows) { sb, p ->
+            sb.setString(cols.METHOD_KEY, p.methodKey)
+            sb.setInt(cols.INDEX, p.index)
+            sb.setString(cols.NAME, p.name)
+            sb.setString(cols.TYPE_FQN, p.typeFqn)
+            if (withAnnotations) sb.setNullable(cols.ANNOTATIONS, p.annotations)
         }
     }
 

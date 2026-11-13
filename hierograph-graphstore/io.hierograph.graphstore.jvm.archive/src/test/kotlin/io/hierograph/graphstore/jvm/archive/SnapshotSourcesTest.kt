@@ -25,6 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.FileTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -113,12 +114,99 @@ class SnapshotSourcesTest {
         assertThat(ParquetReader().readTypeRows(archive, listOf("com.foo.A")).map { it.fqn }).containsExactly("com.foo.A")
     }
 
+    @Test
+    fun `an archive whose central directory or local header is corrupt is rejected`(@TempDir dir: Path) {
+        val corruptDirectory = deflatedArchive(dir, "a.hierograph")
+        patch(corruptDirectory, CEN_SIG) { bytes, p -> bytes.putInt(p, 0x12345678) }
+        assertThatThrownBy { SnapshotSources.of(corruptDirectory) }
+            .isInstanceOf(IOException::class.java).hasMessageContaining("Corrupt ZIP central directory at entry 0")
+
+        val corruptHeader = deflatedArchive(dir, "b.hierograph")
+        patch(corruptHeader, LOC_SIG) { bytes, p -> bytes.putInt(p, 0x12345678) }
+        assertThatThrownBy { SnapshotSources.of(corruptHeader) }
+            .isInstanceOf(IOException::class.java)
+            .hasMessageContaining("Corrupt ZIP local header for '${ParquetSchema.TYPES_FILE}'")
+    }
+
+    @Test
+    fun `a deflated table shorter than its declared size is rejected when it is read`(@TempDir dir: Path) {
+        val archive = deflatedArchive(dir, "a.hierograph")
+        patch(archive, CEN_SIG) { bytes, p -> bytes.putInt(p + 24, bytes.getInt(p + 24) + 100) }   // uncompressed size
+
+        assertThatThrownBy { ParquetReader().readTypeRows(archive, listOf("com.foo.A")) }
+            .isInstanceOf(IOException::class.java).hasMessageContaining("Truncated ZIP entry '${ParquetSchema.TYPES_FILE}'")
+    }
+
+    @Test
+    fun `an archive rewritten to the same size is read anew when its modification time changes`(@TempDir dir: Path) {
+        val archive = dir.resolve("a.hierograph")
+        fun write(fqn: String) {
+            val tables = Files.createDirectories(dir.resolve("tables-$fqn"))
+            ParquetTestWriter.writeTypes(tables, listOf(TypeFixture("app", fqn, "CLASS")))
+            HierographArchive.zip(tables, archive)
+        }
+        val reader = ParquetReader()
+        write("com.foo.A")
+        val size = Files.size(archive)
+        val modified = Files.getLastModifiedTime(archive)
+        assertThat(reader.readTypeRows(archive, listOf("com.foo.A", "com.foo.B")).map { it.fqn }).containsExactly("com.foo.A")
+
+        write("com.foo.B")   // same length, so the same size
+        assertThat(Files.size(archive)).isEqualTo(size)
+        Files.setLastModifiedTime(archive, FileTime.fromMillis(modified.toMillis() + 10_000))
+
+        assertThat(reader.readTypeRows(archive, listOf("com.foo.A", "com.foo.B")).map { it.fqn }).containsExactly("com.foo.B")
+    }
+
+    @Test
+    fun `a table in a file range is read only while open, and rejects a negative range`(@TempDir dir: Path) {
+        val file = Files.write(dir.resolve("t.bin"), ByteArray(32) { it.toByte() })
+        val input = RangeInputFile(Blob.FileRange(file, 8, 16), "t")
+
+        assertThatThrownBy { input.readRange(0, 4) }
+            .isInstanceOf(IllegalStateException::class.java).hasMessageContaining("t is not open")
+        input.open()
+        input.open()   // opening twice keeps the one channel
+        assertThat(input.readRange(2, 1).get(0)).isEqualTo(10.toByte())
+        assertThatThrownBy { input.readRange(-1, 4) }.isInstanceOf(IndexOutOfBoundsException::class.java)
+        assertThatThrownBy { input.readRange(0, -1) }.isInstanceOf(IndexOutOfBoundsException::class.java)
+        input.close()
+        assertThatThrownBy { input.readRange(0, 4) }.isInstanceOf(IllegalStateException::class.java)
+    }
+
+    /** An archive holding a `types` table as its only, DEFLATED entry. */
+    private fun deflatedArchive(dir: Path, name: String): Path {
+        val tables = Files.createDirectories(dir.resolve("$name.tables"))
+        ParquetTestWriter.writeTypes(tables, types)
+        val archive = dir.resolve(name)
+        ZipOutputStream(Files.newOutputStream(archive)).use { zos ->
+            zos.putNextEntry(ZipEntry(ParquetSchema.TYPES_FILE))
+            Files.copy(tables.resolve(ParquetSchema.TYPES_FILE), zos)
+            zos.closeEntry()
+        }
+        return archive
+    }
+
+    /** Applies [change] at every position in [archive] where the 4-byte [signature] occurs. */
+    private fun patch(archive: Path, signature: Int, change: (ByteBuffer, Int) -> Unit) {
+        val bytes = ByteBuffer.wrap(Files.readAllBytes(archive)).order(ByteOrder.LITTLE_ENDIAN)
+        val positions = (0 until bytes.limit() - 4).filter { bytes.getInt(it) == signature }
+        assertThat(positions).isNotEmpty()
+        positions.forEach { change(bytes, it) }
+        Files.write(archive, bytes.array())
+    }
+
     /** Overwrites the compression method of every entry in [archive]'s central directory. */
     private fun setCompressionMethod(archive: Path, method: Int) {
         val bytes = ByteBuffer.wrap(Files.readAllBytes(archive)).order(ByteOrder.LITTLE_ENDIAN)
         for (p in 0 until bytes.limit() - 4) {
-            if (bytes.getInt(p) == 0x02014b50) bytes.putShort(p + 10, method.toShort())
+            if (bytes.getInt(p) == CEN_SIG) bytes.putShort(p + 10, method.toShort())
         }
         Files.write(archive, bytes.array())
+    }
+
+    private companion object {
+        const val CEN_SIG = 0x02014b50
+        const val LOC_SIG = 0x04034b50
     }
 }

@@ -22,11 +22,16 @@ import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.ParameterFacts
 import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.ExecutionException
 
 class ParquetWriterTest {
 
@@ -75,6 +80,38 @@ class ParquetWriterTest {
     fun `writeSnapshot round-trips through the reader with zstd`(@TempDir dir: Path) {
         ParquetWriter.writeSnapshot(dir, classes, facts) // default ZSTD
         assertRoundTrip(dir)
+    }
+
+    @Test
+    fun `member modifiers, parameter annotations and an empty class hash round-trip`(@TempDir dir: Path) {
+        val method = MemberFacts(
+            "com.foo.C#m(java.lang.String,int)", JavaNodeKind.METHOD, "m(java.lang.String,int)", name = "m",
+            modifiers = MemberModifiers.pack("public", static = true),
+            parameters = listOf(
+                ParameterFacts(0, "s", "java.lang.String", listOf("a.NotNull", "a.Size")),
+                ParameterFacts(1, "i", "int"),
+            ),
+        )
+        val field = MemberFacts("com.foo.C#f", JavaNodeKind.FIELD, "f", name = "f")   // package-private: no bits
+        val unhashed = ClassFacts("com.foo.C", JavaNodeKind.CLASS, 0, listOf(method, field), classHash = "")
+        ParquetWriter.writeSnapshot(dir, listOf(ArtifactClass("app", unhashed)), emptyList(), CompressionCodec.UNCOMPRESSED)
+        val reader = ParquetReader()
+
+        assertThat(reader.readTypeRows(dir, listOf("com.foo.C")).single().classHash).isNull()
+        val members = reader.readMembersByOwner(dir, listOf("com.foo.C")).getValue("com.foo.C").associateBy { it.key }
+        assertThat(MemberModifiers.methodModifiers(members.getValue(method.key).modifiers)).containsExactly("public", "static")
+        assertThat(members.getValue(field.key).modifiers).isZero()
+        assertThat(reader.readMember(dir, method.key)!!.parameters).isEqualTo(method.parameters)
+    }
+
+    @Test
+    fun `a table that cannot be written fails the write with its own exception`(@TempDir dir: Path) {
+        val notADirectory = Files.writeString(dir.resolve("snapshot"), "a file where the tables should go")
+
+        val failure = catchThrowable { ParquetWriter.writeSnapshot(notADirectory, classes, facts, CompressionCodec.UNCOMPRESSED) }
+
+        assertThat(failure).isNotNull().isNotInstanceOf(ExecutionException::class.java)
+        assertThat(failure.stackTraceToString()).contains(notADirectory.toString())
     }
 
     /** Only facts are stored: the types, the members and every dependency row come back as written. */

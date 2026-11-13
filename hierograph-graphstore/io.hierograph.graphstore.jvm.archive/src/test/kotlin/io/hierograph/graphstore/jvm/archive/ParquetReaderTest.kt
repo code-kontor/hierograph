@@ -17,6 +17,7 @@ package io.hierograph.graphstore.jvm.archive
 
 import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.DependencyFixture
 import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.MemberFixture
+import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.ParameterFixture
 import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.TypeFixture
 import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
@@ -75,6 +76,59 @@ class ParquetReaderTest {
         assertThat(reader.readAllMembers(dir).map { it.key to it.lineFrom })
             .containsExactlyInAnyOrder("com.foo.A#a()V" to 3, "com.foo.B#x" to null)
         assertThat(reader.readMember(dir, "com.foo.A#b()V")).isNull()
+    }
+
+    @Test
+    fun `readDependencies filters by from type, to type and kind, alone and combined`(@TempDir dir: Path) {
+        ParquetWriter.writeDependencies(
+            dir,
+            listOf(
+                Dependency("com.foo.A", "com.foo.A", "com.foo.B", "com.foo.B", DependencyKind.EXTENDS),
+                Dependency("com.foo.A#a()V", "com.foo.A", "com.foo.B#b()V", "com.foo.B", DependencyKind.CALLS, 3),
+                Dependency("com.foo.A#a()V", "com.foo.A", "com.foo.C", "com.foo.C", DependencyKind.CASTS, 4),
+                Dependency("com.foo.B#b()V", "com.foo.B", "com.foo.C#c()V", "com.foo.C", DependencyKind.CALLS, 8),
+                Dependency("com.foo.C", "com.foo.C", "com.foo.A", "com.foo.A", DependencyKind.ANNOTATED_BY),
+            ),
+        )
+        val reader = ParquetReader()
+        fun read(from: Collection<String>? = null, to: Collection<String>? = null, kind: DependencyKind? = null) =
+            reader.readDependencies(dir, from, to, kind).map { "${it.fromKey} ${it.kind.value} ${it.toKey}" }
+
+        assertThat(read()).hasSize(5)
+        assertThat(read(emptyList(), emptyList())).hasSize(5)   // an empty set does not constrain
+        assertThat(read(from = listOf("com.foo.A"))).hasSize(3)
+        assertThat(read(to = listOf("com.foo.C"))).containsExactlyInAnyOrder("com.foo.A#a()V casts com.foo.C", "com.foo.B#b()V calls com.foo.C#c()V")
+        assertThat(read(kind = DependencyKind.CALLS)).containsExactlyInAnyOrder("com.foo.A#a()V calls com.foo.B#b()V", "com.foo.B#b()V calls com.foo.C#c()V")
+
+        // Only one predicate is pushed down; the others apply in memory, whichever is pushed.
+        assertThat(read(from = listOf("com.foo.A"), to = listOf("com.foo.C"))).containsExactly("com.foo.A#a()V casts com.foo.C")
+        assertThat(read(from = listOf("com.foo.A"), kind = DependencyKind.CALLS)).containsExactly("com.foo.A#a()V calls com.foo.B#b()V")
+        assertThat(read(to = listOf("com.foo.C"), kind = DependencyKind.CALLS)).containsExactly("com.foo.B#b()V calls com.foo.C#c()V")
+        assertThat(read(listOf("com.foo.A", "com.foo.B"), listOf("com.foo.C"), DependencyKind.CALLS)).containsExactly("com.foo.B#b()V calls com.foo.C#c()V")
+        assertThat(read(listOf("com.foo.A"), listOf("com.foo.C"), DependencyKind.CALLS)).isEmpty()
+    }
+
+    @Test
+    fun `parameter annotations are split on spaces, and absent in a table without the column`(@TempDir dir: Path) {
+        val current = Files.createDirectories(dir.resolve("current"))
+        ParquetTestWriter.writeParameters(
+            current,
+            listOf(
+                ParameterFixture("com.foo.A#a(int,java.lang.String)", 1, "s", "java.lang.String", " a.NotNull  a.Size "),
+                ParameterFixture("com.foo.A#a(int,java.lang.String)", 0, "i", "int"),
+            ),
+        )
+        val legacy = Files.createDirectories(dir.resolve("legacy"))
+        ParquetTestWriter.writeParameters(
+            legacy,
+            listOf(ParameterFixture("com.foo.A#a(int,java.lang.String)", 0, "i", "int", "a.Ignored")),
+            withAnnotations = false,
+        )
+        val reader = ParquetReader()
+
+        assertThat(reader.readParameters(current, "com.foo.A#a(int,java.lang.String)").map { it.name to it.annotations })
+            .containsExactly("i" to emptyList(), "s" to listOf("a.NotNull", "a.Size"))   // ordered by index
+        assertThat(reader.readParameters(legacy, "com.foo.A#a(int,java.lang.String)").single().annotations).isEmpty()
     }
 
     @Test
@@ -159,5 +213,9 @@ class ParquetReaderTest {
         val current = Files.createDirectories(dir.resolve("current"))
         ParquetTestWriter.writeTypes(current, types)
         check(current)   // the current format passes
+
+        val noTypes = Files.createDirectories(dir.resolve("no-types"))
+        ParquetTestWriter.writeDependencies(noTypes, listOf(DependencyFixture("com.foo.A", "com.foo.B", "extends")))
+        check(noTypes)   // a source without a types table holds no types and is not checked
     }
 }
