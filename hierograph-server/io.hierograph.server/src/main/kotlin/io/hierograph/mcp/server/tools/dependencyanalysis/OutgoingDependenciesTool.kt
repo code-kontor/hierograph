@@ -75,7 +75,14 @@ class OutgoingDependenciesTool(
                 "by_source_type summary, not by the edge list — request a minimal page (limit=1). " +
                 "The summary always includes 'by_target': the depended-upon " +
                 "types ranked by summed weight over the full result set (whole graph when toId is " +
-                "omitted, within the toId subtree otherwise). toId is required at detail level."
+                "omitted, within the toId subtree otherwise). toId is required at detail level. " +
+                "Detail rows: 'inherited': true marks a row whose depending type is a supertype outside fromId — " +
+                "code a fromId type inherits, counted as its own (a base class's own references are left out " +
+                "when the base class lies in toId). 'receiver' appears when the code used a toId type that only " +
+                "inherits the member: 'to' and 'to_parent' then name the declaring member and type, which may " +
+                "lie outside toId, and 'receiver' names the toId type the reference was compiled against. " +
+                "A 'to' of kind external.member is a member no scanned type declares (a member of an external " +
+                "type, or one inherited from outside the scanned code, like getMessage() on an exception)."
     )
     fun outgoingDependencies(
         @ToolParam(description = "Source subtree root ID.")
