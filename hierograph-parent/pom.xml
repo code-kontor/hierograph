@@ -61,6 +61,7 @@
         <hardwood.version>1.1.0.Beta3</hardwood.version>
         <asm.version>9.9.1</asm.version>
         <zstd-jni.version>1.5.7-9</zstd-jni.version>
+        <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
     </properties>
 
     <build>
@@ -97,6 +98,11 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
                     <version>${exec-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -349,6 +355,39 @@ limitations under the License.]]></inlineHeader>
     </dependencyManagement>
 
     <profiles>
+        <!--
+            Test coverage is opt-in: it is not part of the default build.
+            Activate with `-Pcoverage` (e.g. `mvn -o -Pcoverage verify`). Each module's
+            tests run with the JaCoCo agent, and each module reports the coverage of its own
+            classes by its own tests (no credit for tests of other modules) at
+            target/site/jacoco/index.html, with jacoco.xml and jacoco.csv next to it.
+        -->
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jacoco-prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jacoco-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <!--
             Maven Central release is opt-in: it is not part of the default build.
             Activate with `-Prelease` (e.g. `mvn -Prelease deploy`) to attach the

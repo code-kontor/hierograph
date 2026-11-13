@@ -65,7 +65,24 @@ A license header check (`license-maven-plugin`) runs in the `validate` phase. If
 
 ## Optional profiles
 
-The integration tests are deliberately kept out of the default build and enabled via a profile.
+The integration tests and the coverage reports are deliberately kept out of the default build
+and enabled via profiles.
+
+### Test coverage — `-Pcoverage`
+
+The `coverage` profile runs each module's tests with the JaCoCo agent and writes a report per
+module in the `verify` phase:
+
+```bash
+mvn -o -Pcoverage clean verify
+# or one module:
+mvn -o -Pcoverage -pl hierograph-graphstore/io.hierograph.graphstore.jvm.archive clean verify
+```
+
+The report is at `<module>/target/site/jacoco/index.html`, with `jacoco.xml` and `jacoco.csv`
+next to it. It measures a module's classes against **its own tests only**: a class that is
+exercised only by another module's tests, or by the integration tests, counts as not covered.
+Use `clean` so that coverage data from an earlier run is not merged in.
 
 ### Integration tests — `-Pitest`
 
@@ -179,6 +196,7 @@ mvn -o -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.
 | Rebuild a single module                 | `mvn -o -pl <module-path> install`                       |
 | Rebuild a module **and its dependents** | `mvn -o -pl <module-path> -amd install`                  |
 | Integration tests (needs Docker)        | `mvn -o -Pitest verify`                                  |
+| Unit tests with coverage reports        | `mvn -o -Pcoverage clean verify`                         |
 | Build MCP server Docker image (needs Docker) | `mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package` |
 | Build **and push** the image (needs `docker login`) | `mvn -o -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.skip=false` |
 | Apply license headers                   | `mvn -o license:format`                                  |
