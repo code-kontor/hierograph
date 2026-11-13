@@ -15,7 +15,6 @@
  */
 package io.hierograph.server.views
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
@@ -77,7 +76,7 @@ class ViewResolver(private val hierarchy: Hierarchy) {
 
     /** The nodes [selector] selects, in pre-order, and whether its `within` matched nothing. */
     internal fun matching(selector: MemberSelector): Selected {
-        val kinds = selector.kind?.let { kind -> JavaKinds.expandAlias(kind)?.map { it.value }?.toSet() ?: setOf(kind) }
+        val kinds = selector.kind?.let { kind -> KindAliases.expand(kind)?.map { it.value }?.toSet() ?: setOf(kind) }
         val within = selector.within?.let { nodesMatching(NamePattern.compile(it)).toSet() }
         if (within != null && within.isEmpty()) return Selected(emptyList(), withinMatchedNothing = true)
         val selected = nodesMatching(NamePattern.compile(selector.match)).filter { node ->

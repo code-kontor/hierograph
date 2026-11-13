@@ -18,10 +18,10 @@ package io.hierograph.mcp.server.tools.views
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.mcp.server.core.GraphAvailabilityToolCallbackProvider
 import io.hierograph.mcp.server.core.ViewParameter
 import io.hierograph.mcp.server.tools.NodeRefFactory
@@ -66,23 +66,23 @@ class ViewToolCallsTest {
         applyClass(
             "acme:app:1.0",
             ClassFacts(
-                "com.acme.app.App", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(
-                    Ref("com.acme.core.Core", RefKind.INVOKES, count = 2),
-                    Ref("com.acme.util.Strings", RefKind.INVOKES, count = 1),
-                ),
+                "com.acme.app.App", JavaNodeKind.CLASS, 0, emptyList(),
                 classHash = "a",
+            ),
+            listOf(
+                Ref("com.acme.core.Core", DependencyKind.CALLS, count = 2),
+                Ref("com.acme.util.Strings", DependencyKind.CALLS, count = 1),
             ),
         )
         applyClass(
             "acme:core:1.0",
             ClassFacts(
-                "com.acme.core.Core", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(Ref("com.acme.util.Strings", RefKind.INVOKES, count = 1)),
+                "com.acme.core.Core", JavaNodeKind.CLASS, 0, emptyList(),
                 classHash = "c",
             ),
+            listOf(Ref("com.acme.util.Strings", DependencyKind.CALLS, count = 1)),
         )
-        applyClass("acme:util:1.0", ClassFacts("com.acme.util.Strings", JavaKinds.CLASS, 0, emptyList(), emptyList(), "u"))
+        applyClass("acme:util:1.0", ClassFacts("com.acme.util.Strings", JavaNodeKind.CLASS, 0, emptyList(), "u"), emptyList())
     }
 
     private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }

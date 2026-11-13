@@ -17,12 +17,12 @@ package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -38,16 +38,16 @@ class GraphStoreToHGModelTest {
     fun setUp() {
         store = GraphStore()
         store.registerArtifact(ArtifactInfo("app", "app", "app"))
-        store.applyClass("app", ClassFacts("com.foo.Base", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
+        store.applyClass("app", ClassFacts("com.foo.Base", JavaNodeKind.CLASS, 0, emptyList(), "h1"), emptyList())
         store.applyClass(
             "app",
             ClassFacts(
-                "com.foo.Sub", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(
-                    Ref("com.foo.Base", RefKind.EXTENDS, count = 1),
-                    Ref("java.util.List", RefKind.INVOKES, count = 3),
-                ),
+                "com.foo.Sub", JavaNodeKind.CLASS, 0, emptyList(),
                 classHash = "h2",
+            ),
+            listOf(
+                Ref("com.foo.Base", DependencyKind.EXTENDS, count = 1),
+                Ref("java.util.List", DependencyKind.CALLS, count = 3),
             ),
         )
     }
@@ -66,13 +66,13 @@ class GraphStoreToHGModelTest {
 
         // the package chain and type are navigable, with kinds carried over
         val sub = model.lookupNode(h(store.typeKey("app", "com.foo.Sub")))!!
-        assertThat(sub.kind).isEqualTo(JavaKinds.CLASS)
+        assertThat(sub.kind).isEqualTo(JavaNodeKind.CLASS)
         assertThat(model.hierarchy.parentOf(sub)!!.identifier).isEqualTo(h("pkg:app:com.foo"))
-        assertThat(model.lookupNode(h("pkg:app:com.foo"))!!.kind).isEqualTo(JavaKinds.PACKAGE)
+        assertThat(model.lookupNode(h("pkg:app:com.foo"))!!.kind).isEqualTo(JavaNodeKind.PACKAGE)
 
         // the unresolved target is a placeholder external type, scoped to the external module
         assertThat(model.lookupNode(h(store.typeKey(GraphStore.EXTERNAL_ARTIFACT_KEY, "java.util.List")))!!.kind)
-            .isEqualTo(JavaKinds.EXTERNAL_TYPE)
+            .isEqualTo(JavaNodeKind.EXTERNAL_TYPE)
     }
 
     @Test

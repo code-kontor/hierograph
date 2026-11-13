@@ -18,10 +18,10 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.server.mapping.GraphStoreDependencySource
 import java.util.EnumMap
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
@@ -218,7 +218,7 @@ class OutgoingDependenciesTool(
             val to: HGNode,
             val weight: Int,
             val bitmap: Int,
-            val kinds: Map<RefKind, Int>,
+            val kinds: Map<DependencyKind, Int>,
         )
 
         val allEdges = mutableListOf<TypeEdge>()
@@ -226,7 +226,7 @@ class OutgoingDependenciesTool(
         for ((_, name) in JavaEdgeAttributes.ALL) {
             byAttribute[name] = 0
         }
-        val byKind = EnumMap<RefKind, Int>(RefKind::class.java)
+        val byKind = EnumMap<DependencyKind, Int>(DependencyKind::class.java)
         val sourceTypeCounts = linkedMapOf<Any, Int>()
         // Summed edge weight per depended-upon endpoint (dep.to). Used only by the
         // open form's by_target rollup; accumulated over the full result set.
@@ -299,7 +299,7 @@ class OutgoingDependenciesTool(
                 "weight" to edge.weight,
                 "type_pair_count" to 1,
                 "attributes" to JavaEdgeAttributes.toMap(edge.bitmap),
-                "kinds" to RefKind.toMap(edge.kinds),
+                "kinds" to DependencyKind.toMap(edge.kinds),
             )
         }
 
@@ -316,7 +316,7 @@ class OutgoingDependenciesTool(
             "returned" to page.size,
             "truncated" to truncated,
             "by_attribute" to byAttribute,
-            "by_kind" to RefKind.toMap(byKind),
+            "by_kind" to DependencyKind.toMap(byKind),
             "by_source_type" to bySourceType
         )
 
@@ -354,9 +354,9 @@ class OutgoingDependenciesTool(
     private fun collectTypes(node: HGNode): List<HGNode> {
         val hierarchy = graphService.model.hierarchy
         val types = mutableListOf<HGNode>()
-        if (JavaKinds.isTypeKind(node.kind)) types.add(node)
+        if (JavaNodeKind.isTypeKind(node.kind)) types.add(node)
         hierarchy.traverse(node) { n ->
-            if (JavaKinds.isTypeKind(n.kind)) types.add(n)
+            if (JavaNodeKind.isTypeKind(n.kind)) types.add(n)
         }
         return types
     }
@@ -364,16 +364,16 @@ class OutgoingDependenciesTool(
     private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
-        if (JavaKinds.isTypeKind(node.kind)) ids.add(node.identifier)
+        if (JavaNodeKind.isTypeKind(node.kind)) ids.add(node.identifier)
         hierarchy.traverse(node) { n ->
-            if (JavaKinds.isTypeKind(n.kind)) ids.add(n.identifier)
+            if (JavaNodeKind.isTypeKind(n.kind)) ids.add(n.identifier)
         }
         return ids
     }
 
     internal fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
-        if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
+        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(

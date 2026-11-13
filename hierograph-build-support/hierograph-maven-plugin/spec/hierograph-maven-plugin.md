@@ -436,7 +436,7 @@ scan, published under the `hierograph` type.
 ```
 
 The tables are defined in the
-[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 Each table carries the format version in its footer key-value metadata
 (`hierograph.format.version`), so an archive says which format it was written in
 wherever it travels. A consumer rejects an archive of an older format, which has to

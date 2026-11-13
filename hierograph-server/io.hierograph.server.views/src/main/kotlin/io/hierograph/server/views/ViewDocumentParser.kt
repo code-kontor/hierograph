@@ -19,8 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 
 /** A view document that could not be parsed: [problems] lists every problem found, each with its location. */
 class ViewDocumentException(val problems: List<String>) :
@@ -45,9 +44,9 @@ object ViewDocumentParser {
     private val MODULE_FIELDS = setOf("name", "description")
     private val MOVE_FIELDS = setOf("select", "to")
 
-    /** Kind values a selector may name, besides the aliases of [JavaKinds.ALL_ALIASES]. */
+    /** Kind values a selector may name, besides the aliases of [KindAliases.ALL]. */
     private val SELECTABLE_KINDS: Set<String> =
-        JavaNodeKind.entries.map { it.value }.toSet() + JavaKinds.EXTERNAL_TYPE
+        JavaNodeKind.entries.map { it.value }.toSet() + JavaNodeKind.EXTERNAL_TYPE
 
     /** Parses [json]; fails with [ViewDocumentException] listing every problem. */
     fun parse(json: String): ViewDocument {
@@ -206,8 +205,8 @@ object ViewDocumentParser {
             val within = optionalString(node, "within", child(path, "within"))
             var valid = match != null && pattern(match, child(path, "match"))
             if (within != null && !pattern(within, child(path, "within"))) valid = false
-            if (kind != null && kind !in SELECTABLE_KINDS && kind !in JavaKinds.ALL_ALIASES) {
-                problem(child(path, "kind"), "unknown kind '$kind'; use a kind such as java.package or java.class, or one of ${JavaKinds.ALL_ALIASES.joinToString()}")
+            if (kind != null && kind !in SELECTABLE_KINDS && kind !in KindAliases.ALL) {
+                problem(child(path, "kind"), "unknown kind '$kind'; use a kind such as java.package or java.class, or one of ${KindAliases.ALL.joinToString()}")
                 valid = false
             }
             return if (valid) MemberSelector(match!!, kind, within) else null

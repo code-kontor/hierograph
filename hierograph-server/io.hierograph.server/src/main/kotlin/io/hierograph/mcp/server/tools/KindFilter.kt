@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.tools
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.server.views.KindAliases
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.server.views.ViewGroups
 
 /**
@@ -25,17 +25,17 @@ import io.hierograph.server.views.ViewGroups
  * rejects the same mistakes the same way.
  *
  * A filter holds kind values ([FILTER_KINDS]: the Java kinds, `external.type` and a view's `view.group`) and group aliases
- * ([JavaKinds.ALL_ALIASES]), mixed freely. An absent or empty filter is no filter. A tool whose results
+ * ([KindAliases.ALL]), mixed freely. An absent or empty filter is no filter. A tool whose results
  * can only be of some kinds passes them as `allowed`; a value or alias outside them is rejected rather
  * than silently matching nothing.
  */
 object KindFilter {
 
     /** Every kind a filter can name: the Java node kinds, the external-type kind and the group kind of views. */
-    val FILTER_KINDS: Set<Any> = JavaKinds.ALL_KINDS + JavaKinds.EXTERNAL_TYPE + ViewGroups.KIND
+    val FILTER_KINDS: Set<Any> = JavaNodeKind.NODE_KINDS + JavaNodeKind.EXTERNAL_TYPE + ViewGroups.KIND
 
     /** The kinds a type-level result can have: the Java type kinds and `external.type`. */
-    val TYPE_RESULT_KINDS: Set<Any> = JavaKinds.TYPE_KINDS + JavaKinds.EXTERNAL_TYPE
+    val TYPE_RESULT_KINDS: Set<Any> = JavaNodeKind.TYPES + JavaNodeKind.EXTERNAL_TYPE
 
     /** The outcome of [parse] for a non-empty filter. */
     sealed interface Parsed
@@ -52,7 +52,7 @@ object KindFilter {
         val kinds = mutableSetOf<Any>()
         val invalid = mutableListOf<String>()
         for (entry in kindFilter) {
-            val expanded = JavaKinds.expandAlias(entry) ?: kindOf(entry)?.let { listOf(it) }
+            val expanded = KindAliases.expand(entry) ?: kindOf(entry)?.let { listOf(it) }
             if (expanded != null && allowed.containsAll(expanded)) kinds.addAll(expanded) else invalid.add(entry)
         }
         return if (invalid.isEmpty()) Valid(kinds) else Invalid(invalid, allowed)
@@ -60,9 +60,9 @@ object KindFilter {
 
     /** The kind object for a filter value: a JavaNodeKind, the external-type or view-group string, or `null`. */
     private fun kindOf(value: String): Any? = when (value) {
-        JavaKinds.EXTERNAL_TYPE -> JavaKinds.EXTERNAL_TYPE
+        JavaNodeKind.EXTERNAL_TYPE -> JavaNodeKind.EXTERNAL_TYPE
         ViewGroups.KIND -> ViewGroups.KIND
-        else -> JavaNodeKind.fromValue(value)?.takeIf { it in JavaKinds.ALL_KINDS }
+        else -> JavaNodeKind.fromValue(value)?.takeIf { it in JavaNodeKind.NODE_KINDS }
     }
 
     /** The values [allowed] admits, in the order of [FILTER_KINDS]. */
@@ -70,7 +70,7 @@ object KindFilter {
 
     /** The aliases whose whole expansion lies in [allowed]. */
     fun validAliases(allowed: Set<Any> = FILTER_KINDS): List<String> =
-        JavaKinds.ALL_ALIASES.filter { allowed.containsAll(JavaKinds.expandAlias(it)!!) }
+        KindAliases.ALL.filter { allowed.containsAll(KindAliases.expand(it)!!) }
 
     /** The `INVALID_KIND` error for [invalid] entries, listing what is valid instead. */
     fun invalidResponse(invalid: List<String>, allowed: Set<Any> = FILTER_KINDS): Map<String, Any?> = mapOf(

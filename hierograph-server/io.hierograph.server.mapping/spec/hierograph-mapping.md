@@ -39,7 +39,7 @@ JVM-aware, takes class files' facts one class at a time, keeps references by nam
 and binds them to nodes only when they are read. The **hierarchical graph**
 (`HGModel`) is the analysis model: it is generic, holds resolved node-to-node edges,
 lays hierarchies over its nodes and rolls dependencies up subtrees. The
-[GraphStore specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md)
+[GraphStore specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md)
 explains why both are needed.
 
 Something has to carry the facts from one to the other. The GraphStore must not
@@ -71,7 +71,7 @@ and filtering read them directly, without going back to the store or the snapsho
 ## 2. Where it sits
 
 ```
-   ParquetReader              ManifestGraphSource
+   SnapshotLoader             ManifestGraphSource
    (stored snapshot)          (fresh scan)
           │                          │
           └────────────┬─────────────┘
@@ -95,7 +95,7 @@ and filtering read them directly, without going back to the store or the snapsho
 ```
 
 **Producers.** The `HierarchicalGraphService` fills a GraphStore, either from a
-stored Parquet snapshot (`ParquetReader`) or from a fresh scan of the build's
+stored Parquet snapshot (`SnapshotLoader`) or from a fresh scan of the build's
 modules (`ManifestGraphSource`), and passes it to `GraphStoreToHGModel.build`. Both
 paths use the external-type filter `EXCLUDE_UBIQUITOUS`.
 
@@ -139,13 +139,14 @@ data class TypeDependency(
     val toKey: String,        // the resolved target's node key
     val fromFqn: String,      // the same endpoints by name (not read by the bridge)
     val toFqn: String,
-    val kinds: Map<RefKind, Int>, // count per reference kind
+    val kinds: Map<DependencyKind, Int>, // count per reference kind
+    val typeAnnotatedBy: Int, // the part of ANNOTATED_BY from the type itself
 ) {
     val weight: Int           // sum of kinds
     val extends: Boolean      // kinds has EXTENDS
     val implements: Boolean   // kinds has IMPLEMENTS
-    val annotatedBy: Boolean  // kinds has ANNOTATED_BY
-    val other: Boolean        // kinds has a non-structural kind
+    val annotatedBy: Boolean  // typeAnnotatedBy > 0
+    val other: Boolean        // a non-structural kind, or a member's ANNOTATED_BY
 }
 ```
 
@@ -301,7 +302,7 @@ defines the function; this section describes what the bridge feeds it.
 
 `<n>` is the length of the artifact key in characters (30 for
 `com.example:billing-core:1.4.0`, 10 for `<external>`). The
-[GraphStore specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#4-identity-and-keys)
+[GraphStore specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md#4-identity-and-keys)
 explains why it is there.
 
 Three properties follow from hashing the key:
@@ -446,7 +447,7 @@ resolves to is decided by the store's `TypeResolver`.
 
 ```kotlin
 val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
-ParquetReader().load(snapshotDir, store)
+SnapshotLoader().load(snapshotDir, store)
 val model: HGModel = GraphStoreToHGModel.build(store)
 ```
 
@@ -456,7 +457,7 @@ The model is not updated in place. Apply the change to the store, then build aga
 and swap the result in:
 
 ```kotlin
-store.applyClass("com.example:billing-core:1.4.0", invoiceFacts)
+store.applyClass("com.example:billing-core:1.4.0", invoiceFacts, invoiceRefs)
 val next = GraphStoreToHGModel.build(store)
 current.set(next)            // e.g. an AtomicReference read by the tools
 ```

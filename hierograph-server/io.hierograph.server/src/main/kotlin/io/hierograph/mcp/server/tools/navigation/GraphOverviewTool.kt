@@ -16,13 +16,12 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.server.graphservice.HierarchicalGraphService
-import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.RefKind
 import io.hierograph.server.mapping.GraphStoreDependencySource
 import java.util.EnumMap
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.server.views.KindAliases
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.tools.views.ViewResponses
@@ -81,7 +80,7 @@ class GraphOverviewTool(
         for ((_, name) in JavaEdgeAttributes.ALL) {
             edgesByAttribute[name] = 0
         }
-        val weightByKind = EnumMap<RefKind, Int>(RefKind::class.java)
+        val weightByKind = EnumMap<DependencyKind, Int>(DependencyKind::class.java)
         var totalEdges = 0
         for (child in hierarchy.childrenOf(rootNode)) {
             hierarchy.traverse(child) { node ->
@@ -111,7 +110,7 @@ class GraphOverviewTool(
                 kindEntry(JavaNodeKind.METHOD, "Method (includes constructors)"),
                 kindEntry(JavaNodeKind.FIELD, "Field"),
                 mapOf(
-                    "kind" to JavaKinds.EXTERNAL_TYPE,
+                    "kind" to JavaNodeKind.EXTERNAL_TYPE,
                     "description" to "Type referenced by the scanned code but not scanned itself; " +
                             "lives under the 'External Types' module and has no members"
                 )
@@ -125,9 +124,9 @@ class GraphOverviewTool(
                 }
             ),
             "group_aliases" to mapOf(
-                JavaKinds.ALIAS_TYPES to JavaKinds.TYPE_KINDS.map { it.value },
-                JavaKinds.ALIAS_MEMBERS to JavaKinds.MEMBER_KINDS.map { it.value },
-                JavaKinds.ALIAS_PACKAGES to listOf(JavaNodeKind.PACKAGE.value)
+                KindAliases.TYPES to JavaNodeKind.TYPES.map { it.value },
+                KindAliases.MEMBERS to JavaNodeKind.MEMBERS.map { it.value },
+                KindAliases.PACKAGES to listOf(JavaNodeKind.PACKAGE.value)
             )
         )
 
@@ -136,7 +135,7 @@ class GraphOverviewTool(
             "type_level_attributes" to JavaEdgeAttributes.ALL.map { (_, name) ->
                 attrEntry(name)
             },
-            "type_level_kinds" to RefKind.entries.map { kind ->
+            "type_level_kinds" to DependencyKind.AGGREGATED.map { kind ->
                 mapOf("kind" to kind.value, "description" to typeLevelKindDescription(kind))
             },
             "detail_level" to DependencyKind.entries.map { kind ->
@@ -201,7 +200,7 @@ class GraphOverviewTool(
                 "nodes_by_kind" to nodesByKind,
                 "total_type_level_edges" to totalEdges,
                 "type_level_edges_by_attribute" to edgesByAttribute,
-                "type_level_weight_by_kind" to RefKind.toMap(weightByKind),
+                "type_level_weight_by_kind" to DependencyKind.toMap(weightByKind),
             ),
             "kinds" to kinds,
             "relationships" to relationships,
@@ -260,8 +259,5 @@ class GraphOverviewTool(
     }
 
     /** The description of a type-level kind: the facts its count is made of. */
-    private fun typeLevelKindDescription(kind: RefKind): String = when (kind) {
-        RefKind.MEMBER_ANNOTATED_BY -> "annotated_by facts of members and parameter_annotated_by facts"
-        else -> "${kind.value} facts of the type and its members"
-    }
+    private fun typeLevelKindDescription(kind: DependencyKind): String = "${kind.value} facts of the type and its members"
 }

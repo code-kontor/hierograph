@@ -18,12 +18,13 @@ package io.hierograph.server.graphservice
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.server.mapping.GraphStoreToHGModel
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.server.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
@@ -529,7 +530,7 @@ class HierarchicalGraphService {
     private fun buildFromParquet(dir: Path = snapshotDir()): Built {
         val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         val reader = ParquetReader()
-        reader.load(dir, store)
+        SnapshotLoader(reader).load(dir, store)
         val generation = graphGen.incrementAndGet()
         val derived = DetailDerivation.derive(store, reader.readAllMembers(dir), reader.readDependencies(dir))
         val snapshot = buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles(store), generation)
@@ -734,7 +735,7 @@ class HierarchicalGraphService {
     /** Reverse index for the detail tools: member node handle -> bare member key (the snapshot key). */
     private fun memberHandles(store: GraphStore): Map<Long, String> =
         store.nodes().asSequence()
-            .filter { it.kind in JavaKinds.MEMBER_KINDS }
+            .filter { it.kind in JavaNodeKind.MEMBERS }
             .associateBy({ NodeHandle.of(it.key) }, { it.fqn })
 
     /**

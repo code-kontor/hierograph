@@ -15,15 +15,14 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
 
@@ -58,7 +57,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         val isConstant = MemberModifiers.isConstant(member.modifiers)
 
         val nodes = linkedMapOf<String, Any>()
-        putSlimNode(nodes, fieldId, member.signature, memberKey, JavaKinds.FIELD.value)
+        putSlimNode(nodes, fieldId, member.signature, memberKey, JavaNodeKind.FIELD.value)
         val declaringTypeHandle = putType(nodes, ownerFqn)
 
         val ownEdges = reader.readDependencies(dir, fromTypes = listOf(ownerFqn)).filter { it.fromKey == memberKey }
@@ -116,7 +115,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
                 val sub = dep.from
                 if (!inherits || !seen.add(sub.identifier)) continue
                 val hides = model.hierarchy.childrenOf(sub).any {
-                    it.kind == JavaKinds.FIELD && NodeMetadata.getName(it).substringAfterLast(' ') == fieldName
+                    it.kind == JavaNodeKind.FIELD && NodeMetadata.getName(it).substringAfterLast(' ') == fieldName
                 }
                 if (hides) continue
                 result += NodeMetadata.getQualifiedName(sub)

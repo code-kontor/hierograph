@@ -17,10 +17,10 @@ package io.hierograph.server.views
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
@@ -67,7 +67,8 @@ class StoreReactor {
     private fun GraphStore.type(artifact: String, fqn: String, vararg refs: Pair<String, Int>) =
         applyClass(
             artifact,
-            ClassFacts(fqn, JavaKinds.CLASS, 0, emptyList(), refs.map { (to, n) -> Ref(to, RefKind.INVOKES, count = n) }, fqn),
+            ClassFacts(fqn, JavaNodeKind.CLASS, 0, emptyList(), fqn),
+            refs.map { (to, n) -> Ref(to, DependencyKind.CALLS, count = n) },
         )
 
     val model: HGModel = GraphStoreToHGModel.build(store)

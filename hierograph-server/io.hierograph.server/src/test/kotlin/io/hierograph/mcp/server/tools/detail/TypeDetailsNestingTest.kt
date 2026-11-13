@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -43,16 +43,16 @@ class TypeDetailsNestingTest {
             HierarchyFactory.addChild(hierarchy, parent, it)
         }
 
-    private val billing = add(root, JavaKinds.PACKAGE, "billing", "com.example.billing")
-    private val invoice = add(billing, JavaKinds.CLASS, "Invoice", "com.example.billing.Invoice")
-    private val line = add(billing, JavaKinds.CLASS, "Invoice\$Line", "com.example.billing.Invoice\$Line")
-    private val status = add(billing, JavaKinds.ENUM, "Invoice\$Status", "com.example.billing.Invoice\$Status")
-    private val lineTax = add(billing, JavaKinds.CLASS, "Invoice\$Line\$Tax", "com.example.billing.Invoice\$Line\$Tax")
-    private val anonymous = add(billing, JavaKinds.CLASS, "Invoice\$1", "com.example.billing.Invoice\$1")
-    private val local = add(billing, JavaKinds.CLASS, "Invoice\$1Draft", "com.example.billing.Invoice\$1Draft")
-    private val generated = add(billing, JavaKinds.CLASS, "Ledger\$\$Proxy", "com.example.billing.Ledger\$\$Proxy")
+    private val billing = add(root, JavaNodeKind.PACKAGE, "billing", "com.example.billing")
+    private val invoice = add(billing, JavaNodeKind.CLASS, "Invoice", "com.example.billing.Invoice")
+    private val line = add(billing, JavaNodeKind.CLASS, "Invoice\$Line", "com.example.billing.Invoice\$Line")
+    private val status = add(billing, JavaNodeKind.ENUM, "Invoice\$Status", "com.example.billing.Invoice\$Status")
+    private val lineTax = add(billing, JavaNodeKind.CLASS, "Invoice\$Line\$Tax", "com.example.billing.Invoice\$Line\$Tax")
+    private val anonymous = add(billing, JavaNodeKind.CLASS, "Invoice\$1", "com.example.billing.Invoice\$1")
+    private val local = add(billing, JavaNodeKind.CLASS, "Invoice\$1Draft", "com.example.billing.Invoice\$1Draft")
+    private val generated = add(billing, JavaNodeKind.CLASS, "Ledger\$\$Proxy", "com.example.billing.Ledger\$\$Proxy")
     private val external = add(
-        add(root, JavaKinds.PACKAGE, "math", "java.math"), JavaKinds.EXTERNAL_TYPE, "BigDecimal", "java.math.BigDecimal"
+        add(root, JavaNodeKind.PACKAGE, "math", "java.math"), JavaNodeKind.EXTERNAL_TYPE, "BigDecimal", "java.math.BigDecimal"
     )
 
     @Test

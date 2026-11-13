@@ -105,7 +105,7 @@ from the artifact that defines it.
 
 The tool combines the in-memory model with the type's rows in the Parquet snapshot,
 described in the
-[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 
 | Response field | Source | Why there |
 |----------------|--------|-----------|
@@ -122,10 +122,10 @@ described in the
 The `types.parquet` row, the members and the refs are all read from the snapshot
 artifact of the type's own module, so two artifacts that define the same FQN never mix
 modifiers, members or supertypes: each definition is described as it was compiled. See
-[`types.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#41-typesparquet),
-[`members.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#42-membersparquet)
+[`types.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#41-typesparquet),
+[`members.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#42-membersparquet)
 and
-[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
+[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
 for the meaning of each column.
 
 **Superclass.** The `EXTENDS` row is the superclass named in the class file. Every
@@ -164,7 +164,7 @@ snapshot does not keep it; the names carry the same information for code compile
 from Java or Kotlin.
 
 **Modifiers.** Modifiers are decoded from the
-[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
+[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#51-modifier-bits)
 in a fixed order: visibility first, then `abstract`, `final`, `static`.
 
 | Modifier | When present |
@@ -200,7 +200,7 @@ it is filled depends on whether the referenced type is a node in the graph:
 | an external type without a node | `null` | `external.type` | `java.lang.Object`, `java.lang.Comparable`, `kotlin.Metadata` |
 
 The graph does not create placeholder nodes for every external type. The
-[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
 leaves out ubiquitous names such as `java.lang.*`, `kotlin.*` and the JetBrains
 `@NotNull` / `@Nullable` annotations, because a dependency on them carries no
 architectural information. The type's `dependencies.parquet` rows still name them, so

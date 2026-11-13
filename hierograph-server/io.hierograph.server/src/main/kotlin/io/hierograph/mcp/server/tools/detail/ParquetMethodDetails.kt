@@ -15,12 +15,11 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.stereotype.Component
@@ -136,7 +135,7 @@ class ParquetMethodDetails(graphService: HierarchicalGraphService) : AbstractDet
                 "id" to null,
                 "name" to fqn.substringAfterLast('.'),
                 "qualified_name" to fqn,
-                "kind" to JavaKinds.EXTERNAL_TYPE,
+                "kind" to JavaNodeKind.EXTERNAL_TYPE,
             )
         }
     }

@@ -51,7 +51,7 @@ stays simple:
 **Does not own** (collaborators it delegates to):
 
 - *Scanning bytecode and resolving a build manifest* — `ManifestGraphSource`.
-- *Reading/writing Parquet tables* — `ParquetReader` / the snapshot writer.
+- *Reading/writing Parquet tables* — `ParquetReader` / `ParquetWriter`, and loading a snapshot into a GraphStore — `SnapshotLoader`.
 - *Bridging a type-level store to the hierarchical model* — `GraphStoreToHGModel`.
 - *Watching the filesystem* — the polling / native watchers.
 - *Answering tool requests* — the MCP tools, which consume this service's output.

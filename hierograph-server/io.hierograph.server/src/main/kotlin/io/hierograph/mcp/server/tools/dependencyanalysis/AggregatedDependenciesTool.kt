@@ -19,8 +19,8 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 import io.hierograph.server.mapping.GraphStoreDependencySource
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -139,7 +139,7 @@ class AggregatedDependenciesTool(
                         "weight" to aggDep.aggregatedWeight,
                         "type_pair_count" to typePairs.size,
                         "attributes" to JavaEdgeAttributes.toMap(unionBitmap),
-                        "kinds" to RefKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
+                        "kinds" to DependencyKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
                     )
                 )
             }
@@ -163,7 +163,7 @@ class AggregatedDependenciesTool(
 
     private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
-        if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
+        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(

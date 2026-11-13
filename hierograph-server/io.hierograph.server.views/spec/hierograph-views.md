@@ -56,7 +56,7 @@ them.
 | Depends on | For |
 |------------|-----|
 | `io.hierograph.hierarchicalgraph.model` | `Hierarchy`, `HGNode`, `NodeMetadata` (qualified names) |
-| `io.hierograph.graphstore.jvm` | the Java node kinds and the kind aliases (`JavaKinds`) |
+| `io.hierograph.graphstore.jvm.archive` | the Java node kinds and their groups (`JavaNodeKind`) |
 | Jackson (`jackson-databind`) | reading the JSON tree |
 
 ---
@@ -149,8 +149,8 @@ A document with a parse error is not applied at all.
 A selector is a string — a name pattern — or an object:
 
 ```json
-{ "match": "io.hierograph.graphstore.jvm.parquet", "kind": "java.package",
-  "within": "io.hierograph:io.hierograph.graphstore.jvm:*" }
+{ "match": "io.hierograph.graphstore.jvm.archive", "kind": "java.package",
+  "within": "io.hierograph:io.hierograph.graphstore.jvm.archive:*" }
 ```
 
 | Field | Meaning |

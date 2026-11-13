@@ -16,8 +16,9 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.parquet.HierographArchive
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.HierographArchive
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
@@ -41,7 +42,7 @@ class GraphStorePipelineIT {
     @BeforeAll
     fun load() {
         dir = SpringFixture.directory
-        store = GraphStore().also { ParquetReader().load(dir, it) }
+        store = GraphStore().also { SnapshotLoader().load(dir, it) }
     }
 
     @Test

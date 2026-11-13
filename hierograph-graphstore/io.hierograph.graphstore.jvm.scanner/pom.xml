@@ -26,7 +26,12 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm.archive</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.jvm.store</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.ow2.asm</groupId>

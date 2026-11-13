@@ -21,10 +21,11 @@ import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.TypeResolver
-import io.hierograph.graphstore.jvm.model.ArtifactClasspath
+import io.hierograph.graphstore.jvm.archive.model.ArtifactClasspath
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClasspathEntry
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
+import io.hierograph.graphstore.jvm.model.DependencyRollup
+import io.hierograph.graphstore.jvm.archive.model.ClasspathEntry
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import io.hierograph.graphstore.jvm.scanner.ScanResult
@@ -352,7 +353,9 @@ class ManifestGraphSource internal constructor(
 
     /**
      * Ingests a [Scanned] straight into [store] — the same ingest path a Parquet load uses
-     * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass]), fed from memory. Installs the real per-owner classpath-order
+     * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass]), fed from memory. Like the
+     * snapshot reader, it rolls each type's aggregated references up from the scan's detail facts with
+     * [DependencyRollup]; the scanner reports facts only. Installs the real per-owner classpath-order
      * [TypeResolver] from the manifest (index 0 = the owner itself, then its deps) before ingest.
      */
     fun ingest(scanned: Scanned, store: GraphStore) {
@@ -362,13 +365,16 @@ class ManifestGraphSource internal constructor(
         }
         val registered = HashSet<String>()
         for (module in scanned.modules.values) {
+            // A module's result is one artifact, so its facts roll up per owning type, as the snapshot reader does.
+            val refs = DependencyRollup.Accumulator()
+            for (fact in module.result.dependencies) refs.add(fact.fromType, fact.fromKey, fact.toType, fact.kind)
             for (artifactClass in module.result.classes) {
                 val key = artifactClass.artifactKey
                 if (registered.add(key)) {
                     val name = scanned.classpaths[key]?.name ?: key
                     store.registerArtifact(ArtifactInfo(key, name, key))
                 }
-                store.applyClass(key, artifactClass.facts)
+                store.applyClass(key, artifactClass.facts, refs.refsOf(artifactClass.facts.fqn))
             }
         }
     }

@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel
@@ -50,10 +50,10 @@ class NestedTypeScopeTest {
         HGGraphFactory.createCoreDependency(this, target, "USES") { DefaultDependencySource(nextId++) }.weight = 1
     }
 
-    private val billing = add(root, JavaKinds.PACKAGE, "billing")
-    private val invoice = add(billing, JavaKinds.CLASS, "Invoice")
-    private val line = add(billing, JavaKinds.CLASS, "Invoice\$Line")
-    private val report = add(billing, JavaKinds.CLASS, "Report")
+    private val billing = add(root, JavaNodeKind.PACKAGE, "billing")
+    private val invoice = add(billing, JavaNodeKind.CLASS, "Invoice")
+    private val line = add(billing, JavaNodeKind.CLASS, "Invoice\$Line")
+    private val report = add(billing, JavaNodeKind.CLASS, "Report")
 
     init {
         line.dependsOn(invoice)

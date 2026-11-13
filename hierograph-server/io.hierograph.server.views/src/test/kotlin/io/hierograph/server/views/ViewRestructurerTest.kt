@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.views
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
@@ -57,10 +57,10 @@ class ViewRestructurerTest {
             val parquet = r.node("com.acme.store.parquet")
 
             assertThat(h.parentOf(module)).isSameAs(h.rootNode)
-            assertThat(module.kind).isEqualTo(JavaKinds.MODULE)
+            assertThat(module.kind).isEqualTo(JavaNodeKind.MODULE)
             assertThat(r.path(parquet, h)).containsExactly("acme.parquet", "com", "com.acme", "com.acme.store", "com.acme.store.parquet")
             assertThat(generateSequence(h.parentOf(parquet)) { h.parentOf(it) }.takeWhile { it !== module }.toList())
-                .allMatch { ViewNodes.isVirtual(it) && it.kind == JavaKinds.PACKAGE }
+                .allMatch { ViewNodes.isVirtual(it) && it.kind == JavaNodeKind.PACKAGE }
             assertThat(r.children(parquet, h)).containsExactly(
                 "com.acme.store.parquet.Reader", "com.acme.store.parquet.Reader\$Page", "com.acme.store.parquet.Writer",
             )

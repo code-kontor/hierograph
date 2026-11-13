@@ -18,7 +18,8 @@
     <description>In-memory GraphStore backed by Parquet snapshots; a backend-neutral in-memory read path.</description>
 
     <modules>
-        <module>io.hierograph.graphstore.jvm</module>
+        <module>io.hierograph.graphstore.jvm.archive</module>
+        <module>io.hierograph.graphstore.jvm.store</module>
         <module>io.hierograph.graphstore.jvm.scanner</module>
     </modules>
 </project>

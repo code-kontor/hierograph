@@ -17,7 +17,8 @@ package io.hierograph.mcp.server.tools.detail
 
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.JavaTypeNames
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import java.nio.file.Path
 
@@ -79,7 +80,7 @@ abstract class AbstractDetailTool(
     protected fun notAMember(id: Long, expected: String, tool: String): Map<String, Any?>? {
         val node = graphService.model.lookupNode(id) ?: return null
         val kind = node.kind?.toString() ?: "unknown"
-        val recovery = if (JavaKinds.isTypeKind(node.kind))
+        val recovery = if (JavaNodeKind.isTypeKind(node.kind))
             "To inspect the type, use type_details(typeId: $id); to find its ${expected}s, use list_children(nodeId: $id)."
         else
             "To find ${expected}s below this node, use list_descendants(nodeId: $id, kindFilter: ['java.$expected'])."
@@ -103,11 +104,11 @@ abstract class AbstractDetailTool(
         "id" to null,
         "name" to name,
         "qualified_name" to name,
-        "kind" to JavaKinds.PRIMITIVE.value
+        "kind" to JavaNodeKind.PRIMITIVE.value
     )
 
     companion object {
         @JvmStatic
-        protected val JAVA_PRIMITIVES: Set<String> = JavaKinds.JAVA_PRIMITIVES
+        protected val JAVA_PRIMITIVES: Set<String> = JavaTypeNames.PRIMITIVES
     }
 }

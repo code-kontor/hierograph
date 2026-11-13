@@ -19,7 +19,7 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.tools.detail.NestedTypes
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
@@ -208,20 +208,20 @@ class FindDependencyPathTool(
     private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
-        if (JavaKinds.isTypeKind(node.kind)) ids.add(node.identifier)
+        if (JavaNodeKind.isTypeKind(node.kind)) ids.add(node.identifier)
         hierarchy.traverse(node) { n ->
-            if (JavaKinds.isTypeKind(n.kind)) {
+            if (JavaNodeKind.isTypeKind(n.kind)) {
                 ids.add(n.identifier)
             }
         }
         // A type stands for its source: its nested types sit beside it in the package but belong to it.
-        if (node.kind in JavaKinds.TYPE_KINDS) NestedTypes.allNested(hierarchy, node).forEach { ids.add(it.identifier) }
+        if (node.kind in JavaNodeKind.TYPES) NestedTypes.allNested(hierarchy, node).forEach { ids.add(it.identifier) }
         return ids
     }
 
     private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
-        if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
+        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(

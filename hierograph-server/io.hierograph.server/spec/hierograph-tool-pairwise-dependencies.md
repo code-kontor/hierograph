@@ -137,7 +137,7 @@ For every non-empty cell `(i, j)` with `i ≠ j` it records:
 
 The weight of a type-level dependency is the number of individual references the
 depending type makes to the target type (see the
-[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)).
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)).
 The diagonal, the dependencies inside one node, is left out: a node depending on
 itself says nothing about the structure of the set. Dependencies to anything outside
 the set are ignored.

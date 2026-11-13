@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.AggregatedDependenciesTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesTool
@@ -94,7 +94,7 @@ class TypeLevelKindsTest {
         assertThat(detail.getValue("overrides")["derived"]).isEqualTo(true)
         assertThat(detail.getValue("raises")["counted"]).isEqualTo(false)
         assertThat(detail.getValue("casts")).doesNotContainKeys("derived", "counted")
-        assertThat((relationships["type_level_kinds"] as List<Map<String, Any?>>).map { it["kind"] }).contains("member_annotated_by", "calls")
+        assertThat((relationships["type_level_kinds"] as List<Map<String, Any?>>).map { it["kind"] }).containsExactlyElementsOf(DependencyKind.AGGREGATED.map { it.value })
 
         val stats = overview["stats"] as Map<String, Any?>
         assertThat(stats["type_level_weight_by_kind"]).isEqualTo(mapOf("extends" to 1, "implements" to 1, "returns" to 1, "calls" to 5))

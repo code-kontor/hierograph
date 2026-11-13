@@ -19,14 +19,14 @@ import io.hierograph.graphstore.jvm.detail.DetailEnricher
 import io.hierograph.graphstore.jvm.detail.DetailQuery
 import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
 import io.hierograph.graphstore.jvm.detail.NodeDisplay
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.graphstore.jvm.model.Node
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.graphservice.pagination.DataHashProvider
@@ -240,17 +240,17 @@ class ParquetDetailDependencies(
 
     /** The member key (`<owner fqn>#<signature>`) of a method or field node; `null` for any other node. */
     private fun memberKeyOf(node: HGNode): String? =
-        if (node.kind in JavaKinds.MEMBER_KINDS) NodeMetadata.getQualifiedName(node) else null
+        if (node.kind in JavaNodeKind.MEMBERS) NodeMetadata.getQualifiedName(node) else null
 
     /** The node whose subtree defines the scope: a member's declaring type, otherwise the node itself. */
     private fun scopeOf(node: HGNode): HGNode =
-        if (node.kind in JavaKinds.MEMBER_KINDS) graphService.model.hierarchy.parentOf(node) ?: node else node
+        if (node.kind in JavaNodeKind.MEMBERS) graphService.model.hierarchy.parentOf(node) ?: node else node
 
     /** The FQNs of the types in [node]'s subtree, [node] included when it is a type. */
     private fun typesIn(node: HGNode): Set<String> {
         val fqns = HashSet<String>()
-        if (JavaKinds.isTypeKind(node.kind)) fqns += NodeMetadata.getQualifiedName(node)
-        graphService.model.hierarchy.traverse(node) { if (JavaKinds.isTypeKind(it.kind)) fqns += NodeMetadata.getQualifiedName(it) }
+        if (JavaNodeKind.isTypeKind(node.kind)) fqns += NodeMetadata.getQualifiedName(node)
+        graphService.model.hierarchy.traverse(node) { if (JavaNodeKind.isTypeKind(it.kind)) fqns += NodeMetadata.getQualifiedName(it) }
         return fqns
     }
 
@@ -267,8 +267,8 @@ class ParquetDetailDependencies(
         // that *is* a single type (a class whose children are members, or a childless annotation/interface)
         // would otherwise collect nothing. Container scopes (module/package) still gather their descendant
         // types via the traversal below.
-        if (JavaKinds.isTypeKind(node.kind)) seed.add(node)
-        hierarchy.traverse(node) { if (JavaKinds.isTypeKind(it.kind)) seed.add(it) }
+        if (JavaNodeKind.isTypeKind(node.kind)) seed.add(node)
+        hierarchy.traverse(node) { if (JavaNodeKind.isTypeKind(it.kind)) seed.add(it) }
         val scope = ArrayList<HGNode>()
         val visited = HashSet<Any?>()
         val queue = ArrayDeque(seed)
@@ -328,7 +328,7 @@ class ParquetDetailDependencies(
          * narrower type-level scope, so its drill-down is empty.
          */
         fun drillDown(hierarchy: Hierarchy, node: HGNode, weight: (HGNode) -> Int): List<Map<String, Any?>> {
-            fun isType(n: HGNode) = JavaKinds.isTypeKind(n.kind)
+            fun isType(n: HGNode) = JavaNodeKind.isTypeKind(n.kind)
             var current = node
             while (!isType(current)) {
                 val only = hierarchy.childrenOf(current).singleOrNull() ?: break
@@ -337,7 +337,7 @@ class ParquetDetailDependencies(
             }
             if (isType(current)) return emptyList()
             return hierarchy.childrenOf(current)
-                .filter { it.kind !in JavaKinds.MEMBER_KINDS }
+                .filter { it.kind !in JavaNodeKind.MEMBERS }
                 .map { it to weight(it) }
                 .filter { it.second > 0 }
                 .sortedByDescending { it.second }

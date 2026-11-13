@@ -17,8 +17,8 @@ package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -54,7 +54,7 @@ class ManifestGraphSourceTest {
                   "testOutputDir": null,
                   "sourceRoots": [],
                   "classpath": [
-                    { "gav": "io.hierograph:io.hierograph.graphstore.jvm:0", "internal": true, "jar": null }
+                    { "gav": "io.hierograph:io.hierograph.graphstore.jvm.archive:0", "internal": true, "jar": null }
                   ]
                 }
               ]
@@ -75,8 +75,8 @@ class ManifestGraphSourceTest {
 
         // …and it loads back into a GraphStore with this class present as a scanned type.
         val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
-        ParquetReader().load(snapshotDir, store)
-        val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
+        SnapshotLoader().load(snapshotDir, store)
+        val typeFqns = store.nodes().filter { JavaNodeKind.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSource")
     }
 
@@ -124,8 +124,49 @@ class ManifestGraphSourceTest {
         // The ingested graph carries a test type (this very class) that the tests-off scan does not.
         val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         ManifestGraphSource().ingest(scanned, store)
-        val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
+        val typeFqns = store.nodes().filter { JavaNodeKind.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSourceTest")
+    }
+
+    /**
+     * The scanner reports facts only; both loaders roll them up. Ingesting a scan straight into a store and
+     * loading the snapshot written from that scan must give the same type-level dependencies, weights and kinds.
+     */
+    @Test
+    fun `in-memory ingest rolls up the same aggregate as loading the snapshot`(@TempDir tmp: Path) {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        val testClassesDir = Path.of("target/test-classes").toAbsolutePath()
+        val manifest = tmp.resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """
+            {
+              "schemaVersion": 1,
+              "generator": "test",
+              "generatedAt": "2026-01-01T00:00:00Z",
+              "reactorRoot": "${tmp.toUri().path}",
+              "modules": [
+                {
+                  "gav": "io.hierograph:test-graphservice:0",
+                  "name": "graphservice",
+                  "mainOutputDir": "${classesDir.toUri().path}",
+                  "testOutputDir": "${testClassesDir.toUri().path}",
+                  "sourceRoots": [],
+                  "classpath": []
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+        val source = ManifestGraphSource()
+        val scanned = source.scan(manifest, includeTests = true)
+
+        val ingested = GraphStore().also { source.ingest(scanned, it) }
+        val snapshotDir = tmp.resolve("snapshot")
+        source.writeSnapshot(scanned, snapshotDir)
+        val loaded = GraphStore().also { SnapshotLoader().load(snapshotDir, it) }
+
+        assertThat(ingested.typeDependencies().toSet()).isNotEmpty.isEqualTo(loaded.typeDependencies().toSet())
     }
 
     /** A test-only module (no main output) is skipped by default but, with includeTests, scanned as `<gav>:test` only. */

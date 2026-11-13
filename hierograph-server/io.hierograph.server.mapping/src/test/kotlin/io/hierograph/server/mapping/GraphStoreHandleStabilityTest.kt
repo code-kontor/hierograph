@@ -17,11 +17,11 @@ package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -44,7 +44,7 @@ class GraphStoreHandleStabilityTest {
         val store = GraphStore()
         store.registerArtifact(ArtifactInfo(artifact, artifact, artifact))
         for (key in typeKeys) {
-            store.applyClass(artifact, ClassFacts(key, JavaKinds.CLASS, 0, emptyList(), emptyList(), "h"))
+            store.applyClass(artifact, ClassFacts(key, JavaNodeKind.CLASS, 0, emptyList(), "h"), emptyList())
         }
         return store
     }

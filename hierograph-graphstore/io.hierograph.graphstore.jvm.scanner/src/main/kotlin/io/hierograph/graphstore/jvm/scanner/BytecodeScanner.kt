@@ -16,10 +16,10 @@
 package io.hierograph.graphstore.jvm.scanner
 
 import dev.hardwood.metadata.CompressionCodec
-import io.hierograph.graphstore.jvm.model.ArtifactClasspath
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter.ArtifactClass
+import io.hierograph.graphstore.jvm.archive.model.ArtifactClasspath
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
+import io.hierograph.graphstore.jvm.archive.ParquetWriter.ArtifactClass
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable

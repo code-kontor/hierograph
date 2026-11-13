@@ -24,8 +24,7 @@ import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.tools.KindFilter
 import org.springframework.ai.tool.annotation.Tool
@@ -118,7 +117,7 @@ class AffectedByTool(
         // ── validate node kind (reject methods and fields) ─────────────
         val hierarchy = graphService.model.hierarchy
         val nodeKind = node.kind
-        if (nodeKind == JavaKinds.METHOD || nodeKind == JavaKinds.FIELD) {
+        if (nodeKind == JavaNodeKind.METHOD || nodeKind == JavaNodeKind.FIELD) {
             val declaringType = hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(
@@ -178,16 +177,16 @@ class AffectedByTool(
 
         // ── collect source subtree type IDs ────────────────────────────
         val sourceTypeIds = mutableSetOf<Any>()
-        if (JavaKinds.isTypeKind(node.kind)) {
+        if (JavaNodeKind.isTypeKind(node.kind)) {
             sourceTypeIds.add(node.identifier)
         }
         hierarchy.traverse(node) { n ->
-            if (JavaKinds.isTypeKind(n.kind)) {
+            if (JavaNodeKind.isTypeKind(n.kind)) {
                 sourceTypeIds.add(n.identifier)
             }
         }
         // A type stands for its source: its nested types sit beside it in the package but belong to it.
-        if (node.kind in JavaKinds.TYPE_KINDS) NestedTypes.allNested(hierarchy, node).forEach { sourceTypeIds.add(it.identifier) }
+        if (node.kind in JavaNodeKind.TYPES) NestedTypes.allNested(hierarchy, node).forEach { sourceTypeIds.add(it.identifier) }
 
         // ── BFS over type-level dependency graph ───────────────────────
         // BFS state

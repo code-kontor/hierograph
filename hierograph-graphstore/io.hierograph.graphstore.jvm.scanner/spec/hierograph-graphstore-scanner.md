@@ -155,8 +155,8 @@ data class ScanResult(
 ```
 
 **`classes`** holds one `ArtifactClass(artifactKey, facts)` per class file. A
-`ClassFacts` record carries the type itself, its members with their parameters, and
-its aggregated references, rolled up from its detail facts (§5.5):
+`ClassFacts` record carries the type itself and its members with their parameters
+(§5.5 explains why it holds no aggregated references):
 
 ```kotlin
 data class ClassFacts(
@@ -164,14 +164,14 @@ data class ClassFacts(
     val kind: JavaNodeKind,
     val modifiers: Int,
     val members: List<MemberFacts>,
-    val refs: List<Ref>,
     val classHash: String,
     val sourceFile: String?,
 )
 ```
 
-This is the GraphStore's ingest unit: each element of `classes` can be passed to
-`GraphStore.applyClass` as it is.
+This is the GraphStore's ingest unit: each element of `classes` is passed to
+`GraphStore.applyClass`, together with the references a loader rolls up from the
+class's detail facts (§11.3).
 
 **`dependencies`** holds the detail facts: every dependency a class file contains, one
 per occurrence, from the type itself (its superclass, interfaces, annotations, …) or
@@ -181,15 +181,15 @@ from `ClassFacts` because they are large and are read on demand rather than held
 memory.
 
 **`writeTo(dir, codec, classpaths, packaging)`** writes the result as a snapshot
-directory: the types, members, parameters and detail facts, but not the aggregated
-references, which a reader rolls up again from the detail facts. There is one
+directory: the types, members, parameters and detail facts. It holds no aggregated
+references; a reader rolls them up from the detail facts. There is one
 `.hierograph` artifact per artifact key — an archive or an
 exploded directory of the same name, with identical tables. An artifact of the same
 name already in the directory is replaced, whichever its form. Nothing is written
 outside the directory: an archive's tables are staged in a `.staging-<artifact>`
 directory there, which is deleted once the archive is written. Tables, columns and
 conventions are defined in the
-[snapshot format specification](../../io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -305,29 +305,19 @@ visibly does.
 
 **Calls on arrays** (`array.clone()`) are not recorded; an array has no owner type.
 
-### 5.5 Aggregated references
+### 5.5 No aggregated references
 
-A class's aggregated references (`ClassFacts.refs`) are not counted separately: at the
-end of the class, its detail facts are rolled up into one `Ref` per (target type,
-`RefKind`), whose count is the number of facts behind it (`DependencyRollup`). The
-rollup:
+The scanner reports facts only. It does not aggregate a class's dependencies into
+type-to-type references: that is the job of whoever loads the facts into a GraphStore.
+Both loaders, the snapshot reader and the server's in-memory ingest of a fresh scan,
+roll the detail facts up with the same `DependencyRollup` (in
+`io.hierograph.graphstore.jvm.store`), so the aggregate is the same whichever way the
+facts travel, and every unit of an aggregated weight is one detail fact. The rollup
+rules are part of the snapshot format (`hierograph-graphstore-format.md` §6.4).
 
-- counts every fact as 1, except `raises`, which refines facts that are counted
-  already (the `instantiates` and the constructor `calls` of the thrown exception);
-- leaves out facts whose target is the class itself, a primitive or `void`
-  (references to the class's own nested types, or from a nested type to its outer
-  type, are kept, because those are separate classes);
-- stores each kind under the `RefKind` of the type-level vocabulary: `extends` →
-  `EXTENDS`, `implements` → `IMPLEMENTS`, `annotated_by` from the class → `ANNOTATED_BY`,
-  `annotated_by` from a member and `parameter_annotated_by` → `MEMBER_ANNOTATED_BY`,
-  `annotation_value` → `ANNOTATION_VALUE`, `type_argument` → `TYPE_ARGUMENT`,
-  `has_type` → `FIELD_TYPE`, `parameter_type` → `PARAM_TYPE`, `returns` →
-  `RETURN_TYPE`, `throws` → `THROWS`, `calls` → `INVOKES`, `reads_field` → `READS`,
-  `writes_field` → `WRITES`, `instantiates` → `INSTANTIATES`, `casts` → `CAST`,
-  `catches` → `CATCHES`, `class_literal` → `CLASS_LITERAL`.
-
-References are listed in the order their first fact appears. So every unit of an
-aggregated weight is one detail fact.
+Two properties of the facts make that rollup possible: every dependency has the class
+or one of its members as its source (so `from_key` tells a type's own annotations from
+its members'), and `raises` is the only kind that refines facts counted already.
 
 ---
 
@@ -487,14 +477,21 @@ BytecodeScanner().scan(listOf(ScanArtifact(key, classesDir)))
 ### 11.3 Scan straight into a GraphStore
 
 To build the in-memory model without writing to disk, apply the classes directly.
-Register each artifact first, then apply its classes:
+Register each artifact first, roll the detail facts up into each type's references,
+then apply its classes:
 
 ```kotlin
 val result = BytecodeScanner().scan(artifacts)
 val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
 for (a in artifacts) store.registerArtifact(ArtifactInfo(a.key, a.key, a.key))
-for (c in result.classes) store.applyClass(c.artifactKey, c.facts)
+val refs = DependencyRollup.Accumulator()
+for (d in result.dependencies) refs.add(d.fromType, d.fromKey, d.toType, d.kind)
+for (c in result.classes) store.applyClass(c.artifactKey, c.facts, refs.refsOf(c.facts.fqn))
 ```
+
+This rolls up per owner FQN, so it assumes each FQN is scanned once. When the same FQN
+can come from more than one artifact, roll up per artifact, as the server does with
+`BytecodeScanner.scanByKey`.
 
 `result.dependencies` are not part of the GraphStore. Write them to a snapshot so
 detail-level queries can read them.

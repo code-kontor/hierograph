@@ -582,7 +582,7 @@ parameters. When only the summary is needed, ask for `limit = 1`.
 
 | Not in the tool surface | Where it lives |
 |-------------------------|----------------|
-| Scanning bytecode, building the graph | [GraphStore](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md) and the [bytecode scanner](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md) |
+| Scanning bytecode, building the graph | [GraphStore](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md) and the [bytecode scanner](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md) |
 | Loading, watching and reloading the graph | [hierarchical graph service](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md) |
 | Rolling dependencies up the tree, caching | [hierarchical graph model](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md) |
 | The GraphQL API | `io.hierograph.server.graphql` |

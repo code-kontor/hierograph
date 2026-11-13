@@ -93,7 +93,7 @@ An **agentic AI** — Claude (via Claude Code or Claude Desktop), Cursor, or any
 
 The whole model fits in memory: on a Spring Framework-sized codebase, the full hierarchy plus 115,906 type-level dependency edges load in 38 milliseconds and occupy 64 MB. Aggregation, blast-radius, and reachability queries run in microseconds — which is exactly what makes free-form, any-level aggregation practical rather than a slow database round-trip. Everything stays local; your code never leaves your machine.
 
-For detailed explanations, see the specifications of the [bytecode scanner](hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md), the [GraphStore](hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md) and the [hierarchical graph model](hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md).
+For detailed explanations, see the specifications of the [bytecode scanner](hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md), the [GraphStore](hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md) and the [hierarchical graph model](hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md).
 
 ---
 

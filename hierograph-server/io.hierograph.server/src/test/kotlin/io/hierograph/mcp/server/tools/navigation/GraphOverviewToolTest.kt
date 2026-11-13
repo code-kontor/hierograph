@@ -17,10 +17,10 @@ package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreToHGModel
@@ -36,15 +36,15 @@ class GraphOverviewToolTest {
         applyClass(
             "billing-core",
             ClassFacts(
-                "com.example.billing.Invoice", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(
-                    Ref("org.slf4j.Logger", RefKind.INVOKES, count = 1),
-                    Ref("com.example.money.Money", RefKind.INVOKES, count = 2),
-                ),
+                "com.example.billing.Invoice", JavaNodeKind.CLASS, 0, emptyList(),
                 classHash = "h",
             ),
+            listOf(
+                Ref("org.slf4j.Logger", DependencyKind.CALLS, count = 1),
+                Ref("com.example.money.Money", DependencyKind.CALLS, count = 2),
+            ),
         )
-        applyClass("billing-core", ClassFacts("com.example.money.Money", JavaKinds.RECORD, 0, emptyList(), emptyList(), "m"))
+        applyClass("billing-core", ClassFacts("com.example.money.Money", JavaNodeKind.RECORD, 0, emptyList(), "m"), emptyList())
     }
     private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }
     private val overview = GraphOverviewTool(graphService, NodeRefFactory(graphService)).graphOverview()

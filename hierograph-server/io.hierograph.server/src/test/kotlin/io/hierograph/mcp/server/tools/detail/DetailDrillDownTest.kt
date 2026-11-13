@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -44,15 +44,15 @@ class DetailDrillDownTest {
     //                              │           ├─ Invoice$Line
     //                              │           └─ Ledger
     //                              └─ money ─── Money ─ plus()
-    private val module = add(root, JavaKinds.MODULE)
-    private val com = add(module, JavaKinds.PACKAGE)
-    private val example = add(com, JavaKinds.PACKAGE)
-    private val billing = add(example, JavaKinds.PACKAGE)
-    private val money = add(example, JavaKinds.PACKAGE)
-    private val invoice = add(billing, JavaKinds.CLASS).also { add(it, JavaKinds.METHOD); add(it, JavaKinds.FIELD) }
-    private val line = add(billing, JavaKinds.CLASS)
-    private val ledger = add(billing, JavaKinds.INTERFACE)
-    private val moneyType = add(money, JavaKinds.RECORD).also { add(it, JavaKinds.METHOD) }
+    private val module = add(root, JavaNodeKind.MODULE)
+    private val com = add(module, JavaNodeKind.PACKAGE)
+    private val example = add(com, JavaNodeKind.PACKAGE)
+    private val billing = add(example, JavaNodeKind.PACKAGE)
+    private val money = add(example, JavaNodeKind.PACKAGE)
+    private val invoice = add(billing, JavaNodeKind.CLASS).also { add(it, JavaNodeKind.METHOD); add(it, JavaNodeKind.FIELD) }
+    private val line = add(billing, JavaNodeKind.CLASS)
+    private val ledger = add(billing, JavaNodeKind.INTERFACE)
+    private val moneyType = add(money, JavaNodeKind.RECORD).also { add(it, JavaNodeKind.METHOD) }
 
     private val weights = mapOf(billing to 6, money to 4, invoice to 3, line to 2, ledger to 0, moneyType to 4)
     private fun weight(n: HGNode) = weights[n] ?: error("weighed a node that is not a package or type: ${n.kind}")

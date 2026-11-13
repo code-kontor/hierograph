@@ -12,7 +12,7 @@
         <module name="io.hierograph.server.views" />
         <module name="io.hierograph.graphstore.jvm.scanner" />
         <module name="hierograph-maven-plugin" />
-        <module name="io.hierograph.graphstore.jvm" />
+        <module name="io.hierograph.graphstore.jvm.archive" />
         <module name="io.hierograph.server.graphql" />
         <module name="io.hierograph.server.mapping" />
         <module name="io.hierograph.itest.tests" />
@@ -30,7 +30,7 @@
       <module name="hierograph-maven-plugin" options="-parameters" />
       <module name="hierograph-parent" options="-parameters" />
       <module name="hierograph-server" options="-parameters" />
-      <module name="io.hierograph.graphstore.jvm" options="-parameters" />
+      <module name="io.hierograph.graphstore.jvm.archive" options="-parameters" />
       <module name="io.hierograph.graphstore.jvm.scanner" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.algorithms" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.model" options="-parameters" />

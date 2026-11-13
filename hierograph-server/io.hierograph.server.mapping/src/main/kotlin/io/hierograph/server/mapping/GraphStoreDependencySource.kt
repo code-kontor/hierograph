@@ -15,30 +15,30 @@
  */
 package io.hierograph.server.mapping
 
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.model.IDependencySource
 
 /**
  * The dependency source for a GraphStore-backed [io.hierograph.hierarchicalgraph.model.HGModel]: the
- * type-level dependency's [kinds], the count of detail facts per [RefKind] behind it (see
+ * type-level dependency's [kinds], the count of detail facts per [DependencyKind] behind it (see
  * [io.hierograph.graphstore.jvm.TypeDependency]). The core dependency's weight is their sum; its
  * attribute bitmap is the flag view of them.
  */
 class GraphStoreDependencySource(
     override val identifier: Any,
-    val kinds: Map<RefKind, Int>,
+    val kinds: Map<DependencyKind, Int>,
 ) : IDependencySource {
     override var dependency: HGCoreDependency? = null
 
     companion object {
         /** The [kinds] of [dependency], or none when it was not mapped from a GraphStore. */
-        fun kindsOf(dependency: HGCoreDependency): Map<RefKind, Int> =
+        fun kindsOf(dependency: HGCoreDependency): Map<DependencyKind, Int> =
             (dependency.dependencySource as? GraphStoreDependencySource)?.kinds.orEmpty()
 
         /** The summed [kinds] of [dependencies], as one map. */
-        fun kindsOf(dependencies: Iterable<HGCoreDependency>): Map<RefKind, Int> {
-            val sum = java.util.EnumMap<RefKind, Int>(RefKind::class.java)
+        fun kindsOf(dependencies: Iterable<HGCoreDependency>): Map<DependencyKind, Int> {
+            val sum = java.util.EnumMap<DependencyKind, Int>(DependencyKind::class.java)
             for (dep in dependencies) for ((kind, count) in kindsOf(dep)) sum.merge(kind, count, Int::plus)
             return sum
         }

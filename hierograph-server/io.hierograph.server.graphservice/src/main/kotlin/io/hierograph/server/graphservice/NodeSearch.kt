@@ -16,8 +16,8 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.server.views.KindAliases
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.server.views.ViewGroups
 import org.springframework.stereotype.Component
 
@@ -33,13 +33,13 @@ import org.springframework.stereotype.Component
 @Component
 class NodeSearch(private val graphService: HierarchicalGraphService) {
 
-    /** The `kindFilter` values that [search] accepts: the [JavaKinds.ALL_KINDS] values plus the group aliases. */
-    val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value } + JavaKinds.EXTERNAL_TYPE + ViewGroups.KIND
-    val validAliases: List<String> get() = JavaKinds.ALL_ALIASES.toList()
+    /** The `kindFilter` values that [search] accepts: the [JavaNodeKind.NODE_KINDS] values plus the group aliases. */
+    val validKindValues: List<String> get() = JavaNodeKind.NODE_KINDS.map { it.value } + JavaNodeKind.EXTERNAL_TYPE + ViewGroups.KIND
+    val validAliases: List<String> get() = KindAliases.ALL.toList()
 
     /** The entries of [kindFilter] that are neither a kind value nor a group alias. */
     fun invalidKinds(kindFilter: List<String>?): List<String> =
-        kindFilter.orEmpty().filter { it !in validKindValues && it !in JavaKinds.ALL_ALIASES }
+        kindFilter.orEmpty().filter { it !in validKindValues && it !in KindAliases.ALL }
 
     /** The best [limit] matches for [name] and the number of all matches. */
     data class Result(val nodes: List<HGNode>, val total: Int)
@@ -80,10 +80,10 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
         if (kindFilter.isNullOrEmpty()) return null
         val result = mutableSetOf<Any>()
         for (entry in kindFilter) {
-            val expanded = JavaKinds.expandAlias(entry)
+            val expanded = KindAliases.expand(entry)
             when {
                 expanded != null -> result.addAll(expanded)
-                entry == JavaKinds.EXTERNAL_TYPE -> result.add(JavaKinds.EXTERNAL_TYPE)
+                entry == JavaNodeKind.EXTERNAL_TYPE -> result.add(JavaNodeKind.EXTERNAL_TYPE)
                 entry == ViewGroups.KIND -> result.add(ViewGroups.KIND)
                 else -> JavaNodeKind.fromValue(entry)?.let { result.add(it) }
             }

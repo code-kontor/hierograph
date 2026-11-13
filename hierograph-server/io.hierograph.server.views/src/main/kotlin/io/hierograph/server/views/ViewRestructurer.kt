@@ -16,7 +16,7 @@
 package io.hierograph.server.views
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
@@ -127,7 +127,7 @@ object ViewRestructurer {
 
         /** The module holding the types the scan did not cover ("External Types"): neither moved nor a target. */
         private val external: HGNode? = base.hierarchy.childrenOf(base.hierarchy.rootNode)
-            .firstOrNull { it.kind == JavaKinds.MODULE && qn(it) == GraphStore.EXTERNAL_ARTIFACT_NAME }
+            .firstOrNull { it.kind == JavaNodeKind.MODULE && qn(it) == GraphStore.EXTERNAL_ARTIFACT_NAME }
 
         private fun isExternal(node: HGNode): Boolean =
             external != null && (node === external || base.hierarchy.isPredecessorOf(external, node))
@@ -157,7 +157,7 @@ object ViewRestructurer {
             for ((i, module) in document.modules.withIndex()) {
                 val handle = ViewNodes.moduleHandle(view, module.name)
                 h.lookupNode(handle)?.let { throw Collision(handle, it, "module '${module.name}' (modules[$i])") }
-                val node = h.createLocalNode(JavaKinds.MODULE) { VirtualNodeSource(handle, module.name, module.name) }
+                val node = h.createLocalNode(JavaNodeKind.MODULE) { VirtualNodeSource(handle, module.name, module.name) }
                 h.addChild(h.rootNode, node)
                 virtualModules[module.name] = node
             }
@@ -228,7 +228,7 @@ object ViewRestructurer {
             val packageFqn = move.to.substringAfter(MoveDefinition.PACKAGE_SEPARATOR, "").takeIf { it.isNotEmpty() }
             val module = virtualModules[moduleSpec] ?: run {
                 val pattern = NamePattern.compile(moduleSpec)
-                val matching = h.childrenOf(h.rootNode).filter { it.kind == JavaKinds.MODULE && !ViewNodes.isVirtual(it) && pattern.matches(qn(it)) }
+                val matching = h.childrenOf(h.rootNode).filter { it.kind == JavaNodeKind.MODULE && !ViewNodes.isVirtual(it) && pattern.matches(qn(it)) }
                 val modules = matching.filter { it !== external }
                 when (modules.size) {
                     1 -> modules.single()
@@ -263,11 +263,11 @@ object ViewRestructurer {
                 val node = follow(label, move, selectedNode) ?: continue
                 when {
                     isExternal(node) -> cannotMove(label, move, node, "${GraphStore.EXTERNAL_ARTIFACT_NAME} holds code that was not scanned")
-                    node.kind == JavaKinds.MODULE -> when (target) {
+                    node.kind == JavaNodeKind.MODULE -> when (target) {
                         is ModuleTarget -> if (node !== target.module) mergeModule(node, target.module)
                         is PackageTarget -> cannotMove(label, move, node, "a module can only be merged into a module")
                     }
-                    node.kind == JavaKinds.PACKAGE -> when (target) {
+                    node.kind == JavaNodeKind.PACKAGE -> when (target) {
                         is ModuleTarget -> packageToModule(node, target.module)
                         is PackageTarget ->
                             if (target.pkg === node || h.isPredecessorOf(node, target.pkg)) {
@@ -279,7 +279,7 @@ object ViewRestructurer {
                                 packageToPackage(node, target.pkg, target.module)
                             }
                     }
-                    node.kind in JavaKinds.TYPE_KINDS -> when (target) {
+                    node.kind in JavaNodeKind.TYPES -> when (target) {
                         is ModuleTarget -> moveType(node, packageIn(target.module, packageOf(qn(node))))
                         is PackageTarget -> moveType(node, target.pkg)
                     }
@@ -331,8 +331,8 @@ object ViewRestructurer {
             for (child in h.childrenOf(source).toList()) {
                 if (h.parentOf(child) !== source) continue // moved along with an enclosing type
                 when {
-                    child.kind == JavaKinds.PACKAGE -> packageToModule(child, target)
-                    child.kind in JavaKinds.TYPE_KINDS -> moveType(child, target)
+                    child.kind == JavaNodeKind.PACKAGE -> packageToModule(child, target)
+                    child.kind in JavaNodeKind.TYPES -> moveType(child, target)
                     else -> relocate(child, target)
                 }
             }
@@ -344,7 +344,7 @@ object ViewRestructurer {
         /** Removes the packages below [node] that are empty, bottom-up; merging leaves such shells behind. */
         private fun pruneEmptyPackages(node: HGNode) {
             for (child in h.childrenOf(node).toList()) {
-                if (child.kind != JavaKinds.PACKAGE) continue
+                if (child.kind != JavaNodeKind.PACKAGE) continue
                 pruneEmptyPackages(child)
                 if (h.childrenOf(child).isEmpty()) h.remove(child)
             }
@@ -357,15 +357,15 @@ object ViewRestructurer {
          */
         private fun packageToModule(pkg: HGNode, module: HGNode) {
             val parent = packageIn(module, packageOf(qn(pkg)))
-            val existing = h.childrenOf(parent).firstOrNull { it !== pkg && it.kind == JavaKinds.PACKAGE && qn(it) == qn(pkg) }
+            val existing = h.childrenOf(parent).firstOrNull { it !== pkg && it.kind == JavaNodeKind.PACKAGE && qn(it) == qn(pkg) }
             if (existing == null) relocate(pkg, parent) else merge(pkg, existing)
         }
 
         /** Moves the children of package [source] into the package [target] of the same name, recursively. */
         private fun merge(source: HGNode, target: HGNode) {
             for (child in h.childrenOf(source).toList()) {
-                val same = if (child.kind == JavaKinds.PACKAGE) {
-                    h.childrenOf(target).firstOrNull { it.kind == JavaKinds.PACKAGE && qn(it) == qn(child) }
+                val same = if (child.kind == JavaNodeKind.PACKAGE) {
+                    h.childrenOf(target).firstOrNull { it.kind == JavaNodeKind.PACKAGE && qn(it) == qn(child) }
                 } else {
                     null
                 }
@@ -384,11 +384,11 @@ object ViewRestructurer {
             rename(pkg, qn(target) + "." + NodeMetadata.getName(pkg), target, module)
 
         private fun rename(source: HGNode, fqn: String, under: HGNode, module: HGNode) {
-            val destination = h.childrenOf(under).firstOrNull { it.kind == JavaKinds.PACKAGE && qn(it) == fqn }
+            val destination = h.childrenOf(under).firstOrNull { it.kind == JavaNodeKind.PACKAGE && qn(it) == fqn }
                 ?: createPackage(module, fqn, under)
             if (destination === source) return
             for (child in h.childrenOf(source).toList()) {
-                if (child.kind == JavaKinds.PACKAGE) rename(child, fqn + "." + NodeMetadata.getName(child), destination, module)
+                if (child.kind == JavaNodeKind.PACKAGE) rename(child, fqn + "." + NodeMetadata.getName(child), destination, module)
                 else relocate(child, destination)
             }
             replacedBy[source] = destination to applying
@@ -400,7 +400,7 @@ object ViewRestructurer {
             val prefix = NodeMetadata.getName(type) + '$'
             val nested = h.parentOf(type)?.let { from ->
                 h.childrenOf(from).filter {
-                    it !== type && it.kind in JavaKinds.TYPE_KINDS && NodeMetadata.getName(it).startsWith(prefix) && it !in selected
+                    it !== type && it.kind in JavaNodeKind.TYPES && NodeMetadata.getName(it).startsWith(prefix) && it !in selected
                 }
             }.orEmpty()
             relocate(type, parent)
@@ -418,7 +418,7 @@ object ViewRestructurer {
             for (segment in fqn.split('.')) {
                 prefix = if (prefix.isEmpty()) segment else "$prefix.$segment"
                 val name = prefix
-                current = h.childrenOf(current).firstOrNull { it.kind == JavaKinds.PACKAGE && qn(it) == name }
+                current = h.childrenOf(current).firstOrNull { it.kind == JavaNodeKind.PACKAGE && qn(it) == name }
                     ?: createPackage(module, name, current)
             }
             return current
@@ -427,7 +427,7 @@ object ViewRestructurer {
         private fun createPackage(module: HGNode, fqn: String, under: HGNode): HGNode {
             val handle = ViewNodes.packageHandle(view, qn(module), fqn)
             h.lookupNode(handle)?.let { throw Collision(handle, it, "package $fqn in ${qn(module)}") }
-            val node = h.createLocalNode(JavaKinds.PACKAGE) { VirtualNodeSource(handle, fqn.substringAfterLast('.'), fqn) }
+            val node = h.createLocalNode(JavaNodeKind.PACKAGE) { VirtualNodeSource(handle, fqn.substringAfterLast('.'), fqn) }
             h.addChild(under, node)
             vacated += node
             return node
@@ -437,7 +437,7 @@ object ViewRestructurer {
         private fun removeEmptyPackages() {
             for (start in vacated) {
                 var node: HGNode? = start
-                while (node != null && node.kind == JavaKinds.PACKAGE && h.lookupNode(node.identifier) === node && h.childrenOf(node).isEmpty()) {
+                while (node != null && node.kind == JavaNodeKind.PACKAGE && h.lookupNode(node.identifier) === node && h.childrenOf(node).isEmpty()) {
                     val parent = h.parentOf(node)
                     h.remove(node)
                     node = parent
@@ -466,9 +466,9 @@ object ViewRestructurer {
         private fun packageModules(hierarchy: Hierarchy): Map<String, Map<String, HGNode>> {
             val result = LinkedHashMap<String, LinkedHashMap<String, HGNode>>()
             for (module in hierarchy.childrenOf(hierarchy.rootNode)) {
-                if (module.kind != JavaKinds.MODULE) continue
+                if (module.kind != JavaNodeKind.MODULE) continue
                 hierarchy.traverse(module) { node ->
-                    if (node.kind == JavaKinds.PACKAGE && hierarchy.childrenOf(node).any { it.kind in JavaKinds.TYPE_KINDS }) {
+                    if (node.kind == JavaNodeKind.PACKAGE && hierarchy.childrenOf(node).any { it.kind in JavaNodeKind.TYPES }) {
                         result.getOrPut(qn(node)) { LinkedHashMap() }.putIfAbsent(qn(module), node)
                     }
                 }
@@ -495,7 +495,7 @@ object ViewRestructurer {
         /** The type-level weight between every two modules of [hierarchy], by qualified name. */
         private fun moduleDependencies(hierarchy: Hierarchy): Map<Pair<String, String>, Int> {
             val moduleOf = HashMap<HGNode, HGNode>()
-            val modules = hierarchy.childrenOf(hierarchy.rootNode).filter { it.kind == JavaKinds.MODULE }
+            val modules = hierarchy.childrenOf(hierarchy.rootNode).filter { it.kind == JavaNodeKind.MODULE }
             for (module in modules) hierarchy.traverse(module) { moduleOf[it] = module }
             val weights = LinkedHashMap<Pair<String, String>, Int>()
             for (module in modules) {
@@ -547,7 +547,7 @@ object ViewRestructurer {
 
         private fun moduleOf(node: HGNode): HGNode? {
             var n: HGNode? = node
-            while (n != null && n.kind != JavaKinds.MODULE) n = h.parentOf(n)
+            while (n != null && n.kind != JavaNodeKind.MODULE) n = h.parentOf(n)
             return n
         }
 

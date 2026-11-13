@@ -17,7 +17,7 @@ package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.TypeDependency
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
@@ -36,7 +36,7 @@ class TypeDependencyRollupIT {
 
     @BeforeAll
     fun load() {
-        val store = GraphStore().also { ParquetReader().load(SpringFixture.directory, it) }
+        val store = GraphStore().also { SnapshotLoader().load(SpringFixture.directory, it) }
         deps = store.typeDependencies().toList()
     }
 

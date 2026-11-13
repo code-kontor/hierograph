@@ -126,7 +126,7 @@ lies in the subtree of `s` and whose depended-upon type lies in the subtree of `
 Each such type-level dependency has a **weight**: the number of individual references
 the depending type's bytecode makes to the target type, summed over all kinds of
 reference (calls, field types, parameter types, inheritance, …; see the
-[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)
 in the format specification).
 
 From the collected dependencies the tool builds the edge:
@@ -278,9 +278,7 @@ for the type-level edges.
 **`kinds`** goes one step further: it breaks `weight` down by kind, summed over the
 collected dependencies, for example `{"annotation_value": 2}` for a module pair held
 together only by Spring wiring, or `{"returns": 2, "calls": 4}`. Only kinds with a
-count appear. Each name is the detail-level relationship that lists those references,
-except `member_annotated_by`, which counts members' `annotated_by` and the
-`parameter_annotated_by` facts together (see
+count appear. Each name is the detail-level relationship that lists those references (see
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#41-type-level)).
 
 ### 4.4 Summary fields

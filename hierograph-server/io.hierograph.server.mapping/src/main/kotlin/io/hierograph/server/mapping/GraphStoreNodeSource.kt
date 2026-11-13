@@ -24,8 +24,8 @@ import io.hierograph.hierarchicalgraph.model.INodeSource
  * resolves off [INodeSource] entirely in memory. [key] is the node's stable
  * GraphStore key, so on-demand lookups (e.g. per-node properties from the snapshot) can map back to it.
  * [modifiers] holds the packed access flags of a scanned type or a member (see
- * [io.hierograph.graphstore.jvm.model.TypeModifiers] and
- * [io.hierograph.graphstore.jvm.model.MemberModifiers]); it is `0` for every other node.
+ * [io.hierograph.graphstore.jvm.archive.model.TypeModifiers] and
+ * [io.hierograph.graphstore.jvm.archive.model.MemberModifiers]); it is `0` for every other node.
  */
 class GraphStoreNodeSource(
     override val identifier: Any,

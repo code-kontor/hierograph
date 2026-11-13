@@ -17,11 +17,11 @@ package io.hierograph.mcp.server.tools
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreToHGModel
@@ -39,15 +39,16 @@ class NodeRefFactoryTest {
         applyClass(
             "billing-core",
             ClassFacts(
-                "com.example.billing.Ledger", JavaKinds.CLASS, TypeModifiers.pack("public", abstract = true),
+                "com.example.billing.Ledger", JavaNodeKind.CLASS, TypeModifiers.pack("public", abstract = true),
                 members = listOf(
-                    MemberFacts("com.example.billing.Ledger#void post()", JavaKinds.METHOD, "void post()",
+                    MemberFacts("com.example.billing.Ledger#void post()", JavaNodeKind.METHOD, "void post()",
                         modifiers = MemberModifiers.pack("public", abstract = true)),
-                    MemberFacts("com.example.billing.Ledger#int SIZE", JavaKinds.FIELD, "int SIZE",
+                    MemberFacts("com.example.billing.Ledger#int SIZE", JavaNodeKind.FIELD, "int SIZE",
                         modifiers = MemberModifiers.pack("public", static = true, final = true)),
                 ),
-                refs = emptyList(), classHash = "h",
+                classHash = "h",
             ),
+            emptyList(),
         )
     }
     private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }

@@ -16,13 +16,12 @@
 package io.hierograph.mcp.server.tools.detail
 
 import io.hierograph.server.mapping.GraphStoreNodeSource
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.model.TypeModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -52,18 +51,18 @@ class ParquetTypeDetails(
     fun typeDetails(typeId: Long): Map<String, Any?> {
         val hierarchy = graphService.model.hierarchy
         val node = graphService.model.lookupNode(typeId) ?: return notFound(typeId)
-        if (node.kind == JavaKinds.EXTERNAL_TYPE) return externalTypeDetails(typeId, node)
-        if (node.kind !in JavaKinds.TYPE_KINDS) return wrongKind(typeId, node)
+        if (node.kind == JavaNodeKind.EXTERNAL_TYPE) return externalTypeDetails(typeId, node)
+        if (node.kind !in JavaNodeKind.TYPES) return wrongKind(typeId, node)
 
         val source = node.nodeSource as? GraphStoreNodeSource ?: return notFound(typeId)
         val fqn = source.qualifiedName
         val parent = hierarchy.parentOf(node)
         val artifact = owningArtifact(node)
         val dir = readyDetailDir() ?: return detailRebuilding()
-        val reader = ParquetReader()
+        val loader = SnapshotLoader()
 
         // Row, refs and members all from the artifact that defines this node, never from a same-FQN twin.
-        val facts = artifact?.let { reader.readTypeFacts(dir, it, fqn) }
+        val facts = artifact?.let { loader.readTypeFacts(dir, it, fqn) }
         val typeRow = facts?.row
         val refs = facts?.refs.orEmpty()
         val members = facts?.members.orEmpty()
@@ -80,9 +79,9 @@ class ParquetTypeDetails(
         val parentContainer = container?.let { nodeRefFactory.minimalNodeRef(it) }
 
         val bits = typeRow?.modifiers
-        val superclass = refs.firstOrNull { it.kind == RefKind.EXTENDS }?.let { typeRef(it.toKey) }
-        val interfaces = refs.filter { it.kind == RefKind.IMPLEMENTS }.map { it.toKey }.distinct().map { typeRef(it) }
-        val annotations = refs.filter { it.kind == RefKind.ANNOTATED_BY }.map { it.toKey }.distinct()
+        val superclass = refs.firstOrNull { it.kind == DependencyKind.EXTENDS }?.let { typeRef(it.toKey) }
+        val interfaces = refs.filter { it.kind == DependencyKind.IMPLEMENTS }.map { it.toKey }.distinct().map { typeRef(it) }
+        val annotations = refs.filter { it.kind == DependencyKind.ANNOTATED_BY && it.typeLevel }.map { it.toKey }.distinct()
             .map { linkedMapOf<String, Any?>("type" to typeRef(it)) }
 
         val memberSummary = linkedMapOf<String, Any?>(
@@ -121,7 +120,7 @@ class ParquetTypeDetails(
                 "id" to typeId,
                 "name" to NodeMetadata.getName(node),
                 "qualified_name" to NodeMetadata.getQualifiedName(node),
-                "kind" to JavaKinds.EXTERNAL_TYPE,
+                "kind" to JavaNodeKind.EXTERNAL_TYPE,
                 "parent_id" to parent?.identifier,
                 "parent_kind" to parent?.kind?.toString(),
             ),
@@ -149,12 +148,12 @@ class ParquetTypeDetails(
         if (store != null) {
             while (key != null) {
                 val stored = store.node(key) ?: break
-                if (stored.kind == JavaKinds.MODULE) return stored.key
+                if (stored.kind == JavaNodeKind.MODULE) return stored.key
                 key = stored.parent
             }
         }
         var n: HGNode? = node
-        while (n != null && n.kind != JavaKinds.MODULE) n = graphService.model.hierarchy.parentOf(n)
+        while (n != null && n.kind != JavaNodeKind.MODULE) n = graphService.model.hierarchy.parentOf(n)
         return (n?.nodeSource as? GraphStoreNodeSource)?.key
     }
 
@@ -174,7 +173,7 @@ class ParquetTypeDetails(
                 "id" to null,
                 "name" to fqn.substringAfterLast('.'),
                 "qualified_name" to fqn,
-                "kind" to JavaKinds.EXTERNAL_TYPE,
+                "kind" to JavaNodeKind.EXTERNAL_TYPE,
             )
         }
     }
@@ -198,12 +197,12 @@ class ParquetTypeDetails(
             "actual_kind" to kind,
         )
         // Only a member has a declaring type; for a package or module the key is left out.
-        if (node.kind in JavaKinds.MEMBER_KINDS && declaringType != null) {
+        if (node.kind in JavaNodeKind.MEMBERS && declaringType != null) {
             error["declaring_type"] = nodeRefFactory.minimalNodeRef(declaringType)
         }
         error["recovery"] = when (node.kind) {
-            JavaKinds.METHOD -> "To inspect the method itself, use method_details(methodId: $typeId)."
-            JavaKinds.FIELD -> "To inspect the field itself, use field_details(fieldId: $typeId)."
+            JavaNodeKind.METHOD -> "To inspect the method itself, use method_details(methodId: $typeId)."
+            JavaNodeKind.FIELD -> "To inspect the field itself, use field_details(fieldId: $typeId)."
             else -> "Use list_children or list_descendants to find type nodes."
         }
         return mapOf("error" to error)

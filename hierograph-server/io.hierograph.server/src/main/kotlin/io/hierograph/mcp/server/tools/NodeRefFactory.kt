@@ -16,9 +16,9 @@
 package io.hierograph.mcp.server.tools
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreNodeSource
@@ -69,11 +69,11 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         val kind = node.kind
 
         when (kind) {
-            JavaKinds.MODULE -> enrichModule(ref, node)
-            JavaKinds.PACKAGE -> enrichPackage(ref, node)
-            in JavaKinds.TYPE_KINDS -> enrichType(ref, node)
-            JavaKinds.METHOD -> enrichMethod(ref, node)
-            JavaKinds.FIELD -> enrichField(ref, node)
+            JavaNodeKind.MODULE -> enrichModule(ref, node)
+            JavaNodeKind.PACKAGE -> enrichPackage(ref, node)
+            in JavaNodeKind.TYPES -> enrichType(ref, node)
+            JavaNodeKind.METHOD -> enrichMethod(ref, node)
+            JavaNodeKind.FIELD -> enrichField(ref, node)
             ViewGroups.KIND -> enrichGroup(ref, node)
         }
 
@@ -84,23 +84,23 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         ref["child_count"] = children.size
-        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
-        ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaKinds.METHOD))
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaNodeKind.TYPES)
+        ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaNodeKind.METHOD))
     }
 
     /** A view's group: what it holds directly, and the modules and types below it. */
     private fun enrichGroup(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         ref["child_count"] = graphService.model.hierarchy.childrenOf(node).size
-        ref["descendant_module_count"] = countDescendantsByKind(node, setOf(JavaKinds.MODULE))
-        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
+        ref["descendant_module_count"] = countDescendantsByKind(node, setOf(JavaNodeKind.MODULE))
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaNodeKind.TYPES)
     }
 
     private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         ref["child_count"] = children.size
-        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
-        ref["direct_type_count"] = children.count { it.kind in JavaKinds.TYPE_KINDS }
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaNodeKind.TYPES)
+        ref["direct_type_count"] = children.count { it.kind in JavaNodeKind.TYPES }
     }
 
     private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode) {
@@ -110,8 +110,8 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             ref["modifiers"] = TypeModifiers.modifiers(bits)
             ref["is_abstract"] = TypeModifiers.isAbstract(bits)
         }
-        val methods = children.count { it.kind == JavaKinds.METHOD }
-        val fields = children.count { it.kind == JavaKinds.FIELD }
+        val methods = children.count { it.kind == JavaNodeKind.METHOD }
+        val fields = children.count { it.kind == JavaNodeKind.FIELD }
         ref["member_count"] = methods + fields
         ref["method_count"] = methods
         ref["field_count"] = fields
@@ -163,7 +163,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         "id" to null,
         "name" to name,
         "qualified_name" to name,
-        "kind" to JavaKinds.PRIMITIVE.value
+        "kind" to JavaNodeKind.PRIMITIVE.value
     )
 
     // ── utility ────────────────────────────────────────────────────────

@@ -17,11 +17,10 @@ package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -56,17 +55,18 @@ class ModifierFilterTest {
         store.applyClass(
             "billing-core",
             ClassFacts(
-                "com.example.billing.Invoice", JavaKinds.CLASS, 0,
+                "com.example.billing.Invoice", JavaNodeKind.CLASS, 0,
                 members = listOf(
-                    member("total()", JavaKinds.METHOD, MemberModifiers.pack("public")),
-                    member("of()", JavaKinds.METHOD, MemberModifiers.pack("public", static = true)),
-                    member("check()", JavaKinds.METHOD, MemberModifiers.pack("private")),
-                    member("<init>()", JavaKinds.CONSTRUCTOR, MemberModifiers.pack("public")),
-                    member("ZERO", JavaKinds.FIELD, MemberModifiers.pack("public", static = true, final = true)),
-                    member("ledger", JavaKinds.FIELD, MemberModifiers.pack(null)),
+                    member("total()", JavaNodeKind.METHOD, MemberModifiers.pack("public")),
+                    member("of()", JavaNodeKind.METHOD, MemberModifiers.pack("public", static = true)),
+                    member("check()", JavaNodeKind.METHOD, MemberModifiers.pack("private")),
+                    member("<init>()", JavaNodeKind.CONSTRUCTOR, MemberModifiers.pack("public")),
+                    member("ZERO", JavaNodeKind.FIELD, MemberModifiers.pack("public", static = true, final = true)),
+                    member("ledger", JavaNodeKind.FIELD, MemberModifiers.pack(null)),
                 ),
-                refs = emptyList(), classHash = "h",
+                classHash = "h",
             ),
+            emptyList(),
         )
         val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }
         children = ListChildrenTool(graphService, IdNodeRefFactory())

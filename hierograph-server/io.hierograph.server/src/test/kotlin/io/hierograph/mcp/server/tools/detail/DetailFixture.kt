@@ -15,16 +15,15 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.ParameterFacts
-import io.hierograph.graphstore.jvm.model.TypeModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.ParameterFacts
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.IncomingDependenciesTool
@@ -78,50 +77,48 @@ class DetailFixture {
     fun id(fqn: String): Long = node(fqn).identifier as Long
 
     private fun method(owner: String, signature: String, abstract: Boolean = false) =
-        MemberFacts("$owner#$signature", JavaKinds.METHOD, signature, signature.substringAfter(' ').substringBefore('('),
+        MemberFacts("$owner#$signature", JavaNodeKind.METHOD, signature, signature.substringAfter(' ').substringBefore('('),
             modifiers = MemberModifiers.pack("public", abstract = abstract))
 
     private fun classes() = listOf(
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
-            DOC, JavaKinds.CLASS, TypeModifiers.pack("public", abstract = true, generic = true),
+            DOC, JavaNodeKind.CLASS, TypeModifiers.pack("public", abstract = true, generic = true),
             members = listOf(
                 method(DOC, "void render()"), method(DOC, "$MONEY total()"),
-                MemberFacts("$DOC#int pages", JavaKinds.FIELD, "int pages", "pages", modifiers = MemberModifiers.pack("protected")),
+                MemberFacts("$DOC#int pages", JavaNodeKind.FIELD, "int pages", "pages", modifiers = MemberModifiers.pack("protected")),
             ),
-            refs = refsOf(DOC), classHash = "d",
+            classHash = "d",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
-            RENDERABLE, JavaKinds.INTERFACE, TypeModifiers.pack("public", abstract = true),
+            RENDERABLE, JavaNodeKind.INTERFACE, TypeModifiers.pack("public", abstract = true),
             members = listOf(method(RENDERABLE, "void render()", abstract = true)),
-            refs = emptyList(), classHash = "r",
+            classHash = "r",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
-            INVOICE, JavaKinds.CLASS, TypeModifiers.pack("public"),
+            INVOICE, JavaNodeKind.CLASS, TypeModifiers.pack("public"),
             members = listOf(
-                MemberFacts("$INVOICE#void <init>()", JavaKinds.CONSTRUCTOR, "void <init>()", "<init>", modifiers = MemberModifiers.pack("public")),
+                MemberFacts("$INVOICE#void <init>()", JavaNodeKind.CONSTRUCTOR, "void <init>()", "<init>", modifiers = MemberModifiers.pack("public")),
                 method(INVOICE, "void render()"), method(INVOICE, "$MONEY net()"),
                 method(INVOICE, "$MONEY tax()"), method(INVOICE, "void validate()"),
             ),
-            refs = refsOf(INVOICE),
             classHash = "i",
         )),
         ParquetWriter.ArtifactClass(ARTIFACT, ClassFacts(
-            MONEY, JavaKinds.RECORD, TypeModifiers.pack("public", final = true),
+            MONEY, JavaNodeKind.RECORD, TypeModifiers.pack("public", final = true),
             members = listOf(
                 method(MONEY, "$MONEY plus($MONEY)"),
                 method(MONEY, "$MONEY times(int)").copy(
                     parameters = listOf(ParameterFacts(0, "factor", "int", annotations = listOf("javax.annotation.Nonnull"))),
                 ),
-                MemberFacts("$MONEY#int cents", JavaKinds.FIELD, "int cents", "cents", modifiers = MemberModifiers.pack("private", final = true)),
-                MemberFacts("$MONEY#int SCALE", JavaKinds.FIELD, "int SCALE", "SCALE",
+                MemberFacts("$MONEY#int cents", JavaNodeKind.FIELD, "int cents", "cents", modifiers = MemberModifiers.pack("private", final = true)),
+                MemberFacts("$MONEY#int SCALE", JavaNodeKind.FIELD, "int SCALE", "SCALE",
                     modifiers = MemberModifiers.pack("public", static = true, final = true, constant = true)),
             ),
-            refs = emptyList(), classHash = "m",
+            classHash = "m",
         )),
     )
 
     /** A type's aggregated references, rolled up from its detail facts as the scanner does. */
-    private fun refsOf(fqn: String) = DependencyRollup.refsOf(fqn, dependencies().filter { it.fromType == fqn })
 
     private fun dependencies() = listOf(
         Dependency(INVOICE, INVOICE, DOC, DOC, DependencyKind.EXTENDS),

@@ -15,15 +15,14 @@
  */
 package io.hierograph.graphstore.jvm.scanner
 
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.ParameterFacts
-import io.hierograph.graphstore.jvm.model.TypeModifiers
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.ParameterFacts
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
@@ -53,9 +52,8 @@ internal class ScannedClass(
  * **direct** facts are emitted; `overrides` and virtual/resolved calls need the type hierarchy and are
  * derived at load (see `HierarchyResolution` in the graph service).
  *
- * The class's aggregated references ([ClassFacts.refs]) are not counted separately: at the end of the
- * class they are rolled up from its detail facts by [DependencyRollup], so the aggregate is exactly what
- * the facts say.
+ * The scanner reports facts only. The type-level aggregate of a class's dependencies is rolled up from
+ * these facts by whoever loads them into a GraphStore.
  */
 internal object ClassScanner {
 
@@ -92,7 +90,6 @@ internal object ClassScanner {
                     generic = generic,
                 ),
                 members = members,
-                refs = DependencyRollup.refsOf(fqn, dependencies),
                 classHash = classHash,
                 sourceFile = sourceFile,
             )
@@ -104,7 +101,7 @@ internal object ClassScanner {
         /**
          * The single emission point: records one detail fact from [fromKey] (a member key, or [fqn] for a
          * type-level fact) to [toKey] (a member key, or a type) owned by [toType]. Every dependency the
-         * scanner finds goes through here, so the rolled-up [ClassFacts.refs] always match the facts.
+         * scanner finds goes through here.
          * [into] is the list the fact goes to: a method buffers its body facts until its signature facts
          * are recorded.
          */

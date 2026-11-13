@@ -156,7 +156,7 @@ edge:
 | `kinds` | the number of references per kind; they sum to `weight` |
 
 The weight comes from the snapshot's dependencies, rolled up per pair of types (see the
-[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)):
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)):
 two calls to `Money` methods and one `Money` return type give a weight of 3. In the
 open form on a package, the edges between types of the package itself are included:
 they are outgoing dependencies of the types, and the caller may filter on `to`.
@@ -196,7 +196,7 @@ whose two types lie in the scopes' own subtrees carries no `inherited` key.
 
 **Edges.** The tool reads every member reference whose depending type lies in the
 `from` side and whose target type lies in the `to` side from the snapshot's
-[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-dependenciesparquet),
+[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet),
 then adds the references derived when the graph was loaded: method overrides and the
 possible run-time targets of virtual calls. It keeps the references whose two types
 are known to the graph and lie in the scopes.
@@ -206,7 +206,7 @@ several artifacts (a library vendored twice, say). Each reference is read from t
 snapshot artifact that defines its depending type, so the tool resolves the depending
 type in that artifact, and the target type the way that artifact's classpath resolves
 it, the rule type-level dependencies follow too (see
-[binding type names to artifacts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#61-binding-type-names-to-artifacts)).
+[binding type names to artifacts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#61-binding-type-names-to-artifacts)).
 A scope that names one definition therefore never lists the rows of its twin. Where
 the artifact is not known (a snapshot in the unpacked layout, or a reference derived
 at load), an FQN resolves to its first definer.
@@ -250,7 +250,7 @@ Each reference becomes one row:
 | `parameter_annotated_by` | method → an annotation on one of its parameters | snapshot |
 
 The stored relationships are defined in the format specification's
-[dependency kinds](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#52-dependency-kinds-dependenciesrelationship).
+[dependency kinds](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#52-dependency-kinds-dependenciesrelationship).
 
 `read_by` and `written_by` exist only as filters; an unfiltered result never contains
 them. They turn the stored field access around: the rows read field → method, and
@@ -331,7 +331,7 @@ The same pair at the detail level,
 `outgoing_dependencies(fromId = 4702, toId = 4720, detailLevel = "detail")`, lists
 six rows (member names shortened to simple type names). `Invoice#total` is the method
 of the
-[format example](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#7-example);
+[format example](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#7-example);
 its first line is 13:
 
 | `from` | `relationship` | `to` | line |
@@ -437,10 +437,10 @@ other way. It tells inheritance apart from use without a detail-level call.
 "class_literal": 1}` says fourteen calls and one class literal. Only kinds with a
 count appear, in a fixed vocabulary order. Each name is the detail-level relationship
 that lists those references, so `relationship: "class_literal"` at detail level shows
-the one class literal. The one exception is `member_annotated_by`, which counts the
-`annotated_by` facts of members and the `parameter_annotated_by` facts together. The
+the one class literal. `annotated_by` counts the annotations of the type and of its
+members together; the `is_annotated_by` flag is set by the type's own annotations only. The
 kinds are defined in the
-[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate).
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate).
 
 Summary fields:
 
@@ -569,7 +569,7 @@ recognisable; it is absent on all other rows to keep them small.
 `writes_field`, and the first line of the method for the signature relationships. It
 is `null` for annotations, field types, methods without code, and classes compiled
 without line information (see
-[Line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)).
+[Line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#34-line-numbers)).
 The line is what lets a caller open the source at the right place.
 
 Summary fields:

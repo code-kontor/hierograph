@@ -21,7 +21,7 @@ import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -38,12 +38,12 @@ class NodeSearchTest {
             HierarchyFactory.addChild(hierarchy, parent, it)
         }
 
-    private val module = add(root, JavaKinds.MODULE, "app.jar", "app.jar")
-    private val pkg = add(module, JavaKinds.PACKAGE, "handler", "com.foo.handler")
-    private val handler = add(pkg, JavaKinds.CLASS, "Handler", "com.foo.handler.Handler")
-    private val textHandler = add(pkg, JavaKinds.CLASS, "TextHandler", "com.foo.handler.TextHandler")
-    private val handlerFactory = add(pkg, JavaKinds.INTERFACE, "HandlerFactory", "com.foo.handler.HandlerFactory")
-    private val handleMethod = add(handler, JavaKinds.METHOD, "void handle()", "com.foo.handler.Handler#void handle()")
+    private val module = add(root, JavaNodeKind.MODULE, "app.jar", "app.jar")
+    private val pkg = add(module, JavaNodeKind.PACKAGE, "handler", "com.foo.handler")
+    private val handler = add(pkg, JavaNodeKind.CLASS, "Handler", "com.foo.handler.Handler")
+    private val textHandler = add(pkg, JavaNodeKind.CLASS, "TextHandler", "com.foo.handler.TextHandler")
+    private val handlerFactory = add(pkg, JavaNodeKind.INTERFACE, "HandlerFactory", "com.foo.handler.HandlerFactory")
+    private val handleMethod = add(handler, JavaNodeKind.METHOD, "void handle()", "com.foo.handler.Handler#void handle()")
 
     private val search = NodeSearch(HierarchicalGraphService().also { it.seed(HGModel(graph, hierarchy)) })
 

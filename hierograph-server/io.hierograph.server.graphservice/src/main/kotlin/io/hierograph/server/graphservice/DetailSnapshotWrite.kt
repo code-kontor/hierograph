@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.Dependency
 import java.nio.file.Path
 import java.util.concurrent.CancellationException
 

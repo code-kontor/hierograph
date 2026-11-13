@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.jvm.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.Dependency
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

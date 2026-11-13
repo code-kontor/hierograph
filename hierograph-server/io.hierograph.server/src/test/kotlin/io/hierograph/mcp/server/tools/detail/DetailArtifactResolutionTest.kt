@@ -15,14 +15,12 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
@@ -43,12 +41,10 @@ class DetailArtifactResolutionTest {
 
     private fun artifact(key: String, user: String) = listOf(
         ParquetWriter.ArtifactClass(key, ClassFacts(
-            twin, JavaKinds.CLASS, 0, listOf(MemberFacts("$twin#void m()", JavaKinds.METHOD, "void m()", "m")),
-            emptyList(), "t-$key",
+            twin, JavaNodeKind.CLASS, 0, listOf(MemberFacts("$twin#void m()", JavaNodeKind.METHOD, "void m()", "m")), "t-$key",
         )),
         ParquetWriter.ArtifactClass(key, ClassFacts(
-            user, JavaKinds.CLASS, 0, listOf(MemberFacts("$user#void run()", JavaKinds.METHOD, "void run()", "run")),
-            listOf(Ref(twin, RefKind.INVOKES, count = 1)), "u-$key",
+            user, JavaNodeKind.CLASS, 0, listOf(MemberFacts("$user#void run()", JavaNodeKind.METHOD, "void run()", "run")), "u-$key",
         )),
     )
 

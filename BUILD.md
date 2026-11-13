@@ -23,7 +23,7 @@ configuration lives in `hierograph-parent`.
 | Module group                   | Contents                                                          |
 | ------------------------------ | ----------------------------------------------------------------- |
 | `hierograph-parent`            | Parent POM: dependency management, plugin config, Java/Kotlin versions |
-| `hierograph-graphstore`        | The GraphStore and its Parquet snapshot format (`io.hierograph.graphstore.jvm`), and the bytecode scanner (`io.hierograph.graphstore.jvm.scanner`) |
+| `hierograph-graphstore`        | The scanned-fact model and the Parquet snapshot format and writer (`io.hierograph.graphstore.jvm.archive`), the GraphStore with the snapshot reader and detail queries (`io.hierograph.graphstore.jvm.store`), and the bytecode scanner (`io.hierograph.graphstore.jvm.scanner`) |
 | `hierograph-hierarchicalgraph` | The in-memory hierarchical graph model and its algorithms         |
 | `hierograph-server`            | MCP server (`io.hierograph.server`), GraphQL (`io.hierograph.server.graphql`), the graph service they share (`io.hierograph.server.graphservice`: loading/reload, search, node properties, pagination), and the GraphStore-to-model mapping (`io.hierograph.server.mapping`) |
 | `hierograph-maven-plugin`      | Maven plugin that records build facts and scans modules into `.hierograph` archives |

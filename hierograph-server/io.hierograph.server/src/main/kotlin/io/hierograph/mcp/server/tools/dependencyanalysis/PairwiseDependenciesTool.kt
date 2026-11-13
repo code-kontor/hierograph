@@ -20,8 +20,8 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 import io.hierograph.server.mapping.GraphStoreDependencySource
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
 import io.hierograph.mcp.server.pagination.PageResult
@@ -219,7 +219,7 @@ class PairwiseDependenciesTool(
                 "weight" to e.weight,
                 "type_pair_count" to e.typePairCount,
                 "attributes" to JavaEdgeAttributes.toMap(e.attributesBitmap),
-                "kinds" to RefKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
+                "kinds" to DependencyKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
             )
         }
 
@@ -305,7 +305,7 @@ class PairwiseDependenciesTool(
 
     private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
-        if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
+        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(

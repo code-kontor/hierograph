@@ -15,7 +15,7 @@
  */
 package io.hierograph.itest.views
 
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
 import io.hierograph.server.views.MemberSelector

@@ -17,14 +17,16 @@ package io.hierograph.graphstore.jvm.scanner
 
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.model.TypeModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.model.Ref
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -128,8 +130,10 @@ class BytecodeScannerTest {
     }
 
     private fun type(fqn: String): ClassFacts = result.classes.single { it.facts.fqn == fqn }.facts
-    private fun refCount(from: String, to: String, kind: RefKind): Int? =
-        type(from).refs.singleOrNull { it.toKey == to && it.kind == kind }?.count
+    /** The type-level aggregate a loader rolls up from [fqn]'s detail facts; the scanner itself reports facts only. */
+    private fun refs(fqn: String): List<Ref> = DependencyRollup.refsOf(fqn, result.dependencies.filter { it.fromType == fqn })
+    private fun refCount(from: String, to: String, kind: DependencyKind, typeLevel: Boolean? = null): Int? =
+        refs(from).singleOrNull { it.toKey == to && it.kind == kind && (typeLevel == null || it.typeLevel == typeLevel) }?.count
     private fun details(fromKey: String, relationship: String): List<Dependency> =
         result.dependencies.filter { it.fromKey == fromKey && it.kind.value == relationship }
 
@@ -226,38 +230,38 @@ class BytecodeScannerTest {
 
     @Test
     fun `type-level refs are fine-grained and counted, without primitives or self`() {
-        assertThat(refCount("fix.Circle", "fix.Base", RefKind.EXTENDS)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "fix.Shape", RefKind.IMPLEMENTS)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.io.Serializable", RefKind.IMPLEMENTS)).isEqualTo(1)
-        assertThat(refCount("fix.Shape", "java.lang.Object", RefKind.EXTENDS)).isEqualTo(1) // as in the bytecode
-        assertThat(refCount("fix.Base", "java.lang.Deprecated", RefKind.ANNOTATED_BY)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "fix.Base", DependencyKind.EXTENDS)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "fix.Shape", DependencyKind.IMPLEMENTS)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.io.Serializable", DependencyKind.IMPLEMENTS)).isEqualTo(1)
+        assertThat(refCount("fix.Shape", "java.lang.Object", DependencyKind.EXTENDS)).isEqualTo(1) // as in the bytecode
+        assertThat(refCount("fix.Base", "java.lang.Deprecated", DependencyKind.ANNOTATED_BY, typeLevel = true)).isEqualTo(1)
 
-        assertThat(refCount("fix.Circle", "java.util.List", RefKind.FIELD_TYPE)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.util.List", RefKind.RETURN_TYPE)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.lang.String", RefKind.TYPE_ARGUMENT)).isEqualTo(2) // List<String> field + return
-        assertThat(refCount("fix.Circle", "java.lang.String", RefKind.PARAM_TYPE)).isEqualTo(1)   // String... more
-        assertThat(refCount("fix.Circle", "java.io.IOException", RefKind.THROWS)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.lang.Deprecated", RefKind.MEMBER_ANNOTATED_BY)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.util.List", DependencyKind.HAS_TYPE)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.util.List", DependencyKind.RETURNS)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.lang.String", DependencyKind.TYPE_ARGUMENT)).isEqualTo(2) // List<String> field + return
+        assertThat(refCount("fix.Circle", "java.lang.String", DependencyKind.PARAMETER_TYPE)).isEqualTo(1)   // String... more
+        assertThat(refCount("fix.Circle", "java.io.IOException", DependencyKind.THROWS)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.lang.Deprecated", DependencyKind.ANNOTATED_BY, typeLevel = false)).isEqualTo(1)
 
-        assertThat(refCount("fix.Circle", "java.util.ArrayList", RefKind.INSTANTIATES)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.lang.String", RefKind.CAST)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.lang.IllegalStateException", RefKind.CATCHES)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "fix.Shape", RefKind.CLASS_LITERAL)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.io.File", RefKind.READS)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.lang.Runnable", RefKind.INVOKES)).isEqualTo(1)
-        assertThat(refCount("fix.Circle", "java.util.List", RefKind.INVOKES)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.util.ArrayList", DependencyKind.INSTANTIATES)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.lang.String", DependencyKind.CASTS)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.lang.IllegalStateException", DependencyKind.CATCHES)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "fix.Shape", DependencyKind.CLASS_LITERAL)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.io.File", DependencyKind.READS_FIELD)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.lang.Runnable", DependencyKind.CALLS)).isEqualTo(1)
+        assertThat(refCount("fix.Circle", "java.util.List", DependencyKind.CALLS)).isEqualTo(1)
 
-        assertThat(type("fix.Circle").refs.map { it.toKey }).doesNotContain("int", "double", "void", "fix.Circle")
+        assertThat(refs("fix.Circle").map { it.toKey }).doesNotContain("int", "double", "void", "fix.Circle")
         // annotation values: the enum constant in @Retention(RetentionPolicy.RUNTIME)
-        assertThat(refCount("fix.Circle\$Marker", "java.lang.annotation.Retention", RefKind.ANNOTATED_BY)).isEqualTo(1)
-        assertThat(refCount("fix.Circle\$Marker", "java.lang.annotation.RetentionPolicy", RefKind.ANNOTATION_VALUE)).isEqualTo(1)
+        assertThat(refCount("fix.Circle\$Marker", "java.lang.annotation.Retention", DependencyKind.ANNOTATED_BY, typeLevel = true)).isEqualTo(1)
+        assertThat(refCount("fix.Circle\$Marker", "java.lang.annotation.RetentionPolicy", DependencyKind.ANNOTATION_VALUE)).isEqualTo(1)
     }
 
     @Test
     fun `equal names are one string instance across classes, refs and members`() {
         // Two classes reference java.lang.String: one instance for both type-level ref targets.
-        val fromBase = type("fix.Base").refs.first { it.toKey == "java.lang.String" }.toKey
-        val fromCircle = type("fix.Circle").refs.first { it.toKey == "java.lang.String" }.toKey
+        val fromBase = refs("fix.Base").first { it.toKey == "java.lang.String" }.toKey
+        val fromCircle = refs("fix.Circle").first { it.toKey == "java.lang.String" }.toKey
         assertThat(fromCircle).isSameAs(fromBase)
 
         // A call target is the same instance as the key of the member it calls, and as other calls to it.
@@ -269,7 +273,7 @@ class BytecodeScannerTest {
         // A detail ref's target type is the same instance as the type-level ref target.
         val listCall = details("fix.Circle#java.util.List tags(int[],java.lang.String[])", "calls")
             .first { it.toKey.startsWith("java.util.List#") }
-        assertThat(listCall.toType).isSameAs(type("fix.Circle").refs.first { it.toKey == "java.util.List" }.toKey)
+        assertThat(listCall.toType).isSameAs(refs("fix.Circle").first { it.toKey == "java.util.List" }.toKey)
     }
 
     @Test
@@ -348,35 +352,27 @@ class BytecodeScannerTest {
         )
         val scan = BytecodeScanner().scan(listOf(ScanArtifact.of(compile(tmp.resolve("c"), src, listOf("-g")))))
         val c = scan.classes.single().facts
+        val cRefs = DependencyRollup.refsOf(c.fqn, scan.dependencies.filter { it.fromType == c.fqn })
         fun facts(method: String, relationship: String) =
             scan.dependencies.filter { it.fromKey.startsWith("c.C#") && it.fromKey.contains(" $method(") && it.kind.value == relationship }
-        fun count(to: String, kind: RefKind) = c.refs.singleOrNull { it.toKey == to && it.kind == kind }?.count
+        fun count(to: String, kind: DependencyKind) = cRefs.singleOrNull { it.toKey == to && it.kind == kind }?.count
 
         assertThat(facts("both", "parameter_type").map { it.toType }).containsExactly("java.util.Map", "java.util.Map")
-        assertThat(count("java.util.Map", RefKind.PARAM_TYPE)).isEqualTo(2)
+        assertThat(count("java.util.Map", DependencyKind.PARAMETER_TYPE)).isEqualTo(2)
 
         assertThat(facts("marked", "parameter_annotated_by").map { it.toType }).containsExactly("java.lang.Deprecated", "java.lang.Deprecated")
-        assertThat(count("java.lang.Deprecated", RefKind.MEMBER_ANNOTATED_BY)).isEqualTo(2)
+        assertThat(count("java.lang.Deprecated", DependencyKind.PARAMETER_ANNOTATED_BY)).isEqualTo(2)
 
         assertThat(facts("make", "instantiates").map { it.toType }).containsExactly("java.util.ArrayList")
         assertThat(facts("make", "calls").map { it.toKey }).containsExactly("java.util.ArrayList#void <init>()")
-        assertThat(count("java.util.ArrayList", RefKind.INSTANTIATES)).isEqualTo(1)
-        assertThat(count("java.util.ArrayList", RefKind.INVOKES)).isEqualTo(1)
+        assertThat(count("java.util.ArrayList", DependencyKind.INSTANTIATES)).isEqualTo(1)
+        assertThat(count("java.util.ArrayList", DependencyKind.CALLS)).isEqualTo(1)
 
         // `raises` refines the instantiation and the constructor call; it adds no weight of its own
         assertThat(facts("fail", "raises").map { it.toType }).containsExactly("java.lang.IllegalStateException")
-        assertThat(count("java.lang.IllegalStateException", RefKind.INSTANTIATES)).isEqualTo(1)
-        assertThat(count("java.lang.IllegalStateException", RefKind.INVOKES)).isEqualTo(1)
-        assertThat(c.refs.filter { it.toKey == "java.lang.IllegalStateException" }.sumOf { it.count ?: 1 }).isEqualTo(2)
-    }
-
-    @Test
-    fun `each class's aggregated refs are the rollup of its detail facts`() {
-        val factsByType = result.dependencies.groupBy { it.fromType }
-        for (scanned in result.classes) {
-            val fqn = scanned.facts.fqn
-            assertThat(scanned.facts.refs).describedAs(fqn).isEqualTo(DependencyRollup.refsOf(fqn, factsByType[fqn].orEmpty()))
-        }
+        assertThat(count("java.lang.IllegalStateException", DependencyKind.INSTANTIATES)).isEqualTo(1)
+        assertThat(count("java.lang.IllegalStateException", DependencyKind.CALLS)).isEqualTo(1)
+        assertThat(cRefs.filter { it.toKey == "java.lang.IllegalStateException" }.sumOf { it.count ?: 1 }).isEqualTo(2)
     }
 
     @Test
@@ -483,28 +479,28 @@ class BytecodeScannerTest {
         result.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
 
         val store = GraphStore()
-        ParquetReader().load(tmp, store)
+        SnapshotLoader().load(tmp, store)
 
         assertThat(store.typeByFqn("fix.Circle")!!.placeholder).isFalse
         assertThat(store.memberByKey("fix.Circle#java.lang.String name()")).isNotNull
         val edges = store.typeDependencies().filter { it.fromFqn == "fix.Circle" }.associateBy { it.toFqn }
         assertThat(edges.getValue("fix.Base").extends).isTrue()
         // weight = number of references: the sum of the counts over all ref kinds to that target
-        val listRefs = type("fix.Circle").refs.filter { it.toKey == "java.util.List" }
+        val listRefs = refs("fix.Circle").filter { it.toKey == "java.util.List" }
         assertThat(edges.getValue("java.util.List").weight).isEqualTo(listRefs.sumOf { it.count ?: 1 })
-        assertThat(listRefs.map { it.kind }).contains(RefKind.FIELD_TYPE, RefKind.RETURN_TYPE, RefKind.INVOKES)
+        assertThat(listRefs.map { it.kind }).contains(DependencyKind.HAS_TYPE, DependencyKind.RETURNS, DependencyKind.CALLS)
         assertThat(ParquetReader().readDependencies(tmp, fromTypes = listOf("fix.Circle"))).isNotEmpty()
         assertThat(ParquetReader().readTypeRows(tmp, listOf("fix.Circle")).single().classHash).isEqualTo(type("fix.Circle").classHash)
     }
 
     @Test
     fun `a store built from the scan and one loaded from its snapshot have the same dependencies`(@TempDir tmp: Path) {
-        // The snapshot stores no aggregate: the loader rolls it up from the dependency rows, as the scanner did.
+        // Neither the scan nor the snapshot carries an aggregate: both loaders roll it up from the same facts.
         result.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
-        val loaded = GraphStore().also { ParquetReader().load(tmp, it) }
+        val loaded = GraphStore().also { SnapshotLoader().load(tmp, it) }
         val scanned = GraphStore().also { store ->
             result.classes.map { it.artifactKey }.distinct().forEach { store.registerArtifact(io.hierograph.graphstore.jvm.model.ArtifactInfo(it, it, it)) }
-            result.classes.forEach { store.applyClass(it.artifactKey, it.facts) }
+            result.classes.forEach { store.applyClass(it.artifactKey, it.facts, refs(it.facts.fqn)) }
         }
         assertThat(loaded.typeDependencies().toSet()).isNotEmpty.isEqualTo(scanned.typeDependencies().toSet())
     }

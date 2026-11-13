@@ -16,8 +16,7 @@
 package io.hierograph.itest.hierarchicalgraph
 
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
@@ -61,14 +60,14 @@ class HGNodeDescendantsIT : AbstractHierarchicalGraphIntegrationTest() {
         val countsByKind = descendants.groupingBy { NodeMetadata.getKind(it) }.eachCount()
         Assertions.assertThat(countsByKind).containsExactlyInAnyOrderEntriesOf(
             mapOf(
-                JavaKinds.PACKAGE.value to 62,
-                JavaKinds.CLASS.value to 947,
-                JavaKinds.INTERFACE.value to 215,
-                JavaKinds.ENUM.value to 29,
-                JavaKinds.ANNOTATION.value to 13,
-                JavaKinds.RECORD.value to 17,
-                JavaKinds.METHOD.value to 9_180,
-                JavaKinds.FIELD.value to 3_361,
+                JavaNodeKind.PACKAGE.value to 62,
+                JavaNodeKind.CLASS.value to 947,
+                JavaNodeKind.INTERFACE.value to 215,
+                JavaNodeKind.ENUM.value to 29,
+                JavaNodeKind.ANNOTATION.value to 13,
+                JavaNodeKind.RECORD.value to 17,
+                JavaNodeKind.METHOD.value to 9_180,
+                JavaNodeKind.FIELD.value to 3_361,
             )
         )
     }

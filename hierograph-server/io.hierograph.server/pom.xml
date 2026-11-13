@@ -64,7 +64,11 @@
         <!-- Parquet-backed graph source (hierograph.graph.source=parquet). -->
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm.archive</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.graphstore.jvm.store</artifactId>
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
@@ -270,19 +274,19 @@
                                         </artifactItem>
                                         <artifactItem>
                                             <groupId>io.hierograph</groupId>
-                                            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+                                            <artifactId>io.hierograph.graphstore.jvm.archive</artifactId>
                                             <version>${project.version}</version>
                                             <type>jar</type>
-                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm/${project.version}</outputDirectory>
-                                            <destFileName>io.hierograph.graphstore.jvm-${project.version}.jar</destFileName>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm.archive/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.graphstore.jvm.archive-${project.version}.jar</destFileName>
                                         </artifactItem>
                                         <artifactItem>
                                             <groupId>io.hierograph</groupId>
-                                            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+                                            <artifactId>io.hierograph.graphstore.jvm.archive</artifactId>
                                             <version>${project.version}</version>
                                             <type>pom</type>
-                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm/${project.version}</outputDirectory>
-                                            <destFileName>io.hierograph.graphstore.jvm-${project.version}.pom</destFileName>
+                                            <outputDirectory>${project.build.directory}/docker/repository/io/hierograph/io.hierograph.graphstore.jvm.archive/${project.version}</outputDirectory>
+                                            <destFileName>io.hierograph.graphstore.jvm.archive-${project.version}.pom</destFileName>
                                         </artifactItem>
                                         <artifactItem>
                                             <groupId>io.hierograph</groupId>

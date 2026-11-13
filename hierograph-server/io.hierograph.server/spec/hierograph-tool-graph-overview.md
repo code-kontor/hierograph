@@ -166,7 +166,7 @@ for every graph.
     "type_level_kinds": [
       { "kind": "extends", "description": "extends facts of the type and its members" },
       …
-      { "kind": "member_annotated_by", "description": "annotated_by facts of members and parameter_annotated_by facts" },
+      { "kind": "parameter_annotated_by", "description": "parameter_annotated_by facts of the type and its members" },
       …
     ],
     "detail_level": [
@@ -215,7 +215,7 @@ root has id `4600`.
 | `kinds.structural` | the nine `java.*` node kinds and `external.type`, each with a description | defines the `kind` values of node references |
 | `kinds.group_aliases` | each alias with its expansion | tells the caller what `types`, `members` and `packages` select in a kind filter |
 | `relationships.type_level_attributes` | the four attribute flags with a description | defines the flags on type-level and aggregated edges |
-| `relationships.type_level_kinds` | the seventeen kinds of a type-level `kinds` breakdown, with a description | defines the keys of `kinds` and `by_kind` on type-level and aggregated edges; each is a detail-level relationship, except `member_annotated_by` |
+| `relationships.type_level_kinds` | the seventeen kinds of a type-level `kinds` breakdown, with a description | defines the keys of `kinds` and `by_kind` on type-level and aggregated edges; each is a counted detail-level relationship |
 | `relationships.detail_level` | the twenty-one detail-level relationships with their source kind | defines the `relationship` values of detail-level edges and filters; eighteen are stored in the snapshot (`raises` with `"counted": false`, since it adds no weight), three are derived (`"derived": true`): `overrides` at load, `read_by` and `written_by` as reverse views |
 | `hierarchy` | every module as an enriched node reference plus `outgoing_dep_count` and `incoming_dep_count` | the ids and sizes needed to start navigating, and a first impression of coupling |
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |

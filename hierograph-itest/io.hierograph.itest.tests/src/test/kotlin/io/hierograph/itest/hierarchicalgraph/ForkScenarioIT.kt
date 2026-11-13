@@ -15,8 +15,7 @@
  */
 package io.hierograph.itest.hierarchicalgraph
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
@@ -75,7 +74,7 @@ class ForkScenarioIT : AbstractHierarchicalGraphIntegrationTest() {
     private fun assertBaseUnchanged() {
         val top = base.childrenOf(base.rootNode)
         assertThat(top).hasSize(22)
-        assertThat(top.map { NodeMetadata.getKind(it) }).containsOnly(JavaKinds.MODULE.value)
+        assertThat(top.map { NodeMetadata.getKind(it) }).containsOnly(JavaNodeKind.MODULE.value)
         assertThat(base.localNodes).isEmpty()
         assertThat(base.descendantsOf(base.module("spring-core"))).hasSize(13_824)
     }

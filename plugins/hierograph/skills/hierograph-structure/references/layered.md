@@ -98,7 +98,7 @@ multi-module's name to its member modules (exact node names):
 "aggregator_groups": {
   "hierograph-server": ["io.hierograph.server", "io.hierograph.server.graphql",
                         "io.hierograph.server.graphservice", "io.hierograph.server.mapping"],
-  "hierograph-graphstore": ["io.hierograph.graphstore.jvm", "io.hierograph.graphstore.jvm.scanner"]
+  "hierograph-graphstore": ["io.hierograph.graphstore.jvm.archive", "io.hierograph.graphstore.jvm.scanner"]
 }
 ```
 

@@ -16,11 +16,10 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.DependencyRollup
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.model.JavaTypeNames
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -37,19 +36,18 @@ class AggregateInvariantIT {
 
     @Test
     fun `every aggregated weight is the number of counted detail facts behind it`() {
-        val store = GraphStore().also { ParquetReader().load(dir, it) }
-        val aggregate = HashMap<Triple<String, String, RefKind>, Int>()
+        val store = GraphStore().also { SnapshotLoader().load(dir, it) }
+        val aggregate = HashMap<Triple<String, String, DependencyKind>, Int>()
         for (dep in store.typeDependencies()) {
             for ((kind, count) in dep.kinds) aggregate.merge(Triple(dep.fromFqn, dep.toFqn, kind), count, Int::plus)
         }
 
         // The rollup rules applied to the raw rows, counted independently of the reader's load path.
-        val facts = HashMap<Triple<String, String, RefKind>, Int>()
+        val facts = HashMap<Triple<String, String, DependencyKind>, Int>()
         val rows = ParquetReader().readDependencies(dir)
         for (row in rows) {
-            if (!row.kind.counted || row.toType == row.fromType || row.toType in JavaKinds.JAVA_PRIMITIVES) continue
-            val refKind = DependencyRollup.refKindOf(row.kind, sourceIsType = row.fromKey == row.fromType) ?: continue
-            facts.merge(Triple(row.fromType, row.toType, refKind), 1, Int::plus)
+            if (!row.kind.counted || row.toType == row.fromType || row.toType in JavaTypeNames.PRIMITIVES) continue
+            facts.merge(Triple(row.fromType, row.toType, row.kind), 1, Int::plus)
         }
 
         assertThat(rows).describedAs("detail rows").hasSizeGreaterThan(100_000)
@@ -58,7 +56,7 @@ class AggregateInvariantIT {
         assertThat(aggregate.filter { (key, count) -> facts[key] != count })
             .describedAs("aggregated counts that differ from the facts").isEmpty()
         // every kind a class file carries contributes somewhere
-        assertThat(facts.keys.map { it.third }.toSet()).containsAll(RefKind.entries)
+        assertThat(facts.keys.map { it.third }.toSet()).containsAll(DependencyKind.AGGREGATED)
         assertThat(rows.map { it.kind }.toSet()).doesNotContain(DependencyKind.OVERRIDES, DependencyKind.READ_BY, DependencyKind.WRITTEN_BY)
     }
 }

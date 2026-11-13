@@ -16,11 +16,10 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
-import io.hierograph.graphstore.jvm.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
 import io.hierograph.graphstore.jvm.scanner.ScanResult
 
 /**
@@ -62,13 +61,13 @@ internal object DetailDerivation {
             .filter { it.extends || it.implements }
             .groupBy({ it.fromFqn }, { it.toFqn })
         val types = store.nodes().asSequence()
-            .filter { JavaKinds.isTypeKind(it.kind) }
+            .filter { JavaNodeKind.isTypeKind(it.kind) }
             .map { n ->
                 HierarchyResolution.Type(
                     fqn = n.fqn,
                     directSupertypes = superByFqn[n.fqn].orEmpty(),
                     methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom, it.bridgeTarget) },
-                    external = n.kind == JavaKinds.EXTERNAL_TYPE,
+                    external = n.kind == JavaNodeKind.EXTERNAL_TYPE,
                 )
             }.toList()
         // Stable sort: a snapshot's rows are already in this order, a scan's are put into it.

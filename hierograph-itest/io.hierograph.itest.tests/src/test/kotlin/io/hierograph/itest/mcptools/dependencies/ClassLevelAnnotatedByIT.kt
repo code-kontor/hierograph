@@ -15,7 +15,8 @@
  */
 package io.hierograph.itest.mcptools.dependencies
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.itest.fwk.AbstractMcpApplicationIntegrationTest
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
 import org.assertj.core.api.Assertions.assertThat
@@ -87,7 +88,7 @@ class ClassLevelAnnotatedByIT : AbstractMcpApplicationIntegrationTest() {
 
         // TEMP diagnostic
         run {
-            val reader = io.hierograph.graphstore.jvm.parquet.ParquetReader()
+            val reader = ParquetReader()
             val all = reader.readDependencies(io.hierograph.itest.fwk.SpringFixture.directory, kind = DependencyKind.ANNOTATED_BY)
             val mine = all.filter { it.fromKey == annotatedClassFqn }
             println("TEMPDIAG annotated_by edges with fromKey=$annotatedClassFqn: ${mine.map { it.fromKey + " -> " + it.toKey }}")

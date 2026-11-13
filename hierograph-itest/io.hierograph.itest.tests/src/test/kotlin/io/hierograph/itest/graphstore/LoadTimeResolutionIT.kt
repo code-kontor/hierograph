@@ -15,15 +15,15 @@
  */
 package io.hierograph.itest.graphstore
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.server.graphservice.HierarchyResolution
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.model.Dependency
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.itest.fwk.SpringFixture
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -47,7 +47,7 @@ class LoadTimeResolutionIT {
 
     @BeforeAll
     fun resolve() {
-        val store = GraphStore().also { ParquetReader().load(dir, it) }
+        val store = GraphStore().also { SnapshotLoader().load(dir, it) }
         val members = reader.readAllMembers(dir)
         // Only bridges whose real target the scanner actually captured are redirectable; a handful of
         // bridges forward in a way the scanner can't resolve (null bridgeTarget) and legitimately remain.
@@ -56,12 +56,12 @@ class LoadTimeResolutionIT {
             .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
             .groupBy { it.key.substringBefore('#') }
         val superByFqn = store.typeDependencies().filter { it.extends || it.implements }.groupBy({ it.fromFqn }, { it.toFqn })
-        val types = store.nodes().asSequence().filter { JavaKinds.isTypeKind(it.kind) }.map { n ->
+        val types = store.nodes().asSequence().filter { JavaNodeKind.isTypeKind(it.kind) }.map { n ->
             HierarchyResolution.Type(
                 n.fqn,
                 superByFqn[n.fqn].orEmpty(),
                 methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom, it.bridgeTarget) },
-                external = n.kind.toString() == JavaKinds.EXTERNAL_TYPE,
+                external = n.kind.toString() == JavaNodeKind.EXTERNAL_TYPE,
             )
         }.toList()
         directCalls = reader.readDependencies(dir, kind = DependencyKind.CALLS)

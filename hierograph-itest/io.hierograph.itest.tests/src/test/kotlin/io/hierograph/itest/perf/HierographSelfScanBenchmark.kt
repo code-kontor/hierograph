@@ -21,7 +21,7 @@ import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import io.hierograph.server.mapping.GraphStoreToHGModel
@@ -44,7 +44,7 @@ import kotlin.time.measureTimedValue
  *   a) **parsing** — the ASM [BytecodeScanner] over every module's compiled output into `ClassFacts`
  *      and member-level detail refs (what the server does in `manifest` mode); and
  *   b) **hierarchical-graph creation** — loading the scan into a [GraphStore] and bridging it to the
- *      `HGModel` the tools query (`ParquetReader.load` + [GraphStoreToHGModel]).
+ *      `HGModel` the tools query (`SnapshotLoader.load` + [GraphStoreToHGModel]).
  *
  * Opt-in (not part of a normal `-Pitest` run): run with `-Dhierograph.benchmark=true`. It shells out to
  * `mvn`, so Maven must be on `PATH` and the project resolvable. A warm-up scan precedes the measured run.
@@ -86,7 +86,7 @@ class HierographSelfScanBenchmark {
 
         // 2b) HIERARCHICAL-GRAPH CREATION — load into a GraphStore, then build the HGModel.
         val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
-        val loadTime = measureTime { ParquetReader().load(snapshotDir, store) }
+        val loadTime = measureTime { SnapshotLoader().load(snapshotDir, store) }
         val (model, modelTime) = measureTimedValue { GraphStoreToHGModel.build(store) }
         val graphTime = loadTime + modelTime
 

@@ -194,11 +194,11 @@ class ViewDocumentParserTest {
             { "name": "extract-parquet", "restructure": true,
               "modules": [ { "name": "io.hierograph.graphstore.parquet", "description": "the snapshot format" } ],
               "moves": [
-                { "select": { "match": "io.hierograph.graphstore.jvm.parquet", "kind": "java.package",
-                              "within": "io.hierograph:io.hierograph.graphstore.jvm:*" },
+                { "select": { "match": "io.hierograph.graphstore.jvm.archive", "kind": "java.package",
+                              "within": "io.hierograph:io.hierograph.graphstore.jvm.archive:*" },
                   "to": "io.hierograph.graphstore.parquet" },
                 { "select": "io.hierograph.server.graphservice.HierarchyResolution",
-                  "to": "io.hierograph:io.hierograph.graphstore.jvm:*/io.hierograph.graphstore.jvm.detail" } ],
+                  "to": "io.hierograph:io.hierograph.graphstore.jvm.archive:*/io.hierograph.graphstore.jvm.detail" } ],
               "groups": [ { "name": "storage", "members": ["io.hierograph.graphstore.parquet"] } ] }
             """,
         )
@@ -207,12 +207,12 @@ class ViewDocumentParserTest {
         assertThat(document.modules).containsExactly(VirtualModuleDefinition("io.hierograph.graphstore.parquet", "the snapshot format"))
         assertThat(document.moves).containsExactly(
             MoveDefinition(
-                MemberSelector("io.hierograph.graphstore.jvm.parquet", "java.package", "io.hierograph:io.hierograph.graphstore.jvm:*"),
+                MemberSelector("io.hierograph.graphstore.jvm.archive", "java.package", "io.hierograph:io.hierograph.graphstore.jvm.archive:*"),
                 "io.hierograph.graphstore.parquet",
             ),
             MoveDefinition(
                 MemberSelector("io.hierograph.server.graphservice.HierarchyResolution"),
-                "io.hierograph:io.hierograph.graphstore.jvm:*/io.hierograph.graphstore.jvm.detail",
+                "io.hierograph:io.hierograph.graphstore.jvm.archive:*/io.hierograph.graphstore.jvm.detail",
             ),
         )
         assertThat(document.groups.single().name).isEqualTo("storage")

@@ -15,10 +15,10 @@
  */
 package io.hierograph.server.graphservice
 
-import io.hierograph.graphstore.jvm.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.ParquetReader
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -32,7 +32,7 @@ class DetailDerivationTest {
     fun `derivation from the scan equals derivation from its snapshot`(@TempDir tmp: Path) {
         // This module's classes and the graph store's: two artifacts with types that extend across them.
         val graphservice = Path.of("target/classes").toAbsolutePath()
-        val graphstore = Path.of("../../hierograph-graphstore/io.hierograph.graphstore.jvm/target/classes").toAbsolutePath().normalize()
+        val graphstore = Path.of("../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/target/classes").toAbsolutePath().normalize()
         assertThat(graphservice).`as`("module is compiled before the test runs").isDirectory()
         assertThat(graphstore).`as`("graph store module is compiled").isDirectory()
 
