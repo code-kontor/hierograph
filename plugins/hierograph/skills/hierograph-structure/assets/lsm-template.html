@@ -1,0 +1,723 @@
+<title>Levelized Structure Map</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --surface-0: #f4f2ee;
+    --surface-1: #fcfcfb;
+    --line:      #d9d6cf;
+    --line-soft: #e7e4dd;
+    --ink:       #0b0b0b;
+    --ink-2:     #52514e;
+    --ink-3:     #86837c;
+
+    --cont-a:    #e6eedf;   /* container, even depth */
+    --cont-b:    #f1f5ec;   /* container, odd depth */
+    --cont-line: #b9c9ad;
+    --leaf:      #fdfaf0;
+    --leaf-line: #d8d2bd;
+    --tangle:    #f8dddd;
+    --tangle-line:#e34948;
+    --ext:       #e3e5f7;
+    --ext-line:  #9aa0d8;
+
+    --out:     #4a3aa7;  --out-soft:#e6e2f5;
+    --in:      #1baf7a;  --in-soft: #d6f0e5;
+    --sel:     #0d366b;
+    --bad:     #e34948;
+    --hit:     #f5c542;
+    --pkg:     #a8742a;   /* package icon */
+    --pkg-fill:#f3e3c4;
+    --focus:   #2a78d6;
+    --gap: 30px;          /* space between and inside boxes; the min-width code reads it */
+    --radius: 7px;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-0: #141413; --surface-1: #1a1a19;
+      --line: #383835; --line-soft: #2c2c2a;
+      --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8a887f;
+      --cont-a: #1d261d; --cont-b: #232c22; --cont-line: #3d4d3a;
+      --leaf: #2a2924; --leaf-line: #45423a;
+      --tangle: #3b2324; --tangle-line: #e66767;
+      --ext: #212440; --ext-line: #4b5296;
+      --out: #9085e9; --out-soft: #2c2650;
+      --in: #199e70; --in-soft: #143829;
+      --sel: #cde2fb; --bad: #e66767; --hit: #b8902a; --focus: #3987e5;
+      --pkg: #d8a657; --pkg-fill: #3d3220;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface-0: #141413; --surface-1: #1a1a19;
+    --line: #383835; --line-soft: #2c2c2a;
+    --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8a887f;
+    --cont-a: #1d261d; --cont-b: #232c22; --cont-line: #3d4d3a;
+    --leaf: #2a2924; --leaf-line: #45423a;
+    --tangle: #3b2324; --tangle-line: #e66767;
+    --ext: #212440; --ext-line: #4b5296;
+    --out: #9085e9; --out-soft: #2c2650;
+    --in: #199e70; --in-soft: #143829;
+    --sel: #cde2fb; --bad: #e66767; --hit: #b8902a; --focus: #3987e5;
+    --pkg: #d8a657; --pkg-fill: #3d3220;
+  }
+
+  body { background: var(--surface-0); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+  * { box-sizing: border-box; }
+  .wrap { padding-inline: 16px; padding-block: 20px 40px; }
+  header h1 { font-size: clamp(20px, 3.4vw, 27px); font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; text-wrap: balance; }
+  .meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin: 6px 0 4px; }
+  .facts { color: var(--ink-2); margin: 0 0 14px; max-width: 80ch; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center;
+             background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius);
+             padding: 10px 12px; margin-bottom: 10px; }
+  input[type="search"] { font: 400 13px/1.4 var(--mono); padding: 6px 9px; width: min(240px, 100%);
+    background: var(--surface-0); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; }
+  .btn { font: 500 12.5px var(--sans); padding: 6px 11px; cursor: pointer; background: var(--surface-0);
+         color: var(--ink); border: 1px solid var(--line); border-radius: 5px; }
+  .btn:hover { border-color: var(--ink-3); }
+  .check { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); }
+  .check input { accent-color: var(--focus); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12px; color: var(--ink-2); margin: 0 0 10px; }
+  .key { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 18px; height: 12px; border-radius: 3px; border: 1px solid; display: inline-block; }
+  .key i { width: 22px; height: 0; border-top: 2px dashed var(--bad); display: inline-block; }
+
+  .main { display: grid; grid-template-columns: minmax(0,1fr) 272px; gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .main { grid-template-columns: minmax(0,1fr); } }
+
+  .canvas { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto;
+            max-height: 86vh; }
+  .canvas:fullscreen { max-height: none; width: 100vw; height: 100vh; border: 0; border-radius: 0; }
+  .map { position: relative; padding: 8px; min-width: min-content; }
+  #arrows { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 3; }
+
+  .rows { display: flex; flex-direction: column; gap: var(--gap); }
+  .row  { display: flex; gap: var(--gap); align-items: stretch; }
+  .item { flex-basis: 0; flex-shrink: 1; min-width: 0; display: flex; }
+  .item > * { flex: 1; min-width: 0; }
+
+  .box { border: 1px solid var(--leaf-line); border-radius: 5px; background: var(--leaf); cursor: pointer; }
+  .cont { background: var(--cont-a); border-color: var(--cont-line); padding: 8px var(--gap) var(--gap); }
+  .cont.odd { background: var(--cont-b); }
+  .ext, .cont.ext { background: var(--ext); border-color: var(--ext-line); }
+  .box.leaf.ext { background: color-mix(in srgb, var(--ext) 45%, var(--leaf)); }
+  .hd { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+  .hd .nm { flex: 1; text-align: center; font-weight: 500; }
+  .nm { font: 400 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ic { width: 12px; height: 12px; vertical-align: -2px; margin-right: 5px; }
+  .ic path { fill: var(--pkg-fill); stroke: var(--pkg); stroke-width: 1; stroke-linejoin: round; }
+  .ic path + path { fill: none; }
+  .leaf { display: flex; align-items: center; gap: 6px; padding: 0 8px; min-height: 30px; }
+  .leaf .nm { flex: 1; text-align: center; }
+  /* The collapse/expand toggle sits in the box's top-left corner, 10px in from
+     both edges, as a bare glyph. Taking it out of the flow keeps the name centred
+     whether or not a box has a toggle; a collapsed box pads both sides alike so
+     its name never runs under the glyph. */
+  .box { position: relative; }
+  .tg { position: absolute; top: 10px; left: 10px; font: 500 14px/1 var(--mono); padding: 0; margin: 0;
+        border: 0; background: none; color: var(--ink-2); cursor: pointer; }
+  .tg:hover { color: var(--ink); }
+  .leaf.hastg { padding: 0 28px; }
+  .ct { font: 400 10.5px var(--mono); color: var(--ink-3); flex: none; }
+  .tangle { background: var(--tangle); border: 1.5px solid var(--tangle-line); border-radius: 6px; padding: var(--gap); }
+
+  .box.sel { outline: 2.5px solid var(--sel); outline-offset: 1px; }
+  /* Selection never changes a box's fill: the fill says what the box is
+     (container, tangle, external), and recolouring it on click loses that.
+     Roles are rings drawn outside the border. */
+  .box.hasout { outline: 2.5px solid var(--out); outline-offset: 1px; }
+  .box.hasin  { outline: 2.5px solid var(--in);  outline-offset: 1px; }
+  .box.hit { box-shadow: inset 0 0 0 2px var(--hit); }
+  .map.fading .box.leaf:not(.sel):not(.hasout):not(.hasin) { opacity: .35; }
+
+  aside { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px; position: sticky; top: 10px; }
+  aside h2 { font-family: var(--mono); font-size: 14px; font-weight: 500; margin: 0; word-break: break-all; }
+  .lvl { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.07em; margin: 3px 0 11px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .mini { border-radius: 5px; padding: 7px 9px; }
+  .mini.o { background: var(--out-soft); } .mini.i { background: var(--in-soft); }
+  .mini b { font-family: var(--mono); font-size: 16px; font-weight: 500; display: block; font-variant-numeric: tabular-nums; }
+  .mini.o b { color: var(--out); } .mini.i b { color: var(--in); }
+  .mini span { font-size: 10.5px; color: var(--ink-2); }
+  aside h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; margin: 12px 0 6px; display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  aside h3 i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .deps { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow-y: auto; }
+  .deps li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
+  .deps button { font: 400 12px var(--mono); background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deps button:hover { text-decoration: underline; }
+  .deps em { font-family: var(--mono); font-style: normal; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .deps li.bad button { color: var(--bad); }
+  .empty { color: var(--ink-3); font-size: 12.5px; margin: 4px 0 0; }
+
+  .tablewrap { margin-top: 16px; }
+  .tablewrap h2 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
+  .scroll { overflow: auto; max-height: 360px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-1); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 11px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); position: sticky; top: 0; background: var(--surface-1); }
+  td.m { font-family: var(--mono); }
+  td.num { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 id="h1"></h1>
+    <p class="meta" id="meta"></p>
+    <p class="facts" id="facts"></p>
+  </header>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Find package or module" autocomplete="off" spellcheck="false" aria-label="Find">
+    <button class="btn" id="expall" type="button">Expand all</button>
+    <button class="btn" id="colall" type="button">Collapse all</button>
+    <button class="btn" id="fs" type="button">Full screen</button>
+    <button class="btn" id="savesvg" type="button">Save SVG</button>
+    <button class="btn" id="savepng" type="button">Save PNG</button>
+    <label class="check"><input type="checkbox" id="badarrows" checked> Arrows against the levels</label>
+    <label class="check"><input type="checkbox" id="selarrows" checked> Arrows for selection</label>
+    <label class="check"><input type="checkbox" id="fade"> Dim unrelated</label>
+  </div>
+
+  <div class="legend">
+    <span class="key"><span class="sw" style="background:var(--cont-a);border-color:var(--cont-line)"></span> container</span>
+    <span class="key"><span class="sw" style="background:var(--leaf);border-color:var(--leaf-line)"></span> package / leaf</span>
+    <span class="key"><span class="sw" style="background:var(--tangle);border-color:var(--tangle-line)"></span> tangle (cycle)</span>
+    <span class="key"><span class="sw" style="background:var(--ext);border-color:var(--ext-line)"></span> external</span>
+    <span class="key"><i></i> dependency against the levels</span>
+    <span class="key"><span class="sw" style="background:transparent;border:2.5px solid var(--out)"></span> selection depends on</span>
+    <span class="key"><span class="sw" style="background:transparent;border:2.5px solid var(--in)"></span> depends on selection</span>
+  </div>
+
+  <div class="main">
+    <div class="canvas" id="canvas">
+      <div class="map" id="map" role="tree" aria-label="Levelized structure map">
+        <div id="root"></div>
+        <svg id="arrows" aria-hidden="true">
+          <defs>
+            <marker id="ah-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="var(--bad)"/></marker>
+            <marker id="ah-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="var(--out)"/></marker>
+            <marker id="ah-in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="var(--in)"/></marker>
+          </defs>
+          <g id="alayer"></g>
+        </svg>
+      </div>
+    </div>
+
+    <aside aria-live="polite">
+      <h2 id="selname">&mdash;</h2>
+      <p class="lvl" id="sellvl">Click a box to trace it. Rows are levels: a box uses only what sits below it.</p>
+      <div class="pair">
+        <div class="mini o"><b id="mo">0</b><span>depends on</span></div>
+        <div class="mini i"><b id="mi">0</b><span>dependents</span></div>
+      </div>
+      <h3><i style="background:var(--out)"></i> Depends on</h3>
+      <ul class="deps" id="outlist"></ul>
+      <p class="empty" id="outempty" hidden>Nothing outside itself.</p>
+      <h3><i style="background:var(--in)"></i> Depended on by</h3>
+      <ul class="deps" id="inlist"></ul>
+      <p class="empty" id="inempty" hidden>Nothing outside itself depends on it.</p>
+    </aside>
+  </div>
+
+  <div class="tablewrap" id="tablewrap" hidden>
+    <h2>Dependencies against the levels</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>From</th><th>To</th><th style="text-align:right">Weight</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const D = __DATA__;
+const N = D.nodes, E = D.edges, L = D.layout;
+const $ = id => document.getElementById(id);
+const kids = N.map(() => []);
+N.forEach((n, i) => { if (n.p >= 0) kids[n.p].push(i); });
+const depth = N.map(() => 0);
+N.forEach((n, i) => { depth[i] = n.p >= 0 ? depth[n.p] + 1 : 0; });   // parents precede children
+const isCont = i => !!L[i];
+const ROOT = N.findIndex(n => n.p < 0);
+const hideRoot = N[ROOT].k === 'root';
+
+/* ---------- names ---------- */
+function fullName(i) {
+  const parts = [];
+  for (let k = i; k >= 0; k = N[k].p) if (N[k].k !== 'root') parts.unshift(N[k].n);
+  return parts.join(' › ');
+}
+// A package that contains other boxes is labelled with its fully qualified name
+// (de.dare.ondemand.business.processing): nested several levels deep, a bare
+// "processing" or "common" no longer says where you are. Leaves keep the short
+// name; their container's header carries the rest. Folded chains already hold
+// a dotted name, so joining the package ancestors gives the full one.
+function boxLabel(i) {
+  if (!isCont(i) || N[i].k !== 'java.package') return N[i].n;
+  const parts = [];
+  for (let k = i; k >= 0 && N[k].k === 'java.package'; k = N[k].p) parts.unshift(N[k].n);
+  return parts.join('.');
+}
+function shortName(i) {      // the box and its container: enough to find it, short enough to read
+  const p = N[i].p;
+  return p >= 0 && N[p].k !== 'root' ? `${N[p].n} › ${N[i].n}` : N[i].n;
+}
+$('h1').textContent = D.title || 'Levelized structure map';
+$('meta').textContent = [D.project, D.scanned && ('scanned ' + D.scanned), D.source].filter(Boolean).join(' · ');
+$('facts').textContent = (D.tangles
+  ? `${D.tangles} tangle${D.tangles > 1 ? 's' : ''} (red boxes), ${D.violations} dependenc${D.violations === 1 ? 'y' : 'ies'} against the levels (dashed arrows).`
+  : 'No tangles: every container is cleanly levelized.') +
+  ' Within each container, a box depends only on boxes in rows below it; position within a row means nothing.';
+
+/* ---------- collapse state ---------- */
+const collapsed = new Set();
+function weightOf(i) {
+  if (!isCont(i) || collapsed.has(i)) return 1;
+  return Math.max(1, ...L[i].map(row => row.reduce((s, it) => s + itemWeight(it), 0)));
+}
+function itemWeight(it) {
+  return typeof it === 'number' ? weightOf(it)
+    : Math.max(1, ...it.t.map(r => r.reduce((s, m) => s + weightOf(m), 0)));
+}
+// The narrowest a box can get and still hold its content: leaves need room for
+// a name, and a container adds its gaps and side padding at every nesting level.
+// Weight alone cannot express that, so a deep container would overflow its parent.
+const css = getComputedStyle(document.documentElement);
+const GAP = parseFloat(css.getPropertyValue('--gap')) || 30;
+// Each box is at least as wide as its own name, measured in the font it is drawn
+// in, so a name is cut off only when the map is wider than any screen could show.
+const LEAF_MIN = 48;
+const ctx2d = document.createElement('canvas').getContext('2d');
+const textW = new Map();
+function nameW(i, weight) {
+  const k = i + ':' + weight;
+  if (!textW.has(k)) {
+    ctx2d.font = `${weight} 12px "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
+    textW.set(k, Math.ceil(ctx2d.measureText(boxLabel(i)).width) + (N[i].k === 'java.package' ? 17 : 0));
+  }
+  return textW.get(k);
+}
+function rowsMin(rows, wOf) {
+  return Math.max(LEAF_MIN, ...rows.map(r => r.reduce((s, x) => s + wOf(x), 0) + GAP * (r.length - 1)));
+}
+function minOf(i) {
+  // leaf: name + side padding 2x8 + border; collapsed: padding 2x28 keeps the
+  // name clear of the corner toggle, plus the child count; open: the centred
+  // header name must clear the toggle on both sides.
+  if (!isCont(i)) return Math.max(LEAF_MIN, nameW(i, 400) + 20);
+  if (collapsed.has(i)) return nameW(i, 400) + 60 + 6 + 8 * String(kids[i].length).length;
+  return 2 * GAP + 2 + Math.max(nameW(i, 500) + 4, rowsMin(L[i], itemMin));
+}
+function itemMin(it) {
+  return typeof it === 'number' ? minOf(it) : 2 * GAP + 3 + rowsMin(it.t, minOf);
+}
+function visibleCount() {
+  let c = 0;
+  const walk = i => { c++; if (isCont(i) && !collapsed.has(i)) kids[i].forEach(walk); };
+  walk(ROOT); return c;
+}
+function collapseToDepth(d) {
+  collapsed.clear();
+  N.forEach((_, i) => { if (isCont(i) && i !== ROOT && depth[i] >= d) collapsed.add(i); });
+}
+(function initialCollapse() {
+  if (D.expand != null) { collapseToDepth(D.expand + (hideRoot ? 1 : 0)); return; }
+  const maxD = Math.max(...depth);
+  for (let d = maxD + 1; d >= 1; d--) { collapseToDepth(d); if (visibleCount() <= 160) return; }
+})();
+
+/* ---------- render ---------- */
+const boxEl = new Map();
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function rowsEl(rows) {
+  const wrap = el('div', 'rows');
+  rows.forEach(row => {
+    const r = el('div', 'row');
+    row.forEach(it => {
+      const w = itemWeight(it);
+      const cell = el('div', 'item');
+      cell.style.flexGrow = w;
+      cell.style.minWidth = itemMin(it) + 'px';
+      if (typeof it === 'number') cell.appendChild(boxNode(it));
+      else {
+        const t = el('div', 'tangle');
+        t.appendChild(rowsEl(it.t.map(r2 => r2)));
+        cell.appendChild(t);
+      }
+      r.appendChild(cell);
+    });
+    wrap.appendChild(r);
+  });
+  return wrap;
+}
+// A package gets a small package glyph before its name; modules, (types) leaves
+// and External Types do not, so the icon also tells packages from the rest.
+const PKG_ICON = '<path d="M6 .8 11.2 3.4v5.2L6 11.2.8 8.6V3.4z"/><path d="M.8 3.4 6 6l5.2-2.6M6 6v5.2"/>';
+function nameEl(i) {
+  const nm = el('span', 'nm');
+  if (N[i].k === 'java.package') {
+    const ic = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    ic.setAttribute('class', 'ic'); ic.setAttribute('viewBox', '0 0 12 12'); ic.setAttribute('aria-hidden', 'true');
+    ic.innerHTML = PKG_ICON;
+    nm.appendChild(ic);
+  }
+  nm.appendChild(el('span', 'tx', boxLabel(i)));
+  return nm;
+}
+function boxNode(i) {
+  const n = N[i];
+  const open = isCont(i) && !collapsed.has(i);
+  const b = el('div', 'box ' + (open ? 'cont' : 'leaf') + (depth[i] % 2 ? ' odd' : '') + (n.x ? ' ext' : '')
+    + (isCont(i) && !open ? ' hastg' : ''));
+  b.dataset.i = i;
+  b.setAttribute('role', 'treeitem');
+  b.title = `${fullName(i)}\n${n.k}${isCont(i) ? ` · ${kids[i].length} children` : ''}\nout ${n.ow} · in ${n.iw}`;
+  const hd = open ? el('div', 'hd') : b;
+  if (isCont(i)) {
+    const tg = el('button', 'tg', open ? '−' : '+');
+    tg.type = 'button';
+    tg.setAttribute('aria-expanded', open);
+    tg.setAttribute('aria-label', (open ? 'Collapse ' : 'Expand ') + n.n);
+    tg.addEventListener('click', ev => { ev.stopPropagation(); toggle(i); });
+    hd.appendChild(tg);
+  }
+  hd.appendChild(nameEl(i));
+  if (isCont(i) && !open) hd.appendChild(el('span', 'ct', kids[i].length));
+  if (open) { b.appendChild(hd); b.appendChild(rowsEl(L[i])); }
+  b.addEventListener('click', ev => { ev.stopPropagation(); select(sel === i ? -1 : i); });
+  boxEl.set(i, b);
+  return b;
+}
+function render() {
+  boxEl.clear();
+  const root = $('root');
+  root.replaceChildren(hideRoot && isCont(ROOT) ? rowsEl(L[ROOT]) : boxNode(ROOT));
+  applyHighlight();
+}
+function toggle(i) { collapsed.has(i) ? collapsed.delete(i) : collapsed.add(i); render(); }
+function reveal(i) { for (let k = N[i].p; k >= 0; k = N[k].p) collapsed.delete(k); }
+
+/* ---------- dependencies of the selection ---------- */
+function rep(i) {                  // the box that currently stands for node i
+  let r = i;
+  for (let k = N[i].p; k >= 0; k = N[k].p) if (collapsed.has(k)) r = k;
+  return r;
+}
+function within(i, anc) { for (let k = i; k >= 0; k = N[k].p) if (k === anc) return true; return false; }
+
+let sel = -1;
+function trace(s) {
+  const out = new Map(), inn = new Map();
+  E.forEach(([a, b, w, v]) => {
+    const ia = within(a, s), ib = within(b, s);
+    if (ia && !ib) { const r = rep(b); const o = out.get(r) || [0, 0]; o[0] += w; o[1] |= v ? 1 : 0; out.set(r, o); }
+    if (ib && !ia) { const r = rep(a); const o = inn.get(r) || [0, 0]; o[0] += w; o[1] |= v ? 1 : 0; inn.set(r, o); }
+  });
+  return { out, inn };
+}
+function select(i) { sel = i; applyHighlight(); renderAside(); }
+
+function applyHighlight() {
+  boxEl.forEach(b => b.classList.remove('sel', 'hasout', 'hasin'));
+  $('map').classList.toggle('fading', sel >= 0 && $('fade').checked);
+  if (sel >= 0 && boxEl.has(rep(sel))) {
+    const s = rep(sel);
+    if (s !== sel) sel = s;
+    boxEl.get(s).classList.add('sel');
+    const { out, inn } = trace(s);
+    out.forEach((_, r) => boxEl.get(r) && boxEl.get(r).classList.add('hasout'));
+    inn.forEach((_, r) => boxEl.get(r) && boxEl.get(r).classList.add('hasin'));
+  }
+  requestAnimationFrame(drawArrows);
+}
+
+function renderAside() {
+  const has = sel >= 0;
+  $('selname').textContent = has ? fullName(sel) : '—';
+  if (!has) {
+    $('sellvl').textContent = 'Click a box to trace it. Rows are levels: a box uses only what sits below it.';
+    ['outlist', 'inlist'].forEach(id => $(id).replaceChildren());
+    $('mo').textContent = $('mi').textContent = '0';
+    $('outempty').hidden = $('inempty').hidden = true;
+    return;
+  }
+  const n = N[sel];
+  const p = n.p >= 0 ? N[n.p].n : '';
+  const inP = n.p >= 0 && !(n.p === ROOT && hideRoot) ? ` in ${p}` : '';
+  $('sellvl').textContent = `${n.k} · level ${n.l}${inP}${n.tg ? ' · in a tangle' : ''}`;
+  const { out, inn } = trace(sel);
+  const fill = (map, id, emptyId) => {
+    const ul = $(id);
+    ul.replaceChildren();
+    [...map].sort((a, b) => b[1][0] - a[1][0]).forEach(([r, [w, bad]]) => {
+      const li = el('li', bad ? 'bad' : '');
+      const btn = el('button', '', shortName(r));
+      btn.type = 'button';
+      btn.title = fullName(r) + (bad ? ' — includes dependencies against the levels' : '');
+      btn.addEventListener('click', () => focusNode(r));
+      li.appendChild(btn); li.appendChild(el('em', '', w));
+      ul.appendChild(li);
+    });
+    $(emptyId).hidden = map.size > 0;
+  };
+  fill(out, 'outlist', 'outempty');
+  fill(inn, 'inlist', 'inempty');
+  $('mo').textContent = out.size; $('mi').textContent = inn.size;
+}
+function focusNode(i) {
+  reveal(i); sel = i; render(); renderAside();
+  const b = boxEl.get(i);
+  if (b) b.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
+/* ---------- arrows ---------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+function drawArrows() {
+  const map = $('map'), svg = $('arrows'), layer = $('alayer');
+  svg.setAttribute('width', map.scrollWidth); svg.setAttribute('height', map.scrollHeight);
+  layer.replaceChildren();
+  const base = map.getBoundingClientRect();
+  const rect = i => {
+    const r = boxEl.get(i).getBoundingClientRect();
+    return { l: r.left - base.left, t: r.top - base.top, r: r.right - base.left, b: r.bottom - base.top };
+  };
+  const groups = new Map();
+  const add = (a, b, w, role) => {
+    if (a === b || within(a, b) || within(b, a) || !boxEl.has(a) || !boxEl.has(b)) return;
+    const k = `${a}>${b}>${role}`;
+    const g = groups.get(k) || { a, b, w: 0, role };
+    g.w += w; groups.set(k, g);
+  };
+  // Feedback is a fact about two siblings in a tangle, so its arrow joins those
+  // siblings. Joining the leaves instead fans one fact out into many long lines.
+  if ($('badarrows').checked) E.forEach(([a, b, w, v, x, y]) => { if (v) add(rep(x), rep(y), w, 'bad'); });
+  if (sel >= 0 && $('selarrows').checked) {
+    E.forEach(([a, b, w, v]) => {
+      const ia = within(a, sel), ib = within(b, sel);
+      if (ia && !ib) add(sel, rep(b), w, v ? 'bad' : 'out');
+      else if (ib && !ia) add(rep(a), sel, w, v ? 'bad' : 'in');
+    });
+  }
+  const maxW = Math.max(1, ...[...groups.values()].map(g => g.w));
+  groups.forEach(g => {
+    const A = rect(g.a), B = rect(g.b);
+    // Leave from the point of the source nearest the target's centre and arrive at
+    // the point of the target nearest the source's: overlapping boxes get a
+    // straight vertical line instead of a curve between their two centres.
+    const clamp = (v, lo, hi) => Math.max(lo + 8, Math.min(hi - 8, v));
+    let ax = clamp((B.l + B.r) / 2, A.l, A.r), bx = clamp((A.l + A.r) / 2, B.l, B.r);
+    let x1, y1, x2, y2, c1, c2;
+    const overlap = Math.min(A.r, B.r) - Math.max(A.l, B.l) > 0.4 * Math.min(A.r - A.l, B.r - B.l);
+    if (overlap) ax = bx = (Math.max(A.l, B.l) + Math.min(A.r, B.r)) / 2;
+    const gap = Math.max(B.t - A.b, A.t - B.b);
+    // Boxes stacked right-aligned (whole-row containers, tangle members) get a
+    // loop out of their right side even when adjacent: the 30px row gap leaves a
+    // straight arrow with no visible shaft.
+    if (overlap && Math.abs(A.r - B.r) < 40) {
+      // One box straight above the other: a top-to-bottom line would run through
+      // every box stacked between them. Loop out of the right side instead.
+      x1 = A.r; y1 = (A.t + A.b) / 2; x2 = B.r; y2 = (B.t + B.b) / 2;
+      const d = Math.min(46, 14 + Math.abs(y2 - y1) / 6);
+      const x = Math.max(x1, x2) + d;
+      c1 = [x, y1]; c2 = [x, y2];
+    } else if (B.b <= A.t + 2) {        // target above
+      // A straight arrow across a narrow gap starts inside its source, so it has
+      // a shaft; its control points stay between the ends, or the curve
+      // overshoots the target and the arrowhead turns round.
+      x1 = ax; y1 = A.t + (overlap ? 10 : 0); x2 = bx; y2 = B.b;
+      const d = overlap ? (y1 - y2) / 3 : Math.max(18, (y1 - y2) / 2); c1 = [x1, y1 - d]; c2 = [x2, y2 + d];
+    } else if (B.t >= A.b - 2) { // target below
+      x1 = ax; y1 = A.b - (overlap ? 10 : 0); x2 = bx; y2 = B.t;
+      const d = overlap ? (y2 - y1) / 3 : Math.max(18, (y2 - y1) / 2); c1 = [x1, y1 + d]; c2 = [x2, y2 - d];
+    } else {                     // same band: leave and arrive sideways
+      const right = bx > ax;
+      x1 = right ? A.r : A.l; y1 = (A.t + A.b) / 2; x2 = right ? B.l : B.r; y2 = (B.t + B.b) / 2;
+      const d = Math.max(18, Math.abs(x2 - x1) / 2) * (right ? 1 : -1); c1 = [x1 + d, y1]; c2 = [x2 - d, y2];
+    }
+    const p = document.createElementNS(SVGNS, 'path');
+    p.setAttribute('d', `M${x1},${y1} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${x2},${y2}`);
+    p.setAttribute('fill', 'none');
+    const col = g.role === 'bad' ? 'var(--bad)' : g.role === 'out' ? 'var(--out)' : 'var(--in)';
+    const width = g.role === 'bad'
+      ? (sel >= 0 && (within(g.a, sel) || within(g.b, sel) || g.a === sel || g.b === sel) ? 3 : 1.6)
+      : 1 + 2 * Math.log(1 + g.w) / Math.log(1 + maxW);
+    p.setAttribute('stroke', col);
+    p.setAttribute('stroke-width', width.toFixed(2));
+    if (g.role === 'bad') p.setAttribute('stroke-dasharray', '5 3');
+    p.setAttribute('stroke-opacity', g.role === 'bad' ? 0.95 : 0.7);
+    p.setAttribute('marker-end', `url(#ah-${g.role})`);
+    const t = document.createElementNS(SVGNS, 'title');
+    t.textContent = `${fullName(g.a)} → ${fullName(g.b)} · ${g.w}`;
+    p.appendChild(t);
+    layer.appendChild(p);
+  });
+}
+
+/* ---------- table of edges against the levels ---------- */
+(function table() {
+  const bad = E.filter(e => e[3]);
+  if (!bad.length) return;
+  $('tablewrap').hidden = false;
+  const tb = $('tbody');
+  bad.sort((x, y) => y[2] - x[2]).forEach(([a, b, w]) => {
+    const tr = el('tr');
+    [fullName(a), fullName(b)].forEach((s, k) => {
+      const td = el('td', 'm');
+      const btn = el('button', '', s);
+      btn.type = 'button';
+      btn.style.cssText = 'font:inherit;background:none;border:0;padding:0;color:inherit;cursor:pointer';
+      btn.addEventListener('click', () => focusNode(k ? b : a));
+      td.appendChild(btn); tr.appendChild(td);
+    });
+    tr.appendChild(el('td', 'num', w));
+    tb.appendChild(tr);
+  });
+})();
+
+/* ---------- export ---------- */
+// The map is HTML boxes plus an SVG arrow layer. Rather than rasterising the DOM
+// (which needs a library and loses the parts scrolled out of view), redraw it as
+// plain SVG from the laid-out geometry: every box is a rounded rect, every name a
+// text element, the arrows are copied. Colours are read from computed styles, so
+// CSS variables, the theme and any selection come out exactly as on screen.
+function mapSvg() {
+  const map = $('map'), base = map.getBoundingClientRect();
+  const W = Math.ceil(map.scrollWidth), TITLE = 44, H = Math.ceil(map.scrollHeight) + TITLE;
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const pos = e => { const r = e.getBoundingClientRect();
+    return { x: r.left - base.left, y: r.top - base.top + TITLE, w: r.width, h: r.height }; };
+  const cs = e => getComputedStyle(e);
+  const transparent = c => !c || c === 'transparent' || /rgba\(.*,\s*0\)$/.test(c);
+  const out = [];
+  const canvasBg = cs($('canvas')).backgroundColor;
+  out.push(`<rect width="${W}" height="${H}" fill="${canvasBg}"/>`);
+  const h1 = cs($('h1'));
+  out.push(`<text x="12" y="28" font-family="${esc(h1.fontFamily)}" font-size="18" font-weight="600" fill="${h1.color}">${esc($('h1').textContent)}</text>`);
+  map.querySelectorAll('.box, .tangle').forEach(e => {
+    const s = cs(e), p = pos(e), bw = parseFloat(s.borderTopWidth) || 0, rad = parseFloat(s.borderTopLeftRadius) || 0;
+    const op = parseFloat(s.opacity);
+    out.push(`<rect x="${p.x + bw / 2}" y="${p.y + bw / 2}" width="${p.w - bw}" height="${p.h - bw}" rx="${rad}"`
+      + ` fill="${transparent(s.backgroundColor) ? 'none' : s.backgroundColor}"`
+      + (bw ? ` stroke="${s.borderTopColor}" stroke-width="${bw}"` : '')
+      + (op < 1 ? ` opacity="${op}"` : '') + '/>');
+    if (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) {
+      const ow = parseFloat(s.outlineWidth), off = parseFloat(s.outlineOffset) || 0, d = off + ow / 2;
+      out.push(`<rect x="${p.x - d}" y="${p.y - d}" width="${p.w + 2 * d}" height="${p.h + 2 * d}" rx="${rad + d}"`
+        + ` fill="none" stroke="${s.outlineColor}" stroke-width="${ow}"/>`);
+    }
+  });
+  map.querySelectorAll('.ic').forEach(e => {
+    const p = pos(e), parts = e.querySelectorAll('path'), box = e.closest('.box'), op = parseFloat(cs(box).opacity);
+    out.push(`<g transform="translate(${p.x},${p.y}) scale(${p.w / 12})"${op < 1 ? ` opacity="${op}"` : ''}>`
+      + [...parts].map(q => { const s = cs(q);
+          return `<path d="${q.getAttribute('d')}" fill="${transparent(s.fill) || s.fill === 'none' ? 'none' : s.fill}"`
+            + ` stroke="${s.stroke}" stroke-width="1" stroke-linejoin="round"/>`; }).join('') + '</g>');
+  });
+  // Text is placed where the browser put it (left edge of the text run), so a
+  // centred name with an icon in front of it lands exactly as on screen.
+  map.querySelectorAll('.tx, .ct, .tg').forEach(e => {
+    const s = cs(e), p = pos(e);
+    const box = e.closest('.box'), op = box ? parseFloat(cs(box).opacity) : 1;
+    out.push(`<text x="${p.x}" y="${p.y + p.h / 2}" dominant-baseline="central"`
+      + ` text-anchor="start" font-family="${esc(s.fontFamily)}" font-size="${s.fontSize}"`
+      + ` font-weight="${s.fontWeight}" fill="${s.color}"${op < 1 ? ` opacity="${op}"` : ''}>${esc(e.textContent)}</text>`);
+  });
+  // Arrows: copy each path with its colours resolved, and one marker per colour.
+  const markers = new Map();
+  $('alayer').querySelectorAll('path').forEach(pth => {
+    const s = cs(pth), col = s.stroke;
+    if (!markers.has(col)) markers.set(col, 'm' + markers.size);
+    out.push(`<path d="${pth.getAttribute('d')}" transform="translate(0,${TITLE})" fill="none" stroke="${col}"`
+      + ` stroke-width="${pth.getAttribute('stroke-width')}" stroke-opacity="${pth.getAttribute('stroke-opacity') || 1}"`
+      + (pth.getAttribute('stroke-dasharray') ? ` stroke-dasharray="${pth.getAttribute('stroke-dasharray')}"` : '')
+      + ` stroke-linecap="round" marker-end="url(#${markers.get(col)})"/>`);
+  });
+  const defs = [...markers].map(([col, id]) =>
+    `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"`
+    + ` markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="${col}"/></marker>`).join('');
+  return { W, H, text: `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`
+    + `<defs>${defs}</defs>${out.join('')}</svg>` };
+}
+function fileBase() {
+  return (D.title || 'levelized-structure').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'map';
+}
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$('savesvg').addEventListener('click', () => {
+  download(new Blob([mapSvg().text], { type: 'image/svg+xml' }), fileBase() + '.svg');
+});
+$('savepng').addEventListener('click', () => {
+  // Twice the on-screen size, so the PNG stays sharp on a HiDPI screen or a slide.
+  // An SVG drawn into a canvas cannot load web fonts: names fall back to the
+  // system monospace font, which the boxes have room for.
+  const { W, H, text } = mapSvg(), scale = 2;
+  const img = new Image();
+  const url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = W * scale; c.height = H * scale;
+    const g = c.getContext('2d');
+    g.scale(scale, scale); g.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    c.toBlob(b => download(b, fileBase() + '.png'), 'image/png');
+  };
+  img.src = url;
+});
+
+/* ---------- controls ---------- */
+$('expall').addEventListener('click', () => { collapsed.clear(); render(); });
+$('colall').addEventListener('click', () => { collapseToDepth(hideRoot ? 2 : 1); render(); });
+$('fade').addEventListener('change', applyHighlight);
+$('selarrows').addEventListener('change', applyHighlight);
+$('badarrows').addEventListener('change', applyHighlight);
+// Dozens of arrows against the levels turn the map into a hairball; start with
+// them off and let the table below, and the selection, carry them instead.
+if (D.violations > 40) $('badarrows').checked = false;
+$('canvas').addEventListener('click', ev => { if (ev.target === $('canvas') || ev.target === $('map')) select(-1); });
+$('fs').addEventListener('click', () => {
+  const c = $('canvas');
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (c.requestFullscreen) c.requestFullscreen();
+});
+if (!document.fullscreenEnabled) $('fs').hidden = true;
+$('q').addEventListener('input', () => {
+  const q = $('q').value.trim().toLowerCase();
+  boxEl.forEach(b => b.classList.remove('hit'));
+  if (!q) return;
+  const hits = N.map((n, i) => i).filter(i => N[i].k !== 'root' && N[i].n.toLowerCase().includes(q));
+  hits.slice(0, 25).forEach(reveal);
+  render();
+  hits.forEach(i => boxEl.get(i) && boxEl.get(i).classList.add('hit'));
+  const first = hits.find(i => boxEl.has(i));
+  if (first != null) boxEl.get(first).scrollIntoView({ block: 'nearest', inline: 'nearest' });
+});
+$('q').addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter') return;
+  const q = $('q').value.trim().toLowerCase();
+  const i = N.findIndex(n => n.k !== 'root' && n.n.toLowerCase().includes(q));
+  if (i >= 0) focusNode(i);
+});
+if (window.ResizeObserver) new ResizeObserver(() => requestAnimationFrame(drawArrows)).observe($('map'));
+// Name widths are measured in IBM Plex Mono; until it loads, the fallback font
+// gives other widths. Measure again and re-render once it is there.
+document.fonts && document.fonts.ready.then(() => { textW.clear(); render(); });
+
+render();
+renderAside();
+</script>
