@@ -15,8 +15,11 @@
  */
 package io.hierograph.graphstore.jvm.archive
 
+import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.DependencyFixture
 import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.MemberFixture
 import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.TypeFixture
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -59,7 +62,70 @@ class ParquetReaderTest {
     }
 
     @Test
-    fun `an artifact of format 1 or without a version is rejected, one of a newer format too`(@TempDir dir: Path) {
+    fun `every member is read, an unknown member key reads as null`(@TempDir dir: Path) {
+        ParquetTestWriter.writeMembers(
+            dir,
+            listOf(
+                MemberFixture("com.foo.A", "com.foo.A#a()V", "METHOD", "a", "a()V", lineFrom = 3, lineTo = 5),
+                MemberFixture("com.foo.B", "com.foo.B#x", "FIELD", "x", "x"),
+            ),
+        )
+        val reader = ParquetReader()
+
+        assertThat(reader.readAllMembers(dir).map { it.key to it.lineFrom })
+            .containsExactlyInAnyOrder("com.foo.A#a()V" to 3, "com.foo.B#x" to null)
+        assertThat(reader.readMember(dir, "com.foo.A#b()V")).isNull()
+    }
+
+    @Test
+    fun `forEachDependencyFact visits every row, or only the rows of one type`(@TempDir dir: Path) {
+        ParquetWriter.writeDependencies(
+            dir,
+            listOf(
+                Dependency("com.foo.A", "com.foo.A", "com.foo.Base", "com.foo.Base", DependencyKind.EXTENDS, null),
+                Dependency("com.foo.A#a()V", "com.foo.A", "com.foo.B#b()V", "com.foo.B", DependencyKind.CALLS, 7),
+                Dependency("com.foo.B#b()V", "com.foo.B", "com.foo.A#x", "com.foo.A", DependencyKind.READS_FIELD, 9),
+            ),
+        )
+        val source = SnapshotSources.of(dir).single()
+        val reader = ParquetReader()
+        fun visited(fromType: String?) = buildList {
+            reader.forEachDependencyFact(source, fromType) { from, fromKey, to, kind -> add(listOf(from, fromKey, to, kind.value)) }
+        }
+
+        assertThat(visited(null)).containsExactlyInAnyOrder(
+            listOf("com.foo.A", "com.foo.A", "com.foo.Base", "extends"),
+            listOf("com.foo.A", "com.foo.A#a()V", "com.foo.B", "calls"),
+            listOf("com.foo.B", "com.foo.B#b()V", "com.foo.A", "reads_field"),
+        )
+        assertThat(visited("com.foo.A")).containsExactlyInAnyOrder(
+            listOf("com.foo.A", "com.foo.A", "com.foo.Base", "extends"),
+            listOf("com.foo.A", "com.foo.A#a()V", "com.foo.B", "calls"),
+        )
+        assertThat(visited("com.foo.C")).isEmpty()
+    }
+
+    @Test
+    fun `forEachDependencyFact visits nothing without a dependencies table and rejects an unknown kind`(@TempDir dir: Path) {
+        val reader = ParquetReader()
+        val empty = Files.createDirectories(dir.resolve("empty"))
+        ParquetTestWriter.writeTypes(empty, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
+        var visits = 0
+        reader.forEachDependencyFact(SnapshotSources.of(empty).single()) { _, _, _, _ -> visits++ }
+        reader.forEachDependencyFact(SnapshotSources.of(empty).single(), "com.foo.A") { _, _, _, _ -> visits++ }
+        assertThat(visits).isZero()
+
+        val foreign = Files.createDirectories(dir.resolve("foreign"))
+        ParquetTestWriter.writeDependencies(foreign, listOf(DependencyFixture("com.foo.A", "com.foo.B", "depends_on")))
+        val source = SnapshotSources.of(foreign).single()
+        assertThatThrownBy { reader.forEachDependencyFact(source) { _, _, _, _ -> } }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown dependency kind 'depends_on'")
+        assertThatThrownBy { reader.forEachDependencyFact(source, "com.foo.A") { _, _, _, _ -> } }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown dependency kind 'depends_on'")
+    }
+
+    @Test
+    fun `an artifact of format 1, of an older or unreadable version or without one is rejected, one of a newer format too`(@TempDir dir: Path) {
         val types = listOf(TypeFixture("app", "com.foo.A", "CLASS"))
         val reader = ParquetReader()
         fun check(snapshot: Path) = SnapshotSources.of(snapshot).forEach { reader.checkFormat(it) }
@@ -74,6 +140,16 @@ class ParquetReaderTest {
         ParquetTestWriter.writeTypesInFormat(unversioned, null, types)
         assertThatThrownBy { check(unversioned) }
             .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("no format version")
+
+        val older = Files.createDirectories(dir.resolve("older"))
+        ParquetTestWriter.writeTypesInFormat(older, "1", types)
+        assertThatThrownBy { check(older) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("written in format 1").hasMessageContaining("Rescan")
+
+        val garbled = Files.createDirectories(dir.resolve("garbled"))
+        ParquetTestWriter.writeTypesInFormat(garbled, "two", types)
+        assertThatThrownBy { check(garbled) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("written in format two")
 
         val newer = Files.createDirectories(dir.resolve("newer"))
         ParquetTestWriter.writeTypesInFormat(newer, "${ParquetSchema.FORMAT_VERSION + 1}", types)

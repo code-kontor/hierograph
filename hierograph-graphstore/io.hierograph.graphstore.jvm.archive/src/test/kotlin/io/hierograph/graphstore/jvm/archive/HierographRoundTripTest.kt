@@ -215,6 +215,20 @@ class HierographRoundTripTest {
     }
 
     @Test
+    fun `a collect container with deflated archives is read`(@TempDir dir: Path) {
+        val artifacts = dir.resolve("artifacts")
+        ParquetWriter.writeArtifacts(artifacts, classes, dependencies, CompressionCodec.UNCOMPRESSED)
+        val archived = ParquetReader().readDependencies(artifacts).toSet()
+
+        val container = dir.resolve("project-collect.hierograph")
+        HierographArchive.zip(artifacts, container)
+        deflate(container)   // the nested archives are inflated on each table read
+
+        assertReads(container, archived)
+        assertReads(container, archived)   // and again: nothing of a deflated archive is cached
+    }
+
+    @Test
     fun `reading archives creates no files`(@TempDir dir: Path) {
         val snapshot = dir.resolve("snapshot")
         ParquetWriter.writeArtifacts(snapshot, classes, dependencies, CompressionCodec.UNCOMPRESSED)
