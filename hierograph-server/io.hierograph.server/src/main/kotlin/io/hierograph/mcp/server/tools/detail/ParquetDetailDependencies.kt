@@ -21,10 +21,12 @@ import io.hierograph.graphstore.jvm.detail.DetailQueryEngine
 import io.hierograph.graphstore.jvm.detail.NodeDisplay
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.Node
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeHandle
+import io.hierograph.server.mapping.GraphStoreNodeSource
 import io.hierograph.server.mapping.JavaEdgeAttributes
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
@@ -133,20 +135,42 @@ class ParquetDetailDependencies(
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val effectiveKind = effectiveRel?.let { DependencyKind.fromValue(it) }
+        val derived = graphService.derivedDependencies(fromTypes, toTypes, effectiveKind)
+        val derivedRows = derived.toHashSet()
         val raw = DetailQueryEngine(parquetDir)
-            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind)) +
-            graphService.derivedDependencies(fromTypes, toTypes, effectiveKind)
-        // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
-        // ones rather than trailing them.
-        val edges = raw.filter {
+            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind)) + derived
+        val scoped = raw.filter {
             fromTypeNode(it)?.let { n -> handle(n) in fromScopeHandles } == true &&
                 toTypeNode(it)?.let { n -> handle(n) in toScopeHandles } == true &&
                 (fromMember == null || it.fromKey == fromMember) && (toMember == null || it.toKey == toMember)
-        }.sortedWith(ROW_ORDER)
+        }
+
+        // A member reference names the member as compiled, on the receiver's static type, which may only inherit
+        // it. Such a row points at the declaration in the nearest supertype that declares it, and names the
+        // receiver separately. Resolved once per (receiver, key).
+        val declarations = HashMap<Pair<String, String>, Node?>()
+        fun inheritedDeclaration(r: Dependency): Node? {
+            if ('#' !in r.toKey) return null
+            val receiver = toTypeNode(r) ?: return null
+            if (store.memberOf(receiver, r.toKey) != null) return null
+            return declarations.getOrPut(receiver.key to r.toKey) { declaringMember(store, receiver, r.toKey) }
+        }
+        // The load-derived resolved call of a call site whose stored row now names the same declaration says
+        // the same thing twice; the stored row, which keeps the receiver, stays.
+        // Compared as whole rows (kind and line included) without the artifact, which derived rows do not carry.
+        val resolvedSites = scoped.filter { it !in derivedRows }.mapNotNullTo(HashSet()) { r ->
+            inheritedDeclaration(r)?.let { r.copy(toKey = it.fqn, toType = store.node(it.parent!!)!!.fqn, fromArtifact = null) }
+        }
+        // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
+        // ones rather than trailing them.
+        val edges = scoped.filter { it !in derivedRows || it.copy(fromArtifact = null) !in resolvedSites }
+            .sortedWith(ROW_ORDER)
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
         fun fromHandle(r: Dependency): Long = fromTypeNode(r)!!.let { if ('#' in r.fromKey) memberHandle(it, r.fromKey) else handle(it) }
-        fun toHandle(r: Dependency): Long = toTypeNode(r)!!.let { if ('#' in r.toKey) memberHandle(it, r.toKey) else handle(it) }
+        fun toHandle(r: Dependency): Long =
+            inheritedDeclaration(r)?.let { handle(it) }
+                ?: toTypeNode(r)!!.let { if ('#' in r.toKey) memberHandle(it, r.toKey) else handle(it) }
 
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
@@ -168,7 +192,13 @@ class ParquetDetailDependencies(
                 "from_parent" to handle(fromTypeNode(ref)!!),
                 "to" to toHandle(ref),
             )
-            if ('#' in ref.toKey) row["to_parent"] = handle(toTypeNode(ref)!!)
+            val declaration = inheritedDeclaration(ref)
+            if (declaration != null) {
+                row["to_parent"] = handle(store.node(declaration.parent!!)!!)
+                row["receiver"] = handle(toTypeNode(ref)!!)
+            } else if ('#' in ref.toKey) {
+                row["to_parent"] = handle(toTypeNode(ref)!!)
+            }
             row["relationship"] = ref.kind.value
             row["location"] = ref.line?.let { mapOf("line_number" to it.toLong()) }
             if (inherited(ref)) row["inherited"] = true
@@ -205,6 +235,7 @@ class ParquetDetailDependencies(
             registerEndpoint(nodes, item.row["from_parent"] as Long, ref.fromType, display)
             registerEndpoint(nodes, item.row["to"] as Long, ref.toKey, display)
             (item.row["to_parent"] as? Long)?.let { registerEndpoint(nodes, it, ref.toType, display) }
+            (item.row["receiver"] as? Long)?.let { registerEndpoint(nodes, it, ref.toType, display) }
         }
 
         val summary = linkedMapOf<String, Any?>(
@@ -242,7 +273,7 @@ class ParquetDetailDependencies(
             return
         }
         val d = display[key]
-        putSlimNode(nodes, handle, d?.name ?: key.substringAfterLast('#'), d?.qualifiedName ?: key, d?.kind ?: "unknown")
+        putSlimNode(nodes, handle, d?.name ?: key.substringAfterLast('#'), d?.qualifiedName ?: key, d?.kind ?: DetailEnricher.EXTERNAL_MEMBER)
     }
 
     /** The member key (`<owner fqn>#<signature>`) of a method or field node; `null` for any other node. */
@@ -291,6 +322,38 @@ class ParquetDetailDependencies(
             }
         }
         return scope
+    }
+
+    /**
+     * The member [key] names, declared not by [receiver] but by its nearest supertype that declares it, the
+     * way the JVM resolves a reference: the superclass chain first, then every supertype, nearest first.
+     * `null` when no scanned supertype declares it (it is declared outside the scanned code).
+     */
+    private fun declaringMember(store: GraphStore, receiver: Node, key: String): Node? {
+        val signature = key.substringAfter('#')
+        fun declared(t: Node): Node? = store.memberOf(t, "${t.fqn}#$signature")
+        fun supertypes(t: Node, superclassOnly: Boolean): List<Node> {
+            val hg = graphService.model.lookupNode(NodeHandle.of(t.key)) ?: return emptyList()
+            return hg.outgoingCoreDependencies.filter { dep ->
+                JavaEdgeAttributes.isSet(dep.attributesBitmap, JavaEdgeAttributes.IS_EXTENDS) ||
+                    (!superclassOnly && JavaEdgeAttributes.isSet(dep.attributesBitmap, JavaEdgeAttributes.IS_IMPLEMENTS))
+            }.mapNotNull { (it.to.nodeSource as? GraphStoreNodeSource)?.key?.let(store::node) }
+        }
+        val seen = hashSetOf(receiver.key)
+        var t = supertypes(receiver, superclassOnly = true).singleOrNull()
+        while (t != null && seen.add(t.key)) {
+            declared(t)?.let { return it }
+            t = supertypes(t, superclassOnly = true).singleOrNull()
+        }
+        val queue = ArrayDeque(supertypes(receiver, superclassOnly = false))
+        val visited = hashSetOf(receiver.key)
+        while (queue.isNotEmpty()) {
+            val s = queue.removeFirst()
+            if (!visited.add(s.key)) continue
+            declared(s)?.let { return it }
+            queue.addAll(supertypes(s, superclassOnly = false))
+        }
+        return null
     }
 
     /** Drill down from [node] to the first multi-child level and weight each child by [dep] to the other scope. */

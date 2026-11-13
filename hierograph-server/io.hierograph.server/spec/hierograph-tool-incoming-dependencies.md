@@ -345,7 +345,8 @@ the exchanged scopes:
 | `from_scope` | `toId`, the depending scope |
 | `to_scope` | `fromId`, the depended-upon scope |
 | `edges[].from`, `from_parent` | the referencing member and its type, on the depender's side |
-| `edges[].to`, `to_parent` | the referenced member or type and, for a member, its type, on the `fromId` side |
+| `edges[].to`, `to_parent` | the referenced member or type and, for a member, its declaring type; the row is on the `fromId` side by its `receiver` when that is present |
+| `edges[].receiver` | the type in `fromId` the reference was compiled against, when it only inherits `to` |
 | `edges[].relationship`, `location` | the relationship and the source line, or `null` |
 | `edges[].inherited` | `true` when the row comes from the inheritance closure; absent otherwise |
 | `summary.total`, `returned`, `truncated` | count of rows, rows on this page, and `total > returned` |

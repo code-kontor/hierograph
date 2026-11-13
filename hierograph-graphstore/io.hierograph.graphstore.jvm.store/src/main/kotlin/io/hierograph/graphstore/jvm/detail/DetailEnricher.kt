@@ -38,6 +38,11 @@ data class NodeDisplay(val name: String, val kind: String, val qualifiedName: St
  */
 class DetailEnricher(private val store: GraphStore, private val membersDir: Path) {
 
+    companion object {
+        /** The display kind of a member no scanned type declares. */
+        const val EXTERNAL_MEMBER = "external.member"
+    }
+
     private val reader = ParquetReader()
 
     fun nodesFor(edges: Collection<Dependency>): Map<String, NodeDisplay> {
@@ -59,8 +64,9 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
                 // Named and kinded as in the containment tree: by signature, a constructor as a method.
                 NodeDisplay(key.substringAfterLast('#'), memberKindDisplay(kind), key)
             } else {
-                // A referenced member we never scanned (e.g. a member of an external type): best-effort.
-                NodeDisplay(key.substringAfterLast('#'), "unknown", key)
+                // A member no scanned type declares: one of an external type, or one a scanned type inherits
+                // from a supertype outside the scanned code (`Throwable#getMessage()`).
+                NodeDisplay(key.substringAfterLast('#'), EXTERNAL_MEMBER, key)
             }
         }
         for (fqn in typeFqns) {

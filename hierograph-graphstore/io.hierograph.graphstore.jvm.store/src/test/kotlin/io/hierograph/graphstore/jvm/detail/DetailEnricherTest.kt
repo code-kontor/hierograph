@@ -114,7 +114,7 @@ class DetailEnricherTest {
         val external = "java.util.List#int size()"
         val nodes = enricher.nodesFor(listOf(Dependency(place, "com.shop.OrderService", external, "java.util.List", DependencyKind.CALLS, 51)))
 
-        assertThat(nodes[external]).isEqualTo(NodeDisplay("int size()", "unknown", external))
+        assertThat(nodes[external]).isEqualTo(NodeDisplay("int size()", DetailEnricher.EXTERNAL_MEMBER, external))
     }
 
     @Test

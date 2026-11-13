@@ -519,7 +519,7 @@ snapshot's members.
 **Display.** For a member key, `nodesFor` gives the signature as name and the kind
 from `members.parquet`, with a constructor shown as a method, as in the hierarchy
 (§3.1). A member no artifact declares, such as a member of an external type, gets the
-kind `unknown`. For a type FQN it gives the node `typeByFqn` returns, or, when there is
+kind `external.member` (`DetailEnricher.EXTERNAL_MEMBER`). For a type FQN it gives the node `typeByFqn` returns, or, when there is
 none, the simple name with the kind `external.type`.
 
 ---

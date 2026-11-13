@@ -226,6 +226,21 @@ A scope that names one definition therefore never lists the rows of its twin. Wh
 the artifact is not known (a snapshot in the unpacked layout, or a reference derived
 at load), an FQN resolves to its first definer.
 
+**Inherited members.** A call or field access names its member on the type the
+compiler saw, the static type of the receiver, which may only inherit it:
+`config.withEicCodes(…)` on a `RestInboundParticipantConfiguration` is compiled
+against `RestInboundParticipantConfiguration#withEicCodes(List)`, although the method
+is declared in its base class `AbstractParticipantConfiguration`. Whether the row is
+in scope is decided by the receiver, because the receiver is the type the depending
+code uses. The row's `to` is the member that is actually declared: the tool looks it
+up in the receiver's supertypes the way the JVM resolves a reference, the superclass
+chain first, then every supertype, nearest first. `to` and `to_parent` then name the
+declaration, and `receiver` names the type the reference was compiled against. When
+the receiver and the declaring type both lie in the `toId` scope, the call's resolved
+target derived at load names the same declaration; the tool lists the call once. When
+no scanned supertype declares the member (`getMessage()` on an exception, `name()` on
+an enum), `to` keeps the member as compiled, with the kind `external.member`.
+
 Each reference becomes one row:
 
 | Field | Value |
@@ -234,6 +249,7 @@ Each reference becomes one row:
 | `from_parent` | the type that declares `from` |
 | `to` | the referenced member, or the referenced type |
 | `to_parent` | the type that declares `to`; only when `to` is a member |
+| `receiver` | the type the reference was compiled against, when it only inherits `to` |
 | `relationship` | the meaning of the reference |
 | `location` | the source line, or `null` |
 | `inherited` | `true` when the depending type lies outside the `fromId` subtree; absent otherwise |
@@ -554,8 +570,10 @@ The detail example of §3.4 with `limit = 3`:
 
 **`nodes`** names the two scopes, every node in `by_source_nodes`, `by_target_nodes`
 and `by_source_type`, and every `from`, `from_parent`, `to` and `to_parent` on the
-page. A member of an external type, which is not a graph node, is named from the
-snapshot; its kind is `"unknown"` when the snapshot has no record of it.
+page, and every `receiver`. A member no scanned type declares, which is not a graph
+node, is named by its key and has the kind `"external.member"`: a member of an
+external type, or one a scanned type inherits from a supertype outside the scanned
+code.
 
 **`from_scope`** and **`to_scope`** echo the scope ids. They state which side is which,
 which matters for
@@ -570,6 +588,7 @@ Edge fields:
 | `from_parent` | node id | always | The type that declares `from` |
 | `to` | node id | always | The referenced member or type |
 | `to_parent` | node id | when `to` is a member | The type that declares `to` |
+| `receiver` | node id | when `to` is inherited | The type the reference was compiled against, which only inherits `to` (§3.2) |
 | `relationship` | string | always | One of the values in §3.2 |
 | `location` | object or `null` | always | `{"line_number": n}`, or `null` without a line |
 | `inherited` | boolean | when `true` | The row comes from the inheritance closure (§3.2) |
@@ -579,6 +598,9 @@ Edge fields:
 supertype's own code, so the scope's own rows stay
 recognisable; it is absent on all other rows to keep them small.
 `to_parent` is absent when `to` is a type, because the type is its own parent.
+**`receiver`** is present only when the receiver does not declare `to` itself. It is
+the type in the `toId` scope that puts the row there; `to_parent`, the declaring type,
+may lie outside it.
 
 **`location`** is the line of the instruction for `calls`, `reads_field` and
 `writes_field`, and the first line of the method for the signature relationships. It
