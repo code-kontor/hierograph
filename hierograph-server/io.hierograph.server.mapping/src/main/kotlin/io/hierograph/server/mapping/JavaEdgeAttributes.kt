@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.graphstore.jvm.model
+package io.hierograph.server.mapping
 
 /**
  * Bit positions and helpers for the Java provider's type-level edge attributes,
- * stored as a bitmap on the dependency's attribute field.
+ * stored as a bitmap on the dependency's attribute field. [GraphStoreToHGModel] sets
+ * them from each `TypeDependency`'s flags; the tools read them back.
  *
  * Each constant defines one bit position. Use the helper methods to read/write
  * individual flags or to convert between the bitmap and a `Map<String, Boolean>`

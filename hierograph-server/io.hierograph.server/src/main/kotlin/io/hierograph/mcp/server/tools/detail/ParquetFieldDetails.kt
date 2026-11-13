@@ -18,7 +18,7 @@ package io.hierograph.mcp.server.tools.detail
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.server.mapping.JavaEdgeAttributes
 import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.hierarchicalgraph.model.NodeHandle

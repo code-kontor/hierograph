@@ -25,9 +25,14 @@ import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.graphstore.jvm.archive.ParquetWriter.ArtifactClass
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.ParquetTestWriter
+import io.hierograph.graphstore.jvm.archive.ParquetTestWriter.MemberFixture
+import io.hierograph.graphstore.jvm.archive.SnapshotFormatException
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
@@ -102,5 +107,23 @@ class DetailEnricherTest {
 
         // unresolved type reference: simple name + external kind
         assertThat(nodes["java.math.BigDecimal"]).isEqualTo(NodeDisplay("BigDecimal", "external.type", "java.math.BigDecimal"))
+    }
+
+    @Test
+    fun `a member no artifact declares is shown with an unknown kind`() {
+        val external = "java.util.List#int size()"
+        val nodes = enricher.nodesFor(listOf(Dependency(place, "com.shop.OrderService", external, "java.util.List", DependencyKind.CALLS, 51)))
+
+        assertThat(nodes[external]).isEqualTo(NodeDisplay("int size()", "unknown", external))
+    }
+
+    @Test
+    fun `a member kind outside the vocabulary is rejected`() {
+        val foreign = Files.createDirectories(membersDir.resolve("foreign"))
+        ParquetTestWriter.writeMembers(foreign, listOf(MemberFixture("com.shop.X", "com.shop.X#x", "PROPERTY", "x", "x")))
+        val edges = listOf(Dependency("com.shop.X#x", "com.shop.X", "com.shop.Y", "com.shop.Y", DependencyKind.HAS_TYPE, null))
+
+        assertThatThrownBy { DetailEnricher(GraphStore(), foreign).nodesFor(edges) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown member kind 'PROPERTY'")
     }
 }

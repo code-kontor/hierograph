@@ -22,7 +22,6 @@ import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 
 /**
  * Builds Hierograph's hierarchical graph ([HGModel]) from a [GraphStore]: the bridge from the ingest model

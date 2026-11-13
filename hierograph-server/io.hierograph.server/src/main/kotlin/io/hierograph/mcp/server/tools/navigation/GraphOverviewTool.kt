@@ -17,7 +17,7 @@ package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import io.hierograph.server.mapping.JavaEdgeAttributes
 import io.hierograph.server.mapping.GraphStoreDependencySource
 import java.util.EnumMap
 import io.hierograph.server.views.KindAliases

@@ -16,9 +16,9 @@
 package io.hierograph.graphstore.jvm.detail
 
 import dev.hardwood.reader.FilterPredicate
-import dev.hardwood.reader.ParquetFileReader
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.graphstore.jvm.archive.ParquetSchema
 import io.hierograph.graphstore.jvm.archive.SnapshotSources
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
@@ -38,6 +38,8 @@ data class NodeDisplay(val name: String, val kind: String, val qualifiedName: St
  */
 class DetailEnricher(private val store: GraphStore, private val membersDir: Path) {
 
+    private val reader = ParquetReader()
+
     fun nodesFor(edges: Collection<Dependency>): Map<String, NodeDisplay> {
         val memberKeys = linkedSetOf<String>()
         val typeFqns = linkedSetOf<String>()
@@ -48,7 +50,7 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
             typeFqns += e.toType
         }
 
-        val memberKinds = MemberKindReader.readByKeys(membersDir, memberKeys)
+        val memberKinds = memberKinds(memberKeys)
 
         val nodes = LinkedHashMap<String, NodeDisplay>()
         for (key in memberKeys) {
@@ -77,40 +79,23 @@ class DetailEnricher(private val store: GraphStore, private val membersDir: Path
         if ('#' in key) members += key else types += key
     }
 
-    /** Raw members-table kind name (METHOD / FIELD / CONSTRUCTOR) → the tree's kind: a constructor is a method. */
-    private fun memberKindDisplay(kindName: String): String =
-        runCatching { JavaNodeKind.valueOf(kindName) }.getOrNull()
-            ?.let { if (it == JavaNodeKind.CONSTRUCTOR) JavaNodeKind.METHOD else it }?.value ?: kindName
+    /** A member's kind → the tree's kind: a constructor is a method. */
+    private fun memberKindDisplay(kind: JavaNodeKind): String =
+        (if (kind == JavaNodeKind.CONSTRUCTOR) JavaNodeKind.METHOD else kind).value
+
+    /**
+     * The kind of each of [keys] that `members.parquet` holds, read with push-down across every artifact of
+     * the snapshot; a key no artifact declares is absent. Read through [ParquetReader], so a kind outside the
+     * vocabulary is rejected like everywhere else.
+     */
+    private fun memberKinds(keys: Collection<String>): Map<String, JavaNodeKind> {
+        if (keys.isEmpty()) return emptyMap()
+        val filter = FilterPredicate.`in`(ParquetSchema.Members.MEMBER_KEY, *keys.toTypedArray())
+        return SnapshotSources.of(membersDir)
+            .flatMap { source -> reader.readMembers(source, filter).values.flatten() }
+            .associate { it.key to it.kind }
+    }
 
     /** A type node's kind (a JavaNodeKind, or the EXTERNAL_TYPE string) → display value. */
     private fun typeKindDisplay(kind: Any): String = (kind as? JavaNodeKind)?.value ?: kind.toString()
-}
-
-/**
- * Reads the kind of a bounded set of member keys from `members.parquet` across every artifact of the
- * snapshot at [membersDir][readByKeys], via push-down.
- */
-internal object MemberKindReader {
-
-    fun readByKeys(membersDir: Path, keys: Collection<String>): Map<String, String> {
-        if (keys.isEmpty()) return emptyMap()
-        val out = HashMap<String, String>(keys.size * 2)
-        for (source in SnapshotSources.of(membersDir)) {
-            val input = source.table(ParquetSchema.MEMBERS_FILE) ?: continue
-            ParquetFileReader.open(input).use { reader ->
-                reader.buildRowReader()
-                    .filter(FilterPredicate.`in`(ParquetSchema.Members.MEMBER_KEY, *keys.toTypedArray()))
-                    .build().use { rowReader ->
-                        val schema = reader.fileSchema
-                        val iKey = schema.getColumn(ParquetSchema.Members.MEMBER_KEY).columnIndex()
-                        val iKind = schema.getColumn(ParquetSchema.Members.KIND).columnIndex()
-                        while (rowReader.hasNext()) {
-                            rowReader.next()
-                            out[rowReader.getString(iKey)] = rowReader.getString(iKind)
-                        }
-                    }
-            }
-        }
-        return out
-    }
 }

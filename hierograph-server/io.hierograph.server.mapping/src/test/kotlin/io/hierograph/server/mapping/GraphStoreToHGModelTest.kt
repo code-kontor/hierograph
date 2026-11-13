@@ -21,7 +21,6 @@ import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

@@ -31,9 +31,10 @@ import io.hierograph.graphstore.jvm.archive.model.DependencyKind
  *
  * Refs are listed in the order their first fact appears.
  *
- * The rollup is the loaders' job, not the scanner's: the snapshot reader feeds the rows of a dependency
+ * The rollup is the loaders' job, not the scanner's: `SnapshotLoader` feeds the rows of a dependency
  * table into an [Accumulator] without building a [Dependency] per row, and the server's in-memory ingest
- * of a fresh scan feeds the scan's [Dependency] facts into one. [refsOf] rolls up one class's facts.
+ * of a fresh scan feeds the scan's [Dependency] facts into one, one accumulator per artifact. [refsOf]
+ * rolls up one class's facts.
  */
 object DependencyRollup {
 

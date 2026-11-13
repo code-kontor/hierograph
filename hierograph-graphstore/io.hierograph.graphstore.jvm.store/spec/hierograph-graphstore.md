@@ -48,7 +48,8 @@ up the hierarchy, entirely in memory.
 The GraphStore has three design goals:
 
 **One ingest path.** The store is fed one `ClassFacts` record per class, the same
-record the bytecode scanner produces and the Parquet reader reconstructs, together
+record the bytecode scanner produces and the `SnapshotLoader` rebuilds from a
+snapshot's tables, together
 with the type's references, which the loader rolls up from the class's detail facts
 with `DependencyRollup`. Building from a fresh scan and building from a stored
 snapshot run identical code, so the two can never diverge.
@@ -224,6 +225,10 @@ the number of facts behind it as `count`:
 data class Ref(val toKey: String, val kind: DependencyKind, val count: Int?, val typeLevel: Boolean)
 ```
 
+Which facts count, and what makes a reference type-level, is defined once, in the
+[snapshot format specification §6.4](../../io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate);
+`DependencyRollup` is its only implementation.
+
 A reference names its target **by FQN only**. It is a fact about the class file,
 and the class file cannot know which artifact will provide the target. References
 are not stored as links between nodes. They are kept per owning type and bound to
@@ -344,7 +349,7 @@ fun interface TypeResolver {
 | Resolver | Rule |
 |----------|------|
 | `TypeResolver.OWNER_FIRST` (default) | the owner's own artifact if it defines the FQN; else the definer whose key sorts first |
-| `TypeResolver.classpathOrder(classpathByOwner)` | the first artifact on the owner's classpath that defines the FQN, the JVM's own rule; falls back to `OWNER_FIRST` for an owner with no recorded classpath |
+| `TypeResolver.classpathOrder(classpathByOwner)` | the first artifact on the owner's classpath that defines the FQN, the JVM's own rule; falls back to `OWNER_FIRST` for an owner with no recorded classpath, or when no entry of its classpath defines the FQN |
 
 The classpath-order resolver is built from each artifact's ordered classpath (the
 snapshot's `classpath.parquet`, or the build manifest). Index 0 of each classpath is
@@ -398,6 +403,9 @@ fun interface ExternalTypeFilter {
 |--------|-----------------------------------|
 | `ExternalTypeFilter.ALL` (default) | every external FQN |
 | `ExternalTypeFilter.EXCLUDE_UBIQUITOUS` | every external FQN **except** primitives, JVM array descriptors, default-package names, `java.lang.*`, `kotlin.*`, and the JetBrains `@NotNull` / `@Nullable` annotations |
+
+Primitives and `void` (`JavaTypeNames.PRIMITIVES`) are never types: the rollup skips
+them (§3.2), and `EXCLUDE_UBIQUITOUS` excludes them.
 
 The filter only shapes the **in-memory projection**. It never removes a reference:
 the reference stays with its owner, still appears in `typeDependencies()`, and
@@ -459,11 +467,60 @@ All projections are computed lazily from the current state and are not cached.
 | `node(key)` | the node with this key, or `null` |
 | `typeByFqn(fqn)` | a type or placeholder node with this FQN: the first one applied when several artifacts define it |
 | `memberByKey(memberKey)` | the member node for a bare member key, looked up on the type `typeByFqn` returns for its owner, so a member and its owner always resolve consistently; `null` when the owner is external or does not declare it |
+| `typeIn(artifactKey, fqn)` | the type node that this artifact defines for the FQN, or `null` when it does not define it |
+| `resolveType(artifactKey, fqn)` | the node a reference from this artifact to the FQN binds to: the definer the `TypeResolver` picks (§5), else the external placeholder; `null` when neither exists, for example because the filter excluded it |
+| `memberOf(owner, memberKey)` | the member with this bare member key on the type node `owner`, or `null` |
 | `typeKey(artifactKey, fqn)` | the key of a type node (§4) |
 | `memberKey(artifactKey, memberKey)` | the key of a member node (§4) |
 
+With a duplicated FQN, `typeByFqn` and `memberByKey` pick by name; `typeIn`,
+`resolveType` and `memberOf` pick in an artifact's context. Use the latter when the
+artifact is known, for example from a detail row's `fromArtifact`.
+
 `GraphStore.EXTERNAL_ARTIFACT_KEY` (`<external>`) and
 `GraphStore.EXTERNAL_ARTIFACT_NAME` (`External Types`) name the external module.
+
+### 7.5 Loading
+
+`SnapshotLoader` fills a store from a Parquet snapshot. It reads the snapshot through a
+`ParquetReader`, which the constructor takes and which defaults to a new one.
+
+| Method | Description |
+|--------|-------------|
+| `load(parquetDir, store)` | Loads the snapshot into `store` (§8.1). |
+| `readTypeFacts(parquetDir, artifact, fqn)` | The facts of one type as one artifact defines it, as `TypeFacts(row, members, refs)`: its `types` row, its members, and its references rolled up from that type's dependency rows only, by the same rules as `load`. All three come from the artifact that holds the row, so a type defined by several artifacts is never mixed with another definition. `null` when the artifact does not define the type. |
+
+`readTypeFacts` serves one type's details straight from the snapshot, without a store;
+`type_details` uses it. In the unpacked layout, where one directory holds the tables of
+several artifacts, the members and dependency rows carry no artifact and are read for
+the FQN alone.
+
+### 7.6 Detail queries
+
+Member-level dependencies are never held in the store (§3.2). The package
+`io.hierograph.graphstore.jvm.detail` reads them from the snapshot on demand, scoped
+by types the store has already resolved.
+
+| Type | Description |
+|------|-------------|
+| `DetailQuery(fromTypes, toTypes, kind)` | A query over **type FQN sets**. The caller expands each scope beforehand, including supertypes, so inheritance is already applied. `toTypes = null` leaves the target open; `kind = null` matches every kind. |
+| `DetailQueryEngine(parquetDir).query(q)` | The matching `dependencies` rows, read through `ParquetReader.readDependencies` and sorted by `fromType`, `fromKey`, `toType`, `toKey`, kind and line. |
+| `DetailEnricher(store, parquetDir).nodesFor(edges)` | Display data for every key a set of rows names, as `key → NodeDisplay(name, kind, qualifiedName)`. Enrich one page of results at a time: the members are read only for the keys of that page. |
+
+**Kinds.** The engine serves the stored kinds and two derived ones. `read_by` and
+`written_by` are the stored `reads_field` and `writes_field` rows read the other way
+round: the query's `fromTypes` scope the field side, which is the stored `to_type`,
+and the result swaps source and target. Such a reversed row carries no
+`fromArtifact`, because the stored row's artifact is that of the reading or writing
+method, which is now the target. `overrides` is not stored, so the engine finds no row
+for it; the server derives overrides itself, from the store's supertype edges and the
+snapshot's members.
+
+**Display.** For a member key, `nodesFor` gives the signature as name and the kind
+from `members.parquet`, with a constructor shown as a method, as in the hierarchy
+(§3.1). A member no artifact declares, such as a member of an external type, gets the
+kind `unknown`. For a type FQN it gives the node `typeByFqn` returns, or, when there is
+none, the simple name with the kind `external.type`.
 
 ---
 
@@ -471,14 +528,31 @@ All projections are computed lazily from the current state and are not cached.
 
 ### 8.1 Load a snapshot
 
-The usual way to get a populated store is to load a Parquet snapshot. The reader
-registers the artifacts, installs a classpath-order resolver when the snapshot
-carries classpaths, applies every type, and resolves placeholders:
+The usual way to get a populated store is to load a Parquet snapshot. The
+`SnapshotLoader` registers the artifacts, installs a classpath-order resolver when
+the snapshot carries classpaths, and applies every type; placeholders come and go
+as the types are applied (§6):
 
 ```kotlin
 val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
 SnapshotLoader().load(Path.of("snapshot"), store)
 ```
+
+Loading (§7.5) also does the following:
+
+- **It checks the format first.** Before anything is applied, every artifact's format
+  is checked. A stale or newer artifact fails the whole load with a
+  `SnapshotFormatException`, and the store stays untouched.
+- **It reads in parallel and applies in order.** The artifacts' types and members are
+  read, and their dependencies rolled up, on up to one thread per processor. They are
+  then applied one after another in snapshot order, on the calling thread, so the
+  result is that of a sequential load and the store is still built on one thread
+  (§8.5).
+- **It names the artifacts.** An artifact's `MODULE` node takes its display name from
+  the snapshot's classpath manifest (`billing-core`), or the artifact key when there
+  is none.
+- **It rolls up per artifact.** Each artifact's dependency rows are rolled up on their
+  own, so two artifacts that define the same FQN keep their own references.
 
 ### 8.2 Build from a scan
 
@@ -493,10 +567,17 @@ val result = BytecodeScanner().scan(listOf(ScanArtifact(key, Path.of("billing-co
 val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
 store.setTypeResolver(TypeResolver.classpathOrder(classpathByOwner))   // when classpaths are known
 store.registerArtifact(ArtifactInfo(key, "billing-core", key))
-val refs = DependencyRollup.Accumulator()
-for (d in result.dependencies) refs.add(d.fromType, d.fromKey, d.toType, d.kind)
-for (c in result.classes) store.applyClass(c.artifactKey, c.facts, refs.refsOf(c.facts.fqn))
+val factsByArtifact = result.dependencies.groupBy { it.fromArtifact }
+for ((artifact, classes) in result.classes.groupBy { it.artifactKey }) {
+    val refs = DependencyRollup.Accumulator()
+    for (d in factsByArtifact[artifact].orEmpty()) refs.add(d.fromType, d.fromKey, d.toType, d.kind)
+    for (c in classes) store.applyClass(artifact, c.facts, refs.refsOf(c.facts.fqn))
+}
 ```
+
+Roll up per artifact: the accumulator is keyed by FQN, and two artifacts may define
+the same one. The scanner tags every fact with the artifact it comes from
+(`fromArtifact`), so the grouping needs no lookup.
 
 ### 8.3 Apply a change
 
@@ -531,7 +612,7 @@ store.memberByKey("com.example.billing.Invoice#java.math.BigDecimal total()")
 
 For member-level questions, such as which methods call `Money.add`, expand the
 scope to its types plus their transitive supertypes, and query the snapshot's detail
-references (`DetailQueryEngine`) with that set of type FQNs.
+references with that set of type FQNs (§7.6).
 
 ### 8.5 Concurrency
 
@@ -578,7 +659,7 @@ What the GraphStore deliberately does **not** do, and where it happens instead:
 |------------------------|----------------|
 | Persistence | the Parquet snapshot, written by `ParquetWriter`, read by `ParquetReader` and loaded by `SnapshotLoader` |
 | Member-level references (calls, field access, line numbers) | the snapshot's `dependencies` table, read on demand |
-| Parameters, type modifiers, source files, line ranges | the snapshot's `members`, `parameters` and `types` tables, read on demand |
+| Parameters, source files, class hashes, line ranges, bridge targets | the snapshot's `types`, `members` and `parameters` tables, read on demand; a type's and a member's modifiers are the exception, held in memory (§3.1) |
 | Overrides and virtual-call targets | load-time resolution, computed from the store's supertype edges together with the snapshot's members |
 | Rolling dependencies up to packages and modules | the hierarchical graph built from the store's projections |
 | A query language | Hierograph's tool surface (MCP tools, GraphQL), built on the projections |
