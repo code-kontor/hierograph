@@ -443,9 +443,10 @@ can filter incoming dependencies ("who uses `Money`?") on a single column.
 
 **`line`** places the dependency in the source. For dependencies made by an
 instruction (`calls`, `reads_field`, `writes_field`, `instantiates`, `casts`,
-`class_literal`) it is the line of that instruction; for `catches`, the line the
-handler's code belongs to. For the relationships that describe a method's signature
-(`returns`, `parameter_type`, `throws`, `raises`) it is the method's first line. It
+`class_literal`, and `raises`, the `throw`) it is the line of that instruction; for
+`catches`, the line the handler's code belongs to. For the relationships that
+describe a method's signature (`returns`, `parameter_type`, `throws`) it is the
+method's first line. It
 is `null` for type-level facts, annotations, annotation values, type arguments and
 field types, and whenever no line information was compiled in.
 

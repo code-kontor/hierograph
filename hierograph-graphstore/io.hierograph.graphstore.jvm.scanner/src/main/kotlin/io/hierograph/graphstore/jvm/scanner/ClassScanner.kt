@@ -251,7 +251,6 @@ internal object ClassScanner {
             // so an ATHROW seen while this is set is throwing that new object. Any other instruction clears
             // it, so an exception that is stored, returned, or rethrown is not mistaken for a `throw new`.
             private var constructed: String? = null
-            private val raised = LinkedHashSet<String>()
             // Catch clauses by handler label, until the handler's code is reached and its line is known.
             private val catchesByHandler = HashMap<Label, MutableList<String>>()
             private val catches = ArrayList<Catch>()
@@ -348,9 +347,11 @@ internal object ClassScanner {
             override fun visitInsn(opcode: Int) {
                 // `raises`: the body-level counterpart of the declared `throws` clause. A `throw new X(...)`
                 // ends with `invokespecial X.<init>; athrow`, so an ATHROW with `constructed` still set is
-                // throwing that freshly-built object. Any other instruction has cleared it, so a rethrown,
-                // stored, returned or factory-produced exception is not counted (that is not a `throw new`).
-                if (opcode == Opcodes.ATHROW) constructed?.let { raised += it } else constructed = null
+                // throwing that freshly-built object: one fact per throw, on the throw's line. Any other
+                // instruction has cleared it, so a rethrown, stored, returned or factory-produced exception
+                // is not recorded (that is not a `throw new`).
+                if (opcode == Opcodes.ATHROW) constructed?.let { emit(key, it, it, DependencyKind.RAISES, line, bodyRefs) }
+                constructed = null
             }
 
             override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) {
@@ -403,7 +404,6 @@ internal object ClassScanner {
                 argumentTypes.forEach { emitType(key, it, DependencyKind.PARAMETER_TYPE, minLine) }
                 exceptions.forEach { emitInternal(key, it, DependencyKind.THROWS, minLine) }
                 emitTypeArguments(key, genericSignature)
-                raised.forEach { emit(key, it, it, DependencyKind.RAISES, minLine) }
                 annotations.forEach { emitType(key, it, DependencyKind.ANNOTATED_BY, null) }
                 parameterAnnotations.values.flatten().forEach { emitType(key, it, DependencyKind.PARAMETER_ANNOTATED_BY, null) }
                 dependencies += bodyRefs

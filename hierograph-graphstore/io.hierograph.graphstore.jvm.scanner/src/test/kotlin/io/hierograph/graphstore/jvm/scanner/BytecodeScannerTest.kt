@@ -107,6 +107,10 @@ class BytecodeScannerTest {
                 void boom() { throw new IllegalStateException("x"); }          // raises, not declared
                 void declared() throws java.io.IOException {}                  // declared, never thrown
                 void rethrow() { try { boom(); } catch (RuntimeException e) { throw e; } } // rethrow: no new
+                void check(int i) {
+                    if (i < 0) throw new IllegalArgumentException("negative");  // RAISE_NEGATIVE
+                    if (i > 9) throw new IllegalArgumentException("too big");   // RAISE_TOO_BIG
+                }
             }
         """,
         "fix/Dog.java" to """
@@ -387,6 +391,17 @@ class BytecodeScannerTest {
 
         // A rethrow of a caught exception constructs nothing, so it raises nothing (no false positive).
         assertThat(details("fix.Animal#void rethrow()", "raises")).isEmpty()
+    }
+
+    @Test
+    fun `every throw new is a raises fact of its own, on the line of the throw`() {
+        val lines = sources.getValue("fix/Animal.java").trimIndent().lines()
+        fun lineOf(marker: String) = lines.indexOfFirst { it.contains(marker) } + 1
+
+        assertThat(details("fix.Animal#void check(int)", "raises").map { it.toType to it.line }).containsExactly(
+            "java.lang.IllegalArgumentException" to lineOf("RAISE_NEGATIVE"),
+            "java.lang.IllegalArgumentException" to lineOf("RAISE_TOO_BIG"),
+        )
     }
 
     @Test
