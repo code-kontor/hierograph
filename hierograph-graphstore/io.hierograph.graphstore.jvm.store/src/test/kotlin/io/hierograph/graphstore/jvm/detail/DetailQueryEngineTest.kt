@@ -113,4 +113,22 @@ class DetailQueryEngineTest {
         assertThat(edge.fromKey).isEqualTo("com.foo.Base#f")      // the field is the source
         assertThat(edge.toKey).isEqualTo("com.foo.Other#x()V")    // the writing method is the target
     }
+
+    @Test
+    fun `rows are sorted by from type, from key, to type, to key, kind and line`(@TempDir other: Path) {
+        val a = "com.foo.A"
+        fun row(fromKey: String, toType: String, toKey: String, kind: DependencyKind, line: Int?) =
+            Dependency(fromKey, a, toKey, toType, kind, line)
+        val expected = listOf(
+            row("$a#m()V", "com.foo.B", "com.foo.B#b()V", DependencyKind.CALLS, 3),
+            row("$a#m()V", "com.foo.B", "com.foo.B#b()V", DependencyKind.CALLS, 9),    // same up to the line
+            row("$a#m()V", "com.foo.B", "com.foo.B#c()V", DependencyKind.CALLS, 1),    // to_key
+            row("$a#m()V", "com.foo.C", "com.foo.C", DependencyKind.CASTS, 2),         // to_type
+            row("$a#m()V", "com.foo.C", "com.foo.C", DependencyKind.INSTANTIATES, 2),  // kind
+            row("$a#n()V", "com.foo.B", "com.foo.B#b()V", DependencyKind.CALLS, 5),    // from_key
+        )
+        ParquetWriter.writeDependencies(other, expected.reversed())
+
+        assertThat(DetailQueryEngine(other).query(DetailQuery(fromTypes = setOf(a)))).containsExactlyElementsOf(expected)
+    }
 }

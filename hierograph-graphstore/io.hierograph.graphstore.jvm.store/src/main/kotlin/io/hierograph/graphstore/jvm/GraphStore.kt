@@ -211,8 +211,8 @@ class GraphStore(
         if (existing == null) {
             putNode(Node(key, kind, simpleName(fqn), fqn, parent = parentKey, placeholder = false, modifiers = modifiers))
         } else {
-            reparent(key, existing.parent, parentKey)
-            nodesByKey[key] = existing.copy(kind = kind, name = simpleName(fqn), parent = parentKey, placeholder = false, modifiers = modifiers)
+            // The parent follows from the key (artifact and package), so a re-applied type keeps its place.
+            nodesByKey[key] = existing.copy(kind = kind, modifiers = modifiers)
         }
         definersByFqn.getOrPut(fqn) { mutableSetOf() } += artifactKey
         // Now that a real artifact defines this FQN, the external placeholder (if any) is redundant.
@@ -266,13 +266,6 @@ class GraphStore(
     private fun removeNodeCascade(key: String) {
         childKeys.remove(key)?.forEach { removeNodeCascade(it) }
         nodesByKey.remove(key)?.let { removeNode(it) }
-    }
-
-    /** Moves [key] from [oldParent]'s child set to [newParent]'s, if they differ. */
-    private fun reparent(key: String, oldParent: String?, newParent: String) {
-        if (oldParent == newParent) return
-        oldParent?.let { childKeys[it]?.remove(key) }
-        childKeys.getOrPut(newParent) { linkedSetOf() } += key
     }
 
     /** Ensures the package-node chain for [pkgFqn] under [artifactKey]; returns the deepest package key. */

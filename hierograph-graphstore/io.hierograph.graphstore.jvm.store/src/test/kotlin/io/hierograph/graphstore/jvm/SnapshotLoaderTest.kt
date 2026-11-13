@@ -153,6 +153,23 @@ class SnapshotLoaderTest {
     }
 
     @Test
+    fun `an artifact that fails while it is read fails the load with its own exception, before anything is applied`(@TempDir dir: Path) {
+        // All three pass the format check; b fails only when its rows are read, on a reader thread.
+        for (name in listOf("a", "b", "c")) {
+            val artifact = Files.createDirectories(dir.resolve("snapshot/$name.hierograph"))
+            val kind = if (name == "b") "STRUCT" else "CLASS"
+            ParquetTestWriter.writeTypes(artifact, listOf(TypeFixture("$name.jar", "com.$name.T", kind)))
+        }
+
+        val store = GraphStore()
+        assertThatThrownBy { SnapshotLoader().load(dir.resolve("snapshot"), store) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown type kind 'STRUCT'")
+        // nothing is applied, not even the artifact read before the failing one
+        assertThat(store.node("a.jar")).isNull()
+        assertThat(store.typeByFqn("com.a.T")).isNull()
+    }
+
+    @Test
     fun `a snapshot without the modifiers column still loads`(@TempDir dir: Path) {
         ParquetTestWriter.writeLegacyTypes(dir, listOf(TypeFixture("app", "com.foo.A", "CLASS")))
 

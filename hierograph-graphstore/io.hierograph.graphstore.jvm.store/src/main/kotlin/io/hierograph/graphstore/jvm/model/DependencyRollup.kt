@@ -57,9 +57,6 @@ object DependencyRollup {
                 .merge(RefKey(toType, kind, typeLevel = fromKey == ownerFqn), 1, Int::plus)
         }
 
-        /** The owner types that have at least one counted fact, in the order their first fact appeared. */
-        val owners: Set<String> get() = countsByOwner.keys
-
         /** The aggregated references of [ownerFqn]; empty when it has no counted fact. */
         fun refsOf(ownerFqn: String): List<Ref> =
             countsByOwner[ownerFqn].orEmpty().map { (key, count) ->

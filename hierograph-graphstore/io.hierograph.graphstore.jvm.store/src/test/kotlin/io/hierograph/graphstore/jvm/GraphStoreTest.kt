@@ -234,6 +234,64 @@ class GraphStoreTest {
     }
 
     @Test
+    fun `typeDependencies names each endpoint by node key and by FQN`() {
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
+        store.registerArtifact(artifact("com.acme:app:1.0"))
+        store.applyType("com.acme:app:1.0", "com.foo.B")
+        store.applyType(
+            "com.acme:app:1.0", "com.foo.A",
+            refs = listOf(
+                Ref("com.foo.B", DependencyKind.EXTENDS, count = 1),
+                Ref("org.lib.Helper", DependencyKind.CALLS, count = 1),
+                Ref("java.lang.String", DependencyKind.HAS_TYPE, count = 1),
+            ),
+        )
+
+        val deps = store.typeDependencies().associateBy { it.toFqn }
+        assertThat(deps.values.map { it.fromKey }.distinct()).containsExactly(store.typeKey("com.acme:app:1.0", "com.foo.A"))
+        assertThat(deps.values.map { it.fromFqn }.distinct()).containsExactly("com.foo.A")
+        // a scanned target by its artifact-scoped key, an unscanned one by its placeholder's key
+        assertThat(deps.getValue("com.foo.B").toKey).isEqualTo("type:16:com.acme:app:1.0:com.foo.B")
+        assertThat(deps.getValue("org.lib.Helper").toKey).isEqualTo("type:10:<external>:org.lib.Helper")
+        // a target the filter excludes keeps its row; its key names no node
+        assertThat(deps.getValue("java.lang.String").toKey).isEqualTo("type:10:<external>:java.lang.String")
+        assertThat(store.node(deps.getValue("java.lang.String").toKey)).isNull()
+    }
+
+    @Test
+    fun `resolveType binds a name the way a reference from that artifact binds`() {
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
+        for (key in listOf("app", "lib-a", "lib-b")) store.registerArtifact(artifact(key))
+        store.setTypeResolver(TypeResolver.classpathOrder(mapOf("app" to listOf("app", "lib-b", "lib-a"))))
+        store.applyType("lib-a", "com.x.X")
+        store.applyType("lib-b", "com.x.X")
+        store.applyType("app", "com.app.Main", refs = listOf(Ref("org.ext.E", DependencyKind.CALLS, count = 1)))
+
+        // two definers: the classpath of the referring artifact decides; another artifact falls back to OWNER_FIRST
+        assertThat(store.resolveType("app", "com.x.X")).isEqualTo(store.typeIn("lib-b", "com.x.X"))
+        assertThat(store.resolveType("lib-a", "com.x.X")).isEqualTo(store.typeIn("lib-a", "com.x.X"))
+        assertThat(store.typeIn("app", "com.x.X")).isNull()
+        // no definer: the placeholder, if there is one
+        assertThat(store.resolveType("app", "org.ext.E")).isEqualTo(store.typeByFqn("org.ext.E")).matches { it!!.placeholder }
+        assertThat(store.resolveType("app", "java.lang.String")).isNull()   // excluded by the filter
+        assertThat(store.resolveType("app", "org.never.Named")).isNull()    // never referenced
+    }
+
+    @Test
+    fun `re-applying a type keeps its node in place and updates its kind and modifiers`() {
+        val store = GraphStore()
+        store.registerArtifact(artifact("app"))
+        store.applyType("app", "com.foo.A")
+        store.applyClass("app", ClassFacts("com.foo.A", JavaNodeKind.INTERFACE, modifiers = 1, members = emptyList(), classHash = "h2"), emptyList())
+
+        val node = store.typeIn("app", "com.foo.A")!!
+        assertThat(node.kind).isEqualTo(JavaNodeKind.INTERFACE)
+        assertThat(node.modifiers).isEqualTo(1)
+        assertThat(node.parent).isEqualTo("pkg:app:com.foo")
+        assertThat(store.childKeysOf("pkg:app:com.foo")).containsExactly(node.key)
+    }
+
+    @Test
     fun `a structural edge coexisting with a non-structural ref sets both extends and other`() {
         // Documents the spec's open 'other'-flag divergence.
         val store = GraphStore()
