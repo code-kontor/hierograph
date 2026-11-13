@@ -153,9 +153,12 @@ depended-upon node) as the `to` side. Everything described in
 [`outgoing_dependencies` §3.2](hierograph-tool-outgoing-dependencies.md#32-detail-level)
 then applies unchanged:
 
-- each side is expanded to its **inheritance closure**, the types of the subtree plus
-  their transitive supertypes, so a use of an interface method that `fromId`
-  implements is found; the rows only the closure brings in carry `"inherited": true`;
+- the depender (`toId`) is expanded to its **inheritance closure**, the types of the
+  subtree plus their transitive supertypes, so code a depender inherits counts as its
+  own; the rows only the closure brings in carry `"inherited": true`. The
+  depended-upon side (`fromId`) is its own types only: a call against an interface
+  that `fromId` implements is found through the virtual-call target derived at load,
+  which names `fromId`'s implementing method;
 - the rows come from the snapshot's
   [`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
   plus the load-derived overrides and virtual-call targets, in the same order;

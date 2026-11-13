@@ -179,20 +179,28 @@ Rankings with equal values keep the order in which the edges were found.
 ### 3.2 Detail level
 
 **Scope.** The tool collects the types of the `fromId` subtree and of the `toId`
-subtree, as at the type level, and then adds to each side the transitive supertypes
-of its types: everything reached through `extends` and `implements`, scanned or
-external. The scope is the **inheritance closure** of each side. The root is accepted
-on either side and stands for every type.
+subtree, as at the type level. To the `fromId` side it then adds the transitive
+supertypes of its types: everything reached through `extends` and `implements`,
+scanned or external. That side's scope is its **inheritance closure**; the `toId` side
+is its own types only. The root is accepted on either side and stands for every type.
 
-The closure exists because a type's behaviour includes code it inherits and calls
-compiled against its supertypes. A reference from a method that `Invoice` inherits
-from a base class belongs to what `Invoice` does, and a call compiled against an
-interface that `Money` implements is a use of `Money`. The consequence is that a
-detail result can contain rows whose `from_parent` lies outside `fromId`, and targets
-outside `toId`: a supertype's own references, and references to members of the
-target's supertypes. Such a row is **inherited**: it carries `"inherited": true`, and
-`summary.inherited` counts them, so a caller can keep or drop them deliberately. A row
-whose two types lie in the scopes' own subtrees carries no `inherited` key.
+The closure exists because a type's behaviour includes the code it inherits. A
+reference from a method that `Invoice` inherits from a base class belongs to what
+`Invoice` does. The consequence is that a detail result can contain rows whose
+`from_parent` lies outside `fromId`: a supertype's own references. Such a row is
+**inherited**: it carries `"inherited": true`, and `summary.inherited` counts them, so
+a caller can keep or drop them deliberately. A row whose depending type lies in the
+`fromId` subtree carries no `inherited` key.
+
+The `toId` side has no closure, because a reference to a supertype is not a use of
+the types below it. Static methods, constructors and type references (a field or
+parameter of type `PriceCalculator`) never reach an implementing class. A call that
+may dispatch into one at run time, such as `calculator.calc(…)` against an interface
+that `TaxAwarePriceCalculator` implements, is already a row of its own: the virtual-call
+target derived at load, `calls TaxAwarePriceCalculator#calc`, whose type lies in the
+scope. Those targets are derived for scanned supertypes only, so a call against an
+external interface such as `java.util.Comparator` never counts as a use of a module
+that happens to implement it.
 
 **Edges.** The tool reads every member reference whose depending type lies in the
 `from` side and whose target type lies in the `to` side from the snapshot's
@@ -221,7 +229,7 @@ Each reference becomes one row:
 | `to_parent` | the type that declares `to`; only when `to` is a member |
 | `relationship` | the meaning of the reference |
 | `location` | the source line, or `null` |
-| `inherited` | `true` when a type of the row lies outside its scope's own subtree; absent otherwise |
+| `inherited` | `true` when the depending type lies outside the `fromId` subtree; absent otherwise |
 
 **Relationships.** The `relationship` filter accepts these values:
 
@@ -346,8 +354,8 @@ its first line is 13:
 The three `Invoice` rows correspond to the type-level weight 3 (one return type, two
 calls). The rows are ordered by depending type, then member key, then target key;
 the target `Money` sorts before the keys of its members. `Ledger#post` is abstract and
-has no line. None of the types has a supertype in the graph, so the inheritance
-closure adds nothing.
+has no line. None of the `billing` types has a supertype in the graph, so the
+inheritance closure adds nothing.
 
 The summaries: `by_relationship` is `calls` 2, `has_type` 1, `parameter_type` 1,
 `returns` 2 (six rows). `by_source_type` is `Invoice` 3, `Invoice$Line` 2, `Ledger` 1.
@@ -561,7 +569,7 @@ Edge fields:
 
 **`from_parent`** and **`to_parent`** let a caller group rows by type without a lookup.
 **`inherited`** marks the rows that only the inheritance closure brings in, a
-supertype's code or a target's inherited member, so the scope's own rows stay
+supertype's own code, so the scope's own rows stay
 recognisable; it is absent on all other rows to keep them small.
 `to_parent` is absent when `to` is a type, because the type is its own parent.
 

@@ -25,8 +25,8 @@ import io.hierograph.graphstore.jvm.scanner.ScanResult
 /**
  * The hierarchy-dependent member edges (overrides, virtual and resolved calls) of an assembled graph: the
  * edges no single scan can derive, computed with [HierarchyResolution]. Only the edges not already among
- * the direct detail edges are returned, so a single-shot snapshot (already complete) yields nothing and a
- * per-artifact snapshot gains its cross-artifact edges.
+ * the direct detail edges are returned, so an edge that is also a direct one appears only once. The scanner
+ * writes direct edges only, so every snapshot gains all its hierarchy-dependent edges here.
  *
  * The inputs are the graph's [GraphStore] for the type hierarchy, plus the declared members and the direct
  * detail edges, either read from a Parquet snapshot or taken straight from the scan ([fromScan]); both give

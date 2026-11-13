@@ -503,7 +503,7 @@ by types the store has already resolved.
 
 | Type | Description |
 |------|-------------|
-| `DetailQuery(fromTypes, toTypes, kind)` | A query over **type FQN sets**. The caller expands each scope beforehand, including supertypes, so inheritance is already applied. `toTypes = null` leaves the target open; `kind = null` matches every kind. |
+| `DetailQuery(fromTypes, toTypes, kind)` | A query over **type FQN sets**. The engine matches a row's `fromType` and `toType` against them and follows no inheritance: a scope that should include supertypes is expanded by the caller beforehand. `toTypes = null` leaves the target open; `kind = null` matches every kind. |
 | `DetailQueryEngine(parquetDir).query(q)` | The matching `dependencies` rows, read through `ParquetReader.readDependencies` and sorted by `fromType`, `fromKey`, `toType`, `toKey`, kind and line. |
 | `DetailEnricher(store, parquetDir).nodesFor(edges)` | Display data for every key a set of rows names, as `key → NodeDisplay(name, kind, qualifiedName)`. Enrich one page of results at a time: the members are read only for the keys of that page. |
 

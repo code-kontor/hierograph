@@ -94,13 +94,14 @@ class ParquetDetailDependencies(
         // endpoint on that side is the member itself.
         val fromMember = memberKeyOf(fromNode)
         val toMember = memberKeyOf(toNode)
-        val fromScope = expandScope(scopeOf(fromNode))
-        val toScope = expandScope(scopeOf(toNode))
+        // Only the depending side is extended by its supertypes: what a type inherits is code it runs. The
+        // target side stays the scope's own types; dispatch into it comes from the load-derived virtual calls.
+        val fromScope = withSupertypes(typeNodesIn(scopeOf(fromNode)))
+        val toScope = typeNodesIn(scopeOf(toNode))
         val fromTypes = fromScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
         val toTypes = toScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
-        // The scopes' own types, without the supertypes the closure adds: a row outside them is inherited.
+        // The depending scope's own types, without the supertypes the closure adds: a row outside them is inherited.
         val ownFromTypes = typesIn(scopeOf(fromNode))
-        val ownToTypes = typesIn(scopeOf(toNode))
         if (fromTypes.isEmpty() || toTypes.isEmpty()) {
             // Even an empty result honours the cursor contract: a malformed or stale cursor is an error.
             if (cursor != null) {
@@ -120,7 +121,7 @@ class ParquetDetailDependencies(
         fun handle(n: Node): Long = NodeHandle.of(n.key)
         fun memberHandle(owner: Node, key: String): Long =
             store.memberOf(owner, key)?.let { handle(it) } ?: graphService.memberHandle(key)
-        // The scopes' own type nodes, closure included: a row of a same-FQN type in another artifact is not in scope.
+        // The scopes' type nodes (the depending side with its closure): a row of a same-FQN type in another artifact is not in scope.
         val fromScopeHandles = fromScope.mapTo(HashSet()) { it.identifier as Long }
         val toScopeHandles = toScope.mapTo(HashSet()) { it.identifier as Long }
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
@@ -144,7 +145,7 @@ class ParquetDetailDependencies(
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
         val sourceTypeCounts = LinkedHashMap<Long, Int>()
-        fun inherited(e: Dependency) = e.fromType !in ownFromTypes || e.toType !in ownToTypes
+        fun inherited(e: Dependency) = e.fromType !in ownFromTypes
         val inheritedCount = edges.count(::inherited)
         for (e in edges) {
             byRelationship.merge(e.kind.value, 1, Int::plus)
@@ -247,28 +248,31 @@ class ParquetDetailDependencies(
         if (node.kind in JavaNodeKind.MEMBERS) graphService.model.hierarchy.parentOf(node) ?: node else node
 
     /** The FQNs of the types in [node]'s subtree, [node] included when it is a type. */
-    private fun typesIn(node: HGNode): Set<String> {
-        val fqns = HashSet<String>()
-        if (JavaNodeKind.isTypeKind(node.kind)) fqns += NodeMetadata.getQualifiedName(node)
-        graphService.model.hierarchy.traverse(node) { if (JavaNodeKind.isTypeKind(it.kind)) fqns += NodeMetadata.getQualifiedName(it) }
-        return fqns
+    private fun typesIn(node: HGNode): Set<String> =
+        typeNodesIn(node).mapTo(HashSet()) { NodeMetadata.getQualifiedName(it) }
+
+    /** The type nodes in [node]'s subtree, [node] included when it is a type. */
+    private fun typeNodesIn(node: HGNode): List<HGNode> {
+        val types = ArrayList<HGNode>()
+        // `traverse` visits descendants only, so a scope that *is* a single type (a class whose children are
+        // members, or a childless annotation/interface) would otherwise collect nothing.
+        if (JavaNodeKind.isTypeKind(node.kind)) types.add(node)
+        graphService.model.hierarchy.traverse(node) { if (JavaNodeKind.isTypeKind(it.kind)) types.add(it) }
+        return types
     }
 
     /**
-     * Collects the type nodes in [node]'s subtree plus their transitive supertypes (the detail scope). The
-     * supertypes are included because a type's behaviour includes what it inherits: a call made by an
-     * inherited method, or a call to a method a target type inherits, belongs to the dependency. Rows that
-     * only the supertypes contribute are marked `inherited`.
+     * Extends the depending side's types by their transitive supertypes, scanned or external (the inheritance
+     * closure). A type's behaviour includes what it inherits, so a call made by an inherited method belongs
+     * to the dependency; rows that only the supertypes contribute are marked `inherited`.
+     *
+     * The target side is not extended. A call compiled against a supertype of a target type is not a use of
+     * that type: static members, constructors and type references never reach it, and a virtual call that
+     * may dispatch into it is already a load-derived `calls` row to the implementing method. Extending it
+     * would attach every caller of an external interface (`Comparator`, an SDK client) to any module that
+     * happens to implement it.
      */
-    private fun expandScope(node: HGNode): List<HGNode> {
-        val hierarchy = graphService.model.hierarchy
-        val seed = ArrayList<HGNode>()
-        // Include the scope node itself when it is a type: `traverse` visits descendants only, so a scope
-        // that *is* a single type (a class whose children are members, or a childless annotation/interface)
-        // would otherwise collect nothing. Container scopes (module/package) still gather their descendant
-        // types via the traversal below.
-        if (JavaNodeKind.isTypeKind(node.kind)) seed.add(node)
-        hierarchy.traverse(node) { if (JavaNodeKind.isTypeKind(it.kind)) seed.add(it) }
+    private fun withSupertypes(seed: List<HGNode>): List<HGNode> {
         val scope = ArrayList<HGNode>()
         val visited = HashSet<Any?>()
         val queue = ArrayDeque(seed)

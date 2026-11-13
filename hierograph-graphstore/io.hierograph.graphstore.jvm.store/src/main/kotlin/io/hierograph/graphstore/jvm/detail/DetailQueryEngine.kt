@@ -21,8 +21,9 @@ import io.hierograph.graphstore.jvm.archive.ParquetReader
 import java.nio.file.Path
 
 /**
- * A resolved detail-dependency query over a Parquet snapshot. [fromTypes] / [toTypes] are the
- * already-expanded type-FQN sets of the caller's scopes, supertypes included (so inheritance has already been applied);
+ * A resolved detail-dependency query over a Parquet snapshot. [fromTypes] / [toTypes] are the type-FQN
+ * sets of the caller's scopes, already final: the engine matches a row's `fromType` / `toType` against
+ * them and follows no inheritance. Whether a side includes supertypes is the caller's decision;
  * [toTypes] = null leaves the target side unconstrained ("all dependencies of the source").
  */
 data class DetailQuery(
