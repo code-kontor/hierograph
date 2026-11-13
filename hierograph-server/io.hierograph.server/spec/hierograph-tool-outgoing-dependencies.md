@@ -192,6 +192,13 @@ reference from a method that `Invoice` inherits from a base class belongs to wha
 a caller can keep or drop them deliberately. A row whose depending type lies in the
 `fromId` subtree carries no `inherited` key.
 
+A supertype that lies in the `toId` subtree is taken out of the `fromId` side again.
+Its code only references the target, so its rows would describe the target's
+internals (a base class reading its own fields, calling its own lambdas), never a use
+of the target by `fromId`. The supertypes reached through it still count when they
+lie outside `toId`. A type that lies in both subtrees keeps its own rows: it is part
+of `fromId`, not a supertype added to it.
+
 The `toId` side has no closure, because a reference to a supertype is not a use of
 the types below it. Static methods, constructors and type references (a field or
 parameter of type `PriceCalculator`) never reach an implementing class. A call that

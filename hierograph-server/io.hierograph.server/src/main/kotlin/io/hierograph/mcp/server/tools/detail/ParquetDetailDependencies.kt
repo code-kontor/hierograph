@@ -96,12 +96,18 @@ class ParquetDetailDependencies(
         val toMember = memberKeyOf(toNode)
         // Only the depending side is extended by its supertypes: what a type inherits is code it runs. The
         // target side stays the scope's own types; dispatch into it comes from the load-derived virtual calls.
-        val fromScope = withSupertypes(typeNodesIn(scopeOf(fromNode)))
+        val ownFromScope = typeNodesIn(scopeOf(fromNode))
         val toScope = typeNodesIn(scopeOf(toNode))
+        // A supertype that lies in the target scope contributes nothing: its code only references the target,
+        // so its rows describe the target's internals, never a use of the target by the source. It is dropped
+        // after the closure is taken, so supertypes reached through it (outside the target) still count.
+        val ownFromIds = ownFromScope.mapTo(HashSet()) { it.identifier }
+        val toIds = toScope.mapTo(HashSet()) { it.identifier }
+        val fromScope = withSupertypes(ownFromScope).filter { it.identifier in ownFromIds || it.identifier !in toIds }
         val fromTypes = fromScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
         val toTypes = toScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
         // The depending scope's own types, without the supertypes the closure adds: a row outside them is inherited.
-        val ownFromTypes = typesIn(scopeOf(fromNode))
+        val ownFromTypes = ownFromScope.mapTo(HashSet()) { NodeMetadata.getQualifiedName(it) }
         if (fromTypes.isEmpty() || toTypes.isEmpty()) {
             // Even an empty result honours the cursor contract: a malformed or stale cursor is an error.
             if (cursor != null) {
@@ -247,10 +253,6 @@ class ParquetDetailDependencies(
     private fun scopeOf(node: HGNode): HGNode =
         if (node.kind in JavaNodeKind.MEMBERS) graphService.model.hierarchy.parentOf(node) ?: node else node
 
-    /** The FQNs of the types in [node]'s subtree, [node] included when it is a type. */
-    private fun typesIn(node: HGNode): Set<String> =
-        typeNodesIn(node).mapTo(HashSet()) { NodeMetadata.getQualifiedName(it) }
-
     /** The type nodes in [node]'s subtree, [node] included when it is a type. */
     private fun typeNodesIn(node: HGNode): List<HGNode> {
         val types = ArrayList<HGNode>()
@@ -264,7 +266,8 @@ class ParquetDetailDependencies(
     /**
      * Extends the depending side's types by their transitive supertypes, scanned or external (the inheritance
      * closure). A type's behaviour includes what it inherits, so a call made by an inherited method belongs
-     * to the dependency; rows that only the supertypes contribute are marked `inherited`.
+     * to the dependency; rows that only the supertypes contribute are marked `inherited`. The caller drops
+     * the supertypes that lie in the target scope.
      *
      * The target side is not extended. A call compiled against a supertype of a target type is not a use of
      * that type: static members, constructors and type references never reach it, and a virtual call that

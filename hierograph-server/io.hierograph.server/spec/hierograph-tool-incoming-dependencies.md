@@ -155,7 +155,9 @@ then applies unchanged:
 
 - the depender (`toId`) is expanded to its **inheritance closure**, the types of the
   subtree plus their transitive supertypes, so code a depender inherits counts as its
-  own; the rows only the closure brings in carry `"inherited": true`. The
+  own; the rows only the closure brings in carry `"inherited": true`. A supertype that lies
+  in `fromId` is left out of the closure, because its rows would be `fromId` talking
+  to itself. The
   depended-upon side (`fromId`) is its own types only: a call against an interface
   that `fromId` implements is found through the virtual-call target derived at load,
   which names `fromId`'s implementing method;
