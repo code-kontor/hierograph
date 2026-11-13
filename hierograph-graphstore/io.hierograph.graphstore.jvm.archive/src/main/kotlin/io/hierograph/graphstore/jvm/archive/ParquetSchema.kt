@@ -21,7 +21,7 @@ import dev.hardwood.metadata.RepetitionType
 import dev.hardwood.schema.FileSchema
 
 /**
- * The flat table layout of a GraphStore Parquet snapshot, shared by the loader and the writer so both
+ * The flat table layout of a GraphStore Parquet snapshot, shared by [ParquetReader] and [ParquetWriter] so both
  * sides agree on file names, column names and types.
  *
  * Kinds are stored as **strings** (the enum names `CLASS`, `METHOD`, …, and the `DependencyKind` wire names
@@ -83,7 +83,8 @@ object ParquetSchema {
     /**
      * The dependencies: one row per fact in a class file, from the type itself or one of its members to a
      * member or a type, with a `DependencyKind` wire name as `relationship`. The type-level aggregate is the
-     * rollup of these rows (see `DependencyRollup`). Sorted by `from_type` so scoped reads skip row groups.
+     * rollup of these rows (see `DependencyRollup`, in the store module). Sorted by `from_type` so scoped
+     * reads skip the data of other types.
      */
     object Dependencies {
         const val FROM_KEY = "from_key"
@@ -97,7 +98,8 @@ object ParquetSchema {
     /**
      * The owning artifact's classpath, one flat row per entry (the Maven plugin's manifest). `index 0` is
      * the artifact itself, then its dependencies in resolution order; `artifact_key`/`name` repeat on every
-     * row. Drives load-time classpath-shadowing resolution (see `TypeResolver`); absent in CLI snapshots.
+     * row. Drives load-time classpath-shadowing resolution (see `TypeResolver`, in the store module); absent in
+     * CLI snapshots.
      */
     object Classpath {
         const val ARTIFACT_KEY = "artifact_key" // the owning artifact's GAV (same on all its rows)
@@ -114,7 +116,7 @@ object ParquetSchema {
             .string(Types.KIND, RepetitionType.REQUIRED)
             .string(Types.SOURCE_FILE, RepetitionType.OPTIONAL)
             .string(Types.CLASS_HASH, RepetitionType.OPTIONAL)
-            .addColumn(Types.MODIFIERS, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .addColumn(Types.MODIFIERS, PhysicalType.INT32, RepetitionType.REQUIRED)
             .build()
 
     fun membersSchema(): FileSchema =

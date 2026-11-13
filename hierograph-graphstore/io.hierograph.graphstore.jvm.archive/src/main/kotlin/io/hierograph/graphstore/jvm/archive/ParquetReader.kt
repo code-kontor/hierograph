@@ -32,7 +32,7 @@ import java.nio.file.Path
  * [ParquetWriter]. It returns facts only — type rows, members, parameters, detail dependencies and the
  * classpath manifests — scoped by predicate push-down where it can, and knows nothing of a GraphStore.
  * Loading a snapshot into a GraphStore, with the type-level rollup of its dependencies, is the job of
- * `SnapshotLoader` in `io.hierograph.graphstore.jvm.store`, which builds on the per-source reads here
+ * `SnapshotLoader` in the store module, which builds on the per-source reads here
  * ([checkFormat], [readTypes], [readMembers], [forEachDependencyFact]).
  *
  * A snapshot path is a directory of per-artifact `.hierograph` artifacts — archives, exploded
@@ -120,6 +120,14 @@ class ParquetReader {
     private fun kindOf(relationship: String): DependencyKind =
         DependencyKind.fromValue(relationship)
             ?: throw SnapshotFormatException("Unknown dependency kind '$relationship' in a `dependencies` table.")
+
+    /**
+     * The node kind a stored `kind` names, one of [allowed]; any other name means a corrupt or foreign table.
+     * [what] and [table] only word the error.
+     */
+    private fun nodeKindOf(name: String, allowed: Set<JavaNodeKind>, what: String, table: String): JavaNodeKind =
+        allowed.firstOrNull { it.name == name }
+            ?: throw SnapshotFormatException("Unknown $what kind '$name' in a `$table` table.")
 
     /**
      * The artifact a snapshot source holds, read from its `types.parquet`; `null` when the source holds
@@ -219,10 +227,10 @@ class ParquetReader {
             TypeRow(
                 artifact = r.string(ParquetSchema.Types.ARTIFACT),
                 fqn = r.string(ParquetSchema.Types.FQN),
-                kind = r.string(ParquetSchema.Types.KIND),
+                kind = nodeKindOf(r.string(ParquetSchema.Types.KIND), TYPE_KINDS, "type", "types").name,
                 sourceFile = r.stringOrNull(ParquetSchema.Types.SOURCE_FILE),
                 classHash = r.stringOrNull(ParquetSchema.Types.CLASS_HASH),
-                modifiers = if (r.hasColumn(ParquetSchema.Types.MODIFIERS)) r.intOrNull(ParquetSchema.Types.MODIFIERS) ?: 0 else null,
+                modifiers = if (r.hasColumn(ParquetSchema.Types.MODIFIERS)) r.int(ParquetSchema.Types.MODIFIERS) else null,
             )
         }
 
@@ -234,7 +242,7 @@ class ParquetReader {
     private fun memberFacts(r: RowCursor): MemberFacts =
         MemberFacts(
             key = r.string(ParquetSchema.Members.MEMBER_KEY),
-            kind = JavaNodeKind.valueOf(r.string(ParquetSchema.Members.KIND)),
+            kind = nodeKindOf(r.string(ParquetSchema.Members.KIND), MEMBER_KINDS, "member", "members"),
             signature = r.string(ParquetSchema.Members.SIGNATURE),
             name = r.stringOrNull(ParquetSchema.Members.NAME).orEmpty(),
             modifiers = r.intOrNull(ParquetSchema.Members.MODIFIERS) ?: 0,
@@ -247,22 +255,31 @@ class ParquetReader {
      * Reads a single member by its key (`<owner fqn>#<signature>`) from `members.parquet`, with its
      * declared parameters attached from `parameters.parquet`. Returns `null` when no such member exists.
      * The detail tools use this to serve `method_details` / `field_details` straight from the snapshot.
+     *
+     * Member keys are not artifact-scoped: when several artifacts define the member's type, the member
+     * comes from the first artifact that has it, and so do its parameters.
      */
     fun readMember(parquetDir: Path, memberKey: String): MemberFacts? {
         val filter = FilterPredicate.eq(ParquetSchema.Members.MEMBER_KEY, memberKey)
-        val member = SnapshotSources.of(parquetDir).firstNotNullOfOrNull { source ->
+        return SnapshotSources.of(parquetDir).firstNotNullOfOrNull { source ->
             readRows(source, ParquetSchema.MEMBERS_FILE, filter) { memberFacts(it) }.firstOrNull()
-        } ?: return null
-        return member.copy(parameters = readParameters(parquetDir, memberKey))
+                ?.copy(parameters = readParameters(source, memberKey))
+        }
     }
 
     /** Every member in the snapshot (no parameters attached); for enumeration/diagnostics. */
     fun readAllMembers(parquetDir: Path): List<MemberFacts> =
         readAcross(parquetDir, ParquetSchema.MEMBERS_FILE) { memberFacts(it) }
 
-    /** Reads a method's declared parameters (ordered by index) from `parameters.parquet`. */
+    /**
+     * Reads a method's declared parameters (ordered by index) from `parameters.parquet`: those of the first
+     * artifact that has rows for [methodKey], so a type defined by several artifacts does not repeat them.
+     */
     fun readParameters(parquetDir: Path, methodKey: String): List<ParameterFacts> =
-        readAcross(parquetDir, ParquetSchema.PARAMETERS_FILE, FilterPredicate.eq(ParquetSchema.Parameters.METHOD_KEY, methodKey)) { r ->
+        SnapshotSources.of(parquetDir).asSequence().map { readParameters(it, methodKey) }.firstOrNull { it.isNotEmpty() }.orEmpty()
+
+    private fun readParameters(source: ArtifactSource, methodKey: String): List<ParameterFacts> =
+        readRows(source, ParquetSchema.PARAMETERS_FILE, FilterPredicate.eq(ParquetSchema.Parameters.METHOD_KEY, methodKey)) { r ->
             ParameterFacts(
                 index = r.int(ParquetSchema.Parameters.INDEX),
                 name = r.string(ParquetSchema.Parameters.NAME),
@@ -310,5 +327,13 @@ class ParquetReader {
 
         fun intOrNull(name: String): Int? =
             index(name).let { if (reader.isNull(it)) null else reader.getInt(it) }
+    }
+
+    private companion object {
+        /** The kinds a `types` row may have (§4.1 of the format spec). */
+        val TYPE_KINDS: Set<JavaNodeKind> = JavaNodeKind.TYPES
+
+        /** The kinds a `members` row may have (§4.2 of the format spec). */
+        val MEMBER_KINDS: Set<JavaNodeKind> = JavaNodeKind.MEMBERS + JavaNodeKind.CONSTRUCTOR
     }
 }

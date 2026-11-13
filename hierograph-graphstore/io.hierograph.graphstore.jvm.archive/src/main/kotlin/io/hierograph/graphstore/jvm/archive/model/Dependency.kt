@@ -20,13 +20,15 @@ package io.hierograph.graphstore.jvm.archive.model
  * facts such as `extends` or the type's own annotations — to a target element: a member for
  * `calls`/`reads_field`/`writes_field`/`overrides`, a type for every other kind. [kind] says what the fact
  * means; a [derived][DependencyKind.derived] kind marks a fact computed at load rather than read from a
- * class file. [toKey] equals [toType] when the target is a type. [fromArtifact] is the artifact
- * whose snapshot holds the row, which is the artifact that defines [fromType]; it is set when a row is
- * read from a per-artifact snapshot and lets a reader resolve both types in that artifact's context when
- * an FQN is defined more than once, and is `null` when the artifact is not known.
+ * class file. [toKey] equals [toType] when the target is a type. [fromArtifact] is the artifact whose
+ * class file the fact comes from, which is the artifact that defines [fromType]. The scanner sets it, so a
+ * writer files the fact with its artifact; a reader sets it when it reads a row from a per-artifact
+ * snapshot, so that both types can be resolved in that artifact's context. It matters when an FQN is
+ * defined more than once, and is `null` when the artifact is not known. It is not a column: the archive a
+ * row sits in names its artifact.
  *
  * The aggregated references of a type (`Ref`) are the rollup of its detail dependencies, see
- * `DependencyRollup`.
+ * `DependencyRollup` (both in the store module).
  */
 data class Dependency(
     val fromKey: String,

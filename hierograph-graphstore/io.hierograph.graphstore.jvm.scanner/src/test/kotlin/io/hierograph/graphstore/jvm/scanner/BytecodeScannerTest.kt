@@ -475,6 +475,25 @@ class BytecodeScannerTest {
     }
 
     @Test
+    fun `every fact names its artifact, so copies of a class keep their own facts in the snapshot`(@TempDir tmp: Path) {
+        // The same classes in two artifacts, like two versions of one library: every FQN is defined twice.
+        val twice = BytecodeScanner().scan(listOf(ScanArtifact("app", classesDir), ScanArtifact("copy", classesDir)))
+        val once = result.dependencies.map { it.copy(fromArtifact = null) }
+
+        assertThat(twice.dependencies.groupBy({ it.fromArtifact }, { it.copy(fromArtifact = null) }))
+            .containsOnlyKeys("app", "copy")
+            .allSatisfy { _, facts -> assertThat(facts).containsExactlyInAnyOrderElementsOf(once) }
+
+        twice.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
+        val reader = ParquetReader()
+        for (artifact in listOf("app", "copy")) {
+            assertThat(reader.readDependencies(tmp.resolve("$artifact.hierograph")).map { it.copy(fromArtifact = null) })
+                .describedAs("the facts in $artifact.hierograph")
+                .containsExactlyInAnyOrderElementsOf(once)
+        }
+    }
+
+    @Test
     fun `the result round-trips through a Parquet snapshot into the GraphStore`(@TempDir tmp: Path) {
         result.writeTo(tmp, CompressionCodec.UNCOMPRESSED)
 

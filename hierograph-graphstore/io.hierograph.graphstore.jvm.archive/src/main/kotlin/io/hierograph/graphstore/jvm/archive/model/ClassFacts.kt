@@ -18,9 +18,10 @@ package io.hierograph.graphstore.jvm.archive.model
 /**
  * The central contract: one immutable record per class file.
  *
- * The scanner produces it, the Parquet loader reproduces it, and the GraphStore consumes it via
- * `GraphStore.applyClass`. It holds facts only: the class's dependencies are its [Dependency] facts, which
- * travel beside it, and their type-level aggregate is rolled up by whoever loads them into a GraphStore.
+ * The scanner produces it, `SnapshotLoader` rebuilds it from the snapshot tables, and the GraphStore
+ * consumes it via `GraphStore.applyClass` (both in the store module). It holds facts only: the class's
+ * dependencies are its [Dependency] facts, which travel beside it, and their type-level aggregate is
+ * rolled up by whoever loads them into a GraphStore.
  * [kind] is a type-level [JavaNodeKind]
  * (CLASS, INTERFACE, ENUM, ANNOTATION, RECORD). [classHash] is the sha256 of the bytecode and backs
  * the change detector.

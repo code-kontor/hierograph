@@ -118,7 +118,7 @@ class BytecodeScanner(val parallelism: Int = Runtime.getRuntime().availableProce
             val files = artifacts.map { classFiles(it.path, zips) }
             fun scanOne(artifact: ScanArtifact, file: ClassFile): ScannedClass =
                 try {
-                    ClassScanner.scan(file.read())
+                    ClassScanner.scan(file.read(), artifact.key)
                 } catch (e: Exception) {
                     throw IllegalStateException("Scanning ${file.name} of ${artifact.path} failed: ${e.message}", e)
                 }

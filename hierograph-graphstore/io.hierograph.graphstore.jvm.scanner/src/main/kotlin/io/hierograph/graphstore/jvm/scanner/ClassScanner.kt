@@ -57,8 +57,13 @@ internal class ScannedClass(
  */
 internal object ClassScanner {
 
-    fun scan(bytes: ByteArray): ScannedClass {
-        val visitor = Visitor(sha256(bytes))
+    /**
+     * Scans [bytes]. [artifactKey] is the artifact the class file belongs to; every fact carries it as
+     * [Dependency.fromArtifact], so a writer can file the fact with its artifact even when another artifact
+     * defines a class of the same name.
+     */
+    fun scan(bytes: ByteArray, artifactKey: String? = null): ScannedClass {
+        val visitor = Visitor(sha256(bytes), artifactKey)
         ClassReader(bytes).accept(visitor, ClassReader.SKIP_FRAMES)
         return visitor.result()
     }
@@ -66,7 +71,7 @@ internal object ClassScanner {
     private fun sha256(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
-    private class Visitor(private val classHash: String) : ClassVisitor(Opcodes.ASM9) {
+    private class Visitor(private val classHash: String, private val artifactKey: String?) : ClassVisitor(Opcodes.ASM9) {
         private lateinit var internalName: String
         private lateinit var fqn: String
         private var access = 0
@@ -106,7 +111,7 @@ internal object ClassScanner {
          * are recorded.
          */
         fun emit(fromKey: String, toKey: String, toType: String, kind: DependencyKind, line: Int?, into: MutableList<Dependency> = dependencies) {
-            into += Dependency(fromKey, fqn, toKey, toType, kind, line)
+            into += Dependency(fromKey, fqn, toKey, toType, kind, line, artifactKey)
         }
 
         /** Emits a fact whose target is [type]'s element type (primitives and `void` included). */

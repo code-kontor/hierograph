@@ -63,6 +63,42 @@ class ParquetReaderTest {
     }
 
     @Test
+    fun `a type or member kind outside the vocabulary is rejected`(@TempDir dir: Path) {
+        val reader = ParquetReader()
+        val types = Files.createDirectories(dir.resolve("types"))
+        ParquetTestWriter.writeTypes(types, listOf(TypeFixture("app", "com.foo.A", "STRUCT")))
+        assertThatThrownBy { reader.readTypeRows(types, listOf("com.foo.A")) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown type kind 'STRUCT' in a `types` table")
+
+        val memberKindAsType = Files.createDirectories(dir.resolve("member-kind-as-type"))
+        ParquetTestWriter.writeTypes(memberKindAsType, listOf(TypeFixture("app", "com.foo.A", "METHOD")))
+        assertThatThrownBy { reader.readTypeRows(memberKindAsType, listOf("com.foo.A")) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown type kind 'METHOD'")
+
+        val members = Files.createDirectories(dir.resolve("members"))
+        ParquetTestWriter.writeMembers(members, listOf(MemberFixture("com.foo.A", "com.foo.A#A", "CLASS", "A", "A")))
+        assertThatThrownBy { reader.readAllMembers(members) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("Unknown member kind 'CLASS' in a `members` table")
+    }
+
+    @Test
+    fun `every kind of the vocabulary is read`(@TempDir dir: Path) {
+        val reader = ParquetReader()
+        ParquetTestWriter.writeTypes(
+            dir,
+            listOf("CLASS", "INTERFACE", "ENUM", "RECORD", "ANNOTATION").map { TypeFixture("app", "com.foo.$it", it) },
+        )
+        ParquetTestWriter.writeMembers(
+            dir,
+            listOf("FIELD", "METHOD", "CONSTRUCTOR").map { MemberFixture("com.foo.CLASS", "com.foo.CLASS#$it", it, it, it) },
+        )
+
+        assertThat(reader.readTypeRows(dir, listOf("com.foo.CLASS", "com.foo.INTERFACE", "com.foo.ENUM", "com.foo.RECORD", "com.foo.ANNOTATION")))
+            .allSatisfy { assertThat(it.fqn).isEqualTo("com.foo.${it.kind}") }.hasSize(5)
+        assertThat(reader.readAllMembers(dir).map { it.kind.name }).containsExactlyInAnyOrder("FIELD", "METHOD", "CONSTRUCTOR")
+    }
+
+    @Test
     fun `every member is read, an unknown member key reads as null`(@TempDir dir: Path) {
         ParquetTestWriter.writeMembers(
             dir,

@@ -36,16 +36,18 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.iterator
 
 /**
- * Writes the GraphStore Parquet files (the [ParquetSchema] tables) from [ClassFacts], the same unit
- * the scanner and the reader exchange. This is the write counterpart of [ParquetReader]: a set
- * of classes written here loads back into an equivalent [io.hierograph.graphstore.jvm.GraphStore].
+ * Writes the snapshot tables ([ParquetSchema]) from [ClassFacts] and [Dependency] facts, the units the
+ * scanner produces. This is the write counterpart of [ParquetReader]: what is written here reads back
+ * through it row for row. Loading a snapshot into a GraphStore is the job of `SnapshotLoader`, in the
+ * store module.
  *
- * Tables are ZSTD-compressed by default (the spec's choice; [ParquetSchema]'s dictionary encoding
- * absorbs the repeated FQNs). Pass [CompressionCodec.UNCOMPRESSED] to avoid needing a codec on the
- * classpath (e.g. in tests). Every table carries [ParquetSchema.FORMAT_VERSION] in its footer.
+ * [writeSnapshot] and [writeArtifacts] compress with ZSTD by default (the spec's choice; dictionary
+ * encoding absorbs the repeated FQNs); the single-table writers [writeDependencies] and [writeClasspath]
+ * default to uncompressed. Pass [CompressionCodec.UNCOMPRESSED] to avoid needing a codec on the classpath
+ * (e.g. in tests). Every table carries [ParquetSchema.FORMAT_VERSION] in its footer.
  *
  * Only facts are written. The type-level aggregate is not: it is the rollup of the dependency rows, which
- * the reader computes at load (`DependencyRollup` in `io.hierograph.graphstore.jvm.store`).
+ * the loader computes at load (`DependencyRollup`, in the store module).
  *
  * The tables are independent files, so they are written **in parallel**, one task per file; each file's
  * content (and row order) is the same as a sequential write.
@@ -70,13 +72,16 @@ object ParquetWriter {
 
     /**
      * Writes a project snapshot as **one `.hierograph` artifact per artifact key** under [outDir], packaged
-     * as [packaging] decides: the classes are grouped by [ArtifactClass.artifactKey], the [dependencies] by the
-     * artifact that owns their `from` side (its declaring type's artifact), and each group's tables become
+     * as [packaging] decides: the classes are grouped by [ArtifactClass.artifactKey], the [dependencies] by
+     * [Dependency.fromArtifact], the artifact whose class file the fact comes from, and each group's tables become
      * `<artifact>.hierograph` — an archive or an exploded directory, with identical tables. An artifact of
      * the same name already in [outDir] is replaced, whichever its form. This is the scanner's output shape;
-     * the loader reads such a directory back across all artifacts. (A reference's `from` type is always one
-     * this snapshot scanned, so it maps to an artifact; if an FQN is defined by several artifacts the first
-     * wins — a rare, documented duplicate-FQN case.)
+     * the loader reads such a directory back across all artifacts.
+     *
+     * The scanner sets [Dependency.fromArtifact] on every fact, so each copy of a type that several artifacts
+     * define (two library versions, a test class shadowing a main class) keeps its own facts. A fact without
+     * it is filed with the artifact of the first class whose FQN is its `fromType`; a fact whose `fromType`
+     * is none of [classes] is not written.
      *
      * Nothing is written outside [outDir]: an archive's tables are staged in `.staging-<artifact>` there and
      * the staging directory is deleted once zipped; an exploded artifact needs no staging.
@@ -94,8 +99,9 @@ object ParquetWriter {
         cancelled: () -> Boolean = { false },
     ) {
         Files.createDirectories(outDir)
-        val artifactByFqn = classes.associate { it.facts.fqn to it.artifactKey }
-        val detailByArtifact = dependencies.groupBy { artifactByFqn[it.fromType] }
+        // A fact names its artifact; one without it goes to the first class that defines its type (see the KDoc).
+        val artifactByFqn = HashMap<String, String>().apply { classes.forEach { putIfAbsent(it.facts.fqn, it.artifactKey) } }
+        val detailByArtifact = dependencies.groupBy { it.fromArtifact ?: artifactByFqn[it.fromType] }
         for ((artifactKey, artifactClasses) in classes.groupBy { it.artifactKey }) {
             if (cancelled()) throw CancellationException("Snapshot write to $outDir cancelled before artifact $artifactKey")
             val fileName = HierographArchive.fileName(artifactKey)
@@ -158,7 +164,9 @@ object ParquetWriter {
     }
 
     private fun writeMembers(dir: Path, classes: List<ArtifactClass>, codec: CompressionCodec) {
-        val members = classes.flatMap { c -> c.facts.members.map { c.facts.fqn to it } }
+        // Sorted by owner so that a scoped read skips the data of other types; the sort is stable, so each
+        // type's members keep their declaration order.
+        val members = classes.flatMap { c -> c.facts.members.map { c.facts.fqn to it } }.sortedBy { it.first }
         writeTable(dir.resolve(ParquetSchema.MEMBERS_FILE), ParquetSchema.membersSchema(), codec, members) { sb, (owner, m) ->
             sb.setString(ParquetSchema.Members.OWNER_FQN, owner)
             sb.setString(ParquetSchema.Members.MEMBER_KEY, m.key)
@@ -187,14 +195,15 @@ object ParquetWriter {
     }
 
     /**
-     * Writes the detail facts to the `dependencies` table, sorted by `from_type` (then
-     * `from_key`) so a scoped read via [ParquetReader.readDependencies] skips row groups. Defaults to
+     * Writes the detail facts to the `dependencies` table, sorted by `from_type`, then `from_key`,
+     * `to_type`, `to_key` and `relationship`, so a scoped read via [ParquetReader.readDependencies] skips
+     * the data of other types. Defaults to
      * uncompressed (callers that want ZSTD pass it explicitly). The sort runs in parallel; it is stable,
      * so rows equal in all sort keys keep their input order and the file is the same as a sequential write.
      */
-    fun writeDependencies(dir: Path, refs: List<Dependency>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
+    fun writeDependencies(dir: Path, dependencies: List<Dependency>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
         val cols = ParquetSchema.Dependencies
-        val sorted = refs.toTypedArray()
+        val sorted = dependencies.toTypedArray()
             .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value })) }
             .asList()
         writeTable(dir.resolve(ParquetSchema.DEPENDENCIES_FILE), ParquetSchema.dependenciesSchema(), codec, sorted) { sb, r ->

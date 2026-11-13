@@ -41,6 +41,7 @@ object ParquetTestWriter {
         val kind: String,
         val sourceFile: String? = null,
         val classHash: String? = null,
+        val modifiers: Int = 0,
     )
 
     data class MemberFixture(
@@ -99,6 +100,7 @@ object ParquetTestWriter {
             sb.setString(ParquetSchema.Types.KIND, t.kind)
             sb.setNullable(ParquetSchema.Types.SOURCE_FILE, t.sourceFile)
             sb.setNullable(ParquetSchema.Types.CLASS_HASH, t.classHash)
+            sb.setInt(ParquetSchema.Types.MODIFIERS, t.modifiers)
         }
     }
 
@@ -163,6 +165,7 @@ object ParquetTestWriter {
             sb.setString(ParquetSchema.Types.KIND, t.kind)
             sb.setNullable(ParquetSchema.Types.SOURCE_FILE, t.sourceFile)
             sb.setNullable(ParquetSchema.Types.CLASS_HASH, t.classHash)
+            sb.setInt(ParquetSchema.Types.MODIFIERS, t.modifiers)
         }
     }
 

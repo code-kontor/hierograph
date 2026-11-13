@@ -22,7 +22,8 @@ package io.hierograph.graphstore.jvm.archive.model
  * in the `relationship` column of `dependencies.parquet` and used by the tools.
  *
  * A kind read from a class file is [counted] unless it is [RAISES]: it adds 1 to the weight of the
- * aggregated dependency between the source's and the target's owner types (see `DependencyRollup`).
+ * aggregated dependency between the source's and the target's owner types (see `DependencyRollup`, in the
+ * store module).
  * [RAISES] is not counted because it refines facts that are counted already: `throw new X(…)` is an
  * [INSTANTIATES] of `X`, a [CALLS] of its constructor, and then the throw.
  *

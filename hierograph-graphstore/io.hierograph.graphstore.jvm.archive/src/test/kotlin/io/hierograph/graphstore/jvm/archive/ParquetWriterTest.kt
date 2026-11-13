@@ -105,6 +105,22 @@ class ParquetWriterTest {
     }
 
     @Test
+    fun `members are sorted by owner and keep their declaration order within a type`(@TempDir dir: Path) {
+        fun member(owner: String, name: String) = MemberFacts("$owner#$name()V", JavaNodeKind.METHOD, "$name()V", name = name)
+        fun type(fqn: String, vararg names: String) =
+            ArtifactClass("app", ClassFacts(fqn, JavaNodeKind.CLASS, 0, names.map { member(fqn, it) }, classHash = fqn))
+        // Scan order is not FQN order, and declaration order is not alphabetical.
+        val scanned = listOf(type("com.foo.Z", "zeta", "alpha"), type("com.foo.A", "omega", "beta", "gamma"), type("com.foo.M", "mu"))
+        ParquetWriter.writeSnapshot(dir, scanned, emptyList(), CompressionCodec.UNCOMPRESSED)
+
+        assertThat(ParquetReader().readAllMembers(dir).map { it.key }).containsExactly(
+            "com.foo.A#omega()V", "com.foo.A#beta()V", "com.foo.A#gamma()V",
+            "com.foo.M#mu()V",
+            "com.foo.Z#zeta()V", "com.foo.Z#alpha()V",
+        )
+    }
+
+    @Test
     fun `a table that cannot be written fails the write with its own exception`(@TempDir dir: Path) {
         val notADirectory = Files.writeString(dir.resolve("snapshot"), "a file where the tables should go")
 

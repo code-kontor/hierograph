@@ -275,6 +275,41 @@ class HierographRoundTripTest {
     }
 
     @Test
+    fun `each copy of a type defined by two artifacts keeps its own dependencies, its parameters read once`(@TempDir dir: Path) {
+        fun copy(artifact: String, parameter: String) = ArtifactClass(
+            artifact,
+            ClassFacts(
+                fqn = "com.x.X", kind = JavaNodeKind.CLASS, modifiers = 0, classHash = artifact,
+                members = listOf(
+                    MemberFacts(
+                        key = "com.x.X#m(int)", kind = JavaNodeKind.METHOD, signature = "m(int)", name = "m",
+                        parameters = listOf(ParameterFacts(0, parameter, "int")),
+                    ),
+                ),
+            ),
+        )
+        val shaded = listOf(copy("a.jar", "first"), copy("b.jar", "second"))
+        // Each copy was scanned on its own, so each brings its own facts, tagged with its artifact.
+        fun call(artifact: String?, target: String, line: Int) =
+            Dependency("com.x.X#m(int)", "com.x.X", "$target#n()", target, DependencyKind.CALLS, line, artifact)
+        val fromA = call("a.jar", "com.y.Y", 1)
+        val fromB = call("b.jar", "com.z.Z", 2)
+        val untagged = call(null, "com.w.W", 3)   // a caller that does not know the artifact
+        ParquetWriter.writeArtifacts(dir, shaded, listOf(fromB, untagged, fromA), CompressionCodec.UNCOMPRESSED)
+        val reader = ParquetReader()
+
+        // each tagged fact lands in its own artifact; the untagged one with the first class that defines its type
+        assertThat(reader.readDependencies(dir.resolve("a.hierograph"))).containsExactlyInAnyOrder(fromA, untagged.copy(fromArtifact = "a.jar"))
+        assertThat(reader.readDependencies(dir.resolve("b.hierograph"))).containsExactly(fromB)
+
+        // the member and its parameters come from one artifact, not from both
+        assertThat(reader.readTypeRows(dir, listOf("com.x.X")).map { it.artifact }).containsExactlyInAnyOrder("a.jar", "b.jar")
+        assertThat(reader.readMember(dir, "com.x.X#m(int)")!!.parameters.map { it.name }).containsExactly("first")
+        assertThat(reader.readParameters(dir, "com.x.X#m(int)").map { it.name }).containsExactly("first")
+        assertThat(reader.readParameters(dir, "com.x.X#absent()")).isEmpty()
+    }
+
+    @Test
     fun `classpath manifests round-trip`(@TempDir dir: Path) {
         val classpaths = mapOf(
             "a.jar" to ArtifactClasspath("a.jar", "A", emptyList()),

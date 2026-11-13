@@ -178,7 +178,10 @@ per occurrence, from the type itself (its superclass, interfaces, annotations, â
 from one of its members (which method calls which, which code reads or writes which
 field, what each member's signature names), with source lines. They are kept apart
 from `ClassFacts` because they are large and are read on demand rather than held in
-memory.
+memory. Each fact names the artifact of the class file it comes from
+(`Dependency.fromArtifact`). Two artifacts can define a class of the same name, such as
+two versions of one library, or a test class that shadows a main class. With the
+artifact, `writeTo` files each copy's facts with that copy, not by the class name.
 
 **`writeTo(dir, codec, classpaths, packaging)`** writes the result as a snapshot
 directory: the types, members, parameters and detail facts. It holds no aggregated

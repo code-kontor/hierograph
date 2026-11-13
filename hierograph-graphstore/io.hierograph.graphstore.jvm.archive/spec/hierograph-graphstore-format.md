@@ -8,7 +8,8 @@ parameters and dependencies straight from the tables instead of holding
 them in memory.
 
 This document defines that format: the files, the packaging, and every column —
-what it describes and why it exists.
+what it describes and why it exists. The Kotlin API that writes and reads it is
+described in the [archive module specification](hierograph-graphstore-archive.md).
 
 ---
 
@@ -140,7 +141,9 @@ name order, and treats the union as one graph. The two forms may be mixed freely
 A directory that contains the table files directly, rather than artifacts, is an
 **unpacked** snapshot. It is read the same way, as if it were the content of a
 single archive. Its tables may cover several artifacts, because every type row
-names its own artifact.
+names its own artifact. The two kinds of directory do not mix: a directory that
+holds any `*.hierograph` entry is a snapshot of artifacts, and table files beside
+those entries are ignored.
 
 **Containers.** A `.hierograph` file whose entries are themselves `.hierograph`
 archives, rather than tables, is a **container** — the shape `hierograph:collect`
@@ -274,7 +277,8 @@ copy, two versions of one library) are kept apart.
 annotation type is `ANNOTATION`; an enum is `ENUM`; a class whose superclass is
 `java.lang.Record` is `RECORD`; an interface is `INTERFACE`; anything else is
 `CLASS`. Tools use it to filter and display types, for example "all interfaces in
-this package".
+this package". These five names are the whole vocabulary of the column for the
+format version (§6.5).
 
 **`source_file`** links the type back to its source, so that a tool can point a
 user at a file. Several types (nested classes, Kotlin file facades) can share one
@@ -299,6 +303,9 @@ One row per declared field, method and constructor, including the static
 initializer and compiler-generated (synthetic, bridge) members. Inherited members
 are not repeated: a member appears only under the type that declares it.
 
+The table is sorted by `owner_fqn`. Within a type, the members keep the order in
+which the class file declares them.
+
 | Column | Type | Null? | Description |
 |--------|------|-------|-------------|
 | `owner_fqn` | string | no | FQN of the declaring type. |
@@ -311,8 +318,9 @@ are not repeated: a member appears only under the type that declares it.
 | `line_to` | int32 | yes | Last source line of the member's code. |
 | `bridge_target` | string | yes | For a bridge method, the member key of the method it forwards to. |
 
-**`owner_fqn`** groups members by type. It is the column a reader filters on to
-fetch "all members of these types" without scanning the whole table.
+**`owner_fqn`** groups members by type. It is the sort and filter column: a reader
+fetches "all members of these types" by it, and because the table is sorted on it,
+column statistics let the reader skip the data of other types.
 
 **`member_key`** is the member's identity. Dependencies (§4.4) point at
 it, parameters (§4.3) hang off it, and tools address a single method or field by
@@ -320,6 +328,8 @@ it.
 
 **`kind`** separates fields from executables, and constructors from ordinary
 methods. A member named `<init>` is a `CONSTRUCTOR`; `<clinit>` is a `METHOD`.
+These three names are the whole vocabulary of the column for the format version
+(§6.5).
 
 **`name`** is stored separately from the signature because tools search and
 display members by plain name ("find `total`") and should not have to parse it out
@@ -478,9 +488,10 @@ classpath.
 **`dep_key`** names each classpath entry using the same key scheme as the archives,
 so an entry can be matched to the archive that provides it.
 
-**`internal`** separates the build's own modules from third-party dependencies. It
-lets tools distinguish "our code" from libraries, for example when deciding which
-unresolved references deserve attention. Index `0` is always internal.
+**`internal`** separates the build's own modules from third-party dependencies, so
+that a consumer can tell "our code" from libraries without knowing the build. It is
+recorded for such consumers: loading does not need it, because binding (§6.1) uses
+only the order. Index `0` is always internal.
 
 ---
 
@@ -557,6 +568,10 @@ resolved virtual-call targets, and the inverse views (`read_by`, `written_by`,
 callers), are never stored. They are derived at load time (§6.3) and never count in
 the aggregate (§6.4).
 
+The vocabulary is closed for each format version: a `relationship` holds one of the
+names in the table above, and a new relationship comes with a new format version
+(§6.5).
+
 ---
 
 ## 6. Loading semantics
@@ -574,7 +589,8 @@ artifact**:
 
 1. If the referencing artifact has a `classpath` table, the reference binds to the
    first entry on that classpath that defines the FQN. This is the JVM's own rule.
-2. Otherwise, it binds to the referencing artifact itself if that artifact defines
+2. Otherwise — the artifact has no `classpath` table, or none of its entries defines
+   the FQN — it binds to the referencing artifact itself if that artifact defines
    the FQN, and failing that to the defining artifact with the lexicographically
    smallest key, so the choice is deterministic.
 
@@ -606,7 +622,8 @@ The type-to-type graph is not stored; a reader **rolls it up** from each type's
 - `raises` rows do not count: they refine facts that are already counted, the
   `instantiates` and the constructor `calls` of the thrown exception;
 - rows whose `to_type` is `S` itself, a primitive or `void` do not count;
-- relationships outside §5.2 do not count; derived ones (§6.3) are never stored.
+- derived relationships (§6.3) are never stored, so they never count. A relationship
+  outside §5.2 does not occur in a readable artifact (§6.5).
 
 `annotated_by` counts as structural when its `from_key` is the type itself and as an
 ordinary use when it is a member, so the rollup needs `from_key` alongside
@@ -624,21 +641,32 @@ one row, a reader can always show the rows behind a weight.
 Every table carries the format version in its footer key-value metadata, under
 `hierograph.format.version`. This document describes version `2`.
 
-A reader rejects an artifact it cannot read correctly, before loading anything:
+A reader rejects an artifact it cannot read correctly. It checks the first two
+rules before it loads anything, and the third as it reads the rows:
 
 - an artifact with a `refs.parquet` or `detail_refs.parquet` table, or whose `types`
-  table carries no version, was written in **format 1**: a separate type-level
-  aggregate and a `detail_refs` table that lacked part of the dependencies (among
-  them `extends`, `implements`, casts and class literals). Rolling the aggregate up
-  from it would give wrong weights, so it has to be **rescanned** from its classes;
-- an artifact of a **newer** version needs a newer reader.
+  table carries no version, an older one, or one that is not a number, is **stale**.
+  Format 1, the only older format, stored a separate type-level aggregate and a
+  `detail_refs` table that lacked part of the dependencies (among them `extends`,
+  `implements`, casts and class literals). Rolling the aggregate up from such an
+  artifact would give wrong weights, so it has to be **rescanned** from its classes;
+- an artifact of a **newer** version needs a newer reader;
+- a row whose value is outside its column's vocabulary — a `types.kind` outside §4.1,
+  a `members.kind` outside §4.2, a `dependencies.relationship` outside §5.2 — means a
+  corrupt table or one from another writer. Skipping it would leave types, members or
+  weights out of the graph without anyone noticing, so the artifact is rejected when
+  the row is read.
 
 ### 6.6 Robustness
 
 - A table that is absent from an archive is read as empty.
+- Readers find a table by the file name of its entry and ignore directory entries, so
+  an archive that another tool repacked with directories still reads. Writers keep to
+  the flat layout of §2.1.
 - Readers ignore columns they do not know, and address known columns by name.
-- Rows may be read in any order; only `parameters` and `dependencies` guarantee a
-  sort order (§4.3, §4.4).
+- Rows may be read in any order; only `members`, `parameters` and `dependencies`
+  guarantee a sort order (§4.2, §4.3, §4.4). An archive written before `members` was
+  sorted is still valid; a reader only skips less of it.
 - Artifacts are independent of each other, so a reader may read them in parallel and
   combine them afterwards; the result must not depend on the order in which they
   are read.
