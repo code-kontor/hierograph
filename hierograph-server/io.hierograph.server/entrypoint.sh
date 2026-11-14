@@ -10,8 +10,8 @@
 #   HIEROGRAPH_MAVEN_ARGS   extra Maven arguments for (re)generating the manifest, e.g. "-Pitest"
 #   HIEROGRAPH_STATE_DIR    state directory (default /hierograph)
 #   HIEROGRAPH_BUILD_FILES  reaction to edited POMs: regenerate (default) | notify | off
-#   HIEROGRAPH_URL          the MCP URL as the host reaches it, e.g. http://localhost:8765/mcp; reported in
-#                           the runtime file instead of the container's own address
+#   HIEROGRAPH_URL          the MCP URL as the host reaches it, e.g. http://localhost:8765/mcp; reported by
+#                           server_info and the runtime file instead of the container's own address
 #   HIEROGRAPH_WORKSPACE    the project's path on the host; reported as the workspace instead of /workspace
 # Extra arguments to `docker run … <image> <args>` are passed to the server (e.g. --server.port=9090).
 set -e

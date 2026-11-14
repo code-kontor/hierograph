@@ -2,7 +2,8 @@
 
 A running Hierograph server serves one workspace. This document specifies how a server
 is found and identified: its port, the settings a workspace keeps for it, the runtime
-file it writes, the rule of one server per workspace, and its ready line.
+file it writes, the rule of one server per workspace, and its ready line. The
+[`server_info`](hierograph-tool-server-info.md) tool returns the same identity over MCP.
 
 ---
 
@@ -36,8 +37,8 @@ in one log line where clients connect.
 The MCP endpoint is `http://localhost:<port>/mcp`. The default port is **8765**.
 8080 is avoided because JVM developers often run Spring Boot, Tomcat or Jenkins on it.
 
-`server.port=0` lets the server pick a free port. The runtime file (§4)
-records the port in use.
+`server.port=0` lets the server pick a free port. The runtime file (§4) and
+`server_info` report the port in use.
 
 ## 3. Workspace settings
 
@@ -79,7 +80,9 @@ Once the server is ready to serve, it writes `<state dir>/server.json`:
 }
 ```
 
-The fields are what stays the same while the server runs.
+The fields are the identity part of [`server_info`](hierograph-tool-server-info.md#4-response):
+what stays the same while the server runs. What changes while it runs (artifacts,
+snapshot, build state) is only in `server_info`.
 
 - **Written when ready.** The file appears once the web server listens and the graph is
   loaded, or the server has started empty. A client that finds the file can connect.
@@ -157,7 +160,7 @@ make the server report what the host sees:
 | `HIEROGRAPH_WORKSPACE` | `hierograph.server.workspace` | `/home/dev/project` |
 
 The runtime file lives in the container's state volume, where the host does not read
-it; on the host, `docker ps` identifies the server.
+it; on the host, `docker ps` and `server_info` identify the server.
 
 ## 8. Settings
 
@@ -168,6 +171,9 @@ it; on the host, `docker ps` identifies the server.
 | `hierograph.server.workspace` | the build root | the workspace reported to clients |
 | `hierograph.server.runtime-file.enabled` | `true` | write `server.json` (§4) |
 | `hierograph.server.single-instance` | `true` | refuse to start next to a running server (§5) |
+
+`spring.ai.mcp.server.version`, the version in the MCP handshake's `serverInfo`,
+defaults to the server's build version.
 
 ## 9. Guarantees
 

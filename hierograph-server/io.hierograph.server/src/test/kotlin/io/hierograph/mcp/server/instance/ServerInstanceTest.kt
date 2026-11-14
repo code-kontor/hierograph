@@ -19,6 +19,7 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
+import io.hierograph.mcp.server.tools.admin.ServerInfoTool
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import org.assertj.core.api.Assertions.assertThat
@@ -32,7 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils
 import java.nio.file.Path
 import java.util.Properties
 
-/** Verifies what [ServerInstance] reports, and the runtime file's lifecycle. */
+/** Verifies what [ServerInstance] and `server_info` report, and the runtime file's lifecycle. */
 @Suppress("UNCHECKED_CAST")
 class ServerInstanceTest {
 
@@ -69,24 +70,37 @@ class ServerInstanceTest {
     }
 
     @Test
-    fun `the identity names the instance, its build and its source`() {
-        val identity = instance(withBuildInfo = true).apply { serverStarted(8765) }.identity()
+    fun `server_info describes the instance and the graph it serves`() {
+        val instance = instance(withBuildInfo = true).apply { serverStarted(8765) }
+        val info = ServerInfoTool(instance).serverInfo()
 
-        assertThat(identity["url"]).isEqualTo("http://localhost:8765/mcp")
-        assertThat(identity["port"]).isEqualTo(8765)
-        assertThat(identity["pid"]).isEqualTo(ProcessHandle.current().pid())
-        assertThat(identity["version"]).isEqualTo("0.3.0-SNAPSHOT")
-        assertThat(identity["commit"] as Map<String, Any?>).containsEntry("id", "cd897fe0").containsEntry("dirty", true)
-        assertThat(identity["build_time"]).isEqualTo("2026-11-14T13:36:00Z")
-        assertThat(identity["state_dir"]).isEqualTo(stateDir.toString())
-        assertThat(identity["source"] as Map<String, Any?>).containsEntry("kind", null)
+        assertThat(info["url"]).isEqualTo("http://localhost:8765/mcp")
+        assertThat(info["port"]).isEqualTo(8765)
+        assertThat(info["pid"]).isEqualTo(ProcessHandle.current().pid())
+        assertThat(info["version"]).isEqualTo("0.3.0-SNAPSHOT")
+        assertThat(info["commit"] as Map<String, Any?>).containsEntry("id", "cd897fe0").containsEntry("dirty", true)
+        assertThat(info["build_time"]).isEqualTo("2026-11-14T13:36:00Z")
+        assertThat(info["state_dir"]).isEqualTo(stateDir.toString())
+        assertThat(info["source"] as Map<String, Any?>).containsEntry("kind", null)
+        assertThat(info["artifacts"]).isNull() // not in manifest mode
+        val snapshot = info["snapshot"] as Map<String, Any?>
+        assertThat(snapshot["total_nodes"] as Int).isGreaterThan(0)
+        assertThat(snapshot["data_hash"] as String).hasSize(16)
+        assertThat(info["runtime_file"]).isNull()
+    }
+
+    @Test
+    fun `without a graph server_info still answers`() {
+        val info = instance(graphService(seeded = false)).info()
+        assertThat(info["snapshot"]).isNull()
+        assertThat(info["url"]).isNull() // no web server started
     }
 
     @Test
     fun `the advertised url and workspace can be set, as a container does`() {
         environment.setProperty("hierograph.server.url", "http://localhost:9000/mcp")
         environment.setProperty("hierograph.server.workspace", "/home/dev/project")
-        val info = instance().apply { serverStarted(8765) }.identity()
+        val info = instance().apply { serverStarted(8765) }.info()
         assertThat(info["url"]).isEqualTo("http://localhost:9000/mcp")
         assertThat(info["workspace"]).isEqualTo("/home/dev/project")
         assertThat(info["port"]).isEqualTo(8765)
@@ -102,6 +116,7 @@ class ServerInstanceTest {
         assertThat(recorded).containsEntry("url", "http://localhost:8765/mcp").containsEntry("port", 8765)
         assertThat((recorded["pid"] as Number).toLong()).isEqualTo(ProcessHandle.current().pid())
         assertThat(recorded.keys).containsAll(instance.identity().keys)
+        assertThat(instance.info()["runtime_file"]).isEqualTo(file.path.toString())
 
         instance.closed()
         assertThat(file.path).doesNotExist()

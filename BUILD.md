@@ -172,7 +172,7 @@ docker run --rm -p 8765:8765 \
   regenerates the manifest first.
 - `HIEROGRAPH_MAVEN_ARGS` passes extra Maven arguments (e.g. profiles that add modules);
   `HIEROGRAPH_BUILD_FILES` sets the reaction to edited POMs (`regenerate` by default).
-- `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make the server report the URL and the project path
+- `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the project path
   as the host sees them, instead of the container's own address and `/workspace`. With another host
   port (`-p 9000:8765`), set `HIEROGRAPH_URL` to that port.
 - The host keeps compiling as usual; the container picks the classes up through the mount (polling).
