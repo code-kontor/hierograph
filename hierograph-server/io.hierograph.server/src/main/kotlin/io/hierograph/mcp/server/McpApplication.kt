@@ -32,6 +32,7 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesToo
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
+import io.hierograph.mcp.server.instance.InstanceGuard
 import io.hierograph.mcp.server.tools.views.ViewTools
 import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.beans.factory.annotation.Value
@@ -96,5 +97,8 @@ class McpApplication {
 }
 
 fun main(args: Array<String>) {
-    runApplication<McpApplication>(*args)
+    runApplication<McpApplication>(*args) {
+        // One server per workspace, checked before the graph is built and the port is bound.
+        addListeners(InstanceGuard())
+    }
 }

@@ -747,13 +747,13 @@ end, `TARGET` the end depended upon.
 ## 12. Working with the API
 
 **Open the explorer.** With the server running, open
-`http://localhost:8080/graphiql/index.html`. The Explorer sidebar lists every field
+`http://localhost:8765/graphiql/index.html`. The Explorer sidebar lists every field
 of the schema; the editor validates queries as you type.
 
 **Query from the command line.**
 
 ```bash
-curl -X POST http://localhost:8080/graphql \
+curl -X POST http://localhost:8765/graphql \
   -H "Content-Type: application/json" \
   -d '{"query":"{ hierarchicalGraph { rootNode { children { nodes { id text type } } } } }"}'
 ```
