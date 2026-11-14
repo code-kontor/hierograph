@@ -19,6 +19,7 @@ allowed-tools:
   - Bash(claude mcp add:*)
   - Bash(claude mcp list)
   - Read
+  - Write
   - Glob
 ---
 
@@ -70,7 +71,7 @@ a Gradle producer is planned. Do not improvise a manifest by hand.
 | `PROFILES` | none | Profiles the user's normal build activates (e.g. one that adds modules). Pass them to every Maven command here — in `docker` mode via `-e HIEROGRAPH_MAVEN_ARGS=-P<PROFILES>` — or those modules are missing from the graph. Ask if the root POM has `<profiles>` with `<modules>`. |
 | `JVM_SETUP` | `manifest` | `jvm` mode only: `manifest` (the `hierograph:manifest` goal, no POM change) or `pom` (bind `create-descriptor` in the POM). Asked in Step 3J. |
 | `PROJECT` | the root `artifactId` | `docker` mode: names the state volume (`hierograph-PROJECT`). |
-| `MCP_PORT` | `8080` | Hierograph MCP HTTP endpoint: `http://localhost:<MCP_PORT>/mcp`. |
+| `MCP_PORT` | `8765` | Port of the Hierograph MCP endpoint on the host: `http://localhost:<MCP_PORT>/mcp`. Keep the default unless the user names a port or 8765 is taken (Step 1). Use it in **every** command below. |
 
 ## The procedure
 
@@ -113,11 +114,23 @@ command. Run the action, then **verify in a separate step**. Long output is fine
   - If the request returns 404 or the release is older than 0.2.0, **stop**: no released version
     supports this setup yet. Tell the user; do not fall back to a `-SNAPSHOT`.
   - If Maven Central is unreachable, ask the user for the version.
+  - **Releases before 0.3.0** listen on 8080 by default and have no `server.properties` and no
+    `server.json`. With such a release, pass `--server.port=MCP_PORT` to the
+    `java -jar` command, map `-p MCP_PORT:8080` in `docker run`, check readiness with
+    `nc -z localhost MCP_PORT` in both modes, and verify with `graph_overview` only.
 - **Choose `RUN_MODE`.** Recommend `docker`: no change to the project, no Hierograph command on the
   host, POM edits handled inside the container. Check `docker version`; if Docker is not available,
   or the user prefers a local process (e.g. for native file watching), use `jvm`.
 - **`jvm` only:** `java -version` → **21+** (the server needs it; the project itself may build with any
   JDK). If not, stop and tell the user — or offer `docker`.
+- **Is a server already running for this project?** Never start a second one: two servers watch and
+  scan the same workspace, and the second one holds another port.
+  - `jvm`: Read `BUILD_ROOT/.hierograph/server.json`. If it exists, a server may be running at its
+    `url`; check with `nc -z localhost <its port>`. If the port answers, skip to Step 5 with that URL.
+    A file whose port doesn't answer is left over from a server that was killed; ignore it.
+  - `docker`: `docker ps` lists a running `hierograph-mcp` container; if it is there, skip to Step 5.
+- **Is `MCP_PORT` free?** `nc -z localhost MCP_PORT` must fail (nothing listening). If something
+  answers, pick another port with the user (for example 8766) and use it as `MCP_PORT`.
 
 ### 2. Make sure the build is green
 
@@ -134,7 +147,9 @@ can be restarted later (replace `ABSOLUTE_BUILD_ROOT`, `ABSOLUTE_HOME`, `PROJECT
 `-e HIEROGRAPH_MAVEN_ARGS=-P<PROFILES>` when the build needs profiles):
 
 ```bash
-docker run -d --name hierograph-mcp -p 8080:8080 \
+docker run -d --name hierograph-mcp -p MCP_PORT:8765 \
+  -e HIEROGRAPH_URL=http://localhost:MCP_PORT/mcp \
+  -e HIEROGRAPH_WORKSPACE=ABSOLUTE_BUILD_ROOT \
   -v ABSOLUTE_BUILD_ROOT:/workspace:ro \
   -v ABSOLUTE_HOME/.m2:/m2:ro \
   -v hierograph-PROJECT:/hierograph \
@@ -148,6 +163,9 @@ docker run -d --name hierograph-mcp -p 8080:8080 \
 - **The state volume** keeps the manifest, the snapshot and downloaded dependencies across restarts.
   It is optional; without it, every start regenerates the manifest first (seconds).
 - Watching uses polling, which works across the mount.
+- Inside the container the server always listens on 8765; `MCP_PORT` is only the host side of the
+  mapping. `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make the server report the URL and the
+  project path as the host sees them.
 - If the pull fails with `unauthorized`, the image may need `docker login ghcr.io`.
 - Nothing needs to go into the project's `.gitignore`: the container writes nothing there.
 
@@ -198,6 +216,14 @@ to the project's `.gitignore`** (manifest, snapshot, logs, the server jar, runti
 the user's file, so ask. Exactly `.hierograph/`, not a pattern like `.hierograph*`: project views live
 beside it in `.hierograph-views/` and are versioned.
 
+**Record the port.** Write `BUILD_ROOT/.hierograph/server.properties` with the Write tool, so every
+later start uses the same port without a command-line argument:
+
+```properties
+# Settings for the Hierograph server of this workspace, read on every start.
+server.port=MCP_PORT
+```
+
 **Start the server.** Download it once into the project's `.hierograph/`, as one plain command
 (replace `VERSION`):
 
@@ -208,8 +234,11 @@ curl -fL --create-dirs -o .hierograph/server/io.hierograph.server-VERSION-exec.j
 Then start it from `BUILD_ROOT` **in the background**:
 
 ```bash
-java -jar .hierograph/server/io.hierograph.server-VERSION-exec.jar --server.port=8080 --hierograph.graph.watch.build-files=regenerate --hierograph.graph.watch.mode=native
+java -jar .hierograph/server/io.hierograph.server-VERSION-exec.jar --hierograph.graph.watch.build-files=regenerate --hierograph.graph.watch.mode=native
 ```
+
+The port comes from `server.properties`. A server that finds another one running for the workspace
+refuses to start and names its URL; use that URL in Step 5 instead.
 
 - `build-files=regenerate`: after a POM edit the server reruns the manifest's own regeneration
   command — the `manifest` goal, or `process-classes` with the POM binding. Leave it out to get
@@ -218,8 +247,16 @@ java -jar .hierograph/server/io.hierograph.server-VERSION-exec.jar --server.port
 
 ### 4. Wait for readiness
 
-A single check, repeated as its own step if needed: `nc -z localhost 8080`. Then read the server
-output (`docker logs hierograph-mcp` in `docker` mode) and confirm these lines:
+A single check, repeated as its own step if needed:
+
+- `jvm`: Read `BUILD_ROOT/.hierograph/server.json`. The server writes it once it is ready to serve;
+  its `url` is what Step 5 registers.
+- `docker`: `nc -z localhost MCP_PORT`.
+
+Then read the server output (`docker logs hierograph-mcp` in `docker` mode) and confirm these lines:
+
+- `Hierograph MCP ready: http://localhost:…/mcp (workspace …, N of M artifacts, K nodes)` — the URL
+  clients connect to, and what the server serves;
 
 - `Scanned N of M declared artifact(s) from manifest …` — M counts each module's main output and,
   with test scanning on (the default), its test output; modules without tests have no compiled test
@@ -233,7 +270,7 @@ output (`docker logs hierograph-mcp` in `docker` mode) and confirm these lines:
 **Claude Code:**
 
 ```bash
-claude mcp add hierograph --transport http http://localhost:8080/mcp
+claude mcp add hierograph --transport http http://localhost:MCP_PORT/mcp
 ```
 
 **Other JSON-config clients** (Claude Desktop, Cursor) — give the user this to add:
@@ -243,7 +280,7 @@ claude mcp add hierograph --transport http http://localhost:8080/mcp
   "mcpServers": {
     "hierograph": {
       "type": "http",
-      "url": "http://localhost:8080/mcp"
+      "url": "http://localhost:MCP_PORT/mcp"
     }
   }
 }
@@ -257,9 +294,9 @@ session** (or after reconnecting via `/mcp`).
 
 - **In this session:** the readiness check and log lines from Step 4 prove build → manifest →
   server end to end. Don't hand-roll the MCP JSON-RPC handshake with `curl`.
-- **After reconnecting:** call `graph_overview`. It returns `stats` (node counts by kind), the
-  top-level `hierarchy` — one entry per module — and `build_state` with `status: "current"` and
-  `build_tool: "maven"`.
+- **After reconnecting:** call `graph_overview`. It returns
+  `stats` (node counts by kind), the top-level `hierarchy` — one entry per module — and
+  `build_state` with `status: "current"` and `build_tool: "maven"`.
 
 Report what is running (mode, server or container, port, how to restart it), that a new session is
 needed before the tools are usable, and how the graph stays current (below).
@@ -313,7 +350,7 @@ There is no rescan step.
 - **Something the watcher can't see** (a profile activated in `settings.xml`, an updated SNAPSHOT
   dependency): rebuild, then call the `reload_graph` tool.
 - **After a restart:** `docker start hierograph-mcp` (the state volume keeps the manifest), or start
-  the server again as in Step 3J.
+  the server again as in Step 3J; it takes its port from `.hierograph/server.properties` again.
 
 ## Handing off
 
@@ -335,5 +372,8 @@ AI starts reading source files instead of querying, nudge it with **"use hierogr
 | `No module of manifest … is compiled yet` | The host build didn't compile | Run the build (Step 2); the server keeps watching and builds the graph when classes appear |
 | A module is missing from `graph_overview` | A profile wasn't passed, or (`pom` setup) the module doesn't inherit the binding | Pass `PROFILES` (`HIEROGRAPH_MAVEN_ARGS` in `docker` mode); use the `manifest` goal |
 | `build_state: "stale"` (`jvm` without `regenerate`) | A POM changed after the last manifest | Rerun the manifest command, or a build reaching `process-classes` with the POM binding |
-| Port 8080 in use | Another process | Choose another `MCP_PORT` (`-p <port>:8080` / `--server.port=…`) and register that URL |
+| The client reports `ECONNREFUSED` | No server listens at the registered URL: it stopped, or it runs on another port | Read `BUILD_ROOT/.hierograph/server.json` (`jvm`) or `docker ps` (`docker`). If a server runs, re-register its `url`; if not, start it as in Step 3. Never start a second server while one runs |
+| `Hierograph is already running for workspace …` | A server for this workspace runs already | Register the URL the message names; stop the running server first only if it must be replaced |
+| `MCP_PORT` in use at start | Another process holds the port | Choose another `MCP_PORT`: `jvm` — change `server.port` in `.hierograph/server.properties`; `docker` — recreate the container with `-p <port>:8765` and `HIEROGRAPH_URL` on that port. Then re-register the URL |
+| Another application of the project can't start because hierograph holds its port | `MCP_PORT` collides with a port the project needs | Stop the server, move it to another port as in the row above, restart it and re-register the URL |
 | `docker run` fails with `name … already in use` | A `hierograph-mcp` container exists from an earlier setup | `docker start hierograph-mcp`, or `docker stop` and remove it before a fresh run |
