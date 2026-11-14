@@ -115,17 +115,36 @@ describe("AsyncTree selection and focus notifications", () => {
     expect(onSelectedIdsChange.mock.lastCall?.[0]).toEqual(["q"]);
   });
 
-  it("first shift-click sets the anchor and selects only that row; second shift-click selects the range", async () => {
+  it("consecutive shift-clicks keep the anchor of the last plain click", async () => {
     const onSelectedIdsChange = vi.fn();
     await renderTree(onSelectedIdsChange);
+    // Plain-clicks p, which becomes the anchor.
     await expandP();
 
     await userEvent.keyboard("{Shift>}");
     await userEvent.click(page.getByText("p.a", { exact: true }));
     await userEvent.keyboard("{/Shift}");
 
-    expect(onSelectedIdsChange.mock.lastCall?.[0]).toEqual(["p.a"]);
+    expect(onSelectedIdsChange.mock.lastCall?.[0]).toEqual(["p", "p.a"]);
 
+    await userEvent.keyboard("{Shift>}");
+    await userEvent.click(page.getByText("p.c", { exact: true }));
+    await userEvent.keyboard("{/Shift}");
+
+    expect(onSelectedIdsChange.mock.lastCall?.[0]).toEqual([
+      "p",
+      "p.a",
+      "p.b",
+      "p.c",
+    ]);
+  });
+
+  it("a plain click sets the anchor; a following shift-click selects the range from it", async () => {
+    const onSelectedIdsChange = vi.fn();
+    await renderTree(onSelectedIdsChange);
+    await expandP();
+
+    await userEvent.click(page.getByText("p.a", { exact: true }));
     await userEvent.keyboard("{Shift>}");
     await userEvent.click(page.getByText("p.c", { exact: true }));
     await userEvent.keyboard("{/Shift}");
@@ -135,6 +154,14 @@ describe("AsyncTree selection and focus notifications", () => {
       "p.b",
       "p.c",
     ]);
+
+    // Re-anchoring on a new plain click: the range now spans from p.c.
+    await userEvent.click(page.getByText("p.c", { exact: true }));
+    await userEvent.keyboard("{Shift>}");
+    await userEvent.click(page.getByText("p.b", { exact: true }));
+    await userEvent.keyboard("{/Shift}");
+
+    expect(onSelectedIdsChange.mock.lastCall?.[0]).toEqual(["p.b", "p.c"]);
   });
 
   it("Shift+ArrowDown extends the selection, Control+Space toggles the focused row", async () => {

@@ -2,6 +2,7 @@ import {
   asyncDataLoaderFeature,
   hotkeysCoreFeature,
   type ItemInstance,
+  type SelectionDataRef,
   selectionFeature,
   type TreeInstance,
 } from "@headless-tree/core";
@@ -434,6 +435,13 @@ export function AsyncTree({
     } else {
       tree.setSelectedItems([id]);
       applyFocusChange(id);
+    }
+    // TreeRow's onClick replaces the library's row click handler, which is
+    // what moves the Shift range anchor. Mirror it: every non-Shift click
+    // re-anchors, so a following Shift-click spans from the clicked row
+    // rather than from a stale anchor.
+    if (!e.shiftKey) {
+      tree.getDataRef<SelectionDataRef>().current.selectUpToAnchorId = id;
     }
   };
 
