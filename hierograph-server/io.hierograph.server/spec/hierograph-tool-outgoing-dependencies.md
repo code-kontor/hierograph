@@ -49,7 +49,7 @@ all matching edges, not just the page: the most-used targets, the busiest source
 types, the kinds of dependency. Most questions ("what does `Invoice` lean on most?")
 are answered by the summary of a one-edge page.
 
-**An open form for "what does X use?".** At the type level the target is optional.
+**An open form for "what does X use?".** The target is optional, at both levels.
 Without it, the tool lists every dependency of the source, to anywhere in the graph,
 including external types.
 
@@ -75,7 +75,7 @@ of view.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `fromId` | node id | yes | — | The depending subtree |
-| `toId` | node id | at detail level | — | The depended-upon subtree |
+| `toId` | node id | no | — | The depended-upon subtree; omitted, the target side is unconstrained |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
 | `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
@@ -98,10 +98,13 @@ questions without listing the whole type.
 **`toId`** restricts the result to dependencies whose target lies in this subtree. It
 is what turns "everything `billing` uses" into "what `billing` uses of `money`". At
 the type level it is optional: omitted, the target side is unconstrained (the
-**open form**). At the detail level it is required, because an unconstrained member
-listing of a package is too large to be useful and the type level already answers the
-open question. `toId` may lie inside `fromId` or equal it; the result is then the
-internal dependencies.
+**open form**). The detail level has the open form too: omitted, it lists every
+member reference of `fromId`, to any type the graph knows. The depending side keeps
+its supertype closure, so code `fromId` inherits is listed and marked `inherited`.
+`to_scope` is then `null`, and `by_target_nodes` drills down from the root, each
+child weighed by its type-level weight from `fromId`. A member listing of a package
+can be large, so ask for the summary first (`limit = 1`). `toId` may lie inside
+`fromId` or equal it; the result is then the internal dependencies.
 
 **`detailLevel`** chooses the level. Only `"type"` and `"detail"` are accepted, case
 sensitive. The type level is the default because it is cheap and usually enough;
@@ -577,12 +580,12 @@ The detail example of §3.4 with `limit = 3`:
 |-------|------|-------------|
 | `nodes` | object | Slim node map: the scopes, the summary nodes and the endpoints of this page |
 | `from_scope` | node id | The depending scope, `fromId` |
-| `to_scope` | node id | The depended-upon scope, `toId` |
+| `to_scope` | node id or `null` | The depended-upon scope, `toId`; `null` in the open form |
 | `edges` | array | This page of member references |
 | `summary` | object | Counts and rankings over all matching rows |
 | `next_cursor` | string | Cursor for the next page; absent on the last page |
 
-**`nodes`** names the two scopes, every node in `by_source_nodes`, `by_target_nodes`
+**`nodes`** names the scopes (one, in the open form), every node in `by_source_nodes`, `by_target_nodes`
 and `by_source_type`, and every `from`, `from_parent`, `to` and `to_parent` on the
 page, and every `receiver`. A member no scanned type declares, which is not a graph
 node, is named by its key and has the kind `"external.member"`: a member of an
@@ -674,7 +677,6 @@ The two levels report errors in different shapes, as described in
 | `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"` | — |
 | `INVALID_PARAMETER` | `relationship` given at the type level | — |
 | `INVALID_PARAMETER` | `parameterPosition` given at the type level, negative, or with a relationship other than `parameter_type` / `parameter_annotated_by` | — |
-| `INVALID_PARAMETER` | `toId` missing at the detail level | — |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node | — |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field | `actual_kind`, `declaring_type` |
 | cursor codes | the cursor is malformed, from another tool, or stale | see [Cursors](hierograph-mcp-tools.md#72-cursors) |

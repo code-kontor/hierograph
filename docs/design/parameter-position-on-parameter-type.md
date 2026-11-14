@@ -2,8 +2,9 @@
 
 Issue: [#3](https://github.com/code-kontor/hierograph/issues/3) ·
 Base: branch `0.3.0` ·
-Status: Part A implemented (branch `wuetherich/parameter-positions-on-parameter-type`,
-not yet merged); Part B proposed ·
+Status: both parts implemented, not yet merged. Part A in #24 (branch
+`wuetherich/parameter-positions-on-parameter-type`), Part B stacked on it (branch
+`wuetherich/parameter-positions-open-form`) ·
 Affects: scanner, snapshot format (version 3), `outgoing_dependencies`,
 `incoming_dependencies`
 
@@ -435,9 +436,11 @@ down to Parquet. The implementation instead treats the open side as
 |------|--------------|-----------|
 | Type set passed to `DetailQueryEngine` | the scope's types (the depending side with its supertypes) | `null`, meaning no constraint |
 | Handle check on each row | endpoint type must be in the scope's handles | endpoint type must merely be known to the GraphStore |
-| Member narrowing | as today | none |
-| `inherited` marking | as today | never inherited on this side |
-| Drill-down summary | as today | drill-down of the root |
+| Member narrowing | as before | none |
+| Supertype closure of the depending side | kept; supertypes in the target scope dropped | open depending side: none. Open target: closure kept, nothing dropped |
+| `inherited` marking | as before | an open depending side has no closure, so no row is inherited |
+| Drill-down summary | as before | drill-down of the root |
+| Weight of a drill-down child | type-level weight to (from) the other scope | sum of the child's accumulated outgoing (incoming) dependencies, its own subtree included, as in the type-level open form |
 | Response scope field | the node id | `null` |
 
 The code changes are the following:
@@ -445,20 +448,31 @@ The code changes are the following:
 - `DetailQuery.fromTypes` becomes nullable. `ParquetReader.readDependencies` and
   `HierarchicalGraphService.derivedDependencies` already treat `null` as
   "unconstrained".
-- `IDetailDependencies.detailDependencies` takes `toId: Long?`. For the incoming
-  direction the tool swaps the arguments, so the nullable side becomes `fromId`.
-  Both parameters therefore become nullable, with at most one of them `null`.
-- The two tools drop the `toId == null` error branch at the detail level. The tool
-  descriptions and specifications drop the sentence "toId is required at detail
-  level".
+- `IDetailDependencies.detailDependencies` takes `fromId: Long?` and `toId: Long?`.
+  For the incoming direction the tool swaps the arguments, so the open side becomes
+  `fromId`. At most one of them is `null`.
+- The two tools drop the `toId == null` error branch at the detail level, and
+  `missingDetailScope` accepts a missing `toId`. The tool descriptions and
+  specifications drop the sentence "toId is required at detail level".
 
-**Cost.** The outgoing open form is cheap, because the push-down runs on the
-sorted `from_type` column and skips row groups. The incoming open form pushes down
-on `to_type`, which is not the sort key, so it reads every row group of every
-snapshot. That is the same cost as a type-level open query on a hub type, paid at
-the detail level. It is still far cheaper than the 66 calls it replaces, but on
-large graphs it can take noticeably longer than a scoped query. The tool
-description should say so, as it already advises `limit = 1` for summaries.
+**The type's own members.** The open form on a type also lists its own members that
+reference it, such as `Money#plus(Money)` for "which methods take `Money` first". The
+candidate workflow misses these unless the type itself is queried as a candidate,
+because a type-level query never lists a type as its own user.
+
+**Cost.** The outgoing open form is cheap, because the push-down runs on the sorted
+`from_type` column and skips row groups. The incoming open form pushes down on
+`to_type`, which is not the sort key, so it reads every row group of every snapshot.
+Measured on the Spring Framework 7.0.8 snapshot, inside the integration-test JVM:
+
+| Query | Rows | Time |
+|-------|-----:|-----:|
+| Incoming open form on `ResourceLoader`, `parameter_type`, position 0 | 44 | 58–174 ms |
+| The same through 63 bounded queries (62 candidate types and the type itself) | 44 | 884–895 ms |
+| Incoming open form on `Assert` (a hub), every relationship, `limit = 1` | 4,223 | 174 ms |
+
+The bounded workflow's time excludes the per-call overhead of 63 MCP round trips,
+which dominates in practice.
 
 ## 5. The motivating query, before and after
 
@@ -466,7 +480,7 @@ description should say so, as it already advises `limit = 1` for summaries.
 |---|---|---|
 | Today | 1 + N + M (66 candidates: about 300) | type-level candidates, a detail query per candidate, `method_details` per method |
 | Part A only | 1 + N (66 candidates: 67) | `parameterPosition = 0` replaces every `method_details` call |
-| Parts A and B | 1 | the open form replaces the candidate step |
+| Parts A and B | 1 | the open form replaces the candidate step (on Spring: 1 call instead of 63 for `ResourceLoader`) |
 
 ## 6. Edge cases
 
@@ -501,6 +515,11 @@ ignore it.
 
 **Memory.** The retained scan result grows by 8 bytes per dependency (§3.8).
 
+**Open form.** A detail-level call without `toId` used to fail with
+`INVALID_PARAMETER`; it now returns results. A client that relied on the error to
+detect the restriction sees results instead. The response's open scope field is
+`null`.
+
 ## 8. Implementation
 
 Part A is implemented as follows:
@@ -519,15 +538,15 @@ Part A is implemented as follows:
 | server | `navigation/GraphOverviewTool.kt` | relationship descriptions |
 | specs | `hierograph-graphstore-format.md` (§4.3, §4.4, §6.5, §7), `hierograph-graphstore-scanner.md`, both tool specs | document the columns, descriptor positions, format 3, the filter and the field |
 
-Part B (proposed):
+Part B is implemented as follows:
 
 | Module | File | Change |
 |--------|------|--------|
 | store | `detail/DetailQueryEngine.kt` | `DetailQuery.fromTypes` nullable |
 | server | `detail/IDetailDependencies.kt` | nullable scope ids |
-| server | `detail/ParquetDetailDependencies.kt` | unconstrained open side (§4.3) |
-| server | both dependency tools | drop the detail-level `toId` error; update descriptions |
-| specs | both tool specs | the open form at detail level; the cost note |
+| server | `detail/ParquetDetailDependencies.kt` | unconstrained open side, root drill-down with accumulated weights, `null` scope field (§4.3) |
+| server | `dependencyanalysis/OutgoingDependenciesTool.kt`, `IncomingDependenciesTool.kt` | drop the detail-level `toId` error; `missingDetailScope` accepts a missing `toId`; descriptions |
+| specs | both tool specs | the open form at detail level, the `null` scope field, the root drill-down, the cost |
 
 ## 9. Tests
 
@@ -575,9 +594,23 @@ fixture's type-level totals unchanged for the other tests):
 has a position, and no other fact has one. At least one method has two facts to the
 same type with different positions, and its facts match its parameters.
 
-**Part B (not yet written):** the detail-level open form returns the same rows as
-the union of the per-candidate queries. `DependencyToolsOptionalToIdTest` changes
-from expecting an error to expecting results.
+The Part B tests are implemented and pass:
+
+- `DependencyToolsOptionalToIdTest`: a detail-level call without `toId` delegates
+  with the open side as `null`, in both directions (incoming swaps the sides), and an
+  unknown `fromId` is still reported.
+- New `DetailOpenFormTest` (server fixture):
+  - The incoming open form returns exactly the union of the per-candidate queries.
+  - With `parameterPosition = 0` it answers the motivating question in one call.
+  - The outgoing open form contains every bounded query's rows and keeps the
+    inherited rows of the supertype closure.
+  - The open side's drill-down starts at the root with positive weights.
+  - The open form pages with a cursor, and its cursor does not continue a bounded
+    query.
+- New `DetailOpenFormIT` (Spring snapshot):
+  - On `ResourceLoader`, the open form equals the union of 63 bounded queries.
+  - On the hub `Assert`, it returns the summaries over 4,223 rows; the timings are
+    in §4.3.
 
 ## 10. Decisions
 
@@ -600,12 +633,19 @@ Resolved by the Part A implementation:
 4. **Store the name in each row.** It costs 3% on disk and 8 bytes per dependency in
    memory, which a position alone would cost as well (§3.8).
 
+Resolved by the Part B implementation:
+
+5. **Two pull requests.** Part B is a separate pull request, stacked on Part A,
+   because it changes a tool contract (nullable scopes, the `null` scope field).
+6. **Open-side weights.** The drill-down of an open side weighs each child against
+   the whole graph by its accumulated dependencies, its own subtree included, the
+   same reading as the type-level open form.
+7. **No cap on the open form.** The incoming open form on a hub stays well under a
+   second on the Spring snapshot, so there is no extra guard beyond the existing page
+   size and the advice to start with `limit = 1`.
+
 Still open:
 
-5. **Ship Part B in the same change?** The parts are independent. Part A is
-   self-contained and low-risk. Part B changes the shape of a public tool contract
-   (nullable scopes, the `null` scope field) and has the cost caveat of §4.3. The
-   recommendation is to ship them as two pull requests, Part A first.
-6. **A `parameterName` filter?** The name is stored, so a name filter is cheap to
+8. **A `parameterName` filter?** The name is stored, so a name filter is cheap to
    add. It is left out until a use case appears, because names depend on compiler
    flags and are less reliable than positions.

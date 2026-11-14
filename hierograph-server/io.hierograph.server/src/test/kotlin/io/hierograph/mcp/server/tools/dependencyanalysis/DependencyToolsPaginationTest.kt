@@ -169,7 +169,7 @@ class DependencyToolsPaginationTest {
         var lastCursor: String? = null
         var lastSpec: PaginationSpec? = null
         override fun detailDependencies(
-            fromId: Long, toId: Long, relationship: String?, limit: Int?, cursor: String?, spec: PaginationSpec, parameterPosition: Int?
+            fromId: Long?, toId: Long?, relationship: String?, limit: Int?, cursor: String?, spec: PaginationSpec, parameterPosition: Int?
         ): Map<String, Any?> {
             lastFrom = fromId
             lastTo = toId
