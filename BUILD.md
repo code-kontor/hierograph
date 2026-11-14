@@ -172,6 +172,8 @@ docker run --rm -p 8765:8765 \
   regenerates the manifest first.
 - `HIEROGRAPH_MAVEN_ARGS` passes extra Maven arguments (e.g. profiles that add modules);
   `HIEROGRAPH_BUILD_FILES` sets the reaction to edited POMs (`regenerate` by default).
+- `HIEROGRAPH_JAVA_OPTS` holds the server's JVM options. The image sets `-Xmx2g`; raise it for a
+  larger reactor, e.g. `-e HIEROGRAPH_JAVA_OPTS=-Xmx4g`.
 - `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the project path
   as the host sees them, instead of the container's own address and `/workspace`. With another host
   port (`-p 9000:8765`), set `HIEROGRAPH_URL` to that port.

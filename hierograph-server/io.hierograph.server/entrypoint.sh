@@ -13,6 +13,7 @@
 #   HIEROGRAPH_URL          the MCP URL as the host reaches it, e.g. http://localhost:8765/mcp; reported by
 #                           server_info and the runtime file instead of the container's own address
 #   HIEROGRAPH_WORKSPACE    the project's path on the host; reported as the workspace instead of /workspace
+#   HIEROGRAPH_JAVA_OPTS    JVM options of the server (the image sets -Xmx2g); not passed to Maven
 # Extra arguments to `docker run … <image> <args>` are passed to the server (e.g. --server.port=9090).
 set -e
 
@@ -40,7 +41,8 @@ SETTINGS=""
 
 REGENERATE="mvn -B -q -f $WORKSPACE/pom.xml -Dmaven.repo.local=$STATE/m2/repository -Dmaven.repo.local.tail=$TAIL $SETTINGS ${HIEROGRAPH_MAVEN_ARGS:-} io.hierograph:hierograph-maven-plugin:$HIEROGRAPH_VERSION:manifest -Dhierograph.manifestDir=$STATE"
 
-exec java -jar /app/app.jar \
+# Unquoted on purpose: the options split into separate arguments.
+exec java ${HIEROGRAPH_JAVA_OPTS:-} -jar /app/app.jar \
   --hierograph.graph.manifest="$STATE/manifest.json" \
   --hierograph.graph.stateDir="$STATE" \
   --hierograph.graph.buildRoot="$WORKSPACE" \

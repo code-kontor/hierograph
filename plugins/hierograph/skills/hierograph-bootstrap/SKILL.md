@@ -4,6 +4,7 @@ description: Set a Maven project up for architectural analysis with the Hierogra
 allowed-tools:
   - Bash(java -version)
   - Bash(java -jar:*)
+  - Bash(java -Xmx2g -jar:*)
   - Bash(mvn:*)
   - Bash(./mvnw:*)
   - Bash(curl -s:*)
@@ -234,7 +235,7 @@ curl -fL --create-dirs -o .hierograph/server/io.hierograph.server-VERSION-exec.j
 Then start it from `BUILD_ROOT` **in the background**:
 
 ```bash
-java -jar .hierograph/server/io.hierograph.server-VERSION-exec.jar --hierograph.graph.watch.build-files=regenerate --hierograph.graph.watch.mode=native
+java -Xmx2g -jar .hierograph/server/io.hierograph.server-VERSION-exec.jar --hierograph.graph.watch.build-files=regenerate --hierograph.graph.watch.mode=native
 ```
 
 The port comes from `server.properties`. A server that finds another one running for the workspace
@@ -243,6 +244,9 @@ refuses to start and names its URL; use that URL in Step 5 instead.
 - `build-files=regenerate`: after a POM edit the server reruns the manifest's own regeneration
   command — the `manifest` goal, or `process-classes` with the POM binding. Leave it out to get
   `build_state: "stale"` reports instead and run the command yourself.
+- `-Xmx2g`: caps the heap at 2 GB. Without it the JVM may grow to a quarter of the machine's
+  memory, although the graph needs far less: a 157-module reactor with about 215,000 nodes holds
+  about 515 MB live and stays under 1.6 GB of heap during a build. For a larger reactor, raise it.
 - `watch.mode=native`: event-driven watching, the faster choice on a local JVM.
 
 ### 4. Wait for readiness

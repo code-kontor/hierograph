@@ -44,6 +44,11 @@ COPY --from=plugin-repository /opt/hierograph/repository /opt/hierograph/reposit
 ENV PATH=/opt/maven/bin:$PATH \
     HIEROGRAPH_VERSION=${HIEROGRAPH_VERSION}
 
+# JVM options of the server, not of Maven: the heap is capped at 2 GB,
+# which a reactor of about 160 modules uses less than 1.6 GB of during
+# a build. Override with -e HIEROGRAPH_JAVA_OPTS=-Xmx4g.
+ENV HIEROGRAPH_JAVA_OPTS=-Xmx2g
+
 COPY ${JAR_FILE} /app/app.jar
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod 755 /app/entrypoint.sh
