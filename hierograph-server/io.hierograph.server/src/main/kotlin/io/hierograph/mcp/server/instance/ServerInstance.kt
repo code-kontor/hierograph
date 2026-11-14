@@ -30,7 +30,8 @@ import java.lang.management.ManagementFactory
 import java.time.Instant
 
 /**
- * The running server's description of itself ([identity]), which the [runtime file][RuntimeFile] holds.
+ * The running server's description of itself: who it is ([identity]) and what it serves right now ([info]).
+ * `server_info` returns [info]; the [runtime file][RuntimeFile] holds [identity].
  *
  * Once the application is ready, the instance writes the runtime file and logs one ready line with the MCP
  * URL; on shutdown it deletes the runtime file again. Both happen only when a web server was started, so a
@@ -105,6 +106,18 @@ class ServerInstance(
             "state_dir" to graphService.stateDirectory.toString(),
             "source" to graphService.sourceSettings(),
         )
+    }
+
+    /**
+     * Everything `server_info` returns: the [identity], and what the server serves right now — the
+     * declared and scanned artifacts, the graph and detail snapshot in service, the build state, and the
+     * runtime file.
+     */
+    fun info(): Map<String, Any?> = LinkedHashMap(identity()).apply {
+        put("artifacts", graphService.artifactStatus())
+        put("snapshot", graphService.snapshotStatus())
+        graphService.buildState()?.let { put("build_state", it) }
+        put("runtime_file", if (wroteRuntimeFile) runtimeFile.path.toString() else null)
     }
 
     @EventListener

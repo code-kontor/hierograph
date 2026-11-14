@@ -127,7 +127,7 @@
                         </goals>
                     </execution>
                     <!-- META-INF/build-info.properties: the version and build time that
-                         the runtime file reports. -->
+                         server_info, the runtime file and the MCP serverInfo report. -->
                     <execution>
                         <id>build-info</id>
                         <goals>
@@ -136,7 +136,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- git.properties: the commit that the runtime file reports.
+            <!-- git.properties: the commit that server_info and the runtime file report.
                  A build outside a git checkout (a source archive) simply has no commit. -->
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>

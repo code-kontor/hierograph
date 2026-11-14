@@ -28,6 +28,13 @@ whole module, so it cannot miss them — provided the view moves exactly the mov
 
 ## The steps
 
+### 0. Check the server
+
+Before the first query, call `server_info` once and compare its `workspace` with the build root
+of the project you are working in. If they differ, the client is connected to another project's
+server: stop and tell the user, rather than answering from that graph. (A server older than 0.3.0
+has no `server_info`; then skip the check.)
+
 ### 1. Enumerate the exact extract-set
 
 Get concrete hierograph nodes for every package and every individual class to be moved. Resolve

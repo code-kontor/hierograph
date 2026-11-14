@@ -251,6 +251,7 @@ relationship vocabulary is listed in the
 | [`method_details`](hierograph-tool-method-details.md) | Entity detail | What is this method's signature? | no |
 | [`field_details`](hierograph-tool-field-details.md) | Entity detail | What is this field, and which methods use it? | no |
 | [`reload_graph`](hierograph-tool-reload-graph.md) | Maintenance | Rebuild the graph from its source now. | no |
+| [`server_info`](hierograph-tool-server-info.md) | Maintenance | Which workspace does this server serve, which build is it, and what has it loaded? | no |
 | [`define_view`](hierograph-tool-define-view.md) | Views | Regroup the hierarchy: store and apply a view document. | no |
 | [`list_views`](hierograph-tool-list-views.md) | Views | Which views are there, and do they apply cleanly? | no |
 | [`get_view`](hierograph-tool-get-view.md) | Views | What does this view define, and what did applying it report? | no |
@@ -287,8 +288,8 @@ argument is allowed.
 Optional numeric limits are clamped to the tool's range, not rejected: a `limit` of
 `0` becomes `1`, a `limit` above the cap becomes the cap.
 
-**`view`.** Every tool that reads the graph — all but `reload_graph` and the view
-tools — takes an optional `view`: the name of a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to answer in. A view
+**`view`.** Every tool that reads the graph — all but `reload_graph`, `server_info` and
+the view tools — takes an optional `view`: the name of a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to answer in. A view
 regroups the hierarchy: its groups are nodes of kind `view.group` above the nodes
 they group, and a group's id is accepted wherever a node id is. Dependencies are the
 same in every view; only where nodes sit changes. The parameter is added to each
@@ -503,16 +504,16 @@ Each tool specification lists its errors and their extra fields.
 ### 8.3 No graph loaded
 
 The server starts even when no graph can be built, for example before the project has
-been compiled. While no graph is loaded, every tool except `reload_graph`, `list_views`,
-`get_view` and `delete_view` returns:
+been compiled. While no graph is loaded, every tool except `reload_graph`, `server_info`,
+`list_views`, `get_view` and `delete_view` returns:
 
 ```json
 { "status": "no_graph_available", "message": "No hierarchical graph is available. …" }
 ```
 
 `status` is stable and meant for programmatic checks. `reload_graph` is exempt because it is the
-way to load a graph once the input exists; the three view tools only read or remove
-documents.
+way to load a graph once the input exists; `server_info` because it describes the server,
+not the graph; the three view tools only read or remove documents.
 
 ---
 

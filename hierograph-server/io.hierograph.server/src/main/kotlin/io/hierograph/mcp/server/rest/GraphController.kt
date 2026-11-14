@@ -29,6 +29,7 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesToo
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
+import io.hierograph.mcp.server.tools.admin.ServerInfoTool
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -47,13 +48,17 @@ class GraphController(
     private val typeDetailsTool: TypeDetailsTool,
     private val methodDetailsTool: MethodDetailsTool,
     private val fieldDetailsTool: FieldDetailsTool,
-    private val reloadGraphTool: ReloadGraphTool
+    private val reloadGraphTool: ReloadGraphTool,
+    private val serverInfoTool: ServerInfoTool,
 ) {
 
     // --- Maintenance ---
 
     @PostMapping("/reload")
     fun reload(): Map<String, Any?> = reloadGraphTool.reloadGraph()
+
+    @GetMapping("/server-info")
+    fun serverInfo(): Map<String, Any?> = serverInfoTool.serverInfo()
 
     // --- Navigation ---
 

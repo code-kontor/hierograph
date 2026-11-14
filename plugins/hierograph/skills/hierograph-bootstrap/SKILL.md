@@ -114,8 +114,8 @@ command. Run the action, then **verify in a separate step**. Long output is fine
   - If the request returns 404 or the release is older than 0.2.0, **stop**: no released version
     supports this setup yet. Tell the user; do not fall back to a `-SNAPSHOT`.
   - If Maven Central is unreachable, ask the user for the version.
-  - **Releases before 0.3.0** listen on 8080 by default and have no `server.properties` and no
-    `server.json`. With such a release, pass `--server.port=MCP_PORT` to the
+  - **Releases before 0.3.0** listen on 8080 by default and have no `server.properties`, no
+    `server.json` and no `server_info`. With such a release, pass `--server.port=MCP_PORT` to the
     `java -jar` command, map `-p MCP_PORT:8080` in `docker run`, check readiness with
     `nc -z localhost MCP_PORT` in both modes, and verify with `graph_overview` only.
 - **Choose `RUN_MODE`.** Recommend `docker`: no change to the project, no Hierograph command on the
@@ -164,7 +164,7 @@ docker run -d --name hierograph-mcp -p MCP_PORT:8765 \
   It is optional; without it, every start regenerates the manifest first (seconds).
 - Watching uses polling, which works across the mount.
 - Inside the container the server always listens on 8765; `MCP_PORT` is only the host side of the
-  mapping. `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make the server report the URL and the
+  mapping. `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the
   project path as the host sees them.
 - If the pull fails with `unauthorized`, the image may need `docker login ghcr.io`.
 - Nothing needs to go into the project's `.gitignore`: the container writes nothing there.
@@ -294,7 +294,9 @@ session** (or after reconnecting via `/mcp`).
 
 - **In this session:** the readiness check and log lines from Step 4 prove build → manifest →
   server end to end. Don't hand-roll the MCP JSON-RPC handshake with `curl`.
-- **After reconnecting:** call `graph_overview`. It returns
+- **After reconnecting:** call `server_info`. Its `workspace` is `BUILD_ROOT`, its `version` is
+  `HIEROGRAPH_VERSION`, and `artifacts.not_compiled` lists the outputs that are declared but not
+  compiled (usually test outputs of modules without tests). Then call `graph_overview`. It returns
   `stats` (node counts by kind), the top-level `hierarchy` — one entry per module — and
   `build_state` with `status: "current"` and `build_tool: "maven"`.
 
