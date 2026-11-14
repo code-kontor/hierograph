@@ -5,35 +5,39 @@ How to work in this repository. Building is described in [BUILD.md](BUILD.md), r
 
 ## Commit messages
 
-Every commit subject starts with a prefix that tells what the commit belongs to:
+A commit that belongs to a GitHub issue starts with the issue number in brackets:
 
 ```
-<prefix>: <subject>
+[#<issue>] <subject>
 ```
 
 ### The rule
 
-1. **A commit that builds a feature is prefixed with the feature's name**, whatever kind of change it is:
-   code, tests, specs, skills, and fixes made before the feature is released.
-2. **Every other commit is prefixed with its kind** (see below).
-3. **Kind words are reserved:** no feature is named `fix`, `perf`, `refactor`, `test`, `docs`, `build` or `chore`.
+1. **A commit that works on an issue starts with `[#<issue>]`**, whatever kind of change it is: code,
+   tests, specs, skills, and fixes.
+2. **A commit without an issue starts with its kind** (see below): `<kind>: <subject>`.
 
-A feature name marks the construction of a feature. Once the feature is released, a fix to it is a
-`fix:` commit. A later extension that is a piece of work of its own gets a feature name of its own.
+Open an issue for every piece of work that changes the product. A commit without an issue is for small
+changes that need no discussion, such as IDE files, a dependency bump or a typo.
 
 ```
-views: Add the view document: format, selectors and resolution
-views: Fix the cache race, new_cycles, define_view's description and view_groups ids
-fix: Fix DSM ordering for container nodes and stale upward dependencies
-perf: Scan class files and signature walks in parallel across all modules
+[#42] Add the view document: format, selectors and resolution
+[#42] Fix the cache race, new_cycles, define_view's description and view_groups ids
+[#57] Fix DSM ordering for container nodes and stale upward dependencies
 chore: Update IntelliJ compiler.xml from Maven reimport
+build: Update Kotlin to 2.2.20
 ```
 
-`git log --oneline --grep '^views:'` lists everything that built a feature, and `--grep '^fix:'` lists
-the fixes outside features.
+`git log --oneline --grep '^\[#42\]'` lists everything that worked on issue 42. GitHub links the
+`#42` to the issue.
 
-A `commit-msg` hook checks the prefix against the kinds and the feature names listed below. Enable it once
-per clone:
+The number goes in brackets because git treats a line that starts with a bare `#` as a comment and
+drops it when you write the message in the editor.
+
+Earlier commits start with a feature name, such as `views:` or `levelized-map:`,
+instead of an issue number.
+
+A `commit-msg` hook checks the subject. Enable it once per clone:
 
 ```
 git config core.hooksPath .githooks
@@ -43,6 +47,8 @@ git config core.hooksPath .githooks
 are not checked.
 
 ### Kinds
+
+A commit without an issue starts with one of these kinds:
 
 | Kind | Explanation |
 |---|---|
@@ -55,14 +61,3 @@ are not checked.
 | `chore` | Housekeeping with no effect on the product, such as IDE files, helper scripts or cleanup |
 
 A commit that would need two kinds is usually two commits.
-
-### Feature names
-
-Feature names are short and lower-case: one word, or kebab-case. A name is chosen when the work starts,
-added to this list in the feature's first commit, and kept for the rest of the feature.
-
-| Feature | Description | Version |
-|---|---|---|
-| `views` | Named regroupings of the hierarchy (multi-modules, layers, contexts) and restructuring views that project module splits and merges; the `view` parameter on the tools, the view tools, and their use in the skills | 0.3.0 |
-| `levelized-map` | The levelized structure map in the structure skill: modules and packages as nested boxes in rows by level, tangles, the dependencies against the levels, and SVG/PNG export | 0.3.0 |
-| `parameter-positions` | The position and name of the parameter on `parameter_type` / `parameter_annotated_by` dependencies, the `parameterPosition` filter of the dependency tools, and their detail-level open form | 0.3.0 |
