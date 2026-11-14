@@ -365,8 +365,10 @@ lookup skip everything but the member's own rows.
 
 **`method_key`** joins a parameter to its member in `members.parquet`.
 
-**`index`** orders the parameters. It counts declared parameters only; the
-implicit `this` of an instance method is not a parameter.
+**`index`** orders the parameters. It is the position in the method's bytecode
+descriptor; the implicit `this` of an instance method is not a parameter. Parameters
+the compiler adds also count: the outer instance of an inner-class constructor is at
+index 0, and an enum constructor takes the constant's name and ordinal first.
 
 **`name`** is taken, in order of preference, from the `MethodParameters` attribute
 (`javac -parameters`), then from the local-variable table (debug information), and
@@ -374,8 +376,8 @@ otherwise falls back to `arg<index>` (`arg0`, `arg1`, …). Named parameters mak
 method details readable and give tool schemas meaningful argument names.
 
 **`annotations`** records which annotations sit on which parameter (`@NonNull` on the
-second, say), which a `parameter_annotated_by` row (§5.3) cannot say because it names
-the method only. Annotation types are FQNs and contain no spaces, so one string column
+second, say), which a `parameter_annotated_by` row (§5.3) also records, in its
+`parameter_index`. Annotation types are FQNs and contain no spaces, so one string column
 holds the list without a nested type.
 
 **`type_fqn`** is the parameter's erased type reduced to its element type, so
@@ -431,8 +433,9 @@ member (or a type) to a member or a type, with its source line. This table answe
 the precise questions the type-level graph cannot: *which* method calls *which*
 method, which code writes a field, where an exception is thrown.
 
-It is sorted by (`from_type`, `from_key`, `to_type`, `to_key`, `relationship`), so
-a query scoped to a set of types reads only the rows of those types.
+It is sorted by (`from_type`, `from_key`, `to_type`, `to_key`, `relationship`,
+`line`, `parameter_index`), so a query scoped to a set of types reads only the rows
+of those types, and rows that differ only by parameter come out in parameter order.
 
 | Column | Type | Null? | Description |
 |--------|------|-------|-------------|
@@ -442,6 +445,8 @@ a query scoped to a set of types reads only the rows of those types.
 | `to_type` | string | no | FQN of the type that owns `to_key`, or the referenced type itself. |
 | `relationship` | string | no | What the reference means (§5.3). |
 | `line` | int32 | yes | Source line of the reference, where meaningful. |
+| `parameter_index` | int32 | yes | For `parameter_type` and `parameter_annotated_by`: the 0-based position of the parameter the row comes from; `null` otherwise. |
+| `parameter_name` | string | yes | The name of that parameter, as in `parameters.parquet`; set exactly when `parameter_index` is. |
 
 **`from_key`** is the precise source of the reference: normally the method or
 field it occurs in. For an annotation on the type itself it is the type's FQN, so
@@ -473,6 +478,15 @@ instruction (`calls`, `reads_field`, `writes_field`) it is the line of that
 instruction. For the relationships that describe a method's signature (`returns`,
 `parameter_type`, `throws`, `raises`) it is the method's first line. It is `null`
 for annotations and field types, and whenever no line information was compiled in.
+
+**`parameter_index`** and **`parameter_name`** identify the parameter behind a
+`parameter_type` or `parameter_annotated_by` row. They equal `index` and `name` of
+that parameter's row in `parameters.parquet`, so the two tables join on (`from_key`,
+`parameter_index`) = (`method_key`, `index`). Both relationships are recorded once
+per parameter, so a method that takes `Money` twice has two `parameter_type` rows
+to `Money`, told apart by position. The name is repeated here so a row is readable on
+its own. Both columns are absent from snapshots written before they existed; a
+reader treats them as `null`.
 
 A detail reference belongs to the archive of the artifact that defines its
 `from_type`.
@@ -586,12 +600,12 @@ erased types of a generic signature are counted under their position's kind
 | `reads_field` | method | field | reads the target field |
 | `writes_field` | method | field | assigns the target field |
 | `returns` | method | type | returns the target type |
-| `parameter_type` | method | type | takes a parameter of the target type (once per distinct type) |
+| `parameter_type` | method | type | takes a parameter of the target type (once per parameter, with its position and name) |
 | `throws` | method | type | declares the target in its `throws` clause |
 | `raises` | method | type | executes `throw new <target>(…)` in its body |
 | `has_type` | field | type | is declared with the target type |
 | `annotated_by` | type, method, field | type | carries the target annotation |
-| `parameter_annotated_by` | method | type | has a parameter carrying the target annotation (once per distinct annotation) |
+| `parameter_annotated_by` | method | type | has a parameter carrying the target annotation (once per parameter and annotation, with the parameter's position and name) |
 
 `throws` and `raises` are complementary. The first is the declared contract; the
 second is what the body actually throws. `raises` records only a freshly
@@ -701,14 +715,14 @@ in artifact `com.example:billing-core:1.4.0` produces, among others, these rows.
 
 **`detail_refs.parquet`**
 
-| from_key | from_type | to_key | to_type | relationship | line |
-|----------|-----------|--------|---------|--------------|-----:|
-| `…Invoice#java.util.List lines` | `…Invoice` | `java.util.List` | `java.util.List` | `has_type` | |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money zero(java.lang.String)` | `…Money` | `calls` | `13` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money add(…Money)` | `…Money` | `calls` | `14` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Invoice#java.util.List lines` | `…Invoice` | `reads_field` | `14` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `com.example.billing.Money` | `com.example.billing.Money` | `returns` | `13` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `java.lang.String` | `java.lang.String` | `parameter_type` | `13` |
+| from_key | from_type | to_key | to_type | relationship | line | parameter_index | parameter_name |
+|----------|-----------|--------|---------|--------------|-----:|----------------:|----------------|
+| `…Invoice#java.util.List lines` | `…Invoice` | `java.util.List` | `java.util.List` | `has_type` | | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money zero(java.lang.String)` | `…Money` | `calls` | `13` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money add(…Money)` | `…Money` | `calls` | `14` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Invoice#java.util.List lines` | `…Invoice` | `reads_field` | `14` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `com.example.billing.Money` | `com.example.billing.Money` | `returns` | `13` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `java.lang.String` | `java.lang.String` | `parameter_type` | `13` | `0` | `currency` |
 
 **`classpath.parquet`**
 

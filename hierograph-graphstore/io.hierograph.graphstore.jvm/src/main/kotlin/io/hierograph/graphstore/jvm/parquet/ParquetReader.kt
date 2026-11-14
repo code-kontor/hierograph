@@ -153,6 +153,9 @@ class ParquetReader {
                     toType = r.string(cols.TO_TYPE),
                     relationship = r.string(cols.RELATIONSHIP),
                     line = r.intOrNull(cols.LINE),
+                    // Absent in snapshots written before parameter positions were recorded.
+                    parameterIndex = if (r.hasColumn(cols.PARAMETER_INDEX)) r.intOrNull(cols.PARAMETER_INDEX) else null,
+                    parameterName = if (r.hasColumn(cols.PARAMETER_NAME)) r.stringOrNull(cols.PARAMETER_NAME) else null,
                 )
             }
             if (rows.isEmpty()) rows else sourceArtifact(source)?.let { a -> rows.map { it.copy(fromArtifact = a) } } ?: rows

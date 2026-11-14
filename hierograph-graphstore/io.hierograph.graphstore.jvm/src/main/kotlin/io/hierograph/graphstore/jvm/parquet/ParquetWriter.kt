@@ -192,15 +192,15 @@ object ParquetWriter {
     }
 
     /**
-     * Writes member-level ("detail") refs to the `detail_refs` table, sorted by `from_type` (then
-     * `from_key`) so a scoped read via [ParquetReader.readDetailRefs] skips row groups. Defaults to
+     * Writes member-level ("detail") refs to the `detail_refs` table, sorted by [DetailRef.ORDER] —
+     * `from_type` first, then `from_key` — so a scoped read via [ParquetReader.readDetailRefs] skips row groups. Defaults to
      * uncompressed (callers that want ZSTD pass it explicitly). The sort runs in parallel; it is stable,
      * so rows equal in all sort keys keep their input order and the file is the same as a sequential write.
      */
     fun writeDetailRefs(dir: Path, refs: List<DetailRef>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
         val cols = ParquetSchema.DetailRefs
         val sorted = refs.toTypedArray()
-            .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship })) }
+            .also { Arrays.parallelSort(it, DetailRef.ORDER) }
             .asList()
         writeTable(dir.resolve(ParquetSchema.DETAIL_REFS_FILE), ParquetSchema.detailRefsSchema(), codec, sorted) { sb, r ->
             sb.setString(cols.FROM_KEY, r.fromKey)
@@ -209,6 +209,8 @@ object ParquetWriter {
             sb.setString(cols.TO_TYPE, r.toType)
             sb.setString(cols.RELATIONSHIP, r.relationship)
             sb.setNullableInt(cols.LINE, r.line)
+            sb.setNullableInt(cols.PARAMETER_INDEX, r.parameterIndex)
+            sb.setNullable(cols.PARAMETER_NAME, r.parameterName)
         }
     }
 

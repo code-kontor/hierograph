@@ -18,6 +18,7 @@ package io.hierograph.graphstore.jvm.parquet
 import dev.hardwood.metadata.CompressionCodec
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ClassFacts
+import io.hierograph.graphstore.jvm.model.DetailRef
 import io.hierograph.graphstore.jvm.model.MemberFacts
 import io.hierograph.graphstore.jvm.model.Ref
 import io.hierograph.graphstore.jvm.model.RefKind
@@ -67,6 +68,38 @@ class ParquetWriterTest {
         ParquetReader().load(dir, store)
         assertThat(store.typeByFqn("com.foo.A")!!.placeholder).isFalse
         assertThat(ParquetReader().readTypeRows(dir, listOf("com.foo.A")).single().modifiers).isNull()
+    }
+
+    @Test
+    fun `detail refs round-trip their parameter position and name, in parameter order`(@TempDir dir: Path) {
+        val m = "com.foo.A#void transfer(com.foo.M,com.foo.M)"
+        // Written out of order: two parameters of one type tie on every key but the position.
+        val refs = listOf(
+            DetailRef(m, "com.foo.A", "com.foo.M", "com.foo.M", "parameter_type", 7, parameterIndex = 1, parameterName = "to"),
+            DetailRef(m, "com.foo.A", "com.foo.M", "com.foo.M", "parameter_type", 7, parameterIndex = 0, parameterName = "from"),
+            DetailRef(m, "com.foo.A", "void", "void", "returns", 7),
+        )
+        ParquetWriter.writeDetailRefs(dir, refs)
+
+        val read = ParquetReader().readDetailRefs(dir)
+        assertThat(read.map { Triple(it.relationship, it.parameterIndex, it.parameterName) }).containsExactly(
+            Triple("parameter_type", 0, "from"),
+            Triple("parameter_type", 1, "to"),
+            Triple("returns", null, null),
+        )
+    }
+
+    @Test
+    fun `a snapshot without the parameter columns reads detail refs with no parameter`(@TempDir dir: Path) {
+        ParquetTestWriter.writeLegacyDetailRefs(
+            dir, listOf(DetailRef("com.foo.A#void m(com.foo.M)", "com.foo.A", "com.foo.M", "com.foo.M", "parameter_type", 3)),
+        )
+
+        val ref = ParquetReader().readDetailRefs(dir).single()
+        assertThat(ref.relationship).isEqualTo("parameter_type")
+        assertThat(ref.line).isEqualTo(3)
+        assertThat(ref.parameterIndex).isNull()
+        assertThat(ref.parameterName).isNull()
     }
 
     @Test

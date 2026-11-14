@@ -62,6 +62,27 @@ class DetailEdgeVocabularyIT {
     }
 
     @Test
+    fun `parameter rows are one per parameter, positioned and named like the members' parameters`() {
+        val parameterRows = all.filter { it.relationship == "parameter_type" || it.relationship == "parameter_annotated_by" }
+        assertThat(parameterRows).allSatisfy {
+            assertThat(it.parameterIndex).isNotNull.matches { i -> i!! >= 0 }
+            assertThat(it.parameterName).isNotBlank()
+        }
+        assertThat(all.filter { it.relationship !in setOf("parameter_type", "parameter_annotated_by") })
+            .allSatisfy { assertThat(it.parameterIndex).isNull() }
+        // Some method takes one type at two positions: two rows to the same target, told apart by position.
+        val repeated = all.filter { it.relationship == "parameter_type" }.groupBy { it.fromKey to it.toType }.values
+            .first { it.size > 1 }
+        assertThat(repeated.map { it.parameterIndex }).doesNotHaveDuplicates()
+        // The rows agree with the member's parameters.
+        val member = reader.readMember(dir, repeated.first().fromKey)!!
+        // (rows are stored in target-type order, so compare them by position)
+        assertThat(all.filter { it.fromKey == member.key && it.relationship == "parameter_type" }
+            .sortedBy { it.parameterIndex }.map { Triple(it.parameterIndex, it.parameterName, it.toType) })
+            .containsExactlyElementsOf(member.parameters.map { Triple(it.index, it.name, it.typeFqn) })
+    }
+
+    @Test
     fun `a method member carries its ordered parameters with resolved types`() {
         // Pick a real method that declares at least one parameter, then read it back with parameters attached.
         val methodWithParams = reader.readAllMembers(dir).first {

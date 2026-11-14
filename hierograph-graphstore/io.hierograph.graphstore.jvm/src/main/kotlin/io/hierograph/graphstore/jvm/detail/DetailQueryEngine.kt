@@ -23,11 +23,14 @@ import java.nio.file.Path
  * A resolved detail-dependency query over a Parquet snapshot. [fromTypes] / [toTypes] are the
  * already-expanded type-FQN sets from [DetailScope] (so inheritance has already been applied);
  * [toTypes] = null leaves the target side unconstrained ("all dependencies of the source").
+ * [parameterIndex] keeps only the rows of the parameter at that 0-based position; since only
+ * `parameter_type` and `parameter_annotated_by` rows carry a position, it implies those relationships.
  */
 data class DetailQuery(
     val fromTypes: Set<String>,
     val toTypes: Set<String>? = null,
     val relationship: String? = null,
+    val parameterIndex: Int? = null,
     val limit: Int = 100,
     val offset: Int = 0,
 )
@@ -60,11 +63,10 @@ class DetailQueryEngine(private val parquetDir: Path) {
 
     fun query(q: DetailQuery): DetailQueryResult {
         val reverseStored = REVERSE[q.relationship]
-        val edges = if (reverseStored != null) reverseEdges(q, reverseStored) else forwardEdges(q)
+        val edges = (if (reverseStored != null) reverseEdges(q, reverseStored) else forwardEdges(q))
+            .let { all -> q.parameterIndex?.let { i -> all.filter { it.parameterIndex == i } } ?: all }
 
-        val sorted = edges.sortedWith(
-            compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship }, { it.line ?: -1 }),
-        )
+        val sorted = edges.sortedWith(DetailRef.ORDER)
 
         val byRelationship = sorted.groupingBy { it.relationship }.eachCount().toSortedMap()
         val bySourceType = sorted.groupingBy { it.fromType }.eachCount()
@@ -92,6 +94,7 @@ class DetailQueryEngine(private val parquetDir: Path) {
                     fromKey = it.toKey, fromType = it.toType,
                     toKey = it.fromKey, toType = it.fromType,
                     relationship = q.relationship!!, line = it.line,
+                    parameterIndex = it.parameterIndex, parameterName = it.parameterName,
                 )
             }
 

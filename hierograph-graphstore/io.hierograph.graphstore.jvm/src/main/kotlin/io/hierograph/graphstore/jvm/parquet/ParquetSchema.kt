@@ -91,6 +91,8 @@ object ParquetSchema {
         const val TO_TYPE = "to_type"
         const val RELATIONSHIP = "relationship" // Hierograph detail vocabulary: calls | reads_field | …
         const val LINE = "line"
+        const val PARAMETER_INDEX = "parameter_index" // parameter_type / parameter_annotated_by only; added later, optional
+        const val PARAMETER_NAME = "parameter_name"   // set exactly when parameter_index is
     }
 
     /**
@@ -154,6 +156,8 @@ object ParquetSchema {
             .string(DetailRefs.TO_TYPE, RepetitionType.REQUIRED)
             .string(DetailRefs.RELATIONSHIP, RepetitionType.REQUIRED)
             .addColumn(DetailRefs.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .addColumn(DetailRefs.PARAMETER_INDEX, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .string(DetailRefs.PARAMETER_NAME, RepetitionType.OPTIONAL)
             .build()
 
     fun classpathSchema(): FileSchema =

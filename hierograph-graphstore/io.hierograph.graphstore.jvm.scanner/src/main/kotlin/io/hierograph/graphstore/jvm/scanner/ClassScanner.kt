@@ -351,6 +351,7 @@ internal object ClassScanner {
                 val isStatic = access and Opcodes.ACC_STATIC != 0
                 val isInterface = this@Visitor.access and Opcodes.ACC_INTERFACE != 0
                 val isAbstract = access and Opcodes.ACC_ABSTRACT != 0
+                val params = parameters(isStatic)
                 members += MemberFacts(
                     key = key,
                     kind = if (name == "<init>") JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD,
@@ -369,18 +370,28 @@ internal object ClassScanner {
                     ),
                     lineFrom = minLine,
                     lineTo = maxLine,
-                    parameters = parameters(isStatic),
+                    parameters = params,
                     bridgeTarget = bridgeTarget,
                 )
 
                 val methodType = Type.getMethodType(descriptor)
                 detail(key, typeTarget(methodType.returnType), "returns", minLine)
-                argumentTypes.map { typeTarget(it) }.distinct().forEach { detail(key, it, "parameter_type", minLine) }
+                // One row per parameter (not per distinct type), each carrying its position and name, so two
+                // parameters of one type are two rows and a caller can ask for a parameter by position. Both
+                // rows come from the same ParameterFacts as `parameters.parquet`, so the tables agree.
+                params.forEach { p ->
+                    detailRefs += DetailRef(key, fqn, p.typeFqn, p.typeFqn, "parameter_type", minLine,
+                        parameterIndex = p.index, parameterName = p.name)
+                }
                 exceptions.forEach { detail(key, JavaNames.fqn(it), "throws", minLine) }
                 raised.forEach { detail(key, it, "raises", minLine) }
                 annotations.forEach { detail(key, typeTarget(it), "annotated_by", null) }
-                parameterAnnotations.values.flatten().map { typeTarget(it) }.distinct()
-                    .forEach { detail(key, it, "parameter_annotated_by", null) }
+                params.forEach { p ->
+                    p.annotations.forEach { a ->
+                        detailRefs += DetailRef(key, fqn, a, a, "parameter_annotated_by", null,
+                            parameterIndex = p.index, parameterName = p.name)
+                    }
+                }
                 detailRefs += bodyRefs
             }
 

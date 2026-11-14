@@ -24,6 +24,8 @@ interface IDetailDependencies {
      *   tool the caller is serving (e.g. `outgoing_dependencies`), so a detail-level cursor is bound
      *   to that tool. The incoming direction passes its own spec and swaps [fromId]/[toId].
      * @param cursor opaque pagination cursor from a previous response, or null to start from the first page.
+     * @param parameterPosition keep only the `parameter_type` / `parameter_annotated_by` rows of the parameter
+     *   at this 0-based position; null for no position filter.
      */
     fun detailDependencies(
         fromId: Long,
@@ -31,6 +33,7 @@ interface IDetailDependencies {
         relationship: String?,
         limit: Int?,
         cursor: String?,
-        spec: PaginationSpec
+        spec: PaginationSpec,
+        parameterPosition: Int? = null,
     ): Map<String, Any?>
 }

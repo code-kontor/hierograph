@@ -292,7 +292,7 @@ detail vocabulary of the snapshot format.
 | `reads_field` | method → field | field read instruction | the instruction's line |
 | `writes_field` | method → field | field write instruction | the instruction's line |
 | `returns` | method → type | method (its return type; `void` included) | the method's first line |
-| `parameter_type` | method → type | distinct parameter type of the method (primitives included) | the method's first line |
+| `parameter_type` | method → type | parameter of the method (primitives included), with its position and name | the method's first line |
 | `throws` | method → type | entry in the method's `throws` clause | the method's first line |
 | `raises` | method → type | `throw new X(…)` in the method's body | the method's first line |
 | `has_type` | field → type | field (its declared type; primitives included) | none |

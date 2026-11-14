@@ -78,6 +78,7 @@ of view.
 | `toId` | node id | at detail level | — | The depended-upon subtree |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
+| `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
 | `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
 
@@ -110,6 +111,14 @@ such as `calls` or `reads_field` (vocabulary in §3.2). A type edge has no singl
 relationship, so passing a `relationship` at the type level is an error rather than
 being silently ignored. An empty string counts as absent.
 
+**`parameterPosition`** keeps the `parameter_type` and `parameter_annotated_by` rows
+of the parameter at this 0-based position, the same position `method_details`
+reports. `relationship = "parameter_type", parameterPosition = 0` answers "which
+methods take this type as their first parameter" in one call. Only these two
+relationships have positions, so without `relationship` the filter selects both, and
+with any other relationship it is an error. It is an error at the type level, where
+an edge sums references of every kind, and when negative.
+
 **`limit`** is the page size. The defaults differ per level because a detail row is
 larger than a type edge. Values are clamped as described in
 [Parameters](hierograph-mcp-tools.md#5-parameters): the caps are 142 type edges and
@@ -117,7 +126,7 @@ larger than a type edge. Values are clamped as described in
 [response budget](hierograph-mcp-tools.md#73-the-response-budget).
 
 **`cursor`** continues a listing. It is bound to `outgoing_dependencies`, to `fromId`,
-`toId`, `detailLevel` and (at the detail level) `relationship`, and to the loaded
+`toId`, `detailLevel` and (at the detail level) `relationship` and `parameterPosition`, and to the loaded
 graph; see [Cursors](hierograph-mcp-tools.md#72-cursors). A type-level cursor passed
 to a detail-level call fails with `STALE_CURSOR_QUERY`. `limit` may change between
 pages.
@@ -208,6 +217,7 @@ Each reference becomes one row:
 | `to_parent` | the type that declares `to`; only when `to` is a member |
 | `relationship` | the meaning of the reference |
 | `location` | the source line, or `null` |
+| `parameter` | for `parameter_type` and `parameter_annotated_by`: the parameter's `position` and `name`; absent otherwise |
 | `inherited` | `true` when a type of the row lies outside its scope's own subtree; absent otherwise |
 
 **Relationships.** The `relationship` filter accepts these values:
@@ -227,6 +237,10 @@ Each reference becomes one row:
 | `read_by` | field → method that reads it | reverse view of `reads_field` |
 | `written_by` | field → method that assigns it | reverse view of `writes_field` |
 | `parameter_annotated_by` | method → an annotation on one of its parameters | snapshot |
+
+`parameter_type` and `parameter_annotated_by` are recorded once per parameter, so a
+method that takes `Money` twice has two `parameter_type` rows to `Money`. Each row
+carries its parameter in the `parameter` field.
 
 The stored relationships are defined in the format specification's
 [member-level relationships](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#53-member-level-relationships-detail_refsrelationship).
@@ -517,6 +531,7 @@ Edge fields:
 | `to_parent` | node id | when `to` is a member | The type that declares `to` |
 | `relationship` | string | always | One of the values in §3.2 |
 | `location` | object or `null` | always | `{"line_number": n}`, or `null` without a line |
+| `parameter` | object | `parameter_type`, `parameter_annotated_by` | `{"position": n, "name": s}`: the 0-based position and name of the parameter, as in `method_details` |
 | `inherited` | boolean | when `true` | The row comes from the inheritance closure (§3.2) |
 
 **`from_parent`** and **`to_parent`** let a caller group rows by type without a lookup.
@@ -531,6 +546,13 @@ is `null` for annotations, field types, methods without code, and classes compil
 without line information (see
 [Line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)).
 The line is what lets a caller open the source at the right place.
+
+**`parameter`** tells the parameters of one method apart: `transfer(Money from, Money
+to)` has two `parameter_type` rows to `Money`, with positions 0 and 1. Positions
+follow the method's bytecode descriptor, so a parameter the compiler adds (the outer
+instance of an inner-class constructor, an enum constructor's name and ordinal) has a
+position too. The name falls back to `arg<position>` when the class was compiled
+without parameter names.
 
 Summary fields:
 
@@ -574,6 +596,7 @@ The two levels report errors in different shapes, as described in
 |------|-----------|--------------|
 | `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"` | — |
 | `INVALID_PARAMETER` | `relationship` given at the type level | — |
+| `INVALID_PARAMETER` | `parameterPosition` given at the type level, negative, or with a relationship other than `parameter_type` / `parameter_annotated_by` | — |
 | `INVALID_PARAMETER` | `toId` missing at the detail level | — |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node | — |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field | `actual_kind`, `declaring_type` |

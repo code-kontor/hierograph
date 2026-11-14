@@ -24,6 +24,12 @@ package io.hierograph.graphstore.jvm.model
  * row is read from a per-artifact snapshot and lets a reader resolve both types in that artifact's
  * context when an FQN is defined more than once, and is `null` when the artifact is not known.
  *
+ * [parameterIndex] and [parameterName] identify the parameter a `parameter_type` or
+ * `parameter_annotated_by` row comes from: its 0-based position (as `ParameterFacts.index`) and its name
+ * (as `ParameterFacts.name`). Both are set exactly for those two relationships, so a method with two
+ * parameters of one type has two rows, told apart by position; both are `null` for every other
+ * relationship and for rows read from a snapshot written before the columns existed.
+ *
  * Prototype note: detail refs are persisted in a dedicated `detail_refs.parquet` so the validated
  * type-level snapshot stays untouched. In the production model these rows merge into the single `refs`
  * table, distinguished by kind (see the "Types vs Type References" model doc); at that point `DetailRef`
@@ -37,4 +43,19 @@ data class DetailRef(
     val relationship: String,
     val line: Int? = null,
     val fromArtifact: String? = null,
-)
+    val parameterIndex: Int? = null,
+    val parameterName: String? = null,
+) {
+    companion object {
+        /**
+         * The total order of detail rows: depending type, depending member, target type, target member,
+         * relationship, line, parameter position. The writer, the query engine and the detail tools all
+         * sort by it, so rows that tie on everything but the parameter position (two parameters of one
+         * type) still come out in a deterministic order.
+         */
+        val ORDER: Comparator<DetailRef> = compareBy(
+            { it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.relationship },
+            { it.line ?: -1 }, { it.parameterIndex ?: -1 },
+        )
+    }
+}

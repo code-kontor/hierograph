@@ -114,6 +114,13 @@ class BytecodeScannerTest {
             package fix;
             public class Box<T extends Comparable<T>> { T value; void put(int slot, @Deprecated T v) { value = v; } }
         """,
+        "fix/Ledger.java" to """
+            package fix;
+            public class Ledger {
+                void transfer(Circle from, Circle to, @Deprecated String memo) {}   // one type at two positions
+                class Entry { Entry(String text) {} }                               // inner: outer instance first
+            }
+        """,
     )
 
     private lateinit var classesDir: Path
@@ -137,7 +144,7 @@ class BytecodeScannerTest {
         assertThat(result.classes.map { it.facts.fqn }).containsExactlyInAnyOrder(
             "fix.package-info", "fix.Base", "fix.Shape", "fix.Circle",
             "fix.Circle\$Nested", "fix.Circle\$Color", "fix.Circle\$Point", "fix.Circle\$Marker",
-            "fix.User", "fix.Animal", "fix.Dog", "fix.Box",
+            "fix.User", "fix.Animal", "fix.Dog", "fix.Box", "fix.Ledger", "fix.Ledger\$Entry",
         )
         assertThat(result.classes.map { it.artifactKey }.toSet()).containsExactly("classes")
 
@@ -169,6 +176,38 @@ class BytecodeScannerTest {
         val put = type("fix.Box").members.single { it.name == "put" }
         assertThat(put.parameters.map { it.annotations }).containsExactly(emptyList(), listOf("java.lang.Deprecated"))
         assertThat(details(put.key, "parameter_annotated_by").map { it.toType }).containsExactly("java.lang.Deprecated")
+    }
+
+    @Test
+    fun `parameter refs are one row per parameter, with its position and name`() {
+        val transfer = type("fix.Ledger").members.single { it.name == "transfer" }
+        assertThat(details(transfer.key, "parameter_type").map { Triple(it.parameterIndex, it.parameterName, it.toType) })
+            .containsExactly(Triple(0, "from", "fix.Circle"), Triple(1, "to", "fix.Circle"), Triple(2, "memo", "java.lang.String"))
+        assertThat(details(transfer.key, "parameter_annotated_by").map { Triple(it.parameterIndex, it.parameterName, it.toType) })
+            .containsExactly(Triple(2, "memo", "java.lang.Deprecated"))
+        // Every other relationship carries no parameter.
+        assertThat(result.detailRefs.filter { it.relationship !in setOf("parameter_type", "parameter_annotated_by") })
+            .allMatch { it.parameterIndex == null && it.parameterName == null }
+    }
+
+    @Test
+    fun `parameter refs agree with the members' parameters`() {
+        for (member in result.classes.flatMap { it.facts.members }.filter { it.parameters.isNotEmpty() }) {
+            assertThat(details(member.key, "parameter_type").map { Triple(it.parameterIndex, it.parameterName, it.toType) })
+                .`as`(member.key)
+                .containsExactlyElementsOf(member.parameters.map { Triple(it.index, it.name, it.typeFqn) })
+        }
+    }
+
+    @Test
+    fun `parameter positions follow the descriptor, synthetic parameters included`() {
+        // A non-static inner class's constructor takes the outer instance first; an enum's takes name and ordinal.
+        val entry = type("fix.Ledger\$Entry").members.single { it.name == "<init>" }
+        assertThat(details(entry.key, "parameter_type").map { it.parameterIndex to it.toType })
+            .containsExactly(0 to "fix.Ledger", 1 to "java.lang.String")
+        val color = type("fix.Circle\$Color").members.single { it.name == "<init>" }
+        assertThat(details(color.key, "parameter_type").map { it.parameterIndex to it.toType })
+            .containsExactly(0 to "java.lang.String", 1 to "int")
     }
 
     @Test

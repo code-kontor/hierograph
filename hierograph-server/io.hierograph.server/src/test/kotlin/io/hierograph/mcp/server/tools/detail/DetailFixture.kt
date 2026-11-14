@@ -45,6 +45,7 @@ import java.nio.file.Files
  *     Money net()                        returns Money; calls Money#plus; calls AbstractDoc#total
  *     Money tax()                        calls Money#times
  *     void validate()                    calls AbstractDoc#render
+ *     void transfer(Money from, @Deprecated Money to)   Money at positions 0 and 1
  * com.example.money.Money                Money plus(Money), Money times(int),
  *                                        @Deprecated int cents (java.lang.Deprecated has no node)
  * ```
@@ -101,6 +102,12 @@ class DetailFixture {
                 MemberFacts("$INVOICE#void <init>()", JavaKinds.CONSTRUCTOR, "void <init>()", "<init>", modifiers = MemberModifiers.pack("public")),
                 method(INVOICE, "void render()"), method(INVOICE, "$MONEY net()"),
                 method(INVOICE, "$MONEY tax()"), method(INVOICE, "void validate()"),
+                method(INVOICE, "void transfer($MONEY,$MONEY)").copy(
+                    parameters = listOf(
+                        ParameterFacts(0, "from", MONEY),
+                        ParameterFacts(1, "to", MONEY, annotations = listOf("java.lang.Deprecated")),
+                    ),
+                ),
             ),
             refs = listOf(
                 Ref(INVOICE, DOC, RefKind.EXTENDS, count = 1),
@@ -135,6 +142,9 @@ class DetailFixture {
         // net() reads the inherited field pages through the subclass, as javac compiles `this.pages`
         DetailRef("$INVOICE#$MONEY net()", INVOICE, "$INVOICE#int pages", INVOICE, "reads_field", 12),
         DetailRef("$MONEY#int cents", MONEY, "java.lang.Deprecated", "java.lang.Deprecated", "annotated_by"),
+        // one parameter_type row per parameter, carrying its position and name
+        DetailRef("$INVOICE#void transfer($MONEY,$MONEY)", INVOICE, MONEY, MONEY, "parameter_type", 40, parameterIndex = 0, parameterName = "from"),
+        DetailRef("$INVOICE#void transfer($MONEY,$MONEY)", INVOICE, MONEY, MONEY, "parameter_type", 40, parameterIndex = 1, parameterName = "to"),
     )
 
     companion object {

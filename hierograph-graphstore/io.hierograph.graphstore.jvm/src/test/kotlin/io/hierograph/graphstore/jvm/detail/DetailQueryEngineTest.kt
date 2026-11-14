@@ -49,6 +49,7 @@ class DetailQueryEngineTest {
         store.applyClass("app", type("com.foo.Base"))
         store.applyClass("app", type("com.foo.Sub", listOf(Ref("com.foo.Sub", "com.foo.Base", RefKind.EXTENDS, count = 1))))
         store.applyClass("app", type("com.foo.Other"))
+        store.applyClass("app", type("com.foo.Api"))
 
         // Member edges.
         ParquetWriter.writeDetailRefs(
@@ -59,6 +60,10 @@ class DetailQueryEngineTest {
                 DetailRef("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#m()V", "com.foo.Base", "calls", 30),
                 // a write into a field of Base, by a method of Other (outside the {Sub,Base} forward scope)
                 DetailRef("com.foo.Other#x()V", "com.foo.Other", "com.foo.Base#f", "com.foo.Base", "writes_field", 40),
+                // Api#p(Other a, @Deprecated Other b): one type at two positions
+                DetailRef("com.foo.Api#p(Other,Other)V", "com.foo.Api", "com.foo.Other", "com.foo.Other", "parameter_type", 50, parameterIndex = 1, parameterName = "b"),
+                DetailRef("com.foo.Api#p(Other,Other)V", "com.foo.Api", "com.foo.Other", "com.foo.Other", "parameter_type", 50, parameterIndex = 0, parameterName = "a"),
+                DetailRef("com.foo.Api#p(Other,Other)V", "com.foo.Api", "java.lang.Deprecated", "java.lang.Deprecated", "parameter_annotated_by", null, parameterIndex = 1, parameterName = "b"),
             ),
         )
         engine = DetailQueryEngine(dir)
@@ -68,7 +73,7 @@ class DetailQueryEngineTest {
     fun `scope expansion includes the subtree and its supertypes`() {
         assertThat(DetailScope.expand(store, "com.foo.Sub")).containsExactlyInAnyOrder("com.foo.Sub", "com.foo.Base")
         assertThat(DetailScope.expand(store, "pkg:app:com.foo"))
-            .containsExactlyInAnyOrder("com.foo.Base", "com.foo.Sub", "com.foo.Other")
+            .containsExactlyInAnyOrder("com.foo.Base", "com.foo.Sub", "com.foo.Other", "com.foo.Api")
     }
 
     @Test
@@ -91,6 +96,26 @@ class DetailQueryEngineTest {
 
         assertThat(result.total).isEqualTo(1)
         assertThat(result.edges.single().fromKey).isEqualTo("com.foo.Base#m()V")
+    }
+
+    @Test
+    fun `parameterIndex keeps the rows of the parameter at that position`() {
+        val from = DetailScope.expand(store, "com.foo.Api")
+
+        val first = engine.query(DetailQuery(fromTypes = from, relationship = "parameter_type", parameterIndex = 0))
+        assertThat(first.edges.map { it.parameterIndex to it.parameterName }).containsExactly(0 to "a")
+
+        // Without a relationship, a position selects the parameter rows of both parameter relationships.
+        val second = engine.query(DetailQuery(fromTypes = from, parameterIndex = 1))
+        assertThat(second.edges.map { it.relationship to it.parameterName })
+            .containsExactly("parameter_type" to "b", "parameter_annotated_by" to "b") // by target type: com.foo.Other < java.lang.Deprecated
+        assertThat(engine.query(DetailQuery(fromTypes = from, parameterIndex = 2)).total).isEqualTo(0)
+    }
+
+    @Test
+    fun `parameter rows of one type come out in parameter order`() {
+        val result = engine.query(DetailQuery(fromTypes = DetailScope.expand(store, "com.foo.Api"), relationship = "parameter_type"))
+        assertThat(result.edges.map { it.parameterIndex }).containsExactly(0, 1)
     }
 
     @Test

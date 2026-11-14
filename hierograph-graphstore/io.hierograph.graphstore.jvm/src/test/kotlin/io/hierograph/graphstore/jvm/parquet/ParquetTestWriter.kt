@@ -78,6 +78,32 @@ object ParquetTestWriter {
         }
     }
 
+    /**
+     * Writes `detail_refs.parquet` in the layout used before the `parameter_index` / `parameter_name`
+     * columns existed (an older snapshot). The rows' parameter fields are not written.
+     */
+    fun writeLegacyDetailRefs(dir: Path, rows: List<io.hierograph.graphstore.jvm.model.DetailRef>) {
+        fun FileSchema.Builder.str(name: String, rep: RepetitionType) =
+            addColumn(name, PhysicalType.BYTE_ARRAY, rep, LogicalType.string())
+        val cols = ParquetSchema.DetailRefs
+        val legacySchema = FileSchema.builder("detail_ref")
+            .str(cols.FROM_KEY, RepetitionType.REQUIRED)
+            .str(cols.FROM_TYPE, RepetitionType.REQUIRED)
+            .str(cols.TO_KEY, RepetitionType.REQUIRED)
+            .str(cols.TO_TYPE, RepetitionType.REQUIRED)
+            .str(cols.RELATIONSHIP, RepetitionType.REQUIRED)
+            .addColumn(cols.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .build()
+        write(dir.resolve(ParquetSchema.DETAIL_REFS_FILE), legacySchema, rows) { sb, r ->
+            sb.setString(cols.FROM_KEY, r.fromKey)
+            sb.setString(cols.FROM_TYPE, r.fromType)
+            sb.setString(cols.TO_KEY, r.toKey)
+            sb.setString(cols.TO_TYPE, r.toType)
+            sb.setString(cols.RELATIONSHIP, r.relationship)
+            sb.setNullableInt(cols.LINE, r.line)
+        }
+    }
+
     fun writeTypes(dir: Path, rows: List<TypeFixture>) {
         write(dir.resolve(ParquetSchema.TYPES_FILE), ParquetSchema.typesSchema(), rows) { sb, t ->
             sb.setString(ParquetSchema.Types.ARTIFACT, t.artifact)

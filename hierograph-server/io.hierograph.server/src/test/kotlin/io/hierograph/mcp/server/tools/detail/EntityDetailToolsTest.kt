@@ -138,7 +138,7 @@ class EntityDetailToolsTest {
     @Test
     fun `type_details counts constructors among the methods and omits declaring_type for a package`() {
         val summary = types.typeDetails(f.id(INVOICE))["member_summary"] as Map<String, Any?>
-        assertThat(summary["method_count"]).isEqualTo(5)
+        assertThat(summary["method_count"]).isEqualTo(6) // <init>, render, net, tax, validate, transfer
         assertThat(summary["constructor_count"]).isEqualTo(1)
         assertThat(error(types.typeDetails(f.id("com.example.money")))).doesNotContainKey("declaring_type")
     }
