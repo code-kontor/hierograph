@@ -66,7 +66,11 @@ class IncomingDependenciesTool(
                 "by the edge list — request a minimal page (limit=1). " +
                 "The summary always includes 'by_target': the fromId types ranked by summed incoming " +
                 "weight (the most heavily used types), computed over the full result set. " +
-                "toId is required at detail level. " +
+                "At detail level, toId is optional too: omit it to return every member-level reference " +
+                "into fromId, from anywhere (from_scope is then null; by_source_nodes drills down from the root). " +
+                "This reads every snapshot's dependencies, so it is slower than a query with toId; with " +
+                "relationship='parameter_type' and parameterPosition=0 it answers 'which methods anywhere take " +
+                "this type as their first parameter' in one call. " +
                 "Detail rows: 'inherited': true marks a row whose depending type is a supertype outside toId — " +
                 "code a toId type inherits, counted as its own (a base class's own references are left out " +
                 "when the base class lies in fromId). 'receiver' appears when the code used a fromId type that " +
@@ -81,7 +85,7 @@ class IncomingDependenciesTool(
         @ToolParam(
             description = "The subtree that does the depending — target side. Optional at type " +
                     "level — omit to return ALL incoming dependencies of fromId (everything that " +
-                    "depends on it, from anywhere). Required at detail level.",
+                    "depends on it, from anywhere), at type or detail level.",
             required = false
         )
         toId: Long?,
@@ -163,19 +167,9 @@ class IncomingDependenciesTool(
             // incoming: edges from toId→fromId (what toId uses of fromId).
             // toId may be null → all incoming dependencies of fromId from anywhere.
             outgoingTool.typeLevelDependencies(fromId, toId, limit, cursor, outgoing = false, spec = TYPE_SPEC)
-        } else if (toId == null) {
-            // detail level requires an explicit depender — the open form is type-level only
-            mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_PARAMETER",
-                    "message" to "toId is required at detailLevel='detail'. The open form " +
-                            "(omitted toId, returning everything that depends on fromId) is supported only at detailLevel='type'.",
-                    "recovery" to "Provide a toId, or set detailLevel='type' to query everything that depends on fromId."
-                )
-            )
         } else {
             // Detail level: swap from/to — detail_dependencies(toId, fromId)
-            // shows edges from toId subtree into fromId subtree
+            // shows edges from toId subtree into fromId subtree; toId may be null → every depender, from anywhere
             outgoingTool.missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
             detailDependenciesTool.detailDependencies(toId, fromId, effectiveRel, limit, cursor, DETAIL_SPEC, parameterPosition)

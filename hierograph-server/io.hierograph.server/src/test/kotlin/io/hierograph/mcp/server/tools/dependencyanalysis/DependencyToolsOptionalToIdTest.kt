@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test
  *
  * - type level, `to_id` provided  -> edges constrained to the to_id subtree
  * - type level, `to_id` omitted    -> ALL outgoing / incoming core dependencies
- * - detail level, `to_id` omitted   -> INVALID_PARAMETER (open form is type-level only)
+ * - detail level, `to_id` omitted   -> delegates with the open side as null
  * - detail level, `to_id` provided  -> delegates to IDetailDependencies
  *
  * The fixture builds a tiny in-memory graph:
@@ -180,18 +180,28 @@ class DependencyToolsOptionalToIdTest {
         assertThat(byTarget.first()["weight"]).isEqualTo(2)
     }
 
-    // -- detail level requires to_id -----------------------------------------
+    // -- detail level: the open form ----------------------------------------
 
     @Test
-    fun `outgoing detail without to_id is rejected`() {
+    fun `outgoing detail without to_id delegates with an open target`() {
         val result = outgoing.outgoingDependencies(pkgAId, null, "detail", null, null, null)
-        assertThat(errorCode(result)).isEqualTo("INVALID_PARAMETER")
+        assertThat(result["detail"]).isEqualTo(true)
+        assertThat(detail.lastFrom).isEqualTo(pkgAId)
+        assertThat(detail.lastTo).isNull()
     }
 
     @Test
-    fun `incoming detail without to_id is rejected`() {
-        val result = incoming.incomingDependencies(b1Id, null, "detail", null, null, null)
-        assertThat(errorCode(result)).isEqualTo("INVALID_PARAMETER")
+    fun `incoming detail without to_id delegates with an open depending side`() {
+        incoming.incomingDependencies(b1Id, null, "detail", null, null, null)
+        // incoming swaps: detailDependencies(toId = null, fromId)
+        assertThat(detail.lastFrom).isNull()
+        assertThat(detail.lastTo).isEqualTo(b1Id)
+    }
+
+    @Test
+    fun `detail without to_id still reports an unknown from_id`() {
+        assertThat(errorCode(outgoing.outgoingDependencies(999999L, null, "detail", null, null, null))).isEqualTo("NODE_NOT_FOUND")
+        assertThat(errorCode(incoming.incomingDependencies(999999L, null, "detail", null, null, null))).isEqualTo("NODE_NOT_FOUND")
     }
 
     @Test
@@ -259,8 +269,8 @@ class DependencyToolsOptionalToIdTest {
         var lastCursor: String? = null
         var lastSpec: PaginationSpec? = null
         override fun detailDependencies(
-            fromId: Long,
-            toId: Long,
+            fromId: Long?,
+            toId: Long?,
             relationship: String?,
             limit: Int?,
             cursor: String?,

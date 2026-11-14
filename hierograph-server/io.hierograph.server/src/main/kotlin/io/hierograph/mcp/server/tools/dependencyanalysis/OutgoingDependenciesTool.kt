@@ -79,7 +79,9 @@ class OutgoingDependenciesTool(
                 "by_source_type summary, not by the edge list — request a minimal page (limit=1). " +
                 "The summary always includes 'by_target': the depended-upon " +
                 "types ranked by summed weight over the full result set (whole graph when toId is " +
-                "omitted, within the toId subtree otherwise). toId is required at detail level. " +
+                "omitted, within the toId subtree otherwise). " +
+                "At detail level, toId is optional too: omit it to return every member-level reference " +
+                "out of fromId, to anywhere (to_scope is then null; by_target_nodes drills down from the root). " +
                 "Detail rows: 'inherited': true marks a row whose depending type is a supertype outside fromId — " +
                 "code a fromId type inherits, counted as its own (a base class's own references are left out " +
                 "when the base class lies in toId). 'receiver' appears when the code used a toId type that only " +
@@ -93,7 +95,7 @@ class OutgoingDependenciesTool(
         fromId: Long,
         @ToolParam(
             description = "Target subtree root ID. Optional at type level — omit to return ALL " +
-                    "outgoing dependencies of fromId (every edge to anywhere). Required at detail level.",
+                    "outgoing dependencies of fromId (every edge to anywhere), at type or detail level.",
             required = false
         )
         toId: Long?,
@@ -173,18 +175,9 @@ class OutgoingDependenciesTool(
 
         return if (level == "type") {
             typeLevelDependencies(fromId, toId, limit, cursor, outgoing = true, spec = TYPE_SPEC)
-        } else if (toId == null) {
-            // detail level requires an explicit target — the open form is type-level only
-            mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_PARAMETER",
-                    "message" to "toId is required at detailLevel='detail'. The open form " +
-                            "(omitted toId, returning all dependencies) is supported only at detailLevel='type'.",
-                    "recovery" to "Provide a toId, or set detailLevel='type' to query all dependencies of fromId."
-                )
-            )
         } else {
             // Check the ids in parameter order, then delegate; the detail engine owns detail-level pagination.
+            // toId may be null → every member-level reference out of fromId, to anywhere.
             missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
             detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC, parameterPosition)
@@ -427,9 +420,9 @@ class OutgoingDependenciesTool(
      * keeps the error the same for both directions: `incoming_dependencies` hands the engine its ids
      * exchanged.
      */
-    internal fun missingDetailScope(fromId: Long, toId: Long): Map<String, Any?>? {
+    internal fun missingDetailScope(fromId: Long, toId: Long?): Map<String, Any?>? {
         val root = graphService.model.hierarchy.rootNode.identifier
-        for (id in listOf(fromId, toId)) {
+        for (id in listOfNotNull(fromId, toId)) {
             if (graphService.model.lookupNode(id) == null && root != id) return nodeNotFound(id)
         }
         return null
