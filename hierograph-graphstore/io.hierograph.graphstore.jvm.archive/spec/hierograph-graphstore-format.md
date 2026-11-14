@@ -375,8 +375,10 @@ lookup skip everything but the member's own rows.
 
 **`method_key`** joins a parameter to its member in `members.parquet`.
 
-**`index`** orders the parameters. It counts declared parameters only; the
-implicit `this` of an instance method is not a parameter.
+**`index`** orders the parameters. It is the position in the method's bytecode
+descriptor; the implicit `this` of an instance method is not a parameter. Parameters
+the compiler adds also count: the outer instance of an inner-class constructor is at
+index 0, and an enum constructor takes the constant's name and ordinal first.
 
 **`name`** is taken, in order of preference, from the `MethodParameters` attribute
 (`javac -parameters`), then from the local-variable table (debug information), and
@@ -384,8 +386,8 @@ otherwise falls back to `arg<index>` (`arg0`, `arg1`, …). Named parameters mak
 method details readable and give tool schemas meaningful argument names.
 
 **`annotations`** records which annotations sit on which parameter (`@NonNull` on the
-second, say), which a `parameter_annotated_by` row (§5.2) cannot say because it names
-the method only. Annotation types are FQNs and contain no spaces, so one string column
+second, say). A `parameter_annotated_by` row (§5.2) records the same in its
+`parameter_index`. Annotation types are FQNs and contain no spaces, so one string column
 holds the list without a nested type.
 
 **`type_fqn`** is the parameter's erased type reduced to its element type, so
@@ -405,8 +407,9 @@ and it is also the source of the type-level graph that Hierograph's structural
 analysis is built on: dependency matrices, layering, cycle detection and impact
 analysis all work on the aggregate a reader rolls up from these rows (§6.4).
 
-It is sorted by (`from_type`, `from_key`, `to_type`, `to_key`, `relationship`), so
-a query scoped to a set of types reads only the rows of those types.
+It is sorted by (`from_type`, `from_key`, `to_type`, `to_key`, `relationship`,
+`line`, `parameter_index`), so a query scoped to a set of types reads only the rows
+of those types, and rows that differ only by parameter come out in parameter order.
 
 | Column | Type | Null? | Description |
 |--------|------|-------|-------------|
@@ -416,6 +419,8 @@ a query scoped to a set of types reads only the rows of those types.
 | `to_type` | string | no | FQN of the type that owns `to_key`, or the referenced type itself. |
 | `relationship` | string | no | What the dependency means (§5.2). |
 | `line` | int32 | yes | Source line of the dependency, where meaningful. |
+| `parameter_index` | int32 | yes | For `parameter_type` and `parameter_annotated_by`: the 0-based position of the parameter the row comes from; `null` for every other relationship. |
+| `parameter_name` | string | yes | The name of that parameter, as in `parameters.parquet`. |
 
 **`from_key`** is the precise source of the dependency: the method or field it
 occurs in, or, for a fact about the type itself (`extends`, `implements`, its own
@@ -450,9 +455,18 @@ method's first line. It
 is `null` for type-level facts, annotations, annotation values, type arguments and
 field types, and whenever no line information was compiled in.
 
+**`parameter_index`** and **`parameter_name`** identify the parameter behind a
+`parameter_type` or `parameter_annotated_by` row. They equal `index` and `name` of
+that parameter's row in `parameters.parquet`, so the two tables join on (`from_key`,
+`parameter_index`) = (`method_key`, `index`), and a positional question ("which
+methods take `Money` as their first parameter") is answered from this table alone.
+The name is repeated here so a row is readable on its own. It is `null` only when an
+annotation names a parameter the descriptor does not have.
+
 Every row is one occurrence: two calls on different lines are two rows, and a method
-`f(Map, Map)` has two `parameter_type` rows. Nothing is filtered: references to the
-type itself, to primitives and to `void` are rows like any other.
+`f(Map, Map)` has two `parameter_type` rows, told apart by `parameter_index`. Nothing
+is filtered: references to the type itself, to primitives and to `void` are rows like
+any other.
 
 ---
 
@@ -640,17 +654,19 @@ one row, a reader can always show the rows behind a weight.
 ### 6.5 Format version
 
 Every table carries the format version in its footer key-value metadata, under
-`hierograph.format.version`. This document describes version `2`.
+`hierograph.format.version`. This document describes version `3`.
 
 A reader rejects an artifact it cannot read correctly. It checks the first two
 rules before it loads anything, and the third as it reads the rows:
 
 - an artifact with a `refs.parquet` or `detail_refs.parquet` table, or whose `types`
   table carries no version, an older one, or one that is not a number, is **stale**.
-  Format 1, the only older format, stored a separate type-level aggregate and a
-  `detail_refs` table that lacked part of the dependencies (among them `extends`,
-  `implements`, casts and class literals). Rolling the aggregate up from such an
-  artifact would give wrong weights, so it has to be **rescanned** from its classes;
+  Format 1 stored a separate type-level aggregate and a `detail_refs` table that
+  lacked part of the dependencies (among them `extends`, `implements`, casts and class
+  literals). Rolling the aggregate up from such an artifact would give wrong weights.
+  Format 2 had no `parameter_index` / `parameter_name` columns, so a query by
+  parameter position would silently miss its rows. Either has to be **rescanned**
+  from its classes;
 - an artifact of a **newer** version needs a newer reader;
 - a row whose value is outside its column's vocabulary — a `types.kind` outside §4.1,
   a `members.kind` outside §4.2, a `dependencies.relationship` outside §5.2 — means a
@@ -715,16 +731,16 @@ in artifact `com.example:billing-core:1.4.0` produces, among others, these rows.
 
 **`dependencies.parquet`**
 
-| from_key | from_type | to_key | to_type | relationship | line |
-|----------|-----------|--------|---------|--------------|-----:|
-| `…Invoice` | `…Invoice` | `java.lang.Object` | `java.lang.Object` | `extends` | |
-| `…Invoice#java.util.List lines` | `…Invoice` | `java.util.List` | `java.util.List` | `has_type` | |
-| `…Invoice#java.util.List lines` | `…Invoice` | `…Invoice$Line` | `…Invoice$Line` | `type_argument` | |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money zero(java.lang.String)` | `…Money` | `calls` | `13` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money add(…Money)` | `…Money` | `calls` | `14` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Invoice#java.util.List lines` | `…Invoice` | `reads_field` | `14` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `com.example.billing.Money` | `com.example.billing.Money` | `returns` | `13` |
-| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `java.lang.String` | `java.lang.String` | `parameter_type` | `13` |
+| from_key | from_type | to_key | to_type | relationship | line | parameter_index | parameter_name |
+|----------|-----------|--------|---------|--------------|-----:|----------------:|----------------|
+| `…Invoice` | `…Invoice` | `java.lang.Object` | `java.lang.Object` | `extends` | | | |
+| `…Invoice#java.util.List lines` | `…Invoice` | `java.util.List` | `java.util.List` | `has_type` | | | |
+| `…Invoice#java.util.List lines` | `…Invoice` | `…Invoice$Line` | `…Invoice$Line` | `type_argument` | | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money zero(java.lang.String)` | `…Money` | `calls` | `13` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Money#…Money add(…Money)` | `…Money` | `calls` | `14` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `…Invoice#java.util.List lines` | `…Invoice` | `reads_field` | `14` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `com.example.billing.Money` | `com.example.billing.Money` | `returns` | `13` | | |
+| `…Invoice#…Money total(java.lang.String)` | `…Invoice` | `java.lang.String` | `java.lang.String` | `parameter_type` | `13` | `0` | `currency` |
 
 From these rows a reader rolls up (§6.4), among others, a dependency from `Invoice`
 to `Money` of weight `3` (one `returns`, two `calls`), and one to `java.lang.Object`

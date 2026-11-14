@@ -195,8 +195,8 @@ object ParquetWriter {
     }
 
     /**
-     * Writes the detail facts to the `dependencies` table, sorted by `from_type`, then `from_key`,
-     * `to_type`, `to_key` and `relationship`, so a scoped read via [ParquetReader.readDependencies] skips
+     * Writes the detail facts to the `dependencies` table, sorted by [Dependency.ORDER] (`from_type`, then
+     * `from_key`, `to_type`, `to_key`, `relationship`, `line` and `parameter_index`), so a scoped read via [ParquetReader.readDependencies] skips
      * the data of other types. Defaults to
      * uncompressed (callers that want ZSTD pass it explicitly). The sort runs in parallel; it is stable,
      * so rows equal in all sort keys keep their input order and the file is the same as a sequential write.
@@ -204,7 +204,7 @@ object ParquetWriter {
     fun writeDependencies(dir: Path, dependencies: List<Dependency>, codec: CompressionCodec = CompressionCodec.UNCOMPRESSED) {
         val cols = ParquetSchema.Dependencies
         val sorted = dependencies.toTypedArray()
-            .also { Arrays.parallelSort(it, compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value })) }
+            .also { Arrays.parallelSort(it, Dependency.ORDER) }
             .asList()
         writeTable(dir.resolve(ParquetSchema.DEPENDENCIES_FILE), ParquetSchema.dependenciesSchema(), codec, sorted) { sb, r ->
             sb.setString(cols.FROM_KEY, r.fromKey)
@@ -213,6 +213,8 @@ object ParquetWriter {
             sb.setString(cols.TO_TYPE, r.toType)
             sb.setString(cols.RELATIONSHIP, r.kind.value)
             sb.setNullableInt(cols.LINE, r.line)
+            sb.setNullableInt(cols.PARAMETER_INDEX, r.parameterIndex)
+            sb.setNullable(cols.PARAMETER_NAME, r.parameterName)
         }
     }
 

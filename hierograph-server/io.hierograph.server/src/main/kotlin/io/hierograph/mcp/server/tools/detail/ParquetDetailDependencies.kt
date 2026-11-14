@@ -66,6 +66,7 @@ class ParquetDetailDependencies(
         limit: Int?,
         cursor: String?,
         spec: PaginationSpec,
+        parameterPosition: Int?,
     ): Map<String, Any?> {
 
         val effectiveRel = relationship?.takeIf { it.isNotBlank() }
@@ -74,6 +75,23 @@ class ParquetDetailDependencies(
                 "INVALID_RELATIONSHIP",
                 "Invalid relationship: '$effectiveRel'. Allowed values: ${RELATIONSHIP_KINDS.joinToString()}.",
                 "Use one of the allowed relationship values, or omit relationship.",
+            )
+        }
+        // A position selects parameter rows: it implies the two parameter relationships when relationship is
+        // omitted, and contradicts any other relationship, whose rows never carry a position.
+        if (parameterPosition != null && parameterPosition < 0) {
+            return errorResponse(
+                "INVALID_PARAMETER",
+                "Invalid parameterPosition: $parameterPosition. Parameter positions are 0-based and never negative.",
+                "Pass 0 for the first parameter, 1 for the second, and so on.",
+            )
+        }
+        if (parameterPosition != null && effectiveRel != null && effectiveRel !in PARAMETER_RELATIONSHIPS) {
+            return errorResponse(
+                "INVALID_PARAMETER",
+                "parameterPosition applies only to the relationships ${PARAMETER_RELATIONSHIPS.joinToString()}; " +
+                    "'$effectiveRel' rows have no parameter position.",
+                "Set relationship to one of ${PARAMETER_RELATIONSHIPS.joinToString()} or omit it, or remove parameterPosition.",
             )
         }
 
@@ -90,7 +108,12 @@ class ParquetDetailDependencies(
         val toNode = resolveNodeOrRoot(toId)
             ?: return errorResponse("NODE_NOT_FOUND", "No node with id $toId exists in the graph.", "Use find_node to look up the correct node ID.")
 
-        val queryHash = QueryHash.of(mapOf("fromId" to fromId, "toId" to toId, "relationship" to effectiveRel, "detailLevel" to "detail"))
+        val queryHash = QueryHash.of(
+            mapOf(
+                "fromId" to fromId, "toId" to toId, "relationship" to effectiveRel, "detailLevel" to "detail",
+                "parameterPosition" to parameterPosition,
+            ),
+        )
 
         // A member scope (method or field) is its declaring type's scope, narrowed below to the rows whose
         // endpoint on that side is the member itself.
@@ -135,10 +158,11 @@ class ParquetDetailDependencies(
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val effectiveKind = effectiveRel?.let { DependencyKind.fromValue(it) }
-        val derived = graphService.derivedDependencies(fromTypes, toTypes, effectiveKind)
+        // Derived rows carry no parameter position, so a position filter leaves none of them.
+        val derived = if (parameterPosition == null) graphService.derivedDependencies(fromTypes, toTypes, effectiveKind) else emptyList()
         val derivedRows = derived.toHashSet()
         val raw = DetailQueryEngine(parquetDir)
-            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind)) + derived
+            .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind, parameterIndex = parameterPosition)) + derived
         val scoped = raw.filter {
             fromTypeNode(it)?.let { n -> handle(n) in fromScopeHandles } == true &&
                 toTypeNode(it)?.let { n -> handle(n) in toScopeHandles } == true &&
@@ -164,7 +188,7 @@ class ParquetDetailDependencies(
         // Sorted as a whole, in the engine's order, so the derived rows take their place among the stored
         // ones rather than trailing them.
         val edges = scoped.filter { it !in derivedRows || it.copy(fromArtifact = null) !in resolvedSites }
-            .sortedWith(ROW_ORDER)
+            .sortedWith(Dependency.ORDER)
 
         // Endpoint id = content-addressed handle: a type by its model node key, a member by its member node.
         fun fromHandle(r: Dependency): Long = fromTypeNode(r)!!.let { if ('#' in r.fromKey) memberHandle(it, r.fromKey) else handle(it) }
@@ -200,6 +224,10 @@ class ParquetDetailDependencies(
                 row["to_parent"] = handle(toTypeNode(ref)!!)
             }
             row["relationship"] = ref.kind.value
+            // Parameter rows name their parameter, with the field names `method_details` uses.
+            ref.parameterIndex?.let { position ->
+                row["parameter"] = linkedMapOf<String, Any?>("position" to position.toLong(), "name" to ref.parameterName)
+            }
             row["location"] = ref.line?.let { mapOf("line_number" to it.toLong()) }
             if (inherited(ref)) row["inherited"] = true
             Row(row, ref)
@@ -414,13 +442,10 @@ class ParquetDetailDependencies(
                 .map { (child, w) -> linkedMapOf<String, Any?>("node" to (child.identifier as Long), "aggregated_weight" to w) }
         }
 
-        /**
-         * The order of the edge list: depending type, depending member, target type, target member,
-         * relationship, line. The same order [DetailQueryEngine] sorts the stored rows in.
-         */
-        private val ROW_ORDER = compareBy<Dependency>({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value }, { it.line ?: -1 })
-
         /** The relationship values accepted by the `relationship` filter: every detail kind, derived ones included. */
         private val RELATIONSHIP_KINDS: Set<String> = DependencyKind.entries.mapTo(linkedSetOf()) { it.value }
+
+        /** The relationships whose rows carry a parameter position, the only ones `parameterPosition` can filter. */
+        private val PARAMETER_RELATIONSHIPS = listOf(DependencyKind.PARAMETER_TYPE.value, DependencyKind.PARAMETER_ANNOTATED_BY.value)
     }
 }

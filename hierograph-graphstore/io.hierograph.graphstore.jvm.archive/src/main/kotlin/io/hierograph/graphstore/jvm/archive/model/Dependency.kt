@@ -27,6 +27,12 @@ package io.hierograph.graphstore.jvm.archive.model
  * defined more than once, and is `null` when the artifact is not known. It is not a column: the archive a
  * row sits in names its artifact.
  *
+ * [parameterIndex] and [parameterName] identify the parameter a [DependencyKind.PARAMETER_TYPE] or
+ * [DependencyKind.PARAMETER_ANNOTATED_BY] fact comes from: its 0-based position in the method descriptor
+ * (as `ParameterFacts.index`) and its name (as `ParameterFacts.name`). Both are set exactly for those two
+ * kinds and `null` for every other, so a method that takes one type twice has two facts that differ only
+ * by position.
+ *
  * The aggregated references of a type (`Ref`) are the rollup of its detail dependencies, see
  * `DependencyRollup` (both in the store module).
  */
@@ -38,4 +44,19 @@ data class Dependency(
     val kind: DependencyKind,
     val line: Int? = null,
     val fromArtifact: String? = null,
-)
+    val parameterIndex: Int? = null,
+    val parameterName: String? = null,
+) {
+    companion object {
+        /**
+         * The total order of detail facts: depending type, depending member, target type, target member,
+         * kind, line, parameter position. The writer, the query engine and the detail tools all sort by
+         * it, so facts that tie on everything but the parameter position (two parameters of one type) still
+         * come out in a deterministic order.
+         */
+        val ORDER: Comparator<Dependency> = compareBy(
+            { it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value },
+            { it.line ?: -1 }, { it.parameterIndex ?: -1 },
+        )
+    }
+}

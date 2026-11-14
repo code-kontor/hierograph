@@ -373,6 +373,7 @@ internal object ClassScanner {
                 val isStatic = access and Opcodes.ACC_STATIC != 0
                 val isInterface = this@Visitor.access and Opcodes.ACC_INTERFACE != 0
                 val isAbstract = access and Opcodes.ACC_ABSTRACT != 0
+                val params = parameters(isStatic)
                 members += MemberFacts(
                     key = key,
                     kind = if (name == "<init>") JavaNodeKind.CONSTRUCTOR else JavaNodeKind.METHOD,
@@ -391,7 +392,7 @@ internal object ClassScanner {
                     ),
                     lineFrom = minLine,
                     lineTo = maxLine,
-                    parameters = parameters(isStatic),
+                    parameters = params,
                     bridgeTarget = bridgeTarget,
                 )
 
@@ -401,11 +402,23 @@ internal object ClassScanner {
 
                 val methodType = Type.getMethodType(descriptor)
                 emitType(key, methodType.returnType, DependencyKind.RETURNS, minLine)
-                argumentTypes.forEach { emitType(key, it, DependencyKind.PARAMETER_TYPE, minLine) }
+                // One fact per parameter, carrying its position and name (the same ParameterFacts as the
+                // `parameters` table), so a caller can ask for a parameter by position.
+                params.forEach { p ->
+                    dependencies += Dependency(key, fqn, p.typeFqn, p.typeFqn, DependencyKind.PARAMETER_TYPE, minLine, artifactKey,
+                        parameterIndex = p.index, parameterName = p.name)
+                }
                 exceptions.forEach { emitInternal(key, it, DependencyKind.THROWS, minLine) }
                 emitTypeArguments(key, genericSignature)
                 annotations.forEach { emitType(key, it, DependencyKind.ANNOTATED_BY, null) }
-                parameterAnnotations.values.flatten().forEach { emitType(key, it, DependencyKind.PARAMETER_ANNOTATED_BY, null) }
+                // One fact per annotation on a parameter, as before, now with the parameter's position and name.
+                parameterAnnotations.forEach { (i, types) ->
+                    types.forEach {
+                        val target = typeTarget(it)
+                        dependencies += Dependency(key, fqn, target, target, DependencyKind.PARAMETER_ANNOTATED_BY, null, artifactKey,
+                            parameterIndex = i, parameterName = params.getOrNull(i)?.name)
+                    }
+                }
                 dependencies += bodyRefs
             }
 

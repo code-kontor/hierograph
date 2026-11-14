@@ -25,11 +25,14 @@ import java.nio.file.Path
  * sets of the caller's scopes, already final: the engine matches a row's `fromType` / `toType` against
  * them and follows no inheritance. Whether a side includes supertypes is the caller's decision;
  * [toTypes] = null leaves the target side unconstrained ("all dependencies of the source").
+ * [parameterIndex] keeps only the facts of the parameter at that 0-based position; only `parameter_type`
+ * and `parameter_annotated_by` facts carry a position, so it implies those kinds.
  */
 data class DetailQuery(
     val fromTypes: Set<String>,
     val toTypes: Set<String>? = null,
     val kind: DependencyKind? = null,
+    val parameterIndex: Int? = null,
 )
 
 /**
@@ -50,9 +53,8 @@ class DetailQueryEngine(private val parquetDir: Path) {
     fun query(q: DetailQuery): List<Dependency> {
         val reverseStored = REVERSE[q.kind]
         val edges = if (reverseStored != null) reverseEdges(q, reverseStored) else forwardEdges(q)
-        return edges.sortedWith(
-            compareBy({ it.fromType }, { it.fromKey }, { it.toType }, { it.toKey }, { it.kind.value }, { it.line ?: -1 }),
-        )
+        val positioned = q.parameterIndex?.let { i -> edges.filter { it.parameterIndex == i } } ?: edges
+        return positioned.sortedWith(Dependency.ORDER)
     }
 
     /** Forward relationships: the scope is the source; `from_type` (sorted) drives row-group skipping. */
@@ -71,6 +73,7 @@ class DetailQueryEngine(private val parquetDir: Path) {
                     fromKey = it.toKey, fromType = it.toType,
                     toKey = it.fromKey, toType = it.fromType,
                     kind = q.kind!!, line = it.line,
+                    parameterIndex = it.parameterIndex, parameterName = it.parameterName,
                 )
             }
 

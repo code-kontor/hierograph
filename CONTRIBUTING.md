@@ -65,3 +65,4 @@ added to this list in the feature's first commit, and kept for the rest of the f
 |---|---|---|
 | `views` | Named regroupings of the hierarchy (multi-modules, layers, contexts) and restructuring views that project module splits and merges; the `view` parameter on the tools, the view tools, and their use in the skills | 0.3.0 |
 | `levelized-map` | The levelized structure map in the structure skill: modules and packages as nested boxes in rows by level, tangles, the dependencies against the levels, and SVG/PNG export | 0.3.0 |
+| `parameter-positions` | The position and name of the parameter on `parameter_type` / `parameter_annotated_by` dependencies, the `parameterPosition` filter of the dependency tools, and (planned) their detail-level open form | 0.3.0 |

@@ -58,6 +58,10 @@ class OutgoingDependenciesTool(
                 "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
                 "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
+                "At detail level, parameter_type and parameter_annotated_by edges carry " +
+                "parameter={position,name}; parameterPosition keeps only the edges of the parameter at that " +
+                "0-based position (e.g. relationship='parameter_type', parameterPosition=0: 'which methods take " +
+                "this type as their first parameter'). " +
                 "At type level each edge carries `kinds`: how many facts of each kind (calls, extends, casts, …) " +
                 "make up its weight; a kind name is also the detail-level relationship that lists those facts. " +
                 "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
@@ -120,7 +124,14 @@ class OutgoingDependenciesTool(
                     "paginating through all of it.",
             required = false
         )
-        cursor: String?
+        cursor: String?,
+        @ToolParam(
+            description = "Detail level only: keep the parameter_type / parameter_annotated_by edges of the " +
+                    "parameter at this 0-based position (0 = first parameter). Without relationship it selects " +
+                    "both parameter relationships; with any other relationship it is an error.",
+            required = false
+        )
+        parameterPosition: Int? = null
     ): Map<String, Any?> {
 
         val level = detailLevel ?: "type"
@@ -132,6 +143,18 @@ class OutgoingDependenciesTool(
                     "code" to "INVALID_PARAMETER",
                     "message" to "Invalid detailLevel: '$level'. Must be 'type' or 'detail'.",
                     "recovery" to "Use 'type' for type-to-type edges or 'detail' for method/field-level edges."
+                )
+            )
+        }
+
+        // ── validate parameterPosition at type level ───────────────────
+        if (level == "type" && parameterPosition != null) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "The 'parameterPosition' parameter is only valid at detailLevel='detail'. " +
+                            "Type-level edges aggregate all references between two types and have no parameter position.",
+                    "recovery" to "Either remove 'parameterPosition', or set detailLevel='detail' to filter parameter edges by position."
                 )
             )
         }
@@ -164,7 +187,7 @@ class OutgoingDependenciesTool(
             // Check the ids in parameter order, then delegate; the detail engine owns detail-level pagination.
             missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
-            detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC)
+            detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC, parameterPosition)
         }
     }
 

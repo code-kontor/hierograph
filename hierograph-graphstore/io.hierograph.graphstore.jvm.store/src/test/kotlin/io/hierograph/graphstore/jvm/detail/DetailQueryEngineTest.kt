@@ -93,6 +93,32 @@ class DetailQueryEngineTest {
     }
 
     @Test
+    fun `parameterIndex keeps the facts of the parameter at that position, in parameter order`(@TempDir other: Path) {
+        val api = "com.foo.Api"
+        val p = "$api#void p(com.foo.Other,com.foo.Other)"
+        ParquetWriter.writeDependencies(
+            other,
+            listOf(
+                Dependency(p, api, "com.foo.Other", "com.foo.Other", DependencyKind.PARAMETER_TYPE, 5, parameterIndex = 1, parameterName = "b"),
+                Dependency(p, api, "com.foo.Other", "com.foo.Other", DependencyKind.PARAMETER_TYPE, 5, parameterIndex = 0, parameterName = "a"),
+                Dependency(p, api, "java.lang.Deprecated", "java.lang.Deprecated", DependencyKind.PARAMETER_ANNOTATED_BY, null, parameterIndex = 1, parameterName = "b"),
+                Dependency(p, api, "void", "void", DependencyKind.RETURNS, 5),
+            ),
+        )
+        val engine = DetailQueryEngine(other)
+        val from = setOf(api)
+
+        assertThat(engine.query(DetailQuery(fromTypes = from, kind = DependencyKind.PARAMETER_TYPE)).map { it.parameterName })
+            .containsExactly("a", "b") // same type twice: ordered by position
+        assertThat(engine.query(DetailQuery(fromTypes = from, kind = DependencyKind.PARAMETER_TYPE, parameterIndex = 0)).map { it.parameterName })
+            .containsExactly("a")
+        // Without a kind, a position selects the facts of both parameter kinds (sorted by target type first).
+        assertThat(engine.query(DetailQuery(fromTypes = from, parameterIndex = 1)).map { it.kind })
+            .containsExactly(DependencyKind.PARAMETER_TYPE, DependencyKind.PARAMETER_ANNOTATED_BY)
+        assertThat(engine.query(DetailQuery(fromTypes = from, parameterIndex = 2))).isEmpty()
+    }
+
+    @Test
     fun `rows are sorted by from type, from key, to type, to key, kind and line`(@TempDir other: Path) {
         val a = "com.foo.A"
         fun row(fromKey: String, toType: String, toKey: String, kind: DependencyKind, line: Int?) =

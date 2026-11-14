@@ -264,7 +264,7 @@ class DependencyToolsOptionalToIdTest {
             relationship: String?,
             limit: Int?,
             cursor: String?,
-            spec: PaginationSpec
+            spec: PaginationSpec, parameterPosition: Int?
         ): Map<String, Any?> {
             lastFrom = fromId
             lastTo = toId
