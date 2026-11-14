@@ -36,8 +36,9 @@ use?". `incoming_dependencies` answers it from the depended-upon side.
 
 **Anchored on the depended-upon side.** `fromId` names the node whose users are
 wanted; `toId`, when given, restricts the users. The open form (no `toId`) lists every
-user from anywhere in the graph. That makes "what depends on X?" one call with one
-id, without knowing in advance where the users are.
+user from anywhere in the graph, at the type level and at the detail level. That makes
+"what depends on X?" one call with one id, without knowing in advance where the users
+are.
 
 **Same edges, other anchor.** The edges point the way the dependency points: `from` is
 always the depending type or member, `to` the depended-upon one. Only the anchor and
@@ -71,7 +72,7 @@ references, where `affected_by` reports reach.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `fromId` | node id | yes | — | The depended-upon subtree |
-| `toId` | node id | at detail level | — | The depending subtree |
+| `toId` | node id | no | — | The depending subtree; omitted, every depender from anywhere |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
 | `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
@@ -91,9 +92,17 @@ to that member, as in
 `fromId = Money#times(int)` lists who calls `times`.
 
 **`toId`** restricts the users to this subtree, turning "what uses `money`" into
-"what does `billing` use of `money`". It is optional at the type level and required at
-the detail level, for the reasons given in
-[`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters).
+"what does `billing` use of `money`". It is optional at both levels. At the detail
+level, the open form lists every member reference into `fromId`, from any type the
+graph knows, the type's own members included: `incoming_dependencies(fromId = Money,
+detailLevel = "detail", relationship = "parameter_type", parameterPosition = 0)` lists
+every method that takes `Money` as its first parameter, `Money#plus(Money)` among
+them, in one call. The open depending side has no supertype closure, so no row is
+`inherited`. `from_scope` is then `null`, and `by_source_nodes` drills down from the
+root, each child weighed by its type-level weight into `fromId`. The open form reads
+every artifact's dependencies, because they are sorted by the depending type, not by
+the target; on the Spring Framework snapshot it takes under 200 ms even for a type with
+4,000 member-level users.
 
 **`detailLevel`**, **`relationship`**, **`parameterPosition`**, **`limit`** and **`cursor`** behave as in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
@@ -343,7 +352,7 @@ the exchanged scopes:
 
 | Field | Reading in `incoming_dependencies` |
 |-------|------------------------------------|
-| `from_scope` | `toId`, the depending scope |
+| `from_scope` | `toId`, the depending scope; `null` in the open form |
 | `to_scope` | `fromId`, the depended-upon scope |
 | `edges[].from`, `from_parent` | the referencing member and its type, on the depender's side |
 | `edges[].to`, `to_parent` | the referenced member or type and, for a member, its declaring type; the row is on the `fromId` side by its `receiver` when that is present |
@@ -355,7 +364,7 @@ the exchanged scopes:
 | `summary.inherited` | the number of rows marked `inherited` |
 | `summary.by_relationship` | rows per relationship; a filtered relationship is present even with 0 |
 | `summary.by_source_type`, `others_count` | the depending types by number of rows, top 10, and how many more exist |
-| `summary.by_source_nodes` | drill-down of `toId`, weighted by type-level weight into `fromId` |
+| `summary.by_source_nodes` | drill-down of `toId` (of the root in the open form), weighted by type-level weight into `fromId` |
 | `summary.by_target_nodes` | drill-down of `fromId`, weighted by type-level weight from `toId` |
 
 **`from_scope`** and **`to_scope`** are the reason a caller can read this response
@@ -374,7 +383,7 @@ All errors use the nested shape with `code`, `message` and `recovery`:
 
 | Code | Situation |
 |------|-----------|
-| `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` or `parameterPosition` given at the type level; `parameterPosition` negative or combined with a non-parameter relationship; `toId` missing at the detail level |
+| `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` or `parameterPosition` given at the type level; `parameterPosition` negative or combined with a non-parameter relationship |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field; carries `actual_kind` and `declaring_type` |
 | cursor codes | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
@@ -401,6 +410,12 @@ While no graph is loaded the tool returns the
 `incoming_dependencies(fromId = 4720, limit = 1)`. `total` is the number of using
 edges, `by_source_type` names the main users and `by_target` the most-used types of
 the package.
+
+**Find the members that use X.** Add `detailLevel = "detail"` to the open form, with a
+`relationship` (and for parameters a `parameterPosition`) to narrow it:
+`incoming_dependencies(fromId = 4730, detailLevel = "detail", relationship =
+"parameter_type", parameterPosition = 0)` lists the methods that take `Money` first,
+wherever they are.
 
 **Check for subclasses.** Read `by_attribute.is_extends` and `is_implements` in the
 same summary. A non-zero count means some users inherit from the anchor and will

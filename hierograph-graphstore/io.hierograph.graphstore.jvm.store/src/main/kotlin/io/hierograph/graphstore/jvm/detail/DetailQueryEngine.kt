@@ -24,12 +24,14 @@ import java.nio.file.Path
  * A resolved detail-dependency query over a Parquet snapshot. [fromTypes] / [toTypes] are the type-FQN
  * sets of the caller's scopes, already final: the engine matches a row's `fromType` / `toType` against
  * them and follows no inheritance. Whether a side includes supertypes is the caller's decision;
- * [toTypes] = null leaves the target side unconstrained ("all dependencies of the source").
+ * [toTypes] = null leaves the target side unconstrained ("all dependencies of the source"), and
+ * [fromTypes] = null the depending side ("everything that depends on the target"); at most one of them
+ * is meant to be null, since leaving both open reads the whole table.
  * [parameterIndex] keeps only the facts of the parameter at that 0-based position; only `parameter_type`
  * and `parameter_annotated_by` facts carry a position, so it implies those kinds.
  */
 data class DetailQuery(
-    val fromTypes: Set<String>,
+    val fromTypes: Set<String>?,
     val toTypes: Set<String>? = null,
     val kind: DependencyKind? = null,
     val parameterIndex: Int? = null,

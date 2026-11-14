@@ -45,8 +45,9 @@ import org.springframework.stereotype.Component
  * plus the load-derived edges, and maps them into the response shape using content-addressed
  * [NodeHandle]s for every endpoint.
  *
- * Scopes are containers (root / module / package / type). A method or field as scope contains no
- * type and yields an empty result. Endpoint ids line up with `find_node` / `list_children`: members
+ * Scopes are containers (root / module / package / type), or a method or field, which narrows its declaring
+ * type's rows to that member. One side may be open (`null`): the open form lists the dependencies of the other
+ * side from or to anywhere, and its summaries weigh the open side's drill-down against the whole graph. Endpoint ids line up with `find_node` / `list_children`: members
  * are hierarchy nodes, so a member endpoint is its (artifact-scoped) member node's handle; only
  * members of unscanned owners fall back to a stable but non-navigable `NodeHandle.of(memberKey)`
  * (see [HierarchicalGraphService.memberHandle]).
@@ -60,8 +61,8 @@ class ParquetDetailDependencies(
     private val log = LoggerFactory.getLogger(ParquetDetailDependencies::class.java)
 
     override fun detailDependencies(
-        fromId: Long,
-        toId: Long,
+        fromId: Long?,
+        toId: Long?,
         relationship: String?,
         limit: Int?,
         cursor: String?,
@@ -103,10 +104,16 @@ class ParquetDetailDependencies(
             )
         val parquetDir = readyDetailDir() ?: return detailRebuilding()
 
-        val fromNode = resolveNodeOrRoot(fromId)
-            ?: return errorResponse("NODE_NOT_FOUND", "No node with id $fromId exists in the graph.", "Use find_node to look up the correct node ID.")
-        val toNode = resolveNodeOrRoot(toId)
-            ?: return errorResponse("NODE_NOT_FOUND", "No node with id $toId exists in the graph.", "Use find_node to look up the correct node ID.")
+        require(fromId != null || toId != null) { "at most one scope may be open" }
+        // A null id is the open side: unconstrained, so it has no node.
+        val fromNode = fromId?.let {
+            resolveNodeOrRoot(it)
+                ?: return errorResponse("NODE_NOT_FOUND", "No node with id $it exists in the graph.", "Use find_node to look up the correct node ID.")
+        }
+        val toNode = toId?.let {
+            resolveNodeOrRoot(it)
+                ?: return errorResponse("NODE_NOT_FOUND", "No node with id $it exists in the graph.", "Use find_node to look up the correct node ID.")
+        }
 
         val queryHash = QueryHash.of(
             mapOf(
@@ -117,23 +124,28 @@ class ParquetDetailDependencies(
 
         // A member scope (method or field) is its declaring type's scope, narrowed below to the rows whose
         // endpoint on that side is the member itself.
-        val fromMember = memberKeyOf(fromNode)
-        val toMember = memberKeyOf(toNode)
+        val fromMember = fromNode?.let { memberKeyOf(it) }
+        val toMember = toNode?.let { memberKeyOf(it) }
         // Only the depending side is extended by its supertypes: what a type inherits is code it runs. The
         // target side stays the scope's own types; dispatch into it comes from the load-derived virtual calls.
-        val ownFromScope = typeNodesIn(scopeOf(fromNode))
-        val toScope = typeNodesIn(scopeOf(toNode))
+        // An open side has no scope (null): it constrains nothing.
+        val ownFromScope = fromNode?.let { typeNodesIn(scopeOf(it)) }
+        val toScope = toNode?.let { typeNodesIn(scopeOf(it)) }
         // A supertype that lies in the target scope contributes nothing: its code only references the target,
         // so its rows describe the target's internals, never a use of the target by the source. It is dropped
-        // after the closure is taken, so supertypes reached through it (outside the target) still count.
-        val ownFromIds = ownFromScope.mapTo(HashSet()) { it.identifier }
-        val toIds = toScope.mapTo(HashSet()) { it.identifier }
-        val fromScope = withSupertypes(ownFromScope).filter { it.identifier in ownFromIds || it.identifier !in toIds }
-        val fromTypes = fromScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
-        val toTypes = toScope.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
-        // The depending scope's own types, without the supertypes the closure adds: a row outside them is inherited.
-        val ownFromTypes = ownFromScope.mapTo(HashSet()) { NodeMetadata.getQualifiedName(it) }
-        if (fromTypes.isEmpty() || toTypes.isEmpty()) {
+        // after the closure is taken, so supertypes reached through it (outside the target) still count. With
+        // an open target, no supertype is dropped.
+        val toIds = toScope?.mapTo(HashSet()) { it.identifier }
+        val fromScope = ownFromScope?.let { own ->
+            val ownFromIds = own.mapTo(HashSet()) { it.identifier }
+            withSupertypes(own).filter { it.identifier in ownFromIds || toIds == null || it.identifier !in toIds }
+        }
+        val fromTypes = fromScope?.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
+        val toTypes = toScope?.mapTo(linkedSetOf()) { NodeMetadata.getQualifiedName(it) }
+        // The depending scope's own types, without the supertypes the closure adds: a row outside them is
+        // inherited. An open depending side has no closure, so none of its rows is inherited.
+        val ownFromTypes = ownFromScope?.mapTo(HashSet()) { NodeMetadata.getQualifiedName(it) }
+        if (fromTypes?.isEmpty() == true || toTypes?.isEmpty() == true) {
             // Even an empty result honours the cursor contract: a malformed or stale cursor is an error.
             if (cursor != null) {
                 val check = Paginator.paginate(emptyList<Any>(), spec, queryHash, dataHashProvider.dataHash, cursor, limit)
@@ -153,8 +165,9 @@ class ParquetDetailDependencies(
         fun memberHandle(owner: Node, key: String): Long =
             store.memberOf(owner, key)?.let { handle(it) } ?: graphService.memberHandle(key)
         // The scopes' type nodes (the depending side with its closure): a row of a same-FQN type in another artifact is not in scope.
-        val fromScopeHandles = fromScope.mapTo(HashSet()) { it.identifier as Long }
-        val toScopeHandles = toScope.mapTo(HashSet()) { it.identifier as Long }
+        // An open side accepts any type the GraphStore knows.
+        val fromScopeHandles = fromScope?.mapTo(HashSet()) { it.identifier as Long }
+        val toScopeHandles = toScope?.mapTo(HashSet()) { it.identifier as Long }
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val effectiveKind = effectiveRel?.let { DependencyKind.fromValue(it) }
@@ -164,8 +177,8 @@ class ParquetDetailDependencies(
         val raw = DetailQueryEngine(parquetDir)
             .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind, parameterIndex = parameterPosition)) + derived
         val scoped = raw.filter {
-            fromTypeNode(it)?.let { n -> handle(n) in fromScopeHandles } == true &&
-                toTypeNode(it)?.let { n -> handle(n) in toScopeHandles } == true &&
+            fromTypeNode(it)?.let { n -> fromScopeHandles == null || handle(n) in fromScopeHandles } == true &&
+                toTypeNode(it)?.let { n -> toScopeHandles == null || handle(n) in toScopeHandles } == true &&
                 (fromMember == null || it.fromKey == fromMember) && (toMember == null || it.toKey == toMember)
         }
 
@@ -199,7 +212,7 @@ class ParquetDetailDependencies(
         // --- summaries over the full (filtered) set ---------------------------------------
         val byRelationship = sortedMapOf<String, Int>()
         val sourceTypeCounts = LinkedHashMap<Long, Int>()
-        fun inherited(e: Dependency) = e.fromType !in ownFromTypes
+        fun inherited(e: Dependency) = ownFromTypes != null && e.fromType !in ownFromTypes
         val inheritedCount = edges.count(::inherited)
         for (e in edges) {
             byRelationship.merge(e.kind.value, 1, Int::plus)
@@ -245,12 +258,19 @@ class ParquetDetailDependencies(
         val enricher = DetailEnricher(store, parquetDir)
         val display = enricher.nodesFor(page.items.map { it.ref })
         val hierarchy = graphService.model.hierarchy
-        val bySourceNodes = drillDown(hierarchy, fromNode) { child -> hierarchy.getAggregatedDependency(child, toNode)?.aggregatedWeight ?: 0 }
-        val byTargetNodes = drillDown(hierarchy, toNode) { child -> hierarchy.getAggregatedDependency(fromNode, child)?.aggregatedWeight ?: 0 }
+        // An open side drills down from the root and weighs against the whole graph: a child's weight to (or
+        // from) anywhere is the sum of its accumulated outgoing (incoming) dependencies, its own subtree included,
+        // as in the type-level open form.
+        fun weightTo(child: HGNode): Int = toNode?.let { hierarchy.getAggregatedDependency(child, it)?.aggregatedWeight ?: 0 }
+            ?: hierarchy.accumulatedOutgoing(child).sumOf { it.weight }
+        fun weightFrom(child: HGNode): Int = fromNode?.let { hierarchy.getAggregatedDependency(it, child)?.aggregatedWeight ?: 0 }
+            ?: hierarchy.accumulatedIncoming(child).sumOf { it.weight }
+        val bySourceNodes = drillDown(hierarchy, fromNode ?: hierarchy.rootNode, ::weightTo)
+        val byTargetNodes = drillDown(hierarchy, toNode ?: hierarchy.rootNode, ::weightFrom)
 
         val nodes = linkedMapOf<String, Any>()
-        putSlimNode(nodes, fromNode)
-        putSlimNode(nodes, toNode)
+        fromNode?.let { putSlimNode(nodes, it) }
+        toNode?.let { putSlimNode(nodes, it) }
         for (entry in bySourceNodes + byTargetNodes) {
             graphService.model.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
         }
@@ -280,8 +300,8 @@ class ParquetDetailDependencies(
 
         val result = linkedMapOf<String, Any?>(
             "nodes" to nodes,
-            "from_scope" to fromNode.identifier,
-            "to_scope" to toNode.identifier,
+            "from_scope" to fromNode?.identifier,
+            "to_scope" to toNode?.identifier,
             "edges" to returnedEdges,
             "summary" to summary,
         )
@@ -392,14 +412,14 @@ class ParquetDetailDependencies(
         return if (root.identifier.let { it is Long && it == nodeId }) root else null
     }
 
-    private fun emptyResult(fromNode: HGNode, toNode: HGNode, effectiveRel: String?): Map<String, Any?> {
+    private fun emptyResult(fromNode: HGNode?, toNode: HGNode?, effectiveRel: String?): Map<String, Any?> {
         val nodes = linkedMapOf<String, Any>()
-        putSlimNode(nodes, fromNode)
-        putSlimNode(nodes, toNode)
+        fromNode?.let { putSlimNode(nodes, it) }
+        toNode?.let { putSlimNode(nodes, it) }
         return linkedMapOf(
             "nodes" to nodes,
-            "from_scope" to fromNode.identifier,
-            "to_scope" to toNode.identifier,
+            "from_scope" to fromNode?.identifier,
+            "to_scope" to toNode?.identifier,
             "edges" to emptyList<Any>(),
             "summary" to linkedMapOf<String, Any?>(
                 "total" to 0, "returned" to 0, "truncated" to false, "inherited" to 0,
