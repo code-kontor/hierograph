@@ -251,8 +251,8 @@ name is taken from the first of these sources that has it:
 2. the local-variable table, written when debug information is compiled in;
 3. otherwise `arg<index>`.
 
-The `annotations` say which parameter an annotation sits on, which the
-`parameter_annotated_by` facts (§5.4) cannot, since they name only the method.
+The `annotations` say which parameter an annotation sits on; the
+`parameter_annotated_by` facts (§5.4) say the same through their parameter position.
 
 ### 5.4 Detail facts
 
@@ -266,11 +266,11 @@ has one, a line. Type-level facts use the class's FQN as their source.
 | `extends` | class → type | superclass (one per class) | none |
 | `implements` | class → type | implemented interface, or extended interface of an interface | none |
 | `annotated_by` | class, method or field → type | annotation on the element | none |
-| `parameter_annotated_by` | method → type | annotation on one of the method's parameters | none |
+| `parameter_annotated_by` | method → type | annotation on one of the method's parameters, with that parameter's position and name | none |
 | `annotation_value` | class, method or field → type | enum constant, class value or nested annotation used as an annotation value on the element, including an annotation element's default value and the values of parameter annotations | none |
 | `type_argument` | class, method or field → type | type that appears inside a generic signature's type arguments or bounds (`List<Money>` → `Money`; `<T extends Money>` → `Money`) | none |
 | `has_type` | field → type | field (its declared type; primitives included) | none |
-| `parameter_type` | method → type | parameter of the method (primitives included) | the method's first line |
+| `parameter_type` | method → type | parameter of the method (primitives included), with its position and name | the method's first line |
 | `returns` | method → type | method (its return type; `void` included) | the method's first line |
 | `throws` | method → type | entry in the method's `throws` clause | the method's first line |
 | `calls` | method → method | call instruction (`invokevirtual`, `invokestatic`, `invokespecial`, `invokeinterface`), naming the call's owner type and the called signature; and the implementation method of a lambda or method reference | the call's line |
@@ -286,7 +286,9 @@ The rules that apply to every kind:
 
 - **One fact per occurrence.** Two calls on different lines are two facts, a method
   `f(Map, Map)` has two `parameter_type` facts, and two annotated parameters give two
-  `parameter_annotated_by` facts.
+  `parameter_annotated_by` facts. The parameter facts carry the parameter's
+  position and name, the same as its `ParameterFacts`, so facts of one type at two
+  positions stay apart.
 - **Element types.** The target of a reference to an array type is its element type:
   a `Money[][]` parameter is a `parameter_type` fact to `Money`.
 - **Nothing is filtered.** Primitives, `void` and references to the class itself are

@@ -43,9 +43,11 @@ object ParquetSchema {
     /**
      * The format version this code writes and reads. Version 2 holds every dependency as a detail row in
      * [DEPENDENCIES_FILE]; the aggregate is rolled up from it at load. Version 1 (unmarked) had a separate
-     * `refs.parquet` aggregate and an incomplete `detail_refs.parquet`.
+     * `refs.parquet` aggregate and an incomplete `detail_refs.parquet`. Version 3 adds the parameter
+     * position and name of `parameter_type` / `parameter_annotated_by` rows to [DEPENDENCIES_FILE]; a
+     * version 2 artifact has none, so a position query would miss its rows, and it has to be rescanned.
      */
-    const val FORMAT_VERSION = 2
+    const val FORMAT_VERSION = 3
 
     /** The dependency tables of format version 1. An artifact that still has one is stale and must be rescanned. */
     val FORMAT_1_FILES = listOf("refs.parquet", "detail_refs.parquet")
@@ -93,6 +95,8 @@ object ParquetSchema {
         const val TO_TYPE = "to_type"
         const val RELATIONSHIP = "relationship" // DependencyKind.value: extends | calls | casts | …
         const val LINE = "line"
+        const val PARAMETER_INDEX = "parameter_index" // parameter_type / parameter_annotated_by only (format 3)
+        const val PARAMETER_NAME = "parameter_name"   // set exactly when parameter_index is
     }
 
     /**
@@ -149,6 +153,8 @@ object ParquetSchema {
             .string(Dependencies.TO_TYPE, RepetitionType.REQUIRED)
             .string(Dependencies.RELATIONSHIP, RepetitionType.REQUIRED)
             .addColumn(Dependencies.LINE, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .addColumn(Dependencies.PARAMETER_INDEX, PhysicalType.INT32, RepetitionType.OPTIONAL)
+            .string(Dependencies.PARAMETER_NAME, RepetitionType.OPTIONAL)
             .build()
 
     fun classpathSchema(): FileSchema =

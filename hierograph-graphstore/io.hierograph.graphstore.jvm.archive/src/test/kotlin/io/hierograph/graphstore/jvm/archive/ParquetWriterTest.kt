@@ -105,6 +105,24 @@ class ParquetWriterTest {
     }
 
     @Test
+    fun `dependencies round-trip their parameter position and name, in parameter order`(@TempDir dir: Path) {
+        val m = "com.foo.A#void transfer(com.foo.M,com.foo.M)"
+        // Written out of order: two parameters of one type tie on every key but the position.
+        val rows = listOf(
+            Dependency(m, "com.foo.A", "com.foo.M", "com.foo.M", DependencyKind.PARAMETER_TYPE, 7, parameterIndex = 1, parameterName = "to"),
+            Dependency(m, "com.foo.A", "com.foo.M", "com.foo.M", DependencyKind.PARAMETER_TYPE, 7, parameterIndex = 0, parameterName = "from"),
+            Dependency(m, "com.foo.A", "void", "void", DependencyKind.RETURNS, 7),
+        )
+        ParquetWriter.writeDependencies(dir, rows)
+
+        assertThat(ParquetReader().readDependencies(dir).map { Triple(it.kind, it.parameterIndex, it.parameterName) }).containsExactly(
+            Triple(DependencyKind.PARAMETER_TYPE, 0, "from"),
+            Triple(DependencyKind.PARAMETER_TYPE, 1, "to"),
+            Triple(DependencyKind.RETURNS, null, null),
+        )
+    }
+
+    @Test
     fun `members are sorted by owner and keep their declaration order within a type`(@TempDir dir: Path) {
         fun member(owner: String, name: String) = MemberFacts("$owner#$name()V", JavaNodeKind.METHOD, "$name()V", name = name)
         fun type(fqn: String, vararg names: String) =

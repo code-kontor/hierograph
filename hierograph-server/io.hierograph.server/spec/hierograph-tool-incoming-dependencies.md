@@ -74,6 +74,7 @@ references, where `affected_by` reports reach.
 | `toId` | node id | at detail level | — | The depending subtree |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
+| `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
 | `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 125 (type), 90 (detail) |
 | `cursor` | string | no | — | `next_cursor` of the previous page |
 | `view` | string | no | none | the view to answer in |
@@ -94,10 +95,10 @@ to that member, as in
 the detail level, for the reasons given in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters).
 
-**`detailLevel`**, **`relationship`**, **`limit`** and **`cursor`** behave as in
+**`detailLevel`**, **`relationship`**, **`parameterPosition`**, **`limit`** and **`cursor`** behave as in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
-`detailLevel` accepts only `"type"` and `"detail"`; `relationship` is an error at the
-type level; a page holds at most 125 type edges or 90 detail rows, the caps that keep
+`detailLevel` accepts only `"type"` and `"detail"`; `relationship` and
+`parameterPosition` are errors at the type level; a page holds at most 125 type edges or 90 detail rows, the caps that keep
 it within the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
 `outgoing_dependencies` fails here with `WRONG_TOOL_CURSOR`.
 
@@ -348,6 +349,7 @@ the exchanged scopes:
 | `edges[].to`, `to_parent` | the referenced member or type and, for a member, its declaring type; the row is on the `fromId` side by its `receiver` when that is present |
 | `edges[].receiver` | the type in `fromId` the reference was compiled against, when it only inherits `to` |
 | `edges[].relationship`, `location` | the relationship and the source line, or `null` |
+| `edges[].parameter` | for parameter relationships, the parameter's `position` and `name` |
 | `edges[].inherited` | `true` when the row comes from the inheritance closure; absent otherwise |
 | `summary.total`, `returned`, `truncated` | count of rows, rows on this page, and `total > returned` |
 | `summary.inherited` | the number of rows marked `inherited` |
@@ -372,7 +374,7 @@ All errors use the nested shape with `code`, `message` and `recovery`:
 
 | Code | Situation |
 |------|-----------|
-| `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` given at the type level; `toId` missing at the detail level |
+| `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` or `parameterPosition` given at the type level; `parameterPosition` negative or combined with a non-parameter relationship; `toId` missing at the detail level |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field; carries `actual_kind` and `declaring_type` |
 | cursor codes | see [Cursors](hierograph-mcp-tools.md#72-cursors) |

@@ -44,11 +44,12 @@ import java.nio.file.Files
  *     Money net()                        returns Money; calls Money#plus; calls AbstractDoc#total
  *     Money tax()                        calls Money#times
  *     void validate()                    calls AbstractDoc#render
+ *     void transfer(Money from, Money to)   Money at positions 0 and 1 (only with withParameterMethod)
  * com.example.money.Money                Money plus(Money), Money times(int),
  *                                        @Deprecated int cents (java.lang.Deprecated has no node)
  * ```
  */
-class DetailFixture {
+class DetailFixture(private val withParameterMethod: Boolean = false) {
 
     val graphService = HierarchicalGraphService()
     val outgoing: OutgoingDependenciesTool
@@ -100,6 +101,10 @@ class DetailFixture {
                 MemberFacts("$INVOICE#void <init>()", JavaNodeKind.CONSTRUCTOR, "void <init>()", "<init>", modifiers = MemberModifiers.pack("public")),
                 method(INVOICE, "void render()"), method(INVOICE, "$MONEY net()"),
                 method(INVOICE, "$MONEY tax()"), method(INVOICE, "void validate()"),
+            ) + listOfNotNull(
+                method(INVOICE, "void transfer($MONEY,$MONEY)").copy(
+                    parameters = listOf(ParameterFacts(0, "from", MONEY), ParameterFacts(1, "to", MONEY)),
+                ).takeIf { withParameterMethod },
             ),
             classHash = "i",
         )),
@@ -133,6 +138,10 @@ class DetailFixture {
         // net() reads the inherited field pages through the subclass, as javac compiles `this.pages`
         Dependency("$INVOICE#$MONEY net()", INVOICE, "$INVOICE#int pages", INVOICE, DependencyKind.READS_FIELD, 12),
         Dependency("$MONEY#int cents", MONEY, "java.lang.Deprecated", "java.lang.Deprecated", DependencyKind.ANNOTATED_BY),
+    ) + if (!withParameterMethod) emptyList() else listOf(
+        // one parameter_type fact per parameter, carrying its position and name
+        Dependency("$INVOICE#void transfer($MONEY,$MONEY)", INVOICE, MONEY, MONEY, DependencyKind.PARAMETER_TYPE, 40, parameterIndex = 0, parameterName = "from"),
+        Dependency("$INVOICE#void transfer($MONEY,$MONEY)", INVOICE, MONEY, MONEY, DependencyKind.PARAMETER_TYPE, 40, parameterIndex = 1, parameterName = "to"),
     )
 
     companion object {

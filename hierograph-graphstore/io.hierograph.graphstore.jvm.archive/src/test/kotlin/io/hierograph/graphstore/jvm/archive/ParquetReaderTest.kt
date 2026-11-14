@@ -236,6 +236,12 @@ class ParquetReaderTest {
         assertThatThrownBy { check(older) }
             .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("written in format 1").hasMessageContaining("Rescan")
 
+        // Format 2 has no parameter positions on its dependencies: a position query would miss its rows.
+        val format2 = Files.createDirectories(dir.resolve("format2"))
+        ParquetTestWriter.writeTypesInFormat(format2, "2", types)
+        assertThatThrownBy { check(format2) }
+            .isInstanceOf(SnapshotFormatException::class.java).hasMessageContaining("written in format 2").hasMessageContaining("Rescan")
+
         val garbled = Files.createDirectories(dir.resolve("garbled"))
         ParquetTestWriter.writeTypesInFormat(garbled, "two", types)
         assertThatThrownBy { check(garbled) }

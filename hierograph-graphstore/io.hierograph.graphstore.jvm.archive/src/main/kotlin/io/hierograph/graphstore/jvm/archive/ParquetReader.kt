@@ -176,6 +176,8 @@ class ParquetReader {
                     toType = r.string(cols.TO_TYPE),
                     kind = kindOf(r.string(cols.RELATIONSHIP)),
                     line = r.intOrNull(cols.LINE),
+                    parameterIndex = r.intOrNull(cols.PARAMETER_INDEX),
+                    parameterName = r.stringOrNull(cols.PARAMETER_NAME),
                 )
             }
             if (rows.isEmpty()) rows else sourceArtifact(source)?.let { a -> rows.map { it.copy(fromArtifact = a) } } ?: rows
