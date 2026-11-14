@@ -24,6 +24,9 @@ parquet-export/
 # Maven wrapper local cache
 .mvn/
 
+# Python bytecode cache (skill scripts)
+__pycache__/
+
 # Claude Code workspace
 # Project skills under .claude/skills/ are tracked; everything else
 # (settings.local.json, per-user state) stays per-user.
