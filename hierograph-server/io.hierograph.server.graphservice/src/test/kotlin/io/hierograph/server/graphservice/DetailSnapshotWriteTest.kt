@@ -34,7 +34,8 @@ class DetailSnapshotWriteTest {
     /**
      * Records the steps taken; [newerBuildAfter] names the step after which a newer build has arrived. The
      * write writes two artifacts, `a` and `b`, and checks for cancellation before each, as the Parquet writer
-     * does.
+     * does. The derivation collects its inputs and checks for cancellation before it resolves, as
+     * [DetailDerivation] does.
      */
     private inner class Steps(private val newerBuildAfter: String? = null) {
         val taken = mutableListOf<String>()
@@ -54,9 +55,12 @@ class DetailSnapshotWriteTest {
                 }
                 if (newerBuildAfter == "write") newerBuild = true
             },
-            derive = {
-                taken += "derive"
-                if (newerBuildAfter == "derive") newerBuild = true
+            derive = { _, cancelled ->
+                taken += "derive inputs"
+                if (newerBuildAfter == "derive inputs") newerBuild = true
+                if (cancelled()) throw CancellationException("cancelled before the resolution")
+                taken += "resolve"
+                if (newerBuildAfter == "resolve") newerBuild = true
                 emptyList()
             },
             publish = {
@@ -71,7 +75,7 @@ class DetailSnapshotWriteTest {
         val steps = Steps()
 
         assertThat(steps.run()).isEqualTo(DetailWriteOutcome.PUBLISHED)
-        assertThat(steps.taken).containsExactly("write a", "write b", "derive", "publish")
+        assertThat(steps.taken).containsExactly("write a", "write b", "derive inputs", "resolve", "publish")
         assertThat(steps.published).isNotNull()
         assertThat(genDir.resolve("a.parquet")).exists()
         assertThat(genDir.resolve("b.parquet")).exists()
@@ -107,11 +111,21 @@ class DetailSnapshotWriteTest {
     }
 
     @Test
-    fun `a build superseded during its derivation is not published, and its directory is deleted`() {
-        val steps = Steps(newerBuildAfter = "derive")
+    fun `a build superseded during its derivation stops before the resolution, and its directory is deleted`() {
+        val steps = Steps(newerBuildAfter = "derive inputs")
 
         assertThat(steps.run()).isEqualTo(DetailWriteOutcome.DISCARDED)
-        assertThat(steps.taken).containsExactly("write a", "write b", "derive")
+        assertThat(steps.taken).containsExactly("write a", "write b", "derive inputs")
+        assertThat(steps.published).isNull()
+        assertThat(genDir).doesNotExist()
+    }
+
+    @Test
+    fun `a build superseded after its derivation is not published, and its directory is deleted`() {
+        val steps = Steps(newerBuildAfter = "resolve")
+
+        assertThat(steps.run()).isEqualTo(DetailWriteOutcome.DISCARDED)
+        assertThat(steps.taken).containsExactly("write a", "write b", "derive inputs", "resolve")
         assertThat(steps.published).isNull()
         assertThat(genDir).doesNotExist()
     }

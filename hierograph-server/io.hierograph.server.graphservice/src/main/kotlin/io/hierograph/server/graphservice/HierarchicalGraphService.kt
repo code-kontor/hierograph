@@ -697,8 +697,8 @@ class HierarchicalGraphService {
     /**
      * Write the Parquet snapshot for [write]'s generation, then publish it as the detail source — but only
      * while no newer build has started: [DetailSnapshotWrite] checks the generation before the write, between
-     * the artifacts it writes, before the derivation and before publishing, so outdated work stops as early
-     * as possible. The hierarchy-derived edges come from the build's store (immutable after build) and its
+     * the artifacts it writes, before and during the derivation and before publishing, so outdated work stops
+     * as early as possible. The hierarchy-derived edges come from the build's store (immutable after build) and its
      * scan in memory ([DetailDerivation.fromScan]), not from the snapshot just written, with the same result
      * as the `parquet`-mode path.
      */
@@ -714,7 +714,7 @@ class HierarchicalGraphService {
                 write = { dir, cancelled ->
                     elapsed = measureTime { manifestGraphSource.writeSnapshot(write.scanned, dir, cancelled) }
                 },
-                derive = { DetailDerivation.fromScan(write.store, write.scanned.combined()) },
+                derive = { _, cancelled -> DetailDerivation.fromScan(write.store, write.scanned.combined(), cancelled) },
                 publish = { derived ->
                     detailSource.set(DetailSource(generation, genDir, derived))
                     pruneSnapshotDir(base, keep = genDir)

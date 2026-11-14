@@ -21,7 +21,9 @@ import io.hierograph.server.graphservice.HierarchyResolution.Type
 import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CancellationException
 
 /**
  * The load-time hierarchy resolver: from `Sub extends Base` (both declaring `foo()`) it derives the
@@ -48,6 +50,16 @@ class HierarchyResolutionTest {
         )
         // nothing is derived into or through unscanned types
         assertThat(derived).noneMatch { it.toType == "com.Client" }
+    }
+
+    @Test
+    fun `a resolution cancelled after the overrides stops before the calls`() {
+        val directCall = Dependency("com.Client#void run()", "com.Client", "com.Base#void foo()", "com.Base", DependencyKind.CALLS, 5)
+        var checks = 0
+
+        assertThatThrownBy { HierarchyResolution.resolve(listOf(base, sub), listOf(directCall)) { ++checks > 0 } }
+            .isInstanceOf(CancellationException::class.java)
+        assertThat(checks).isEqualTo(1)
     }
 
     @Test

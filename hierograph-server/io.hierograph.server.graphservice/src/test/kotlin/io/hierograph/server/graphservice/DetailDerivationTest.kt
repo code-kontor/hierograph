@@ -20,13 +20,27 @@ import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.graphstore.jvm.archive.ParquetReader
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CancellationException
 
-/** Deriving from the scan in memory gives what deriving from the snapshot written from it gives. */
+/**
+ * Deriving from the scan in memory gives what deriving from the snapshot written from it gives, and a
+ * cancelled derivation stops.
+ */
 class DetailDerivationTest {
+
+    @Test
+    fun `a cancelled derivation stops before the hierarchy resolution`() {
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
+
+        assertThatThrownBy { DetailDerivation.derive(store, emptyList(), emptyList()) { true } }
+            .isInstanceOf(CancellationException::class.java)
+            .hasMessageContaining("detail derivation")
+    }
 
     @Test
     fun `derivation from the scan equals derivation from its snapshot`(@TempDir tmp: Path) {

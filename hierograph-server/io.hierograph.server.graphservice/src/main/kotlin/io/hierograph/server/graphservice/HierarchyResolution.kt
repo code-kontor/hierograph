@@ -18,6 +18,7 @@ package io.hierograph.server.graphservice
 import io.hierograph.graphstore.jvm.archive.model.Dependency
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import java.util.concurrent.CancellationException
 
 /**
  * The member-level relationships no single class file can answer — they need the whole type hierarchy —
@@ -62,9 +63,15 @@ object HierarchyResolution {
      */
     class Type(val fqn: String, val directSupertypes: List<String>, val methods: List<Method>, val external: Boolean = false)
 
-    fun resolve(types: List<Type>, directCalls: List<Dependency>): List<Dependency> {
+    /**
+     * Derive the overrides, virtual and resolved calls of [types] and [directCalls]. Throws a
+     * [CancellationException] once [cancelled] reports `true`, checked between the overrides and the calls.
+     */
+    fun resolve(types: List<Type>, directCalls: List<Dependency>, cancelled: () -> Boolean = { false }): List<Dependency> {
         val hierarchy = Hierarchy(types)
-        return overrides(types, hierarchy) + virtualCalls(directCalls, hierarchy)
+        val overrides = overrides(types, hierarchy)
+        if (cancelled()) throw CancellationException("hierarchy resolution cancelled")
+        return overrides + virtualCalls(directCalls, hierarchy)
     }
 
     private fun overrides(types: List<Type>, hierarchy: Hierarchy): List<Dependency> {

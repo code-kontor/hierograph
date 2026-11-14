@@ -21,6 +21,7 @@ import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.archive.model.MemberFacts
 import io.hierograph.graphstore.jvm.scanner.ScanResult
+import java.util.concurrent.CancellationException
 
 /**
  * The hierarchy-dependent member edges (overrides, virtual and resolved calls) of an assembled graph: the
@@ -31,6 +32,10 @@ import io.hierograph.graphstore.jvm.scanner.ScanResult
  * The inputs are the graph's [GraphStore] for the type hierarchy, plus the declared members and the direct
  * detail edges, either read from a Parquet snapshot or taken straight from the scan ([fromScan]); both give
  * the same edges in the same order.
+ *
+ * Both take a `cancelled` check: a derivation for a build that a newer one has overtaken stops with a
+ * [CancellationException] after collecting its inputs, before the hierarchy resolution, and between the
+ * resolution's overrides and calls.
  */
 internal object DetailDerivation {
 
@@ -43,17 +48,23 @@ internal object DetailDerivation {
      * snapshot would hold: every scanned member, and the detail edges whose `from` type was scanned (the
      * snapshot files a detail edge under its `from` type's artifact and has no place for any other).
      */
-    fun fromScan(store: GraphStore, scan: ScanResult): List<Dependency> {
+    fun fromScan(store: GraphStore, scan: ScanResult, cancelled: () -> Boolean = { false }): List<Dependency> {
         val scannedTypes = scan.classes.mapTo(HashSet()) { it.facts.fqn }
         return derive(
             store,
             scan.classes.flatMap { it.facts.members },
             scan.dependencies.filter { it.fromType in scannedTypes },
+            cancelled,
         )
     }
 
     /** Derive from the graph's [members] and direct [dependencies]. */
-    fun derive(store: GraphStore, members: List<MemberFacts>, dependencies: List<Dependency>): List<Dependency> {
+    fun derive(
+        store: GraphStore,
+        members: List<MemberFacts>,
+        dependencies: List<Dependency>,
+        cancelled: () -> Boolean = { false },
+    ): List<Dependency> {
         val methodsByOwner = members
             .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
             .groupBy { it.key.substringBefore('#') }
@@ -72,7 +83,8 @@ internal object DetailDerivation {
             }.toList()
         // Stable sort: a snapshot's rows are already in this order, a scan's are put into it.
         val directCalls = dependencies.filter { it.kind == DependencyKind.CALLS }.sortedWith(SNAPSHOT_ORDER)
-        val resolved = HierarchyResolution.resolve(types, directCalls)
+        if (cancelled()) throw CancellationException("detail derivation cancelled")
+        val resolved = HierarchyResolution.resolve(types, directCalls, cancelled)
 
         val existing = dependencies.mapTo(HashSet()) { Triple(it.fromKey, it.toKey, it.kind) }
         return resolved.filterNot { Triple(it.fromKey, it.toKey, it.kind) in existing }
