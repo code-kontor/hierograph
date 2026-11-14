@@ -322,7 +322,7 @@ export function CrossReferenceExplorerView({
         crossReferenceExplorerCenterPredecessorsQueryOptions(ids),
       )
       .then((data) => {
-        const nodes = data.hierarchicalGraph?.nodes.nodes ?? [];
+        const nodes = data.hierarchicalGraph?.nodes?.nodes ?? [];
         const ancestorsById = new Map(
           nodes.map((node) => [node.id, node.predecessors.map((p) => p.id)]),
         );
@@ -360,9 +360,9 @@ export function CrossReferenceExplorerView({
   });
 
   const relatedCenterIds: string[] = leftMarkingEnabled
-    ? (leftMarkingData?.hierarchicalGraph?.nodes.referencedNodes.nodeIds ?? [])
+    ? (leftMarkingData?.hierarchicalGraph?.nodes?.referencedNodes.nodeIds ?? [])
     : rightMarkingEnabled
-      ? (rightMarkingData?.hierarchicalGraph?.nodes.referencingNodes.nodeIds ??
+      ? (rightMarkingData?.hierarchicalGraph?.nodes?.referencingNodes.nodeIds ??
         [])
       : [];
 
@@ -378,7 +378,7 @@ export function CrossReferenceExplorerView({
   // on that input, so the object stays content-stable and AsyncTree does not
   // churn on every render.
   const predecessorNodes =
-    predecessorsData?.hierarchicalGraph?.nodes.nodes ?? [];
+    predecessorsData?.hierarchicalGraph?.nodes?.nodes ?? [];
   const highlightedAncestors: Record<string, string[]> = {};
   for (const node of predecessorNodes) {
     highlightedAncestors[node.id] = node.predecessors.map((p) => p.id);

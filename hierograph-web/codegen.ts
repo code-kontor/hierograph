@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const SCHEMA_DIR =
-  "../hierograph-mcp/io.hierograph.graphql/src/main/resources/graphql";
+  "../hierograph-server/io.hierograph.server.graphql/src/main/resources/graphql";
 
 // graphql-js rejects empty field blocks like `type HierarchicalGraph {}` —
 // graphql-java in the backend accepts them. Empty `{ }` blocks are stripped so

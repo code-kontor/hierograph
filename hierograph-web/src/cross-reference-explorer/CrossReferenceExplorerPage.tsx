@@ -30,7 +30,7 @@ export function CrossReferenceExplorerPage() {
     const data = await queryClient.ensureQueryData(
       crossReferenceExplorerCenterPredecessorsQueryOptions([id]),
     );
-    const node = data.hierarchicalGraph?.nodes.nodes[0];
+    const node = data.hierarchicalGraph?.nodes?.nodes[0];
     const ancestors = node?.predecessors.map((p) => p.id) ?? [];
     centerTreeRef.current?.revealNode(id, ancestors);
   };

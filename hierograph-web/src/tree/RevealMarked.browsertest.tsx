@@ -68,7 +68,7 @@ describe("AsyncTree revealMarked handle", () => {
         rootNode={ROOT}
         loadChildren={loadChildren}
         onSelectedIdsChange={vi.fn()}
-        // markedIds mirrors the real server contract (includedPredecessors:
+        // markedIds mirrors the real server contract (includePredecessors:
         // true): every ancestor of a marked leaf is itself marked, all the
         // way up — "a" included, even though it's the root's only child.
         highlightedIds={["a", "a.b", "a.b.c", "a.b.c.Leaf"]}

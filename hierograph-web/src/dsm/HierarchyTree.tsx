@@ -92,7 +92,7 @@ function HierarchyTreeInner({ rootNode, settings }: HierarchyTreeInnerProps) {
     queryClient
       .ensureQueryData(dsmSubjectPredecessorsQueryOptions(ids))
       .then((data) => {
-        const nodes = data.hierarchicalGraph?.nodes.nodes ?? [];
+        const nodes = data.hierarchicalGraph?.nodes?.nodes ?? [];
         const ancestorsById = new Map(
           nodes.map((node) => [node.id, node.predecessors.map((p) => p.id)]),
         );
