@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Checks the subject prefix of a commit message (CONTRIBUTING.md, "Commit messages"):
-# `<prefix>: <subject>`, where the prefix is a kind or a feature name from CONTRIBUTING.md.
+# Checks the start of a commit subject (CONTRIBUTING.md, "Commit messages"):
+# `[#<issue>] <subject>` for a commit that works on a GitHub issue, or `<kind>: <subject>` for a
+# commit without an issue.
 #
 # Enable with: git config core.hooksPath .githooks
 # Bypass once with: git commit --no-verify
@@ -9,9 +10,6 @@
 set -euo pipefail
 
 kinds="fix perf refactor test docs build chore"
-
-root=$(git rev-parse --show-toplevel)
-contributing="$root/CONTRIBUTING.md"
 
 # The first line that is not a comment is the subject.
 subject=$(grep -v '^#' "$1" | sed -n '/[^[:space:]]/{p;q;}')
@@ -21,33 +19,29 @@ case "$subject" in
     "Merge "* | "Revert \""* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
 esac
 
-# The feature names: the first column of the table below "### Feature names".
-features=""
-if [[ -f "$contributing" ]]; then
-    features=$(sed -n '/^### Feature names/,/^#/p' "$contributing" \
-        | sed -n 's/^| `\([a-z0-9-]*\)` |.*/\1/p' | tr '\n' ' ' | xargs)
+if [[ "$subject" =~ ^\[#[1-9][0-9]*\]\ [^[:space:]] ]]; then
+    exit 0
 fi
 
-prefix=${subject%%:*}
-if [[ "$subject" =~ ^[a-z0-9-]+:\ [^[:space:]] ]]; then
-    for allowed in $kinds $features; do
-        [[ "$prefix" == "$allowed" ]] && exit 0
+if [[ "$subject" =~ ^([a-z]+):\ [^[:space:]] ]]; then
+    prefix=${BASH_REMATCH[1]}
+    for kind in $kinds; do
+        [[ "$prefix" == "$kind" ]] && exit 0
     done
-    reason="'$prefix' is neither a kind nor a feature name"
+    reason="'$prefix' is not a kind"
 else
-    reason="the subject does not start with '<prefix>: '"
+    reason="the subject starts with neither '[#<issue>] ' nor '<kind>: '"
 fi
 
-cat >&2 <<EOF
+cat >&2 <<MSG
 commit-msg: $reason.
 
   Subject:  $subject
 
-A commit subject starts with '<prefix>: ' (see CONTRIBUTING.md, "Commit messages"):
-  kinds:     ${kinds// /, }
-  features:  ${features:-(none listed)}
+A commit subject starts with (see CONTRIBUTING.md, "Commit messages"):
+  [#<issue>] <subject>   for a commit that works on a GitHub issue
+  <kind>: <subject>      for a commit without an issue; kinds: ${kinds// /, }
 
-A new feature is added to the feature list in CONTRIBUTING.md in its first commit.
 Bypass the check once with: git commit --no-verify
-EOF
+MSG
 exit 1
