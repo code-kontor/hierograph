@@ -129,6 +129,7 @@ crosses it. Say so when handing over.
   "project": "Hierograph 0.3.0", "scanned": "2026-11-13",
   "source":  "hierograph MCP (list_descendants, pairwise_dependencies)",
   "expand_depth": 3,
+  "theme": "slate",
   "nodes": [
     {"id": 7802, "parent": null, "name": "io.hierograph.server", "kind": "java.module"},
     {"id": 9001, "parent": 7802, "name": "io", "kind": "java.package"},
@@ -140,6 +141,9 @@ crosses it. Say so when handing over.
 
 `expand_depth` is optional: containers deeper than it start collapsed. Without it
 the page expands as deep as it can while showing at most ~160 boxes.
+
+`theme` is optional: the theme the page opens with (see *Encoding decisions*);
+`slate` without it.
 
 ## 4. Build
 
@@ -185,9 +189,26 @@ it exposes internal architecture and package names.
   boxes visible inside it, so an expanded container gets room and a collapsed one
   does not; a minimum width per box keeps names readable, with horizontal scroll in
   the map rather than squashed text.
-- **Colours are roles, as in the layered graph.** Green-grey containers, cream
-  leaves, red only for tangles and feedback, blue only for external code; violet
-  and green only on selection.
+- **Colours are roles; themes colour only the map.** Red only for tangles and
+  feedback, violet and green only on selection (as in the layered graph), a blue only
+  for external code. Five map themes, each with a light and a dark variant, change the
+  map's background and text, its containers, leaves, external code and package icon.
+  They never change the role colours, nor the page around the map (header, toolbar,
+  side panel, table), which keeps one scheme:
+
+  | Theme | Look |
+  |---|---|
+  | `slate` (default) | cool blue-grey containers, near-white leaves |
+  | `sage` | green-grey containers, cream leaves |
+  | `sand` | warm beige containers, white leaves |
+  | `graphite` | neutral greys, stronger contrast |
+  | `paper` | white boxes, structure drawn by outlines; for printing |
+
+  The viewer swaps them with **Theme** in the toolbar (remembered per browser), or
+  opens the page with `?theme=<name>`; `"theme"` in the input sets the page's
+  default. A theme is one CSS block per variant keyed by `data-palette`, setting
+  only map variables (`--map-bg`, `--map-ink*`, containers, leaves, external code,
+  package icon), plus its name in `THEMES` in the script.
 
 ## Things that bite
 

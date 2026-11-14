@@ -2,32 +2,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
+  /* Shared: layout, fonts and the role colours, which mean the same in every theme:
+     red = tangle / against the levels, violet = selection depends on, green = depends on
+     selection, navy = selection, amber = search hit. */
   :root {
-    --surface-0: #f4f2ee;
-    --surface-1: #fcfcfb;
-    --line:      #d9d6cf;
-    --line-soft: #e7e4dd;
-    --ink:       #0b0b0b;
-    --ink-2:     #52514e;
-    --ink-3:     #86837c;
-
-    --cont-a:    #e6eedf;   /* container, even depth */
-    --cont-b:    #f1f5ec;   /* container, odd depth */
-    --cont-line: #b9c9ad;
-    --leaf:      #fdfaf0;
-    --leaf-line: #d8d2bd;
+    /* The page (header, toolbar, legend text, side panel, table): one scheme in every theme. */
+    --surface-0: #f4f2ee; --surface-1: #fcfcfb; --line: #d9d6cf; --line-soft: #e7e4dd;
+    --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #86837c;
     --tangle:    #f8dddd;
     --tangle-line:#e34948;
-    --ext:       #e3e5f7;
-    --ext-line:  #9aa0d8;
-
     --out:     #4a3aa7;  --out-soft:#e6e2f5;
     --in:      #1baf7a;  --in-soft: #d6f0e5;
     --sel:     #0d366b;
     --bad:     #e34948;
     --hit:     #f5c542;
-    --pkg:     #a8742a;   /* package icon */
-    --pkg-fill:#f3e3c4;
     --focus:   #2a78d6;
     --gap: 30px;          /* space between and inside boxes; the min-width code reads it */
     --radius: 7px;
@@ -36,31 +24,132 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --surface-0: #141413; --surface-1: #1a1a19;
-      --line: #383835; --line-soft: #2c2c2a;
+      --surface-0: #141413; --surface-1: #1a1a19; --line: #383835; --line-soft: #2c2c2a;
       --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8a887f;
-      --cont-a: #1d261d; --cont-b: #232c22; --cont-line: #3d4d3a;
-      --leaf: #2a2924; --leaf-line: #45423a;
       --tangle: #3b2324; --tangle-line: #e66767;
-      --ext: #212440; --ext-line: #4b5296;
       --out: #9085e9; --out-soft: #2c2650;
       --in: #199e70; --in-soft: #143829;
       --sel: #cde2fb; --bad: #e66767; --hit: #b8902a; --focus: #3987e5;
-      --pkg: #d8a657; --pkg-fill: #3d3220;
     }
   }
   :root[data-theme="dark"] {
-    --surface-0: #141413; --surface-1: #1a1a19;
-    --line: #383835; --line-soft: #2c2c2a;
+    --surface-0: #141413; --surface-1: #1a1a19; --line: #383835; --line-soft: #2c2c2a;
     --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8a887f;
-    --cont-a: #1d261d; --cont-b: #232c22; --cont-line: #3d4d3a;
-    --leaf: #2a2924; --leaf-line: #45423a;
     --tangle: #3b2324; --tangle-line: #e66767;
-    --ext: #212440; --ext-line: #4b5296;
     --out: #9085e9; --out-soft: #2c2650;
     --in: #199e70; --in-soft: #143829;
     --sel: #cde2fb; --bad: #e66767; --hit: #b8902a; --focus: #3987e5;
-    --pkg: #d8a657; --pkg-fill: #3d3220;
+  }
+
+  /* Map themes: one palette per name, each with a light and a dark variant. A theme colours
+     only the map — its background and text, containers, leaves, external code and package
+     icon; the page keeps the scheme above. The page sets data-palette on <html> (toolbar
+     "Theme", ?theme=<name>, or "theme" in the input); without it, the first theme applies.
+     To add a theme, add its three blocks here and its name to THEMES in the script. */
+  /* slate: Cool blue-grey containers, near-white leaves (default) */
+  :root:not([data-palette]), :root[data-palette="slate"] {
+    --map-bg: #fcfcfd;
+    --map-ink: #0b0d10; --map-ink-2: #4b5058; --map-ink-3: #7f8692; --cont-a: #e4e8ee;
+    --cont-b: #eef1f5; --cont-line: #b4bfcc; --leaf: #fbfcfd; --leaf-line: #d3d9e1;
+    --ext: #dcebfb; --ext-line: #5b93d6; --pkg: #a8742a; --pkg-fill: #f3e3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-palette]):not([data-theme="light"]), :root[data-palette="slate"]:not([data-theme="light"]) {
+      --map-bg: #181b20;
+      --map-ink: #ffffff; --map-ink-2: #c0c6cf; --map-ink-3: #868d98; --cont-a: #1c2129;
+      --cont-b: #222832; --cont-line: #3a4452; --leaf: #262b33; --leaf-line: #3f4652;
+      --ext: #16293f; --ext-line: #4f84c4; --pkg: #d8a657; --pkg-fill: #3d3220;
+    }
+  }
+  :root:not([data-palette])[data-theme="dark"], :root[data-palette="slate"][data-theme="dark"] {
+    --map-bg: #181b20;
+    --map-ink: #ffffff; --map-ink-2: #c0c6cf; --map-ink-3: #868d98; --cont-a: #1c2129;
+    --cont-b: #222832; --cont-line: #3a4452; --leaf: #262b33; --leaf-line: #3f4652;
+    --ext: #16293f; --ext-line: #4f84c4; --pkg: #d8a657; --pkg-fill: #3d3220;
+  }
+  /* sage: Green-grey containers, cream leaves (the original scheme) */
+  :root[data-palette="sage"] {
+    --map-bg: #fcfcfb;
+    --map-ink: #0b0b0b; --map-ink-2: #52514e; --map-ink-3: #86837c; --cont-a: #e6eedf;
+    --cont-b: #f1f5ec; --cont-line: #b9c9ad; --leaf: #fdfaf0; --leaf-line: #d8d2bd;
+    --ext: #e3e5f7; --ext-line: #9aa0d8; --pkg: #a8742a; --pkg-fill: #f3e3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-palette="sage"]:not([data-theme="light"]) {
+      --map-bg: #1a1a19;
+      --map-ink: #ffffff; --map-ink-2: #c3c2b7; --map-ink-3: #8a887f; --cont-a: #1d261d;
+      --cont-b: #232c22; --cont-line: #3d4d3a; --leaf: #2a2924; --leaf-line: #45423a;
+      --ext: #212440; --ext-line: #4b5296; --pkg: #d8a657; --pkg-fill: #3d3220;
+    }
+  }
+  :root[data-palette="sage"][data-theme="dark"] {
+    --map-bg: #1a1a19;
+    --map-ink: #ffffff; --map-ink-2: #c3c2b7; --map-ink-3: #8a887f; --cont-a: #1d261d;
+    --cont-b: #232c22; --cont-line: #3d4d3a; --leaf: #2a2924; --leaf-line: #45423a;
+    --ext: #212440; --ext-line: #4b5296; --pkg: #d8a657; --pkg-fill: #3d3220;
+  }
+  /* sand: Warm beige containers, white leaves */
+  :root[data-palette="sand"] {
+    --map-bg: #fdfbf7;
+    --map-ink: #14110c; --map-ink-2: #574f43; --map-ink-3: #8b8170; --cont-a: #ece4d6;
+    --cont-b: #f4efe5; --cont-line: #cbbd9f; --leaf: #fffdf9; --leaf-line: #ddd3bf;
+    --ext: #dfe8f5; --ext-line: #6f93c4; --pkg: #8a6a3a; --pkg-fill: #efdcb8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-palette="sand"]:not([data-theme="light"]) {
+      --map-bg: #1c1914;
+      --map-ink: #ffffff; --map-ink-2: #cfc6b6; --map-ink-3: #928876; --cont-a: #26211a;
+      --cont-b: #2d271f; --cont-line: #4a4134; --leaf: #312b23; --leaf-line: #4d4538;
+      --ext: #1a2638; --ext-line: #5279ad; --pkg: #d8a657; --pkg-fill: #3d3220;
+    }
+  }
+  :root[data-palette="sand"][data-theme="dark"] {
+    --map-bg: #1c1914;
+    --map-ink: #ffffff; --map-ink-2: #cfc6b6; --map-ink-3: #928876; --cont-a: #26211a;
+    --cont-b: #2d271f; --cont-line: #4a4134; --leaf: #312b23; --leaf-line: #4d4538;
+    --ext: #1a2638; --ext-line: #5279ad; --pkg: #d8a657; --pkg-fill: #3d3220;
+  }
+  /* graphite: Neutral greys with stronger contrast */
+  :root[data-palette="graphite"] {
+    --map-bg: #fafafa;
+    --map-ink: #000000; --map-ink-2: #3f3f3f; --map-ink-3: #707070; --cont-a: #dcdcdc;
+    --cont-b: #e9e9e9; --cont-line: #9e9e9e; --leaf: #ffffff; --leaf-line: #bdbdbd;
+    --ext: #d9e6fa; --ext-line: #3f7fd9; --pkg: #6b6b6b; --pkg-fill: #e0e0e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-palette="graphite"]:not([data-theme="light"]) {
+      --map-bg: #161616;
+      --map-ink: #ffffff; --map-ink-2: #cccccc; --map-ink-3: #8c8c8c; --cont-a: #1f1f1f;
+      --cont-b: #272727; --cont-line: #4a4a4a; --leaf: #303030; --leaf-line: #555555;
+      --ext: #15263d; --ext-line: #5a95e6; --pkg: #b0b0b0; --pkg-fill: #333333;
+    }
+  }
+  :root[data-palette="graphite"][data-theme="dark"] {
+    --map-bg: #161616;
+    --map-ink: #ffffff; --map-ink-2: #cccccc; --map-ink-3: #8c8c8c; --cont-a: #1f1f1f;
+    --cont-b: #272727; --cont-line: #4a4a4a; --leaf: #303030; --leaf-line: #555555;
+    --ext: #15263d; --ext-line: #5a95e6; --pkg: #b0b0b0; --pkg-fill: #333333;
+  }
+  /* paper: White boxes, structure drawn by outlines; for printing */
+  :root[data-palette="paper"] {
+    --map-bg: #ffffff;
+    --map-ink: #111111; --map-ink-2: #4a4a4a; --map-ink-3: #808080; --cont-a: #ffffff;
+    --cont-b: #fafafa; --cont-line: #8a8a8a; --leaf: #ffffff; --leaf-line: #c4c4c4;
+    --ext: #eef4fd; --ext-line: #6a9ad8; --pkg: #8a6a3a; --pkg-fill: #f6ead2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-palette="paper"]:not([data-theme="light"]) {
+      --map-bg: #101010;
+      --map-ink: #f2f2f2; --map-ink-2: #c4c4c4; --map-ink-3: #8a8a8a; --cont-a: #101010;
+      --cont-b: #151515; --cont-line: #6a6a6a; --leaf: #161616; --leaf-line: #4a4a4a;
+      --ext: #14202f; --ext-line: #5b8ccc; --pkg: #c9a463; --pkg-fill: #2e2618;
+    }
+  }
+  :root[data-palette="paper"][data-theme="dark"] {
+    --map-bg: #101010;
+    --map-ink: #f2f2f2; --map-ink-2: #c4c4c4; --map-ink-3: #8a8a8a; --cont-a: #101010;
+    --cont-b: #151515; --cont-line: #6a6a6a; --leaf: #161616; --leaf-line: #4a4a4a;
+    --ext: #14202f; --ext-line: #5b8ccc; --pkg: #c9a463; --pkg-fill: #2e2618;
   }
 
   body { background: var(--surface-0); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
@@ -78,6 +167,8 @@
   .btn { font: 500 12.5px var(--sans); padding: 6px 11px; cursor: pointer; background: var(--surface-0);
          color: var(--ink); border: 1px solid var(--line); border-radius: 5px; }
   .btn:hover { border-color: var(--ink-3); }
+  .check select { font: 500 12.5px var(--sans); padding: 5px 8px; background: var(--surface-0);
+                  color: var(--ink); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
   .check { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); }
   .check input { accent-color: var(--focus); }
   :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -90,7 +181,8 @@
   .main { display: grid; grid-template-columns: minmax(0,1fr) 272px; gap: 14px; align-items: start; }
   @media (max-width: 900px) { .main { grid-template-columns: minmax(0,1fr); } }
 
-  .canvas { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto;
+  .canvas { --ink: var(--map-ink); --ink-2: var(--map-ink-2); --ink-3: var(--map-ink-3);
+            background: var(--map-bg); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto;
             max-height: 86vh; }
   .canvas:fullscreen { max-height: none; width: 100vw; height: 100vh; border: 0; border-radius: 0; }
   .map { position: relative; padding: 8px; min-width: min-content; }
@@ -182,6 +274,7 @@
     <label class="check"><input type="checkbox" id="badarrows" checked> Arrows against the levels</label>
     <label class="check"><input type="checkbox" id="selarrows" checked> Arrows for selection</label>
     <label class="check"><input type="checkbox" id="fade"> Dim unrelated</label>
+    <label class="check">Theme <select id="palette" aria-label="Theme"></select></label>
   </div>
 
   <div class="legend">
@@ -240,6 +333,30 @@
 const D = __DATA__;
 const N = D.nodes, E = D.edges, L = D.layout;
 const $ = id => document.getElementById(id);
+
+// Themes: the names must match the data-palette blocks in the CSS; the first is the default.
+// The choice comes from ?theme=<name>, else the viewer's last choice, else "theme" in the
+// input, else the default. It only swaps CSS variables, so nothing is redrawn.
+const THEMES = ['slate', 'sage', 'sand', 'graphite', 'paper'];
+const THEME_KEY = 'hierograph-lsm-theme';
+function applyPalette(name) {
+  if (!THEMES.includes(name)) name = THEMES[0];
+  document.documentElement.setAttribute('data-palette', name);
+  $('palette').value = name;
+  return name;
+}
+(() => {
+  const pick = $('palette');
+  for (const t of THEMES) pick.add(new Option(t[0].toUpperCase() + t.slice(1), t));
+  let stored = null;
+  try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* storage unavailable */ }
+  const fromUrl = new URLSearchParams(location.search).get('theme');
+  applyPalette(fromUrl || stored || D.theme || THEMES[0]);
+  pick.addEventListener('change', () => {
+    const name = applyPalette(pick.value);
+    try { localStorage.setItem(THEME_KEY, name); } catch (e) { /* storage unavailable */ }
+  });
+})();
 const kids = N.map(() => []);
 N.forEach((n, i) => { if (n.p >= 0) kids[n.p].push(i); });
 const depth = N.map(() => 0);

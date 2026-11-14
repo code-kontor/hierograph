@@ -10,6 +10,7 @@ Input (JSON) - ids may be any hashable scalar:
     "title":   "Hierograph server - levelized structure",   # optional
     "project": "Hierograph 0.3.0", "scanned": "2026-11-13", "source": "hierograph MCP",
     "expand_depth": 3,              # optional: containers deeper than this start collapsed
+    "theme": "slate",               # optional: slate | sage | sand | graphite | paper
     "nodes": [                      # the containment tree, flat; order does not matter
       {"id": 7802, "parent": null, "name": "io.hierograph.server", "kind": "java.module"},
       {"id": 9001, "parent": 7802, "name": "io",     "kind": "java.package"},
@@ -284,6 +285,7 @@ def main():
         "title": spec.get("title"), "project": spec.get("project"),
         "scanned": spec.get("scanned"), "source": spec.get("source"),
         "expand": spec.get("expand_depth"),
+        "theme": spec.get("theme"),
         "nodes": [{"n": node[k]["name"], "k": node[k]["kind"],
                    "p": idx[node[k]["parent"]] if node[k]["parent"] is not None else -1,
                    "x": 1 if node[k]["ext"] else 0,
