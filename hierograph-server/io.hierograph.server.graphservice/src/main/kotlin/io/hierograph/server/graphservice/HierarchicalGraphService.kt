@@ -47,6 +47,16 @@ class HierarchicalGraphService {
 
     companion object {
         private val log = LoggerFactory.getLogger(HierarchicalGraphService::class.java)
+
+        /**
+         * The state directory for the settings `hierograph.graph.stateDir` ([stateDirSetting]) and
+         * `hierograph.graph.manifest` ([manifestFile]): the configured one, or the manifest's directory. Shared
+         * with code that needs the state directory before this service exists, such as the instance check at
+         * startup.
+         */
+        fun resolveStateDir(stateDirSetting: String?, manifestFile: String): Path =
+            stateDirSetting?.trim()?.takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() }
+                ?: Path.of(manifestFile).toAbsolutePath().normalize().parent
     }
 
     @Value("\${hierograph.graph.dump.enabled:false}")
@@ -74,7 +84,7 @@ class HierarchicalGraphService {
 
     /** Build manifest the server scans in `manifest` mode (written by the Hierograph Maven plugin). */
     @Value("\${hierograph.graph.manifest:.hierograph/manifest.json}")
-    private lateinit var manifestFile: String
+    private var manifestFile: String = ".hierograph/manifest.json"
 
     /**
      * Where the server writes in `manifest` mode — the Parquet snapshot and the regeneration log. Empty: the
@@ -226,8 +236,7 @@ class HierarchicalGraphService {
     private fun manifestPath(): Path = Path.of(manifestFile).toAbsolutePath().normalize()
 
     /** [stateDirSetting], or the manifest's directory. */
-    private fun stateDir(): Path =
-        stateDirSetting.trim().takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() } ?: manifestPath().parent
+    private fun stateDir(): Path = resolveStateDir(stateDirSetting, manifestFile)
 
     /** The explicitly configured build root, or `null` to derive it from the manifest's location. */
     private fun configuredBuildRoot(): Path? =
@@ -240,6 +249,59 @@ class HierarchicalGraphService {
 
     /** The local build root: the configured one, or the one derived from the manifest's location. */
     val buildRootDirectory: Path get() = buildRoot()
+
+    /**
+     * The graph source and its settings: `kind` (`manifest` or `parquet`; `null` for a service filled by
+     * [seed]), and the manifest, build root and watch settings in `manifest` mode or the snapshot directory in
+     * `parquet` mode.
+     */
+    fun sourceSettings(): Map<String, Any?> = when {
+        manifestMode -> linkedMapOf(
+            "kind" to "manifest",
+            "manifest" to manifestPath().toString(),
+            "build_root" to buildRoot().toString(),
+            "include_tests" to includeTests,
+            "watch" to linkedMapOf("mode" to watchMode, "build_files" to buildFilesMode),
+        )
+        ::graphSource.isInitialized -> linkedMapOf(
+            "kind" to graphSource.lowercase(),
+            "parquet_dir" to Path.of(parquetDir).toAbsolutePath().normalize().toString(),
+        )
+        else -> linkedMapOf("kind" to null)
+    }
+
+    /**
+     * `manifest` mode: how many outputs the manifest declares, how many are scanned, and the ones that are not
+     * compiled yet (watched, and scanned once they appear). `null` in `parquet` mode and before a manifest was
+     * read.
+     */
+    fun artifactStatus(): Map<String, Any?>? {
+        if (!manifestMode) return null
+        val scanned = currentScanned ?: return null
+        val notCompiled = scanned.declared.values.filter { it.gav !in scanned.modules }
+        return linkedMapOf(
+            "declared" to scanned.declared.size,
+            "scanned" to scanned.modules.size,
+            "not_compiled" to notCompiled.map { linkedMapOf("artifact" to it.gav, "dirs" to it.dirs.map(Path::toString)) },
+        )
+    }
+
+    /**
+     * The graph in service: its build [generation][GraphSnapshot.generation], data hash and node count, and
+     * the detail snapshot directory, which is `null` while the detail snapshot for this graph is still being
+     * written. `null` while no graph is loaded.
+     */
+    fun snapshotStatus(): Map<String, Any?>? {
+        val live = snapshotRef.get() ?: return null
+        var nodes = 0
+        live.model.hierarchy.let { h -> h.traverse(h.rootNode) { nodes++ } }
+        return linkedMapOf(
+            "generation" to live.generation,
+            "data_hash" to live.dataHash,
+            "total_nodes" to nodes,
+            "detail_dir" to withPinnedSnapshot(live) { readyDetailDir() }?.toString(),
+        )
+    }
 
     /**
      * In `manifest` mode without a manifest yet, generate it with the configured regeneration command before

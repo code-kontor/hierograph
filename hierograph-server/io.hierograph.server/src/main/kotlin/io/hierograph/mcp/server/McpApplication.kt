@@ -32,6 +32,9 @@ import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesToo
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
+import io.hierograph.mcp.server.tools.admin.ServerInfoTool
+import io.hierograph.mcp.server.instance.InstanceGuard
+import io.hierograph.mcp.server.instance.ServerVersion
 import io.hierograph.mcp.server.tools.views.ViewTools
 import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.beans.factory.annotation.Value
@@ -66,6 +69,7 @@ class McpApplication {
         methodDetailsTool: MethodDetailsTool,
         fieldDetailsTool: FieldDetailsTool,
         reloadGraphTool: ReloadGraphTool,
+        serverInfoTool: ServerInfoTool,
         viewTools: ViewTools,
         viewService: ViewService,
     ): ToolCallbackProvider {
@@ -76,25 +80,31 @@ class McpApplication {
                 outgoingDependenciesTool, incomingDependenciesTool,
                 affectedByTool, findDependencyPathTool,
                 typeDetailsTool, methodDetailsTool, fieldDetailsTool,
-                reloadGraphTool,
+                reloadGraphTool, serverInfoTool,
                 viewTools
             )
             .build()
         // Short-circuit every tool with the standard "no graph available" description while the server
-        // runs empty. `reload_graph` is exempt so a graph can still be loaded once a database is set up, and
-        // the view tools that only read or delete documents work without a graph too.
+        // runs empty. `reload_graph` is exempt so a graph can still be loaded once a database is set up,
+        // `server_info` so a client can still find out which server it talks to, and the view tools that only
+        // read or delete documents work without a graph too.
         // Every other tool takes the optional `view` parameter and answers in the view it names.
         val guarded = GraphAvailabilityToolCallbackProvider(
             delegate,
             graphService,
-            toolsAllowedWithoutGraph = setOf("reload_graph", "list_views", "get_view", "delete_view"),
+            toolsAllowedWithoutGraph = setOf("reload_graph", "server_info", "list_views", "get_view", "delete_view"),
             viewService = viewService,
-            toolsWithoutView = setOf("reload_graph", "define_view", "list_views", "get_view", "delete_view"),
+            toolsWithoutView = setOf("reload_graph", "server_info", "define_view", "list_views", "get_view", "delete_view"),
         )
         return if (logToolCalls) LoggingToolCallbackProvider(guarded) else guarded
     }
 }
 
 fun main(args: Array<String>) {
-    runApplication<McpApplication>(*args)
+    runApplication<McpApplication>(*args) {
+        // One server per workspace, checked before the graph is built and the port is bound.
+        addListeners(InstanceGuard())
+        // The MCP handshake's serverInfo carries the real version; a setting still overrides it.
+        setDefaultProperties(mapOf("spring.ai.mcp.server.version" to ServerVersion.current()))
+    }
 }

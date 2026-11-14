@@ -22,7 +22,7 @@ proposing one.
 
 Because the expensive, error-prone part — resolving the node set and reading the
 dependency digest correctly — is shared, do it **once, here**, and only then pick
-the rendering. Steps 1 and 2 below are common to both; step 3 routes you to the
+the rendering. Steps 0 to 2 below are common to both; step 3 routes you to the
 rendering-specific reference.
 
 ## When a different shape is better
@@ -35,6 +35,13 @@ rendering-specific reference.
 - **Planning to split or extract a module** — that is a *proposed-split* analysis
   with its own cycle-projection traps. Use **hierograph-extract**, not this.
 - **hierograph isn't running yet** — set it up first with **hierograph-bootstrap**.
+
+## Step 0 — Check the server
+
+Before the first query, call `server_info` once and compare its `workspace` with the build root
+of the project you are working in. If they differ, the client is connected to another project's
+server: stop and tell the user, rather than answering from that graph. (A server older than 0.3.0
+has no `server_info`; then skip the check.)
 
 ## Step 1 — Choose the node set
 

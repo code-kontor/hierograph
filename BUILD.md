@@ -152,10 +152,12 @@ repackaged `-exec.jar`) via the `docker` CLI. The registry and name are properti
 The image is self-contained: mount the target project's build root and your Maven directory
 **read-only**, and everything else happens inside the container — producing the build manifest with
 the baked-in Maven and Hierograph plugin (`hierograph:manifest`, no compilation), regenerating it after a
-POM edit, scanning, and serving MCP on port `8080`:
+POM edit, scanning, and serving MCP on port `8765`:
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm -p 8765:8765 \
+  -e HIEROGRAPH_URL=http://localhost:8765/mcp \
+  -e HIEROGRAPH_WORKSPACE=/path/to/project \
   -v /path/to/project:/workspace:ro \
   -v ~/.m2:/m2:ro \
   [-v hierograph-state:/hierograph] \
@@ -170,6 +172,9 @@ docker run --rm -p 8080:8080 \
   regenerates the manifest first.
 - `HIEROGRAPH_MAVEN_ARGS` passes extra Maven arguments (e.g. profiles that add modules);
   `HIEROGRAPH_BUILD_FILES` sets the reaction to edited POMs (`regenerate` by default).
+- `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the project path
+  as the host sees them, instead of the container's own address and `/workspace`. With another host
+  port (`-p 9000:8765`), set `HIEROGRAPH_URL` to that port.
 - The host keeps compiling as usual; the container picks the classes up through the mount (polling).
 
 ### Push the image
