@@ -82,6 +82,22 @@ by hand:
 
 ---
 
+## 1b. Gradle properties — `~/.gradle/gradle.properties`
+
+The Gradle plugin's release (`./gradlew publish -Prelease`) uploads with the **same Central token**, read
+as Gradle properties:
+
+```properties
+centralUsername=<token username>
+centralPassword=<token password>
+```
+
+Keep the file mode `600`. Alternatively export `ORG_GRADLE_PROJECT_centralUsername` /
+`ORG_GRADLE_PROJECT_centralPassword` for the release shell only. Signing uses `gpg` through `gpg-agent`,
+with the default secret key, or the one named by `signing.gnupg.keyName`.
+
+---
+
 ## 2. Import the GPG secret key into the keyring
 
 **This is separate from the passphrase, and it's the step most easily forgotten.** `maven-gpg-plugin`
@@ -122,6 +138,7 @@ read -rsp "GHCR PAT: " GHCR_PAT && echo "$GHCR_PAT" | docker login ghcr.io -u YO
 gpg --list-secret-keys --keyid-format LONG                 # your key (a `sec` line)
 grep -q '<id>central</id>'  ~/.m2/settings.xml && echo "central server: ok"
 grep -q 'gpg.passphrase'    ~/.m2/settings.xml && echo "gpg passphrase: ok"
+grep -q 'centralUsername'   ~/.gradle/gradle.properties && echo "gradle central token: ok"
 grep -q 'ghcr.io'           ~/.docker/config.json && echo "ghcr login: ok"   # image only
 mvn -version                                               # Java 21
 ```

@@ -25,7 +25,8 @@ published separately, so you only need the credentials for the artifact(s) you p
    **password** (not your portal login).
 
 **Store in your manager:** the token username and password. The POM expects them under the Maven
-server id **`central`**.
+server id **`central`**; the Gradle plugin's release reads the same pair as the Gradle properties
+`centralUsername` / `centralPassword`.
 
 ---
 

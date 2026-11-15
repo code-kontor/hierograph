@@ -26,7 +26,7 @@ configuration lives in `hierograph-parent`.
 | `hierograph-graphstore`        | The GraphStore and its Parquet snapshot format (`io.hierograph.graphstore.jvm`), and the bytecode scanner (`io.hierograph.graphstore.jvm.scanner`) |
 | `hierograph-hierarchicalgraph` | The in-memory hierarchical graph model and its algorithms         |
 | `hierograph-server`            | MCP server (`io.hierograph.server`), GraphQL (`io.hierograph.server.graphql`), the graph service they share (`io.hierograph.server.graphservice`: loading/reload, search, node properties, pagination), and the GraphStore-to-model mapping (`io.hierograph.server.mapping`) |
-| `hierograph-maven-plugin`      | Maven plugin that records build facts and scans modules into `.hierograph` archives |
+| `hierograph-build-support`     | The build-tool-independent manifest library (`io.hierograph.manifest`) and the Maven plugin (`hierograph-maven-plugin`) that records build facts and scans modules into `.hierograph` archives. The Gradle plugin (`hierograph-gradle-plugin`) lives here too, as a Gradle build of its own (see below) |
 | `hierograph-itest`             | Integration tests (opt-in, see below)                            |
 
 The runnable artifact is the Spring Boot MCP server in
@@ -74,6 +74,28 @@ They run against a Parquet snapshot fixture (Spring jars scanned once per JVM) a
 
 ```bash
 mvn -o -Pitest verify
+```
+
+### The Gradle plugin — its own Gradle build
+
+`hierograph-build-support/hierograph-gradle-plugin` is a Gradle build with its own wrapper, outside the
+Maven reactor; the Maven build doesn't build it. It depends on the `io.hierograph.manifest` library, which
+it takes from `~/.m2`, so install that first:
+
+```bash
+mvn -o install -pl hierograph-build-support/io.hierograph.manifest -am -DskipTests
+cd hierograph-build-support/hierograph-gradle-plugin
+./gradlew build                 # compiles, validates the plugin, runs the TestKit tests (Gradle 8.11 and current)
+./gradlew publishToMavenLocal   # for the init script, and for the Gradle integration tests below
+```
+
+The TestKit tests download Gradle 8.11 and the fixtures' dependencies on first run, so they need network.
+
+The integration tests that compare the Maven and Gradle manifests and run the server on a Gradle build are
+opt-in. They need the Gradle plugin published to `~/.m2` and the reactor installed:
+
+```bash
+mvn -Pitest verify -pl hierograph-itest/io.hierograph.itest.tests -Dhierograph.itest.gradle=true -Dit.test='Gradle*IT'
 ```
 
 ## Running the MCP server

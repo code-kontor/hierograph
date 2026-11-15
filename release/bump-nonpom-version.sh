@@ -49,6 +49,7 @@ cd "${REPO_ROOT}"
 # Add new ones here as they appear; keep the release guides (release/docs/*.md) OUT.
 FILES=(
   "BUILD.md"
+  "hierograph-build-support/hierograph-gradle-plugin/gradle.properties"   # the Gradle plugin's own build
 )
 
 echo "Replacing '${OLD}' -> '${NEW}' in non-POM files:"

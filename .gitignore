@@ -21,6 +21,11 @@ parquet-export/
 # Maven wrapper local cache
 .mvn/
 
+# The Gradle plugin's own Gradle build (hierograph-build-support/hierograph-gradle-plugin)
+/hierograph-build-support/hierograph-gradle-plugin/.gradle/
+/hierograph-build-support/hierograph-gradle-plugin/.kotlin/
+/hierograph-build-support/hierograph-gradle-plugin/build/
+
 # Claude Code workspace
 # Project skills under .claude/skills/ are tracked; everything else
 # (settings.local.json, per-user state) stays per-user.

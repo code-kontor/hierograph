@@ -4,7 +4,7 @@
 ([`release-machine-setup.md`](release-machine-setup.md)) and the credentials from
 [`credentials.md`](credentials.md).
 
-This publishes the Java artifacts (libraries, Maven plugin, MCP server jar) to **Maven Central** and the
+This publishes the Java artifacts (libraries, Maven and Gradle plugins, MCP server jar) to **Maven Central** and the
 MCP server image to **GHCR**. The two are independent — you can do one without the other — but a normal
 release does both at the same version.
 
@@ -35,8 +35,8 @@ mvn versions:commit
 ./release/bump-nonpom-version.sh X.Y.Z-SNAPSHOT X.Y.Z
 ```
 
-`versions:set` rewrites the POMs; the script bumps the non-POM carriers (`BUILD.md`, and the Claude
-plugin manifest `plugin.json`, which tracks the release-form version).
+`versions:set` rewrites the POMs; the script bumps the non-POM carriers (`BUILD.md`, the Gradle plugin's
+`gradle.properties`, and the Claude plugin manifest `plugin.json`, which tracks the release-form version).
 
 > **Clean stray backups.** `versions:commit` leaves `*.versionsBackup` files under `hierograph-itest`,
 > because that module is behind the `-Pitest` profile and isn't in the default reactor it operated on.
@@ -74,6 +74,23 @@ GPG-signs every artifact, and uploads via `central-publishing-maven-plugin`.
 `autoPublish` is `false`, so the upload lands as a **staged deployment**. Review it at
 <https://central.sonatype.com/publishing/deployments> and click **Publish**. Sync to Central
 search/repo then takes ~10–30 minutes.
+
+### 2b. Publish the Gradle plugin to Maven Central
+
+The Gradle plugin has its own Gradle build, outside the reactor. It depends on the `io.hierograph.manifest`
+library that Step 2 just deployed (and installed into `~/.m2`, so there's no need to wait for Central):
+
+```bash
+cd hierograph-build-support/hierograph-gradle-plugin
+./gradlew clean build publish -Prelease
+cd -
+```
+
+`-Prelease` signs with the same GPG key (through `gpg-agent`), bundles the plugin and its marker
+(`io.hierograph:io.hierograph.gradle.plugin`) and uploads them as a second **staged deployment**,
+using the Portal token from the Gradle properties `centralUsername` / `centralPassword`
+([`release-machine-setup.md`](release-machine-setup.md) §1b). Review and **Publish** it like the Maven one.
+Its version is the one `bump-nonpom-version.sh` set in its `gradle.properties` in Step 1.
 
 ---
 
@@ -128,6 +145,7 @@ git push origin main
       `*.versionsBackup` removed
 - [ ] `mvn -o clean install` and `mvn clean install -Pitest` both green
 - [ ] `mvn clean deploy -Prelease` succeeded; staged deployment **Published** in the portal
+- [ ] `./gradlew clean build publish -Prelease` (Gradle plugin) succeeded; its deployment **Published** too
 - [ ] `-Pdocker deploy -Ddocker.push.skip=false` pushed the multi-arch image (verified with imagetools)
 - [ ] `Release X.Y.Z` committed, `vX.Y.Z` tag pushed, bumped back to the next `-SNAPSHOT`
 

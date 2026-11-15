@@ -15,7 +15,7 @@
     <packaging>pom</packaging>
 
     <name>Hierograph Build Support</name>
-    <description>Build-tool integration: the build-tool-independent manifest library and the Maven plugin that produces the manifest and the scanned archives.</description>
+    <description>Build-tool integration: the build-tool-independent manifest library and the Maven plugin that produces the manifest and the scanned archives. The Gradle plugin (hierograph-gradle-plugin) has its own Gradle build in this directory and is not a module of this reactor.</description>
 
     <modules>
         <module>io.hierograph.manifest</module>
