@@ -39,3 +39,12 @@ for skill in "$src_dir"/*/; do
   ln -s "$target" "$link"
   echo "linked         $name"
 done
+
+# The linked skills and an installed plugin both trigger on the same phrases.
+# .claude/settings.json disables the plugin here; a local-scope install
+# re-enables it in settings.local.json, which takes precedence.
+installed="$HOME/.claude/plugins/installed_plugins.json"
+if [[ -f "$installed" ]] && grep -q '"hierograph@code-kontor"' "$installed"; then
+  echo "note: the hierograph plugin is installed; keep it disabled for this repo" >&2
+  echo "      (enabledPlugins in .claude/settings.json, not overridden by settings.local.json)" >&2
+fi

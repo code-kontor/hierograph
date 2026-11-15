@@ -28,10 +28,11 @@ parquet-export/
 __pycache__/
 
 # Claude Code workspace
-# Project skills under .claude/skills/ are tracked; everything else
-# (settings.local.json, per-user state) stays per-user.
+# Project skills under .claude/skills/ and the shared settings.json are
+# tracked; everything else (settings.local.json, per-user state) stays per-user.
 .claude/*
 !.claude/skills/
+!.claude/settings.json
 
 # Embedded test database
 
@@ -75,5 +76,3 @@ out/
 .claude/skills/hierograph-structure
 .claude/skills/hierograph-extract
 .claude/skills/hierograph-bootstrap
-.claude/skills/hierograph-rescan
-.claude/skills/layered-dependency-graph
