@@ -36,7 +36,8 @@ mvn versions:commit
 ```
 
 `versions:set` rewrites the POMs; the script bumps the non-POM carriers (`BUILD.md`, and the Claude
-plugin manifest `plugin.json`, which tracks the release-form version).
+plugin manifest `plugin.json`, whose version carries `-SNAPSHOT` between releases so that every
+release changes it and `/plugin update` picks the new skills up).
 
 > **Clean stray backups.** `versions:commit` leaves `*.versionsBackup` files under `hierograph-itest`,
 > because that module is behind the `-Pitest` profile and isn't in the default reactor it operated on.
