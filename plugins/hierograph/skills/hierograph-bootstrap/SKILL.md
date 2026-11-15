@@ -19,6 +19,7 @@ allowed-tools:
   - Bash(docker version)
   - Bash(claude mcp add:*)
   - Bash(claude mcp list)
+  - Bash(python3 -I:*)
   - Read
   - Write
   - Glob
@@ -65,7 +66,7 @@ a Gradle producer is planned. Do not improvise a manifest by hand.
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| `HIEROGRAPH_VERSION` | latest **release** | Version of the image, the server jar and the Maven plugin (released together). Determined in Step 1. Must be **0.2.0 or later** (earlier releases are a retired generation). Never a `-SNAPSHOT`. |
+| `HIEROGRAPH_VERSION` | latest **release** | Version of the image, the server jar and the Maven plugin (released together). Determined in Step 1. Must be **0.3.0 or later**: 0.2.0 lacks views, `server_info` and the per-workspace port; earlier releases are a retired generation. Never a `-SNAPSHOT`. |
 | `RUN_MODE` | `docker` | `docker` or `jvm` (see above). Asked in Step 1. |
 | `BUILD_ROOT` | the current project directory | The directory holding the root `pom.xml` — where Maven runs and, in `jvm` mode, where `.hierograph/` is written. Use its **absolute** path in Docker mounts. |
 | `MAVEN` | `./mvnw` if `BUILD_ROOT/mvnw` exists, else `mvn` | The host's Maven, for the host build (both modes) and the manifest (`jvm`). |
@@ -111,14 +112,10 @@ command. Run the action, then **verify in a separate step**. Long output is fine
   ```bash
   curl -s https://repo1.maven.org/maven2/io/hierograph/hierograph-maven-plugin/maven-metadata.xml
   ```
-  - If the release is **0.2.0 or later**, use it.
-  - If the request returns 404 or the release is older than 0.2.0, **stop**: no released version
-    supports this setup yet. Tell the user; do not fall back to a `-SNAPSHOT`.
+  - If the release is **0.3.0 or later**, use it.
+  - If the request returns 404 or the release is older than 0.3.0, **stop**: no released version
+    supports this setup yet. Tell the user; do not fall back to a `-SNAPSHOT` or an older release.
   - If Maven Central is unreachable, ask the user for the version.
-  - **Releases before 0.3.0** listen on 8080 by default and have no `server.properties`, no
-    `server.json` and no `server_info`. With such a release, pass `--server.port=MCP_PORT` to the
-    `java -jar` command, map `-p MCP_PORT:8080` in `docker run`, check readiness with
-    `nc -z localhost MCP_PORT` in both modes, and verify with `graph_overview` only.
 - **Choose `RUN_MODE`.** Recommend `docker`: no change to the project, no Hierograph command on the
   host, POM edits handled inside the container. Check `docker version`; if Docker is not available,
   or the user prefers a local process (e.g. for native file watching), use `jvm`.
@@ -317,7 +314,7 @@ a flat reactor, and skip it unless the user wants it.
 Derive the document from the POMs, never from module names:
 
 ```bash
-python3 -I <this skill's dir>/scripts/multimodule_view.py "$BUILD_ROOT" [--profile <id> ...] > <scratch dir>/multi-modules.json
+python3 -I <this skill's dir>/scripts/multimodule_view.py ABSOLUTE_BUILD_ROOT [--profile <id> ...] > <scratch dir>/multi-modules.json
 ```
 
 It walks `<modules>` recursively (pass the `PROFILES` that add modules), makes one group per
