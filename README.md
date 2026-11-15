@@ -85,7 +85,7 @@ Agentic AI (Claude, Cursor, …)
 
 Hierograph reads your compiled Java *bytecode* with its own ASM-based scanner. Bytecode matters: where syntactic parsers see `foo.bar()` and record a call to *some* `bar`, the scanner knows *which* `bar`, on which resolved type, reached through which inheritance path — including across library dependencies and generics. The dependencies are resolved facts, not textual guesses.
 
-The server scans a project's compiled output directly — the [Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage) records the reactor's module layout and resolved classpath in a small build manifest, and the server scans from there. There is no separate graph database to stand up, and nothing leaves your machine.
+The server scans a project's compiled output directly — the [Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage) or the [Hierograph Gradle plugin](hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md#8-usage) records the build's module layout and resolved classpath in a small build manifest, and the server scans from there. There is no separate graph database to stand up, and nothing leaves your machine.
 
 From those resolved facts, **Hierograph** derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level — modules, packages, types, or arbitrary subtrees. Member-level detail is persisted alongside it as a Parquet snapshot. It then serves this model through MCP tools designed for AI reasoning.
 
@@ -114,6 +114,27 @@ The first answer tells you whether this is the missing piece.
 Hierograph's core is scanner-agnostic: it derives its hierarchical model from resolved structural facts, and its own bytecode scanner provides those for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
 
 For a step-by-step description, see the [usage guide of the Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
+
+### Gradle builds
+
+For a Gradle build (8.11 or later), the Gradle plugin writes the same build manifest, without compiling and without changing the project. Run it through the init script the plugin ships:
+
+```groovy
+// hierograph.init.gradle, saved outside the project
+initscript {
+    repositories { mavenCentral() }
+    dependencies { classpath "io.hierograph:hierograph-gradle-plugin:<version>" }
+}
+beforeSettings { settings ->
+    settings.pluginManager.apply(io.hierograph.gradle.plugin.HierographSettingsPlugin)
+}
+```
+
+```bash
+./gradlew --init-script /path/to/hierograph.init.gradle hierographManifest
+```
+
+Or apply `id("io.hierograph")` in `settings.gradle.kts`. Then run the server as a local Java process in manifest mode against the build root. The Docker image supports only Maven builds so far. See the [Gradle plugin's usage guide](hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md#8-usage).
 
 Open source. Self-hosted.
 

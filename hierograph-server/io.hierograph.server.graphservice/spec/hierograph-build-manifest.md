@@ -19,7 +19,9 @@ classpath to resolve references*.
   the [Maven plugin](../../../hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md)'s
   `hierograph:create-descriptor` writes it on every build that reaches
   `process-classes`, and its `hierograph:manifest` writes it without compiling —
-  the way the Hierograph Docker image produces it inside the container
+  the way the Hierograph Docker image produces it inside the container; the
+  [Gradle plugin](../../../hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md)'s
+  `hierographManifest` task writes it without compiling, too
 - **Consumer:** the server's manifest-mode graph source (`hierograph.graph.source=manifest`)
 - **Location:** `<build root>/.hierograph/manifest.json` by default; any directory
   when the consumer is told the build root (§3)
@@ -179,10 +181,15 @@ owner's classpath wins).
   `test`: `compile`, `runtime`, `provided`, and `system`. (`provided` and `system`
   matter: a class compiled against a `provided` API references its types, so
   dropping them would leave those references dangling as external placeholders.)
+  The Gradle producer records the entries of `compileClasspath` followed by those
+  only in `runtimeClasspath`, which covers the same ground (`compileOnly` ≈
+  `provided`, `runtimeOnly` ≈ `runtime`).
 - **`testClasspath` (test)** — the **full** test classpath, against which test
   bytecode (JUnit, AssertJ, Mockito, …) is resolved. The Maven producer records
   every resolved dependency, test scope included. It is recorded as the complete
   list, not a delta over `classpath`, so the consumer never has to merge two lists.
+  The Gradle producer records `testCompileClasspath` followed by the entries only in
+  `testRuntimeClasspath`. Following Gradle, it holds no `compileOnly` entries.
 
 **Entries list dependencies only; the owner is implicit.** Neither list contains
 the module itself — the consumer prepends the owner as index 0 (the owner's own

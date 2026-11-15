@@ -43,4 +43,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- The Gradle plugin runs this library against the Kotlin stdlib that Gradle embeds (2.0 from Gradle
+                 8.11), so it must not use stdlib API newer than 2.0. -->
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <configuration>
+                    <apiVersion>2.0</apiVersion>
+                    <languageVersion>2.0</languageVersion>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
