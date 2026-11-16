@@ -177,6 +177,31 @@ docker run --rm -p 8080:8080 \
   `HIEROGRAPH_BUILD_FILES` sets the reaction to edited POMs (`regenerate` by default).
 - The host keeps compiling as usual; the container picks the classes up through the mount (polling).
 
+A **Gradle** build is different: the host writes the manifest with the Hierograph Gradle plugin, and the
+container only scans and serves it. A Gradle build definition is a program that needs the host's JDKs,
+credentials and init scripts, so it doesn't run in the container (see §8.4 of the
+[Gradle plugin's spec](hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md)):
+
+```bash
+./gradlew --init-script /path/to/hierograph.init.gradle hierographManifest   # on the host, writes .hierograph/
+docker run --rm -p 8080:8080 \
+  -v /path/to/project:/workspace:ro \
+  [-v hierograph-state:/hierograph] \
+  ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
+```
+
+- The build tool is detected: `pom.xml` → Maven, a settings or build script → Gradle; a build root with
+  both is Maven unless `HIEROGRAPH_BUILD_TOOL=gradle`.
+- The server maps the manifest's host paths to `/workspace`. An edited build script makes the build
+  state `stale`; rerunning `hierographManifest` on the host rewrites the manifest, and the server applies it.
+
+The container test runs the image on a Gradle build (Docker running, the image built as above, the Gradle
+plugin published with `./gradlew publishToMavenLocal`):
+
+```bash
+mvn -Pitest verify -pl hierograph-itest/io.hierograph.itest.tests -Dhierograph.itest.gradle=true -Dhierograph.itest.docker=true -Dit.test=GradleContainerIT
+```
+
 ### Push the image
 
 Pushing is **opt-in** — a plain `-Pdocker package` only builds locally. The push is bound to the

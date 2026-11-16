@@ -120,6 +120,9 @@ class GradleFixture(val root: Path) {
     /** Runs `./gradlew -q --init-script <shipped> [args] hierographManifest`. */
     fun gradle(vararg args: String) = run(listOf("./gradlew", "-q", "--init-script", initScript.toString()) + args + "hierographManifest")
 
+    /** Runs `./gradlew -q [args]`, without the plugin. */
+    fun gradleBuild(vararg args: String) = run(listOf("./gradlew", "-q") + args)
+
     /** Runs the Maven plugin's `manifest` goal. */
     fun maven(vararg args: String) {
         val home = System.getProperty("maven.home")

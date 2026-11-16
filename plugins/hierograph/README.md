@@ -4,12 +4,14 @@ Claude Code skills for setting up and analyzing JVM codebases with the Hierograp
 
 Skills included:
 
-- **`/hierograph:hierograph-bootstrap`** — first-time setup for a Maven project. By default it starts
-  the self-contained Hierograph Docker container with the project and `~/.m2` mounted read-only: the
-  container produces and regenerates the build manifest itself, and the project needs no change at all.
-  Alternatively it runs the server as a local Java process on a manifest from the host
-  (`hierograph:manifest`). Then it registers the server with your client. Afterwards the server follows
-  code, module and POM changes on its own; there is no rescan step. Gradle builds are not supported yet.
+- **`/hierograph:hierograph-bootstrap`** — first-time setup for a Maven or Gradle project. By default it
+  starts the Hierograph Docker container with the project mounted read-only. For a Maven build (with
+  `~/.m2` mounted read-only too) the container produces and regenerates the build manifest itself, and
+  the project needs no change at all. For a Gradle build the host writes the manifest with the
+  `hierographManifest` task through an init script, and the container serves it. Alternatively it runs
+  the server as a local Java process on a manifest from the host. Then it registers the server with
+  your client. Afterwards the server follows code and module changes on its own; there is no rescan
+  step.
 - **`/hierograph:hierograph-structure`** — dependency structure: DSM, layered dependency graph,
   layering and cycle analysis.
 - **`/hierograph:hierograph-extract`** — plan a module / package extraction.
@@ -55,5 +57,6 @@ After installing, invoke a skill directly (`/hierograph:hierograph-bootstrap`) o
 task — e.g. *"bootstrap hierograph for this project"* or *"show these modules as a DSM"* — and the
 matching skill triggers automatically.
 
-The bootstrap needs a released Hierograph **0.2.0 or later** (server image on GHCR; Maven plugin and
-server jar on Maven Central), and Docker — or Java 21 for the local-JVM mode.
+The bootstrap needs a released Hierograph **0.2.0 or later** for Maven builds and **0.3.0 or later**
+for Gradle builds (server image on GHCR; plugins and server jar on Maven Central), and Docker — or
+Java 21 for the local-JVM mode.

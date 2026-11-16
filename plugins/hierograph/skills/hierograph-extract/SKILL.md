@@ -1,6 +1,6 @@
 ---
 name: hierograph-extract
-description: Plan a code-extraction refactor (split a Maven/Gradle module, move a package into a new module, carve out a library) using hierograph. Enforces the checks needed to avoid hidden cross-package dependencies and projected Maven cycles. Trigger when the user says "extract X into a new module", "move this package to a new module", "split this module", "carve out a library", or similar. Do NOT use for: read-only "what depends on X" questions (use hierograph directly), single-file renames, or refactors that stay within one module.
+description: Plan a code-extraction refactor (split a Maven/Gradle module, move a package into a new module, carve out a library) using hierograph. Enforces the checks needed to avoid hidden cross-package dependencies and projected module cycles. Trigger when the user says "extract X into a new module", "move this package to a new module", "split this module", "carve out a library", or similar. Do NOT use for: read-only "what depends on X" questions (use hierograph directly), single-file renames, or refactors that stay within one module.
 ---
 
 # hierograph-extract — plan a module-extraction refactor
@@ -8,7 +8,7 @@ description: Plan a code-extraction refactor (split a Maven/Gradle module, move 
 When the user wants to move a set of classes/packages out of one module into a new one, do these
 checks in this exact order. The point of the skill is that **`pairwise_dependencies` cycle results
 and `outgoing_dependencies` queries scoped to a sibling package will miss cross-package edges** —
-every prior extraction plan that skipped step 3 here ended up with a Maven cycle the user only
+every prior extraction plan that skipped step 3 here ended up with a module cycle (which Maven and Gradle both reject) the user only
 discovered at build time.
 
 ## Why this exists
@@ -58,7 +58,7 @@ aggregated_dependencies(
 Classify each target:
 - in the move-set → ignore
 - in the staying-set → potential cycle, see step 5
-- in an external library → just a Maven dependency to declare
+- in an external library → just a build dependency to declare
 
 ### 3. File-level grep (ground truth — do NOT skip)
 
@@ -70,13 +70,13 @@ grep -h '^import \(de\.\|com\.\|org\.\)' <every-moved-.java-file> | sort -u
 ```
 
 (Adjust prefix for the project's package roots.) Read the output; any import not satisfied by the
-new module's planned Maven dependencies is either a class you must also move or a cross-package
+new module's planned build dependencies is either a class you must also move or a cross-package
 dep that creates a cycle.
 
 If `grep` finds an import that hierograph didn't surface, trust `grep` and re-run step 2 against
 the target's containing artifact to confirm. Do not silently widen the move-set.
 
-### 4. Incoming check (downstream pom updates)
+### 4. Incoming check (downstream build-file updates)
 
 Enumerate which other modules currently depend on the move-set — they will need a `<dependency>`
 on the new module after the split. The batched form is the right default:
@@ -89,7 +89,7 @@ aggregated_dependencies(
 ```
 
 Each returned edge means `arg0[i]` depends on `arg1[j]`. Group by source module. Heavy consumers
-(large weight from one artifact) probably want an **explicit** pom declaration even if
+(large weight from one artifact) probably want an **explicit** dependency declaration in their build file even if
 transitivity would resolve it.
 
 For per-pair evidence, use `incoming_dependencies`. **Mind the direction**: `arg0` is the
@@ -105,7 +105,7 @@ incoming_dependencies(
 ### 5. Cycle projection — the decision step
 
 If step 2 or step 3 found edges from the move-set into types that will *stay behind* in the
-original module, the proposed split creates a Maven cycle:
+original module, the proposed split creates a module cycle:
 
 ```
 new-module ──depends on──> staying type in original module
@@ -130,7 +130,7 @@ Don't pick for them. Surface the trade-off, let them decide.
 A plan file (markdown) with these sections:
 - **Move-set** — exact class list, grouped by package
 - **Bring along** — cross-package types that must also move and why
-- **External libraries** — Maven deps the new module needs
+- **External libraries** — dependencies the new module needs
 - **Downstream consumers** — modules whose poms need an `<dependency>` on the new module
 - **Cycle resolution** — if any, the chosen option from step 5 with rationale
 - **Verification** — commands to run after implementation (build, re-scan, grep)
@@ -156,5 +156,5 @@ A plan file (markdown) with these sections:
 - Read-only dependency questions ("what depends on `Foo`?") — call `incoming_dependencies` or
   `aggregated_dependencies` directly.
 - Single-file moves within the same module — no new module boundary, no cycle risk.
-- Renaming a package — different problem (import rewrites, not Maven topology).
+- Renaming a package — different problem (import rewrites, not module topology).
 - Repository-level moves (file lives in repo A, should be in repo B) — different concern.
