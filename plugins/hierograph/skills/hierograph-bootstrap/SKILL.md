@@ -259,6 +259,9 @@ docker run -d --name hierograph-mcp -p 127.0.0.1:MCP_PORT:8765 \
   without authentication. Always keep the `127.0.0.1:` prefix; a plain `-p MCP_PORT:8765` listens on
   every interface of the host. (Inside the container the server listens on all interfaces, which
   Docker's port forwarding needs; the host side of the mapping is what keeps it local.)
+- **Diagnostic endpoints are off:** `/actuator/env`, `/actuator/threaddump` and `/actuator/heapdump`
+  answer 404 unless enabled. Don't add `-e HIEROGRAPH_ACTUATOR_DIAGNOSTICS_ENABLED=true` to a normal
+  setup; see *Diagnosing the server* for when and how to switch them on.
 - Inside the container the server always listens on 8765; `MCP_PORT` is only the host side of the
   mapping. `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the
   project path as the host sees them.
@@ -349,6 +352,9 @@ refuses to start and names its URL; use that URL in Step 5 instead.
   machines on the network can't reach it — it serves the code base without authentication. Don't
   pass `--server.address` or put it in `server.properties` unless the user explicitly asks to expose
   the server.
+- **Diagnostic endpoints are off:** `/actuator/env`, `/actuator/threaddump` and `/actuator/heapdump`
+  answer 404 unless enabled. Don't pass `--hierograph.actuator.diagnostics.enabled=true` in a normal
+  setup; see *Diagnosing the server* for when and how to switch them on.
 
 ### 4. Wait for readiness
 
@@ -461,6 +467,41 @@ There is no rescan step.
 - **After a restart:** `docker start hierograph-mcp` (the state volume keeps the manifest), or start
   the server again as in Step 3J; it takes its port from `.hierograph/server.properties` again.
 
+## Diagnosing the server
+
+The server serves Spring Boot Actuator endpoints under `/actuator` on `MCP_PORT`, reachable from the
+local machine only:
+
+| Endpoint | Default | Content |
+|----------|---------|---------|
+| `health`, `info` | on | status and build info |
+| `metrics` | on | JVM memory, GC, threads, CPU, e.g. `http://localhost:MCP_PORT/actuator/metrics/jvm.memory.used?tag=area:heap` |
+| `env` | **off** | the configuration properties, all values masked |
+| `threaddump` | **off** | the server's threads with their stacks |
+| `heapdump` | **off** | a heap dump (`.hprof`) to download |
+
+**The diagnostic endpoints `env`, `threaddump` and `heapdump` are off by default** and answer 404. A
+heap dump holds everything the server has loaded — the scanned code base included — and is as large
+as the used heap (over 1 GB for a large reactor; the JVM pauses while writing it). Switch them on only
+when the user asks to diagnose the server (memory, a hang), and off again afterwards. For memory use,
+`metrics` is usually enough and needs no switch.
+
+**Enable them** with `hierograph.actuator.diagnostics.enabled=true`, then restart the server:
+
+- `docker`: the switch is an environment variable, and a container's environment is fixed at
+  creation, so recreate it — `docker stop hierograph-mcp`, `docker rm hierograph-mcp`, then the
+  `docker run` of Step 3D with `-e HIEROGRAPH_ACTUATOR_DIAGNOSTICS_ENABLED=true` added. The state
+  volume keeps the manifest and the snapshot. To switch them off, recreate it without the variable.
+- `jvm`: stop the server and start it as in Step 3J with
+  `--hierograph.actuator.diagnostics.enabled=true` added. To switch them off, start it without the
+  argument. (Putting the line `hierograph.actuator.diagnostics.enabled=true` into
+  `.hierograph/server.properties` keeps them on across restarts; only do that when the user asks.)
+
+Check with `curl -s -o /dev/null -w "%{http_code}" http://localhost:MCP_PORT/actuator/threaddump`:
+`200` when on, `404` when off. Download a heap dump with
+`curl -o heap.hprof http://localhost:MCP_PORT/actuator/heapdump` into the scratch directory, never
+into the project.
+
 ## Handing off
 
 Once verified, point the user at the analysis skills — **hierograph-structure** (dependency
@@ -487,4 +528,5 @@ AI starts reading source files instead of querying, nudge it with **"use hierogr
 | `Hierograph is already running for workspace …` | A server for this workspace runs already | Register the URL the message names; stop the running server first only if it must be replaced |
 | `MCP_PORT` in use at start | Another process holds the port | Choose another `MCP_PORT`: `jvm` — change `server.port` in `.hierograph/server.properties`; `docker` — recreate the container with `-p 127.0.0.1:<port>:8765` and `HIEROGRAPH_URL` on that port. Then re-register the URL |
 | Another application of the project can't start because hierograph holds its port | `MCP_PORT` collides with a port the project needs | Stop the server, move it to another port as in the row above, restart it and re-register the URL |
+| `/actuator/env`, `/actuator/threaddump` or `/actuator/heapdump` answers 404 | The diagnostic endpoints are off by default | Enable them as in *Diagnosing the server*, if the user wants them |
 | `docker run` fails with `name … already in use` | A `hierograph-mcp` container exists from an earlier setup | `docker start hierograph-mcp`, or `docker stop` and remove it before a fresh run |

@@ -133,6 +133,32 @@ The server listens on `127.0.0.1` only (`server.address` in `application.propert
 code base without authentication, so other machines on the network can't reach it. To expose it
 deliberately, pass `--server.address=0.0.0.0`.
 
+Spring Boot Actuator serves operational endpoints under `/actuator` on the same port:
+
+| Endpoint | Default | Content |
+| -------- | ------- | ------- |
+| `health`, `info` | on | status and build info |
+| `metrics` | on | JVM memory, GC, threads, CPU, e.g. `/actuator/metrics/jvm.memory.used?tag=area:heap` |
+| `env` | **off** | the configuration properties, all values masked |
+| `threaddump` | **off** | the server's threads with their stacks |
+| `heapdump` | **off** | a heap dump (`.hprof`) to download, as large as the used heap; it holds the scanned code base |
+
+**The diagnostic endpoints `env`, `threaddump` and `heapdump` are off by default** and answer 404.
+Enable them for a diagnosis with `hierograph.actuator.diagnostics.enabled=true` and restart the server:
+
+```bash
+# local JVM
+java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar \
+  --hierograph.actuator.diagnostics.enabled=true
+
+# container: the environment is fixed at creation, so recreate it with the variable added
+docker run ... -e HIEROGRAPH_ACTUATOR_DIAGNOSTICS_ENABLED=true ... ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
+```
+
+To keep them on across restarts of a local server, put `hierograph.actuator.diagnostics.enabled=true`
+into the workspace's `.hierograph/server.properties`. Start the server without the switch to turn them
+off again.
+
 > The repackaged (self-contained) jar carries the `exec` classifier so the plain
 > `io.hierograph.server-0.3.0-SNAPSHOT.jar` remains the module's main artifact —
 > downstream modules (e.g. the integration tests) compile against the server's classes,
