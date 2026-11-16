@@ -16,12 +16,14 @@
 package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.model.NodeHandle
+import java.util.Collections
 
 /**
  * Builds Hierograph's hierarchical graph ([HGModel]) from a [GraphStore]: the bridge from the ingest model
@@ -74,11 +76,15 @@ object GraphStoreToHGModel {
 
         // Type-to-type dependencies, keyed on resolved artifact-scoped node keys (so edges connect the
         // correct distinct nodes when an FQN is defined in more than one artifact).
+        // The kind counts repeat across dependencies ({CALLS=1}, {EXTENDS=1, CALLS=1}, ...): share one read-only
+        // map per distinct combination instead of keeping a map per dependency.
+        val kindsPool = HashMap<Map<DependencyKind, Int>, Map<DependencyKind, Int>>()
         for (dep in store.typeDependencies()) {
             val from = byKey[dep.fromKey] ?: continue
             val to = byKey[dep.toKey] ?: continue
+            val kinds = kindsPool.getOrPut(dep.kinds) { Collections.unmodifiableMap(dep.kinds) }
             val coreDep = HGGraphFactory.createCoreDependency(from, to, DEPENDS_ON) {
-                GraphStoreDependencySource("${dep.fromKey} -> ${dep.toKey}", dep.kinds)
+                GraphStoreDependencySource(kinds)
             }
             coreDep.weight = dep.weight
             coreDep.attributesBitmap = bitmapOf(dep.extends, dep.implements, dep.annotatedBy, dep.other)

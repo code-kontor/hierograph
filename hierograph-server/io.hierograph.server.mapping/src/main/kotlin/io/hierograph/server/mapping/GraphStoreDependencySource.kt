@@ -24,12 +24,25 @@ import io.hierograph.hierarchicalgraph.model.IDependencySource
  * type-level dependency's [kinds], the count of detail facts per [DependencyKind] behind it (see
  * [io.hierograph.graphstore.jvm.TypeDependency]). The core dependency's weight is their sum; its
  * attribute bitmap is the flag view of them.
+ *
+ * A large model has hundreds of thousands of these, so the source stores nothing but [kinds] — which
+ * [GraphStoreToHGModel] shares between all dependencies with the same counts — and the back reference.
  */
 class GraphStoreDependencySource(
-    override val identifier: Any,
     val kinds: Map<DependencyKind, Int>,
 ) : IDependencySource {
     override var dependency: HGCoreDependency? = null
+
+    /**
+     * The pair of the endpoints' node identifiers (their content-addressed handles), derived on access from
+     * the bound [dependency]: the model has one core dependency per type pair, so the pair identifies it. Not
+     * stored — a string of both endpoint keys took about 280 bytes per dependency.
+     */
+    override val identifier: Any
+        get() {
+            val dep = checkNotNull(dependency) { "The dependency source is not bound to a dependency yet" }
+            return dep.from.identifier to dep.to.identifier
+        }
 
     companion object {
         /** The [kinds] of [dependency], or none when it was not mapped from a GraphStore. */

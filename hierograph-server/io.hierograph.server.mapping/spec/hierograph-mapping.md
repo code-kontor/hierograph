@@ -225,7 +225,16 @@ Each `TypeDependency` becomes one `HGCoreDependency`:
 | `type` | `DEPENDS_ON` | the hierarchical graph needs a type string; the four flags carry the distinction |
 | `weight` | `TypeDependency.weight` | how strongly the source depends on the target; rollups sum it |
 | `attributesBitmap` | the four flags, encoded with `JavaEdgeAttributes` | lets tools tell "inherits from" from "uses" without a second edge type |
-| `dependencySource` | `DefaultDependencySource("<fromKey> -> <toKey>")` | a readable identifier for diagnostics |
+| `dependencySource` | `GraphStoreDependencySource(kinds)`, `identifier` = the pair of the endpoints' handles | carries the fact counts per `DependencyKind` (the weight is their sum); see below |
+
+The dependency source stores only the `kinds` map and the back reference to its dependency, because a large
+model has hundreds of thousands of them:
+
+- **`identifier` is derived, not stored**: the pair `(from handle, to handle)`, computed from the bound
+  dependency when read. There is one core dependency per type pair, so the pair identifies it. (A string of
+  both endpoint keys, as earlier versions stored, took about 280 bytes per dependency.)
+- **`kinds` is shared**: dependencies with the same counts (`{CALLS=1}`, `{EXTENDS=1, CALLS=1}`, …) share one
+  read-only map.
 
 The bitmap uses these bit positions:
 

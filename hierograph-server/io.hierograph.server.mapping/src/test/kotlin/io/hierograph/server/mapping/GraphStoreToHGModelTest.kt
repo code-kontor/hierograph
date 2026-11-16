@@ -23,6 +23,7 @@ import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -92,5 +93,42 @@ class GraphStoreToHGModelTest {
         // the edge shows up as incoming on Base
         assertThat(model.lookupNode(h(store.typeKey("app", "com.foo.Base")))!!.incomingCoreDependencies.map { it.from.identifier })
             .contains(h(store.typeKey("app", "com.foo.Sub")))
+    }
+
+    @Test
+    fun `a dependency source is identified by its endpoints' handles and carries the kind counts`() {
+        val model = GraphStoreToHGModel.build(store)
+        val sub = h(store.typeKey("app", "com.foo.Sub"))
+        val base = h(store.typeKey("app", "com.foo.Base"))
+        val toBase = model.lookupNode(sub)!!.outgoingCoreDependencies.single { it.to.identifier == base }
+
+        val source = toBase.getDependencySource(GraphStoreDependencySource::class.java)!!
+        assertThat(source.identifier).isEqualTo(sub to base)
+        assertThat(source.dependency).isSameAs(toBase)
+        assertThat(source.kinds).isEqualTo(mapOf(DependencyKind.EXTENDS to 1))
+        assertThat(GraphStoreDependencySource.kindsOf(toBase)).isEqualTo(mapOf(DependencyKind.EXTENDS to 1))
+    }
+
+    @Test
+    fun `dependencies with the same kind counts share one read-only map`() {
+        // A second subclass of Base with the same facts: {EXTENDS=1} twice, {CALLS=3} once.
+        store.applyClass(
+            "app",
+            ClassFacts("com.foo.Other", JavaNodeKind.CLASS, 0, emptyList(), classHash = "h3"),
+            listOf(Ref("com.foo.Base", DependencyKind.EXTENDS, count = 1)),
+        )
+        val model = GraphStoreToHGModel.build(store)
+        val base = h(store.typeKey("app", "com.foo.Base"))
+        fun kindsTo(fqn: String) = GraphStoreDependencySource.kindsOf(
+            model.lookupNode(h(store.typeKey("app", fqn)))!!.outgoingCoreDependencies.single { it.to.identifier == base },
+        )
+
+        val fromSub = kindsTo("com.foo.Sub")
+        val fromOther = kindsTo("com.foo.Other")
+        assertThat(fromSub).isEqualTo(mapOf(DependencyKind.EXTENDS to 1))
+        assertThat(fromOther).isSameAs(fromSub)
+        @Suppress("UNCHECKED_CAST")
+        val mutable = fromSub as MutableMap<DependencyKind, Int>
+        assertThatThrownBy { mutable[DependencyKind.CALLS] = 1 }.isInstanceOf(UnsupportedOperationException::class.java)
     }
 }
