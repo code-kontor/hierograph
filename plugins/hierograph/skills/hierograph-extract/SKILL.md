@@ -1,6 +1,6 @@
 ---
 name: hierograph-extract
-description: Plan a code-extraction refactor (split a Maven/Gradle module, move a package into a new module, carve out a library, merge or move types between modules) using hierograph. Defines the proposed split as a restructuring view, so the server projects the new module's dependencies and any Maven cycle before code is touched, and enforces the checks needed to avoid hidden cross-package dependencies. Trigger when the user says "extract X into a new module", "move this package to a new module", "split this module", "carve out a library", "what if we moved X to Y", or similar. Do NOT use for: read-only "what depends on X" questions (use hierograph directly), single-file renames, or refactors that stay within one module.
+description: Plan a code-extraction refactor (split a Maven/Gradle module, move a package into a new module, carve out a library, merge or move types between modules) using hierograph. Defines the proposed split as a restructuring view, so the server projects the new module's dependencies and any module cycle before code is touched, and enforces the checks needed to avoid hidden cross-package dependencies. Trigger when the user says "extract X into a new module", "move this package to a new module", "split this module", "carve out a library", "what if we moved X to Y", or similar. Do NOT use for: read-only "what depends on X" questions (use hierograph directly), single-file renames, or refactors that stay within one module.
 ---
 
 # hierograph-extract — plan a module-extraction refactor
@@ -9,7 +9,7 @@ When the user wants to move a set of classes/packages out of one module into a n
 steps in this order. The point of the skill: **a cycle check on the current graph says nothing
 about the proposed split**, and a check scoped to the move-set's own package misses the
 cross-package edges that create the cycle. Every extraction plan that skipped this ended up with a
-Maven cycle the user only discovered at build time.
+module cycle (which Maven and Gradle both reject) the user only discovered at build time.
 
 hierograph answers this directly with a **restructuring view**: a document that moves the
 packages and types into a virtual module, applied by the server to a fork of the graph. Every tool
@@ -95,7 +95,7 @@ back. Read that list back to the user when step 1 named packages.
 | `new_cycles`, `introduces_cycles` | module cycles the split creates — the decision of step 6 |
 
 A cycle in `new_cycles` that contains the new module and its origin module is the classic
-projected Maven cycle. Report it with the SCC's members.
+projected module cycle. Report it with the SCC's members.
 
 ### 4. Cross-boundary evidence (which exact types)
 
@@ -113,7 +113,7 @@ Use `detailLevel = "detail"` for the member references and line numbers behind a
 each target of the first call:
 
 - in the staying module → cycle risk if the second call is non-empty; see step 6
-- in another module → a Maven dependency to declare on the new module
+- in another module → a build dependency to declare on the new module
 - an external type (under "External Types") → a library dependency to declare
 
 ### 5. File-level grep (ground truth — do NOT skip)
@@ -132,7 +132,7 @@ server rescans compiled classes) and redefine the view. Do not silently widen th
 
 ### 6. Cycle resolution — the decision step
 
-If `introduces_cycles` is true, the split as drafted creates a Maven cycle:
+If `introduces_cycles` is true, the split as drafted creates a module cycle:
 
 ```
 new-module ──depends on──> staying type in the origin module
@@ -212,7 +212,7 @@ against the planned split whenever it is asked.
 - Read-only dependency questions ("what depends on `Foo`?") — call `incoming_dependencies` or
   `aggregated_dependencies` directly.
 - Single-file moves within the same module — no new module boundary, no cycle risk.
-- Renaming a package — different problem (import rewrites, not Maven topology).
+- Renaming a package — different problem (import rewrites, not module topology).
 - Repository-level moves (file lives in repo A, should be in repo B) — different concern.
 - Looking at the system by layer or multi-module without moving code — that is a grouping view,
   in **hierograph-structure**.

@@ -134,7 +134,7 @@ beforeSettings { settings ->
 ./gradlew --init-script /path/to/hierograph.init.gradle hierographManifest
 ```
 
-Or apply `id("io.hierograph")` in `settings.gradle.kts`. Then run the server as a local Java process in manifest mode against the build root. The Docker image supports only Maven builds so far. See the [Gradle plugin's usage guide](hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md#8-usage).
+Or apply `id("io.hierograph")` in `settings.gradle.kts`. Then run the server as a local Java process in manifest mode against the build root — or use the Docker image with the project mounted read-only: it detects a Gradle build and serves the manifest the host wrote. See the [Gradle plugin's usage guide](hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md#8-usage).
 
 Open source. Self-hosted.
 
