@@ -129,6 +129,10 @@ Run it with:
 java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar
 ```
 
+The server listens on `127.0.0.1` only (`server.address` in `application.properties`): it serves the
+code base without authentication, so other machines on the network can't reach it. To expose it
+deliberately, pass `--server.address=0.0.0.0`.
+
 > The repackaged (self-contained) jar carries the `exec` classifier so the plain
 > `io.hierograph.server-0.3.0-SNAPSHOT.jar` remains the module's main artifact —
 > downstream modules (e.g. the integration tests) compile against the server's classes,
@@ -177,7 +181,7 @@ the baked-in Maven and Hierograph plugin (`hierograph:manifest`, no compilation)
 POM edit, scanning, and serving MCP on port `8765`:
 
 ```bash
-docker run --rm -p 8765:8765 \
+docker run --rm -p 127.0.0.1:8765:8765 \
   -e HIEROGRAPH_URL=http://localhost:8765/mcp \
   -e HIEROGRAPH_WORKSPACE=/path/to/project \
   -v /path/to/project:/workspace:ro \
@@ -198,7 +202,11 @@ docker run --rm -p 8765:8765 \
   larger reactor, e.g. `-e HIEROGRAPH_JAVA_OPTS=-Xmx4g`.
 - `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the project path
   as the host sees them, instead of the container's own address and `/workspace`. With another host
-  port (`-p 9000:8765`), set `HIEROGRAPH_URL` to that port.
+  port (`-p 127.0.0.1:9000:8765`), set `HIEROGRAPH_URL` to that port.
+- `127.0.0.1:` publishes the port on the host's loopback interface only: the server serves the code
+  base without authentication, so other machines must not reach it. A plain `-p 8765:8765` listens on
+  every interface of the host. Inside the container the server listens on all interfaces (the
+  entrypoint sets `SERVER_ADDRESS=0.0.0.0`), which Docker's port forwarding needs.
 - The host keeps compiling as usual; the container picks the classes up through the mount (polling).
 
 A **Gradle** build is different: the host writes the manifest with the Hierograph Gradle plugin, and the
@@ -208,7 +216,7 @@ credentials and init scripts, so it doesn't run in the container (see §8.4 of t
 
 ```bash
 ./gradlew --init-script /path/to/hierograph.init.gradle hierographManifest   # on the host, writes .hierograph/
-docker run --rm -p 8765:8765 \
+docker run --rm -p 127.0.0.1:8765:8765 \
   -e HIEROGRAPH_URL=http://localhost:8765/mcp \
   -e HIEROGRAPH_WORKSPACE=/path/to/project \
   -v /path/to/project:/workspace:ro \

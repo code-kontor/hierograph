@@ -25,7 +25,13 @@
 #   HIEROGRAPH_WORKSPACE    the project's path on the host; reported as the workspace instead of /workspace
 #   HIEROGRAPH_JAVA_OPTS    JVM options of the server (the image sets -Xmx2g); not passed to Maven
 # Extra arguments to `docker run … <image> <args>` are passed to the server (e.g. --server.port=9090).
+#
+# The server listens on all of the container's interfaces (the server's own default is 127.0.0.1, which Docker's
+# port forwarding cannot reach). Keep it local on the host side of the mapping: -p 127.0.0.1:8765:8765.
 set -e
+
+# An environment variable, not a --server.address argument: a command-line --server.address=… still overrides it.
+export SERVER_ADDRESS="${SERVER_ADDRESS:-0.0.0.0}"
 
 STATE="${HIEROGRAPH_STATE_DIR:-/hierograph}"
 WORKSPACE=/workspace

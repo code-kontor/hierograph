@@ -7,7 +7,7 @@
 # regenerating the build manifest (Maven + the Hierograph
 # plugin, baked in), scanning, and serving MCP.
 #
-#   docker run -p 8765:8765 \
+#   docker run -p 127.0.0.1:8765:8765 \
 #     -e HIEROGRAPH_URL=http://localhost:8765/mcp \
 #     -e HIEROGRAPH_WORKSPACE=/path/to/project \
 #     -v /path/to/project:/workspace:ro \

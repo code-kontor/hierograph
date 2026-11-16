@@ -220,7 +220,7 @@ the user's Maven directory), and a named volume for the container's state; run i
 **Maven** — add `-e HIEROGRAPH_MAVEN_ARGS=-P<PROFILES>` when the build needs profiles:
 
 ```bash
-docker run -d --name hierograph-mcp -p MCP_PORT:8765 \
+docker run -d --name hierograph-mcp -p 127.0.0.1:MCP_PORT:8765 \
   -e HIEROGRAPH_URL=http://localhost:MCP_PORT/mcp \
   -e HIEROGRAPH_WORKSPACE=ABSOLUTE_BUILD_ROOT \
   -v ABSOLUTE_BUILD_ROOT:/workspace:ro \
@@ -233,7 +233,7 @@ docker run -d --name hierograph-mcp -p MCP_PORT:8765 \
 build root also holds a `pom.xml`:
 
 ```bash
-docker run -d --name hierograph-mcp -p MCP_PORT:8765 \
+docker run -d --name hierograph-mcp -p 127.0.0.1:MCP_PORT:8765 \
   -e HIEROGRAPH_URL=http://localhost:MCP_PORT/mcp \
   -e HIEROGRAPH_WORKSPACE=ABSOLUTE_BUILD_ROOT \
   -v ABSOLUTE_BUILD_ROOT:/workspace:ro \
@@ -254,6 +254,11 @@ docker run -d --name hierograph-mcp -p MCP_PORT:8765 \
   across restarts. It is optional; without it, a Maven container regenerates the manifest first
   (seconds).
 - Watching uses polling, which works across the mount.
+- **Localhost only:** `-p 127.0.0.1:MCP_PORT:8765` publishes the port on the host's loopback
+  interface, so other machines on the network can't reach the server — it serves the code base
+  without authentication. Always keep the `127.0.0.1:` prefix; a plain `-p MCP_PORT:8765` listens on
+  every interface of the host. (Inside the container the server listens on all interfaces, which
+  Docker's port forwarding needs; the host side of the mapping is what keeps it local.)
 - Inside the container the server always listens on 8765; `MCP_PORT` is only the host side of the
   mapping. `HIEROGRAPH_URL` and `HIEROGRAPH_WORKSPACE` make `server_info` report the URL and the
   project path as the host sees them.
@@ -340,6 +345,10 @@ refuses to start and names its URL; use that URL in Step 5 instead.
   memory, although the graph needs far less: a 157-module reactor with about 215,000 nodes holds
   about 515 MB live and stays under 1.6 GB of heap during a build. For a larger reactor, raise it.
 - `watch.mode=native`: event-driven watching, the faster choice on a local JVM.
+- **Localhost only:** the server listens on `127.0.0.1` by default (`server.address`), so other
+  machines on the network can't reach it — it serves the code base without authentication. Don't
+  pass `--server.address` or put it in `server.properties` unless the user explicitly asks to expose
+  the server.
 
 ### 4. Wait for readiness
 
@@ -476,6 +485,6 @@ AI starts reading source files instead of querying, nudge it with **"use hierogr
 | `build_state: "stale"` (Gradle in `docker`, or `jvm` without `regenerate`) | A build file changed after the last manifest | Rerun the manifest command on the host, or a build reaching `process-classes` with the POM binding |
 | The client reports `ECONNREFUSED` | No server listens at the registered URL: it stopped, or it runs on another port | Read `BUILD_ROOT/.hierograph/server.json` (`jvm`) or `docker ps` (`docker`). If a server runs, re-register its `url`; if not, start it as in Step 3. Never start a second server while one runs |
 | `Hierograph is already running for workspace …` | A server for this workspace runs already | Register the URL the message names; stop the running server first only if it must be replaced |
-| `MCP_PORT` in use at start | Another process holds the port | Choose another `MCP_PORT`: `jvm` — change `server.port` in `.hierograph/server.properties`; `docker` — recreate the container with `-p <port>:8765` and `HIEROGRAPH_URL` on that port. Then re-register the URL |
+| `MCP_PORT` in use at start | Another process holds the port | Choose another `MCP_PORT`: `jvm` — change `server.port` in `.hierograph/server.properties`; `docker` — recreate the container with `-p 127.0.0.1:<port>:8765` and `HIEROGRAPH_URL` on that port. Then re-register the URL |
 | Another application of the project can't start because hierograph holds its port | `MCP_PORT` collides with a port the project needs | Stop the server, move it to another port as in the row above, restart it and re-register the URL |
 | `docker run` fails with `name … already in use` | A `hierograph-mcp` container exists from an earlier setup | `docker start hierograph-mcp`, or `docker stop` and remove it before a fresh run |
