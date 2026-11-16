@@ -51,8 +51,11 @@ ENV PATH=/opt/maven/bin:$PATH \
 
 # JVM options of the server, not of Maven: the heap is capped at 2 GB,
 # which a reactor of about 160 modules uses less than 1.6 GB of during
-# a build. Override with -e HIEROGRAPH_JAVA_OPTS=-Xmx4g.
-ENV HIEROGRAPH_JAVA_OPTS=-Xmx2g
+# a build. G1 string deduplication shares the contents of equal strings
+# the scan leaves behind (about 2 % of the live heap on such a reactor,
+# at a negligible CPU cost). An override replaces the whole value:
+# -e "HIEROGRAPH_JAVA_OPTS=-Xmx4g -XX:+UseStringDeduplication".
+ENV HIEROGRAPH_JAVA_OPTS="-Xmx2g -XX:+UseStringDeduplication"
 
 COPY ${JAR_FILE} /app/app.jar
 COPY entrypoint.sh /app/entrypoint.sh
