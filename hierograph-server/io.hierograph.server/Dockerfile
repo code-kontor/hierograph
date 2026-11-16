@@ -1,11 +1,11 @@
 # =========================================================
 # Hierograph MCP server runtime image
 #
-# A self-contained container: the target project and the
-# host's Maven directory are mounted read-only, everything
-# else happens inside — producing and regenerating the build
-# manifest (Maven + the Hierograph plugin, baked in),
-# scanning, and serving MCP.
+# A Maven build: a self-contained container. The target
+# project and the host's Maven directory are mounted
+# read-only, everything else happens inside — producing and
+# regenerating the build manifest (Maven + the Hierograph
+# plugin, baked in), scanning, and serving MCP.
 #
 #   docker run -p 8765:8765 \
 #     -e HIEROGRAPH_URL=http://localhost:8765/mcp \
@@ -14,6 +14,11 @@
 #     -v ~/.m2:/m2:ro \
 #     [-v hierograph-state:/hierograph] \
 #     <image>
+#
+# A Gradle build: the host writes the manifest
+# (./gradlew hierographManifest with the Hierograph Gradle
+# plugin); the container scans and serves it. Only the project
+# is mounted, read-only.
 #
 # The build context is staged by the `docker` profile:
 # JAR_FILE (the repackaged server), repository/ (the
