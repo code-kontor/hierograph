@@ -72,7 +72,9 @@ the lowest to the highest member — `{"name": "Graphstore", "names": [...], "sp
 true}`. The layout reserves one column for the group on each of those levels, so
 no outsider lands inside the box, including on a spanned level that has no member.
 Use it when the group is a unit but has its own internal layering, such as a core
-module and an extension built on it. `place` does not apply to a spanning group.
+module and an extension built on it. `place` does not apply to a spanning group:
+the script stops with an error rather than ignore it. To raise a spanning group,
+use `min_level` (below).
 
 **Boxes from a view.** When the grouping is a hierograph view, take the boxes from
 it: map each group's path to its members' node ids under `view_groups`
@@ -118,6 +120,14 @@ than something the edges imply: "tests sit above everything" is true by intent,
 and the longest path has no reason to agree. Check first what else depends on the
 group you are lifting — anything left below it becomes an upward violation, which
 is reported but is usually a sign the placement was wrong.
+
+`min_level` raises a group without flattening it: `{"name": "Extensions", "names":
+[...], "span": true, "min_level": 3}` puts the group's lowest member on level 3 or
+higher. The members keep their relative levels, and the levels of the whole graph
+are computed again, so everything that depends on the group moves up with it and
+no edge turns upward. It works for pinned groups too. A band the lift leaves empty
+stays empty: it shows where the group was raised. If the group already starts at
+that level or higher, nothing changes, and the script says so.
 
 This is the useful part: **pinning can contradict the dependencies**, and the
 script does not hide that. If a non-member sits between two members in the
@@ -243,7 +253,12 @@ These are deliberate; change them only with a reason.
 - `scripts/build_page.py` — inlines the data and wraps it into a real document.
 
 The `graphdata.json` it writes is minified with single-letter keys (read it only
-if you must — the stdout roster usually suffices):
+if you must — the stdout roster usually suffices). **Never edit it by hand.** A
+level is a global property: one node's level depends on everything beneath it, and
+everything above it depends on that level. Changing some levels without computing
+the rest makes edges point upward that don't in the code, and the page then reports
+violations that don't exist. To move a group, change the input (`place`,
+`min_level`) and run `make_data.py` again.
 
 - top level: `title`, `project`, `scanned`, `source`, `unit`, `maxLevel`,
   `cycles`, `violations`, `internal`, `levelNames` (bands owned by a group),

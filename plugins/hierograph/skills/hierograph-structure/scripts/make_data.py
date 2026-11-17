@@ -40,7 +40,13 @@ as one box around its members.
   "span": true      members keep their own levels and the box stretches from the
                     lowest to the highest; nothing is contracted.
   "place": n        a pinned group is stacked above everything else, lowest `n`
-                    nearest the rest of the graph.
+                    nearest the rest of the graph. Pinned groups only: `place` on a
+                    spanning group is an error, since stacking it would flatten its
+                    own layering.
+  "min_level": n    the group's lowest member sits at level `n` or higher. Members
+                    keep their relative layering, and the levels are computed again
+                    over the whole graph, so whatever depends on the group moves up
+                    with it. Works for spanning and pinned groups.
 
 A placed group owns its level and also names it. Edges that no longer point downward because of pinning are reported as
 violations, not hidden.
@@ -157,6 +163,15 @@ def main():
             pins.append({"name": name, "names": list(members), "span": True})
         else:
             print(f"  multi-module '{name}' skipped: {len(hits)} member(s) in the node set")
+    for gi, g in enumerate(pins):
+        label = g.get("name", gi)
+        if g.get("place") is not None and g.get("span"):
+            sys.exit(f"group '{label}': `place` applies to pinned groups only; a spanning group "
+                     f"keeps its own layering - use \"min_level\" to lift it")
+        if g.get("place") is not None and g.get("min_level") is not None:
+            sys.exit(f"group '{label}': give `place` or `min_level`, not both")
+        if g.get("min_level") is not None and (not isinstance(g["min_level"], int) or g["min_level"] < 0):
+            sys.exit(f"group '{label}': `min_level` must be a non-negative integer")
     def pin_of(n):
         nm = names[n]
         # First match wins, so list order is precedence. `names` is exact and is
@@ -193,21 +208,50 @@ def main():
             if gid_of[k] != gid_of[j]:
                 gout[gid_of[k]].add(gid_of[j])
 
-    memo = {}
-    for g in kgroups:
-        stack = [(g, False)]
-        while stack:
-            cur, done = stack.pop()
-            if done:
-                memo[cur] = max((memo[c] + 1 for c in gout.get(cur, ())), default=0)
-                continue
-            if cur in memo:
-                continue
-            stack.append((cur, True))
-            for c in gout.get(cur, ()):
-                if c not in memo:
-                    stack.append((c, False))
+    def longest_paths(floor):
+        """Level of every condensed component: one above its highest dependency, and at least its floor."""
+        memo = {}
+        for g in kgroups:
+            stack = [(g, False)]
+            while stack:
+                cur, done = stack.pop()
+                if done:
+                    memo[cur] = max(floor.get(cur, 0), max((memo[c] + 1 for c in gout.get(cur, ())), default=0))
+                    continue
+                if cur in memo:
+                    continue
+                stack.append((cur, True))
+                for c in gout.get(cur, ()):
+                    if c not in memo:
+                        stack.append((c, False))
+        return memo
+    memo = longest_paths({})
     level = {n: memo[gid_of[key[n]]] for n in ids}
+
+    # Minimum levels. A group with `min_level` is lifted so that its lowest member sits at that level: every member
+    # gets a floor of its own level plus the lift, which keeps the group's own layering, and the longest-path pass
+    # runs again over the whole graph, so everything that depends on the group moves up with it. Lifting only the
+    # members and keeping the other levels would make edges into the group point upward - violations that do not
+    # exist in the code.
+    lifted = [(gi, g) for gi, g in enumerate(pins) if g.get("min_level") is not None]
+    if lifted:
+        floor = {}
+        for gi, g in lifted:
+            members = [n for n in ids if group[n] == gi]
+            if not members:
+                continue
+            lift = g["min_level"] - min(level[n] for n in members)
+            if lift <= 0:
+                print(f"  '{g.get('name', gi)}' already starts at level {min(level[n] for n in members)} "
+                      f"(min_level {g['min_level']})")
+                continue
+            for n in members:
+                c = gid_of[key[n]]
+                floor[c] = max(floor.get(c, 0), level[n] + lift)
+            print(f"  '{g.get('name', gi)}' lifted by {lift} to start at level {g['min_level']}")
+        if floor:
+            memo = longest_paths(floor)
+            level = {n: memo[gid_of[key[n]]] for n in ids}
 
     # Explicit placement. `place` overrides the computed depth and stacks a group
     # above everything else, lowest `place` nearest the rest of the graph. Use it
