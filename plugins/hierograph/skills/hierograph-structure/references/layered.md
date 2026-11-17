@@ -32,7 +32,9 @@ files".
   "unit":     "modules",
   "nodes":    {"23815330338705": "hierarchicalgraph.core.model",
                "5968189658062704": {"name": "hierarchicalgraph.core.model (test)", "is_test": true}},
-  "edges":    [[5968189658062704, 23815330338705, 20]]
+  "edges":    [[5968189658062704, 23815330338705, 20]],
+  "total":    156,
+  "omitted":  ["legacy-tools", "sandbox"]
 }
 ```
 
@@ -40,6 +42,14 @@ A `nodes` entry maps a node id to its name, or to an object with `name` and
 `is_test`. The `nodes` map of the `pairwise_dependencies` response has that shape
 already, so pass its entries as they are. Everything above `nodes` and `edges` is
 optional — the page falls back to sensible wording.
+
+**Say how complete the node set is.** `total` is the size of the set the nodes come
+from — all top-level modules from `graph_overview`, without "External Types", or
+all children of the scope — and `omitted` names every member you left out, with the
+user's permission (SKILL.md step 1). When the nodes are fewer than `total`, the
+subtitle reads "7 of 9 modules; omitted: legacy-tools, sandbox", so a partial graph
+never passes for the whole system. Always give `total`; `make_data.py` warns when
+nodes plus `omitted` don't add up to it.
 
 **Test nodes** get a dashed outline and can be hidden on the page. Hierograph marks
 a module of compiled tests with `is_test: true`, in `graph_overview`'s `hierarchy`
@@ -176,11 +186,25 @@ output**; you can describe the layering straight from stdout without re-reading
 cycle is condensed to a single level and its members get a red outline) but "every
 arrow points downward" stops being true, and that is worth telling the user.
 
+`build_page.py` checks the data before it writes the page — every node has a
+level, every edge two endpoints among the nodes, every group index a group — and
+writes nothing when a check fails. Fix the input and rerun `make_data.py`.
+
 ## 3. Check it, then hand it over
 
-Open the file and look at it once. The things that actually go wrong are the
-initial view being unreadable, a control that does nothing, and labels sitting
-outside their boxes. Then give the path.
+Run the page check, and fix what it reports before you hand the page over:
+
+```bash
+python3 scripts/check_page.py /path/to/output.html
+```
+
+It loads the page in headless Chromium and checks what a reader would see: every
+node drawn, the graph inside the canvas after the initial fit, every label inside
+its node, every group box around all its members, and no errors in the console.
+Exit code 0 is a pass, 1 a failure with one line per problem. Exit code 2 means
+Playwright for Python isn't installed and **the page was not checked**: tell the
+user so, with the install command it prints, rather than handing the page over as
+checked. If you can see the page yourself, look at it once as well.
 
 **Do not publish this to claude.ai unless the user asks.** Dependency graphs
 expose internal architecture and module names. Default to a local file; a
@@ -259,7 +283,11 @@ These are deliberate; change them only with a reason.
   tokens sit at the top; both light and dark are defined explicitly.
 - `scripts/make_data.py` — edges in, page data out. Levels, degrees, cycles, and a
   per-level roster on stdout.
-- `scripts/build_page.py` — inlines the data and wraps it into a real document.
+- `scripts/build_page.py` — checks the data, inlines it and wraps it into a real
+  document.
+- `scripts/check_page.py` — renders the page headless (Playwright) and reports
+  missing nodes, overflow after the fit, labels outside their nodes, group boxes
+  missing members, and console errors.
 
 The `graphdata.json` it writes is minified with single-letter keys (read it only
 if you must — the stdout roster usually suffices). **Never edit it by hand.** A
@@ -269,7 +297,8 @@ the rest makes edges point upward that don't in the code, and the page then repo
 violations that don't exist. To move a group, change the input (`place`,
 `min_level`) and run `make_data.py` again.
 
-- top level: `title`, `project`, `scanned`, `source`, `unit`, `maxLevel`,
+- top level: `title`, `project`, `scanned`, `source`, `unit`, `coverage` (the
+  "n of m" note, or null for a complete set), `maxLevel`,
   `cycles`, `violations`, `internal`, `levelNames` (bands owned by a group),
   `groups` (pin-group names, in `pin_groups` order), `nodes`, `edges`.
 - each node (`nodes[]`): `n` name, `l` level (0 = foundation), `t` is-test, `c`

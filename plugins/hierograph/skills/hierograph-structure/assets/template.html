@@ -848,7 +848,7 @@ $('tbtn').addEventListener('click', e => {
   }
   document.title = DATA.title || 'Module Dependency Graph';
   $('h1').textContent = DATA.title || 'Module dependencies';
-  $('meta').textContent = [DATA.project, DATA.scanned && ('scanned ' + DATA.scanned), DATA.source,
+  $('meta').textContent = [DATA.coverage, DATA.project, DATA.scanned && ('scanned ' + DATA.scanned), DATA.source,
     `heaviest edge ${N[heaviest[0]].n} \u2192 ${N[heaviest[1]].n} (${heaviest[2].toLocaleString()})`]
     .filter(Boolean).join(' \u00b7 ');
 

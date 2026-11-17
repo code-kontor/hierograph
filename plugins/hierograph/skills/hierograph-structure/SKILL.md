@@ -69,6 +69,8 @@ exactly which modules you would drop and why, and get the user's explicit
 permission. Do not decide "main modules only" on your own, and do not present a
 reduced set as if it were the whole system. Only hierograph's synthetic
 **"External Types"** node is not a module of the codebase; say that you omit it.
+A rendering of a reduced set says so on the page: the layered graph takes `total`
+and `omitted` (`references/layered.md`, step 1).
 
 If the proposed set contains both a parent and one of its
 descendants, surface that before running anything — the strict reading can give

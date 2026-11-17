@@ -9,6 +9,8 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
     "scanned":  "2026-11-07",
     "source":   "Hierograph Maven plugin",
     "unit":     "modules",                          # what a node is called in the UI
+    "total":    156,                                # size of the set the nodes come from
+    "omitted":  ["legacy-tools", "sandbox"],        # what of that set was left out, by name
     "nodes":    {"23815330338705": "hierarchicalgraph.core.model",     # id -> name, or
                  "5968189658062703": {"name": "javaspec (test)", "is_test": true}, ...},
     "edges":    [[7802159431405318, 23815330338705, 385], ...],  # [from, to, weight]
@@ -26,6 +28,12 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
   }
 
 Output: graphdata.json next to the input (or argv[2]).
+
+Coverage. `total` is the size of the set the nodes were taken from (all top-level
+modules, all children of a scope), and `omitted` names what of it was left out.
+When the nodes are fewer than `total`, the page's subtitle says "n of m modules;
+omitted: ...", so a partial graph never passes for the whole system. A `total`
+that doesn't match the nodes plus `omitted` is reported.
 
 Test nodes get a dashed outline and can be hidden on the page. A node is a test
 node when its entry says `"is_test": true` (hierograph marks a module of compiled
@@ -326,6 +334,22 @@ def main():
     n_side = len(viol) - n_up
     violation = classify
 
+    # --- coverage: is this the whole set, or part of it? ---
+    total, omitted = spec.get("total"), [str(o) for o in spec.get("omitted", [])]
+    coverage = None
+    if total is not None:
+        if not isinstance(total, int) or total < len(ids):
+            sys.exit(f"`total` must be an integer of at least the node count ({len(ids)})")
+        if len(ids) + len(omitted) != total:
+            print(f"  WARNING: {len(ids)} nodes + {len(omitted)} omitted != total {total}; "
+                  f"name every left-out member in `omitted`")
+        if len(ids) < total:
+            unit = spec.get("unit", "modules")
+            shown = ", ".join(omitted[:8]) + (f" and {len(omitted) - 8} more" if len(omitted) > 8 else "")
+            coverage = f"{len(ids)} of {total} {unit}" + (f"; omitted: {shown}" if omitted else "")
+    elif omitted:
+        sys.exit("`omitted` needs `total`, the size of the set the nodes come from")
+
     data = {
         "title": spec.get("title"),
         "project": spec.get("project"), "scanned": spec.get("scanned"),
@@ -335,6 +359,7 @@ def main():
         "violations": len(viol),
         "internal": len(internal),
         "levelNames": level_names,
+        "coverage": coverage,
         "groups": [g.get("name", f"group {gi}") for gi, g in enumerate(pins)],
         "nodes": [{
             "n": names[n], "l": level[n],
@@ -349,6 +374,10 @@ def main():
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(src) or ".", "graphdata.json")
     json.dump(data, open(dst, "w"), separators=(",", ":"))
     print(f"nodes {len(ids)}  edges {len(edges)}  levels {data['maxLevel'] + 1}  cycles {n_cycles}")
+    if coverage:
+        print(f"  coverage: {coverage}")
+    elif total is None:
+        print("  coverage: no `total` given - the page can't say whether the node set is complete")
     for gi, g in enumerate(pins):
         lv = sorted({level[n] for n in ids if group[n] == gi})
         if lv:
