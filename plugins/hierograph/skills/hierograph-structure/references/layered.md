@@ -30,15 +30,24 @@ files".
   "scanned":  "2026-11-07",
   "source":   "hierograph MCP (pairwise_dependencies)",
   "unit":     "modules",
-  "nodes":    {"23815330338705": "hierarchicalgraph.core.model", "5968189658062703": "javaspec"},
-  "edges":    [[5968189658062703, 23815330338705, 20]],
-  "test_patterns": ["itest", "-test"]
+  "nodes":    {"23815330338705": "hierarchicalgraph.core.model",
+               "5968189658062704": {"name": "hierarchicalgraph.core.model (test)", "is_test": true}},
+  "edges":    [[5968189658062704, 23815330338705, 20]]
 }
 ```
 
-`test_patterns` are plain substrings matched against the name; matches get a
-dashed outline and can be filtered out in the page. Everything above `nodes` and
-`edges` is optional — the page falls back to sensible wording.
+A `nodes` entry maps a node id to its name, or to an object with `name` and
+`is_test`. The `nodes` map of the `pairwise_dependencies` response has that shape
+already, so pass its entries as they are. Everything above `nodes` and `edges` is
+optional — the page falls back to sensible wording.
+
+**Test nodes** get a dashed outline and can be hidden on the page. Hierograph marks
+a module of compiled tests with `is_test: true`, in `graph_overview`'s `hierarchy`
+and in every `nodes` map, and names it `<module> (test)`; `make_data.py` marks those
+nodes without further input. Add `"test_patterns"` (plain substrings matched against
+the name) only for **main** modules that exist for tests, such as
+`["-test-support", "uat-"]`, and name them to the user — a pattern also catches
+modules it wasn't meant for.
 
 ### Pinning a group onto one layer
 

@@ -21,6 +21,7 @@ import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.TestArtifacts
 import io.hierograph.server.mapping.GraphStoreNodeSource
 import io.hierograph.server.views.ViewGroups
 import io.hierograph.server.views.ViewNodes
@@ -41,8 +42,9 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     // ── minimal NodeRef ────────────────────────────────────────────────
 
     /**
-     * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`, and
-     * `virtual: true` for a virtual module or package of a restructuring view.
+     * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`,
+     * `virtual: true` for a virtual module or package of a restructuring view, and `is_test: true` for a module that
+     * holds a module's compiled tests.
      * Used when a NodeRef appears inside a larger structure (edge endpoint, path step, etc.).
      */
     override fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
@@ -55,8 +57,14 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             "kind" to node.kind?.toString(),
             "parent_id" to parent?.identifier,
             "parent_kind" to parent?.kind?.toString()
-        ).apply { if (ViewNodes.isVirtual(node)) put("virtual", true) }
+        ).apply {
+            if (ViewNodes.isVirtual(node)) put("virtual", true)
+            if (isTestModule(node.kind?.toString(), NodeMetadata.getQualifiedName(node))) put("is_test", true)
+        }
     }
+
+    /** True for a module node that holds a module's compiled tests (see [TestArtifacts]). */
+    private fun isTestModule(kind: String?, fqn: String?) = kind == JavaNodeKind.MODULE.value && TestArtifacts.isTestKey(fqn)
 
     // ── enriched NodeRef ───────────────────────────────────────────────
 
@@ -136,7 +144,8 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
      *
      * `qualified_name` is included only when it adds something to `name`: not when the two are equal, and not
      * for a module, whose qualified name is its build coordinate (`group:artifact:version`), the longest field
-     * and rarely needed — `find_node` and `list_children` still report it.
+     * and rarely needed — `find_node` and `list_children` still report it. A module that holds compiled tests gets
+     * `is_test: true`, which its name only hints at.
      */
     override fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?) {
         val key = id.toString()
@@ -144,6 +153,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         nodes[key] = linkedMapOf<String, Any?>("name" to (name ?: "")).apply {
             if (!fqn.isNullOrEmpty() && fqn != name && kind != JavaNodeKind.MODULE.value) put("qualified_name", fqn)
             put("kind", kind ?: "unknown")
+            if (isTestModule(kind, fqn)) put("is_test", true)
         }
     }
 

@@ -24,6 +24,7 @@ import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.TestArtifacts
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -36,6 +37,7 @@ class NodeRefFactoryTest {
 
     private val store = GraphStore().apply {
         registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core"))
+        registerArtifact(ArtifactInfo(TestArtifacts.key("billing-core"), TestArtifacts.name("billing-core"), TestArtifacts.key("billing-core")))
         applyClass(
             "billing-core",
             ClassFacts(
@@ -91,5 +93,25 @@ class NodeRefFactoryTest {
         val ref = ref(pkg.key)
         assertThat(ref).doesNotContainKey("modifiers")
         assertThat(ref["direct_type_count"]).isEqualTo(1)
+    }
+
+    @Test
+    fun `a module of compiled tests is marked is_test, in a node reference and in a slim node`() {
+        val testModule = graphService.model.lookupNode(NodeHandle.of(TestArtifacts.key("billing-core")))!!
+        val mainModule = graphService.model.lookupNode(NodeHandle.of("billing-core"))!!
+        assertThat(factory.enrichedNodeRef(testModule)["is_test"]).isEqualTo(true)
+        assertThat(factory.minimalNodeRef(testModule)["is_test"]).isEqualTo(true)
+        assertThat(factory.enrichedNodeRef(mainModule)).doesNotContainKey("is_test")
+
+        val nodes = linkedMapOf<String, Any>()
+        factory.putSlimNode(nodes, testModule)
+        factory.putSlimNode(nodes, mainModule)
+        assertThat(nodes[testModule.identifier.toString()]).isEqualTo(
+            mapOf("name" to "billing-core (test)", "kind" to "java.module", "is_test" to true),
+        )
+        assertThat(nodes[mainModule.identifier.toString()] as Map<String, Any?>).doesNotContainKey("is_test")
+        // Only a module: a package whose qualified name happens to end the same way is not a test module.
+        factory.putSlimNode(nodes, 9L, "a", "x:test", JavaNodeKind.PACKAGE.value)
+        assertThat(nodes["9"] as Map<String, Any?>).doesNotContainKey("is_test")
     }
 }

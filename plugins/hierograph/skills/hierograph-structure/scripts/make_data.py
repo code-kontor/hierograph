@@ -9,9 +9,10 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
     "scanned":  "2026-11-07",
     "source":   "Hierograph Maven plugin",
     "unit":     "modules",                          # what a node is called in the UI
-    "nodes":    {"23815330338705": "hierarchicalgraph.core.model", "5968189658062703": "javaspec", ...},
+    "nodes":    {"23815330338705": "hierarchicalgraph.core.model",     # id -> name, or
+                 "5968189658062703": {"name": "javaspec (test)", "is_test": true}, ...},
     "edges":    [[7802159431405318, 23815330338705, 385], ...],  # [from, to, weight]
-    "test_patterns": ["itest", "-test"],            # substring match -> dashed outline
+    "test_patterns": ["-test-support"],             # optional, substring match
     "pin_groups": [                                 # optional, see Groups below
       {"name": "API",  "patterns": ["-api"]},
       {"name": "Core", "names": ["model", "algorithms"], "span": true}
@@ -25,6 +26,13 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
   }
 
 Output: graphdata.json next to the input (or argv[2]).
+
+Test nodes get a dashed outline and can be hidden on the page. A node is a test
+node when its entry says `"is_test": true` (hierograph marks a module of compiled
+tests that way, in graph_overview and in every `nodes` map), when its name ends in
+" (test)" (hierograph's name for such a module), or when its name contains one of
+the `test_patterns`. The patterns are for main modules that exist for tests, such
+as test fixtures or acceptance-test harnesses; leave them out otherwise.
 
 Levels come from the longest dependency chain beneath a node, which is what puts
 core code at the bottom. That is only well defined on a DAG, so cycles are
@@ -117,7 +125,14 @@ def sccs(ids, out):
 def main():
     src = sys.argv[1]
     spec = json.load(open(src))
-    names = {str(k): v for k, v in spec["nodes"].items()}
+    names, flagged_test = {}, set()
+    for k, v in spec["nodes"].items():
+        if isinstance(v, dict):
+            names[str(k)] = v["name"]
+            if v.get("is_test"):
+                flagged_test.add(str(k))
+        else:
+            names[str(k)] = v
     ids = list(names.keys())
     raw = [(str(a), str(b), int(w)) for a, b, w in spec["edges"]]
     edges = [(a, b, w) for a, b, w in raw if a in names and b in names and a != b]
@@ -280,7 +295,9 @@ def main():
             level_names[str(level[members[0]])] = g.get("name", f"group {gi}")
 
     pats = spec.get("test_patterns", [])
-    is_test = lambda nm: any(p in nm for p in pats)
+    def is_test(n):
+        nm = names[n]
+        return n in flagged_test or nm.endswith(" (test)") or any(p in nm for p in pats)
 
     iw, ow, ind, outd = defaultdict(int), defaultdict(int), defaultdict(int), defaultdict(int)
     for a, b, w in edges:
@@ -321,7 +338,7 @@ def main():
         "groups": [g.get("name", f"group {gi}") for gi, g in enumerate(pins)],
         "nodes": [{
             "n": names[n], "l": level[n],
-            "t": 1 if is_test(names[n]) else 0,
+            "t": 1 if is_test(n) else 0,
             "c": 1 if n in cyclic else 0,
             "g": group[n] + 1 if group[n] is not None else 0,
             "iw": iw[n], "ow": ow[n], "id": ind[n], "od": outd[n],

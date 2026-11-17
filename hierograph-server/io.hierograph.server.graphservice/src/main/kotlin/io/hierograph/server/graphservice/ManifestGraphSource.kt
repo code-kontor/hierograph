@@ -255,8 +255,8 @@ class ManifestGraphSource internal constructor(
             if (includeTests) {
                 val testDirs = (module.testOutputDirs ?: listOfNotNull(module.testOutputDir)).map { remap.map(Path.of(it)) }
                 if (testDirs.isNotEmpty()) {
-                    val testKey = "${module.gav}:test"
-                    val testName = "$name (test)"
+                    val testKey = TestArtifacts.key(module.gav)
+                    val testName = TestArtifacts.name(name)
                     // Test types resolve against their own main output first (when the module has one), then the
                     // module's full test classpath (all scopes). A manifest without testClasspath falls back to the
                     // main classpath, so test-scope deps (JUnit, …) resolve as external types. A test-only module

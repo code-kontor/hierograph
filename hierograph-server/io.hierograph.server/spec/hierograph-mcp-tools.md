@@ -326,6 +326,13 @@ In a restructuring view ([views specification, §6.4](../../io.hierograph.server
 a node reference of a virtual module or package also carries `virtual: true`, and so
 does its entry in a slim node map (§6.3). The key is absent for every other node.
 
+A module that holds a module's compiled tests carries `is_test: true`, in a node
+reference and in a slim node map. A manifest declares a module's test output beside
+its main output, and the server scans it into a module of its own, named
+`<module> (test)`, with the module's build key plus `:test` as its qualified name.
+The key is absent for every other node, so a caller tells test modules apart without
+matching names.
+
 ### 6.2 Enriched NodeRef
 
 A minimal NodeRef plus counts and modifiers that depend on the kind. Browse results

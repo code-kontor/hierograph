@@ -61,7 +61,7 @@ class GraphOverviewTool(
                 "build_state ('current', or 'stale' with the build files edited since the graph's manifest was " +
                 "written). With view=<name>, the hierarchy is the view's top level — its groups and the nodes no group " +
                 "takes — and a 'view' section summarizes the view and what applying it reported. " +
-                "The hierarchy entries carry id, name, kind and counts; find_node or list_children give a node's " +
+                "The hierarchy entries carry id, name, kind and counts, and is_test=true for a module of compiled tests; find_node or list_children give a node's " +
                 "qualified name. The response stays within the ~50 KB budget: on a very large codebase the hierarchy " +
                 "is paged — summary.truncated and next_cursor say so, and the next pages carry only the rest of the " +
                 "hierarchy. For known codebases, this can be skipped."
