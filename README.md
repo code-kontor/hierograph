@@ -26,8 +26,9 @@ trace one call chain.
 Ask your agent for a picture, and it renders one from the live model:
 
 - **Dependency structure matrix (DSM):** every dependency among a set of modules or
-  packages in one matrix, in topological order, so that a dependency against the
-  layering stands out.
+  packages in one matrix, in dependency order. In a cycle, the order puts the least
+  possible weight against the layering, and those dependencies are named as the ones
+  to cut.
 - **Layered dependency graph:** an interactive page with the core at the bottom and
   every arrow pointing down. Click a node to trace what it uses and what uses it;
   search, thin out light edges, or hide the test modules.

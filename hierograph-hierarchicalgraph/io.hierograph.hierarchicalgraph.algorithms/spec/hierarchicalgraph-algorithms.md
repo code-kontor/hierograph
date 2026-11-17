@@ -276,6 +276,7 @@ interface INodeSorter {
 interface SortResult {
     val orderedNodes: List<HGNode>                       // a permutation of nodes
     val upwardDependencies: List<AggregatedDependency>   // edges pointing back in the final order
+    val isExact: Boolean                                 // no order has less upward weight
 }
 ```
 
@@ -286,15 +287,26 @@ interface SortResult {
 3. **refines** the order with a bubble pass: walking from front to back, a vertex is
    moved forward past its predecessor as long as it depends on that predecessor more
    heavily than the predecessor depends on it;
-4. collects the **upward dependencies** from the refined order: every edge from a
+4. for a component of at most `EXACT_LIMIT` (12) vertices, computes the **exact
+   order**, the one with the least upward weight, and takes it when its upward weight
+   is lower than the refined order's; such a result has `isExact = true`;
+5. collects the **upward dependencies** from the refined order: every edge from a
    vertex to one placed before it, mapped to its aggregated dependency
    (`hierarchy.getAggregatedDependency`);
-5. **reverses** the order.
+6. **reverses** the order.
 
 The upward dependencies are derived from the refined order, not from FastFAS's
 skipped edges. The bubble pass can swap two vertices and so reverse the direction of
 the edges between them, which would leave the skipped edges stale. The cost is
 `O(k²)` for a component of `k` nodes, the same as FastFAS.
+
+The exact order is a dynamic program over subsets: placing a vertex `v` after the set
+`S` of vertices placed before it costs the weight of `v`'s edges into `S`, and the
+cheapest order of each subset is built from the cheapest orders of its subsets with one
+vertex fewer. It costs `O(2^k · k²)` for `k` vertices, a few milliseconds at the limit.
+It replaces the heuristic order only when it is strictly cheaper, so an order that is
+already optimal does not change. Ties go to the lowest vertex, so the result is
+deterministic.
 
 The reversal makes the sorter's order run from depended-on to depending. The DSM
 reverses it once more (§7.1), so that in the DSM, dependents come first.
@@ -319,7 +331,9 @@ fun createDependencyStructureMatrix(nodes: Collection<HGNode>, hierarchy: Hierar
    node's subtree, so the rule holds for container nodes (modules, packages), which
    usually have no core dependencies of their own.
 4. **Reverse** the list. This is `orderedNodes`.
-5. **Cycles** are the sorted components with more than one node.
+5. **Cycles** are the sorted components with more than one node, each listed in the
+   order of `orderedNodes`, and sorted by their first node.
+6. **Exactness.** The order is exact when every cycle's sort result is.
 
 Tarjan returns components in reverse topological order, so the reversal in step 4
 puts dependents before their dependencies. Moving the sinks to the end keeps the
@@ -333,7 +347,8 @@ first access, over `orderedNodes`.
 | Member | Description |
 |--------|-------------|
 | `orderedNodes` | The node set in DSM order: a permutation of the input. Each cycle forms a contiguous block. |
-| `cycles` | The cycles (§3.4). Each lists its nodes in the sorter's order, which is the reverse of their order in `orderedNodes`. |
+| `cycles` | The cycles (§3.4). Each lists its nodes in the order of `orderedNodes`; the cycles are sorted by their first node. |
+| `isOrderExact` | Whether no order of the node set has less weight in `upwardDependencies`: every cycle has at most `EXACT_LIMIT` nodes. `true` for an acyclic set. |
 | `upwardDependencies` | The dependencies that point back up the list: one aggregated dependency for each non-zero cell below the diagonal. All of them lie inside cycles. Empty for an acyclic set. |
 | `getMatrix()` | The `n × n` weight matrix over `orderedNodes` (§4.1), diagonal included. The DSM's own array: read it, don't modify it. |
 | `getWeight(i, j)` | `getMatrix()[i][j]`, or `-1` when either index is out of range. |

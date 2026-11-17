@@ -26,6 +26,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
     override val orderedNodes: List<HGNode>
     override val upwardDependencies: List<AggregatedDependency>
     override val cycles: List<List<HGNode>>
+    override val isOrderExact: Boolean
 
     init {
         val allUpward = mutableListOf<AggregatedDependency>()
@@ -35,9 +36,11 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
 
         // 2. Sort each SCC using FastFAS
         val sorter = FastFasSorter()
+        var allExact = true
         val sortedSccs = sccs.map { scc ->
             val sortResult = sorter.sort(scc, hierarchy)
             allUpward.addAll(sortResult.upwardDependencies)
+            if (scc.size > 1 && !sortResult.isExact) allExact = false
             sortResult.orderedNodes.toMutableList()
         }
 
@@ -80,7 +83,12 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
 
         orderedNodes = ordered
         upwardDependencies = allUpward
+        // Each cycle in matrix order, the cycles by their first node: the sorter's own order is the reverse.
+        val position = HashMap<Any, Int>(ordered.size * 2).apply { ordered.forEachIndexed { i, n -> put(n.identifier, i) } }
         cycles = sortedSccs.filter { it.size > 1 }
+            .map { cycle -> cycle.sortedBy { position.getValue(it.identifier) } }
+            .sortedBy { position.getValue(it.first().identifier) }
+        isOrderExact = allExact
     }
 
     override fun isCellInCycle(i: Int, j: Int): Boolean {

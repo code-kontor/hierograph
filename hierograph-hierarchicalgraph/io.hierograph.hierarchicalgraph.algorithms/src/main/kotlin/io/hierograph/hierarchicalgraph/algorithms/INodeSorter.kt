@@ -26,4 +26,7 @@ interface INodeSorter {
 interface SortResult {
     val orderedNodes: List<HGNode>
     val upwardDependencies: List<AggregatedDependency>
+
+    /** Whether [orderedNodes] is proven to put the least possible weight on [upwardDependencies]. */
+    val isExact: Boolean get() = false
 }

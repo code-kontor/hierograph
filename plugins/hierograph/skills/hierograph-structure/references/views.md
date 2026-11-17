@@ -63,7 +63,7 @@ report. Sources for a first draft:
 | Grouping | Where the membership comes from |
 |----------|---------------------------------|
 | multi-modules | the build: each Maven aggregator's `<modules>`, a Gradle parent's subprojects. Not name similarity |
-| layers | the dependency order: `pairwise_dependencies` over the modules, `topological_order` reversed; propose bands, let the user name and adjust them |
+| layers | the dependency order: `pairwise_dependencies` over the modules, `node_order` reversed; propose bands, let the user name and adjust them |
 | bounded contexts | package or module name segments (`*.billing.*`, `*.shipping.*`), confirmed with the user |
 | ownership, target architecture | the user; ask |
 

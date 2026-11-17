@@ -51,7 +51,10 @@ class PairwiseDependenciesTool(
         description = "[Dependency analysis] " +
                 "Dependency matrix (DSM / coupling matrix) among a set of subtrees. Returns two things: " +
                 "(1) a small global summary — density, cycle detection, strongly connected components, " +
-                "topological order — computed over the entire node set, and (2) a paginated edge list. " +
+                "node_order (dependers first, ALWAYS present: render the matrix in this order, never in one of " +
+                "your own) and, for a cyclic set, the back edges that close the cycles (back_edges, heaviest first, " +
+                "with back_edge_weight), the 2-cycles (mutual_dependencies) and order_quality — computed over the " +
+                "entire node set, and (2) a paginated edge list, where each back edge carries back=true. " +
                 "READ THE SUMMARY FIRST: it answers most architectural questions (is it acyclic? what are " +
                 "the layers? where are the cycles?) in a few hundred bytes, with no need to fetch edges at " +
                 "all. Only page through the edge list when you need specific pairwise weights. " +
@@ -163,7 +166,7 @@ class PairwiseDependenciesTool(
                     "attributes" to JavaEdgeAttributes.toMap(e.attributesBitmap),
                     // The kinds of the type-level dependencies under this pair, for the returned edges only.
                     "kinds" to DependencyKind.toMap(matrix.kindsOf(e)),
-                )
+                ).apply { if (e.isBack) put("back", true) }
             }
             // ── assemble: page counts on every page; nodes + matrix analysis on the FIRST page only ──
             val response = linkedMapOf<String, Any?>()

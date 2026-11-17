@@ -584,7 +584,7 @@ well they match. Take the `id` of the right one.
 package.
 
 **Measure coupling.** `pairwise_dependencies(nodeIds = [<module ids>])` gives the full
-dependency matrix between modules, with cycles and a topological order.
+dependency matrix between modules, in dependency order, with the cycles and the edges that close them.
 `aggregated_dependencies(sourceIds = [a], targetIds = [b])` gives the weight between
 specific scopes.
 

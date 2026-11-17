@@ -89,8 +89,11 @@ pairwise_dependencies(nodeIds = [<all IDs from step 1>],   # 2–50 nodes
 ```
 
 **Read the `summary` block first.** It reports `node_count`, `edge_count`,
-`possible_edges`, `density`, `has_cycles`, `strongly_connected_components` and
-`topological_order` in a few hundred bytes. For a pure "is this properly layered?"
+`possible_edges`, `density`, `has_cycles`, `node_order` (always — the order to render
+in), `strongly_connected_components` and, for an acyclic set, `topological_order`;
+for a cyclic set also `back_edges` (the edges that close the cycles, heaviest first),
+`back_edge_weight`, `mutual_dependencies` (2-cycles), `all_cycles_pairwise` and
+`order_quality`. For a pure "is this properly layered?"
 or "are there cycles?" question, **the summary alone is the answer** — lead with
 it, and offer a rendering only if the user wants the picture.
 

@@ -39,7 +39,10 @@ data class MatrixEdge(
     val weight: Int,
     val typePairCount: Int,
     val attributesBitmap: Int,
-)
+) {
+    /** Whether the edge points back up the matrix order: from a node to one placed before it, so it closes a cycle. */
+    val isBack: Boolean get() = fromIdx > toIdx
+}
 
 /**
  * The dependency matrix among a set of disjoint subtrees: its node order, every aggregated edge between them, and
@@ -52,24 +55,86 @@ class PairwiseMatrix internal constructor(
     /** Every edge, unfiltered, depender → depended-upon, in no particular order. */
     val edges: List<MatrixEdge>,
 ) {
-    /** The nodes in matrix order: the topological order when the matrix is acyclic. */
+    /** The nodes in matrix order, dependers first: the topological order when the matrix is acyclic. */
     val orderedNodes: List<HGNode> get() = dsm.orderedNodes
 
-    /** The analysis over the whole matrix: counts, density, strongly connected components, topological order. */
+    /**
+     * The analysis over the whole matrix: counts, density, the node order and the strongly connected components;
+     * for a cyclic matrix also the back edges, the mutual dependencies and how good the order is.
+     */
     fun analysis(): LinkedHashMap<String, Any?> {
         val size = orderedNodes.size
         val possibleEdges = size * (size - 1)
         val density = if (possibleEdges > 0) Math.round(edges.size * 100.0 / possibleEdges) / 100.0 else 0.0
         val hasCycles = dsm.cycles.isNotEmpty()
-        return linkedMapOf<String, Any?>(
+        val nodeOrder = orderedNodes.map { it.identifier }
+        val analysis = linkedMapOf<String, Any?>(
             "node_count" to size,
             "edge_count" to edges.size, // unfiltered count, drives density
             "possible_edges" to possibleEdges,
             "density" to density,
             "has_cycles" to hasCycles,
-            "strongly_connected_components" to dsm.cycles.filter { it.size >= 2 }.map { cycle -> cycle.map { it.identifier } },
-        ).apply { if (!hasCycles) put("topological_order", orderedNodes.map { it.identifier }) }
+            "node_order" to nodeOrder,
+            "strongly_connected_components" to dsm.cycles.map { cycle -> cycle.map { it.identifier } },
+        )
+        if (!hasCycles) {
+            analysis["topological_order"] = nodeOrder
+            return analysis
+        }
+
+        val weightOf = HashMap<Long, Int>(edges.size * 2).apply { for (e in edges) put(pairKey(e.fromIdx, e.toIdx), e.weight) }
+        fun reverseWeight(e: MatrixEdge) = weightOf[pairKey(e.toIdx, e.fromIdx)] ?: 0
+
+        val backEdges = edges.filter { it.isBack }.sortedWith(PairwiseMatrix.WEIGHT_ORDER)
+        val backEdgeWeight = backEdges.sumOf { it.weight.toLong() }
+        // Each 2-cycle forces one of its directions above the diagonal: the sum of the lighter directions is a lower
+        // bound for every order. In each pair, `from` is the node earlier in the order, so its reverse is the back one.
+        val mutual = edges.filter { !it.isBack && reverseWeight(it) > 0 }.sortedWith(PairwiseMatrix.DSM_ORDER)
+        val lowerBound = mutual.sumOf { minOf(it.weight, reverseWeight(it)).toLong() }
+
+        analysis["back_edge_count"] = backEdges.size
+        analysis["back_edge_weight"] = backEdgeWeight
+        analysis["back_edges"] = backEdges.take(LISTED).map { it.withReverse(reverseWeight(it)) }
+        analysis["back_edges_truncated"] = backEdges.size > LISTED
+        analysis["mutual_dependency_count"] = mutual.size
+        analysis["mutual_dependencies"] = mutual.take(LISTED).map { it.withReverse(reverseWeight(it)) }
+        analysis["mutual_dependencies_truncated"] = mutual.size > LISTED
+        analysis["all_cycles_pairwise"] = acyclicWithoutLighterDirections(mutual, ::reverseWeight)
+        analysis["order_quality"] = if (dsm.isOrderExact || backEdgeWeight == lowerBound) "exact" else "heuristic"
+        return analysis
     }
+
+    /**
+     * Whether cutting the lighter direction of every 2-cycle (the back one on a tie) leaves the matrix acyclic: then
+     * every cycle runs through 2-cycles alone, and those cuts untangle the set.
+     */
+    private fun acyclicWithoutLighterDirections(mutual: List<MatrixEdge>, reverseWeight: (MatrixEdge) -> Int): Boolean {
+        val cut = HashSet<Long>(mutual.size * 2)
+        for (e in mutual) {
+            if (e.weight < reverseWeight(e)) cut += pairKey(e.fromIdx, e.toIdx) else cut += pairKey(e.toIdx, e.fromIdx)
+        }
+        val n = orderedNodes.size
+        val successors = Array(n) { mutableListOf<Int>() }
+        val inDegree = IntArray(n)
+        for (e in edges) {
+            if (pairKey(e.fromIdx, e.toIdx) in cut) continue
+            successors[e.fromIdx] += e.toIdx
+            inDegree[e.toIdx]++
+        }
+        val ready = ArrayDeque((0 until n).filter { inDegree[it] == 0 })
+        var visited = 0
+        while (ready.isNotEmpty()) {
+            val v = ready.removeFirst()
+            visited++
+            for (w in successors[v]) if (--inDegree[w] == 0) ready.addLast(w)
+        }
+        return visited == n
+    }
+
+    private fun MatrixEdge.withReverse(reverse: Int) =
+        linkedMapOf<String, Any?>("from" to fromId, "to" to toId, "weight" to weight, "reverse_weight" to reverse)
+
+    private fun pairKey(from: Int, to: Int): Long = (from.toLong() shl 32) or to.toLong()
 
     /** The fact counts per kind of the type-level dependencies under [edge]. */
     fun kindsOf(edge: MatrixEdge): Map<DependencyKind, Int> {
@@ -81,6 +146,9 @@ class PairwiseMatrix internal constructor(
     companion object {
         /** Matrix reading order: by row, then by column. */
         val DSM_ORDER: Comparator<MatrixEdge> = compareBy<MatrixEdge> { it.fromIdx }.thenBy { it.toIdx }
+
+        /** The most back edges and mutual dependencies the analysis lists; the counts and weights cover all. */
+        const val LISTED = 50
 
         /** Heaviest first; ties in matrix reading order. */
         val WEIGHT_ORDER: Comparator<MatrixEdge> = compareByDescending<MatrixEdge> { it.weight }.then(DSM_ORDER)
