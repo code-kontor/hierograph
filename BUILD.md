@@ -120,13 +120,13 @@ mvn -Pitest verify -pl hierograph-itest/io.hierograph.itest.tests -Dhierograph.i
 After a successful build, the runnable server jar is at:
 
 ```
-hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar
+hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-exec.jar
 ```
 
 Run it with:
 
 ```bash
-java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar
+java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-exec.jar
 ```
 
 The server listens on `127.0.0.1` only (`server.address` in `application.properties`): it serves the
@@ -148,11 +148,11 @@ Enable them for a diagnosis with `hierograph.actuator.diagnostics.enabled=true` 
 
 ```bash
 # local JVM
-java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-SNAPSHOT-exec.jar \
+java -jar hierograph-server/io.hierograph.server/target/io.hierograph.server-0.3.0-exec.jar \
   --hierograph.actuator.diagnostics.enabled=true
 
 # container: the environment is fixed at creation, so recreate it with the variable added
-docker run ... -e HIEROGRAPH_ACTUATOR_DIAGNOSTICS_ENABLED=true ... ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
+docker run ... -e HIEROGRAPH_ACTUATOR_DIAGNOSTICS_ENABLED=true ... ghcr.io/code-kontor/hierograph-mcp-server:0.3.0
 ```
 
 To keep them on across restarts of a local server, put `hierograph.actuator.diagnostics.enabled=true`
@@ -160,7 +160,7 @@ into the workspace's `.hierograph/server.properties`. Start the server without t
 off again.
 
 > The repackaged (self-contained) jar carries the `exec` classifier so the plain
-> `io.hierograph.server-0.3.0-SNAPSHOT.jar` remains the module's main artifact —
+> `io.hierograph.server-0.3.0.jar` remains the module's main artifact —
 > downstream modules (e.g. the integration tests) compile against the server's classes,
 > which a Spring Boot fat jar hides under `BOOT-INF/classes`.
 
@@ -192,7 +192,7 @@ mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package -DskipTests
 This produces the image:
 
 ```
-ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
+ghcr.io/code-kontor/hierograph-mcp-server:0.3.0
 ```
 
 The image is built from the `Dockerfile` next to the server module (`eclipse-temurin:21-jre` over the
@@ -214,7 +214,7 @@ docker run --rm -p 127.0.0.1:8765:8765 \
   -v ~/.m2:/m2:ro \
   [-v hierograph-state:/hierograph] \
   [-e HIEROGRAPH_MAVEN_ARGS=-Pitest] \
-  ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
+  ghcr.io/code-kontor/hierograph-mcp-server:0.3.0
 ```
 
 - `/m2/repository` serves as a read-only tail of the container's own local repository; only missing
@@ -249,7 +249,7 @@ docker run --rm -p 127.0.0.1:8765:8765 \
   -e HIEROGRAPH_WORKSPACE=/path/to/project \
   -v /path/to/project:/workspace:ro \
   [-v hierograph-state:/hierograph] \
-  ghcr.io/code-kontor/hierograph-mcp-server:0.3.0-SNAPSHOT
+  ghcr.io/code-kontor/hierograph-mcp-server:0.3.0
 ```
 
 - The build tool is detected: `pom.xml` → Maven, a settings or build script → Gradle; a build root with
