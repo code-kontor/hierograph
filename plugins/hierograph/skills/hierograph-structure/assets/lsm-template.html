@@ -206,12 +206,12 @@
   .ic path + path { fill: none; }
   .leaf { display: flex; align-items: center; gap: 6px; padding: 0 8px; min-height: 30px; }
   .leaf .nm { flex: 1; text-align: center; }
-  /* The collapse/expand toggle sits in the box's top-left corner, 10px in from
-     both edges, as a bare glyph. Taking it out of the flow keeps the name centred
-     whether or not a box has a toggle; a collapsed box pads both sides alike so
-     its name never runs under the glyph. */
+  /* The collapse/expand toggle sits in the box's top-left corner, 7px from the
+     top and 10px from the left edge, as a bare glyph. Taking it out of the flow
+     keeps the name centred whether or not a box has a toggle; a collapsed box pads
+     both sides alike so its name never runs under the glyph. */
   .box { position: relative; }
-  .tg { position: absolute; top: 10px; left: 10px; font: 500 14px/1 var(--mono); padding: 0; margin: 0;
+  .tg { position: absolute; top: 7px; left: 10px; font: 500 14px/1 var(--mono); padding: 0; margin: 0;
         border: 0; background: none; color: var(--ink-2); cursor: pointer; }
   .tg:hover { color: var(--ink); }
   .leaf.hastg { padding: 0 28px; }
