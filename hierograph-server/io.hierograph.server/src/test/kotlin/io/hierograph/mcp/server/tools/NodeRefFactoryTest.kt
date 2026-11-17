@@ -73,6 +73,19 @@ class NodeRefFactoryTest {
     }
 
     @Test
+    fun `a slim node names its qualified name only where it adds something to the name`() {
+        val nodes = linkedMapOf<String, Any>()
+        factory.putSlimNode(nodes, 1L, "Ledger", "com.example.billing.Ledger", JavaNodeKind.CLASS.value)
+        factory.putSlimNode(nodes, 2L, "billing-core", "com.example:billing-core:1.0", JavaNodeKind.MODULE.value)
+        factory.putSlimNode(nodes, 3L, "com.example.billing", "com.example.billing", JavaNodeKind.PACKAGE.value)
+
+        assertThat(nodes["1"]).isEqualTo(mapOf("name" to "Ledger", "qualified_name" to "com.example.billing.Ledger", "kind" to "java.class"))
+        // A module's qualified name is its build coordinate; a name equal to the qualified name says it already.
+        assertThat(nodes["2"]).isEqualTo(mapOf("name" to "billing-core", "kind" to "java.module"))
+        assertThat(nodes["3"]).isEqualTo(mapOf("name" to "com.example.billing", "kind" to "java.package"))
+    }
+
+    @Test
     fun `packages carry counts, not modifiers`() {
         val pkg = store.nodes().first { it.fqn == "com.example.billing" }
         val ref = ref(pkg.key)

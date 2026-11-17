@@ -27,7 +27,11 @@ import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.tools.views.ViewResponses
 import io.hierograph.server.graphservice.views.ViewService
 import io.hierograph.server.views.ViewGroups
+import io.hierograph.mcp.server.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.Paginator
+import io.hierograph.mcp.server.pagination.QueryHash
 import org.springframework.ai.tool.annotation.Tool
+import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
 
 /**
@@ -35,7 +39,8 @@ import org.springframework.stereotype.Component
  *
  * Returns a structural overview of the loaded codebase: statistics, the kind and
  * relationship vocabularies, top-level module structure, and the zoom-level model.
- * No parameters of its own — it describes the full loaded graph, or, called with `view`, the graph in that view.
+ * It describes the full loaded graph, or, called with `view`, the graph in that view. Its only parameters page the
+ * hierarchy, for a top level too large for one response.
  */
 @Component
 class GraphOverviewTool(
@@ -56,9 +61,25 @@ class GraphOverviewTool(
                 "build_state ('current', or 'stale' with the build files edited since the graph's manifest was " +
                 "written). With view=<name>, the hierarchy is the view's top level — its groups and the nodes no group " +
                 "takes — and a 'view' section summarizes the view and what applying it reported. " +
-                "No other parameters. For known codebases, this can be skipped."
+                "The hierarchy entries carry id, name, kind and counts; find_node or list_children give a node's " +
+                "qualified name. The response stays within the ~50 KB budget: on a very large codebase the hierarchy " +
+                "is paged — summary.truncated and next_cursor say so, and the next pages carry only the rest of the " +
+                "hierarchy. For known codebases, this can be skipped."
     )
-    fun graphOverview(): Map<String, Any?> {
+    fun graphOverview(
+        @ToolParam(
+            description = "Maximum hierarchy entries per page (default 500, max 1000). Rarely needed: a page holds " +
+                    "fewer entries anyway when they would not fit the response budget.",
+            required = false,
+        )
+        limit: Int? = null,
+        @ToolParam(
+            description = "Opaque pagination cursor from a previous response's next_cursor, for the rest of the " +
+                    "hierarchy. Omit for the first page.",
+            required = false,
+        )
+        cursor: String? = null,
+    ): Map<String, Any?> {
 
         val hierarchy = graphService.model.hierarchy
         val rootNode = hierarchy.rootNode
@@ -147,9 +168,11 @@ class GraphOverviewTool(
             },
         )
 
-        // ── hierarchy: top-level modules with enriched metadata ────────
+        // ── hierarchy: top-level modules with their counts ─────────────
         // The counts are boundary-crossing: a dependency between two types of the same module is internal
-        // and counts for neither side.
+        // and counts for neither side. An entry leaves out what every top-level entry shares (its parent is the
+        // root) and what is rarely needed at this level (a module's build coordinate, its method count);
+        // find_node and list_children report those.
         val moduleOf = HashMap<Any, Any>()
         for (module in hierarchy.childrenOf(rootNode)) {
             moduleOf[module.identifier] = module.identifier
@@ -157,6 +180,7 @@ class GraphOverviewTool(
         }
         val hierarchySection = hierarchy.childrenOf(rootNode).map { child ->
             val ref = nodeRefFactory.enrichedNodeRef(child)
+            for (key in OMITTED_FROM_HIERARCHY) ref.remove(key)
             ref["outgoing_dep_count"] = hierarchy.accumulatedOutgoing(child).count { moduleOf[it.to.identifier] != child.identifier }
             ref["incoming_dep_count"] = hierarchy.accumulatedIncoming(child).count { moduleOf[it.from.identifier] != child.identifier }
             ref
@@ -193,29 +217,51 @@ class GraphOverviewTool(
             "scanner" to "hierograph"
         )
 
-        // ── assemble response ──────────────────────────────────────────
-        return linkedMapOf(
-            "stats" to linkedMapOf(
-                "total_nodes" to totalNodes,
-                "nodes_by_kind" to nodesByKind,
-                "total_type_level_edges" to totalEdges,
-                "type_level_edges_by_attribute" to edgesByAttribute,
-                "type_level_weight_by_kind" to DependencyKind.toMap(weightByKind),
-            ),
-            "kinds" to kinds,
-            "relationships" to relationships,
-            "hierarchy" to hierarchySection,
-            "model" to model,
-            "scan_metadata" to scanMetadata
-        ).apply {
-            view?.let {
-                put("view", ViewResponses.entry(it.entry).apply {
-                    putAll(ViewResponses.summary(it))
-                    with(ViewResponses) { putRestructuring(it) }
-                    put("report", ViewResponses.report(it.materialized.report))
-                })
+        // ── assemble response: everything on the first page, the rest of the hierarchy on the next ones ──
+        // The view needs no place in the query: a view's snapshot has a data hash of its own, so a cursor
+        // issued in one view is stale in another.
+        return Paginator.respond(
+            allItems = hierarchySection,
+            spec = PAGINATION,
+            queryHash = QueryHash.of(emptyMap()),
+            dataHash = graphService.dataHash,
+            cursor = cursor,
+            limit = limit,
+            tooLarge = "Call graph_overview with a smaller limit.",
+        ) { page ->
+            val response = linkedMapOf<String, Any?>()
+            if (cursor == null) {
+                response["stats"] = linkedMapOf(
+                    "total_nodes" to totalNodes,
+                    "nodes_by_kind" to nodesByKind,
+                    "total_type_level_edges" to totalEdges,
+                    "type_level_edges_by_attribute" to edgesByAttribute,
+                    "type_level_weight_by_kind" to DependencyKind.toMap(weightByKind),
+                )
+                response["kinds"] = kinds
+                response["relationships"] = relationships
             }
-            graphService.buildState()?.let { put("build_state", it) }
+            response["hierarchy"] = page.items
+            response["summary"] = linkedMapOf<String, Any?>(
+                "total" to page.total,
+                "returned" to page.returned,
+                "truncated" to page.truncated,
+            )
+            if (cursor == null) {
+                response["model"] = model
+                response["scan_metadata"] = scanMetadata
+                view?.let {
+                    response["view"] = ViewResponses.entry(it.entry).apply {
+                        putAll(ViewResponses.summary(it))
+                        with(ViewResponses) { putRestructuring(it) }
+                        put("report", ViewResponses.report(it.materialized.report))
+                    }
+                }
+                graphService.buildState()?.let { response["build_state"] = it }
+            }
+            // next_cursor is present iff more hierarchy entries follow (omitted, not null, on the last page).
+            page.nextCursor?.let { response["next_cursor"] = it }
+            response
         }
     }
 
@@ -260,4 +306,12 @@ class GraphOverviewTool(
 
     /** The description of a type-level kind: the facts its count is made of. */
     private fun typeLevelKindDescription(kind: DependencyKind): String = "${kind.value} facts of the type and its members"
+
+    private companion object {
+        /** Pagination of the hierarchy: one page in practice; the response budget pages a very large top level. */
+        val PAGINATION = PaginationSpec(tool = "graph_overview", defaultLimit = 500, maxLimit = 1000)
+
+        /** Fields of a node reference a top-level hierarchy entry leaves out (see the hierarchy section). */
+        val OMITTED_FROM_HIERARCHY = listOf("qualified_name", "parent_id", "parent_kind", "descendant_method_count")
+    }
 }

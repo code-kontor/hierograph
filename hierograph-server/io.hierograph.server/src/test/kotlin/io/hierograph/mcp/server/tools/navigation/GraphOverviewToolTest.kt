@@ -27,7 +27,7 @@ import io.hierograph.server.mapping.GraphStoreToHGModel
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-/** Verifies the stats and vocabularies of [GraphOverviewTool]. */
+/** Verifies the stats, vocabularies and hierarchy of [GraphOverviewTool]. */
 @Suppress("UNCHECKED_CAST")
 class GraphOverviewToolTest {
 
@@ -79,6 +79,28 @@ class GraphOverviewToolTest {
         assertThat(modules["billing-core"]!!["outgoing_dep_count"]).isEqualTo(1)
         assertThat(modules["billing-core"]!!["incoming_dep_count"]).isEqualTo(0)
         assertThat(modules["External Types"]!!["incoming_dep_count"]).isEqualTo(1)
+    }
+
+    @Test
+    fun `a hierarchy entry carries id, name, kind and counts, not what every top-level entry shares`() {
+        val module = (overview["hierarchy"] as List<Map<String, Any?>>).single { it["name"] == "billing-core" }
+        assertThat(module.keys).containsExactly(
+            "id", "name", "kind", "child_count", "descendant_type_count", "outgoing_dep_count", "incoming_dep_count",
+        )
+        assertThat(module["descendant_type_count"]).isEqualTo(2)
+    }
+
+    @Test
+    fun `a paged hierarchy carries everything on the first page and only the rest of the hierarchy on the next`() {
+        val tool = GraphOverviewTool(graphService, NodeRefFactory(graphService))
+        val first = tool.graphOverview(limit = 1)
+        assertThat(first.keys).contains("stats", "kinds", "relationships", "hierarchy", "summary", "model", "next_cursor")
+        assertThat(first["summary"]).isEqualTo(mapOf("total" to 2, "returned" to 1, "truncated" to true))
+
+        val second = tool.graphOverview(limit = 1, cursor = first["next_cursor"] as String)
+        assertThat(second.keys).containsExactly("hierarchy", "summary")
+        val names = listOf(first, second).flatMap { page -> (page["hierarchy"] as List<Map<String, Any?>>).map { it["name"] } }
+        assertThat(names).containsExactlyInAnyOrder("billing-core", "External Types")
     }
 
     @Test

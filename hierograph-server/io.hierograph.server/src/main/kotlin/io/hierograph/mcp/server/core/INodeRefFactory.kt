@@ -50,8 +50,8 @@ interface INodeRefFactory {
     // ── slim payload encoding ───────────────────────────────
 
     /**
-     * Registers a node's display fields into a per-response [nodes] map keyed by
-     * stringified node ID. First registration wins.
+     * Registers a node's display fields — `name`, `kind`, and `qualified_name` where it adds something to the
+     * name — into a per-response [nodes] map keyed by stringified node ID. First registration wins.
      */
     fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?)
 

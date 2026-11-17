@@ -55,7 +55,7 @@ class IncomingDependenciesTool(
                 "make up its weight; a kind name is also the detail-level relationship that lists those facts. " +
                 "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size. " +
-                "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
+                "On a hub node a page of edges fills the ~50 KB response budget, most of it edges " +
                 "you will not read. If you only need the ranking or attribute breakdown " +
                 "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
@@ -101,8 +101,8 @@ class IncomingDependenciesTool(
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 125 / 90, the most " +
-                    "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail); cap 300. A page never exceeds " +
+                    "the ~50 KB response budget: when the edges would not fit, it holds fewer. Pass limit=1 when you " +
                     "only need the summary (by_target / by_source_type / by_attribute / by_kind).",
             required = false
         )
@@ -110,7 +110,8 @@ class IncomingDependenciesTool(
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
-                    "When continuing, keep the other parameters identical to the original call. " +
+                    "To continue, the cursor alone is enough: the server remembers the other arguments; " +
+                    "if you pass them, they must be identical to the original call's. " +
                     "If the result set is larger than you need, prefer the full-set summary (limit=1) or " +
                     "narrowing the query (a smaller subtree, or detail-level relationship filter) over " +
                     "paginating through all of it.",
@@ -177,10 +178,10 @@ class IncomingDependenciesTool(
     }
 
     companion object {
-        /** Type-level pagination for incoming_dependencies (~400 bytes/edge with its kinds): default 100, cap 125 (the budget's fill). */
-        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 125, bytesPerItem = 400)
+        /** Type-level pagination for incoming_dependencies: default 100, cap 300; the response budget trims a page further. */
+        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 300)
 
-        /** Detail-level pagination for incoming_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
-        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)
+        /** Detail-level pagination for incoming_dependencies: default 80, cap 300; the response budget trims a page further. */
+        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 300)
     }
 }

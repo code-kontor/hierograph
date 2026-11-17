@@ -96,13 +96,15 @@ it, and offer a rendering only if the user wants the picture.
 
 Then fetch the edge list, sized from `edge_count`:
 
-- If `edge_count` is under the server cap (**200**), set `limit` to cover it all
-  and take the whole list in **one call** — no cursor. Sizing `limit` to the edge
-  count is the common case; a small graph never needs pagination.
-- Only when `edge_count` exceeds the cap do you page `next_cursor`, and then the
-  continuation call must **repeat every original argument verbatim** (`nodeIds`,
-  `minWeight`, `edgeSort`, `limit`) alongside the `cursor`, or the server rejects
-  it as a stale-cursor mismatch.
+- Set `limit` to cover `edge_count` (the cap is **500**) and take the list in one
+  call. Sizing `limit` to the edge count is the common case; a small graph never
+  needs pagination.
+- Every page stays within the ~50 KB response budget, so a large edge list may still
+  come in several pages — `summary.returned` says how many edges a page holds. While a
+  response carries `next_cursor`, call again with **only** `cursor = <next_cursor>`
+  (plus `limit` if you want): the server remembers the other arguments. If it answers
+  `CURSOR_ARGUMENTS_UNKNOWN` (it restarted), repeat the original arguments with the
+  cursor.
 
 There is no `max_edge_weight` in the summary — if you need the heaviest edge for
 the writeup, scan the `edges` array yourself (`max(edges, key=…["weight"])`).

@@ -99,20 +99,23 @@ the same `view` to every call (`references/views.md`).
 One call over **all** leaf ids — every type id of a synthetic leaf individually:
 
 ```
-pairwise_dependencies(nodeIds = [<all leaf ids>], edgeSort = "dsm", minWeight = 1, limit = 166)
+pairwise_dependencies(nodeIds = [<all leaf ids>], edgeSort = "dsm", minWeight = 1, limit = 500, includeNodes = false)
 ```
 
-Page `next_cursor` until done, repeating every original argument verbatim. Do not
-filter with `minWeight`: a cycle needs every edge, and the summary does not tell
-which light edges close it. Read the `summary` first anyway — `has_cycles` and the
-SCCs over the leaves are already the headline.
+`includeNodes = false` leaves out the `nodes` map, which you do not need — you
+passed the ids — and which with hundreds of leaves can exceed the response budget on
+its own. While a response carries `next_cursor`, call again with **only**
+`cursor = <next_cursor>`: the server remembers the other arguments. Do not filter
+with `minWeight`: a cycle needs every edge, and the summary does not tell which light
+edges close it. Read the `summary` first anyway — `has_cycles` and the SCCs over the
+leaves are already the headline.
 
 Edges between leaves are all the script needs: it sums them up to every sibling
 pair of every container itself.
 
-**When the leaf-level edge list is too big.** A full page of 166 edges fills the
-~50 KB response budget, so check `summary.edge_count` on the first page: past ~650
-edges (four pages), switch to **one call per container** over its direct children
+**When the leaf-level edge list is too big.** Every page stays within the ~50 KB
+response budget, so check `summary.edge_count` on the first page: when the list runs
+to many pages, switch to **one call per container** over its direct children
 (plus the type ids of its `(types)` leaf) and pass all of those edges together.
 Each sibling pair belongs to exactly one container, so nothing is counted twice,
 and the levels, tangles and feedback dependencies come out identical. What is lost

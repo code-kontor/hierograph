@@ -76,8 +76,9 @@ cell list follows it.
 | `nodeIds` | array of node ids | yes | — | The nodes of the matrix, 2 to 1,000 |
 | `edgeSort` | string | no | `"dsm"` | Order of the edge list: `"dsm"` or `"weight_desc"` |
 | `minWeight` | integer | no | `1` | Smallest weight an edge must have to be listed |
-| `limit` | integer | no | `25` | Edges per page, clamped to 1–166 |
-| `cursor` | string | no | — | `next_cursor` of the previous page |
+| `limit` | integer | no | `25` | Edges per page, clamped to 1–500; fewer when they would not fit the response budget |
+| `cursor` | string | no | — | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
+| `includeNodes` | boolean | no | `true` | Whether the first page carries the `nodes` map |
 | `view` | string | no | none | the view to answer in |
 
 **`nodeIds`** names the subtrees that become the rows and columns. Each id stands for
@@ -104,11 +105,20 @@ list never hides a cycle.
 
 **`limit`** is the page size of the edge list. The default of 25 keeps a first page
 small. Values are clamped as described in
-[Parameters](hierograph-mcp-tools.md#5-parameters).
+[Parameters](hierograph-mcp-tools.md#5-parameters), and a page holds fewer edges when
+they would not fit the [response budget](hierograph-mcp-tools.md#73-the-response-budget).
+
+**`includeNodes`** controls the `nodes` map of the first page, which names every id in
+`nodeIds`. It grows with the node set: on 154 modules it is about 11 KB of the first
+page, and with the hundreds of ids of a levelized structure map it can exceed the
+response budget on its own. A caller that already knows the nodes — it passed their
+ids — passes `false`.
 
 **`cursor`** continues an edge list. It is bound to this tool, to `nodeIds` (in their
 given order), `edgeSort` and `minWeight`, and to the loaded graph; see
-[Cursors](hierograph-mcp-tools.md#72-cursors). `limit` may change between pages.
+[Cursors](hierograph-mcp-tools.md#72-cursors). Passing the cursor alone is enough: the
+server remembers the other arguments, so a node set of hundreds of ids need not be sent
+again for every page. `limit` may change between pages.
 
 **`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
 answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
@@ -364,8 +374,10 @@ at once. `INVALID_NODE_KIND` carries the member's declaring type as a
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef), with a recovery that
 says to pass that id instead.
 
-The cap of 166 edges at 300 bytes each is the largest page that fits the
-[response budget](hierograph-mcp-tools.md#73-the-response-budget).
+Every page stays within the [response budget](hierograph-mcp-tools.md#73-the-response-budget),
+measured on the rendered page. A first page whose `nodes` map and analysis alone exceed
+it — a very large node set — fails with `RESPONSE_TOO_LARGE`, whose recovery is to pass
+`includeNodes = false` or fewer `nodeIds`.
 
 While no graph is loaded the tool returns the
 [no-graph response](hierograph-mcp-tools.md#83-no-graph-loaded).
@@ -389,9 +401,9 @@ The first page holds the heaviest edges.
 **Thin a large matrix.** Raise `minWeight` until `summary.total` is small
 enough to read. The summary still describes the full matrix.
 
-**Draw the full matrix.** Walk all pages with `edgeSort = "dsm"`, keeping `nodeIds`,
-`edgeSort` and `minWeight` unchanged, and place each edge in the row of
-`from` and the column of `to`, using the order of `nodes`.
+**Draw the full matrix.** Walk all pages with `edgeSort = "dsm"`, passing only
+`cursor` on each continuation, and place each edge in the row of `from` and the column
+of `to`, using the order of `nodes`.
 
 **Explain one cell.** Pass its two ids to
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md):

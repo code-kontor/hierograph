@@ -15,16 +15,11 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
-import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.JavaEdgeAttributes
-import io.hierograph.server.mapping.GraphStoreDependencySource
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
-import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
-import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
@@ -43,25 +38,13 @@ import org.springframework.stereotype.Component
  */
 @Component
 class PairwiseDependenciesTool(
-    private val graphService: HierarchicalGraphService,
+    graphService: HierarchicalGraphService,
     private val nodeRefFactory: INodeRefFactory,
     private val dataHashProvider: DataHashProvider
 ) {
 
-    /**
-     * An aggregated DSM edge held in typed form so it can be ordered, `minWeight`-filtered, and paged
-     * before being mapped to the wire shape. `fromIdx`/`toIdx` are positions in the matrix's node order
-     * (equal to the topological order when acyclic), which makes "dsm" ordering a plain index sort.
-     */
-    private data class DsmEdge(
-        val fromId: Any,
-        val toId: Any,
-        val fromIdx: Int,
-        val toIdx: Int,
-        val weight: Int,
-        val typePairCount: Int,
-        val attributesBitmap: Int
-    )
+    /** Validates the node set and computes the matrix. */
+    private val matrices = PairwiseMatrices(graphService, nodeRefFactory)
 
     @Tool(
         name = "pairwise_dependencies",
@@ -73,9 +56,9 @@ class PairwiseDependenciesTool(
                 "the layers? where are the cycles?) in a few hundred bytes, with no need to fetch edges at " +
                 "all. Only page through the edge list when you need specific pairwise weights. " +
                 "WARNING: the edge list can be large — a full all-modules query is often hundreds of edges " +
-                "(~300 bytes each), and a full page of 166 fills the ~50 KB response budget. Do NOT fetch it " +
-                "all at once. Instead: keep limit small (default 25, stay <= 50) and walk next_cursor " +
-                "only as far as needed; raise minWeight to drop noise (a threshold like 100+ usually " +
+                "(~300 bytes each), and every page is kept within the ~50 KB response budget, so a large list " +
+                "takes several pages. Do NOT fetch it all at once. Instead: keep limit small (default 25, stay " +
+                "<= 50) and walk next_cursor only as far as needed; raise minWeight to drop noise (a threshold like 100+ usually " +
                 "leaves a handful of edges); and use edgeSort='weight_desc' so the first small page " +
                 "already holds the strongest couplings. The node set you pass is bounded only by a " +
                 "generous soft cap, so passing many modules is fine — it is the edge OUTPUT, not the " +
@@ -101,8 +84,8 @@ class PairwiseDependenciesTool(
         )
         minWeight: Int?,
         @ToolParam(
-            description = "Max edges per page (1-166, default 25). Keep this small — a full page fills the " +
-                    "~50 KB response budget. Increase only when you know the filtered edge count is low.",
+            description = "Max edges per page (1-500, default 25). A page never exceeds the ~50 KB response " +
+                    "budget: when the edges would not fit, the page holds fewer and next_cursor continues after them.",
             required = false
         )
         limit: Int?,
@@ -110,35 +93,19 @@ class PairwiseDependenciesTool(
             description = "Opaque pagination cursor from a previous response's next_cursor. Omit for " +
                     "the first page; the matrix analysis in the summary and the nodes map are returned on the first " +
                     "page only, the page counts (summary.total, returned, truncated) on every page. " +
-                    "Keep the other parameters identical when continuing.",
+                    "To continue, passing the cursor alone is enough: the server remembers the other arguments. " +
+                    "If you pass them, they must be identical to the first call's.",
             required = false
         )
-        cursor: String?
+        cursor: String?,
+        @ToolParam(
+            description = "Whether the first page carries the nodes map (name and kind of every id). Default true. " +
+                    "Pass false when you already know the nodes — it is the largest part of the first page " +
+                    "for a large node set.",
+            required = false
+        )
+        includeNodes: Boolean? = null,
     ): Map<String, Any?> {
-
-        // ── validate node-set size (soft cap bounds the O(N) summary + analytics build) ──
-        if (nodeIds.size < 2) {
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "INPUT_TOO_SMALL",
-                    "message" to "pairwise_dependencies requires at least 2 node IDs, got ${nodeIds.size}.",
-                    "recovery" to "For single-pair queries, use aggregated_dependencies instead."
-                )
-            )
-        }
-        if (nodeIds.size > MAX_NODES) {
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "INPUT_TOO_LARGE",
-                    "message" to "pairwise_dependencies accepts at most $MAX_NODES node IDs " +
-                            "(the summary — SCCs and topological order — is O(node_count)), got ${nodeIds.size}.",
-                    "node_count" to nodeIds.size,
-                    "max_nodes" to MAX_NODES,
-                    "recovery" to "Narrow the node set, or use aggregated_dependencies for an asymmetric " +
-                            "slice. The edge list itself is paginated, so node count is the only thing to reduce."
-                )
-            )
-        }
 
         // ── validate edgeSort ─────────────────────────────────────────
         val effectiveSort = edgeSort ?: "dsm"
@@ -150,47 +117,27 @@ class PairwiseDependenciesTool(
         }
         val effectiveMinWeight = (minWeight ?: 1).coerceAtLeast(1)
 
-        // ── resolve and validate nodes ─────────────────────────────────
-        val hierarchy = graphService.model.hierarchy
-        val resolvedNodes = ArrayList<HGNode>(nodeIds.size)
-        for (id in nodeIds) {
-            val node = graphService.model.lookupNode(id) ?: return nodeNotFound(id)
-            validateNodeKind(node)?.let { return it }
-            resolvedNodes.add(node)
+        // ── validate the node set and build the matrix; analytics cover the FULL node set ──
+        val matrix = when (val result = matrices.compute("pairwise_dependencies", nodeIds)) {
+            is PairwiseMatrices.Result.Rejected -> return result.response
+            is PairwiseMatrices.Result.Computed -> result.matrix
         }
-        overlapping(resolvedNodes)?.let { return it }
-
-        // ── build DSM; analytics are computed over the FULL node set ────
-        val dsm = GraphUtils.createDependencyStructureMatrix(resolvedNodes, hierarchy)
-        val orderedNodes = dsm.orderedNodes
-        val size = orderedNodes.size
-
-        // ── build the complete (unfiltered) edge list — one linear pass ─
-        val aggregated = GraphUtils.computePairwiseAggregation(orderedNodes, hierarchy)
-        // computePairwiseAggregation yields i→j (i depends on j): every edge reads depender → depended-upon.
-        val allEdges = aggregated.map { e ->
-            DsmEdge(
-                fromId = orderedNodes[e.fromIndex].identifier,
-                toId = orderedNodes[e.toIndex].identifier,
-                fromIdx = e.fromIndex,
-                toIdx = e.toIndex,
-                weight = e.weight,
-                typePairCount = e.typePairCount,
-                attributesBitmap = e.attributesBitmap
-            )
-        }
-        val edgeCount = allEdges.size // unfiltered — drives density
+        val orderedNodes = matrix.orderedNodes
 
         // ── order (stable, total), then apply minWeight ───────────────
-        val comparator = when (effectiveSort) {
-            "weight_desc" -> compareByDescending<DsmEdge> { it.weight }.thenBy { it.fromIdx }.thenBy { it.toIdx }
-            else -> compareBy<DsmEdge> { it.fromIdx }.thenBy { it.toIdx } // "dsm"
-        }
-        val orderedFiltered = allEdges
+        val orderedFiltered = matrix.edges
             .filter { it.weight >= effectiveMinWeight }
-            .sortedWith(comparator)
+            .sortedWith(if (effectiveSort == "weight_desc") PairwiseMatrix.WEIGHT_ORDER else PairwiseMatrix.DSM_ORDER)
 
-        // ── paginate the edge list ─────────────────────────────────────
+        // ── the first page's nodes map and matrix analysis, computed once (the page is rendered several times) ──
+        val nodes = if (cursor == null && includeNodes != false) {
+            linkedMapOf<String, Any>().also { map -> for (node in orderedNodes) nodeRefFactory.putSlimNode(map, node) }
+        } else {
+            null
+        }
+        val analysis = if (cursor == null) matrix.analysis() else null
+
+        // ── paginate the edge list, within the response budget ─────────
         val queryHash = QueryHash.of(
             mapOf(
                 "nodeIds" to nodeIds, // verbatim: order can influence tie-broken edge order
@@ -198,102 +145,42 @@ class PairwiseDependenciesTool(
                 "minWeight" to effectiveMinWeight
             )
         )
-        val page = when (val result = Paginator.paginate(
+        return Paginator.respond(
             allItems = orderedFiltered,
             spec = PAGINATION,
             queryHash = queryHash,
             dataHash = dataHashProvider.dataHash,
             cursor = cursor,
-            limit = limit
-        )) {
-            is PageResult.Failed -> return result.error.toResponse()
-            is PageResult.Page -> result
-        }
-
-        val edges = page.items.map { e ->
-            // The kinds of the type-level dependencies under this pair, for the returned edges only.
-            val coreDeps = hierarchy.getAggregatedDependency(orderedNodes[e.fromIdx], orderedNodes[e.toIdx])?.coreDependencies.orEmpty()
-            linkedMapOf<String, Any?>(
-                "from" to e.fromId,
-                "to" to e.toId,
-                "weight" to e.weight,
-                "type_pair_count" to e.typePairCount,
-                "attributes" to JavaEdgeAttributes.toMap(e.attributesBitmap),
-                "kinds" to DependencyKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
-            )
-        }
-
-        // ── assemble: page counts on every page; nodes + matrix analysis on the FIRST page only ──
-        val response = linkedMapOf<String, Any?>()
-        val summary = linkedMapOf<String, Any?>(
-            "total" to page.total,          // post-minWeight edges, across all pages
-            "returned" to page.returned,
-            "truncated" to page.truncated
-        )
-        if (cursor == null) {
-            val possibleEdges = size * (size - 1)
-            val density = if (possibleEdges > 0)
-                Math.round(edgeCount * 100.0 / possibleEdges) / 100.0
-            else 0.0
-            val hasCycles = dsm.cycles.isNotEmpty()
-            val sccs = dsm.cycles.filter { it.size >= 2 }.map { cycle -> cycle.map { it.identifier } }
-
-            val nodes = linkedMapOf<String, Any>()
-            for (node in orderedNodes) {
-                nodeRefFactory.putSlimNode(nodes, node)
+            limit = limit,
+            tooLarge = "Pass includeNodes=false (the nodes map names every id you passed), or pass fewer nodeIds.",
+        ) { page ->
+            val edges = page.items.map { e ->
+                linkedMapOf<String, Any?>(
+                    "from" to e.fromId,
+                    "to" to e.toId,
+                    "weight" to e.weight,
+                    "type_pair_count" to e.typePairCount,
+                    "attributes" to JavaEdgeAttributes.toMap(e.attributesBitmap),
+                    // The kinds of the type-level dependencies under this pair, for the returned edges only.
+                    "kinds" to DependencyKind.toMap(matrix.kindsOf(e)),
+                )
             }
-
-            summary["node_count"] = size
-            summary["edge_count"] = edgeCount  // unfiltered count, drives density
-            summary["possible_edges"] = possibleEdges
-            summary["density"] = density
-            summary["has_cycles"] = hasCycles
-            summary["strongly_connected_components"] = sccs
-            if (!hasCycles) {
-                summary["topological_order"] = orderedNodes.map { it.identifier }
-            }
-
-            response["nodes"] = nodes
+            // ── assemble: page counts on every page; nodes + matrix analysis on the FIRST page only ──
+            val response = linkedMapOf<String, Any?>()
+            nodes?.let { response["nodes"] = it }
+            response["summary"] = linkedMapOf<String, Any?>(
+                "total" to page.total,          // post-minWeight edges, across all pages
+                "returned" to page.returned,
+                "truncated" to page.truncated
+            ).apply { analysis?.let { putAll(it) } }
+            response["edges"] = edges
+            // next_cursor is present iff more edges follow this page (omitted, not null, on the last page).
+            page.nextCursor?.let { response["next_cursor"] = it }
+            response
         }
-        response["summary"] = summary
-        response["edges"] = edges
-        // next_cursor is present iff more edges follow this page (omitted, not null, on the last page).
-        page.nextCursor?.let { response["next_cursor"] = it }
-        return response
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
-
-    /**
-     * The `INVALID_PARAMETER` error for a node set that is not disjoint, or `null` when it is. A matrix
-     * row stands for a whole subtree, so an id listed twice, or a node inside another listed node, would
-     * attribute the same dependencies to two rows; which row wins would depend on the input order, and a
-     * containing node can even look cyclic with the node inside it.
-     */
-    private fun overlapping(nodes: List<HGNode>): Map<String, Any?>? {
-        val hierarchy = graphService.model.hierarchy
-        val listed = nodes.map { it.identifier }.toSet()
-        val duplicates = nodes.groupingBy { it.identifier }.eachCount().filterValues { it > 1 }.keys.toList()
-        val nested = nodes.distinctBy { it.identifier }.mapNotNull { node ->
-            generateSequence(hierarchy.parentOf(node)) { hierarchy.parentOf(it) }
-                .firstOrNull { it.identifier in listed }
-                ?.let { ancestor -> linkedMapOf("node" to node.identifier, "inside" to ancestor.identifier) }
-        }
-        if (duplicates.isEmpty() && nested.isEmpty()) return null
-        val problems = buildList {
-            if (duplicates.isNotEmpty()) add("listed more than once: ${duplicates.joinToString()}")
-            if (nested.isNotEmpty()) add("inside another listed node: ${nested.joinToString { "${it["node"]} in ${it["inside"]}" }}")
-        }
-        return mapOf(
-            "error" to linkedMapOf(
-                "code" to "INVALID_PARAMETER",
-                "message" to "nodeIds must name disjoint subtrees; ${problems.joinToString("; ")}.",
-                "duplicates" to duplicates,
-                "nested" to nested,
-                "recovery" to "List each id once, and keep either a containing node or the nodes inside it, not both."
-            )
-        )
-    }
 
     private fun invalidParam(message: String, recovery: String): Map<String, Any?> = mapOf(
         "error" to mapOf(
@@ -303,38 +190,10 @@ class PairwiseDependenciesTool(
         )
     )
 
-    private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
-        val kind = node.kind
-        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
-            val declaringType = graphService.model.hierarchy.parentOf(node)
-            return mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_NODE_KIND",
-                    "message" to "This tool operates on type-level dependencies. " +
-                            "The node is a $kind, not a type.",
-                    "actual_kind" to kind.toString(),
-                    "declaring_type" to if (declaringType != null)
-                        nodeRefFactory.minimalNodeRef(declaringType) else null,
-                    "recovery" to "Pass the declaring type's id (${declaringType?.identifier}) instead."
-                )
-            )
-        }
-        return null
-    }
-
-    private fun nodeNotFound(id: Long) = mapOf<String, Any?>(
-        "error" to mapOf(
-            "code" to "NODE_NOT_FOUND",
-            "message" to "No node with id $id exists in the graph.",
-            "recovery" to "Use find_node to look up the correct node ID."
-        )
-    )
-
     companion object {
-        private const val MAX_NODES = 1000
         private val EDGE_SORTS = setOf("dsm", "weight_desc")
 
-        /** Pagination policy for pairwise_dependencies (~300 bytes/edge with its kinds): default 25, server cap 166. */
-        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 166, bytesPerItem = 300)
+        /** Pagination policy for pairwise_dependencies: default 25, server cap 500; the response budget trims a page further. */
+        private val PAGINATION = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 25, maxLimit = 500)
     }
 }

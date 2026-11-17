@@ -237,7 +237,7 @@ relationship vocabulary is listed in the
 
 | Tool | Category | Answers | Paginated |
 |------|----------|---------|-----------|
-| [`graph_overview`](hierograph-tool-graph-overview.md) | Orientation | What is in the graph, and what do kinds and relationships mean? | no |
+| [`graph_overview`](hierograph-tool-graph-overview.md) | Orientation | What is in the graph, and what do kinds and relationships mean? | its hierarchy, on a very large codebase |
 | [`find_node`](hierograph-tool-find-node.md) | Navigation | Which node has this name? | no (capped) |
 | [`list_children`](hierograph-tool-list-children.md) | Navigation | What is directly inside this node? | no (capped) |
 | [`list_descendants`](hierograph-tool-list-descendants.md) | Navigation | What is anywhere inside this node? | yes |
@@ -329,8 +329,8 @@ does its entry in a slim node map (§6.3). The key is absent for every other nod
 ### 6.2 Enriched NodeRef
 
 A minimal NodeRef plus counts and modifiers that depend on the kind. Browse results
-(`find_node`, `list_children`, `list_descendants`, `affected_by`, `graph_overview`'s
-hierarchy) use it, because a caller choosing where to look next needs to know how big
+(`find_node`, `list_children`, `list_descendants`, `affected_by`) use it, and `graph_overview`'s
+hierarchy uses a part of it (id, name, kind and counts), because a caller choosing where to look next needs to know how big
 each candidate is and whether it is part of an API.
 
 | Kind | Extra fields | Why |
@@ -375,6 +375,18 @@ Keys are ids as strings, because JSON object keys are strings. An edge then read
 `{"from": 4711, "to": 4730, "weight": 3}`. On a response with a few hundred edges between
 a few dozen types, this removes most of the repetition.
 
+`qualified_name` appears only where it adds something to `name`. It is left out when
+the two are equal (a package named by its dotted path), and for a module, whose
+qualified name is its build coordinate — the longest field of the entry, and rarely
+needed in an edge list. `find_node` and `list_children` still report it:
+
+```json
+"nodes": {
+  "4700": { "name": "billing-core", "kind": "java.module" },
+  "4702": { "name": "com.example.billing", "kind": "java.package" }
+}
+```
+
 ---
 
 ## 7. Pagination
@@ -395,9 +407,14 @@ Every page of every paginated tool carries:
 a multi-page walk. The presence of `next_cursor` is the signal that more pages follow.
 
 The other summary fields (`by_kind`, `by_target`, `by_distance`, …) describe the full
-result, on every page. `pairwise_dependencies` is the one exception: its matrix
+result, on every page. `pairwise_dependencies` is an exception: its matrix
 analysis (cycles, layering, density) appears on the first page only, because it does
-not change from page to page; later pages carry the three counts alone.
+not change from page to page; later pages carry the three counts alone. So is
+`graph_overview`, which pages only its `hierarchy`: the first page carries the whole
+overview, the later ones the rest of the hierarchy with its counts.
+
+A page may hold fewer items than `limit`: the server keeps every response within the
+budget (§7.3) and continues after the last item that fit.
 
 ### 7.2 Cursors
 
@@ -412,9 +429,8 @@ needed to resume:
 | `dh` | **data hash** of the loaded graph | resuming over changed data skips or repeats items |
 | `offset` | position of the next item | where to resume |
 
-The server keeps no session state. A cursor stays valid across reloads and server
-restarts that leave the graph unchanged, and becomes invalid as soon as a rebuild
-changes it.
+A cursor stays valid across reloads and server restarts that leave the graph
+unchanged, and becomes invalid as soon as a rebuild changes it.
 
 The query hash covers the parameters that define the result and excludes `limit` and
 `cursor`, so a caller can change the page size between pages. Kind and modifier
@@ -440,28 +456,64 @@ Every cursor error carries a `recovery` that says to restart without a cursor (o
 `WRONG_TOOL_CURSOR` and `STALE_CURSOR_QUERY`, to restore the original tool or
 parameters).
 
+**Continuing with the cursor alone.** A continuation needs only `cursor`. The server
+remembers the arguments of every call that returned a `next_cursor` — `view` and
+`limit` included — and runs a cursor-only call with them; a `limit` passed with the
+cursor replaces the remembered one. Passing the arguments again still works; they must then be the original ones, or
+the call fails with `STALE_CURSOR_QUERY`.
+
+The cursor itself stays stateless: it carries only the hash of the arguments, not the
+arguments. The remembered arguments live in the server's memory, for 30 minutes and up
+to 512 cursors, and are lost on a restart. A cursor-only call whose arguments the
+server no longer knows fails with `CURSOR_ARGUMENTS_UNKNOWN`; passing the original
+arguments with the cursor continues it.
+
+So that a cursor-only call passes the MCP layer's schema check, the input schema of a
+paginated tool declares no parameter as required. The server checks them itself: a
+call without a cursor that misses one fails with `INVALID_PARAMETER`, naming it.
+
 ### 7.3 The response budget
 
-Each paginated tool estimates the size of a page as `returned × bytes per item` and
-caps its page size so that a full page stays within **50,000 bytes**, well below the
-point where an MCP client truncates a response:
+No response of a paginated tool exceeds **50,000 characters**, counted on the text the
+client receives — the items together with everything around them: the `nodes` map, the
+summary, the scope blocks, the cursor. The server **measures** a page rather than
+estimating it: it renders the page, and when it is over the budget, it shrinks it to
+the largest number of items that fit (a binary search over the item count) and
+continues after them. So a page may hold fewer items than `limit`, and the caps below
+only bound the work:
 
-| Tool | Default `limit` | Cap | Bytes per item | Full page |
-|------|-----------------|-----|----------------|-----------|
-| `list_descendants` | 150 | 200 | 250 | 50,000 |
-| `pairwise_dependencies` | 25 | 166 | 300 | 49,800 |
-| `outgoing_dependencies`, `incoming_dependencies` (type level) | 100 | 125 | 400 | 50,000 |
-| `outgoing_dependencies`, `incoming_dependencies` (detail level) | 80 | 90 | 550 | 49,500 |
-| `affected_by` | 100 | 111 | 450 | 49,950 |
+| Tool | Default `limit` | Cap |
+|------|-----------------|-----|
+| `list_descendants` | 150 | 300 |
+| `pairwise_dependencies` | 25 | 500 |
+| `outgoing_dependencies`, `incoming_dependencies` (type and detail level) | 100 (type), 80 (detail) | 300 |
+| `affected_by` | 100 | 300 |
+| `graph_overview` (its `hierarchy`) | 500 | 1,000 |
 
-A larger `limit` is clamped to the cap ([Parameters](#5-parameters)), so no page ever
-exceeds the budget and no call fails for its size.
+A larger `limit` is clamped to the cap ([Parameters](#5-parameters)).
 
-**Why the budget exists.** Without it, a page on a dense node would overflow the
-client's context, the client would truncate it, and the model would lose the summary
-along with the edges. Capping each tool by its item size keeps every page whole. The
-server enforces the rule when it starts: a tool whose cap would allow a page above the
-budget cannot be configured.
+Two edge cases:
+
+- **The parts around the items alone exceed the budget.** The first page of
+  `pairwise_dependencies` carries a `nodes` map and an analysis that grow with the node
+  set, not with the page. When even a page without items is over the budget, the call
+  fails with `RESPONSE_TOO_LARGE`; its `recovery` names the remedy (for
+  `pairwise_dependencies`, `includeNodes = false` or fewer `nodeIds`), and
+  `response_size` and `budget` give the numbers.
+- **A single item exceeds the budget.** It is returned alone, over the budget, so that
+  walking the cursor always makes progress.
+
+**Why the budget exists.** An MCP client decides by size how to deliver a result:
+Claude Code puts a small one into the conversation and saves a larger one to a file,
+handing the model only the path. A paged query whose pages straddle that limit arrives
+half inline and half in files, and no script can read all of it. Keeping every page
+within the budget makes every page arrive the same way.
+
+**Why measured, not estimated.** Until 0.3.0 each tool estimated a page as `returned ×
+bytes per item` and capped its page size by that. The estimates were off by a factor
+of three in both directions, and the parts around the items were not counted at all:
+on a 154-module reactor, the first page of a `pairwise_dependencies` query was 81,021
+characters and a `list_descendants` page 95,989.
 
 ---
 
@@ -499,6 +551,8 @@ Each tool specification lists its errors and their extra fields.
 | `VIEW_INVALID` | the view's document does not parse; the message lists its problems |
 | `INVALID_VIEW_DOCUMENT` | `define_view` was given an invalid document; `problems` lists what is wrong |
 | `PROJECT_VIEW` | `delete_view` was given a project view, which only the project can remove |
+| `RESPONSE_TOO_LARGE` | a paginated response would exceed the budget even without any items (§7.3) |
+| `CURSOR_ARGUMENTS_UNKNOWN` | a call passed only a cursor whose arguments the server no longer knows (§7.2) |
 | cursor codes | §7.2 |
 
 ### 8.3 No graph loaded
@@ -550,8 +604,8 @@ contexts or teams; then `pairwise_dependencies(nodeIds = [<group ids>], view = "
 shows whether the groups are layered, and every other tool answers in the view with
 `view = "<name>"`. The report of `define_view` says what could not be applied.
 
-**Page.** When a response carries `next_cursor`, pass it back unchanged with the same
-parameters. When only the summary is needed, ask for `limit = 1`.
+**Page.** When a response carries `next_cursor`, pass it back unchanged — alone, or with
+the original parameters (§7.2). When only the summary is needed, ask for `limit = 1`.
 
 ---
 
@@ -565,9 +619,10 @@ parameters. When only the summary is needed, ask for `limit = 1`.
    items in the same order. Pagination relies on this.
 3. **Full-result summaries.** Summary fields of a paginated tool describe the whole
    result on every page.
-4. **Whole pages.** Every page of a paginated tool fits the response budget, and none
-   is silently shortened: a page holds `limit` items, clamped to the tool's cap, or all
-   that remain.
+4. **Whole pages within the budget.** Every page of a paginated tool fits the response
+   budget, measured on what the client receives (§7.3). A page holds at most `limit`
+   items, clamped to the tool's cap, and fewer when they would not fit; `summary.returned`
+   says how many, and `next_cursor` continues after the last one. No item is skipped.
 5. **Cursors never cross graphs.** A cursor issued against one graph is rejected after
    the graph changes.
 6. **One graph per call.** Each tool call is computed from the graph that is live

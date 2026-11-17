@@ -121,6 +121,16 @@ class PairwiseDependenciesPaginationTest {
     }
 
     @Test
+    fun `includeNodes=false leaves the nodes map out of the first page, and nothing else`() {
+        val with = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, null)
+        val without = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, null, includeNodes = false)
+        assertThat(with).containsKey("nodes")
+        assertThat(without).doesNotContainKey("nodes")
+        assertThat(without["summary"]).isEqualTo(with["summary"])
+        assertThat(without["edges"]).isEqualTo(with["edges"])
+    }
+
+    @Test
     fun `continuation page omits the summary and nodes map`() {
         val first = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, 2, null)
         assertThat(edges(first)).hasSize(2)

@@ -246,17 +246,7 @@ class ParquetDetailDependencies(
             Row(row, ref)
         }
 
-        // --- paginate ---------------------------------------------------------------------
-        val pageResult = Paginator.paginate(mapped, spec, queryHash, dataHashProvider.dataHash, cursor, limit)
-        val page = when (pageResult) {
-            is PageResult.Failed -> return pageResult.error.toResponse()
-            is PageResult.Page -> pageResult
-        }
-        val returnedEdges = page.items.map { it.row }
-
-        // --- summaries over the hierarchy (model-only) + node display --------------------
-        val enricher = DetailEnricher(store, parquetDir)
-        val display = enricher.nodesFor(page.items.map { it.ref })
+        // --- summaries over the hierarchy (model-only) ------------------------------------
         val hierarchy = graphService.model.hierarchy
         // An open side drills down from the root and weighs against the whole graph: a child's weight to (or
         // from) anywhere is the sum of its accumulated outgoing (incoming) dependencies, its own subtree included,
@@ -268,45 +258,59 @@ class ParquetDetailDependencies(
         val bySourceNodes = drillDown(hierarchy, fromNode ?: hierarchy.rootNode, ::weightTo)
         val byTargetNodes = drillDown(hierarchy, toNode ?: hierarchy.rootNode, ::weightFrom)
 
-        val nodes = linkedMapOf<String, Any>()
-        fromNode?.let { putSlimNode(nodes, it) }
-        toNode?.let { putSlimNode(nodes, it) }
-        for (entry in bySourceNodes + byTargetNodes) {
-            graphService.model.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
-        }
-        for (entry in bySourceType) {
-            graphService.model.lookupNode(entry["type"] as Long)?.let { putSlimNode(nodes, it) }
-        }
-        for (item in page.items) {
-            val ref = item.ref
-            registerEndpoint(nodes, item.row["from"] as Long, ref.fromKey, display)
-            registerEndpoint(nodes, item.row["from_parent"] as Long, ref.fromType, display)
-            registerEndpoint(nodes, item.row["to"] as Long, ref.toKey, display)
-            (item.row["to_parent"] as? Long)?.let { registerEndpoint(nodes, it, ref.toType, display) }
-            (item.row["receiver"] as? Long)?.let { registerEndpoint(nodes, it, ref.toType, display) }
-        }
+        // --- paginate, within the response budget -----------------------------------------
+        // The node display reads Parquet. The first page rendered is the largest; every smaller one the budget
+        // leads to is a prefix of it, so one lookup serves them all.
+        val enricher = DetailEnricher(store, parquetDir)
+        var display: Map<String, NodeDisplay>? = null
+        return Paginator.respond(
+            mapped, spec, queryHash, dataHashProvider.dataHash, cursor, limit,
+            tooLarge = "Narrow the scope: pass a toId, a smaller fromId (a type or a member instead of a module), " +
+                "or a relationship filter.",
+        ) { page ->
+            val shown = display ?: enricher.nodesFor(page.items.map { it.ref }).also { display = it }
+            val returnedEdges = page.items.map { it.row }
 
-        val summary = linkedMapOf<String, Any?>(
-            "total" to page.total,
-            "returned" to returnedEdges.size,
-            "truncated" to page.truncated,
-            "inherited" to inheritedCount,
-            "by_relationship" to byRelationship,
-            "by_source_type" to bySourceType,
-        )
-        if (sourceTypeCounts.size > bySourceType.size) summary["others_count"] = sourceTypeCounts.size - bySourceType.size
-        summary["by_source_nodes"] = bySourceNodes
-        summary["by_target_nodes"] = byTargetNodes
+            val nodes = linkedMapOf<String, Any>()
+            fromNode?.let { putSlimNode(nodes, it) }
+            toNode?.let { putSlimNode(nodes, it) }
+            for (entry in bySourceNodes + byTargetNodes) {
+                graphService.model.lookupNode(entry["node"] as Long)?.let { putSlimNode(nodes, it) }
+            }
+            for (entry in bySourceType) {
+                graphService.model.lookupNode(entry["type"] as Long)?.let { putSlimNode(nodes, it) }
+            }
+            for (item in page.items) {
+                val ref = item.ref
+                registerEndpoint(nodes, item.row["from"] as Long, ref.fromKey, shown)
+                registerEndpoint(nodes, item.row["from_parent"] as Long, ref.fromType, shown)
+                registerEndpoint(nodes, item.row["to"] as Long, ref.toKey, shown)
+                (item.row["to_parent"] as? Long)?.let { registerEndpoint(nodes, it, ref.toType, shown) }
+                (item.row["receiver"] as? Long)?.let { registerEndpoint(nodes, it, ref.toType, shown) }
+            }
 
-        val result = linkedMapOf<String, Any?>(
-            "nodes" to nodes,
-            "from_scope" to fromNode?.identifier,
-            "to_scope" to toNode?.identifier,
-            "edges" to returnedEdges,
-            "summary" to summary,
-        )
-        page.nextCursor?.let { result["next_cursor"] = it }
-        return result
+            val summary = linkedMapOf<String, Any?>(
+                "total" to page.total,
+                "returned" to returnedEdges.size,
+                "truncated" to page.truncated,
+                "inherited" to inheritedCount,
+                "by_relationship" to byRelationship,
+                "by_source_type" to bySourceType,
+            )
+            if (sourceTypeCounts.size > bySourceType.size) summary["others_count"] = sourceTypeCounts.size - bySourceType.size
+            summary["by_source_nodes"] = bySourceNodes
+            summary["by_target_nodes"] = byTargetNodes
+
+            val result = linkedMapOf<String, Any?>(
+                "nodes" to nodes,
+                "from_scope" to fromNode?.identifier,
+                "to_scope" to toNode?.identifier,
+                "edges" to returnedEdges,
+                "summary" to summary,
+            )
+            page.nextCursor?.let { result["next_cursor"] = it }
+            result
+        }
     }
 
     /** Pairs an edge row with the [Dependency] it came from, so pagination keeps them aligned. */

@@ -231,7 +231,7 @@ The response to `find_dependency_path(fromId = 4702, toId = 4800)` on the graph 
 {
   "nodes": {
     "4702": { "name": "billing",        "qualified_name": "com.example.billing",               "kind": "java.package" },
-    "4800": { "name": "External Types", "qualified_name": "External Types",                    "kind": "java.module" },
+    "4800": { "name": "External Types", "kind": "java.module" },
     "4711": { "name": "Invoice",        "qualified_name": "com.example.billing.Invoice",       "kind": "java.class" },
     "4806": { "name": "Logger",         "qualified_name": "org.slf4j.Logger",                  "kind": "external.type" },
     "4730": { "name": "Money",          "qualified_name": "com.example.money.Money",           "kind": "java.record" },

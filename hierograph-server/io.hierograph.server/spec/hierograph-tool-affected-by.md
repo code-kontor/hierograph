@@ -78,8 +78,8 @@ Parameter names are camelCase, as for all tools (see
 | `direction` | string | no | `"incoming"` | `"incoming"`: what depends on the input; `"outgoing"`: what the input depends on |
 | `maxDepth` | integer | no | unbounded | the largest distance to report |
 | `kindFilter` | string array | no | no filter | the kinds of type to keep in the result |
-| `limit` | integer | no | `100` | items per page, clamped to 1–111 |
-| `cursor` | string | no | first page | the `next_cursor` of the previous page |
+| `limit` | integer | no | `100` | items per page, clamped to 1–300; fewer when they would not fit the response budget |
+| `cursor` | string | no | first page | the `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
 | `view` | string | no | none | the view to answer in |
 
 **`nodeId`** accepts any node whose dependencies are type-level: a module, a package, a
@@ -200,14 +200,15 @@ are ordered by name, then id.
 
 The tool is paginated as described in [Pagination](hierograph-mcp-tools.md#7-pagination):
 
-| Default `limit` | Cap | Bytes per item | Full page |
-|-----------------|-----|----------------|------------------------|
-| 100 | 111 | 450 | 49,950 bytes |
+| Default `limit` | Cap |
+|-----------------|-----|
+| 100 | 300 |
 
-The cap keeps a full page within the 50,000-byte
-[response budget](hierograph-mcp-tools.md#73-the-response-budget). Each item carries a
-`via` path, which is why the per-item estimate, and so the cap, differs from the
-one-hop dependency tools.
+Every page stays within the 50,000-character
+[response budget](hierograph-mcp-tools.md#73-the-response-budget), measured on the
+rendered page: when the items would not fit, the page holds fewer, and `next_cursor`
+continues after the last one. Each item carries a full NodeRef and a `via` path, so a
+page of 300 rarely fits; the cap only bounds the work.
 
 The cursor's query hash covers `nodeId`, `direction`, `maxDepth` and the sorted
 `kindFilter`, so `limit` may change between pages.

@@ -79,8 +79,8 @@ of view.
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
 | `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
-| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 125 (type), 90 (detail) |
-| `cursor` | string | no | — | `next_cursor` of the previous page |
+| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 300; fewer when they would not fit the response budget |
+| `cursor` | string | no | — | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
 | `view` | string | no | none | the view to answer in |
 
 **`fromId`** names the subtree whose outgoing dependencies are listed. It stands for
@@ -124,16 +124,17 @@ with any other relationship it is an error. It is an error at the type level, wh
 an edge sums references of every kind, and when negative.
 
 **`limit`** is the page size. The defaults differ per level because a detail row is
-larger than a type edge. Values are clamped as described in
-[Parameters](hierograph-mcp-tools.md#5-parameters): the caps are 125 type edges and
-90 detail rows, the largest pages that fit the
-[response budget](hierograph-mcp-tools.md#73-the-response-budget).
+larger than a type edge. Values are clamped to 300 as described in
+[Parameters](hierograph-mcp-tools.md#5-parameters), and a page holds fewer edges when
+they would not fit the [response budget](hierograph-mcp-tools.md#73-the-response-budget)
+— measured on the page with its `nodes` map and summary; `next_cursor` continues after
+the last edge.
 
 **`cursor`** continues a listing. It is bound to `outgoing_dependencies`, to `fromId`,
 `toId`, `detailLevel` and (at the detail level) `relationship` and `parameterPosition`, and to the loaded
 graph; see [Cursors](hierograph-mcp-tools.md#72-cursors). A type-level cursor passed
-to a detail-level call fails with `STALE_CURSOR_QUERY`. `limit` may change between
-pages.
+to a detail-level call fails with `STALE_CURSOR_QUERY`. Passing the cursor alone is
+enough: the server remembers the other arguments. `limit` may change between pages.
 
 **`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
 answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).

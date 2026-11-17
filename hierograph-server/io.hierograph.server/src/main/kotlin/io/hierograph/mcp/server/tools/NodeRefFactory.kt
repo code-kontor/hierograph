@@ -133,15 +133,18 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     /**
      * Registers a node's display fields into a per-response `nodes` map keyed by stringified ID.
      * First registration wins — callers should register the most informative form first.
+     *
+     * `qualified_name` is included only when it adds something to `name`: not when the two are equal, and not
+     * for a module, whose qualified name is its build coordinate (`group:artifact:version`), the longest field
+     * and rarely needed — `find_node` and `list_children` still report it.
      */
     override fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?) {
         val key = id.toString()
         if (key in nodes) return
-        nodes[key] = linkedMapOf(
-            "name" to (name ?: ""),
-            "qualified_name" to (fqn ?: ""),
-            "kind" to (kind ?: "unknown")
-        )
+        nodes[key] = linkedMapOf<String, Any?>("name" to (name ?: "")).apply {
+            if (!fqn.isNullOrEmpty() && fqn != name && kind != JavaNodeKind.MODULE.value) put("qualified_name", fqn)
+            put("kind", kind ?: "unknown")
+        }
     }
 
     /**

@@ -66,8 +66,8 @@ linked by cursors (see [§7 of the MCP tools specification](hierograph-mcp-tools
 | `kindFilter` | string[] | no | none | kinds and group aliases to report |
 | `namePattern` | string | no | none | case-insensitive substring of the node's name |
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
-| `limit` | integer | no | `150` | items per page, clamped to 1–200 |
-| `cursor` | string | no | none | `next_cursor` of the previous page |
+| `limit` | integer | no | `150` | items per page, clamped to 1–300; fewer when they would not fit the response budget |
+| `cursor` | string | no | none | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
 | `view` | string | no | none | the view to answer in |
 
 **`nodeId`** is any node id, including the synthetic root's, which searches the whole
@@ -100,12 +100,14 @@ Like `kindFilter`, it selects what is reported, not what is traversed: packages 
 types are still walked but, carrying no member modifiers, never reported while the
 filter is set.
 
-**`limit`** sets the page size. The default is 150; the cap of 200 is the largest page
-that fits the response budget (§3.3), and a larger value is clamped to it.
+**`limit`** sets the page size. The default is 150, and a larger value than the cap of
+300 is clamped to it. A page holds fewer items when they would not fit the response
+budget (§3.3): a method's name carries its signature, so a page of members holds far
+fewer than one of packages.
 
-**`cursor`** resumes a walk. Pass the previous page's `next_cursor` unchanged, with the
-same `nodeId`, `kindFilter`, `namePattern` and `modifierFilter`. `limit` may change
-between pages.
+**`cursor`** resumes a walk. Pass the previous page's `next_cursor` unchanged — alone, or
+with the same `nodeId`, `kindFilter`, `namePattern` and `modifierFilter`
+([Cursors](hierograph-mcp-tools.md#72-cursors)). `limit` may change between pages.
 
 **`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
 answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
@@ -159,9 +161,10 @@ The tool pages the result as described in
   duplicates and sorted. It hashes what the filters select, not how they are spelled:
   reordering a list, changing letter case, or writing `["java.method", "java.field"]`
   for `["members"]` keeps a cursor valid.
-- Each item counts as 250 bytes against the 50,000-byte
-  [response budget](hierograph-mcp-tools.md#73-the-response-budget), so a page holds at
-  most 200 items.
+- Every page stays within the 50,000-character
+  [response budget](hierograph-mcp-tools.md#73-the-response-budget), measured on the
+  rendered page; `summary.returned` says how many items it holds, and `next_cursor`
+  continues after the last one.
 
 ### 3.4 Example
 
@@ -295,6 +298,7 @@ again without `cursor`.
 3. **Full-result summaries.** `total`, `by_kind` and `by_parent` describe the full result
    on every page.
 4. **Root excluded.** The node `nodeId` names never appears in `results`.
-5. **Bounded pages.** Every page fits the response budget and holds `limit` items, or
-   all that remain; it is never silently shortened.
+5. **Bounded pages.** Every page fits the response budget and holds at most `limit`
+   items — fewer when they would not fit, with `summary.returned` saying how many and
+   `next_cursor` continuing after them. No item is skipped.
 6. **Read-only.** The tool changes no server state.

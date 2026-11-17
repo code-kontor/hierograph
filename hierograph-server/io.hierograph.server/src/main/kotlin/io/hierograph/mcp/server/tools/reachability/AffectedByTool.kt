@@ -20,7 +20,6 @@ import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.tools.detail.NestedTypes
 import io.hierograph.server.graphservice.pagination.DataHashProvider
-import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
@@ -89,14 +88,16 @@ class AffectedByTool(
         )
         kindFilter: List<String>?,
         @ToolParam(
-            description = "Maximum results per page (1-111, default 100; larger values are clamped).",
+            description = "Maximum results per page (1-300, default 100; larger values are clamped). A page never exceeds the " +
+                    "~50 KB response budget: when the results would not fit, it holds fewer.",
             required = false
         )
         limit: Int?,
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
-                    "When continuing, keep the other parameters identical to the original call. " +
+                    "To continue, the cursor alone is enough: the server remembers the other arguments; " +
+                    "if you pass them, they must be identical to the original call's. " +
                     "If the blast radius is larger than you need, prefer narrowing the query " +
                     "(a smaller maxDepth or a kindFilter) over paginating through all of it.",
             required = false
@@ -300,48 +301,46 @@ class AffectedByTool(
                 )
             }
 
-        // ── paginate ───────────────────────────────────────────────────
-        val pageResult = Paginator.paginate(
+        // ── paginate, within the response budget ───────────────────────
+        val source = nodeRefFactory.enrichedNodeRef(node)
+        return Paginator.respond(
             allItems = allResults,
             spec = PAGINATION,
             queryHash = queryHash,
             dataHash = dataHashProvider.dataHash,
             cursor = cursor,
-            limit = limit
-        )
-        val pageData = when (pageResult) {
-            is PageResult.Failed -> return pageResult.error.toResponse()
-            is PageResult.Page -> pageResult
-        }
+            limit = limit,
+            tooLarge = "Lower maxDepth, or pass a kindFilter.",
+        ) { pageData ->
+            // ── build results ──────────────────────────────────────────
+            val results = pageData.items.map { entry ->
+                linkedMapOf<String, Any?>(
+                    "node" to nodeRefFactory.enrichedNodeRef(entry.node),
+                    "distance" to entry.distance,
+                    "source_count" to entry.sourceCount,
+                    "via" to entry.via.map { step ->
+                        linkedMapOf<String, Any?>("from" to step.from, "to" to step.to, "weight" to step.weight)
+                    }
+                )
+            }
 
-        // ── build results ──────────────────────────────────────────────
-        val results = pageData.items.map { entry ->
-            linkedMapOf<String, Any?>(
-                "node" to nodeRefFactory.enrichedNodeRef(entry.node),
-                "distance" to entry.distance,
-                "source_count" to entry.sourceCount,
-                "via" to entry.via.map { step ->
-                    linkedMapOf<String, Any?>("from" to step.from, "to" to step.to, "weight" to step.weight)
-                }
+            // ── assemble response ──────────────────────────────────────
+            val response = linkedMapOf<String, Any?>(
+                "source" to source,
+                "direction" to effectiveDirection,
+                "results" to results,
+                "summary" to linkedMapOf<String, Any?>(
+                    "total" to pageData.total,
+                    "returned" to pageData.returned,
+                    "truncated" to pageData.truncated,
+                    "by_distance" to byDistance,
+                    "by_parent_module" to byParentModule
+                )
             )
+            // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+            pageData.nextCursor?.let { response["next_cursor"] = it }
+            response
         }
-
-        // ── assemble response ──────────────────────────────────────────
-        val response = linkedMapOf<String, Any?>(
-            "source" to nodeRefFactory.enrichedNodeRef(node),
-            "direction" to effectiveDirection,
-            "results" to results,
-            "summary" to linkedMapOf<String, Any?>(
-                "total" to pageData.total,
-                "returned" to pageData.returned,
-                "truncated" to pageData.truncated,
-                "by_distance" to byDistance,
-                "by_parent_module" to byParentModule
-            )
-        )
-        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
-        pageData.nextCursor?.let { response["next_cursor"] = it }
-        return response
     }
 
     /**
@@ -397,7 +396,7 @@ class AffectedByTool(
     }
 
     companion object {
-        /** Pagination policy for affected_by (~450 bytes/item): default 100, cap 111 (the budget's fill). */
-        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 111, bytesPerItem = 450)
+        /** Pagination policy for affected_by: default 100, cap 300; the response budget trims a page further. */
+        private val PAGINATION = PaginationSpec(tool = "affected_by", defaultLimit = 100, maxLimit = 300)
     }
 }

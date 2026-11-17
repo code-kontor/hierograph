@@ -25,7 +25,6 @@ import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
-import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
@@ -67,7 +66,7 @@ class OutgoingDependenciesTool(
                 "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size — they give the shape without " +
                 "processing all edges. " +
-                "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
+                "On a hub node a page of edges fills the ~50 KB response budget, most of it edges " +
                 "you will not read. If you only need the ranking or attribute breakdown " +
                 "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
@@ -111,8 +110,8 @@ class OutgoingDependenciesTool(
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 125 / 90, the most " +
-                    "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail); cap 300. A page never exceeds " +
+                    "the ~50 KB response budget: when the edges would not fit, it holds fewer. Pass limit=1 when you " +
                     "only need the summary (by_target / by_source_type / by_attribute / by_kind).",
             required = false
         )
@@ -120,7 +119,8 @@ class OutgoingDependenciesTool(
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
-                    "When continuing, keep the other parameters identical to the original call. " +
+                    "To continue, the cursor alone is enough: the server remembers the other arguments; " +
+                    "if you pass them, they must be identical to the original call's. " +
                     "If the result set is larger than you need, prefer the full-set summary (limit=1) or " +
                     "narrowing the query (a smaller subtree, or detail-level relationship filter) over " +
                     "paginating through all of it.",
@@ -288,44 +288,6 @@ class OutgoingDependenciesTool(
             )
         )
 
-        // ── paginate ───────────────────────────────────────────────────
-        val pageResult = Paginator.paginate(
-            allItems = allEdges,
-            spec = spec,
-            queryHash = queryHash,
-            dataHash = dataHashProvider.dataHash,
-            cursor = cursor,
-            limit = limit
-        )
-        val pageData = when (pageResult) {
-            is PageResult.Failed -> return pageResult.error.toResponse()
-            is PageResult.Page -> pageResult
-        }
-        val total = pageData.total
-        val truncated = pageData.truncated
-        val page = pageData.items
-
-        // ── build slim nodes map ───────────────────────────────────────
-        val nodes = linkedMapOf<String, Any>()
-        nodeRefFactory.putSlimNode(nodes, fromNode)
-        toNode?.let { nodeRefFactory.putSlimNode(nodes, it) }
-        for (edge in page) {
-            nodeRefFactory.putSlimNode(nodes, edge.from)
-            nodeRefFactory.putSlimNode(nodes, edge.to)
-        }
-
-        // ── build edge entries ─────────────────────────────────────────
-        val edges = page.map { edge ->
-            linkedMapOf<String, Any?>(
-                "from" to edge.from.identifier,
-                "to" to edge.to.identifier,
-                "weight" to edge.weight,
-                "type_pair_count" to 1,
-                "attributes" to JavaEdgeAttributes.toMap(edge.bitmap),
-                "kinds" to DependencyKind.toMap(edge.kinds),
-            )
-        }
-
         // ── by_source_type (top 10) ────────────────────────────────────
         val bySourceType = sourceTypeCounts.entries
             .sortedByDescending { it.value }
@@ -334,15 +296,6 @@ class OutgoingDependenciesTool(
                 linkedMapOf<String, Any?>("id" to id, "count" to count)
             }
 
-        val summary = linkedMapOf<String, Any?>(
-            "total" to total,
-            "returned" to page.size,
-            "truncated" to truncated,
-            "by_attribute" to byAttribute,
-            "by_kind" to DependencyKind.toMap(byKind),
-            "by_source_type" to bySourceType
-        )
-
         // Rank the depended-upon endpoints (dep.to) by summed weight, top 10.
         // Computed over the FULL result set — not just the returned page — so the
         // ranking is complete even when edges are truncated. In the open form
@@ -350,26 +303,69 @@ class OutgoingDependenciesTool(
         // ranks within the toId subtree. For incoming, dep.to is the fromId type,
         // so this ranks the most heavily used types within fromId; for outgoing, it
         // ranks what fromId leans on most.
-        summary["by_target"] = targetWeights.entries
+        val byTarget = targetWeights.entries
             .sortedByDescending { it.value }
             .take(10)
             .map { (id, weight) ->
                 linkedMapOf<String, Any?>("id" to id, "weight" to weight)
             }
 
-        // Name every id the summary uses, too: a ranked type need not appear on this page.
-        for (entry in bySourceType + (summary["by_target"] as List<Map<String, Any?>>)) {
-            graphService.model.lookupNode(entry["id"]!!)?.let { nodeRefFactory.putSlimNode(nodes, it) }
-        }
+        // ── paginate, within the response budget ───────────────────────
+        return Paginator.respond(
+            allItems = allEdges,
+            spec = spec,
+            queryHash = queryHash,
+            dataHash = dataHashProvider.dataHash,
+            cursor = cursor,
+            limit = limit,
+            tooLarge = "Narrow the scope: pass a toId, or a smaller fromId (a package or a type instead of a module).",
+        ) { pageData ->
+            val page = pageData.items
 
-        val response = linkedMapOf<String, Any?>(
-            "nodes" to nodes,
-            "edges" to edges,
-            "summary" to summary
-        )
-        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
-        pageData.nextCursor?.let { response["next_cursor"] = it }
-        return response
+            // ── build slim nodes map ───────────────────────────────────
+            val nodes = linkedMapOf<String, Any>()
+            nodeRefFactory.putSlimNode(nodes, fromNode)
+            toNode?.let { nodeRefFactory.putSlimNode(nodes, it) }
+            for (edge in page) {
+                nodeRefFactory.putSlimNode(nodes, edge.from)
+                nodeRefFactory.putSlimNode(nodes, edge.to)
+            }
+            // Name every id the summary uses, too: a ranked type need not appear on this page.
+            for (entry in bySourceType + byTarget) {
+                graphService.model.lookupNode(entry["id"]!!)?.let { nodeRefFactory.putSlimNode(nodes, it) }
+            }
+
+            // ── build edge entries ─────────────────────────────────────
+            val edges = page.map { edge ->
+                linkedMapOf<String, Any?>(
+                    "from" to edge.from.identifier,
+                    "to" to edge.to.identifier,
+                    "weight" to edge.weight,
+                    "type_pair_count" to 1,
+                    "attributes" to JavaEdgeAttributes.toMap(edge.bitmap),
+                    "kinds" to DependencyKind.toMap(edge.kinds),
+                )
+            }
+
+            val summary = linkedMapOf<String, Any?>(
+                "total" to pageData.total,
+                "returned" to page.size,
+                "truncated" to pageData.truncated,
+                "by_attribute" to byAttribute,
+                "by_kind" to DependencyKind.toMap(byKind),
+                "by_source_type" to bySourceType,
+                "by_target" to byTarget,
+            )
+
+            val response = linkedMapOf<String, Any?>(
+                "nodes" to nodes,
+                "edges" to edges,
+                "summary" to summary
+            )
+            // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+            pageData.nextCursor?.let { response["next_cursor"] = it }
+            response
+        }
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
@@ -437,10 +433,10 @@ class OutgoingDependenciesTool(
     )
 
     companion object {
-        /** Type-level pagination for outgoing_dependencies (~400 bytes/edge with its kinds): default 100, cap 125 (the budget's fill). */
-        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 125, bytesPerItem = 400)
+        /** Type-level pagination for outgoing_dependencies: default 100, cap 300; the response budget trims a page further. */
+        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 300)
 
-        /** Detail-level pagination for outgoing_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
-        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)
+        /** Detail-level pagination for outgoing_dependencies: default 80, cap 300; the response budget trims a page further. */
+        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 300)
     }
 }

@@ -76,8 +76,8 @@ references, where `affected_by` reports reach.
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
 | `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
-| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 125 (type), 90 (detail) |
-| `cursor` | string | no | — | `next_cursor` of the previous page |
+| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 300; fewer when they would not fit the response budget |
+| `cursor` | string | no | — | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
 | `view` | string | no | none | the view to answer in |
 
 The names are those of `outgoing_dependencies`, but the roles of `fromId` and `toId`
@@ -107,8 +107,8 @@ the target; on the Spring Framework snapshot it takes under 200 ms even for a ty
 **`detailLevel`**, **`relationship`**, **`parameterPosition`**, **`limit`** and **`cursor`** behave as in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
 `detailLevel` accepts only `"type"` and `"detail"`; `relationship` and
-`parameterPosition` are errors at the type level; a page holds at most 125 type edges or 90 detail rows, the caps that keep
-it within the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
+`parameterPosition` are errors at the type level; a page holds at most 300 edges or rows, and fewer when they would not fit
+the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
 `outgoing_dependencies` fails here with `WRONG_TOOL_CURSOR`.
 
 **`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
@@ -432,7 +432,7 @@ user that call into the anchor, with lines. Add `relationship = "calls"` or a sm
 **Assess the wider impact.** For users of users, call
 [`affected_by`](hierograph-tool-affected-by.md) with `direction = "incoming"`.
 
-**Page.** Pass `next_cursor` back with the same parameters. A cursor from
+**Page.** Pass `next_cursor` back, alone or with the same parameters. A cursor from
 `outgoing_dependencies` is not accepted here.
 
 ---

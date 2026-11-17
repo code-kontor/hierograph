@@ -31,13 +31,17 @@ both in one response: counts by kind, the list of modules with their ids and siz
 the kind and relationship vocabularies, and a short description of the three levels at
 which the dependency tools work.
 
-**One call, no inputs.** The tool takes no parameters and always describes the whole
+**One call, no inputs.** The tool needs no arguments and always describes the whole
 graph. There is nothing to get wrong, so it is a safe first call.
 
-**Modules as entry points.** The `hierarchy` section lists every module as an enriched
-node reference (see [§6.2 of the MCP tools specification](hierograph-mcp-tools.md#62-enriched-noderef))
-with its id. Those ids feed `list_children`, `list_descendants` and
+**Modules as entry points.** The `hierarchy` section lists every module with its id,
+name, kind and counts (see §4). Those ids feed `list_children`, `list_descendants` and
 `pairwise_dependencies` directly, without a `find_node` lookup.
+
+**Within the response budget.** On a large codebase the module list is most of the
+response. An entry therefore carries only what orientation needs, and on a very large
+codebase `hierarchy` is paged like the paginated tools' results
+([MCP tools specification, §7](hierograph-mcp-tools.md#7-pagination)).
 
 **Self-describing results.** The `kinds` and `relationships` sections define the values
 that appear in other tools' responses, so a model can interpret `java.record` or
@@ -48,7 +52,7 @@ also returns the modules. The two differ in what they add:
 
 | | `graph_overview` | `list_children` on the root |
 |---|---|---|
-| Modules as enriched node references | yes | yes |
+| Modules with ids and sizes | yes (id, name, kind, counts) | yes (enriched node references) |
 | Coupling counts per module | yes | no |
 | Graph-wide counts by kind and attribute | yes | no |
 | Kind and relationship vocabularies | yes | no |
@@ -64,11 +68,23 @@ also returns the modules. The two differ in what they add:
 
 ## 2. Parameters
 
-The tool has one optional parameter, `view`, which every tool that reads the graph
-takes ([MCP tools specification, §5](hierograph-mcp-tools.md#5-parameters)). Without
+| Parameter | Type | Required | Default | Meaning |
+|-----------|------|----------|---------|---------|
+| `view` | string | no | none | the view to answer in |
+| `limit` | integer | no | `500` | hierarchy entries per page, clamped to 1–1,000 |
+| `cursor` | string | no | first page | `next_cursor` of the previous page, for the rest of the hierarchy |
+
+**`view`** is the parameter every tool that reads the graph takes
+([MCP tools specification, §5](hierograph-mcp-tools.md#5-parameters)). Without
 it the tool describes the complete loaded graph as scanned; with it, the same graph in
 that [view](../../io.hierograph.server.views/spec/hierograph-views.md): `hierarchy` lists the view's top level — its groups and the nodes no
 group takes — and the response gains a `view` section.
+
+**`limit`** and **`cursor`** page the `hierarchy`. They are rarely needed: the default
+of 500 entries holds the top level of almost any codebase, and a page holds fewer when
+they would not fit the [response budget](hierograph-mcp-tools.md#73-the-response-budget).
+The first page carries the whole overview; a later page carries only the rest of
+`hierarchy` with its `summary`. A cursor is bound to the loaded graph and the view.
 
 **Why nothing else.** An orientation call that needs arguments needs knowledge the caller does
 not have yet. Everything that could be narrowed (a module, a kind) is the job of the
@@ -178,15 +194,12 @@ for every graph.
     ]
   },
   "hierarchy": [
-    { "id": 4800, "name": "External Types", "qualified_name": "External Types",
-      "kind": "java.module", "parent_id": 4600, "parent_kind": null,
-      "child_count": 1, "descendant_type_count": 0, "descendant_method_count": 0,
-      "outgoing_dep_count": 0, "incoming_dep_count": 2 },
-    { "id": 4690, "name": "billing-core", "qualified_name": "com.example:billing-core:1.4.0",
-      "kind": "java.module", "parent_id": 4600, "parent_kind": null,
-      "child_count": 1, "descendant_type_count": 4, "descendant_method_count": 9,
-      "outgoing_dep_count": 2, "incoming_dep_count": 0 }
+    { "id": 4800, "name": "External Types", "kind": "java.module", "child_count": 1,
+      "descendant_type_count": 0, "outgoing_dep_count": 0, "incoming_dep_count": 2 },
+    { "id": 4690, "name": "billing-core", "kind": "java.module", "child_count": 1,
+      "descendant_type_count": 4, "outgoing_dep_count": 2, "incoming_dep_count": 0 }
   ],
+  "summary": { "total": 2, "returned": 2, "truncated": false },
   "model": {
     "aggregation": "Aggregation is pairwise. …",
     "levels": [
@@ -217,11 +230,19 @@ root has id `4600`.
 | `relationships.type_level_attributes` | the four attribute flags with a description | defines the flags on type-level and aggregated edges |
 | `relationships.type_level_kinds` | the seventeen kinds of a type-level `kinds` breakdown, with a description | defines the keys of `kinds` and `by_kind` on type-level and aggregated edges; each is a counted detail-level relationship |
 | `relationships.detail_level` | the twenty-one detail-level relationships with their source kind | defines the `relationship` values of detail-level edges and filters; eighteen are stored in the snapshot (`raises` with `"counted": false`, since it adds no weight), three are derived (`"derived": true`): `overrides` at load, `read_by` and `written_by` as reverse views |
-| `hierarchy` | every module as an enriched node reference plus `outgoing_dep_count` and `incoming_dep_count` | the ids and sizes needed to start navigating, and a first impression of coupling |
+| `hierarchy` | every module with `id`, `name`, `kind`, `child_count`, `descendant_type_count`, `outgoing_dep_count` and `incoming_dep_count`; a view group adds `descendant_module_count`, a virtual node `virtual` | the ids and sizes needed to start navigating, and a first impression of coupling |
+| `summary` | `total`, `returned` and `truncated` for the hierarchy entries; `next_cursor` follows when more remain | whether the module list is complete |
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |
 | `build_state` | present only when the server reads a build manifest | tells the caller whether the graph still matches the build files |
 | `view` | present only when called with `view`: the view's name, description, source, file, shadowing, `group_count`, `errors`, `warnings` and its `report` | tells the caller what the view regroups and what could not be applied |
+
+**A hierarchy entry is a part of an enriched node reference.** It leaves out what every
+top-level entry shares — the parent, which is the root — and what orientation rarely
+needs: a module's `qualified_name` (its build coordinate, the longest field) and
+`descendant_method_count`. On a reactor of 154 modules this halves the list, from
+52.6 KB to 25.8 KB (166 characters per entry). `find_node` and `list_children` report the full node
+reference.
 
 **`kinds.structural`** lists the ten node kinds of
 [§3.2 of the MCP tools specification](hierograph-mcp-tools.md#32-kinds): the nine
@@ -245,7 +266,9 @@ compare.
 | `view` names no view | `VIEW_NOT_FOUND`, listing the known views | call `list_views` |
 | the view's document does not parse | `VIEW_INVALID`, with its problems | fix the document, define it again |
 
-Apart from `view`, the tool has no inputs to validate, so it has no other errors.
+A `cursor` that cannot be used fails with one of the cursor codes of
+[§7.2 of the MCP tools specification](hierograph-mcp-tools.md#72-cursors); apart from
+that and `view`, the tool has no inputs to validate.
 
 ---
 
@@ -272,9 +295,12 @@ written; run the build that writes the manifest, then call `reload_graph`.
 1. **Whole graph.** The response always describes the complete loaded graph.
 2. **Every module listed.** `hierarchy` contains every child of the root, the
    `External Types` module included, each with an id accepted by every tool that takes
-   a node id.
-3. **Fixed vocabularies.** `kinds`, `relationships` and `model` are identical for every
+   a node id — on one page, or, for a very large top level, across the pages
+   `next_cursor` leads to.
+3. **Within the budget.** Every page fits the
+   [response budget](hierograph-mcp-tools.md#73-the-response-budget).
+4. **Fixed vocabularies.** `kinds`, `relationships` and `model` are identical for every
    graph and every call.
-4. **Consistent counts.** For one loaded graph, repeated calls return the same `stats`
+5. **Consistent counts.** For one loaded graph, repeated calls return the same `stats`
    and the same `hierarchy` in the same order.
-5. **Read-only.** The tool changes no server state.
+6. **Read-only.** The tool changes no server state.
