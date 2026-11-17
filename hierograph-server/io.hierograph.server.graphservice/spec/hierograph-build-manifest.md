@@ -117,7 +117,7 @@ producer records one directory per list (`target/classes`,
 | Field | Type | Meaning |
 |-------|------|---------|
 | `path` | string | Absolute path of a file that defines the build. |
-| `sha256` | string | Lower-case hex SHA-256 of the file's content when the manifest was merged. |
+| `sha256` | string | Lower-case hex SHA-256 of the content the build read, or `"changed-during-build"` when the file changed after the build read it. |
 
 The producer lists what its build tool treats as the build definition. The Maven
 producer lists every project's POM, including `pom`-packaged aggregators; each
@@ -129,7 +129,9 @@ and `.mvn/extensions.xml` of the multi-module project directory when present.
 the build tool computes. When a build file changes, the manifest may not match the
 build definition until the build runs again. The hashes let the server decide this
 exactly: a build file whose current content differs from its recorded hash is
-**stale**, a missing file is stale, and an edit that is reverted is not. Any build
+**stale**, a missing file is stale, and an edit that is reverted is not. A file
+recorded as `"changed-during-build"` is always stale: the producer saw it modified
+while the build ran, so the manifest describes content that is gone. Any build
 that merges after the edit records the edited file's hash, so the manifest changes
 and the staleness clears.
 

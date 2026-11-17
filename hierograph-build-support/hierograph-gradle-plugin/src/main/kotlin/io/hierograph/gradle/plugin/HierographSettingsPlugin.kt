@@ -17,6 +17,7 @@ package io.hierograph.gradle.plugin
 
 import org.gradle.api.Plugin
 import org.gradle.api.initialization.Settings
+import java.time.Instant
 
 /**
  * The settings plugin `io.hierograph`: registers the root task [HierographManifestTask.NAME], which writes
@@ -38,13 +39,15 @@ class HierographSettingsPlugin : Plugin<Settings> {
         extra.set(APPLIED_MARKER, true)
 
         val options = Options.read(settings)
+        // Before the projects' build scripts are read: a build file modified after this isn't what the build read.
+        val readAt = Instant.now()
         settings.gradle.rootProject { root ->
             val task = root.tasks.register(HierographManifestTask.NAME, HierographManifestTask::class.java) {
                 it.group = "hierograph"
                 it.description = "Writes the Hierograph build manifest (.hierograph/manifest.json) without building the project."
             }
             root.gradle.projectsEvaluated { gradle ->
-                val plan by lazy { GradleManifest.plan(settings, gradle, options) }
+                val plan by lazy { GradleManifest.plan(settings, gradle, options, readAt) }
                 // Each module project resolves its own classpaths (its lock); see HierographClasspathsTask.
                 val classpathTasks = gradle.rootProject.allprojects.filter { it.plugins.hasPlugin("java") }.associate { project ->
                     project.path to project.tasks.register(HierographClasspathsTask.NAME, HierographClasspathsTask::class.java) {

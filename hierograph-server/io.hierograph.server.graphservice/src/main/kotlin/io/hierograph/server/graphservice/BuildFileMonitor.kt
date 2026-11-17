@@ -18,6 +18,7 @@ package io.hierograph.server.graphservice
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -32,6 +33,10 @@ import java.util.concurrent.TimeUnit
  *
  * Regeneration runs a command in the build root on its own thread, one run at a time: a request during a run
  * schedules exactly one follow-up run, because the running build may have read the build files before the edit.
+ * The monitor also hashes the build files ([Inspection.buildFiles]) before each run and compares them after it: a
+ * file edited during the run gets another run even when the edit leaves nothing stale against the manifest the
+ * run started from (an edit undone, a branch checked out and back). The new manifest can't be trusted to say
+ * so, since a producer may hash the build files only when it writes the manifest.
  * The monitor knows no build tool: the command is [commandOverride] when configured, otherwise the one the
  * manifest names ([Inspection.command]), whose `./`-relative arguments resolve against the build root. With
  * neither, and for a relocated manifest (a container without the build host's tools), the monitor behaves as in
@@ -74,6 +79,7 @@ class BuildFileMonitor(
         val relocated: Boolean,
         val buildTool: String? = null,
         val command: List<String>? = null,
+        val buildFiles: List<Path> = emptyList(),
     )
 
     /** What `reload_graph` and `graph_overview` report as `build_state`. */
@@ -164,10 +170,13 @@ class BuildFileMonitor(
 
     private fun runUntilSettled(cmd: List<String>, buildRoot: Path) {
         while (true) {
+            val before = buildFileHashes()
             val result = runCatching { regenerate(cmd, buildRoot) }.getOrElse { it.message ?: it.javaClass.simpleName }
+            val changed = before.filter { (file, hash) -> contentSha256(file) != hash }.keys
+            if (changed.isNotEmpty()) log.info("Build files changed while the regeneration ran: {}; regenerating again", changed)
             val again = synchronized(lock) {
                 failure = result
-                if (followUp) {
+                if (followUp || changed.isNotEmpty()) {
                     followUp = false
                     true
                 } else {
@@ -179,6 +188,14 @@ class BuildFileMonitor(
         }
         refresh(triggerRegeneration = false)
     }
+
+    /** The content hash of each build file of the current manifest; a missing file hashes to `null`. */
+    private fun buildFileHashes(): Map<Path, String?> =
+        inspect()?.buildFiles.orEmpty().associateWith(::contentSha256)
+
+    private fun contentSha256(file: Path): String? = runCatching {
+        MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)).joinToString("") { "%02x".format(it) }
+    }.getOrNull()
 
     /** Runs the regeneration command once; returns `null` on success or a failure description. */
     private fun regenerate(cmd: List<String>, buildRoot: Path): String? {

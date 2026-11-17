@@ -150,7 +150,10 @@ repository, and `.mvn/maven.config` and `.mvn/extensions.xml` of the multi-modul
 project directory. A watching server compares the hashes with the files' current
 content to detect a POM edited since the merge. Hashes are cached per file while
 its size and modification time are unchanged, so a full build hashes each file
-once.
+once. Maven reads the POMs when the session starts, so a build file modified after
+the session's start time is recorded as `changed-during-build`, not hashed: the
+modules and classpaths come from the content Maven read, and the manifest is
+stale for that file from the start.
 
 **Build tool and regeneration command.** The manifest names its producer's tool,
 `buildTool: { "name": "maven", "version": <the running Maven version> }`, and the

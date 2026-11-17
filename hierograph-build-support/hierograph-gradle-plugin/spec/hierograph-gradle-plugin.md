@@ -277,7 +277,10 @@ hierographManifest: cannot resolve the dependencies of :app (compileClasspath): 
 ## 6. Build files
 
 The files whose change can change the manifest. The library hashes them, and the
-server watches them:
+server watches them. The plugin records when it was applied, before the projects'
+build scripts are evaluated; a build file modified after that is recorded as
+`changed-during-build` instead of its hash, because the build read its earlier
+content. The files are:
 
 - the settings script, and every `*.gradle` / `*.gradle.kts` next to it;
 - every project's build script (`project.buildFile`), `gradle.properties` and the

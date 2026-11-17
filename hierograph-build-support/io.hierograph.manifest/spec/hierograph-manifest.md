@@ -95,7 +95,7 @@ data class ModuleDescriptor(
 
 data class ClasspathEntry(val gav: String, val internal: Boolean, val jar: String?)
 data class BuildTool(val name: String, val version: String)
-data class BuildFile(val path: String, val sha256: String)
+data class BuildFile(val path: String, val sha256: String) // CHANGED_DURING_BUILD: see §4
 ```
 
 The fields mean what the build manifest specification says; the model is its
@@ -120,6 +120,7 @@ data class MergeRequest(
     val regenerate: List<String>?,
     val modules: List<ModuleSource>,    // every module of the build, built in this run or not
     val buildFiles: Collection<Path>,   // the files that define the build
+    val buildFilesReadAt: Instant? = null,  // when the build read them, at the latest (§4)
 )
 ```
 
@@ -142,6 +143,17 @@ data class MergeRequest(
 Modules are sorted by `gav`. Build files are made absolute and normalised,
 de-duplicated, sorted by path, and hashed; a listed path that is not a regular
 file is left out.
+
+**A build file changed during the build is marked, not hashed.** A build file
+whose modification time is later than `buildFilesReadAt` changed after the build
+read it: the modules and classpaths come from its earlier content, which the
+merge can no longer hash. It is recorded with `sha256` set to
+`BuildFile.CHANGED_DURING_BUILD` (`"changed-during-build"`), and `warn` is told.
+No content hashes to that value, so a server comparing hashes finds the new
+manifest stale for that file and regenerates it. Hashing the current content
+instead would record content the manifest wasn't built from, and the manifest
+would pass for current. A producer that can't tell when its build read the files
+leaves `buildFilesReadAt` `null`; every file is then hashed.
 
 **Why the request lists every module.** Only the build tool knows which modules
 form the build. Taking that list from the request, rather than searching for

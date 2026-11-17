@@ -26,6 +26,7 @@ import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.StandardOpenOption.WRITE
 import java.security.MessageDigest
+import java.time.Instant
 import java.time.OffsetDateTime
 
 /**
@@ -42,7 +43,9 @@ data class ModuleSource(
 
 /**
  * Everything a merge needs from the build tool. [modules] are all modules of the build, also those not built in
- * this run; [buildFiles] the files that define the build.
+ * this run; [buildFiles] the files that define the build. [buildFilesReadAt] is when the build read them, at the
+ * latest: a build file modified after that is recorded as [BuildFile.CHANGED_DURING_BUILD], because the modules
+ * and classpaths come from its earlier content. `null` records every build file with its current hash.
  */
 data class MergeRequest(
     val manifestDir: Path,
@@ -52,6 +55,7 @@ data class MergeRequest(
     val regenerate: List<String>?,
     val modules: List<ModuleSource>,
     val buildFiles: Collection<Path>,
+    val buildFilesReadAt: Instant? = null,
 )
 
 /** What a merge did: the number of modules merged, whether the manifest file was rewritten, and where it is. */
@@ -64,6 +68,10 @@ data class MergeOutcome(val modules: Int, val written: Boolean, val file: Path)
  *   descriptor file is missing (deleted by a clean, not rebuilt yet) keeps its entry from the existing manifest. A module no longer in the build
  *   drops out; a module whose GAV changed replaces its previous entry. Two modules with the same GAV: the first
  *   is kept and [merge]'s `warn` is told. Modules are sorted by GAV, build files by path.
+ * - **Build files as read.** A build file's hash describes the content the build read. One modified after
+ *   [MergeRequest.buildFilesReadAt] gets [BuildFile.CHANGED_DURING_BUILD] instead, so the manifest is stale for it
+ *   from the start, and `warn` is told. Hashing it now would record content the modules weren't built from, and a
+ *   server comparing hashes would take the manifest for current.
  * - **Write only on change.** The manifest is compared with the existing file as a JSON tree, ignoring
  *   `generatedAt`, and rewritten only when something else differs: a watching server treats a changed manifest
  *   as a module-set change. Descriptors follow the same rule.
@@ -101,8 +109,7 @@ object ManifestWriter {
                 buildTool = request.buildTool,
                 regenerate = request.regenerate,
                 modules = collectModules(request.modules, existing?.let(ManifestJson::readModules).orEmpty(), warn),
-                buildFiles = request.buildFiles.map { it.toAbsolutePath().normalize() }.distinct().sorted()
-                    .filter { Files.isRegularFile(it) }.map { BuildFile(it.toString(), sha256(it)) },
+                buildFiles = buildFiles(request, warn),
             )
             val written = existing == null ||
                 withoutTimestamp(existing) != withoutTimestamp(ManifestJson.gson.toJsonTree(manifest).asJsonObject)
@@ -137,6 +144,20 @@ object ManifestWriter {
         }
         modules.sortBy { it.gav }
         return modules
+    }
+
+    private fun buildFiles(request: MergeRequest, warn: (String) -> Unit): List<BuildFile> {
+        val readAt = request.buildFilesReadAt?.toEpochMilli()
+        return request.buildFiles.map { it.toAbsolutePath().normalize() }.distinct().sorted()
+            .filter { Files.isRegularFile(it) }
+            .map { file ->
+                if (readAt != null && Files.getLastModifiedTime(file).toMillis() > readAt) {
+                    warn("$file changed while the build ran; the manifest is marked stale for it")
+                    BuildFile(file.toString(), BuildFile.CHANGED_DURING_BUILD)
+                } else {
+                    BuildFile(file.toString(), sha256(file))
+                }
+            }
     }
 
     private fun withoutTimestamp(manifest: JsonObject): JsonObject = manifest.deepCopy().apply { remove("generatedAt") }

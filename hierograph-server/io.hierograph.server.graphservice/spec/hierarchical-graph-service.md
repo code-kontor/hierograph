@@ -245,6 +245,7 @@ is how a container starts from nothing. A failed run is reported as
 | Rule | Why |
 |------|-----|
 | One run at a time; a request during a run schedules exactly one follow-up run | the running build may have read the build files before the edit |
+| The build files are hashed before each run and compared after it; a difference schedules another run | an edit during the run may leave nothing stale against the manifest the run started from (an edit undone, a branch checked out and back), and a producer may hash the build files only when it writes the manifest |
 | A run exceeding `hierograph.graph.regenerate.timeout` is killed | a hanging build must not block later runs |
 | A failed run reports the last lines of its output | the developer sees why the graph did not follow; the previous graph stays live |
 | A relocated manifest (read under a different build root) is never regenerated | the server runs in a container without the build host's tools; it behaves as `notify` |

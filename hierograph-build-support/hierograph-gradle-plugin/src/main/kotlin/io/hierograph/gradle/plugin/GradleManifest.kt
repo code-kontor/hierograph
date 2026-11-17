@@ -34,6 +34,7 @@ import org.gradle.api.tasks.SourceSet
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.util.Properties
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.invariantSeparatorsPathString
@@ -90,6 +91,7 @@ internal class ManifestPlan(
     val projectGavs: Map<String, String>,
     val skipped: List<Pair<String, String>>,
     val buildFiles: List<Path>,
+    val buildFilesReadAt: Instant,
 ) {
     val classpaths = ConcurrentHashMap<String, ModuleClasspaths>()
 }
@@ -119,7 +121,7 @@ internal object GradleManifest {
         properties.getProperty("version", "unknown")
     }
 
-    fun plan(settings: Settings, gradle: Gradle, options: Options): ManifestPlan {
+    fun plan(settings: Settings, gradle: Gradle, options: Options, buildFilesReadAt: Instant): ManifestPlan {
         val root = gradle.rootProject
         val projectGavs = root.allprojects.associate { it.buildTreePath to gav(it) }
         val modules = ArrayList<ModulePlan>()
@@ -140,6 +142,7 @@ internal object GradleManifest {
             projectGavs = projectGavs,
             skipped = skipped,
             buildFiles = buildFiles(settings, gradle),
+            buildFilesReadAt = buildFilesReadAt,
         )
     }
 
@@ -151,6 +154,7 @@ internal object GradleManifest {
         regenerate = regenerateCommand(plan),
         modules = plan.modules.map { ModuleSource(it.gav, it.name, descriptor = describe(plan, it)) },
         buildFiles = plan.buildFiles,
+        buildFilesReadAt = plan.buildFilesReadAt,
     )
 
     /**

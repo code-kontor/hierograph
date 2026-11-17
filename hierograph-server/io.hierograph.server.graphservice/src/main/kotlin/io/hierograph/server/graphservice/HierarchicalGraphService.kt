@@ -164,6 +164,7 @@ class HierarchicalGraphService {
                         relocated = scanned.relocated,
                         buildTool = scanned.buildTool,
                         command = scanned.regenerate,
+                        buildFiles = scanned.buildFiles.keys.toList(),
                     )
                 }
             },

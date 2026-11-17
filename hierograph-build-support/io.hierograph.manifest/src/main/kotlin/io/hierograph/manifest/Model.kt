@@ -56,11 +56,20 @@ data class ModuleDescriptor(
     val testClasspath: List<ClasspathEntry>,
 )
 
-/** A file that defines the build, with the SHA-256 of its content when the manifest was merged. */
+/**
+ * A file that defines the build, with the SHA-256 of the content the manifest was built from. When the file changed
+ * after the build read it, its content at that time is unknown, and [sha256] is [CHANGED_DURING_BUILD]: no file
+ * content hashes to it, so a reader comparing hashes finds the manifest stale for that file and regenerates it.
+ */
 data class BuildFile(
     val path: String,
     val sha256: String,
-)
+) {
+    companion object {
+        /** The [sha256] of a build file that changed while the build that wrote the manifest was running. */
+        const val CHANGED_DURING_BUILD = "changed-during-build"
+    }
+}
 
 /**
  * The merged manifest. [regenerate] is the command, as an argument vector run in the build root, that rewrites
