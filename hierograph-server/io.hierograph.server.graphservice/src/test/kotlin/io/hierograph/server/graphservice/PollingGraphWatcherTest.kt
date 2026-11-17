@@ -15,7 +15,12 @@
  */
 package io.hierograph.server.graphservice
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import org.assertj.core.api.Assertions.assertThat
+import org.slf4j.LoggerFactory
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -78,5 +83,33 @@ class PollingGraphWatcherTest {
             watcher.close()
         }
     }
-}
 
+    @Test
+    fun `closing the watcher while it polls logs no failure`(@TempDir tmp: Path) {
+        // Enough files that a poll takes a while to walk them, so close() lands in the middle of one.
+        val modules = (1..8).associate { m ->
+            val dir = Files.createDirectories(tmp.resolve("m$m/target/classes"))
+            for (p in 1..40) {
+                val pkg = Files.createDirectories(dir.resolve("p$p"))
+                for (c in 1..40) Files.write(pkg.resolve("C$c.class"), byteArrayOf(1))
+            }
+            "com.example:m$m:1.0" to listOf(dir)
+        }
+        val manifest = Files.writeString(tmp.resolve("manifest.json"), "{}")
+        val logger = LoggerFactory.getLogger(PollingGraphWatcher::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            repeat(5) {
+                val watcher = PollingGraphWatcher(intervalMs = 1, settleMs = 60)
+                watcher.start(WatchTargets(manifest, modules), onChange = {}, onManifestChange = {})
+                Thread.sleep(30)
+                watcher.close()
+            }
+            Thread.sleep(200)
+            assertThat(appender.list.filter { it.level.isGreaterOrEqual(Level.WARN) }.map { it.formattedMessage }).isEmpty()
+        } finally {
+            logger.detachAppender(appender)
+        }
+    }
+}

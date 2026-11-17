@@ -17,14 +17,13 @@ package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.Origin
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -38,17 +37,17 @@ class GraphStoreToHGModelTest {
     @BeforeEach
     fun setUp() {
         store = GraphStore()
-        store.registerArtifact(ArtifactInfo("app", "app", "app", Origin.MODULE_MAIN))
-        store.applyClass("app", ClassFacts("com.foo.Base", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
+        store.registerArtifact(ArtifactInfo("app", "app", "app"))
+        store.applyClass("app", ClassFacts("com.foo.Base", JavaNodeKind.CLASS, 0, emptyList(), "h1"), emptyList())
         store.applyClass(
             "app",
             ClassFacts(
-                "com.foo.Sub", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(
-                    Ref("com.foo.Sub", "com.foo.Base", RefKind.EXTENDS, count = 1),
-                    Ref("com.foo.Sub", "java.util.List", RefKind.DEPENDS_ON, count = 3),
-                ),
+                "com.foo.Sub", JavaNodeKind.CLASS, 0, emptyList(),
                 classHash = "h2",
+            ),
+            listOf(
+                Ref("com.foo.Base", DependencyKind.EXTENDS, count = 1),
+                Ref("java.util.List", DependencyKind.CALLS, count = 3),
             ),
         )
     }
@@ -58,7 +57,7 @@ class GraphStoreToHGModelTest {
         val model = GraphStoreToHGModel.build(store)
 
         // every GraphStore node + the synthetic root
-        assertThat(model.coreGraph.nodes).hasSize(store.nodeCount() + 1)
+        assertThat(model.coreGraph.nodes).hasSize(store.nodes().size + 1)
 
         // top-level modules hang under the root: the app module and the External Types module
         val rootChildren = model.hierarchy.childrenOf(model.hierarchy.rootNode).map { it.identifier }
@@ -67,13 +66,13 @@ class GraphStoreToHGModelTest {
 
         // the package chain and type are navigable, with kinds carried over
         val sub = model.lookupNode(h(store.typeKey("app", "com.foo.Sub")))!!
-        assertThat(sub.kind).isEqualTo(JavaKinds.CLASS)
+        assertThat(sub.kind).isEqualTo(JavaNodeKind.CLASS)
         assertThat(model.hierarchy.parentOf(sub)!!.identifier).isEqualTo(h("pkg:app:com.foo"))
-        assertThat(model.lookupNode(h("pkg:app:com.foo"))!!.kind).isEqualTo(JavaKinds.PACKAGE)
+        assertThat(model.lookupNode(h("pkg:app:com.foo"))!!.kind).isEqualTo(JavaNodeKind.PACKAGE)
 
         // the unresolved target is a placeholder external type, scoped to the external module
         assertThat(model.lookupNode(h(store.typeKey(GraphStore.EXTERNAL_ARTIFACT_KEY, "java.util.List")))!!.kind)
-            .isEqualTo(JavaKinds.EXTERNAL_TYPE)
+            .isEqualTo(JavaNodeKind.EXTERNAL_TYPE)
     }
 
     @Test
@@ -94,5 +93,42 @@ class GraphStoreToHGModelTest {
         // the edge shows up as incoming on Base
         assertThat(model.lookupNode(h(store.typeKey("app", "com.foo.Base")))!!.incomingCoreDependencies.map { it.from.identifier })
             .contains(h(store.typeKey("app", "com.foo.Sub")))
+    }
+
+    @Test
+    fun `a dependency source is identified by its endpoints' handles and carries the kind counts`() {
+        val model = GraphStoreToHGModel.build(store)
+        val sub = h(store.typeKey("app", "com.foo.Sub"))
+        val base = h(store.typeKey("app", "com.foo.Base"))
+        val toBase = model.lookupNode(sub)!!.outgoingCoreDependencies.single { it.to.identifier == base }
+
+        val source = toBase.getDependencySource(GraphStoreDependencySource::class.java)!!
+        assertThat(source.identifier).isEqualTo(sub to base)
+        assertThat(source.dependency).isSameAs(toBase)
+        assertThat(source.kinds).isEqualTo(mapOf(DependencyKind.EXTENDS to 1))
+        assertThat(GraphStoreDependencySource.kindsOf(toBase)).isEqualTo(mapOf(DependencyKind.EXTENDS to 1))
+    }
+
+    @Test
+    fun `dependencies with the same kind counts share one read-only map`() {
+        // A second subclass of Base with the same facts: {EXTENDS=1} twice, {CALLS=3} once.
+        store.applyClass(
+            "app",
+            ClassFacts("com.foo.Other", JavaNodeKind.CLASS, 0, emptyList(), classHash = "h3"),
+            listOf(Ref("com.foo.Base", DependencyKind.EXTENDS, count = 1)),
+        )
+        val model = GraphStoreToHGModel.build(store)
+        val base = h(store.typeKey("app", "com.foo.Base"))
+        fun kindsTo(fqn: String) = GraphStoreDependencySource.kindsOf(
+            model.lookupNode(h(store.typeKey("app", fqn)))!!.outgoingCoreDependencies.single { it.to.identifier == base },
+        )
+
+        val fromSub = kindsTo("com.foo.Sub")
+        val fromOther = kindsTo("com.foo.Other")
+        assertThat(fromSub).isEqualTo(mapOf(DependencyKind.EXTENDS to 1))
+        assertThat(fromOther).isSameAs(fromSub)
+        @Suppress("UNCHECKED_CAST")
+        val mutable = fromSub as MutableMap<DependencyKind, Int>
+        assertThatThrownBy { mutable[DependencyKind.CALLS] = 1 }.isInstanceOf(UnsupportedOperationException::class.java)
     }
 }

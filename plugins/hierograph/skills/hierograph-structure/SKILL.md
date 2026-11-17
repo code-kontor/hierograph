@@ -1,6 +1,6 @@
 ---
 name: hierograph-structure
-description: Analyse and visualise the dependency structure among a set of modules (or packages, services, types) with hierograph — render a Dependency Structure Matrix (DSM), draw an interactive layered dependency graph (core at the bottom, every arrow pointing down, click-to-trace, coupling weights, filters), and answer layering / cycle-detection questions. Use this whenever the user wants to see, explore, diagram or "get a picture of" how the parts of a codebase depend on each other; asks for a dependency graph, module graph, architecture overview, coupling map, DSM or dependency structure matrix; asks "is X properly layered", "are there cycles", "what's the structure of these modules", or "which modules are core / most depended on". Reach for it even when they only say "show me the structure" or "can I see the dependencies" without naming a chart. Do NOT use for single-target blast-radius questions ("what depends on X" / "what does X depend on" — query hierograph's incoming/outgoing/aggregated_dependencies directly), one-off pair checks, planning a module extraction (that is hierograph-extract), or first-time hierograph setup (that is hierograph-bootstrap).
+description: Analyse and visualise the dependency structure among a set of modules (or packages, services, types) with hierograph — render a Dependency Structure Matrix (DSM), draw an interactive layered dependency graph (core at the bottom, every arrow pointing down, click-to-trace, coupling weights, filters), draw a levelized structure map (modules and packages as nested, collapsible boxes in rows by level, package tangles boxed in red, only the dependencies against the levels drawn as arrows), and answer layering / cycle-detection questions. Use this whenever the user wants to see, explore, diagram or "get a picture of" how the parts of a codebase depend on each other; asks for a dependency graph, module graph, architecture overview, coupling map, DSM or dependency structure matrix, levelized structure map or package structure map; asks "how are the packages of X layered" or "where are the package cycles"; asks "is X properly layered", "are there cycles", "what's the structure of these modules", or "which modules are core / most depended on"; or wants to look at the system by multi-module, layer, bounded context or target architecture — a hierograph view, which this skill uses and proposes. Reach for it even when they only say "show me the structure" or "can I see the dependencies" without naming a chart. Do NOT use for single-target blast-radius questions ("what depends on X" / "what does X depend on" — query hierograph's incoming/outgoing/aggregated_dependencies directly), one-off pair checks, planning a module extraction (that is hierograph-extract), or first-time hierograph setup (that is hierograph-bootstrap).
 ---
 
 # hierograph-structure — DSM, layering, cycles, and the layered graph
@@ -10,11 +10,19 @@ a set of modules, compute the dependency structure among them once, then draw it
 either as a matrix or as an interactive layered picture. The matrix reads best
 for comparing many pairs at a glance or answering a layering/cycle question in
 text; the graph reads best for exploring more than ~20 nodes or handing someone
-something they can click around in.
+something they can click around in. A third rendering, the **levelized structure
+map**, goes one level deeper: it nests packages inside their modules and levelizes
+every container on its own, so package layering and package tangles become visible.
+
+Both can also run **in a view**: a regrouping of the hierarchy the server keeps —
+multi-modules, layers, contexts, a target architecture — whose groups are nodes the
+tools accept like any other. A group-level DSM is then one call, and the layered
+graph's boxes come from the view. See `references/views.md` for using a view and for
+proposing one.
 
 Because the expensive, error-prone part — resolving the node set and reading the
 dependency digest correctly — is shared, do it **once, here**, and only then pick
-the rendering. Steps 1 and 2 below are common to both; step 3 routes you to the
+the rendering. Steps 0 to 2 below are common to both; step 3 routes you to the
 rendering-specific reference.
 
 ## When a different shape is better
@@ -28,6 +36,13 @@ rendering-specific reference.
   with its own cycle-projection traps. Use **hierograph-extract**, not this.
 - **hierograph isn't running yet** — set it up first with **hierograph-bootstrap**.
 
+## Step 0 — Check the server
+
+Before the first query, call `server_info` once and compare its `workspace` with the build root
+of the project you are working in. If they differ, the client is connected to another project's
+server: stop and tell the user, rather than answering from that graph. (A server older than 0.3.0
+has no `server_info`; then skip the check.)
+
 ## Step 1 — Choose the node set
 
 Resolve the things of interest to concrete hierograph node IDs:
@@ -37,14 +52,27 @@ Resolve the things of interest to concrete hierograph node IDs:
 - **Children of a scope:** `list_children(<scope-id>)` — the *direct* children
   only; do not recurse for this step.
 - **A user-named group:** `find_node(<name>)` for each.
+- **The groups of a view:** `list_views()`, then `graph_overview(view = "<name>")`
+  — its `hierarchy` is the view's top level, groups and ungrouped modules. Pass the
+  same `view` to every later call (`references/views.md`).
+- **"By layer / by multi-module / by context", and no view fits:** propose one first
+  (`references/views.md`, *Propose a view*), then come back here with its groups.
 
-If the user said "modules" without scoping, default to the top-level projects in
+If the user said "modules" without scoping, default to **all** top-level projects in
 `hierarchy`. **Read the resolved set back to the user before continuing** — the
 set is the one decision that silently changes every later number.
 
-Two things to drop, because they add disconnected boxes that tell the reader
-nothing: hierograph's synthetic **"External Types"** node, and modules with **no
-compiled output**. If the proposed set contains both a parent and one of its
+**Never leave a module out without asking.** If you intend to drop anything from
+the set — test modules (`… (test)`), test tooling, thin `*-api` modules, modules
+with no compiled output, anything you consider noise — you **MUST** first name
+exactly which modules you would drop and why, and get the user's explicit
+permission. Do not decide "main modules only" on your own, and do not present a
+reduced set as if it were the whole system. Only hierograph's synthetic
+**"External Types"** node is not a module of the codebase; say that you omit it.
+A rendering of a reduced set says so on the page: the layered graph takes `total`
+and `omitted` (`references/layered.md`, step 1).
+
+If the proposed set contains both a parent and one of its
 descendants, surface that before running anything — the strict reading can give
 an empty result (hierograph does not aggregate child edges into a parent–child
 pair), the permissive reading mixes hierarchy with real coupling; let the user pick.
@@ -63,20 +91,25 @@ pairwise_dependencies(nodeIds = [<all IDs from step 1>],   # 2–50 nodes
 ```
 
 **Read the `summary` block first.** It reports `node_count`, `edge_count`,
-`possible_edges`, `density`, `has_cycles`, `strongly_connected_components` and
-`topological_order` in a few hundred bytes. For a pure "is this properly layered?"
+`possible_edges`, `density`, `has_cycles`, `node_order` (always — the order to render
+in), `strongly_connected_components` and, for an acyclic set, `topological_order`;
+for a cyclic set also `back_edges` (the edges that close the cycles, heaviest first),
+`back_edge_weight`, `mutual_dependencies` (2-cycles), `all_cycles_pairwise` and
+`order_quality`. For a pure "is this properly layered?"
 or "are there cycles?" question, **the summary alone is the answer** — lead with
 it, and offer a rendering only if the user wants the picture.
 
 Then fetch the edge list, sized from `edge_count`:
 
-- If `edge_count` is under the server cap (**200**), set `limit` to cover it all
-  and take the whole list in **one call** — no cursor. Sizing `limit` to the edge
-  count is the common case; a small graph never needs pagination.
-- Only when `edge_count` exceeds the cap do you page `next_cursor`, and then the
-  continuation call must **repeat every original argument verbatim** (`nodeIds`,
-  `minWeight`, `edgeSort`, `limit`) alongside the `cursor`, or the server rejects
-  it as a stale-cursor mismatch.
+- Set `limit` to cover `edge_count` (the cap is **500**) and take the list in one
+  call. Sizing `limit` to the edge count is the common case; a small graph never
+  needs pagination.
+- Every page stays within the ~50 KB response budget, so a large edge list may still
+  come in several pages — `summary.returned` says how many edges a page holds. While a
+  response carries `next_cursor`, call again with **only** `cursor = <next_cursor>`
+  (plus `limit` if you want): the server remembers the other arguments. If it answers
+  `CURSOR_ARGUMENTS_UNKNOWN` (it restarted), repeat the original arguments with the
+  cursor.
 
 There is no `max_edge_weight` in the summary — if you need the heaviest edge for
 the writeup, scan the `edges` array yourself (`max(edges, key=…["weight"])`).
@@ -87,14 +120,21 @@ the writeup, scan the `edges` array yourself (`max(edges, key=…["weight"])`).
 |---|---|
 | a matrix / DSM, a text layering or cycle verdict, to compare many pairs at once | **`references/dsm.md`** |
 | an interactive picture to explore, >~20 nodes, "a picture of the structure", something clickable/publishable | **`references/layered.md`** |
+| the structure *inside* modules: packages as nested boxes in rows by level, tangles, "a levelized / structure map", one picture of the system down to packages | **`references/levelized.md`** |
+| the structure by multi-module, layer or context; a view to use, or to propose | **`references/views.md`**, then one of the above |
 
-Read only the one you need. Both start from the node set and digest you already
-have; neither re-queries the structure.
+Read only the one you need. The DSM and the layered graph start from the node set
+and digest you already have; neither re-queries the structure. The levelized map
+is the exception: its node set is a containment *tree* down to packages, so it
+collects its own tree and leaf-level edges (its steps 1–2 replace the ones above,
+but the rules of step 1 — read the scope back, never drop a module silently —
+still apply).
 
 ## Reporting (either rendering)
 
 Lead the writeup with the structural facts from the `summary`, not with the
-picture:
+picture. In a view, name the view and whether its report has errors first — an
+analysis of a partly applied view is an analysis of a different grouping.
 
 - **`has_cycles`** outcome, and the SCCs if any — name them as the untangling target.
 - **`density`** — one number, one sentence on sparse vs. tightly coupled.

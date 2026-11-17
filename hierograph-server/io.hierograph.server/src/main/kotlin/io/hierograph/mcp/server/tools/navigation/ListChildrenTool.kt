@@ -19,8 +19,7 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.mcp.server.tools.KindFilter
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam

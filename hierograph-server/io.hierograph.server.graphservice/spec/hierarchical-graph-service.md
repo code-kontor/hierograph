@@ -51,7 +51,7 @@ stays simple:
 **Does not own** (collaborators it delegates to):
 
 - *Scanning bytecode and resolving a build manifest* — `ManifestGraphSource`.
-- *Reading/writing Parquet tables* — `ParquetReader` / the snapshot writer.
+- *Reading/writing Parquet tables* — `ParquetReader` / `ParquetWriter`, and loading a snapshot into a GraphStore — `SnapshotLoader`.
 - *Bridging a type-level store to the hierarchical model* — `GraphStoreToHGModel`.
 - *Watching the filesystem* — the polling / native watchers.
 - *Answering tool requests* — the MCP tools, which consume this service's output.
@@ -64,7 +64,11 @@ stays simple:
 for one build: the hierarchical `model`, its `searchIndex`, a `dataHash`
 fingerprint of the model, the optional type-level graph store, a member-handle
 index, and the build `generation`. It is immutable; the service never mutates a
-live snapshot, it builds a new one and replaces the old.
+live snapshot, it builds a new one and replaces the old. A **view's** snapshot is
+derived from a base snapshot by `ViewService`: the same snapshot with the view's
+model (a fork with group nodes), a search index that also finds the groups, a data
+hash that also covers the view document, and `view` set to the view's name (views
+specification, §7).
 
 **Atomic swap.** The current snapshot lives behind a single atomic reference.
 Every public read resolves it once, so concurrent tool calls each see one coherent
@@ -132,6 +136,17 @@ for the `reload_graph` tool. Outstanding pagination cursors become stale across 
 reload that changes the graph (their data hash does not match); a reload of
 unchanged code keeps the hash and the cursors.
 
+**In manifest mode a reload runs on the updater** (§6), after whatever update it is
+running, never side by side with it: two full scans at once compete for the same
+scanner threads, and the second replaces a graph the first has just built from the
+same input. A reload that arrives while a manifest apply or another reload is
+running, or while a reload is queued, **joins** it: it waits for that update and
+returns its result with `joined` (`manifest-apply` or `reload`), instead of scanning
+again. That update reads the build as it is, so a second scan would repeat it. A
+reload behind a rescan of changed modules waits for it and then scans.
+`updateState()` reports what the updater is doing: `idle`, `pending` (a change or a
+reload waits for its turn), `rescanning`, `applying-manifest` or `reloading`.
+
 **Shutdown** stops the watcher and the background executors.
 
 ---
@@ -177,6 +192,19 @@ only be registered on an existing directory, so the native watcher checks on eac
 tick which declared directories exist, reports the ones that appeared or
 disappeared, and re-registers. An incremental update that fails logs and keeps
 the previous graph.
+
+**Busy builds.** A build that compiles one module after another reports a change
+every second or two, and a rescan per module would rebuild the whole graph each
+time. The service counts the modules reported as changed in the last 20 seconds;
+a report of several modules counts each of them. A single change finds the build
+calm and is rescanned at once. Each further module within the 20 seconds
+lengthens a batch window by one second, up to
+`hierograph.graph.watch.batch.max-delay` (10 s): pending changes are rescanned
+only once that long has passed since the first of them arrived, so the modules
+compiled within the window share one rescan. The window counts from the first
+pending change, so the graph lags a running build by at most the window plus one
+rescan; it drops back as the changes leave the 20 seconds. A manifest reload is
+never delayed.
 
 ### Build files
 
@@ -228,6 +256,7 @@ is how a container starts from nothing. A failed run is reported as
 | Rule | Why |
 |------|-----|
 | One run at a time; a request during a run schedules exactly one follow-up run | the running build may have read the build files before the edit |
+| The build files are hashed before each run and compared after it; a difference schedules another run | an edit during the run may leave nothing stale against the manifest the run started from (an edit undone, a branch checked out and back), and a producer may hash the build files only when it writes the manifest |
 | A run exceeding `hierograph.graph.regenerate.timeout` is killed | a hanging build must not block later runs |
 | A failed run reports the last lines of its output | the developer sees why the graph did not follow; the previous graph stays live |
 | A relocated manifest (read under a different build root) is never regenerated | the server runs in a container without the build host's tools; it behaves as `notify` |
@@ -255,15 +284,38 @@ ran and the end of its output):
 
 **Starting without output.** When the manifest is readable but no declared output
 exists, or the graph cannot be built, the service starts without a graph and
-still starts the watcher; the first output that appears builds the graph. A
+still starts the watcher on the outputs the manifest declares; the first output
+that appears or changes builds the graph, with a full scan when no scan has
+succeeded yet.
+
+**Outputs that disappear.** A running build deletes and recreates output
+directories at any time. An output that disappears before or during a scan is left
+out like an output not compiled yet: it stays declared and watched, and its
+classes leave the graph until it appears again. When it disappears while the
+scanner reads it, the scan starts again with the outputs still present, up to
+three times. A
 failed `reload` or manifest reload also re-targets the watcher, so the service
 follows a changed module set even before any of it is compiled.
 
 **Asynchronous detail.** Each manifest build schedules its Parquet detail write on
-a background writer. When the write for a generation finishes, it is published as
-the detail source **only if no newer build has started meanwhile** — otherwise the
-work is discarded. Superseded snapshot directories are pruned; only the live
-generation's directory is kept.
+a single background writer. At most one write waits: a build scheduled while an
+earlier one still waits replaces it, so the replaced build's graph is released
+without being written. The writer starts a write only once no rescan is pending
+or running, since that would make the snapshot outdated, and no newer build has
+arrived for the quiet period: `hierograph.graph.detail.quiet-period` (1 s) while
+the build is calm, two seconds more while it is busy, to wait out the pauses
+between two modules. While a build changes one module after another, no snapshot
+is written that the next rescan would make outdated, and the last build's
+snapshot follows once the last rescan is done. The writer asks for the quiet
+period again at least every second, so it notices when the build calms down. Detail is reported as rebuilding meanwhile (§7). A write is published as the detail source **only if no newer
+build has started meanwhile**. The writer checks this before the write, before each
+artifact it writes, before deriving the detail edges and before publishing, so
+outdated work stops as early as possible: a write overtaken by a newer build stops
+after the artifact in progress, and its partial directory is deleted. Superseded snapshot directories are pruned; only the live generation's
+directory is kept.
+
+Without the single waiting slot, a running build that triggers rescans faster than
+one write completes would queue one whole graph per rescan and exhaust the heap.
 
 ---
 
@@ -274,7 +326,7 @@ Because detail lags the live graph in manifest mode, detail access is guarded:
 - `readyDetailDir()` returns the Parquet directory **only** when its generation
   matches the live snapshot; otherwise `null`. A detail tool must treat `null` as
   *rebuilding* and must **not** fall back to a previous directory.
-- `derivedDetailRefs(…)` — the load-computed cross-artifact edges (§8) — applies
+- `derivedDependencies(…)` — the load-computed cross-artifact edges (§8) — applies
   the same guard, returning nothing while detail is not current.
 
 The rule is deliberate: it is better to answer "detail is rebuilding, retry" than
@@ -290,7 +342,11 @@ own. The service computes these at load time over the complete graph and keeps o
 the edges not already present in the snapshot's detail tables. A complete
 single-shot snapshot therefore contributes nothing extra, while a set of
 per-artifact snapshots gains exactly its cross-artifact edges. Detail tools union
-these derived edges with the Parquet `detail_refs` for a scope.
+these derived edges with the Parquet `dependencies` for a scope.
+
+In `parquet` mode the inputs, the declared members and the direct detail edges,
+are read from the snapshot. In `manifest` mode they come from the scan in memory,
+not from the snapshot just written from it; both give the same edges.
 
 ---
 
@@ -304,16 +360,20 @@ the pinned one inside `withPinnedSnapshot`):
 | `isGraphAvailable` | whether any graph is loaded; tools check this before answering |
 | `withPinnedSnapshot { … }` | run a block against one snapshot, whatever reloads happen meanwhile |
 | `liveSnapshot()` / `withPinnedSnapshot(snapshot) { … }` | capture the live snapshot once and pin it later, for work that spans callbacks or threads (the GraphQL API pins each request this way) |
+| `currentSnapshot()` | the snapshot this thread reads: the pinned one, else the live one |
+| `onSnapshotPublished(listener)` | called after each new snapshot becomes live, for caches derived from a snapshot (the view cache drops the views of the replaced one) |
+| `stateDirectory` / `buildRootDirectory` | the resolved state directory and build root; the defaults of the view directories derive from them |
 | `model` | the hierarchical model (navigation, hierarchy, dependencies) |
 | `searchIndex` | the node search index for the current model |
 | `dataHash` | fingerprint of the current model; the basis for pagination-cursor validity |
 | `graphStore` | the type-level store backing the snapshot, when present |
 | `memberHandleIndex` / `memberHandle(key)` | map member node handles ↔ member keys for the detail tools |
 | `readyDetailDir()` | the Parquet detail directory, or `null` while rebuilding (§7) |
-| `derivedDetailRefs(from, to, relationship)` | load-derived cross-artifact edges for a scope (§8) |
+| `derivedDependencies(from, to, kind)` | load-derived cross-artifact edges for a scope (§8) |
 | `parquetDirectory` | directory the node-property provider reads (may lag during a rescan) |
-| `reload()` | rebuild and swap; returns a status map, with `build_state` in `manifest` mode |
+| `reload()` | rebuild and swap; returns a status map, with `build_state` in `manifest` mode; in `manifest` mode it runs on the updater and joins a full load in progress (§5) |
 | `buildState()` | the `build_state` map (§6), or `null` outside `manifest` mode |
+| `updateState()` | what the updater is doing (§5), or `null` outside `manifest` mode |
 | `seed(model)` | install a ready-made model directly — for tests, bypassing any source |
 
 ---
@@ -333,11 +393,15 @@ All properties are optional; defaults suit a local server.
 | `hierograph.graph.watch.mode` | `polling` | `off` / `polling` / `native` (`manifest` mode). |
 | `hierograph.graph.watch.interval` | `1000` | Poll interval, ms. |
 | `hierograph.graph.watch.settle` | `400` | Quiet period, ms, before rebuilding after a change. |
+| `hierograph.graph.watch.batch.max-delay` | `10000` | Longest batch window, ms, over which a busy build's changes share one rescan (§6); `0` rescans each change at once. |
+| `hierograph.graph.detail.quiet-period` | `1000` | Time, ms, without a new build before the detail snapshot is written while the build is calm; longer while it is busy (`manifest` mode, §6). |
 | `hierograph.graph.watch.build-files` | `notify` | `off` / `notify` / `regenerate`: reaction to edited build files (§6). |
 | `hierograph.graph.regenerate.command` | *(empty)* | Regeneration command override; empty uses the manifest's `regenerate` command. |
 | `hierograph.graph.regenerate.timeout` | `600000` | Regeneration timeout, ms. |
 | `hierograph.graph.dump.enabled` | `false` | Write a one-line-per-node text dump after each build. |
 | `hierograph.graph.dumpFile` | `hierarchical-graph.txt` | Where the dump is written. |
+| `hierograph.views.projectDir` | *(`<build root>/.hierograph-views`)* | Project view documents, read-only (views specification, §7.1). |
+| `hierograph.views.stateDir` | *(`<state dir>/runtime-views`)* | Views defined at runtime (views specification, §7.1). |
 
 In `manifest` mode the detail snapshot is written to a `snapshot/` directory in the
 state directory (one `gen-<nnnn>` subdirectory per build; superseded ones are
@@ -361,7 +425,7 @@ not relocated and may be regenerated.
 (§9). Guard every entry point with `isGraphAvailable`. For member-level detail,
 take `readyDetailDir()`; if it is `null`, return a "detail rebuilding, retry"
 status rather than an empty or stale result, and union the Parquet rows with
-`derivedDetailRefs(…)` for the same scope. Build pagination cursors on `dataHash`
+`derivedDependencies(…)` for the same scope. Build pagination cursors on `dataHash`
 and treat a changed hash as cursor invalidation. Never cache a snapshot-derived
 value across calls — read it fresh, so a concurrent reload is picked up.
 

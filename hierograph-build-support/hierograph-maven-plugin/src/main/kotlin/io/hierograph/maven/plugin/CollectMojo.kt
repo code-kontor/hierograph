@@ -15,7 +15,7 @@
  */
 package io.hierograph.maven.plugin
 
-import io.hierograph.graphstore.jvm.parquet.HierographArchive
+import io.hierograph.graphstore.jvm.archive.HierographArchive
 import org.apache.maven.execution.MavenSession
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugins.annotations.Component

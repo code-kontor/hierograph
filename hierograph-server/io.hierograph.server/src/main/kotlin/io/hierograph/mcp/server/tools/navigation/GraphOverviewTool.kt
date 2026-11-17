@@ -16,12 +16,22 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.server.graphservice.HierarchicalGraphService
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.server.mapping.JavaEdgeAttributes
+import io.hierograph.server.mapping.GraphStoreDependencySource
+import java.util.EnumMap
+import io.hierograph.server.views.KindAliases
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
+import io.hierograph.mcp.server.tools.views.ViewResponses
+import io.hierograph.server.graphservice.views.ViewService
+import io.hierograph.server.views.ViewGroups
+import io.hierograph.mcp.server.pagination.PaginationSpec
+import io.hierograph.mcp.server.pagination.Paginator
+import io.hierograph.mcp.server.pagination.QueryHash
 import org.springframework.ai.tool.annotation.Tool
+import org.springframework.ai.tool.annotation.ToolParam
 import org.springframework.stereotype.Component
 
 /**
@@ -29,12 +39,14 @@ import org.springframework.stereotype.Component
  *
  * Returns a structural overview of the loaded codebase: statistics, the kind and
  * relationship vocabularies, top-level module structure, and the zoom-level model.
- * No parameters — always describes the full loaded graph.
+ * It describes the full loaded graph, or, called with `view`, the graph in that view. Its only parameters page the
+ * hierarchy, for a top level too large for one response.
  */
 @Component
 class GraphOverviewTool(
     private val graphService: HierarchicalGraphService,
-    private val nodeRefFactory: INodeRefFactory
+    private val nodeRefFactory: INodeRefFactory,
+    private val viewService: ViewService? = null,
 ) {
 
     @Tool(
@@ -47,12 +59,32 @@ class GraphOverviewTool(
                 "counts by attribute), the kind and relationship vocabularies, top-level " +
                 "module structure, and the zoom-level model. In manifest mode it also returns the " +
                 "build_state ('current', or 'stale' with the build files edited since the graph's manifest was " +
-                "written). No parameters needed. For known codebases, this can be skipped."
+                "written), and graph_update while the graph is being updated ('pending', 'rescanning', " +
+                "'applying-manifest' or 'reloading'): the graph is about to change, and no reload_graph is needed. With view=<name>, the hierarchy is the view's top level — its groups and the nodes no group " +
+                "takes — and a 'view' section summarizes the view and what applying it reported. " +
+                "The hierarchy entries carry id, name, kind and counts, and is_test=true for a module of compiled tests; find_node or list_children give a node's " +
+                "qualified name. The response stays within the ~50 KB budget: on a very large codebase the hierarchy " +
+                "is paged — summary.truncated and next_cursor say so, and the next pages carry only the rest of the " +
+                "hierarchy. For known codebases, this can be skipped."
     )
-    fun graphOverview(): Map<String, Any?> {
+    fun graphOverview(
+        @ToolParam(
+            description = "Maximum hierarchy entries per page (default 500, max 1000). Rarely needed: a page holds " +
+                    "fewer entries anyway when they would not fit the response budget.",
+            required = false,
+        )
+        limit: Int? = null,
+        @ToolParam(
+            description = "Opaque pagination cursor from a previous response's next_cursor, for the rest of the " +
+                    "hierarchy. Omit for the first page.",
+            required = false,
+        )
+        cursor: String? = null,
+    ): Map<String, Any?> {
 
         val hierarchy = graphService.model.hierarchy
         val rootNode = hierarchy.rootNode
+        val view = viewService?.currentView()
 
         // ── stats: count nodes by kind ─────────────────────────────────
         // traverse visits the descendants of its start node, so starting at the root counts every node
@@ -70,11 +102,13 @@ class GraphOverviewTool(
         for ((_, name) in JavaEdgeAttributes.ALL) {
             edgesByAttribute[name] = 0
         }
+        val weightByKind = EnumMap<DependencyKind, Int>(DependencyKind::class.java)
         var totalEdges = 0
         for (child in hierarchy.childrenOf(rootNode)) {
             hierarchy.traverse(child) { node ->
                 for (dep in node.outgoingCoreDependencies) {
                     totalEdges++
+                    for ((kind, count) in GraphStoreDependencySource.kindsOf(dep)) weightByKind.merge(kind, count, Int::plus)
                     val bitmap = dep.attributesBitmap
                     for ((pos, name) in JavaEdgeAttributes.ALL) {
                         if (JavaEdgeAttributes.isSet(bitmap, pos)) {
@@ -98,15 +132,23 @@ class GraphOverviewTool(
                 kindEntry(JavaNodeKind.METHOD, "Method (includes constructors)"),
                 kindEntry(JavaNodeKind.FIELD, "Field"),
                 mapOf(
-                    "kind" to JavaKinds.EXTERNAL_TYPE,
+                    "kind" to JavaNodeKind.EXTERNAL_TYPE,
                     "description" to "Type referenced by the scanned code but not scanned itself; " +
                             "lives under the 'External Types' module and has no members"
                 )
+            ) + listOfNotNull(
+                view?.let {
+                    mapOf(
+                        "kind" to ViewGroups.KIND,
+                        "description" to "Group of the view '${it.entry.name}'; exists only in the view and " +
+                                "aggregates the dependencies of the nodes below it"
+                    )
+                }
             ),
             "group_aliases" to mapOf(
-                JavaKinds.ALIAS_TYPES to JavaKinds.TYPE_KINDS.map { it.value },
-                JavaKinds.ALIAS_MEMBERS to JavaKinds.MEMBER_KINDS.map { it.value },
-                JavaKinds.ALIAS_PACKAGES to listOf(JavaNodeKind.PACKAGE.value)
+                KindAliases.TYPES to JavaNodeKind.TYPES.map { it.value },
+                KindAliases.MEMBERS to JavaNodeKind.MEMBERS.map { it.value },
+                KindAliases.PACKAGES to listOf(JavaNodeKind.PACKAGE.value)
             )
         )
 
@@ -115,26 +157,23 @@ class GraphOverviewTool(
             "type_level_attributes" to JavaEdgeAttributes.ALL.map { (_, name) ->
                 attrEntry(name)
             },
-            "detail_level" to listOf(
-                detailRelEntry("throws", "method", "Method declares it throws this exception type"),
-                detailRelEntry("raises", "method", "Method body constructs and throws this exception type (throw new X(...))"),
-                detailRelEntry("calls", "method", "Method invokes a method"),
-                detailRelEntry("returns", "method", "Method's return type"),
-                detailRelEntry("parameter_type", "method", "Method has a parameter of this type"),
-                detailRelEntry("reads_field", "method", "Method reads a field"),
-                detailRelEntry("writes_field", "method", "Method writes a field"),
-                detailRelEntry("overrides", "method", "Method overrides another method"),
-                detailRelEntry("annotated_by", "method/field", "Entity has this annotation type"),
-                detailRelEntry("parameter_annotated_by", "method", "Method has a parameter with this annotation type"),
-                detailRelEntry("has_type", "field", "Field is of this type"),
-                detailRelEntry("read_by", "field", "Field is read by this method"),
-                detailRelEntry("written_by", "field", "Field is written by this method")
-            )
+            "type_level_kinds" to DependencyKind.AGGREGATED.map { kind ->
+                mapOf("kind" to kind.value, "description" to typeLevelKindDescription(kind))
+            },
+            "detail_level" to DependencyKind.entries.map { kind ->
+                val (source, description) = detailKindDescription(kind)
+                linkedMapOf<String, Any>("kind" to kind.value, "source" to source, "description" to description).apply {
+                    if (kind.derived) put("derived", true)
+                    if (!kind.counted && !kind.derived) put("counted", false)
+                }
+            },
         )
 
-        // ── hierarchy: top-level modules with enriched metadata ────────
+        // ── hierarchy: top-level modules with their counts ─────────────
         // The counts are boundary-crossing: a dependency between two types of the same module is internal
-        // and counts for neither side.
+        // and counts for neither side. An entry leaves out what every top-level entry shares (its parent is the
+        // root) and what is rarely needed at this level (a module's build coordinate, its method count);
+        // find_node and list_children report those.
         val moduleOf = HashMap<Any, Any>()
         for (module in hierarchy.childrenOf(rootNode)) {
             moduleOf[module.identifier] = module.identifier
@@ -142,6 +181,7 @@ class GraphOverviewTool(
         }
         val hierarchySection = hierarchy.childrenOf(rootNode).map { child ->
             val ref = nodeRefFactory.enrichedNodeRef(child)
+            for (key in OMITTED_FROM_HIERARCHY) ref.remove(key)
             ref["outgoing_dep_count"] = hierarchy.accumulatedOutgoing(child).count { moduleOf[it.to.identifier] != child.identifier }
             ref["incoming_dep_count"] = hierarchy.accumulatedIncoming(child).count { moduleOf[it.from.identifier] != child.identifier }
             ref
@@ -178,20 +218,54 @@ class GraphOverviewTool(
             "scanner" to "hierograph"
         )
 
-        // ── assemble response ──────────────────────────────────────────
-        return linkedMapOf(
-            "stats" to linkedMapOf(
-                "total_nodes" to totalNodes,
-                "nodes_by_kind" to nodesByKind,
-                "total_type_level_edges" to totalEdges,
-                "type_level_edges_by_attribute" to edgesByAttribute
-            ),
-            "kinds" to kinds,
-            "relationships" to relationships,
-            "hierarchy" to hierarchySection,
-            "model" to model,
-            "scan_metadata" to scanMetadata
-        ).apply { graphService.buildState()?.let { put("build_state", it) } }
+        // ── assemble response: everything on the first page, the rest of the hierarchy on the next ones ──
+        // The view needs no place in the query: a view's snapshot has a data hash of its own, so a cursor
+        // issued in one view is stale in another.
+        return Paginator.respond(
+            allItems = hierarchySection,
+            spec = PAGINATION,
+            queryHash = QueryHash.of(emptyMap()),
+            dataHash = graphService.dataHash,
+            cursor = cursor,
+            limit = limit,
+            tooLarge = "Call graph_overview with a smaller limit.",
+        ) { page ->
+            val response = linkedMapOf<String, Any?>()
+            if (cursor == null) {
+                response["stats"] = linkedMapOf(
+                    "total_nodes" to totalNodes,
+                    "nodes_by_kind" to nodesByKind,
+                    "total_type_level_edges" to totalEdges,
+                    "type_level_edges_by_attribute" to edgesByAttribute,
+                    "type_level_weight_by_kind" to DependencyKind.toMap(weightByKind),
+                )
+                response["kinds"] = kinds
+                response["relationships"] = relationships
+            }
+            response["hierarchy"] = page.items
+            response["summary"] = linkedMapOf<String, Any?>(
+                "total" to page.total,
+                "returned" to page.returned,
+                "truncated" to page.truncated,
+            )
+            if (cursor == null) {
+                response["model"] = model
+                response["scan_metadata"] = scanMetadata
+                view?.let {
+                    response["view"] = ViewResponses.entry(it.entry).apply {
+                        putAll(ViewResponses.summary(it))
+                        with(ViewResponses) { putRestructuring(it) }
+                        put("report", ViewResponses.report(it.materialized.report))
+                    }
+                }
+                graphService.buildState()?.let { response["build_state"] = it }
+                // Only while the graph is about to change: the answer may then be replaced within seconds.
+                graphService.updateState()?.takeIf { it != HierarchicalGraphService.IDLE }?.let { response["graph_update"] = it }
+            }
+            // next_cursor is present iff more hierarchy entries follow (omitted, not null, on the last page).
+            page.nextCursor?.let { response["next_cursor"] = it }
+            response
+        }
     }
 
     private fun kindEntry(kind: JavaNodeKind, description: String) =
@@ -208,6 +282,39 @@ class GraphOverviewTool(
         return mapOf("attribute" to attribute, "description" to description)
     }
 
-    private fun detailRelEntry(kind: String, source: String, description: String) =
-        mapOf("kind" to kind, "source" to source, "description" to description)
+    /** The source and description of a detail-level kind, as graph_overview lists it. */
+    private fun detailKindDescription(kind: DependencyKind): Pair<String, String> = when (kind) {
+        DependencyKind.EXTENDS -> "type" to "Type has this superclass"
+        DependencyKind.IMPLEMENTS -> "type" to "Type implements (or, as an interface, extends) this interface"
+        DependencyKind.ANNOTATED_BY -> "type/method/field" to "Entity has this annotation type"
+        DependencyKind.PARAMETER_ANNOTATED_BY -> "method" to "Method has a parameter with this annotation type (one edge per annotation on a parameter, with parameter={position,name})"
+        DependencyKind.ANNOTATION_VALUE -> "type/method/field" to "An annotation on the entity uses this type as a value (enum constant, class value, nested annotation)"
+        DependencyKind.TYPE_ARGUMENT -> "type/method/field" to "The entity's generic signature names this type in a type argument or bound"
+        DependencyKind.HAS_TYPE -> "field" to "Field is of this type"
+        DependencyKind.PARAMETER_TYPE -> "method" to "Method has a parameter of this type (one edge per parameter, with parameter={position,name})"
+        DependencyKind.RETURNS -> "method" to "Method's return type"
+        DependencyKind.THROWS -> "method" to "Method declares it throws this exception type"
+        DependencyKind.CALLS -> "method" to "Method invokes a method"
+        DependencyKind.READS_FIELD -> "method" to "Method reads a field"
+        DependencyKind.WRITES_FIELD -> "method" to "Method writes a field"
+        DependencyKind.INSTANTIATES -> "method" to "Method creates an instance or an array of this type"
+        DependencyKind.CASTS -> "method" to "Method casts to, or tests instanceof against, this type"
+        DependencyKind.CATCHES -> "method" to "Method catches this exception type"
+        DependencyKind.CLASS_LITERAL -> "method" to "Method uses this type as a class literal (X.class)"
+        DependencyKind.RAISES -> "method" to "Method body constructs and throws this exception type (throw new X(...)); not counted in weights"
+        DependencyKind.OVERRIDES -> "method" to "Method overrides another method (derived at load)"
+        DependencyKind.READ_BY -> "field" to "Field is read by this method (reads_field viewed from the field)"
+        DependencyKind.WRITTEN_BY -> "field" to "Field is written by this method (writes_field viewed from the field)"
+    }
+
+    /** The description of a type-level kind: the facts its count is made of. */
+    private fun typeLevelKindDescription(kind: DependencyKind): String = "${kind.value} facts of the type and its members"
+
+    private companion object {
+        /** Pagination of the hierarchy: one page in practice; the response budget pages a very large top level. */
+        val PAGINATION = PaginationSpec(tool = "graph_overview", defaultLimit = 500, maxLimit = 1000)
+
+        /** Fields of a node reference a top-level hierarchy entry leaves out (see the hierarchy section). */
+        val OMITTED_FROM_HIERARCHY = listOf("qualified_name", "parent_id", "parent_kind", "descendant_method_count")
+    }
 }

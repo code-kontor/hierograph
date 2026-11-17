@@ -7,10 +7,12 @@
     <file url="file://$PROJECT_DIR$/hierograph-build-support/io.hierograph.manifest/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-build-support/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-build-support/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm.archive/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm.archive/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm.store/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-graphstore/io.hierograph.graphstore.jvm.store/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-graphstore/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-graphstore/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/src/main/kotlin" charset="UTF-8" />
@@ -31,6 +33,8 @@
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.graphservice/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.mapping/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.mapping/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.views/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server.views/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/io.hierograph.server/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/hierograph-server/src/main/kotlin" charset="UTF-8" />

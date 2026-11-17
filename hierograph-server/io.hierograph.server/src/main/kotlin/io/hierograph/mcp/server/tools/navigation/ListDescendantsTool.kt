@@ -20,12 +20,10 @@ import io.hierograph.mcp.server.tools.KindFilter
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
-import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -83,14 +81,16 @@ class ListDescendantsTool(
         )
         modifierFilter: List<String>?,
         @ToolParam(
-            description = "Maximum items per page (default 150, max 200; larger values are clamped).",
+            description = "Maximum items per page (default 150, max 300; larger values are clamped). A page never exceeds the " +
+                    "~50 KB response budget: when the items would not fit, it holds fewer.",
             required = false
         )
         limit: Int?,
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
-                    "When continuing, keep the other parameters identical to the original call. " +
+                    "To continue, the cursor alone is enough: the server remembers the other arguments; " +
+                    "if you pass them, they must be identical to the original call's. " +
                     "If the result set is larger than you need, prefer narrowing the query " +
                     "(tighter kind/name filters or a smaller subtree) over paginating through all of it.",
             required = false
@@ -193,39 +193,34 @@ class ListDescendantsTool(
                 )
             }
 
-        // ── paginate ──────────────────────────────────────────────────
-        val pageResult = Paginator.paginate(
+        // ── paginate, within the response budget ──────────────────────
+        val root = nodeRefFactory.enrichedNodeRef(rootNode)
+        val refs = HashMap<HGNode, Map<String, Any?>>()
+        return Paginator.respond(
             allItems = allFiltered,
             spec = PAGINATION,
             queryHash = queryHash,
             dataHash = dataHashProvider.dataHash,
             cursor = cursor,
-            limit = limit
-        )
-        val page = when (pageResult) {
-            is PageResult.Failed -> return pageResult.error.toResponse()
-            is PageResult.Page -> pageResult
-        }
-
-        val results = page.items.map { nodeRefFactory.enrichedNodeRef(it) }
-
-        // ── assemble response ─────────────────────────────────────────
-        val response = linkedMapOf<String, Any?>(
-            "root" to nodeRefFactory.enrichedNodeRef(rootNode),
-            "results" to results,
-            "summary" to linkedMapOf<String, Any?>(
-                "total" to page.total,
-                "returned" to page.returned,
-                "truncated" to page.truncated,
-                "by_kind" to byKind,
-                "by_parent" to byParent
+            limit = limit,
+            tooLarge = "Call list_descendants on a smaller subtree.",
+        ) { page ->
+            // ── assemble response ─────────────────────────────────────
+            val response = linkedMapOf<String, Any?>(
+                "root" to root,
+                "results" to page.items.map { refs.getOrPut(it) { nodeRefFactory.enrichedNodeRef(it) } },
+                "summary" to linkedMapOf<String, Any?>(
+                    "total" to page.total,
+                    "returned" to page.returned,
+                    "truncated" to page.truncated,
+                    "by_kind" to byKind,
+                    "by_parent" to byParent
+                )
             )
-        )
-
-        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
-        page.nextCursor?.let { response["next_cursor"] = it }
-
-        return response
+            // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+            page.nextCursor?.let { response["next_cursor"] = it }
+            response
+        }
     }
 
     // ── helpers ────────────────────────────────────────────────────────
@@ -234,8 +229,8 @@ class ListDescendantsTool(
         mapOf("error" to linkedMapOf<String, Any?>("code" to code, "message" to message, "recovery" to recovery))
 
     companion object {
-        /** Pagination policy for list_descendants (~250 bytes/item): default 150, cap 200 (the budget's fill). */
-        private val PAGINATION = PaginationSpec(tool = "list_descendants", defaultLimit = 150, maxLimit = 200, bytesPerItem = 250)
+        /** Pagination policy for list_descendants: default 150, cap 300; the response budget trims a page further. */
+        private val PAGINATION = PaginationSpec(tool = "list_descendants", defaultLimit = 150, maxLimit = 300)
 
         private fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V> {
             val map = LinkedHashMap<K, V>()

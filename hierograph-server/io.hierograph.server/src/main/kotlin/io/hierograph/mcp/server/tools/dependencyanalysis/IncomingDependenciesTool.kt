@@ -47,9 +47,15 @@ class IncomingDependenciesTool(
                 "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
                 "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
-                "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
+                "At detail level, parameter_type and parameter_annotated_by edges carry " +
+                "parameter={position,name}; parameterPosition keeps only the edges of the parameter at that " +
+                "0-based position (e.g. relationship='parameter_type', parameterPosition=0: 'which methods take " +
+                "this type as their first parameter'). " +
+                "At type level each edge carries `kinds`: how many facts of each kind (calls, extends, casts, …) " +
+                "make up its weight; a kind name is also the detail-level relationship that lists those facts. " +
+                "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size. " +
-                "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
+                "On a hub node a page of edges fills the ~50 KB response budget, most of it edges " +
                 "you will not read. If you only need the ranking or attribute breakdown " +
                 "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
@@ -60,7 +66,18 @@ class IncomingDependenciesTool(
                 "by the edge list — request a minimal page (limit=1). " +
                 "The summary always includes 'by_target': the fromId types ranked by summed incoming " +
                 "weight (the most heavily used types), computed over the full result set. " +
-                "toId is required at detail level."
+                "At detail level, toId is optional too: omit it to return every member-level reference " +
+                "into fromId, from anywhere (from_scope is then null; by_source_nodes drills down from the root). " +
+                "This reads every snapshot's dependencies, so it is slower than a query with toId; with " +
+                "relationship='parameter_type' and parameterPosition=0 it answers 'which methods anywhere take " +
+                "this type as their first parameter' in one call. " +
+                "Detail rows: 'inherited': true marks a row whose depending type is a supertype outside toId — " +
+                "code a toId type inherits, counted as its own (a base class's own references are left out " +
+                "when the base class lies in fromId). 'receiver' appears when the code used a fromId type that " +
+                "only inherits the member: 'to' and 'to_parent' then name the declaring member and type, which " +
+                "may lie outside fromId, and 'receiver' names the fromId type the reference was compiled against. " +
+                "A 'to' of kind external.member is a member no scanned type declares (a member of an external " +
+                "type, or one inherited from outside the scanned code, like getMessage() on an exception)."
     )
     fun incomingDependencies(
         @ToolParam(description = "The subtree that is depended upon — source side.")
@@ -68,7 +85,7 @@ class IncomingDependenciesTool(
         @ToolParam(
             description = "The subtree that does the depending — target side. Optional at type " +
                     "level — omit to return ALL incoming dependencies of fromId (everything that " +
-                    "depends on it, from anywhere). Required at detail level.",
+                    "depends on it, from anywhere), at type or detail level.",
             required = false
         )
         toId: Long?,
@@ -78,27 +95,36 @@ class IncomingDependenciesTool(
         )
         detailLevel: String?,
         @ToolParam(
-            description = "Filter to a specific detail-level relationship kind. Only valid when detailLevel='detail'.",
+            description = "Filter to a specific detail-level relationship kind (e.g. calls, extends, casts, read_by; " +
+                    "graph_overview lists them all). Only valid when detailLevel='detail'.",
             required = false
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 142 / 90, the most " +
-                    "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
-                    "only need the summary (by_target / by_source_type / by_attribute).",
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail); cap 300. A page never exceeds " +
+                    "the ~50 KB response budget: when the edges would not fit, it holds fewer. Pass limit=1 when you " +
+                    "only need the summary (by_target / by_source_type / by_attribute / by_kind).",
             required = false
         )
         limit: Int?,
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
-                    "When continuing, keep the other parameters identical to the original call. " +
+                    "To continue, the cursor alone is enough: the server remembers the other arguments; " +
+                    "if you pass them, they must be identical to the original call's. " +
                     "If the result set is larger than you need, prefer the full-set summary (limit=1) or " +
                     "narrowing the query (a smaller subtree, or detail-level relationship filter) over " +
                     "paginating through all of it.",
             required = false
         )
-        cursor: String?
+        cursor: String?,
+        @ToolParam(
+            description = "Detail level only: keep the parameter_type / parameter_annotated_by edges of the " +
+                    "parameter at this 0-based position (0 = first parameter). Without relationship it selects " +
+                    "both parameter relationships; with any other relationship it is an error.",
+            required = false
+        )
+        parameterPosition: Int? = null
     ): Map<String, Any?> {
 
         val level = detailLevel ?: "type"
@@ -110,6 +136,18 @@ class IncomingDependenciesTool(
                     "code" to "INVALID_PARAMETER",
                     "message" to "Invalid detailLevel: '$level'. Must be 'type' or 'detail'.",
                     "recovery" to "Use 'type' for type-to-type edges or 'detail' for method/field-level edges."
+                )
+            )
+        }
+
+        // ── validate parameterPosition at type level ───────────────────
+        if (level == "type" && parameterPosition != null) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "The 'parameterPosition' parameter is only valid at detailLevel='detail'. " +
+                            "Type-level edges aggregate all references between two types and have no parameter position.",
+                    "recovery" to "Either remove 'parameterPosition', or set detailLevel='detail' to filter parameter edges by position."
                 )
             )
         }
@@ -130,30 +168,20 @@ class IncomingDependenciesTool(
             // incoming: edges from toId→fromId (what toId uses of fromId).
             // toId may be null → all incoming dependencies of fromId from anywhere.
             outgoingTool.typeLevelDependencies(fromId, toId, limit, cursor, outgoing = false, spec = TYPE_SPEC)
-        } else if (toId == null) {
-            // detail level requires an explicit depender — the open form is type-level only
-            mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_PARAMETER",
-                    "message" to "toId is required at detailLevel='detail'. The open form " +
-                            "(omitted toId, returning everything that depends on fromId) is supported only at detailLevel='type'.",
-                    "recovery" to "Provide a toId, or set detailLevel='type' to query everything that depends on fromId."
-                )
-            )
         } else {
             // Detail level: swap from/to — detail_dependencies(toId, fromId)
-            // shows edges from toId subtree into fromId subtree
+            // shows edges from toId subtree into fromId subtree; toId may be null → every depender, from anywhere
             outgoingTool.missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
-            detailDependenciesTool.detailDependencies(toId, fromId, effectiveRel, limit, cursor, DETAIL_SPEC)
+            detailDependenciesTool.detailDependencies(toId, fromId, effectiveRel, limit, cursor, DETAIL_SPEC, parameterPosition)
         }
     }
 
     companion object {
-        /** Type-level pagination for incoming_dependencies (~350 bytes/edge): default 100, cap 142 (the budget's fill). */
-        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 142, bytesPerItem = 350)
+        /** Type-level pagination for incoming_dependencies: default 100, cap 300; the response budget trims a page further. */
+        val TYPE_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 100, maxLimit = 300)
 
-        /** Detail-level pagination for incoming_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
-        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)
+        /** Detail-level pagination for incoming_dependencies: default 80, cap 300; the response budget trims a page further. */
+        val DETAIL_SPEC = PaginationSpec(tool = "incoming_dependencies", defaultLimit = 80, maxLimit = 300)
     }
 }

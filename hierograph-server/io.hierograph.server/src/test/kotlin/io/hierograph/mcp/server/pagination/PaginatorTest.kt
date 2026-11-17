@@ -16,12 +16,11 @@
 package io.hierograph.mcp.server.pagination
 
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 
 class PaginatorTest {
 
-    private val spec = PaginationSpec(tool = "list_descendants", defaultLimit = 4, maxLimit = 10, bytesPerItem = 250)
+    private val spec = PaginationSpec(tool = "list_descendants", defaultLimit = 4, maxLimit = 10)
     private val qh = "query-hash"
     private val dh = "data-hash"
 
@@ -114,14 +113,86 @@ class PaginatorTest {
         assertThat(second.returned).isEqualTo(10)
     }
 
-    // ── response-size guard ─────────────────────────────────────────────────
+    // ── response budget ─────────────────────────────────────────────────────
+
+    /** A tool's render: a fixed header, the page's items and the page counts, like the paginated tools. */
+    private fun render(header: Int) = { page: PageResult.Page<String> ->
+        linkedMapOf<String, Any?>(
+            "header" to "h".repeat(header),
+            "items" to page.items,
+            "summary" to mapOf("total" to page.total, "returned" to page.returned, "truncated" to page.truncated),
+        ).apply { page.nextCursor?.let { put("next_cursor", it) } }
+    }
+
+    private val wide = PaginationSpec(tool = "pairwise_dependencies", defaultLimit = 100, maxLimit = 500)
+
+    /** [n] items of [width] characters each, numbered so they stay distinguishable. */
+    private fun strings(n: Int, width: Int): List<String> = (0 until n).map { i -> i.toString().padStart(width, 'x') }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun itemsOf(response: Map<String, Any?>) = response["items"] as List<String>
 
     @Test
-    fun `a spec whose full page would exceed the byte budget is rejected at construction`() {
-        // 10_000 bytes/item against the 50_000 budget: at most 5 items fit.
-        assertThatThrownBy { PaginationSpec(tool = "t", defaultLimit = 5, maxLimit = 6, bytesPerItem = 10_000) }
-            .isInstanceOf(IllegalArgumentException::class.java)
-        PaginationSpec(tool = "t", defaultLimit = 5, maxLimit = 5, bytesPerItem = 10_000)
+    fun `a page within the budget is returned whole`() {
+        val response = Paginator.respond(strings(10, 100), wide, qh, dh, null, 10, "narrow it", render(header = 100))
+        assertThat(itemsOf(response)).hasSize(10)
+        assertThat(response).doesNotContainKey("next_cursor")
+    }
+
+    @Test
+    fun `a page over the budget is shrunk to the most items that fit, counted with everything around them`() {
+        // 100 items of 1,000 characters are twice the budget; the 10,000-character header counts too.
+        val all = strings(100, 1_000)
+        val response = Paginator.respond(all, wide, qh, dh, null, 100, "narrow it", render(header = 10_000))
+        val returned = itemsOf(response).size
+
+        assertThat(Paginator.sizeOf(response)).isLessThanOrEqualTo(Paginator.RESPONSE_BUDGET)
+        assertThat(returned).isBetween(30, 40)
+        assertThat(itemsOf(response)).isEqualTo(all.take(returned))
+        // One more item would not have fitted.
+        val oneMore = render(header = 10_000)(PageResult.Page(all.take(returned + 1), 100, returned + 1, true, "c"))
+        assertThat(Paginator.sizeOf(oneMore)).isGreaterThan(Paginator.RESPONSE_BUDGET)
+        // The summary reports the shrunk page, and the cursor continues after it.
+        assertThat((response["summary"] as Map<*, *>)["returned"]).isEqualTo(returned)
+        assertThat(CursorCodec.decode(response["next_cursor"] as String).offset).isEqualTo(returned)
+    }
+
+    @Test
+    fun `walking the cursor through shrunk pages returns every item exactly once, each page within the budget`() {
+        val all = strings(300, 700)
+        val seen = mutableListOf<String>()
+        var cursor: String? = null
+        do {
+            val response = Paginator.respond(all, wide, qh, dh, cursor, 500, "narrow it", render(header = 2_000))
+            assertThat(Paginator.sizeOf(response)).isLessThanOrEqualTo(Paginator.RESPONSE_BUDGET)
+            seen += itemsOf(response)
+            cursor = response["next_cursor"] as String?
+        } while (cursor != null)
+        assertThat(seen).isEqualTo(all)
+    }
+
+    @Test
+    fun `a response whose fixed part alone is over the budget is refused with the tool's advice`() {
+        val response = Paginator.respond(strings(5, 10), wide, qh, dh, null, 5, "Pass includeNodes=false.", render(header = 60_000))
+        val error = response["error"] as Map<*, *>
+        assertThat(error["code"]).isEqualTo("RESPONSE_TOO_LARGE")
+        assertThat(error["recovery"]).isEqualTo("Pass includeNodes=false.")
+        assertThat(error["budget"]).isEqualTo(Paginator.RESPONSE_BUDGET)
+        assertThat(error["response_size"] as Int).isGreaterThan(Paginator.RESPONSE_BUDGET)
+    }
+
+    @Test
+    fun `a single item larger than the budget is still returned, so the walk makes progress`() {
+        val all = listOf("a".repeat(60_000), "b")
+        val response = Paginator.respond(all, wide, qh, dh, null, 2, "narrow it", render(header = 10))
+        assertThat(itemsOf(response)).containsExactly(all[0])
+        assertThat(CursorCodec.decode(response["next_cursor"] as String).offset).isEqualTo(1)
+    }
+
+    @Test
+    fun `an unusable cursor is answered with its error`() {
+        val response = Paginator.respond(strings(5, 10), wide, qh, dh, "!!!not-base64!!!", null, "narrow it", render(header = 10))
+        assertThat((response["error"] as Map<*, *>)["code"]).isEqualTo("INVALID_CURSOR_FORMAT")
     }
 
     @Test

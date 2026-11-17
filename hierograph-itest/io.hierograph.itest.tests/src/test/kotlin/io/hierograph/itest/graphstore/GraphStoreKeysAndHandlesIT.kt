@@ -16,7 +16,8 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
@@ -36,8 +37,8 @@ class GraphStoreKeysAndHandlesIT {
     private val log = LoggerFactory.getLogger(GraphStoreKeysAndHandlesIT::class.java)
 
     private fun freshStore(): GraphStore {
-        val (store, elapsed) = measureTimedValue { GraphStore().also { ParquetReader().load(dir, it) } }
-        log.info("freshStore: loaded GraphStore ({} nodes) from the snapshot in {}", store.nodeCount(), elapsed)
+        val (store, elapsed) = measureTimedValue { GraphStore().also { SnapshotLoader().load(dir, it) } }
+        log.info("freshStore: loaded GraphStore ({} nodes) from the snapshot in {}", store.nodes().size, elapsed)
         return store
     }
 
@@ -74,7 +75,7 @@ class GraphStoreKeysAndHandlesIT {
             "org.springframework.beans.factory.BeanFactory",
             "org.springframework.web.bind.annotation.RequestMapping",
         )) {
-            assertThat(store.typesWithFqn(fqn)).describedAs(fqn).hasSize(1)
+            assertThat(store.nodes().filter { it.fqn == fqn && JavaNodeKind.isTypeKind(it.kind) }).describedAs(fqn).hasSize(1)
         }
     }
 }

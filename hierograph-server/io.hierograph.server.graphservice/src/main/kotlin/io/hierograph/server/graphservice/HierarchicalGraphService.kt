@@ -16,14 +16,15 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.PlaceholderPolicy
+import io.hierograph.graphstore.jvm.ExternalTypeFilter
 import io.hierograph.server.mapping.GraphStoreToHGModel
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.DetailRef
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.server.graphservice.pagination.DataHash
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
@@ -33,9 +34,15 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
+import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 @Service
@@ -43,6 +50,27 @@ class HierarchicalGraphService {
 
     companion object {
         private val log = LoggerFactory.getLogger(HierarchicalGraphService::class.java)
+
+        /** `joined` of a reload result: the full load the call joined. */
+        const val RELOAD = "reload"
+        const val MANIFEST_APPLY = "manifest-apply"
+
+        /** The values of [updateState]. */
+        const val IDLE = "idle"
+        const val PENDING = "pending"
+        const val RESCANNING = "rescanning"
+        const val APPLYING_MANIFEST = "applying-manifest"
+        const val RELOADING = "reloading"
+
+        /**
+         * The state directory for the settings `hierograph.graph.stateDir` ([stateDirSetting]) and
+         * `hierograph.graph.manifest` ([manifestFile]): the configured one, or the manifest's directory. Shared
+         * with code that needs the state directory before this service exists, such as the instance check at
+         * startup.
+         */
+        fun resolveStateDir(stateDirSetting: String?, manifestFile: String): Path =
+            stateDirSetting?.trim()?.takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() }
+                ?: Path.of(manifestFile).toAbsolutePath().normalize().parent
     }
 
     @Value("\${hierograph.graph.dump.enabled:false}")
@@ -70,7 +98,7 @@ class HierarchicalGraphService {
 
     /** Build manifest the server scans in `manifest` mode (written by the Hierograph Maven plugin). */
     @Value("\${hierograph.graph.manifest:.hierograph/manifest.json}")
-    private lateinit var manifestFile: String
+    private var manifestFile: String = ".hierograph/manifest.json"
 
     /**
      * Where the server writes in `manifest` mode — the Parquet snapshot and the regeneration log. Empty: the
@@ -96,6 +124,17 @@ class HierarchicalGraphService {
 
     @Value("\${hierograph.graph.watch.settle:400}")
     private var watchSettleMs: Long = 400
+
+    /**
+     * `manifest` mode: how long, ms, no new build must arrive before the detail snapshot is written while
+     * the build is calm; longer while it is busy (see [BuildActivity]).
+     */
+    @Value("\${hierograph.graph.detail.quiet-period:1000}")
+    private var detailQuietPeriodMs: Long = 1_000
+
+    /** Longest time, ms, a busy build's changes are collected into one rescan (`0` rescans each at once). */
+    @Value("\${hierograph.graph.watch.batch.max-delay:10000}")
+    private var watchBatchMaxDelayMs: Long = 10_000
 
     /** Reaction to edited build files (`manifest` mode, watching on): `off` | `notify` | `regenerate`. */
     @Value("\${hierograph.graph.watch.build-files:notify}")
@@ -139,6 +178,7 @@ class HierarchicalGraphService {
                         relocated = scanned.relocated,
                         buildTool = scanned.buildTool,
                         command = scanned.regenerate,
+                        buildFiles = scanned.buildFiles.keys.toList(),
                     )
                 }
             },
@@ -170,18 +210,54 @@ class HierarchicalGraphService {
         Thread(r, "hierograph-graph-updater").apply { isDaemon = true }
     }
 
+    /** A full load on the updater, a manifest apply or a reload, with the result a joining reload returns. */
+    private class FullLoad(
+        val kind: String,   // what a joining reload reports as `joined`
+        val state: String,  // what [updateState] reports while it runs
+        val result: CompletableFuture<Map<String, Any?>> = CompletableFuture(),
+    )
+
+    /** Guards [runningFullLoad] and [queuedReload]. */
+    private val updateLock = Any()
+
+    /** The full load running on the updater, if any; a reload arriving meanwhile joins it. */
+    private var runningFullLoad: FullLoad? = null
+
+    /** A reload submitted to the updater and not started yet; a reload arriving meanwhile joins it. */
+    private var queuedReload: CompletableFuture<Map<String, Any?>>? = null
+
+    /** What the updater is running now ([updateState]); `null` while it runs nothing. */
+    @Volatile
+    private var runningUpdate: String? = null
+
     /** Rate guard for sustained churn; `null` when disabled (max-rebuilds <= 0). Built after config is injected. */
     private val saturationBreaker: SaturationBreaker? by lazy {
         if (breakerMaxRebuilds > 0) SaturationBreaker(breakerWindowMs, breakerMaxRebuilds, breakerCooldownMs) else null
     }
 
     /**
-     * Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each, and throttles
-     * sustained churn via [saturationBreaker] (see [UpdateCoalescer]). Lazy so it reads injected config.
+     * How busy the build is, from the watcher's change reports: sets the rescan batch window and the
+     * detail writer's quiet period. Lazy so it reads injected config.
+     */
+    private val buildActivity by lazy { BuildActivity(watchBatchMaxDelayMs, detailQuietPeriodMs) }
+
+    /**
+     * Merges watch bursts so a storm of settled changes costs ~2 rebuilds, not one each, batches the
+     * changes of a busy build ([buildActivity]), and throttles sustained churn via [saturationBreaker]
+     * (see [UpdateCoalescer]). Lazy so it reads injected config.
      */
     private val coalescer by lazy {
-        UpdateCoalescer(updateExecutor, saturationBreaker) { reload, gavs ->
-            if (reload) reloadFromManifest() else applyIncremental(gavs)
+        UpdateCoalescer(updateExecutor, saturationBreaker, rescanDelayMs = { buildActivity.rescanDelayMs() }) { reload, gavs ->
+            if (reload) {
+                reloadFromManifest()
+            } else {
+                runningUpdate = RESCANNING
+                try {
+                    applyIncremental(gavs)
+                } finally {
+                    runningUpdate = null
+                }
+            }
         }
     }
 
@@ -204,14 +280,72 @@ class HierarchicalGraphService {
     private fun manifestPath(): Path = Path.of(manifestFile).toAbsolutePath().normalize()
 
     /** [stateDirSetting], or the manifest's directory. */
-    private fun stateDir(): Path =
-        stateDirSetting.trim().takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() } ?: manifestPath().parent
+    private fun stateDir(): Path = resolveStateDir(stateDirSetting, manifestFile)
 
     /** The explicitly configured build root, or `null` to derive it from the manifest's location. */
     private fun configuredBuildRoot(): Path? =
         buildRootSetting.trim().takeIf { it.isNotEmpty() }?.let { Path.of(it).toAbsolutePath().normalize() }
 
     private fun buildRoot(): Path = configuredBuildRoot() ?: ManifestGraphSource.defaultBuildRoot(manifestPath()) ?: manifestPath().parent
+
+    /** Where the server writes its state: the configured state directory, or the manifest's directory. */
+    val stateDirectory: Path get() = stateDir()
+
+    /** The local build root: the configured one, or the one derived from the manifest's location. */
+    val buildRootDirectory: Path get() = buildRoot()
+
+    /**
+     * The graph source and its settings: `kind` (`manifest` or `parquet`; `null` for a service filled by
+     * [seed]), and the manifest, build root and watch settings in `manifest` mode or the snapshot directory in
+     * `parquet` mode.
+     */
+    fun sourceSettings(): Map<String, Any?> = when {
+        manifestMode -> linkedMapOf(
+            "kind" to "manifest",
+            "manifest" to manifestPath().toString(),
+            "build_root" to buildRoot().toString(),
+            "include_tests" to includeTests,
+            "watch" to linkedMapOf("mode" to watchMode, "build_files" to buildFilesMode),
+        )
+        ::graphSource.isInitialized -> linkedMapOf(
+            "kind" to graphSource.lowercase(),
+            "parquet_dir" to Path.of(parquetDir).toAbsolutePath().normalize().toString(),
+        )
+        else -> linkedMapOf("kind" to null)
+    }
+
+    /**
+     * `manifest` mode: how many outputs the manifest declares, how many are scanned, and the ones that are not
+     * compiled yet (watched, and scanned once they appear). `null` in `parquet` mode and before a manifest was
+     * read.
+     */
+    fun artifactStatus(): Map<String, Any?>? {
+        if (!manifestMode) return null
+        val scanned = currentScanned ?: return null
+        val notCompiled = scanned.declared.values.filter { it.gav !in scanned.modules }
+        return linkedMapOf(
+            "declared" to scanned.declared.size,
+            "scanned" to scanned.modules.size,
+            "not_compiled" to notCompiled.map { linkedMapOf("artifact" to it.gav, "dirs" to it.dirs.map(Path::toString)) },
+        )
+    }
+
+    /**
+     * The graph in service: its build [generation][GraphSnapshot.generation], data hash and node count, and
+     * the detail snapshot directory, which is `null` while the detail snapshot for this graph is still being
+     * written. `null` while no graph is loaded.
+     */
+    fun snapshotStatus(): Map<String, Any?>? {
+        val live = snapshotRef.get() ?: return null
+        var nodes = 0
+        live.model.hierarchy.let { h -> h.traverse(h.rootNode) { nodes++ } }
+        return linkedMapOf(
+            "generation" to live.generation,
+            "data_hash" to live.dataHash,
+            "total_nodes" to nodes,
+            "detail_dir" to withPinnedSnapshot(live) { readyDetailDir() }?.toString(),
+        )
+    }
 
     /**
      * In `manifest` mode without a manifest yet, generate it with the configured regeneration command before
@@ -227,17 +361,20 @@ class HierarchicalGraphService {
      * for. In `parquet` mode it is set synchronously with the snapshot (always current). In `manifest`
      * mode the live graph comes from a direct in-memory ingest and this is published **asynchronously**
      * once the Parquet write for that generation finishes — until then its generation lags the live
-     * snapshot, and [readyDetailDir] / [derivedDetailRefs] withhold it so no *stale* detail is served.
+     * snapshot, and [readyDetailDir] / [derivedDependencies] withhold it so no *stale* detail is served.
      */
-    private data class DetailSource(val generation: Long, val dir: Path?, val derived: List<DetailRef>)
+    private data class DetailSource(val generation: Long, val dir: Path?, val derived: List<Dependency>)
 
     private val detailSource = AtomicReference(DetailSource(generation = -1, dir = null, derived = emptyList()))
 
     /** Monotonic build id; each [buildSnapshot] takes the next value and stamps its snapshot + detail source. */
     private val graphGen = AtomicLong(0)
 
-    /** Single background thread that writes the Parquet snapshot off the hot path in `manifest` mode. */
-    private val detailWriter = Executors.newSingleThreadExecutor { r ->
+    /**
+     * Single background thread that writes the Parquet snapshot off the hot path in `manifest` mode. Fed
+     * only through [detailWrites], which keeps at most one write waiting.
+     */
+    private val detailWriter = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "hierograph-snapshot-writer").apply { isDaemon = true }
     }
 
@@ -275,6 +412,29 @@ class HierarchicalGraphService {
      */
     private val snapshotRef = AtomicReference<GraphSnapshot>()
 
+    /** Called with every snapshot [publish] makes live; see [onSnapshotPublished]. */
+    private val snapshotListeners = CopyOnWriteArrayList<(GraphSnapshot) -> Unit>()
+
+    /**
+     * Registers [listener] to be called, on the publishing thread, after each new snapshot becomes live — for
+     * caches derived from a snapshot, which can drop what belongs to the replaced one. A failing listener is
+     * logged and does not stop the publication.
+     */
+    fun onSnapshotPublished(listener: (GraphSnapshot) -> Unit) {
+        snapshotListeners += listener
+    }
+
+    private fun publish(snapshot: GraphSnapshot) {
+        snapshotRef.set(snapshot)
+        for (listener in snapshotListeners) {
+            try {
+                listener(snapshot)
+            } catch (e: Exception) {
+                log.warn("A snapshot listener failed", e)
+            }
+        }
+    }
+
     /** The snapshot pinned to the current thread by [withPinnedSnapshot], if any. */
     private val pinned = ThreadLocal<GraphSnapshot?>()
 
@@ -295,6 +455,9 @@ class HierarchicalGraphService {
 
     /** The live snapshot, or `null` without a loaded graph: what [withPinnedSnapshot] would pin right now. */
     fun liveSnapshot(): GraphSnapshot? = snapshotRef.get()
+
+    /** The snapshot this thread reads: the one pinned by [withPinnedSnapshot], else the live one; `null` without a graph. */
+    fun currentSnapshot(): GraphSnapshot? = live()
 
     /**
      * Runs [block] with [snapshot] pinned to the current thread, like [withPinnedSnapshot] does with the
@@ -335,7 +498,7 @@ class HierarchicalGraphService {
         try {
             generateManifestIfMissing()
             val built = loadSnapshot()
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
         } catch (e: Exception) {
@@ -357,45 +520,117 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Rebuild the graph from the Parquet snapshot and swap it in atomically, without restarting the
-     * server. Call this after a re-scan rewrites the snapshot so the tools reflect the current code.
+     * Rebuild the graph from its source and swap it in atomically, without restarting the server: in manifest
+     * mode every module is rescanned, in Parquet mode the snapshot is read again.
      *
      * The new snapshot is built fully before the swap, so on failure the previously loaded graph keeps
      * being served and an `error` status is returned rather than leaving the server empty. Note that
      * pagination cursors issued against the previous snapshot become stale (their data hash no longer
      * matches) and must be re-requested.
+     *
+     * In manifest mode the reload runs on the graph updater, after whatever update it is running, so it never
+     * scans side by side with a manifest apply or a rescan. A call that arrives while a manifest apply or another
+     * reload is running or queued joins it: it waits for that update and returns its result, marked `joined`,
+     * instead of scanning again. That update reads the build as it is, so a second full scan would only repeat it.
      */
     fun reload(): Map<String, Any?> {
+        if (!manifestMode) return reloadNow()
+        val (result, joined) = synchronized(updateLock) {
+            runningFullLoad?.let { return@synchronized it.result to it.kind }
+            queuedReload?.let { return@synchronized it to RELOAD }
+            val queued = CompletableFuture<Map<String, Any?>>()
+            queuedReload = queued
+            queued to null
+        }
+        if (joined == null) {
+            try {
+                updateExecutor.submit { runQueuedReload() }
+            } catch (e: RejectedExecutionException) {
+                synchronized(updateLock) { queuedReload = null }
+                return errorResult(IllegalStateException("The server is shutting down"))
+            }
+        } else {
+            log.info("reload_graph joins the {} in progress instead of scanning again", joined)
+        }
+        val outcome = try {
+            result.get()
+        } catch (e: Exception) {
+            errorResult((e as? ExecutionException)?.cause as? Exception ?: e)
+        }
+        return if (joined == null) outcome else LinkedHashMap(outcome).apply { put("joined", joined) }
+    }
+
+    /** Runs the queued reload on the updater; calls that arrive while it runs join it. */
+    private fun runQueuedReload() {
+        val load = synchronized(updateLock) {
+            val queued = queuedReload ?: return
+            queuedReload = null
+            FullLoad(RELOAD, RELOADING, queued).also { runningFullLoad = it }
+        }
+        runFullLoad(load) { reloadNow() }
+    }
+
+    /** Runs [body] as the full load [load], so a reload arriving meanwhile joins it; completes its result. */
+    private fun runFullLoad(load: FullLoad, body: () -> Map<String, Any?>) {
+        runningUpdate = load.state
+        try {
+            load.result.complete(body())
+        } catch (t: Throwable) {
+            load.result.completeExceptionally(t)
+            throw t
+        } finally {
+            synchronized(updateLock) { if (runningFullLoad === load) runningFullLoad = null }
+            runningUpdate = null
+        }
+    }
+
+    /** The reload itself, on the calling thread. */
+    private fun reloadNow(): Map<String, Any?> {
         log.info("Reloading hierarchical graph ({} source): {}", graphSource, if (manifestMode) manifestFile else parquetDir)
         return try {
             generateManifestIfMissing()
             val (built, elapsed) = measureTimedValue { loadSnapshot() }
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
-            val snapshot = built.snapshot
-            val rootChildren = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
-            log.info("Reload complete: {} root children, hash {} in {}.", rootChildren, snapshot.dataHash, elapsed)
-            linkedMapOf<String, Any?>(
-                "status" to "reloaded",
-                "root_children" to rootChildren,
-                "search_index_entries" to snapshot.searchIndex.entries.size,
-                "data_hash" to snapshot.dataHash,
-                "reload_millis" to elapsed.inWholeMilliseconds
-            ).apply { buildState()?.let { put("build_state", it) } }
+            log.info("Reload complete: {} root children, hash {} in {}.", rootChildren(built.snapshot), built.snapshot.dataHash, elapsed)
+            successResult(built.snapshot, elapsed)
         } catch (e: Exception) {
             log.error("Reload failed; keeping the previously loaded graph.", e)
             startWatchingIfEnabled()
-            linkedMapOf<String, Any?>(
-                "status" to "error",
-                "message" to (e.message ?: e.javaClass.simpleName),
-                "data_hash" to snapshotRef.get()?.dataHash,
-                "note" to if (snapshotRef.get() != null)
-                    "The previously loaded graph is still being served; fix the cause and retry."
-                else
-                    "No graph is loaded; fix the cause and retry."
-            ).apply { buildState()?.let { put("build_state", it) } }
+            errorResult(e)
         }
+    }
+
+    private fun rootChildren(snapshot: GraphSnapshot) = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
+
+    private fun successResult(snapshot: GraphSnapshot, elapsed: Duration): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "status" to "reloaded",
+        "root_children" to rootChildren(snapshot),
+        "search_index_entries" to snapshot.searchIndex.entries.size,
+        "data_hash" to snapshot.dataHash,
+        "reload_millis" to elapsed.inWholeMilliseconds,
+    ).apply { buildState()?.let { put("build_state", it) } }
+
+    private fun errorResult(e: Exception): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "status" to "error",
+        "message" to (e.message ?: e.javaClass.simpleName),
+        "data_hash" to snapshotRef.get()?.dataHash,
+        "note" to if (snapshotRef.get() != null)
+            "The previously loaded graph is still being served; fix the cause and retry."
+        else
+            "No graph is loaded; fix the cause and retry.",
+    ).apply { buildState()?.let { put("build_state", it) } }
+
+    /**
+     * What the graph updater is doing: `idle`, `pending` (a change or a reload waits for its turn), `rescanning`
+     * (changed modules), `applying-manifest` or `reloading`. `null` outside `manifest` mode.
+     */
+    fun updateState(): String? {
+        if (!manifestMode) return null
+        runningUpdate?.let { return it }
+        val queued = synchronized(updateLock) { queuedReload != null }
+        return if (queued || coalescer.isBusy()) PENDING else IDLE
     }
 
     /**
@@ -404,7 +639,7 @@ class HierarchicalGraphService {
      * in tests; production code loads via [init] / [reload].
      */
     fun seed(model: HGModel) {
-        snapshotRef.set(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), generation = graphGen.incrementAndGet()))
+        publish(buildSnapshotFrom(model, graphStore = null, memberHandles = emptyMap(), generation = graphGen.incrementAndGet()))
     }
 
     /**
@@ -414,7 +649,7 @@ class HierarchicalGraphService {
      */
     fun seedFromParquet(dir: Path) {
         val built = buildFromParquet(dir)
-        snapshotRef.set(built.snapshot)
+        publish(built.snapshot)
         built.publishDetail()
     }
 
@@ -471,11 +706,11 @@ class HierarchicalGraphService {
      * published synchronously (post-swap) with the same generation, so it is ready at once.
      */
     private fun buildFromParquet(dir: Path = snapshotDir()): Built {
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         val reader = ParquetReader()
-        reader.load(dir, store)
+        SnapshotLoader(reader).load(dir, store)
         val generation = graphGen.incrementAndGet()
-        val derived = deriveDetailRefs(dir, store, reader)
+        val derived = DetailDerivation.derive(store, reader.readAllMembers(dir), reader.readDependencies(dir))
         val snapshot = buildSnapshotFrom(GraphStoreToHGModel.build(store), store, memberHandles(store), generation)
         return Built(snapshot) { detailSource.set(DetailSource(generation, dir, derived)) }
     }
@@ -500,7 +735,7 @@ class HierarchicalGraphService {
 
     /** Build the nav snapshot from a (cached) set of per-module scans; detail is published post-swap. */
     private fun buildManifestSnapshot(scanned: ManifestGraphSource.Scanned): Built {
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         manifestGraphSource.ingest(scanned, store)
         val model = GraphStoreToHGModel.build(store)
         val generation = graphGen.incrementAndGet()
@@ -513,12 +748,20 @@ class HierarchicalGraphService {
     /**
      * Start (or restart) watching the current module set, if `manifest` mode and watching is enabled. Also
      * re-evaluates the build state against the (re)applied manifest, which may start a regeneration.
+     *
+     * Without a successful scan yet (the scan at startup failed), it watches the outputs the manifest
+     * declares, and the first change they report loads the graph with a full scan ([applyIncremental]).
      */
     private fun startWatchingIfEnabled() {
         if (!manifestMode) return
         val mode = watchMode.lowercase()
         if (mode == "off") return
-        val scanned = currentScanned ?: return
+        val scanned = currentScanned ?: try {
+            manifestGraphSource.declare(manifestPath(), includeTests, configuredBuildRoot())
+        } catch (e: Exception) {
+            log.warn("Cannot watch for changes: the manifest {} cannot be read ({})", manifestPath(), e.message)
+            return
+        }
         stopWatcher()
         buildFileMonitor.refresh()
         val w = when (mode) {
@@ -531,7 +774,10 @@ class HierarchicalGraphService {
                 scanned.moduleDirs,
                 if (buildFileMonitor.watchesBuildFiles) scanned.buildFiles.keys else emptySet(),
             ),
-            onChange = { gavs -> coalescer.scheduleIncremental(gavs) },
+            onChange = { gavs ->
+                buildActivity.recordChange(gavs.size)
+                coalescer.scheduleIncremental(gavs)
+            },
             onManifestChange = { coalescer.scheduleManifestReload() },
             onBuildFilesChange = { updateExecutor.submit { buildFileMonitor.refresh() } },
         )
@@ -547,21 +793,27 @@ class HierarchicalGraphService {
         watcher = null
     }
 
-    /** Rescan only the changed modules, rebuild the graph from the cached union, and swap it in. */
+    /**
+     * Rescan only the changed modules, rebuild the graph from the cached union, and swap it in. Without a
+     * successful scan to start from, load the whole graph instead.
+     */
     private fun applyIncremental(changedGavs: Set<String>) {
-        val previous = currentScanned ?: return
+        val previous = currentScanned ?: run {
+            log.info("Change in {} before any scan succeeded; loading the whole graph", changedGavs)
+            return reloadFromManifest()
+        }
         try {
             val (built, elapsed) = measureTimedValue {
                 val rescanned = manifestGraphSource.rescan(previous, changedGavs)
                 currentScanned = rescanned
                 buildManifestSnapshot(rescanned)
             }
-            snapshotRef.set(built.snapshot)
+            publish(built.snapshot)
             built.publishDetail()
             val rootChildren = built.snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
             log.info(
-                "Incremental update for {} module(s) in {}: {} root children, hash {}",
-                changedGavs.size, elapsed, rootChildren, built.snapshot.dataHash,
+                "Incremental update for {} module(s) in {}: {} root children, hash {}, batch window {} ms",
+                changedGavs.size, elapsed, rootChildren, built.snapshot.dataHash, buildActivity.rescanDelayMs(),
             )
         } catch (e: Exception) {
             log.error("Incremental update failed for {}; keeping the previous graph.", changedGavs, e)
@@ -573,63 +825,102 @@ class HierarchicalGraphService {
      * ([ManifestGraphSource.reload]), so only added or changed modules are scanned, and re-target the watcher.
      */
     private fun reloadFromManifest() {
+        val load = synchronized(updateLock) { FullLoad(MANIFEST_APPLY, APPLYING_MANIFEST).also { runningFullLoad = it } }
+        runFullLoad(load) { applyManifest() }
+    }
+
+    /** Applies the changed manifest; returns what a reload joining it reports. */
+    private fun applyManifest(): Map<String, Any?> {
         try {
             log.info("Manifest changed; applying it and re-targeting the watcher")
             val previous = currentScanned
-            val built = if (previous == null) {
-                loadSnapshot() // nothing cached yet: a full scan, which also refreshes currentScanned
-            } else {
-                val (built, elapsed) = measureTimedValue {
+            val (built, elapsed) = measureTimedValue {
+                if (previous == null) {
+                    loadSnapshot() // nothing cached yet: a full scan, which also refreshes currentScanned
+                } else {
                     val scanned = manifestGraphSource.reload(previous, manifestPath(), includeTests, configuredBuildRoot())
                     currentScanned = scanned
                     requireCompiled(scanned)
                     buildManifestSnapshot(scanned)
                 }
-                log.info("Manifest applied in {}: hash {}", elapsed, built.snapshot.dataHash)
-                built
             }
-            snapshotRef.set(built.snapshot)
+            log.info("Manifest applied in {}: hash {}", elapsed, built.snapshot.dataHash)
+            publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
+            return successResult(built.snapshot, elapsed)
         } catch (e: Exception) {
             log.error("Manifest reload failed; keeping the previous graph.", e)
             startWatchingIfEnabled() // follow the new module set even when nothing in it is compiled yet
+            return errorResult(e)
         }
     }
 
+    /** A build whose detail snapshot is still to be written. */
+    private class PendingDetailWrite(val scanned: ManifestGraphSource.Scanned, val store: GraphStore, val generation: Long)
+
     /**
-     * Write the Parquet snapshot for [generation] on the background writer, then publish it as the detail
-     * source — but only if no newer build has started meanwhile (otherwise the work is discarded). Reuses
-     * the live [store] (immutable after build) for the hierarchy-derived edges; reads the just-written
-     * members/calls back from Parquet, matching the `parquet`-mode path exactly.
+     * Writes the detail snapshot of the newest build only, once no newer build has arrived for the quiet
+     * period, which [buildActivity] lengthens while the build is busy, and while no rebuild is pending or
+     * running, which would make it outdated. A build arriving while an earlier one waits replaces it, so a burst of rescans (a running
+     * build) never queues one whole graph per rescan, and writes no snapshot that the next rescan would
+     * make outdated. Created on first use, after the configuration is injected.
      */
+    private val detailWrites by lazy {
+        NewestOnlyWriter<PendingDetailWrite>(
+            detailWriter,
+            quietPeriodMs = { buildActivity.quietPeriodMs() },
+            hold = { manifestMode && coalescer.isBusy() },
+        ) { writeDetail(it) }
+    }
+
+    /** Queue the detail snapshot of [generation] for the background writer; see [writeDetail]. */
     private fun scheduleDetailWrite(scanned: ManifestGraphSource.Scanned, store: GraphStore, generation: Long) {
-        detailWriter.submit {
-            val base = snapshotDir()
-            val genDir = base.resolve("gen-%04d".format(generation))
-            try {
-                val elapsed = kotlin.time.measureTime {
-                    manifestGraphSource.writeSnapshot(scanned, genDir)
-                }
-                val derived = deriveDetailRefs(genDir, store, ParquetReader())
-                if (graphGen.get() == generation) {
+        detailWrites.schedule(PendingDetailWrite(scanned, store, generation))
+    }
+
+    /**
+     * Write the Parquet snapshot for [write]'s generation, then publish it as the detail source — but only
+     * while no newer build has started: [DetailSnapshotWrite] checks the generation before the write, between
+     * the artifacts it writes, before and during the derivation and before publishing, so outdated work stops
+     * as early as possible. The hierarchy-derived edges come from the build's store (immutable after build) and its
+     * scan in memory ([DetailDerivation.fromScan]), not from the snapshot just written, with the same result
+     * as the `parquet`-mode path.
+     */
+    private fun writeDetail(write: PendingDetailWrite) {
+        val generation = write.generation
+        val base = snapshotDir()
+        val genDir = base.resolve("gen-%04d".format(generation))
+        try {
+            var elapsed = Duration.ZERO
+            val outcome = DetailSnapshotWrite.run(
+                genDir,
+                superseded = { graphGen.get() != generation },
+                write = { dir, cancelled ->
+                    elapsed = measureTime { manifestGraphSource.writeSnapshot(write.scanned, dir, cancelled) }
+                },
+                derive = { _, cancelled -> DetailDerivation.fromScan(write.store, write.scanned.combined(), cancelled) },
+                publish = { derived ->
                     detailSource.set(DetailSource(generation, genDir, derived))
                     pruneSnapshotDir(base, keep = genDir)
+                },
+            )
+            when (outcome) {
+                DetailWriteOutcome.PUBLISHED ->
                     log.info("Detail snapshot ready (generation {}) at {} ({} write)", generation, genDir, elapsed)
-                } else {
-                    deleteRecursively(genDir) // a newer rescan superseded this one
-                    log.info("Discarded superseded detail snapshot (generation {})", generation)
-                }
-            } catch (e: Exception) {
-                log.error("Async detail-snapshot write failed (generation {}); detail stays unavailable until the next reload.", generation, e)
+                DetailWriteOutcome.SKIPPED -> log.info("Skipped superseded detail snapshot (generation {})", generation)
+                DetailWriteOutcome.CANCELLED -> log.info("Stopped superseded detail snapshot during the write (generation {})", generation)
+                DetailWriteOutcome.DISCARDED -> log.info("Discarded superseded detail snapshot (generation {})", generation)
             }
+        } catch (e: Exception) {
+            log.error("Async detail-snapshot write failed (generation {}); detail stays unavailable until the next reload.", generation, e)
         }
     }
 
     /** Reverse index for the detail tools: member node handle -> bare member key (the snapshot key). */
     private fun memberHandles(store: GraphStore): Map<Long, String> =
         store.nodes().asSequence()
-            .filter { it.kind in JavaKinds.MEMBER_KINDS }
+            .filter { it.kind in JavaNodeKind.MEMBERS }
             .associateBy({ NodeHandle.of(it.key) }, { it.fqn })
 
     /**
@@ -652,43 +943,12 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Hierarchy-dependent member edges (overrides / virtual + resolved calls) computed over the full
-     * assembled graph — the load-time home of what the scanner cannot derive across independently-scanned
-     * artifacts. Keeps only the edges not already in the snapshot's `detail_refs`, so a single-shot
-     * snapshot (already complete) contributes nothing and a per-artifact snapshot gains its cross-artifact
-     * edges. See [HierarchyResolution].
-     */
-    private fun deriveDetailRefs(dir: Path, store: GraphStore, reader: ParquetReader): List<DetailRef> {
-        val methodsByOwner = reader.readAllMembers(dir)
-            .filter { it.kind == JavaNodeKind.METHOD || it.kind == JavaNodeKind.CONSTRUCTOR }
-            .groupBy { it.key.substringBefore('#') }
-        val superByFqn = store.typeDependencies()
-            .filter { it.extends || it.implements }
-            .groupBy({ it.from }, { it.to })
-        val types = store.nodes().asSequence()
-            .filter { JavaKinds.isTypeKind(it.kind) }
-            .map { n ->
-                HierarchyResolution.Type(
-                    fqn = n.fqn,
-                    directSupertypes = superByFqn[n.fqn].orEmpty(),
-                    methods = methodsByOwner[n.fqn].orEmpty().map { HierarchyResolution.Method(it.key, it.signature, it.modifiers, it.lineFrom, it.bridgeTarget) },
-                    external = n.kind == JavaKinds.EXTERNAL_TYPE,
-                )
-            }.toList()
-        val directCalls = reader.readDetailRefs(dir, relationship = "calls")
-        val resolved = HierarchyResolution.resolve(types, directCalls)
-
-        val existing = reader.readDetailRefs(dir).mapTo(HashSet()) { Triple(it.fromKey, it.toKey, it.relationship) }
-        return resolved.filterNot { Triple(it.fromKey, it.toKey, it.relationship) in existing }
-    }
-
-    /**
      * The load-derived member edges matching the given scope (same semantics as
-     * [ParquetReader.readDetailRefs]): `from_type` in [fromTypes], `to_type` in [toTypes], `relationship`
-     * equal to [relationship] — each ignored when null/empty. The detail tools union this with the
-     * Parquet `detail_refs`.
+     * [ParquetReader.readDependencies]): `from_type` in [fromTypes], `to_type` in [toTypes], kind [kind]
+     * — each ignored when null/empty. The detail tools union this with the
+     * Parquet `dependencies`.
      */
-    fun derivedDetailRefs(fromTypes: Collection<String>? = null, toTypes: Collection<String>? = null, relationship: String? = null): List<DetailRef> {
+    fun derivedDependencies(fromTypes: Collection<String>? = null, toTypes: Collection<String>? = null, kind: DependencyKind? = null): List<Dependency> {
         // Withhold when the detail source does not match the live graph (same guard as readyDetailDir),
         // so a rescan in flight never surfaces the previous scan's derived edges.
         if (readyDetailDir() == null) return emptyList()
@@ -697,7 +957,7 @@ class HierarchicalGraphService {
         return detailSource.get().derived.filter { edge ->
             (from == null || edge.fromType in from) &&
                 (to == null || edge.toType in to) &&
-                (relationship == null || edge.relationship == relationship)
+                (kind == null || edge.kind == kind)
         }
     }
 

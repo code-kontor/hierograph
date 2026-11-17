@@ -17,11 +17,9 @@ package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.Origin
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -35,8 +33,8 @@ class GraphStoreMetadataTest {
     @Test
     fun `NodeMetadata resolves name, fqn and kind from the bridged model`() {
         val store = GraphStore()
-        store.registerArtifact(ArtifactInfo("app", "app", "app", Origin.MODULE_MAIN))
-        store.applyClass("app", ClassFacts("com.foo.Service", JavaKinds.CLASS, 0, emptyList(), emptyList(), "h1"))
+        store.registerArtifact(ArtifactInfo("app", "app", "app"))
+        store.applyClass("app", ClassFacts("com.foo.Service", JavaNodeKind.CLASS, 0, emptyList(), "h1"), emptyList())
 
         val model = GraphStoreToHGModel.build(store)
         // Nodes are identified by the content-addressed handle of their artifact-scoped GraphStore key.

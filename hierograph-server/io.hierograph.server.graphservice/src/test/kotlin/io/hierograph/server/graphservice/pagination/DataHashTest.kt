@@ -15,7 +15,7 @@
  */
 package io.hierograph.server.graphservice.pagination
 
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource

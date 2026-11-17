@@ -86,6 +86,15 @@ A call runs these steps:
 5. **Report.** The tool returns the status, the size of the rebuilt graph and its data hash,
    plus `build_state` in manifest mode.
 
+**One update at a time.** In manifest mode the steps run on the server's updater, the
+thread that applies manifests and rescans changed modules, after the update it is
+running. A call that arrives while a manifest apply or another reload is running, or
+while a reload is queued, **joins** it: it waits for that update and returns its
+result, with `joined` naming it, instead of scanning again. The update it joined reads
+the build as it is now, so a second full scan would repeat it and, run side by side,
+slow both down. `server_info` and `graph_overview` show a running update as
+`graph_update`.
+
 If step 2 fails, the swap does not happen. In manifest mode the watcher is still
 re-targeted, so a server waiting for its first compiled module keeps watching. The tool
 returns `status` `"error"`.
@@ -143,6 +152,7 @@ A failed reload on a server that has no graph yet:
 | `message` | on error | the cause of the failure | what to fix before retrying |
 | `note` | on error | whether the previous graph is still served | tells the caller whether queries still work |
 | `build_state` | manifest mode | `status`, `changed_files`, `build_tool`, `message` | whether the manifest still matches the build files |
+| `joined` | when the call joined an update in progress | `"manifest-apply"` or `"reload"` | the result is that update's: no second scan ran, and `reload_millis` is its duration |
 
 **`data_hash`** is a 16-character base64url string. Comparing it with the hash before
 the call shows whether the reload changed the graph.
@@ -184,6 +194,11 @@ snapshot: provide the snapshot directory), then call `reload_graph`. Check `stat
 
 **Refresh a Parquet-mode server.** After the snapshot has been rewritten, call
 `reload_graph`. The server does not watch a snapshot.
+
+**Don't reload after a build-file edit.** With `build files=regenerate`, the server
+regenerates the manifest after an edit of a POM or a Gradle script and applies it on
+its own; watch `build_state` and `graph_update` in `server_info` instead. A reload
+during that apply only joins it.
 
 **Pick up what the watcher misses.** In manifest mode, call `reload_graph` after a change
 the watcher does not see, such as a SNAPSHOT dependency updated in the local repository

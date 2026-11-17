@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
@@ -66,5 +66,5 @@ object NestedTypes {
         return hierarchy.childrenOf(parent).filter { isType(it) && NodeMetadata.getName(it).startsWith(prefix) }
     }
 
-    private fun isType(node: HGNode) = node.kind in JavaKinds.TYPE_KINDS
+    private fun isType(node: HGNode) = node.kind in JavaNodeKind.TYPES
 }

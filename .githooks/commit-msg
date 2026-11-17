@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Checks the start of a commit subject (CONTRIBUTING.md, "Commit messages"):
+# `[#<issue>] <subject>` for a commit that works on a GitHub issue, or `<kind>: <subject>` for a
+# commit without an issue.
+#
+# Enable with: git config core.hooksPath .githooks
+# Bypass once with: git commit --no-verify
+
+set -euo pipefail
+
+kinds="fix perf refactor test docs build chore"
+
+# The first line that is not a comment is the subject.
+subject=$(grep -v '^#' "$1" | sed -n '/[^[:space:]]/{p;q;}')
+
+# Messages git writes itself, and commits that will be squashed away.
+case "$subject" in
+    "Merge "* | "Revert \""* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+if [[ "$subject" =~ ^\[#[1-9][0-9]*\]\ [^[:space:]] ]]; then
+    exit 0
+fi
+
+if [[ "$subject" =~ ^([a-z]+):\ [^[:space:]] ]]; then
+    prefix=${BASH_REMATCH[1]}
+    for kind in $kinds; do
+        [[ "$prefix" == "$kind" ]] && exit 0
+    done
+    reason="'$prefix' is not a kind"
+else
+    reason="the subject starts with neither '[#<issue>] ' nor '<kind>: '"
+fi
+
+cat >&2 <<MSG
+commit-msg: $reason.
+
+  Subject:  $subject
+
+A commit subject starts with (see CONTRIBUTING.md, "Commit messages"):
+  [#<issue>] <subject>   for a commit that works on a GitHub issue
+  <kind>: <subject>      for a commit without an issue; kinds: ${kinds// /, }
+
+Bypass the check once with: git commit --no-verify
+MSG
+exit 1

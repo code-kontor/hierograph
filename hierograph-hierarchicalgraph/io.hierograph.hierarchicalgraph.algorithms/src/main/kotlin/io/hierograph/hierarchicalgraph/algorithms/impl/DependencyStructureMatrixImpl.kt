@@ -26,6 +26,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
     override val orderedNodes: List<HGNode>
     override val upwardDependencies: List<AggregatedDependency>
     override val cycles: List<List<HGNode>>
+    override val isOrderExact: Boolean
 
     init {
         val allUpward = mutableListOf<AggregatedDependency>()
@@ -35,9 +36,11 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
 
         // 2. Sort each SCC using FastFAS
         val sorter = FastFasSorter()
+        var allExact = true
         val sortedSccs = sccs.map { scc ->
             val sortResult = sorter.sort(scc, hierarchy)
             allUpward.addAll(sortResult.upwardDependencies)
+            if (scc.size > 1 && !sortResult.isExact) allExact = false
             sortResult.orderedNodes.toMutableList()
         }
 
@@ -46,14 +49,27 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
         val ordered = mutableListOf<HGNode>()
         val seen = HashSet<Any>()
 
-        // First: single-node SCCs with no outgoing core dependencies
+        // First: sinks — single-node SCCs with no dependency on any *other* node of the set. Decided from
+        //    the node set's adjacency (which aggregates each node's subtree), not from the node's own core
+        //    dependencies: a container node (module, package) usually has no edges of its own. Placing
+        //    sinks first sends them to the bottom after the reversal, which keeps the order topological.
+        val nodeList = nodes.toList()
+        val adjacency = GraphUtils.computeAdjacencyList(nodeList, hierarchy)
+        val indexOf = HashMap<Any, Int>(nodeList.size * 2).apply {
+            nodeList.forEachIndexed { i, node -> put(node.identifier, i) }
+        }
+        fun isSink(node: HGNode): Boolean {
+            val i = indexOf.getValue(node.identifier)
+            return adjacency[i].all { it == i }
+        }
         for (scc in sortedSccs) {
-            if (scc.size == 1 && scc[0].outgoingCoreDependencies.isEmpty()) {
+            if (scc.size == 1 && isSink(scc[0])) {
                 if (seen.add(scc[0].identifier)) ordered.add(scc[0])
             }
         }
 
-        // Then: all remaining nodes
+        // Then: all remaining nodes. Tarjan emits SCCs in reverse topological order (dependencies
+        //    before their dependents), so after the reversal every dependent precedes its dependencies.
         for (scc in sortedSccs) {
             for (node in scc) {
                 if (seen.add(node.identifier)) {
@@ -67,7 +83,12 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
 
         orderedNodes = ordered
         upwardDependencies = allUpward
+        // Each cycle in matrix order, the cycles by their first node: the sorter's own order is the reverse.
+        val position = HashMap<Any, Int>(ordered.size * 2).apply { ordered.forEachIndexed { i, n -> put(n.identifier, i) } }
         cycles = sortedSccs.filter { it.size > 1 }
+            .map { cycle -> cycle.sortedBy { position.getValue(it.identifier) } }
+            .sortedBy { position.getValue(it.first().identifier) }
+        isOrderExact = allExact
     }
 
     override fun isCellInCycle(i: Int, j: Int): Boolean {

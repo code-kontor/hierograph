@@ -16,10 +16,10 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.PlaceholderPolicy
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.Origin
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.ExternalTypeFilter
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.SnapshotLoader
+import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -54,7 +54,7 @@ class ManifestGraphSourceTest {
                   "testOutputDir": null,
                   "sourceRoots": [],
                   "classpath": [
-                    { "gav": "io.hierograph:io.hierograph.graphstore.jvm:0", "internal": true, "jar": null }
+                    { "gav": "io.hierograph:io.hierograph.graphstore.jvm.archive:0", "internal": true, "jar": null }
                   ]
                 }
               ]
@@ -74,15 +74,15 @@ class ManifestGraphSourceTest {
         }
 
         // …and it loads back into a GraphStore with this class present as a scanned type.
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
-        ParquetReader().load(snapshotDir, store)
-        val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
+        SnapshotLoader().load(snapshotDir, store)
+        val typeFqns = store.nodes().filter { JavaNodeKind.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSource")
     }
 
-    /** With includeTests, a module's test output is scanned as a separate `<gav>:test` MODULE_TEST artifact. */
+    /** With includeTests, a module's test output is scanned as a separate `<gav>:test` artifact. */
     @Test
-    fun `includeTests scans test output as a separate MODULE_TEST artifact`(@TempDir tmp: Path) {
+    fun `includeTests scans test output as a separate artifact`(@TempDir tmp: Path) {
         val classesDir = Path.of("target/classes").toAbsolutePath()
         val testClassesDir = Path.of("target/test-classes").toAbsolutePath()
         assertThat(Files.isDirectory(classesDir)).`as`("main classes compiled").isTrue()
@@ -115,19 +115,58 @@ class ManifestGraphSourceTest {
         // Default (tests off): only the main artifact is scanned.
         assertThat(ManifestGraphSource().scan(manifest).modules.keys).containsExactly(gav)
 
-        // Tests on: a second `:test` artifact appears, tagged MODULE_TEST, with the main one MODULE_MAIN.
+        // Tests on: a second `:test` artifact appears next to the main one.
         val scanned = ManifestGraphSource().scan(manifest, includeTests = true)
         assertThat(scanned.modules.keys).contains(gav, "$gav:test")
-        assertThat(scanned.modules.getValue(gav).origin).isEqualTo(Origin.MODULE_MAIN)
         val test = scanned.modules.getValue("$gav:test")
-        assertThat(test.origin).isEqualTo(Origin.MODULE_TEST)
         assertThat(test.result.classes).`as`("test output scanned").isNotEmpty()
 
         // The ingested graph carries a test type (this very class) that the tests-off scan does not.
-        val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
+        val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
         ManifestGraphSource().ingest(scanned, store)
-        val typeFqns = store.nodes().filter { JavaKinds.isTypeKind(it.kind) }.map { it.fqn }.toSet()
+        val typeFqns = store.nodes().filter { JavaNodeKind.isTypeKind(it.kind) }.map { it.fqn }.toSet()
         assertThat(typeFqns).contains("io.hierograph.server.graphservice.ManifestGraphSourceTest")
+    }
+
+    /**
+     * The scanner reports facts only; both loaders roll them up. Ingesting a scan straight into a store and
+     * loading the snapshot written from that scan must give the same type-level dependencies, weights and kinds.
+     */
+    @Test
+    fun `in-memory ingest rolls up the same aggregate as loading the snapshot`(@TempDir tmp: Path) {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        val testClassesDir = Path.of("target/test-classes").toAbsolutePath()
+        val manifest = tmp.resolve("manifest.json")
+        Files.writeString(
+            manifest,
+            """
+            {
+              "schemaVersion": 1,
+              "generator": "test",
+              "generatedAt": "2026-01-01T00:00:00Z",
+              "reactorRoot": "${tmp.toUri().path}",
+              "modules": [
+                {
+                  "gav": "io.hierograph:test-graphservice:0",
+                  "name": "graphservice",
+                  "mainOutputDir": "${classesDir.toUri().path}",
+                  "testOutputDir": "${testClassesDir.toUri().path}",
+                  "sourceRoots": [],
+                  "classpath": []
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+        val source = ManifestGraphSource()
+        val scanned = source.scan(manifest, includeTests = true)
+
+        val ingested = GraphStore().also { source.ingest(scanned, it) }
+        val snapshotDir = tmp.resolve("snapshot")
+        source.writeSnapshot(scanned, snapshotDir)
+        val loaded = GraphStore().also { SnapshotLoader().load(snapshotDir, it) }
+
+        assertThat(ingested.typeDependencies().toSet()).isNotEmpty.isEqualTo(loaded.typeDependencies().toSet())
     }
 
     /** A test-only module (no main output) is skipped by default but, with includeTests, scanned as `<gav>:test` only. */
@@ -174,12 +213,11 @@ class ManifestGraphSourceTest {
         // Default (tests off): the test-only module has no main output and is skipped entirely.
         assertThat(ManifestGraphSource().scan(manifest).modules.keys).containsExactly(mainGav)
 
-        // Tests on: the test-only module appears only as `<gav>:test` (MODULE_TEST), never as a main `<gav>`.
+        // Tests on: the test-only module appears only as `<gav>:test`, never as a main `<gav>`.
         val scanned = ManifestGraphSource().scan(manifest, includeTests = true)
         assertThat(scanned.modules.keys).contains("$itestGav:test")
         assertThat(scanned.modules.keys).doesNotContain(itestGav)
         val itest = scanned.modules.getValue("$itestGav:test")
-        assertThat(itest.origin).isEqualTo(Origin.MODULE_TEST)
         assertThat(itest.result.classes).`as`("test-only output scanned").isNotEmpty()
     }
 
@@ -235,6 +273,91 @@ class ManifestGraphSourceTest {
         val cleaned = source.rescan(after, setOf(gav))
         assertThat(cleaned.modules).isEmpty()
         assertThat(cleaned.declared.keys).containsExactly(gav)
+    }
+
+    /** Two modules, `a` and `b`, each with a copy of this module's classes, and their manifest. */
+    private fun twoModules(tmp: Path): Triple<Path, Path, Path> {
+        val classesDir = Path.of("target/classes").toAbsolutePath()
+        val a = copyTree(classesDir, tmp.resolve("a/target/classes"))
+        val b = copyTree(classesDir, tmp.resolve("b/target/classes"))
+        val manifest = Files.createDirectories(tmp.resolve(".hierograph")).resolve("manifest.json")
+        fun module(name: String, dir: Path) = """
+            { "gav": "io.hierograph:$name:0", "name": "$name", "mainOutputDir": "${dir.toUri().path}",
+              "testOutputDir": null, "sourceRoots": [], "classpath": [] }
+        """
+        Files.writeString(
+            manifest,
+            """
+            { "schemaVersion": 1, "generator": "test", "generatedAt": "2026-01-01T00:00:00Z",
+              "reactorRoot": "${tmp.toUri().path}", "modules": [ ${module("a", a)}, ${module("b", b)} ] }
+            """.trimIndent(),
+        )
+        return Triple(manifest, a, b)
+    }
+
+    /** A source whose first scan deletes [dir] just before the scanner reads it, as a concurrent `mvn clean` does. */
+    private fun deletingOnFirstScan(dir: Path): Pair<ManifestGraphSource, () -> Int> {
+        val scanner = BytecodeScanner()
+        var calls = 0
+        val source = ManifestGraphSource(scanner) { artifacts ->
+            if (calls++ == 0) deleteTree(dir)
+            scanner.scanByKey(artifacts)
+        }
+        return source to { calls }
+    }
+
+    @Test
+    fun `an output deleted during the scan is left out, and the scan of the others succeeds`(@TempDir tmp: Path) {
+        val (manifest, _, b) = twoModules(tmp)
+        val (source, calls) = deletingOnFirstScan(b)
+
+        val scanned = source.scan(manifest)
+
+        assertThat(calls()).`as`("scanned again after the output disappeared").isEqualTo(2)
+        assertThat(scanned.modules.keys).containsExactly("io.hierograph:a:0")
+        assertThat(scanned.modules.getValue("io.hierograph:a:0").result.classes).isNotEmpty()
+        // b stays declared and watched, and is scanned once it appears again.
+        assertThat(scanned.declared.keys).containsExactly("io.hierograph:a:0", "io.hierograph:b:0")
+        assertThat(scanned.moduleDirs).containsEntry("io.hierograph:b:0", listOf(b))
+        copyTree(Path.of("target/classes").toAbsolutePath(), b)
+        assertThat(source.rescan(scanned, setOf("io.hierograph:b:0")).modules.keys)
+            .containsExactly("io.hierograph:a:0", "io.hierograph:b:0")
+    }
+
+    @Test
+    fun `a rescan drops a module whose output is deleted during the scan`(@TempDir tmp: Path) {
+        val (manifest, _, b) = twoModules(tmp)
+        val scanned = ManifestGraphSource().scan(manifest)
+        assertThat(scanned.modules.keys).containsExactly("io.hierograph:a:0", "io.hierograph:b:0")
+
+        val (source, _) = deletingOnFirstScan(b)
+        val rescanned = source.rescan(scanned, setOf("io.hierograph:a:0", "io.hierograph:b:0"))
+
+        assertThat(rescanned.modules.keys).containsExactly("io.hierograph:a:0")
+        assertThat(rescanned.declared.keys).contains("io.hierograph:b:0")
+    }
+
+    @Test
+    fun `a scan failure without a disappeared output is not retried`(@TempDir tmp: Path) {
+        val (manifest, _, _) = twoModules(tmp)
+        var calls = 0
+        val source = ManifestGraphSource(BytecodeScanner()) { calls++; error("broken class file") }
+
+        assertThatThrownBy { source.scan(manifest) }.hasMessage("broken class file")
+        assertThat(calls).isEqualTo(1)
+    }
+
+    @Test
+    fun `declare reads the declared outputs without scanning`(@TempDir tmp: Path) {
+        val (manifest, a, b) = twoModules(tmp)
+        var calls = 0
+        val source = ManifestGraphSource(BytecodeScanner()) { calls++; emptyMap() }
+
+        val declared = source.declare(manifest)
+
+        assertThat(calls).isZero()
+        assertThat(declared.modules).isEmpty()
+        assertThat(declared.moduleDirs).containsEntry("io.hierograph:a:0", listOf(a)).containsEntry("io.hierograph:b:0", listOf(b))
     }
 
     /** A manifest that declares no output directory at all is rejected. */

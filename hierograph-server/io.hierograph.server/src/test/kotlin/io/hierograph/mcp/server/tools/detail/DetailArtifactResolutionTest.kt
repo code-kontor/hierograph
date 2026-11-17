@@ -15,13 +15,12 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.DetailRef
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
@@ -42,12 +41,10 @@ class DetailArtifactResolutionTest {
 
     private fun artifact(key: String, user: String) = listOf(
         ParquetWriter.ArtifactClass(key, ClassFacts(
-            twin, JavaKinds.CLASS, 0, listOf(MemberFacts("$twin#void m()", JavaKinds.METHOD, "void m()", "m")),
-            emptyList(), "t-$key",
+            twin, JavaNodeKind.CLASS, 0, listOf(MemberFacts("$twin#void m()", JavaNodeKind.METHOD, "void m()", "m")), "t-$key",
         )),
         ParquetWriter.ArtifactClass(key, ClassFacts(
-            user, JavaKinds.CLASS, 0, listOf(MemberFacts("$user#void run()", JavaKinds.METHOD, "void run()", "run")),
-            listOf(Ref(user, twin, RefKind.DEPENDS_ON, count = 1)), "u-$key",
+            user, JavaNodeKind.CLASS, 0, listOf(MemberFacts("$user#void run()", JavaNodeKind.METHOD, "void run()", "run")), "u-$key",
         )),
     )
 
@@ -57,8 +54,8 @@ class DetailArtifactResolutionTest {
             dir,
             artifact("lib-a", "com.example.a.UserA") + artifact("lib-b", "com.example.b.UserB"),
             listOf(
-                DetailRef("com.example.a.UserA#void run()", "com.example.a.UserA", "$twin#void m()", twin, "calls", 3),
-                DetailRef("com.example.b.UserB#void run()", "com.example.b.UserB", "$twin#void m()", twin, "calls", 7),
+                Dependency("com.example.a.UserA#void run()", "com.example.a.UserA", "$twin#void m()", twin, DependencyKind.CALLS, 3),
+                Dependency("com.example.b.UserB#void run()", "com.example.b.UserB", "$twin#void m()", twin, DependencyKind.CALLS, 7),
             ),
             packaging = ParquetWriter.Packaging.EXPLODED,
         )

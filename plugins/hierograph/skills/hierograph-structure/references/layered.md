@@ -30,15 +30,34 @@ files".
   "scanned":  "2026-11-07",
   "source":   "hierograph MCP (pairwise_dependencies)",
   "unit":     "modules",
-  "nodes":    {"23815330338705": "hierarchicalgraph.core.model", "5968189658062703": "javaspec"},
-  "edges":    [[5968189658062703, 23815330338705, 20]],
-  "test_patterns": ["itest", "-test"]
+  "nodes":    {"23815330338705": "hierarchicalgraph.core.model",
+               "5968189658062704": {"name": "hierarchicalgraph.core.model (test)", "is_test": true}},
+  "edges":    [[5968189658062704, 23815330338705, 20]],
+  "total":    156,
+  "omitted":  ["legacy-tools", "sandbox"]
 }
 ```
 
-`test_patterns` are plain substrings matched against the name; matches get a
-dashed outline and can be filtered out in the page. Everything above `nodes` and
-`edges` is optional — the page falls back to sensible wording.
+A `nodes` entry maps a node id to its name, or to an object with `name` and
+`is_test`. The `nodes` map of the `pairwise_dependencies` response has that shape
+already, so pass its entries as they are. Everything above `nodes` and `edges` is
+optional — the page falls back to sensible wording.
+
+**Say how complete the node set is.** `total` is the size of the set the nodes come
+from — all top-level modules from `graph_overview`, without "External Types", or
+all children of the scope — and `omitted` names every member you left out, with the
+user's permission (SKILL.md step 1). When the nodes are fewer than `total`, the
+subtitle reads "7 of 9 modules; omitted: legacy-tools, sandbox", so a partial graph
+never passes for the whole system. Always give `total`; `make_data.py` warns when
+nodes plus `omitted` don't add up to it.
+
+**Test nodes** get a dashed outline and can be hidden on the page. Hierograph marks
+a module of compiled tests with `is_test: true`, in `graph_overview`'s `hierarchy`
+and in every `nodes` map, and names it `<module> (test)`; `make_data.py` marks those
+nodes without further input. Add `"test_patterns"` (plain substrings matched against
+the name) only for **main** modules that exist for tests, such as
+`["-test-support", "uat-"]`, and name them to the user — a pattern also catches
+modules it wasn't meant for.
 
 ### Pinning a group onto one layer
 
@@ -72,24 +91,45 @@ the lowest to the highest member — `{"name": "Graphstore", "names": [...], "sp
 true}`. The layout reserves one column for the group on each of those levels, so
 no outsider lands inside the box, including on a spanned level that has no member.
 Use it when the group is a unit but has its own internal layering, such as a core
-module and an extension built on it. `place` does not apply to a spanning group.
+module and an extension built on it. `place` does not apply to a spanning group:
+the script stops with an error rather than ignore it. To raise a spanning group,
+use `min_level` (below).
 
-To box multi-modules, list them under `aggregator_groups`, mapping each
+**Boxes from a view.** When the grouping is a hierograph view, take the boxes from
+it: map each group's path to its members' node ids under `view_groups`
+(`references/views.md` shows how to collect them). Each becomes a spanning group,
+exactly as below, and membership comes from the view the server applied rather than
+from a list you assembled:
+
+```json
+"view_groups": {
+  "core-container": [7802159431405318, 23815330338705],
+  "web": [5968189658062703, 1146938817291530]
+}
+```
+
+Prefer this whenever a view exists or can be defined: the same document then
+drives the group-level DSM, the boxes and every other tool, and the server's report
+says what it could not apply.
+
+Without a view, to box multi-modules, list them under `aggregator_groups`, mapping each
 multi-module's name to its member modules (exact node names):
 
 ```json
 "aggregator_groups": {
   "hierograph-server": ["io.hierograph.server", "io.hierograph.server.graphql",
                         "io.hierograph.server.graphservice", "io.hierograph.server.mapping"],
-  "hierograph-graphstore": ["io.hierograph.graphstore.jvm", "io.hierograph.graphstore.jvm.scanner"]
+  "hierograph-graphstore": ["io.hierograph.graphstore.jvm.archive", "io.hierograph.graphstore.jvm.scanner",
+                            "io.hierograph.graphstore.jvm.store"]
 }
 ```
 
 Each becomes a spanning group. Take the membership from the build — a Maven
 aggregator's `<modules>`, a Gradle parent's subprojects — not from name
 similarity. Test artifacts are members only when listed. A multi-module with fewer
-than two members in the node set is skipped and reported. Explicit `pin_groups`
-come first and win any overlap.
+than two members in the node set is skipped and reported, and so is a view group.
+Explicit `pin_groups` come first and win any overlap, then `view_groups`, then
+`aggregator_groups`.
 
 `place` overrides the computed depth and stacks a group above everything else,
 lowest value nearest the rest of the graph — `{"name": "Tests", "place": 2}` with
@@ -99,6 +139,14 @@ than something the edges imply: "tests sit above everything" is true by intent,
 and the longest path has no reason to agree. Check first what else depends on the
 group you are lifting — anything left below it becomes an upward violation, which
 is reported but is usually a sign the placement was wrong.
+
+`min_level` raises a group without flattening it: `{"name": "Extensions", "names":
+[...], "span": true, "min_level": 3}` puts the group's lowest member on level 3 or
+higher. The members keep their relative levels, and the levels of the whole graph
+are computed again, so everything that depends on the group moves up with it and
+no edge turns upward. It works for pinned groups too. A band the lift leaves empty
+stays empty: it shows where the group was raised. If the group already starts at
+that level or higher, nothing changes, and the script says so.
 
 This is the useful part: **pinning can contradict the dependencies**, and the
 script does not hide that. If a non-member sits between two members in the
@@ -138,11 +186,25 @@ output**; you can describe the layering straight from stdout without re-reading
 cycle is condensed to a single level and its members get a red outline) but "every
 arrow points downward" stops being true, and that is worth telling the user.
 
+`build_page.py` checks the data before it writes the page — every node has a
+level, every edge two endpoints among the nodes, every group index a group — and
+writes nothing when a check fails. Fix the input and rerun `make_data.py`.
+
 ## 3. Check it, then hand it over
 
-Open the file and look at it once. The things that actually go wrong are the
-initial view being unreadable, a control that does nothing, and labels sitting
-outside their boxes. Then give the path.
+Run the page check, and fix what it reports before you hand the page over:
+
+```bash
+python3 scripts/check_page.py /path/to/output.html
+```
+
+It loads the page in headless Chromium and checks what a reader would see: every
+node drawn, the graph inside the canvas after the initial fit, every label inside
+its node, every group box around all its members, and no errors in the console.
+Exit code 0 is a pass, 1 a failure with one line per problem. Exit code 2 means
+Playwright for Python isn't installed and **the page was not checked**: tell the
+user so, with the install command it prints, rather than handing the page over as
+checked. If you can see the page yourself, look at it once as well.
 
 **Do not publish this to claude.ai unless the user asks.** Dependency graphs
 expose internal architecture and module names. Default to a local file; a
@@ -221,12 +283,22 @@ These are deliberate; change them only with a reason.
   tokens sit at the top; both light and dark are defined explicitly.
 - `scripts/make_data.py` — edges in, page data out. Levels, degrees, cycles, and a
   per-level roster on stdout.
-- `scripts/build_page.py` — inlines the data and wraps it into a real document.
+- `scripts/build_page.py` — checks the data, inlines it and wraps it into a real
+  document.
+- `scripts/check_page.py` — renders the page headless (Playwright) and reports
+  missing nodes, overflow after the fit, labels outside their nodes, group boxes
+  missing members, and console errors.
 
 The `graphdata.json` it writes is minified with single-letter keys (read it only
-if you must — the stdout roster usually suffices):
+if you must — the stdout roster usually suffices). **Never edit it by hand.** A
+level is a global property: one node's level depends on everything beneath it, and
+everything above it depends on that level. Changing some levels without computing
+the rest makes edges point upward that don't in the code, and the page then reports
+violations that don't exist. To move a group, change the input (`place`,
+`min_level`) and run `make_data.py` again.
 
-- top level: `title`, `project`, `scanned`, `source`, `unit`, `maxLevel`,
+- top level: `title`, `project`, `scanned`, `source`, `unit`, `coverage` (the
+  "n of m" note, or null for a complete set), `maxLevel`,
   `cycles`, `violations`, `internal`, `levelNames` (bands owned by a group),
   `groups` (pin-group names, in `pin_groups` order), `nodes`, `edges`.
 - each node (`nodes[]`): `n` name, `l` level (0 = foundation), `t` is-test, `c`

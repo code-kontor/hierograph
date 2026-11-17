@@ -1,0 +1,44 @@
+{
+  "name": "multi-modules",
+  "description": "The Maven aggregators of the reactor, derived from the POMs",
+  "groups": [
+    {
+      "name": "hierograph-hierarchicalgraph",
+      "members": [
+        "io.hierograph:io.hierograph.hierarchicalgraph.model:**",
+        "io.hierograph:io.hierograph.hierarchicalgraph.algorithms:**"
+      ]
+    },
+    {
+      "name": "hierograph-server",
+      "members": [
+        "io.hierograph:io.hierograph.server.mapping:**",
+        "io.hierograph:io.hierograph.server.views:**",
+        "io.hierograph:io.hierograph.server.graphservice:**",
+        "io.hierograph:io.hierograph.server:**",
+        "io.hierograph:io.hierograph.server.graphql:**"
+      ]
+    },
+    {
+      "name": "hierograph-graphstore",
+      "members": [
+        "io.hierograph:io.hierograph.graphstore.jvm.archive:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.store:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.scanner:**"
+      ]
+    },
+    {
+      "name": "hierograph-build-support",
+      "members": [
+        "io.hierograph:io.hierograph.manifest:**",
+        "io.hierograph:hierograph-maven-plugin:**"
+      ]
+    },
+    {
+      "name": "hierograph-itest",
+      "members": [
+        "io.hierograph:io.hierograph.itest.tests:**"
+      ]
+    }
+  ]
+}

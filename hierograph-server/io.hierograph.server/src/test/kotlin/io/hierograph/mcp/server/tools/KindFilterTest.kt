@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -30,7 +30,7 @@ class KindFilterTest {
     @Test
     fun `kinds and aliases expand and mix`() {
         val parsed = KindFilter.parse(listOf("java.interface", "packages")) as KindFilter.Valid
-        assertThat(parsed.kinds).containsExactlyInAnyOrder(JavaKinds.INTERFACE, JavaKinds.PACKAGE)
+        assertThat(parsed.kinds).containsExactlyInAnyOrder(JavaNodeKind.INTERFACE, JavaNodeKind.PACKAGE)
     }
 
     @Test
@@ -53,7 +53,7 @@ class KindFilterTest {
 
     @Test
     fun `external types can be selected, and an allowed set narrows what is valid`() {
-        assertThat((KindFilter.parse(listOf("external.type")) as KindFilter.Valid).kinds).containsExactly(JavaKinds.EXTERNAL_TYPE)
+        assertThat((KindFilter.parse(listOf("external.type")) as KindFilter.Valid).kinds).containsExactly(JavaNodeKind.EXTERNAL_TYPE)
         val parsed = KindFilter.parse(listOf("types", "members", "java.package"), KindFilter.TYPE_RESULT_KINDS) as KindFilter.Invalid
         assertThat(parsed.values).containsExactly("members", "java.package")
         assertThat(KindFilter.validAliases(KindFilter.TYPE_RESULT_KINDS)).containsExactly("types")

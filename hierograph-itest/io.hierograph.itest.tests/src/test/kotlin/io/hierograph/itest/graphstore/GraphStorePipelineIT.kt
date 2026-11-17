@@ -16,8 +16,9 @@
 package io.hierograph.itest.graphstore
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.graphstore.jvm.parquet.HierographArchive
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.HierographArchive
+import io.hierograph.graphstore.jvm.archive.ParquetReader
+import io.hierograph.graphstore.jvm.SnapshotLoader
 import io.hierograph.itest.fwk.SpringFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
@@ -41,7 +42,7 @@ class GraphStorePipelineIT {
     @BeforeAll
     fun load() {
         dir = SpringFixture.directory
-        store = GraphStore().also { ParquetReader().load(dir, it) }
+        store = GraphStore().also { SnapshotLoader().load(dir, it) }
     }
 
     @Test
@@ -58,7 +59,7 @@ class GraphStorePipelineIT {
         // 21 scanned jars + the synthetic "External Types" module.
         assertThat(modules.map { it.name }).contains(GraphStore.EXTERNAL_ARTIFACT_NAME)
         assertThat(modules).hasSize(SpringFixture.SPRING_MODULES.size + 1)
-        assertThat(store.nodeCount()).isGreaterThan(50_000) // packages + types + members across 21 jars
+        assertThat(store.nodes().size).isGreaterThan(50_000) // packages + types + members across 21 jars
     }
 
     @Test
@@ -77,7 +78,7 @@ class GraphStorePipelineIT {
     @Test
     fun `members are materialized across the whole set`() {
         // Every method/field in all 21 jars is a member node; read the keys straight off the archives.
-        assertThat(ParquetReader().readMemberKeys(dir).size).isGreaterThan(50_000)
+        assertThat(ParquetReader().readAllMembers(dir).size).isGreaterThan(50_000)
     }
 
     @Test

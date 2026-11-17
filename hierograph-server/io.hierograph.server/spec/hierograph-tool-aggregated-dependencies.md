@@ -84,6 +84,7 @@ It is needed beside `outgoing_dependencies` because it stops at the aggregate. I
 |------|------|----------|---------|-------------|
 | `sourceIds` | array of node ids | yes | — | The depending subtrees: modules, packages or types |
 | `targetIds` | array of node ids | yes | — | The depended-upon subtrees: modules, packages or types |
+| `view` | string | no | none | the view to answer in |
 
 Parameter names follow the conventions in
 [Parameters](hierograph-mcp-tools.md#5-parameters).
@@ -104,6 +105,15 @@ because a dependency needs two ends. A repeated id adds nothing and is ignored a
 its first occurrence. The order of each list is kept: it determines the order of the
 edges (§3.3).
 
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
+
 ---
 
 ## 3. Behaviour
@@ -115,8 +125,8 @@ For each pair `(s, t)` the tool asks the hierarchy for the aggregated dependency
 lies in the subtree of `s` and whose depended-upon type lies in the subtree of `t`.
 Each such type-level dependency has a **weight**: the number of individual references
 the depending type's bytecode makes to the target type, summed over all kinds of
-reference (calls, field types, parameter types, inheritance, …; see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)
+reference (calls, field types, parameter types, inheritance, …; see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)
 in the format specification).
 
 From the collected dependencies the tool builds the edge:
@@ -126,6 +136,7 @@ From the collected dependencies the tool builds the edge:
 | `weight` | the sum of the collected weights |
 | `type_pair_count` | the number of distinct (depending type, depended-upon type) pairs collected |
 | `attributes` | the union of the four attribute flags of the collected dependencies |
+| `kinds` | the sum of the collected dependencies' counts per kind |
 
 A pair whose aggregated weight is 0 has no edge and is left out of `edges`. The summary
 still counts it (§4.3), so the caller can tell "no dependency" apart from "not asked".
@@ -201,13 +212,16 @@ The response to the call in §3.2:
   "edges": [
     { "from": 4702, "to": 4720, "weight": 6, "type_pair_count": 3,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "returns": 2, "calls": 4 } },
     { "from": 4702, "to": 4803, "weight": 1, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 1 } },
     { "from": 4720, "to": 4803, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "instantiates": 1, "calls": 3 } }
   ],
   "summary": {
     "total_pairs_requested": 4,
@@ -239,6 +253,7 @@ the endpoints of the edges without repeating the names in every edge.
 | `weight` | integer | Summed weight of the collected type-level dependencies |
 | `type_pair_count` | integer | Number of distinct type pairs behind the edge |
 | `attributes` | object | The four attribute flags, each `true` or `false` |
+| `kinds` | object | Number of references per kind; the counts sum to `weight` |
 
 **`from`** and **`to`** are the input ids, not the types inside them. An edge says
 "something in this subtree depends on something in that one"; the evidence tools
@@ -259,6 +274,12 @@ apart.
 flag is `true` when at least one collected dependency carries it. Inheritance is a far
 stronger tie than a method call, and the flags let a caller see that without asking
 for the type-level edges.
+
+**`kinds`** goes one step further: it breaks `weight` down by kind, summed over the
+collected dependencies, for example `{"annotation_value": 2}` for a module pair held
+together only by Spring wiring, or `{"returns": 2, "calls": 4}`. Only kinds with a
+count appear. Each name is the detail-level relationship that lists those references (see
+[`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#41-type-level)).
 
 ### 4.4 Summary fields
 

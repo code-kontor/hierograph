@@ -21,16 +21,17 @@ import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.TypeResolver
-import io.hierograph.graphstore.jvm.model.ArtifactClasspath
+import io.hierograph.graphstore.jvm.archive.model.ArtifactClasspath
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClasspathEntry
-import io.hierograph.graphstore.jvm.model.Origin
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
+import io.hierograph.graphstore.jvm.model.DependencyRollup
+import io.hierograph.graphstore.jvm.archive.model.ClasspathEntry
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import io.hierograph.graphstore.jvm.scanner.ScanResult
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.security.MessageDigest
 import kotlin.io.path.exists
@@ -53,19 +54,23 @@ import kotlin.time.measureTimedValue
  * Host paths recorded in the manifest are remapped onto the local workspace (see [PathRemap]) so the same
  * manifest works whether the server runs on the build host or in a container with the workspace mounted.
  */
-class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner()) {
+class ManifestGraphSource internal constructor(
+    private val scanner: BytecodeScanner,
+    /** Scans artifacts by key; [BytecodeScanner.scanByKey] except in tests, which make an output vanish mid-scan. */
+    private val scanArtifacts: (List<ScanArtifact>) -> Map<String, ScanResult>,
+) {
+
+    constructor(scanner: BytecodeScanner = BytecodeScanner()) : this(scanner, scanner::scanByKey)
 
     /**
      * One scanned artifact: its GAV (a module's tests carry a `:test` suffix), display name, the (local)
-     * compiled-output directories scanned, the scanned classes, whether it is main or test output, and the
-     * directories' [signature] at scan time.
+     * compiled-output directories scanned, the scanned classes, and the directories' [signature] at scan time.
      */
     data class ModuleScan(
         val gav: String,
         val name: String,
         val outputDirs: List<Path>,
         val result: ScanResult,
-        val origin: Origin = Origin.MODULE_MAIN,
         val signature: Long = 0L, // outputSignature over outputDirs, taken just before the scan; tells a stale scan apart
     )
 
@@ -75,7 +80,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
      * directories). The directories need not exist: an output not compiled yet is declared, watched, and
      * scanned once one of them appears.
      */
-    data class DeclaredOutput(val gav: String, val name: String, val dirs: List<Path>, val origin: Origin) {
+    data class DeclaredOutput(val gav: String, val name: String, val dirs: List<Path>) {
         /** Whether any of the directories exists, i.e. there is something to scan. */
         val present: Boolean get() = dirs.any { it.isDirectory() }
     }
@@ -102,7 +107,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         /** The union of every module's classes and detail refs — for [ingest] and [writeSnapshot]. */
         fun combined(): ScanResult = ScanResult(
             modules.values.flatMap { it.result.classes },
-            modules.values.flatMap { it.result.detailRefs },
+            modules.values.flatMap { it.result.dependencies },
         )
     }
 
@@ -159,6 +164,13 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     }
 
     /**
+     * Reads [manifestPath] without scanning anything: the declared outputs, classpaths and build files, and
+     * no module scans. The file watcher can follow a build from this even when no scan has succeeded yet.
+     */
+    fun declare(manifestPath: Path, includeTests: Boolean = false, buildRoot: Path? = null): Scanned =
+        readPlan(manifestPath, includeTests, buildRoot).toScanned(emptyMap())
+
+    /**
      * Applies a changed manifest to [previous] as a **diff**, keyed by declared output: a removed output is
      * dropped; an added one is scanned if one of its directories exists; a kept one is rescanned only when its
      * output directories changed or their contents changed since the scan ([ModuleScan.signature]), and
@@ -179,7 +191,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         for (output in present) {
             val prev = previous.modules[output.gav]
             if (prev != null && current[output.gav] == prev.signature) {
-                kept[output.gav] = prev.copy(name = output.name, origin = output.origin)
+                kept[output.gav] = prev.copy(name = output.name)
             } else {
                 toScan += output
             }
@@ -238,13 +250,13 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
             classpaths[module.gav] = ArtifactClasspath(module.gav, name, mainCp)
             // The directory lists, falling back to the single directory a manifest from an older producer records.
             val mainDirs = (module.mainOutputDirs ?: listOfNotNull(module.mainOutputDir)).map { remap.map(Path.of(it)) }
-            if (mainDirs.isNotEmpty()) declared[module.gav] = DeclaredOutput(module.gav, name, mainDirs, Origin.MODULE_MAIN)
+            if (mainDirs.isNotEmpty()) declared[module.gav] = DeclaredOutput(module.gav, name, mainDirs)
 
             if (includeTests) {
                 val testDirs = (module.testOutputDirs ?: listOfNotNull(module.testOutputDir)).map { remap.map(Path.of(it)) }
                 if (testDirs.isNotEmpty()) {
-                    val testKey = "${module.gav}:test"
-                    val testName = "$name (test)"
+                    val testKey = TestArtifacts.key(module.gav)
+                    val testName = TestArtifacts.name(name)
                     // Test types resolve against their own main output first (when the module has one), then the
                     // module's full test classpath (all scopes). A manifest without testClasspath falls back to the
                     // main classpath, so test-scope deps (JUnit, …) resolve as external types. A test-only module
@@ -252,7 +264,7 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
                     val testCp = module.testClasspath?.map { ClasspathEntry(it.gav, it.internal) } ?: mainCp
                     val selfMain = if (mainDirs.isNotEmpty()) listOf(ClasspathEntry(module.gav, internal = true)) else emptyList()
                     classpaths[testKey] = ArtifactClasspath(testKey, testName, selfMain + testCp)
-                    declared[testKey] = DeclaredOutput(testKey, testName, testDirs, Origin.MODULE_TEST)
+                    declared[testKey] = DeclaredOutput(testKey, testName, testDirs)
                 }
             }
         }
@@ -284,28 +296,53 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
                 modules.remove(gav)
                 continue
             }
-            // A rescan keeps the scanned directories, name and origin; only the classes and signature change.
-            toScan += DeclaredOutput(gav, prev.name, prev.outputDirs, prev.origin)
+            // A rescan keeps the scanned directories and name; only the classes and signature change.
+            toScan += DeclaredOutput(gav, prev.name, prev.outputDirs)
         }
-        modules.putAll(scanOutputs(toScan))
+        val rescanned = scanOutputs(toScan)
+        // An output that disappeared before or during its scan is no longer scanned: its old classes go too.
+        for (output in toScan) if (output.gav !in rescanned) modules.remove(output.gav)
+        modules.putAll(rescanned)
         return previous.copy(modules = modules)
     }
 
     /**
      * Scans [outputs] in one [BytecodeScanner.scanByKey] call, so the class files of all of them share the
      * scanner's threads; returns their [ModuleScan]s in the order of [outputs].
+     *
+     * A running build deletes and recreates output directories at any time (`mvn clean`), also while they
+     * are scanned. An output that has disappeared is left out, like an output not compiled yet: it stays
+     * declared, and the watcher reports it when it appears again. When one disappears during the scan
+     * (the scanner fails on a missing directory or file), the scan starts again with the outputs still
+     * present, up to [MAX_SCAN_ATTEMPTS] times.
      */
     private fun scanOutputs(outputs: List<DeclaredOutput>): LinkedHashMap<String, ModuleScan> {
+        var attempt = 1
+        while (true) {
+            val present = outputs.filter { it.present }
+            val artifacts = present.flatMap { output -> output.dirs.filter { it.isDirectory() }.map { ScanArtifact(output.gav, it) } }
+            try {
+                return scanPresent(present, artifacts)
+            } catch (e: Exception) {
+                val vanished = artifacts.any { !it.path.isDirectory() } ||
+                    generateSequence<Throwable>(e) { it.cause }.any { it is NoSuchFileException }
+                if (!vanished || attempt >= MAX_SCAN_ATTEMPTS) throw e
+                log.info("An output disappeared during the scan ({}); scanning again", e.message)
+                attempt++
+            }
+        }
+    }
+
+    private fun scanPresent(outputs: List<DeclaredOutput>, artifacts: List<ScanArtifact>): LinkedHashMap<String, ModuleScan> {
         val modules = LinkedHashMap<String, ModuleScan>()
         if (outputs.isEmpty()) return modules
         // Each signature before the scan: a write during the scan then shows as stale.
         val signatures = outputSignatures(outputs.map { it.dirs })
-        val artifacts = outputs.flatMap { output -> output.dirs.filter { it.isDirectory() }.map { ScanArtifact(output.gav, it) } }
-        val (results, elapsed) = measureTimedValue { scanner.scanByKey(artifacts) }
+        val (results, elapsed) = measureTimedValue { scanArtifacts(artifacts) }
         outputs.zip(signatures).forEach { (output, signature) ->
             val result = results[output.gav] ?: EMPTY_SCAN
-            log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.detailRefs.size)
-            modules[output.gav] = ModuleScan(output.gav, output.name, output.dirs, result, output.origin, signature)
+            log.info("Scanned {}: {} types, {} detail refs", output.gav, result.classes.size, result.dependencies.size)
+            modules[output.gav] = ModuleScan(output.gav, output.name, output.dirs, result, signature = signature)
         }
         log.info(
             "Scanned {} output(s): {} types in {} on {} thread(s)",
@@ -316,8 +353,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
 
     /**
      * Ingests a [Scanned] straight into [store] — the same ingest path a Parquet load uses
-     * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass] / [resolvePlaceholders]
-     * [GraphStore.resolvePlaceholders]), fed from memory. Installs the real per-owner classpath-order
+     * ([GraphStore.registerArtifact] / [applyClass][GraphStore.applyClass]), fed from memory. Like the
+     * snapshot reader, it rolls each type's aggregated references up from the scan's detail facts with
+     * [DependencyRollup]; the scanner reports facts only. Installs the real per-owner classpath-order
      * [TypeResolver] from the manifest (index 0 = the owner itself, then its deps) before ingest.
      */
     fun ingest(scanned: Scanned, store: GraphStore) {
@@ -327,27 +365,33 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
         }
         val registered = HashSet<String>()
         for (module in scanned.modules.values) {
+            // A module's result is one artifact, so its facts roll up per owning type, as the snapshot reader does.
+            val refs = DependencyRollup.Accumulator()
+            for (fact in module.result.dependencies) refs.add(fact.fromType, fact.fromKey, fact.toType, fact.kind)
             for (artifactClass in module.result.classes) {
                 val key = artifactClass.artifactKey
                 if (registered.add(key)) {
                     val name = scanned.classpaths[key]?.name ?: key
-                    store.registerArtifact(ArtifactInfo(key, name, key, module.origin))
+                    store.registerArtifact(ArtifactInfo(key, name, key))
                 }
-                store.applyClass(key, artifactClass.facts)
+                store.applyClass(key, artifactClass.facts, refs.refsOf(artifactClass.facts.fqn))
             }
         }
-        store.resolvePlaceholders()
     }
 
     /**
      * Writes the union of [scanned] as a Parquet snapshot into [dir] (replacing any previous contents), one
      * exploded artifact per artifact key: the snapshot stays local, so its tables are not zipped, and
-     * deleting [dir] removes everything it holds.
+     * deleting [dir] removes everything it holds. [cancelled] is checked before each artifact; once it
+     * returns `true`, the write stops with a [java.util.concurrent.CancellationException], leaving a partial
+     * snapshot in [dir] for the caller to delete.
      */
-    fun writeSnapshot(scanned: Scanned, dir: Path) {
+    fun writeSnapshot(scanned: Scanned, dir: Path, cancelled: () -> Boolean = { false }) {
         deleteRecursively(dir)
         Files.createDirectories(dir)
-        scanned.combined().writeTo(dir, classpaths = scanned.classpaths, packaging = ParquetWriter.Packaging.EXPLODED)
+        scanned.combined().writeTo(
+            dir, classpaths = scanned.classpaths, packaging = ParquetWriter.Packaging.EXPLODED, cancelled = cancelled,
+        )
     }
 
     /** Convenience for one-shot use (and tests): [scan] then [writeSnapshot]; returns [snapshotDir]. */
@@ -388,6 +432,9 @@ class ManifestGraphSource(private val scanner: BytecodeScanner = BytecodeScanner
     companion object {
         private val log = LoggerFactory.getLogger(ManifestGraphSource::class.java)
         private val EMPTY_SCAN = ScanResult(emptyList(), emptyList())
+
+        /** How often [scanOutputs] scans when outputs keep disappearing during the scan. */
+        private const val MAX_SCAN_ATTEMPTS = 3
 
         /**
          * The local build root of a manifest at [manifestPath] when none is configured: its grandparent, because a

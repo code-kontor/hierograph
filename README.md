@@ -4,121 +4,242 @@
 
 ---
 
-## Your AI can trace what calls what. It still can't tell you how your architecture fits together.
+**Hierograph makes the architecture of a JVM codebase visible, to you and to your AI
+agent.** It models your Java or Kotlin project as a hierarchy (modules, packages, types,
+members) and rolls every dependency up to any level of it. You see how the parts depend
+on each other, where they form cycles, and what a restructuring would do before you
+touch the code. The model follows your build as you work.
 
-A capable AI assistant, given enough patience, can chase a call chain through your codebase. Tools that map function calls and imports help it do that faster — they answer *what breaks if I change this function?*
+Hierograph is an [MCP](https://modelcontextprotocol.io) server. Any MCP-capable agent
+can use it: Claude, Cursor, Codex, or your own.
 
-But that's not the question an architect asks. The architect asks: *how coupled are these two modules, and is it deep or broad? Does the domain layer leak into infrastructure? If I extract this package, what comes with it?* These aren't function-level questions. They live at the level of packages, modules, and subsystems — and they require aggregating thousands of individual dependencies into a picture you can actually reason about.
-
-A flat graph of every function and call can't answer them cleanly. You need a model that understands the *hierarchy* — and can roll dependencies up to any level you ask about.
-
-Hierograph is that model.
-
----
-
-## The architecture is already there. It just isn't legible.
-
-Hieroglyphs were carved into temple walls for thousands of years before anyone could read them. The structure was always there; what changed was the Rosetta Stone.
-
-Your codebase is the same. The architecture is real — encoded in every import, every resolved type, every method call. But it's scattered across thousands of individual relationships, unreadable to anything that examines them one at a time.
-
-Hierograph deciphers it. It builds a *hierarchical* model of your codebase — module, package, type, method, field — and lets your AI ask about dependencies at any altitude. Not just "what does this function call," but "what is the coupling between these two packages, and what kind of coupling is it."
-
-Think of the flat-graph tools as a street map: every road and intersection, complete and detailed. Hierograph is a zoomable atlas — continents, countries, cities, streets — where you can ask "how connected are these two regions?" at any level of zoom, and get an answer that aggregates everything beneath.
+Hierograph is for engineers who work on large, long-lived JVM systems with Maven or
+Gradle builds and who need to reason about structure, coupling and layering, not just
+trace one call chain.
 
 ---
 
-## Six questions your AI couldn't answer yesterday
+## What you can do with it
 
-### 1. "I'm new to this codebase — what's the overall structure?"
+### See the structure
 
-***Without Hierograph:*** a tour of folder names.
+Ask your agent for a picture, and it renders one from the live model:
 
-***With:*** the real architecture, every module ranked by centrality.
+- **Dependency structure matrix (DSM):** every dependency among a set of modules or
+  packages in one matrix, in dependency order. In a cycle, the order puts the least
+  possible weight against the layering, and those dependencies are named as the ones
+  to cut.
+- **Layered dependency graph:** an interactive page with the core at the bottom and
+  every arrow pointing down. Click a node to trace what it uses and what uses it;
+  search, thin out light edges, or hide the test modules.
+- **Levelized structure map:** modules and packages as nested, collapsible boxes in
+  rows by level. Package tangles are boxed in red, and only the dependencies that run
+  against the levels are drawn as arrows.
 
-### 2. "If I change this class, what breaks?"
+The layered graph and the structure map are self-contained HTML pages that you keep,
+open in a browser and share.
 
-***Without:*** confident guesses that miss 60% of the impact.
+### Try a restructuring before you make it
 
-***With:*** full transitive blast radius, every call site, every cycle.
+A **view** looks at the system through a grouping of your own: by layer, bounded
+context, team, or target architecture. Every tool answers in a view, so "is it
+layered?" becomes a question about *your* layers.
 
-### 3. "Does the domain layer depend on infrastructure?"
+A **restructuring view** goes further. It moves packages and types into other or new
+modules, virtually. Hierograph projects the result: the new modules' dependencies and
+every cycle the move would create, before any code changes. Planning an extraction
+becomes a series of cheap experiments instead of a branch you throw away.
 
-***Without:*** hundreds of file reads ending in "I didn't find obvious violations."
+Project views live in the repository (`.hierograph-views/`) and are versioned with the
+code.
 
-***With:*** yes or no, definitively.
+### Ask architectural questions at any level
 
-### 4. "Can I move this class without breaking anything?"
+- *How coupled are these two modules, and is it deep or broad?* A weight, broken down by
+  kind: calls, inheritance, field types, annotations.
+- *Why does module A depend on module B?* Every type pair behind the edge, down to the
+  individual references and their source lines.
+- *Does the domain layer depend on infrastructure?* Yes or no, with the edges that say
+  so.
+- *If I change this class, what breaks?* Everything it affects transitively, and the
+  dependency chain that connects any two of them.
 
-***Without:*** an answer that misses the 14 classes that import it.
+### Always current
 
-***With:*** every dependency, every boundary, every new cycle.
-
-### 5. "If I extract this package as a library, what comes with it?"
-
-***Without:*** not tractable — the graph is too big for context.
-
-***With:*** the cohesive boundary, the cross-cutting dependencies.
-
-### 6. "Why does module A depend on module B?"
-
-***Without:*** a plausible summary from one file.
-
-***With:*** *"47 call sites across 3 classes — 31 for state replication, 11 for vote propagation, 5 for diagnostics."*
+Hierograph doesn't take a snapshot and go stale. It watches the compiled output of your
+build: recompile a class in your IDE, and the model follows within seconds. Added or
+removed modules reach it too. After an edit to a build file, the server can regenerate the
+manifest itself, except for a Gradle build served from Docker, where you rerun one
+command on the host.
 
 ---
 
 ## How it works
 
 ```
-Your Java project
-       │
-       ▼
-Hierograph bytecode scanner (ASM)
-       │
-       ▼
-Hierograph (MCP server) — in-memory hierarchical model + Parquet snapshot
-       │
-       ▼
-Agentic AI (Claude, Cursor, …)
+Your build (IDE, Maven, Gradle) ── compiles ──► class files
+                                                    │  read-only
+                                                    ▼
+                            Hierograph server: bytecode scanner (ASM)
+                            → hierarchical model in memory + detail snapshot
+                            → watches the build and rescans what changed
+                                                    │  MCP (HTTP, localhost)
+                                                    ▼
+                            Your AI agent, with the Hierograph skills
 ```
 
-Hierograph reads your compiled Java *bytecode* with its own ASM-based scanner. Bytecode matters: where syntactic parsers see `foo.bar()` and record a call to *some* `bar`, the scanner knows *which* `bar`, on which resolved type, reached through which inheritance path — including across library dependencies and generics. The dependencies are resolved facts, not textual guesses.
+**Bytecode, not text.** Hierograph reads compiled class files with its own ASM-based
+scanner. Where a syntactic parser sees `foo.bar()` and records a call to *some* `bar`,
+the scanner knows *which* `bar`, on which resolved type, reached through which
+inheritance path, across library dependencies and generics. The dependencies are
+resolved facts, not textual guesses. Hierograph never compiles; your build does.
 
-The server scans a project's compiled output directly — the [Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage) records the reactor's module layout and resolved classpath in a small build manifest, and the server scans from there. There is no separate graph database to stand up, and nothing leaves your machine.
+**The build manifest.** What only the build knows (the modules, their output
+directories, their resolved classpaths) comes from a small manifest written by the
+Hierograph Maven or Gradle plugin. In the Docker image, a Maven manifest is generated
+inside the container, so the project needs no change at all.
 
-From those resolved facts, **Hierograph** derives a hierarchical model in memory, with dependency aggregations computable for any pair of nodes at any level — modules, packages, types, or arbitrary subtrees. Member-level detail is persisted alongside it as a Parquet snapshot. It then serves this model through MCP tools designed for AI reasoning.
+**In memory.** The hierarchy and every type-level dependency stay in memory, so
+aggregation, impact and reachability queries answer at any level without a database
+round trip. Member-level detail is kept in a Parquet snapshot beside it. There's no
+graph database to run, and nothing leaves your machine: the server listens on
+`localhost` only.
 
-An **agentic AI** — Claude (via Claude Code or Claude Desktop), Cursor, or any other MCP-compatible agent — calls the tools to navigate, query, and reason about your project's architecture.
+**Skills.** The MCP tools answer questions; the skills turn them into results. They are
+plain `SKILL.md` instructions for an agent:
 
-The whole model fits in memory: on a Spring Framework-sized codebase, the full hierarchy plus 115,906 type-level dependency edges load in 38 milliseconds and occupy 64 MB. Aggregation, blast-radius, and reachability queries run in microseconds — which is exactly what makes free-form, any-level aggregation practical rather than a slow database round-trip. Everything stays local; your code never leaves your machine.
+| Skill | Does |
+|-------|------|
+| `hierograph-bootstrap` | Sets a project up: starts the server, produces the manifest, registers the server with your agent. |
+| `hierograph-structure` | DSM, layered graph, levelized structure map, layering and cycle analysis, also in a view. |
+| `hierograph-extract` | Plans a module or package extraction as a restructuring view and checks it for hidden dependencies. |
 
-For detailed explanations, see the specifications of the [bytecode scanner](hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md), the [GraphStore](hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md) and the [hierarchical graph model](hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md).
+---
+
+## Get started
+
+### Before you begin
+
+- A Maven (3.9 or later) or Gradle (8.11 or later) project that builds.
+- Docker, or Java 21 or later to run the server as a local process.
+- An MCP-capable agent.
+
+### Set up with a skill
+
+If your agent supports `SKILL.md` skills, let the bootstrap skill do the setup. It
+checks your project, starts the server and registers it.
+
+- **Claude Code:** install the plugin from this repository's marketplace, then run the
+  bootstrap skill in your project. See the [plugin's README](plugins/hierograph/README.md).
+- **Other agents:** copy the skill folders from
+  [`plugins/hierograph/skills`](plugins/hierograph/skills) to where your agent loads
+  skills from, then ask it to set up Hierograph for your project.
+
+### Set up by hand
+
+For a Maven project, start the container from your project's root directory:
+
+```bash
+docker run -d --name hierograph-mcp -p 127.0.0.1:8765:8765 \
+  -e HIEROGRAPH_URL=http://localhost:8765/mcp \
+  -e HIEROGRAPH_WORKSPACE=PROJECT_DIR \
+  -v PROJECT_DIR:/workspace:ro \
+  -v HOME_DIR/.m2:/m2:ro \
+  -v hierograph-PROJECT_NAME:/hierograph \
+  ghcr.io/code-kontor/hierograph-mcp-server:VERSION
+```
+
+Replace the following:
+
+- `PROJECT_DIR`: the absolute path of the directory that holds the root `pom.xml`.
+- `HOME_DIR`: your home directory, so the container can use your local Maven
+  repository.
+- `PROJECT_NAME`: a name for the volume that keeps the server's state across restarts.
+- `VERSION`: the latest Hierograph release.
+
+The project and your Maven repository are mounted read-only. The container generates
+the manifest, scans the project and serves it on `http://localhost:8765/mcp`.
+
+Then register the server with your agent. Most agents take a JSON entry like this:
+
+```json
+{
+  "mcpServers": {
+    "hierograph": { "type": "http", "url": "http://localhost:8765/mcp" }
+  }
+}
+```
+
+For a Gradle build, or to run the server as a local Java process, follow the steps of
+the [bootstrap skill](plugins/hierograph/skills/hierograph-bootstrap/SKILL.md); it is a
+readable step-by-step guide for people as well as agents.
+
+### Your first questions
+
+Ask your agent:
+
+- *"Give me an overview of this codebase's modules."*
+- *"Draw the layered dependency graph of the modules."*
+- *"Are there package cycles in `MODULE`? Show me a levelized structure map."*
+- *"What if I moved `PACKAGE` into a new module? Would that create a cycle?"*
 
 ---
 
-## Built for JVM codebases that have earned their complexity
+## The tools
 
-Hierograph is not a generalist. It goes deep on the JVM rather than wide across twenty languages, and it's aimed at the engineer who needs that depth: someone working a large, long-lived Java system — Spring, Elasticsearch, a sprawling enterprise monolith — who needs to reason about structure, coupling, and architectural integrity, not just trace a single function.
+The server offers 19 MCP tools in six groups:
 
-If that's you, the things a generalist treats as edge cases — resolved generic types, deep inheritance hierarchies, annotation-driven wiring — are exactly the things Hierograph gets right, because it reads them straight from resolved bytecode.
+| Group | Tools |
+|-------|-------|
+| Orientation and navigation | `graph_overview`, `find_node`, `list_children`, `list_descendants` |
+| Dependencies | `aggregated_dependencies`, `pairwise_dependencies`, `outgoing_dependencies`, `incoming_dependencies` |
+| Reachability | `affected_by`, `find_dependency_path` |
+| Entity detail | `type_details`, `method_details`, `field_details` |
+| Views | `define_view`, `list_views`, `get_view`, `delete_view` |
+| Maintenance | `reload_graph`, `server_info` |
+
+Every tool that reads the graph takes an optional `view`. Large results are paged, and every page stays
+within a fixed response budget. See the
+[MCP tools specification](hierograph-server/io.hierograph.server/spec/hierograph-mcp-tools.md).
+
+---
+
+## Built for the JVM
+
+Hierograph goes deep on the JVM rather than wide across many languages. The things a
+generalist treats as edge cases (resolved generic types, deep inheritance hierarchies,
+annotation-driven wiring) are what Hierograph reads straight from the bytecode.
+
+Its core is scanner-agnostic: the hierarchical model is built from resolved structural
+facts, and the bytecode scanner provides them for the JVM. Other languages could plug
+in through scanners of their own.
+
+**What bytecode can't show.** A compile-time constant is copied into the class that
+uses it, so a use of a `static final` constant leaves no reference behind. Reflection
+and string-based wiring don't appear as dependencies either.
 
 ---
 
-## Five minutes to try it
+## Documentation
 
-Install Hierograph. Point it at a Java codebase you know well. Register it with your agentic AI of choice. Then ask it *"what's the most fragile coupling in this codebase?"* — or any architectural question you've always wished it could answer.
+- [MCP tools](hierograph-server/io.hierograph.server/spec/hierograph-mcp-tools.md):
+  every tool, its parameters and guarantees
+- [Views](hierograph-server/io.hierograph.server.views/spec/hierograph-views.md): the
+  view document, grouping and restructuring
+- [Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md)
+  and [Gradle plugin](hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md):
+  the build manifest
+- [Bytecode scanner](hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md),
+  [GraphStore](hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md)
+  and [hierarchical graph model](hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md):
+  how the model is built
 
-The first answer tells you whether this is the missing piece.
+## Contributing
 
-Hierograph's core is scanner-agnostic: it derives its hierarchical model from resolved structural facts, and its own bytecode scanner provides those for the JVM today. Other languages could plug into the same model through their own scanners — but Hierograph's reason to exist is depth on the JVM, not breadth across everything.
-
-For a step-by-step description, see the [usage guide of the Hierograph Maven plugin](hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md#7-usage).
-
-Open source. Self-hosted.
-
----
+How commits are written and features are named: [CONTRIBUTING.md](CONTRIBUTING.md). How
+to build: [BUILD.md](BUILD.md).
 
 ## License
 
-Hierograph is released under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Gerd Wuetherich.
+Hierograph is open source under the [Apache License, Version 2.0](LICENSE). Copyright
+2026 Gerd Wuetherich.

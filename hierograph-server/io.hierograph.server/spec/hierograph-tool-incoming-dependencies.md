@@ -36,8 +36,9 @@ use?". `incoming_dependencies` answers it from the depended-upon side.
 
 **Anchored on the depended-upon side.** `fromId` names the node whose users are
 wanted; `toId`, when given, restricts the users. The open form (no `toId`) lists every
-user from anywhere in the graph. That makes "what depends on X?" one call with one
-id, without knowing in advance where the users are.
+user from anywhere in the graph, at the type level and at the detail level. That makes
+"what depends on X?" one call with one id, without knowing in advance where the users
+are.
 
 **Same edges, other anchor.** The edges point the way the dependency points: `from` is
 always the depending type or member, `to` the depended-upon one. Only the anchor and
@@ -71,11 +72,13 @@ references, where `affected_by` reports reach.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `fromId` | node id | yes | — | The depended-upon subtree |
-| `toId` | node id | at detail level | — | The depending subtree |
+| `toId` | node id | no | — | The depending subtree; omitted, every depender from anywhere |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
-| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
-| `cursor` | string | no | — | `next_cursor` of the previous page |
+| `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
+| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 300; fewer when they would not fit the response budget |
+| `cursor` | string | no | — | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
+| `view` | string | no | none | the view to answer in |
 
 The names are those of `outgoing_dependencies`, but the roles of `fromId` and `toId`
 are reversed: here `fromId` is the side that is *used*.
@@ -89,16 +92,33 @@ to that member, as in
 `fromId = Money#times(int)` lists who calls `times`.
 
 **`toId`** restricts the users to this subtree, turning "what uses `money`" into
-"what does `billing` use of `money`". It is optional at the type level and required at
-the detail level, for the reasons given in
-[`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters).
+"what does `billing` use of `money`". It is optional at both levels. At the detail
+level, the open form lists every member reference into `fromId`, from any type the
+graph knows, the type's own members included: `incoming_dependencies(fromId = Money,
+detailLevel = "detail", relationship = "parameter_type", parameterPosition = 0)` lists
+every method that takes `Money` as its first parameter, `Money#plus(Money)` among
+them, in one call. The open depending side has no supertype closure, so no row is
+`inherited`. `from_scope` is then `null`, and `by_source_nodes` drills down from the
+root, each child weighed by its type-level weight into `fromId`. The open form reads
+every artifact's dependencies, because they are sorted by the depending type, not by
+the target; on the Spring Framework snapshot it takes under 200 ms even for a type with
+4,000 member-level users.
 
-**`detailLevel`**, **`relationship`**, **`limit`** and **`cursor`** behave as in
+**`detailLevel`**, **`relationship`**, **`parameterPosition`**, **`limit`** and **`cursor`** behave as in
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md#2-parameters):
-`detailLevel` accepts only `"type"` and `"detail"`; `relationship` is an error at the
-type level; a page holds at most 142 type edges or 90 detail rows, the caps that keep
-it within the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
+`detailLevel` accepts only `"type"` and `"detail"`; `relationship` and
+`parameterPosition` are errors at the type level; a page holds at most 300 edges or rows, and fewer when they would not fit
+the response budget. A cursor is bound to `incoming_dependencies`: a cursor issued by
 `outgoing_dependencies` fails here with `WRONG_TOOL_CURSOR`.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 
@@ -113,10 +133,10 @@ the `toId` subtree.
 **Edges.** For each anchor type, in tree order, the tool takes the type-level
 dependencies that end at it. Without `toId` it keeps all of them; with `toId` it keeps
 those whose depending type lies in the `toId` subtree. Each kept dependency becomes
-one edge with `from` the depending type, `to` the anchor type, the dependency's weight
-and its four attribute flags. The weight is the number of individual references from
-`from` to `to`, over all reference kinds (see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)).
+one edge with `from` the depending type, `to` the anchor type, the dependency's weight,
+its four attribute flags and its `kinds`. The weight is the number of individual references from
+`from` to `to`, over all reference kinds (see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)).
 In the open form on a package, dependencies between types of the package itself are
 included.
 
@@ -132,6 +152,8 @@ ids as tiebreakers: the users appear grouped and in name order.
 - `by_attribute`: for each of the four flags, the number of edges that carry it.
   `is_extends` and `is_implements` count the subclasses and implementations, which are
   the users hardest to change.
+- `by_kind`: for each kind, the number of references over all kept edges: how the
+  anchor types are used — called, extended, named in signatures, cast to, …
 
 ### 3.2 Detail level
 
@@ -141,11 +163,16 @@ depended-upon node) as the `to` side. Everything described in
 [`outgoing_dependencies` §3.2](hierograph-tool-outgoing-dependencies.md#32-detail-level)
 then applies unchanged:
 
-- each side is expanded to its **inheritance closure**, the types of the subtree plus
-  their transitive supertypes, so a use of an interface method that `fromId`
-  implements is found; the rows only the closure brings in carry `"inherited": true`;
+- the depender (`toId`) is expanded to its **inheritance closure**, the types of the
+  subtree plus their transitive supertypes, so code a depender inherits counts as its
+  own; the rows only the closure brings in carry `"inherited": true`. A supertype that lies
+  in `fromId` is left out of the closure, because its rows would be `fromId` talking
+  to itself. The
+  depended-upon side (`fromId`) is its own types only: a call against an interface
+  that `fromId` implements is found through the virtual-call target derived at load,
+  which names `fromId`'s implementing method;
 - the rows come from the snapshot's
-  [`detail_refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#45-detail_refsparquet)
+  [`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
   plus the load-derived overrides and virtual-call targets, in the same order;
 - the `relationship` vocabulary, including the reverse views `read_by` and
   `written_by`, is the same;
@@ -221,16 +248,19 @@ The open form on `Money` with `limit = 2`:
   "edges": [
     { "from": 4711, "to": 4730, "weight": 3, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "returns": 1, "calls": 2 } },
     { "from": 4712, "to": 4730, "weight": 2, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 2 } }
   ],
   "summary": {
     "total": 3,
     "returned": 2,
     "truncated": true,
     "by_attribute": { "is_extends": 0, "is_implements": 0, "is_annotated_by": 0, "is_depends_on_other": 3 },
+    "by_kind": { "returns": 1, "calls": 5 },
     "by_source_type": [
       { "id": 4711, "count": 1 },
       { "id": 4712, "count": 1 },
@@ -254,8 +284,10 @@ readings:
 | `edges[].weight` | number of references from `from` to `to` |
 | `edges[].type_pair_count` | always `1`: each edge is one type pair, shaped like an aggregated edge |
 | `edges[].attributes` | the four attribute flags of the dependency |
+| `edges[].kinds` | the number of references per kind; they sum to `weight` |
 | `summary.total`, `returned`, `truncated` | as in [Pages and summaries](hierograph-mcp-tools.md#71-pages-and-summaries) |
 | `summary.by_attribute` | all four flags with their edge counts, 0 included |
+| `summary.by_kind` | the number of references per kind over all matching edges |
 | `summary.by_source_type` | `{id, count}`: the users by number of edges, top 10 |
 | `summary.by_target` | `{id, weight}`: the anchor types by summed incoming weight, top 10 |
 | `next_cursor` | present when more edges follow, absent on the last page |
@@ -320,17 +352,19 @@ the exchanged scopes:
 
 | Field | Reading in `incoming_dependencies` |
 |-------|------------------------------------|
-| `from_scope` | `toId`, the depending scope |
+| `from_scope` | `toId`, the depending scope; `null` in the open form |
 | `to_scope` | `fromId`, the depended-upon scope |
 | `edges[].from`, `from_parent` | the referencing member and its type, on the depender's side |
-| `edges[].to`, `to_parent` | the referenced member or type and, for a member, its type, on the `fromId` side |
+| `edges[].to`, `to_parent` | the referenced member or type and, for a member, its declaring type; the row is on the `fromId` side by its `receiver` when that is present |
+| `edges[].receiver` | the type in `fromId` the reference was compiled against, when it only inherits `to` |
 | `edges[].relationship`, `location` | the relationship and the source line, or `null` |
+| `edges[].parameter` | for parameter relationships, the parameter's `position` and `name` |
 | `edges[].inherited` | `true` when the row comes from the inheritance closure; absent otherwise |
 | `summary.total`, `returned`, `truncated` | count of rows, rows on this page, and `total > returned` |
 | `summary.inherited` | the number of rows marked `inherited` |
 | `summary.by_relationship` | rows per relationship; a filtered relationship is present even with 0 |
 | `summary.by_source_type`, `others_count` | the depending types by number of rows, top 10, and how many more exist |
-| `summary.by_source_nodes` | drill-down of `toId`, weighted by type-level weight into `fromId` |
+| `summary.by_source_nodes` | drill-down of `toId` (of the root in the open form), weighted by type-level weight into `fromId` |
 | `summary.by_target_nodes` | drill-down of `fromId`, weighted by type-level weight from `toId` |
 
 **`from_scope`** and **`to_scope`** are the reason a caller can read this response
@@ -349,7 +383,7 @@ All errors use the nested shape with `code`, `message` and `recovery`:
 
 | Code | Situation |
 |------|-----------|
-| `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` given at the type level; `toId` missing at the detail level |
+| `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"`; `relationship` or `parameterPosition` given at the type level; `parameterPosition` negative or combined with a non-parameter relationship |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field; carries `actual_kind` and `declaring_type` |
 | cursor codes | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
@@ -377,6 +411,12 @@ While no graph is loaded the tool returns the
 edges, `by_source_type` names the main users and `by_target` the most-used types of
 the package.
 
+**Find the members that use X.** Add `detailLevel = "detail"` to the open form, with a
+`relationship` (and for parameters a `parameterPosition`) to narrow it:
+`incoming_dependencies(fromId = 4730, detailLevel = "detail", relationship =
+"parameter_type", parameterPosition = 0)` lists the methods that take `Money` first,
+wherever they are.
+
 **Check for subclasses.** Read `by_attribute.is_extends` and `is_implements` in the
 same summary. A non-zero count means some users inherit from the anchor and will
 break on any signature change.
@@ -392,7 +432,7 @@ user that call into the anchor, with lines. Add `relationship = "calls"` or a sm
 **Assess the wider impact.** For users of users, call
 [`affected_by`](hierograph-tool-affected-by.md) with `direction = "incoming"`.
 
-**Page.** Pass `next_cursor` back with the same parameters. A cursor from
+**Page.** Pass `next_cursor` back, alone or with the same parameters. A cursor from
 `outgoing_dependencies` is not accepted here.
 
 ---

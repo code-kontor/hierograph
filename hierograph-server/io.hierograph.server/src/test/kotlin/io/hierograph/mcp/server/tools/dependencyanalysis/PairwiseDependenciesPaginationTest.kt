@@ -21,7 +21,7 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
@@ -118,6 +118,16 @@ class PairwiseDependenciesPaginationTest {
         assertThat(s).containsKey("topological_order")
         @Suppress("UNCHECKED_CAST")
         assertThat(s["topological_order"] as List<Any?>).containsExactlyInAnyOrder(pA, pB, pC)
+    }
+
+    @Test
+    fun `includeNodes=false leaves the nodes map out of the first page, and nothing else`() {
+        val with = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, null)
+        val without = tool.pairwiseDependencies(listOf(pA, pB, pC), null, null, null, null, includeNodes = false)
+        assertThat(with).containsKey("nodes")
+        assertThat(without).doesNotContainKey("nodes")
+        assertThat(without["summary"]).isEqualTo(with["summary"])
+        assertThat(without["edges"]).isEqualTo(with["edges"])
     }
 
     @Test

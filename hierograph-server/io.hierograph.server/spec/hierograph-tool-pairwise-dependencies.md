@@ -76,8 +76,10 @@ cell list follows it.
 | `nodeIds` | array of node ids | yes | — | The nodes of the matrix, 2 to 1,000 |
 | `edgeSort` | string | no | `"dsm"` | Order of the edge list: `"dsm"` or `"weight_desc"` |
 | `minWeight` | integer | no | `1` | Smallest weight an edge must have to be listed |
-| `limit` | integer | no | `25` | Edges per page, clamped to 1–200 |
-| `cursor` | string | no | — | `next_cursor` of the previous page |
+| `limit` | integer | no | `25` | Edges per page, clamped to 1–500; fewer when they would not fit the response budget |
+| `cursor` | string | no | — | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
+| `includeNodes` | boolean | no | `true` | Whether the first page carries the `nodes` map |
+| `view` | string | no | none | the view to answer in |
 
 **`nodeIds`** names the subtrees that become the rows and columns. Each id stands for
 the node and everything below it. Any node except a method or a field is accepted,
@@ -103,11 +105,29 @@ list never hides a cycle.
 
 **`limit`** is the page size of the edge list. The default of 25 keeps a first page
 small. Values are clamped as described in
-[Parameters](hierograph-mcp-tools.md#5-parameters).
+[Parameters](hierograph-mcp-tools.md#5-parameters), and a page holds fewer edges when
+they would not fit the [response budget](hierograph-mcp-tools.md#73-the-response-budget).
+
+**`includeNodes`** controls the `nodes` map of the first page, which names every id in
+`nodeIds`. It grows with the node set: on 154 modules it is about 11 KB of the first
+page, and with the hundreds of ids of a levelized structure map it can exceed the
+response budget on its own. A caller that already knows the nodes — it passed their
+ids — passes `false`.
 
 **`cursor`** continues an edge list. It is bound to this tool, to `nodeIds` (in their
 given order), `edgeSort` and `minWeight`, and to the loaded graph; see
-[Cursors](hierograph-mcp-tools.md#72-cursors). `limit` may change between pages.
+[Cursors](hierograph-mcp-tools.md#72-cursors). Passing the cursor alone is enough: the
+server remembers the other arguments, so a node set of hundreds of ids need not be sent
+again for every page. `limit` may change between pages.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 
@@ -126,8 +146,8 @@ For every non-empty cell `(i, j)` with `i ≠ j` it records:
 | attributes | the union of their four attribute flags |
 
 The weight of a type-level dependency is the number of individual references the
-depending type makes to the target type (see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)).
+depending type makes to the target type (see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)).
 The diagonal, the dependencies inside one node, is left out: a node depending on
 itself says nothing about the structure of the set. Dependencies to anything outside
 the set are ignored.
@@ -139,16 +159,31 @@ The tool then analyses the matrix:
 1. It finds the **strongly connected components** (SCCs): maximal groups of nodes in
    which every node reaches every other through dependencies. A component with two or
    more nodes is a **cycle**.
-2. It orders the nodes inside each component with a feedback-arc-set heuristic, so
-   that few dependencies point backwards.
+2. It orders the nodes inside each component so that as little weight as possible
+   points backwards. A component of up to 12 nodes gets the **exact** order, the one
+   with the least backward weight of all; a larger one gets the order of a
+   feedback-arc-set heuristic.
 3. It orders the components so that every node comes before the nodes it depends on:
    **dependers first, foundations last**.
 
 This node order is the order of the matrix's rows and columns, and the `"dsm"` edge
-order follows it. When the set has no cycle, the order is a topological order of the
-dependency graph and is returned as `topological_order`: reading it top to bottom goes
-from the top layer down to the foundation, and every dependency points forward in it. When
-the set has a cycle, no such order exists, and `topological_order` is left out.
+order follows it. It is always returned, as `node_order`. When the set has no cycle,
+the order is a topological order of the dependency graph and is returned as
+`topological_order` too: reading it top to bottom goes from the top layer down to the
+foundation, and every dependency points forward in it.
+
+When the set has a cycle, no order lets every dependency point forward. The edges that
+point backwards in `node_order`, from a node to one placed before it, are the
+**back edges**: they lie below the diagonal of the matrix, and they are the edges that
+close the cycles. Removing them all makes the set acyclic, and the order minimizes
+their total weight. The summary lists them, heaviest first.
+
+A **mutual dependency** is a 2-cycle: two nodes that depend on each other. One of its
+two directions is a back edge in every order, so the sum of the lighter directions of
+all 2-cycles is a lower bound for the back-edge weight of any order. When the order
+reaches that bound, it is exact whatever the component size. When cutting the lighter
+direction of every 2-cycle leaves the set acyclic, every cycle runs through 2-cycles
+alone (`all_cycles_pairwise`), and those cuts untangle it.
 
 ### 3.3 Filtering, ordering and paging
 
@@ -197,9 +232,12 @@ acyclic, and the topological order is `[4702, 4720, 4803]`: billing on top, mone
 the middle, `BigDecimal` as the foundation, although the input listed money first.
 
 If `Money` also depended on `Ledger`, billing and money would form a cycle: the
-summary would report `has_cycles: true`, the component `[4702, 4720]` (in some order),
-and no `topological_order`. The money → billing cell would then lie below the
-diagonal.
+summary would report `has_cycles: true`, the component `[4702, 4720]`, and no
+`topological_order`. `node_order` would stay `[4702, 4720, 4803]`, since billing →
+money (6) outweighs money → billing (1). The money → billing cell would lie below the
+diagonal: it is the one back edge, `back_edge_weight` is 1, and the pair is a mutual
+dependency whose lighter direction is that back edge, so `all_cycles_pairwise` is
+`true`.
 
 ---
 
@@ -225,16 +263,19 @@ The first page of the call in §3.4, with `limit = 2`:
     "possible_edges": 6,
     "density": 0.5,
     "has_cycles": false,
+    "node_order": [4702, 4720, 4803],
     "strongly_connected_components": [],
     "topological_order": [4702, 4720, 4803]
   },
   "edges": [
     { "from": 4702, "to": 4720, "weight": 6, "type_pair_count": 3,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "returns": 2, "calls": 4 } },
     { "from": 4702, "to": 4803, "weight": 1, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 1 } }
   ],
   "next_cursor": "eyJ2IjoxLCJ0b29sIjoicGFpcndpc2VfZGVwZW5kZW5jaWVzIiwi…"
 }
@@ -248,7 +289,8 @@ The second page, called with the cursor, holds the page counts and the edge list
   "edges": [
     { "from": 4720, "to": 4803, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "instantiates": 1, "calls": 3 } }
   ]
 }
 ```
@@ -288,8 +330,17 @@ page of a multi-page walk.
 | `possible_edges` | integer | `node_count × (node_count − 1)` |
 | `density` | number | `edge_count / possible_edges`, rounded to two decimals |
 | `has_cycles` | boolean | `true` when at least one cycle exists |
-| `strongly_connected_components` | array of arrays of node ids | The cycles: every component with two or more nodes |
-| `topological_order` | array of node ids | The node order, dependers first; only when `has_cycles` is `false` |
+| `node_order` | array of node ids | The matrix order, dependers first (§3.2); always |
+| `strongly_connected_components` | array of arrays of node ids | The cycles: every component with two or more nodes, each in `node_order`, the components by their first node |
+| `topological_order` | array of node ids | The same as `node_order`; only when `has_cycles` is `false` |
+| `back_edge_count`, `back_edge_weight` | integers | Number and summed weight of the back edges; only when `has_cycles` is `true` |
+| `back_edges` | array of `{from, to, weight, reverse_weight}` | The back edges, heaviest first, at most 50; `reverse_weight` is the weight of the opposite direction, or `0`; only when `has_cycles` is `true` |
+| `back_edges_truncated` | boolean | `true` when there are more than 50 back edges; only when `has_cycles` is `true` |
+| `mutual_dependency_count` | integer | Number of 2-cycles; only when `has_cycles` is `true` |
+| `mutual_dependencies` | array of `{from, to, weight, reverse_weight}` | The 2-cycles in matrix order, at most 50: `from` is the node earlier in `node_order`, so `to → from` is the back direction; only when `has_cycles` is `true` |
+| `mutual_dependencies_truncated` | boolean | `true` when there are more than 50 2-cycles; only when `has_cycles` is `true` |
+| `all_cycles_pairwise` | boolean | `true` when cutting the lighter direction of every 2-cycle makes the set acyclic; only when `has_cycles` is `true` |
+| `order_quality` | string | `"exact"` when no order has less back-edge weight, `"heuristic"` otherwise (§3.2); only when `has_cycles` is `true` |
 
 **`edge_count`** and **`total`** are both needed because `minWeight` separates the
 structure from the listing. `edge_count` describes the matrix and drives the density;
@@ -303,9 +354,22 @@ every other.
 layering question directly. Components of a single node are not listed, since a node
 alone is not a cycle; the list is empty for an acyclic set.
 
-**`topological_order`** is the layering, top first. It is omitted rather than
-approximated when cycles exist, because an order that violates some dependencies is
-not a layering.
+**`node_order`** is the order to render the matrix in, for a cyclic set as for an
+acyclic one. An order of one's own is worse: inside a component of 7 nodes there are
+5,040 orders, and the back-edge weight between the best and the worst of them can
+differ tenfold. **`topological_order`** is the layering, top first. It is omitted when
+cycles exist, because an order that violates some dependencies is not a layering.
+
+**`back_edges`** name the dependencies that would have to go for the set to be
+layered in this order, heaviest first. Each back edge in the edge list also carries
+`back: true`, so a caller that pages through the edges finds all of them, beyond the
+first 50. **`mutual_dependencies`** and **`all_cycles_pairwise`** show the most common
+tangle: when the flag is `true`, cutting the lighter side of each listed pair is
+enough, and the back edges are exactly those lighter sides when the order is exact.
+
+**`order_quality`** says whether `back_edge_weight` is the least possible. It is
+`"exact"` for components of up to 12 nodes, and for any order that reaches the 2-cycle
+lower bound (§3.2); otherwise a better order may exist.
 
 ### 4.4 Edge fields
 
@@ -316,13 +380,17 @@ not a layering.
 | `weight` | integer | Summed weight of the type-level dependencies in the cell |
 | `type_pair_count` | integer | Number of distinct type pairs in the cell |
 | `attributes` | object | The four attribute flags, each `true` or `false` |
+| `kinds` | object | Number of references per kind in the cell; the counts sum to `weight` |
+| `back` | boolean | `true` when the edge is a back edge (§3.2); absent otherwise |
 
-**`weight`**, **`type_pair_count`** and **`attributes`** have the meaning they have in
+**`weight`**, **`type_pair_count`**, **`attributes`** and **`kinds`** have the meaning
+they have in
 [`aggregated_dependencies`](hierograph-tool-aggregated-dependencies.md#43-edge-fields):
-the strength, the breadth and the kinds of the coupling. The attribute flags are
+the strength, the breadth and the nature of the coupling. The attribute flags are
 defined in
 [Two levels of dependency](hierograph-mcp-tools.md#33-two-levels-of-dependency). The
-same pair of nodes gives the same three values in both tools.
+same pair of nodes gives the same four values in both tools. `kinds` is computed only
+for the edges on the returned page.
 
 ---
 
@@ -348,8 +416,10 @@ at once. `INVALID_NODE_KIND` carries the member's declaring type as a
 [minimal NodeRef](hierograph-mcp-tools.md#61-minimal-noderef), with a recovery that
 says to pass that id instead.
 
-The cap of 200 edges at 250 bytes each is the largest page that fits the
-[response budget](hierograph-mcp-tools.md#73-the-response-budget).
+Every page stays within the [response budget](hierograph-mcp-tools.md#73-the-response-budget),
+measured on the rendered page. A first page whose `nodes` map and analysis alone exceed
+it — a very large node set — fails with `RESPONSE_TOO_LARGE`, whose recovery is to pass
+`includeNodes = false` or fewer `nodeIds`.
 
 While no graph is loaded the tool returns the
 [no-graph response](hierograph-mcp-tools.md#83-no-graph-loaded).
@@ -363,9 +433,9 @@ While no graph is loaded the tool returns the
 by-product.
 
 **Find the cycles.** When `has_cycles` is `true`, each entry of
-`strongly_connected_components` is one cycle. To find the edges that close it, call
-[`aggregated_dependencies`](hierograph-tool-aggregated-dependencies.md) with the
-component's nodes as both sources and targets.
+`strongly_connected_components` is one cycle, and `back_edges` names the edges that
+close them, heaviest first. When `all_cycles_pairwise` is `true`, the
+`mutual_dependencies` are the whole story: cut the lighter direction of each.
 
 **Show the strongest couplings.** Use `edgeSort = "weight_desc"` with a small `limit`.
 The first page holds the heaviest edges.
@@ -373,9 +443,9 @@ The first page holds the heaviest edges.
 **Thin a large matrix.** Raise `minWeight` until `summary.total` is small
 enough to read. The summary still describes the full matrix.
 
-**Draw the full matrix.** Walk all pages with `edgeSort = "dsm"`, keeping `nodeIds`,
-`edgeSort` and `minWeight` unchanged, and place each edge in the row of
-`from` and the column of `to`, using the order of `nodes`.
+**Draw the full matrix.** Walk all pages with `edgeSort = "dsm"`, passing only
+`cursor` on each continuation, and place each edge in the row of `from` and the column
+of `to`, in `node_order`. The edges marked `back` fall below the diagonal.
 
 **Explain one cell.** Pass its two ids to
 [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md):
@@ -386,15 +456,18 @@ behind the weight 6.
 
 ## 7. Guarantees
 
-1. **Full-set summary.** `node_count`, `edge_count`, `density`, the components and
-   `topological_order` describe the full matrix, independent of `minWeight`, `limit`
-   and the page.
-2. **Topological order.** When `topological_order` is present, every edge goes from an
-   earlier node in it (`from`) to a later one (`to`).
-3. **One reading.** Every edge reads depending node (`from`) → depended-upon node
+1. **Full-set summary.** `node_count`, `edge_count`, `density`, `node_order`, the
+   components, the back edges and the 2-cycles describe the full matrix, independent
+   of `minWeight`, `limit` and the page.
+2. **Forward edges.** Every edge goes from an earlier node in `node_order` (`from`) to
+   a later one (`to`), except the back edges, which carry `back: true`. When
+   `has_cycles` is `false` there are none, and `node_order` is `topological_order`.
+3. **Exact means least.** When `order_quality` is `"exact"`, no order of the nodes has
+   less back-edge weight than `back_edge_weight`.
+4. **One reading.** Every edge reads depending node (`from`) → depended-upon node
    (`to`), as in every other dependency tool. A caller that reads the matrix by
    column swaps the two itself.
-4. **No self-edges.** No edge has the same node as `from` and `to`.
-5. **Deterministic pages.** For the same graph and parameters, the edge list has the
+5. **No self-edges.** No edge has the same node as `from` and `to`.
+6. **Deterministic pages.** For the same graph and parameters, the edge list has the
    same order, so a cursor walk returns every matching edge exactly once.
-6. **Read-only.** The tool does not change the graph.
+7. **Read-only.** The tool does not change the graph.

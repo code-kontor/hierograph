@@ -70,12 +70,21 @@ and most of them once, so a separate map would add size rather than remove it.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `methodId` | integer | yes | Id of a method or constructor, as returned by `list_children`, `find_node` or the detail-level dependency tools. |
+| `view` | string | no | Name of a view to answer in. |
 
 **`methodId`** is the member's node id. In the tree, constructors are members of kind
 `java.method` named `void <init>(…)`
 ([shared spec §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)), so any
 `java.method` id is accepted, constructors and the static initializer `<clinit>`
 included. A single id is enough because a member id already distinguishes overloads.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. A view changes where nodes
+sit, not the facts this tool reports.
 
 ---
 
@@ -85,18 +94,18 @@ included. A single id is enough because a member id already distinguishes overlo
 
 The tool resolves `methodId` to the method's **member key**
 (`<owner FQN>#<signature>`, see
-[member signature and member key](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#33-member-signature-and-member-key))
+[member signature and member key](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#33-member-signature-and-member-key))
 and reads the method's rows from the Parquet snapshot described in the
-[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 
 | Response field | Source |
 |----------------|--------|
 | `method` (`name`, `kind`), `modifiers`, `location` | the method's row in `members.parquet` |
 | `parameters` | the method's rows in `parameters.parquet` |
-| `return_type` | the `returns` edge in `detail_refs.parquet` |
-| `throws` | the `throws` edges in `detail_refs.parquet` |
-| `raises` | the `raises` edges in `detail_refs.parquet` |
-| `annotations` | the method's `annotated_by` edges in `detail_refs.parquet` |
+| `return_type` | the `returns` edge in `dependencies.parquet` |
+| `throws` | the `throws` edges in `dependencies.parquet` |
+| `raises` | the `raises` edges in `dependencies.parquet` |
+| `annotations` | the method's `annotated_by` edges in `dependencies.parquet` |
 | `overrides` | the `overrides` edges derived when the graph is loaded |
 | `declaring_type` | the owner FQN in the member key, resolved against the graph |
 
@@ -106,7 +115,7 @@ method, with kind `java.method`, as the containment tree does, and marks it with
 produces.
 
 **Modifiers.** Modifiers are decoded from the
-[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
+[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#51-modifier-bits)
 in a fixed order: one visibility value (`public`, `protected`, `private` or
 `package-private`), then any of `static`, `final`, `abstract`, `synchronized`, `native`,
 `default`, and last the compiler markers `bridge` and `synthetic`. `default` marks an
@@ -124,7 +133,7 @@ as primitive references (§3.2). A method without a `returns` edge reports `void
 the implicit `this` is not a parameter. A parameter's name is taken from the
 `MethodParameters` attribute, else from the local-variable table, else it is `arg<n>`
 (see
-[`parameters.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#43-parametersparquet)).
+[`parameters.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#43-parametersparquet)).
 Each parameter's `annotations` lists the annotations on that parameter, each once, from
 the `annotations` column of `parameters.parquet`. Annotations with `SOURCE` retention
 are not in the class file and never appear.
@@ -141,7 +150,7 @@ non-private methods with a reference return type, so these appear for Kotlin met
 
 **Overrides.** Overriding is a fact about two class files, so the snapshot does not
 store it; it is derived when the graph is loaded
-([derived facts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#63-derived-facts)).
+([derived facts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#63-derived-facts)).
 A method overrides, in every transitive supertype, the method with the same signature,
 or, failing that, the methods with the same name and parameter types (a covariant
 return). All of them are reported: a method can override a superclass method and
@@ -157,7 +166,7 @@ line of its body, not the line of its declaration. For a Java constructor this i
 usually the declaration line, because the implicit `super()` call is attributed to it.
 `location` is `null` for methods without code (abstract and native methods) and for
 classes compiled without line-number debug information (see
-[line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)).
+[line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#34-line-numbers)).
 
 ### 3.2 References
 
@@ -187,7 +196,7 @@ so a reference reads the same wherever it appears.
 | an external type without a node | `null` | `external.type` | `java.lang.String`, `java.lang.IllegalStateException` |
 
 The
-[placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
 creates no nodes for ubiquitous names (`java.lang.*`, `kotlin.*`, the JetBrains
 nullability annotations). The snapshot still names them, so the tool reports them with
 `id: null` and `name` set to the part of the FQN after the last dot. Without this

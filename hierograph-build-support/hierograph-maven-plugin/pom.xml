@@ -46,7 +46,7 @@
         </dependency>
         <dependency>
             <groupId>io.hierograph</groupId>
-            <artifactId>io.hierograph.graphstore.jvm</artifactId>
+            <artifactId>io.hierograph.graphstore.jvm.archive</artifactId>
         </dependency>
 
         <!-- Maven plugin API (provided by the running Maven). -->

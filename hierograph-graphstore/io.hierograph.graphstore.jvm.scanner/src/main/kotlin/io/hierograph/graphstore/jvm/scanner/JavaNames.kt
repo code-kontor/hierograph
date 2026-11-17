@@ -34,8 +34,6 @@ internal object JavaNames {
     /** The element type of an array type, else the type itself — what a reference points to. */
     fun element(type: Type): Type = if (type.sort == Type.ARRAY) type.elementType else type
 
-    fun isPrimitive(type: Type): Boolean = type.sort in Type.VOID..Type.DOUBLE
-
     /** `void <init>(java.lang.String,int[])`, `byte[] asBytes()` — the member-key signature of a method. */
     fun methodSignature(name: String, descriptor: String): String {
         val method = Type.getMethodType(descriptor)

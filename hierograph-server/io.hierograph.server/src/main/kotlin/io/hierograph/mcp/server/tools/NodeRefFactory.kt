@@ -16,12 +16,15 @@
 package io.hierograph.mcp.server.tools
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.TestArtifacts
 import io.hierograph.server.mapping.GraphStoreNodeSource
+import io.hierograph.server.views.ViewGroups
+import io.hierograph.server.views.ViewNodes
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.stereotype.Component
 
@@ -39,7 +42,9 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     // ── minimal NodeRef ────────────────────────────────────────────────
 
     /**
-     * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`.
+     * Identity-only NodeRef: `id`, `name`, `qualified_name`, `kind`, `parent_id`, `parent_kind`,
+     * `virtual: true` for a virtual module or package of a restructuring view, and `is_test: true` for a module that
+     * holds a module's compiled tests.
      * Used when a NodeRef appears inside a larger structure (edge endpoint, path step, etc.).
      */
     override fun minimalNodeRef(node: HGNode): LinkedHashMap<String, Any?> {
@@ -52,8 +57,14 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             "kind" to node.kind?.toString(),
             "parent_id" to parent?.identifier,
             "parent_kind" to parent?.kind?.toString()
-        )
+        ).apply {
+            if (ViewNodes.isVirtual(node)) put("virtual", true)
+            if (isTestModule(node.kind?.toString(), NodeMetadata.getQualifiedName(node))) put("is_test", true)
+        }
     }
+
+    /** True for a module node that holds a module's compiled tests (see [TestArtifacts]). */
+    private fun isTestModule(kind: String?, fqn: String?) = kind == JavaNodeKind.MODULE.value && TestArtifacts.isTestKey(fqn)
 
     // ── enriched NodeRef ───────────────────────────────────────────────
 
@@ -66,11 +77,12 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         val kind = node.kind
 
         when (kind) {
-            JavaKinds.MODULE -> enrichModule(ref, node)
-            JavaKinds.PACKAGE -> enrichPackage(ref, node)
-            in JavaKinds.TYPE_KINDS -> enrichType(ref, node)
-            JavaKinds.METHOD -> enrichMethod(ref, node)
-            JavaKinds.FIELD -> enrichField(ref, node)
+            JavaNodeKind.MODULE -> enrichModule(ref, node)
+            JavaNodeKind.PACKAGE -> enrichPackage(ref, node)
+            in JavaNodeKind.TYPES -> enrichType(ref, node)
+            JavaNodeKind.METHOD -> enrichMethod(ref, node)
+            JavaNodeKind.FIELD -> enrichField(ref, node)
+            ViewGroups.KIND -> enrichGroup(ref, node)
         }
 
         return ref
@@ -80,16 +92,23 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         ref["child_count"] = children.size
-        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
-        ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaKinds.METHOD))
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaNodeKind.TYPES)
+        ref["descendant_method_count"] = countDescendantsByKind(node, setOf(JavaNodeKind.METHOD))
+    }
+
+    /** A view's group: what it holds directly, and the modules and types below it. */
+    private fun enrichGroup(ref: LinkedHashMap<String, Any?>, node: HGNode) {
+        ref["child_count"] = graphService.model.hierarchy.childrenOf(node).size
+        ref["descendant_module_count"] = countDescendantsByKind(node, setOf(JavaNodeKind.MODULE))
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaNodeKind.TYPES)
     }
 
     private fun enrichPackage(ref: LinkedHashMap<String, Any?>, node: HGNode) {
         val hierarchy = graphService.model.hierarchy
         val children = hierarchy.childrenOf(node)
         ref["child_count"] = children.size
-        ref["descendant_type_count"] = countDescendantsByKind(node, JavaKinds.TYPE_KINDS)
-        ref["direct_type_count"] = children.count { it.kind in JavaKinds.TYPE_KINDS }
+        ref["descendant_type_count"] = countDescendantsByKind(node, JavaNodeKind.TYPES)
+        ref["direct_type_count"] = children.count { it.kind in JavaNodeKind.TYPES }
     }
 
     private fun enrichType(ref: LinkedHashMap<String, Any?>, node: HGNode) {
@@ -99,8 +118,8 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
             ref["modifiers"] = TypeModifiers.modifiers(bits)
             ref["is_abstract"] = TypeModifiers.isAbstract(bits)
         }
-        val methods = children.count { it.kind == JavaKinds.METHOD }
-        val fields = children.count { it.kind == JavaKinds.FIELD }
+        val methods = children.count { it.kind == JavaNodeKind.METHOD }
+        val fields = children.count { it.kind == JavaNodeKind.FIELD }
         ref["member_count"] = methods + fields
         ref["method_count"] = methods
         ref["field_count"] = fields
@@ -122,15 +141,20 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     /**
      * Registers a node's display fields into a per-response `nodes` map keyed by stringified ID.
      * First registration wins — callers should register the most informative form first.
+     *
+     * `qualified_name` is included only when it adds something to `name`: not when the two are equal, and not
+     * for a module, whose qualified name is its build coordinate (`group:artifact:version`), the longest field
+     * and rarely needed — `find_node` and `list_children` still report it. A module that holds compiled tests gets
+     * `is_test: true`, which its name only hints at.
      */
     override fun putSlimNode(nodes: MutableMap<String, Any>, id: Long, name: String?, fqn: String?, kind: String?) {
         val key = id.toString()
         if (key in nodes) return
-        nodes[key] = linkedMapOf(
-            "name" to (name ?: ""),
-            "qualified_name" to (fqn ?: ""),
-            "kind" to (kind ?: "unknown")
-        )
+        nodes[key] = linkedMapOf<String, Any?>("name" to (name ?: "")).apply {
+            if (!fqn.isNullOrEmpty() && fqn != name && kind != JavaNodeKind.MODULE.value) put("qualified_name", fqn)
+            put("kind", kind ?: "unknown")
+            if (isTestModule(kind, fqn)) put("is_test", true)
+        }
     }
 
     /**
@@ -139,6 +163,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
     override fun putSlimNode(nodes: MutableMap<String, Any>, node: HGNode) {
         val id = (node.identifier as? Number)?.toLong() ?: 0L
         putSlimNode(nodes, id, NodeMetadata.getName(node), NodeMetadata.getQualifiedName(node), NodeMetadata.getKind(node))
+        if (ViewNodes.isVirtual(node)) (nodes[id.toString()] as? MutableMap<String, Any?>)?.put("virtual", true)
     }
 
     // ── primitive ref ──────────────────────────────────────────────────
@@ -151,7 +176,7 @@ class NodeRefFactory(private val graphService: HierarchicalGraphService) : INode
         "id" to null,
         "name" to name,
         "qualified_name" to name,
-        "kind" to JavaKinds.PRIMITIVE.value
+        "kind" to JavaNodeKind.PRIMITIVE.value
     )
 
     // ── utility ────────────────────────────────────────────────────────

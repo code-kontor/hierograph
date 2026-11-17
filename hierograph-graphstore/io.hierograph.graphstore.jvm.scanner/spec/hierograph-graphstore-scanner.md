@@ -2,8 +2,8 @@
 
 `io.hierograph.graphstore.jvm.scanner` turns compiled JVM code into **facts**. Its
 `BytecodeScanner` reads the class files of JARs and class directories and produces
-one `ClassFacts` record per class, plus the member-level references found in each
-class's code. Everything Hierograph knows about a codebase starts here: the
+one `ClassFacts` record per class, plus the detail facts: every dependency found in
+each class file, from the type itself or from one of its members. Everything Hierograph knows about a codebase starts here: the
 GraphStore is built from these facts, and the Parquet snapshot stores them.
 
 This document explains why the scanner exists, what it reads, what it extracts,
@@ -55,9 +55,10 @@ loader, which sees every artifact at once (§6). This is what makes the scan of 
 artifact valid in every project that uses it: a library is scanned once and its
 facts reused everywhere.
 
-**Counted, typed references.** Every reference is recorded with *how* it is made
-(extends, parameter type, invocation, …) and *how often*. A dependency therefore
-has a nature and a weight, not just an existence.
+**Typed facts, one per occurrence.** Every dependency is recorded with *how* it is
+made (extends, parameter type, invocation, …) and *where* (its source member and
+line), once for every time it occurs. Rolled up, the facts give a dependency a nature
+and a weight, not just an existence (§5.5).
 
 **Deterministic.** The same inputs always produce the same output, in the same
 order, however many threads the scan uses.
@@ -73,7 +74,7 @@ order, however many threads the scan uses.
   ┌──────────────────┐        ScanResult
   │  BytecodeScanner │ ────────────────────────────────┐
   └──────────────────┘   classes: ClassFacts per type   │
-                         detailRefs: member-level refs  │
+                         dependencies: detail facts     │
            ┌────────────────────────┬───────────────────┘
            ▼                        ▼
    ScanResult.writeTo        GraphStore.applyClass
@@ -150,13 +151,13 @@ in a version directory is scanned too.
 ```kotlin
 data class ScanResult(
     val classes: List<ArtifactClass>,   // one per scanned class: (artifactKey, ClassFacts)
-    val detailRefs: List<DetailRef>,    // member-level references of all scanned classes
+    val dependencies: List<Dependency>, // the detail facts of all scanned classes
 )
 ```
 
 **`classes`** holds one `ArtifactClass(artifactKey, facts)` per class file. A
-`ClassFacts` record carries the type itself, its members with their parameters, and
-its type-level references:
+`ClassFacts` record carries the type itself and its members with their parameters
+(§5.5 explains why it holds no aggregated references):
 
 ```kotlin
 data class ClassFacts(
@@ -164,28 +165,35 @@ data class ClassFacts(
     val kind: JavaNodeKind,
     val modifiers: Int,
     val members: List<MemberFacts>,
-    val refs: List<Ref>,
     val classHash: String,
     val sourceFile: String?,
 )
 ```
 
-This is the GraphStore's ingest unit: each element of `classes` can be passed to
-`GraphStore.applyClass` as it is.
+This is the GraphStore's ingest unit: each element of `classes` is passed to
+`GraphStore.applyClass`, together with the references a loader rolls up from the
+class's detail facts (§11.3).
 
-**`detailRefs`** holds the member-level references: which method calls which, which
-code reads or writes which field, what each member's signature names, with source
-lines. They are kept apart from `ClassFacts` because they are large and are read on
-demand rather than held in memory.
+**`dependencies`** holds the detail facts: every dependency a class file contains, one
+per occurrence, from the type itself (its superclass, interfaces, annotations, …) or
+from one of its members (which method calls which, which code reads or writes which
+field, what each member's signature names), with source lines. They are kept apart
+from `ClassFacts` because they are large and are read on demand rather than held in
+memory. Each fact names the artifact of the class file it comes from
+(`Dependency.fromArtifact`). Two artifacts can define a class of the same name, such as
+two versions of one library, or a test class that shadows a main class. With the
+artifact, `writeTo` files each copy's facts with that copy, not by the class name.
 
-**`writeTo(dir, codec, classpaths, packaging)`** writes the result as a snapshot
-directory, with one `.hierograph` artifact per artifact key — an archive or an
+**`writeTo(dir, codec, classpaths, packaging, cancelled)`** writes the result as a snapshot
+directory: the types, members, parameters and detail facts. It holds no aggregated
+references; a loader rolls them up from the detail facts. There is one
+`.hierograph` artifact per artifact key — an archive or an
 exploded directory of the same name, with identical tables. An artifact of the same
 name already in the directory is replaced, whichever its form. Nothing is written
 outside the directory: an archive's tables are staged in a `.staging-<artifact>`
 directory there, which is deleted once the archive is written. Tables, columns and
 conventions are defined in the
-[snapshot format specification](../../io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -193,6 +201,7 @@ conventions are defined in the
 | `codec` | ZSTD | the Parquet compression codec |
 | `classpaths` | none | per artifact key, the ordered classpath to store in that artifact's `classpath` table |
 | `packaging` | `ARCHIVE` | `ARCHIVE` writes `<artifact>.hierograph` files (for shipping), `EXPLODED` writes `<artifact>.hierograph/` directories (for local work) |
+| `cancelled` | never | checked before each artifact; once it returns `true`, the write stops with a `CancellationException`, and the artifacts written so far stay in `dir` for the caller to discard |
 
 ---
 
@@ -208,7 +217,7 @@ type is *referenced* (see §3 of the snapshot format specification).
 |------|------------|
 | `fqn` | the class name in the class header |
 | `kind` | the access flags, in this order of precedence: annotation → `ANNOTATION`; enum → `ENUM`; superclass `java.lang.Record` → `RECORD`; interface → `INTERFACE`; otherwise `CLASS` |
-| `modifiers` | visibility, `abstract`, `final`, `static`. For a **nested** type they come from the class's own `InnerClasses` entry, because only that entry records `private`, `protected` and `static` on a nested type |
+| `modifiers` | visibility, `abstract`, `final`, `static`, and `generic` when the class signature opens with type parameters (`class Box<T>`; an enum, whose signature only names `Enum<Color>`, is not generic). For a **nested** type the access flags come from the class's own `InnerClasses` entry, because only that entry records `private`, `protected` and `static` on a nested type. The bit layout is the format's (format specification §5.1) |
 | `sourceFile` | the `SourceFile` attribute, if present |
 | `classHash` | the SHA-256 of the class file's bytes, as 64 lower-case hex digits |
 
@@ -224,84 +233,77 @@ not repeated; a member belongs to the class that declares it.
 | `key`, `signature` | name and descriptor, as `<return> <name>(<params>)` for methods and `<type> <name>` for fields |
 | `name` | the member's name |
 | `kind` | `CONSTRUCTOR` for `<init>`, `METHOD` for any other method, `FIELD` |
-| `modifiers` | the access flags (visibility, `static`, `final`, `abstract`, `synchronized`, `native`, `transient`, `volatile`, `bridge`, `synthetic`); `default` for an interface method that has a body and is neither static nor private |
+| `modifiers` | the access flags (visibility, `static`, `final`, `abstract`, `synchronized`, `native`, `transient`, `volatile`, `bridge`, `synthetic`); `default` for an interface method that has a body and is neither static nor private; `constant` for a field with a `ConstantValue` attribute, whose value the compiler inlines at every use (§6.2). The bit layout is the format's (format specification §5.1) |
 | `lineFrom`, `lineTo` | the lowest and highest line in the method's `LineNumberTable`; absent for fields and for methods without code |
 | `bridgeTarget` | for a bridge method: the first call it makes to a method of the same name on its own class, which is the method it forwards to |
 
 ### 5.3 Parameters
 
 Each method and constructor parameter becomes a `ParameterFacts` with its 0-based
-`index`, its `typeFqn` (the erased type, reduced to its element type), and its
-`name`. The name is taken from the first of these sources that has it:
+`index`, its `typeFqn` (the erased type, reduced to its element type), its
+`annotations` (the parameter's annotation types, each once), and its `name`. The
+name is taken from the first of these sources that has it:
 
-1. the `MethodParameters` attribute, written by `javac -parameters` and `kotlinc -java-parameters`;
+1. the `MethodParameters` attribute, written by `javac -parameters` and `kotlinc -java-parameters`,
+   if it lists every parameter of the descriptor and names this one. An inner class's
+   or enum's constructor has synthetic parameters that the attribute may leave out,
+   and matching such a partial list by position would shift every name;
 2. the local-variable table, written when debug information is compiled in;
 3. otherwise `arg<index>`.
 
-### 5.4 Type-level references
+The `annotations` say which parameter an annotation sits on; the
+`parameter_annotated_by` facts (§5.4) say the same through their parameter position.
 
-Each reference a class makes to another type is recorded as a `Ref` from the class
-to the target type, with a **kind** and a **count**: the number of places in the
-class file that make that reference. References are aggregated per (target, kind),
-in the order they are first encountered.
+### 5.4 Detail facts
 
-| Kind | Recorded for each … |
-|------|---------------------|
-| `EXTENDS` | superclass (one per class) |
-| `IMPLEMENTS` | implemented interface, or extended interface of an interface |
-| `ANNOTATED_BY` | annotation on the class itself |
-| `FIELD_TYPE` | field of the target type |
-| `PARAM_TYPE` | method parameter of the target type |
-| `RETURN_TYPE` | method returning the target type |
-| `THROWS` | entry in a method's `throws` clause |
-| `MEMBER_ANNOTATED_BY` | annotation on a field, a method or a method parameter |
-| `TYPE_ARGUMENT` | type that appears inside a generic signature's type arguments or bounds, in the class, field and method signatures (`List<Money>` → `Money`; `<T extends Money>` → `Money`) |
-| `ANNOTATION_VALUE` | enum constant, class value or nested annotation used as an annotation value, including an annotation element's default value |
-| `INVOKES` | method or constructor call (`invokevirtual`, `invokestatic`, `invokespecial`, `invokeinterface`), on the call's owner type; also the implementation method of a lambda or method reference |
-| `READS` | field read (`getfield`, `getstatic`), on the field's owner type |
-| `WRITES` | field write (`putfield`, `putstatic`), on the field's owner type |
-| `INSTANTIATES` | `new`, and the creation of an array of the target type |
-| `CAST` | `checkcast` or `instanceof` against the target type |
-| `CATCHES` | exception handler for the target type (a `finally` block names no type) |
-| `CLASS_LITERAL` | class constant, such as `Money.class` |
+Every dependency a class file contains is recorded as one detail fact (`Dependency`):
+from a source element (the class itself, or one of its fields or methods) to a target
+element (a member or a type), with a kind (`DependencyKind`) and, where the class file
+has one, a line. Type-level facts use the class's FQN as their source.
+
+| Kind | From → To | Recorded for each … | Line |
+|------|-----------|---------------------|------|
+| `extends` | class → type | superclass (one per class) | none |
+| `implements` | class → type | implemented interface, or extended interface of an interface | none |
+| `annotated_by` | class, method or field → type | annotation on the element | none |
+| `parameter_annotated_by` | method → type | annotation on one of the method's parameters, with that parameter's position and name | none |
+| `annotation_value` | class, method or field → type | enum constant, class value or nested annotation used as an annotation value on the element, including an annotation element's default value and the values of parameter annotations | none |
+| `type_argument` | class, method or field → type | type that appears inside a generic signature's type arguments or bounds (`List<Money>` → `Money`; `<T extends Money>` → `Money`) | none |
+| `has_type` | field → type | field (its declared type; primitives included) | none |
+| `parameter_type` | method → type | parameter of the method (primitives included), with its position and name | the method's first line |
+| `returns` | method → type | method (its return type; `void` included) | the method's first line |
+| `throws` | method → type | entry in the method's `throws` clause | the method's first line |
+| `calls` | method → method | call instruction (`invokevirtual`, `invokestatic`, `invokespecial`, `invokeinterface`), naming the call's owner type and the called signature; and the implementation method of a lambda or method reference | the call's line |
+| `reads_field` | method → field | field read instruction (`getfield`, `getstatic`) | the instruction's line |
+| `writes_field` | method → field | field write instruction (`putfield`, `putstatic`) | the instruction's line |
+| `instantiates` | method → type | `new`, and the creation of an array of the target type (`anewarray`, `multianewarray`) | the instruction's line |
+| `casts` | method → type | `checkcast` or `instanceof` against the target type | the instruction's line |
+| `catches` | method → type | exception handler for the target type (a `finally` block names no type) | the line the handler's code belongs to |
+| `class_literal` | method → type | class constant, such as `Money.class` | the instruction's line |
+| `raises` | method → type | `throw new X(…)` in the method's body | the throw's line |
 
 The rules that apply to every kind:
 
+- **One fact per occurrence.** Two calls on different lines are two facts, a method
+  `f(Map, Map)` has two `parameter_type` facts, and two annotated parameters give two
+  `parameter_annotated_by` facts. The parameter facts carry the parameter's
+  position and name, the same as its `ParameterFacts`, so facts of one type at two
+  positions stay apart.
 - **Element types.** The target of a reference to an array type is its element type:
-  a `Money[][]` parameter is a `PARAM_TYPE` reference to `Money`.
-- **No primitives, no `void`.** They are not types one can depend on.
-- **No self-references.** A class's references to itself are dropped. References to
-  its own nested types, or from a nested type to its outer type, are kept, because
-  those are separate classes.
+  a `Money[][]` parameter is a `parameter_type` fact to `Money`.
+- **Nothing is filtered.** Primitives, `void` and references to the class itself are
+  facts like any other; a method calling a method of its own class is a `calls` fact.
+  The aggregation leaves them out (§5.5).
 - **Annotations of all retentions in the class file.** `RUNTIME` and `CLASS`
   annotations are both recorded. `SOURCE` annotations are not in the class file.
 
-Some source constructs leave more than one reference. `new Money()` records
-`INSTANTIATES` (the `new`) and `INVOKES` (the constructor call), and every
-constructor records `INVOKES` on its superclass for its `super(…)` call.
+Some source constructs leave more than one fact. `new Money()` records `instantiates`
+(the `new`) and `calls` (the constructor call), and every constructor records `calls`
+on its superclass constructor for its `super(…)` call.
 
-### 5.5 Member-level references
-
-Member-level references (`DetailRef`) record the same code at the finest grain: from
-a member (or a class, for its own annotations) to a member or a type. They use the
-detail vocabulary of the snapshot format.
-
-| Relationship | From → To | Recorded for each … | Line |
-|--------------|-----------|---------------------|------|
-| `calls` | method → method | call instruction, naming the call's owner type and the called signature; and the implementation method of a lambda or method reference | the call's line |
-| `reads_field` | method → field | field read instruction | the instruction's line |
-| `writes_field` | method → field | field write instruction | the instruction's line |
-| `returns` | method → type | method (its return type; `void` included) | the method's first line |
-| `parameter_type` | method → type | distinct parameter type of the method (primitives included) | the method's first line |
-| `throws` | method → type | entry in the method's `throws` clause | the method's first line |
-| `raises` | method → type | `throw new X(…)` in the method's body | the method's first line |
-| `has_type` | field → type | field (its declared type; primitives included) | none |
-| `annotated_by` | class, method or field → type | annotation on the element | none |
-
-Unlike type-level references, member-level references are **not aggregated and not
-filtered for self-reference**. A method calling a method of its own class is a
-`calls` reference like any other, and two calls on different lines are two
-references.
+**A catch clause's line** is the line its handler's code belongs to: the line entry
+in effect where the handler starts, as in a stack trace, unless an entry starts
+exactly there.
 
 **Call targets are named, not resolved.** A call compiled against `Shape.area()` is
 recorded as a call to `Shape#double area()`, whichever subclass implements it, and
@@ -316,6 +318,19 @@ attributed, because the bytecode alone does not say what it is. Together with
 visibly does.
 
 **Calls on arrays** (`array.clone()`) are not recorded; an array has no owner type.
+
+### 5.5 No aggregated references
+
+The scanner reports facts only. It does not aggregate a class's dependencies into
+type-to-type references: that is the job of whoever loads the facts into a GraphStore.
+Both loaders, the `SnapshotLoader` and the server's in-memory ingest of a fresh scan,
+roll the detail facts up with the same `DependencyRollup` (in the store module), one
+accumulator per artifact, so the aggregate is the same whichever way the facts travel, and every unit of an aggregated weight is one detail fact. The rollup
+rules are part of the snapshot format (`hierograph-graphstore-format.md` §6.4).
+
+Two properties of the facts make that rollup possible: every dependency has the class
+or one of its members as its source (so `from_key` tells a type's own annotations from
+its members'), and `raises` is the only kind that refines facts counted already.
 
 ---
 
@@ -337,7 +352,7 @@ These are computed by the loader, over all artifacts loaded together:
 | Not visible | Reason |
 |-------------|--------|
 | compile-time constants | the compiler inlines `static final` primitives and strings, so no reference to their declaring class remains |
-| generic type arguments in method bodies | erased; a body only shows the casts the compiler inserts (`CAST`) |
+| generic type arguments in method bodies | erased; a body only shows the casts the compiler inserts (`casts` facts) |
 | `SOURCE`-retention annotations | not written to the class file |
 | type-use annotations (`List<@NonNull String>`) | not read by the scanner |
 | references made only through reflection or string names | not references in the bytecode |
@@ -358,7 +373,8 @@ unequal the artifacts are: a single large artifact uses every thread, and a few
 large artifacts at the end of the input do not leave the other threads idle.
 
 `scanByKey` scans like `scan` and splits the result by artifact key (keys in order of
-first appearance, an empty result for a key without class files). The server scans
+first appearance, an empty result for a key without class files). Inputs with the same
+key, such as a module's several output directories, are combined under it. The server scans
 all module outputs of a manifest in one `scanByKey` call, so the modules share the
 pool instead of being scanned one after another.
 
@@ -367,7 +383,8 @@ Output order is fixed:
 - **artifacts** in input order, whatever order their tasks finish in;
 - **classes** within an artifact in path order (directories) or entry-name order
   (JARs);
-- **references** within a class in the order the bytecode presents them.
+- **facts** within a class in an order fixed by the class file alone; a snapshot
+  sorts them anyway ([format specification §4.4](../../io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet)).
 
 A parallel scan is therefore identical to a sequential one, and two scans of the
 same inputs are identical to each other. The archives written from them are
@@ -375,6 +392,13 @@ identical too.
 
 A `BytecodeScanner` holds no state between calls. One instance can be reused, and
 `scan` can be called from several threads.
+
+**Memory.** The scanner keeps one instance of each name it records: type names,
+member keys, call and field targets, signatures, member and parameter names. They
+repeat across classes (every call to a method names it again), and the server keeps
+scan results in memory between builds (§11.4), so sharing them keeps a result's
+footprint close to that of its distinct names. The interned strings are collected
+once nothing else refers to them.
 
 ---
 
@@ -384,7 +408,8 @@ A `BytecodeScanner` holds no state between calls. One instance can be reused, an
 |-----------|--------|
 | `parallelism < 1` | `IllegalArgumentException` from the constructor |
 | a path that is neither a directory nor a `.jar` / `.zip` file | `IllegalArgumentException("Not a JAR or class directory: …")` |
-| an unreadable file, or a class file ASM cannot parse | the scan fails. In a multi-threaded scan the error is an `IllegalStateException` naming the artifact (`Scanning <path> failed: …`), with the original error as its cause |
+| a class file that cannot be read or that ASM cannot parse | an `IllegalStateException` naming the class file and its artifact (`Scanning <file> of <path> failed: …`), with the original error as its cause, whether the scan is sequential or parallel |
+| a JAR that cannot be opened, or a directory that cannot be listed | the `IOException` itself, before any class is scanned |
 
 A scan either succeeds completely or fails. It never returns a partial result.
 
@@ -396,11 +421,12 @@ A scan either succeeds completely or fails. It never returns a partial result.
 |---------|-------------|
 | `BytecodeScanner(parallelism)` | a scanner using up to `parallelism` threads (default: available processors) |
 | `BytecodeScanner.scan(artifacts): ScanResult` | scans the artifacts (§3) into facts (§5) |
+| `BytecodeScanner.scanByKey(artifacts): Map<String, ScanResult>` | scans like `scan`, split by artifact key (§7) |
 | `ScanArtifact(key, path)` | one input, with its artifact key |
 | `ScanArtifact.of(path)` | an input keyed by its file or directory name |
 | `ScanResult.classes` | the scanned classes, as `ArtifactClass(artifactKey, facts)` |
-| `ScanResult.detailRefs` | the member-level references |
-| `ScanResult.writeTo(dir, codec, classpaths, packaging)` | writes the result as a snapshot of `.hierograph` artifacts, archived or exploded, one per artifact (§4) |
+| `ScanResult.dependencies` | the detail facts |
+| `ScanResult.writeTo(dir, codec, classpaths, packaging, cancelled)` | writes the result as a snapshot of `.hierograph` artifacts, archived or exploded, one per artifact (§4) |
 
 ---
 
@@ -427,7 +453,7 @@ missing input, or a pattern that matches nothing, is an error that names it.
 
 The snapshot is written with ZSTD compression and without classpath tables. On
 success the scanner prints a summary line: the number of artifacts and threads,
-types, members and member-level references, the output directory, and the elapsed
+types, members and detail facts, the output directory, and the elapsed
 time.
 
 ```
@@ -475,32 +501,45 @@ BytecodeScanner().scan(listOf(ScanArtifact(key, classesDir)))
 ### 11.3 Scan straight into a GraphStore
 
 To build the in-memory model without writing to disk, apply the classes directly.
-Register each artifact first, then apply its classes, then resolve placeholders:
+Register each artifact first, roll the detail facts up into each type's references,
+then apply its classes:
 
 ```kotlin
 val result = BytecodeScanner().scan(artifacts)
-val store = GraphStore(PlaceholderPolicy.EXCLUDE_UBIQUITOUS)
-for (a in artifacts) store.registerArtifact(ArtifactInfo(a.key, a.key, a.key, Origin.MODULE_MAIN))
-for (c in result.classes) store.applyClass(c.artifactKey, c.facts)
-store.resolvePlaceholders()
+val store = GraphStore(ExternalTypeFilter.EXCLUDE_UBIQUITOUS)
+for (a in artifacts) store.registerArtifact(ArtifactInfo(a.key, a.key, a.key))
+val factsByArtifact = result.dependencies.groupBy { it.fromArtifact }
+for ((artifact, classes) in result.classes.groupBy { it.artifactKey }) {
+    val refs = DependencyRollup.Accumulator()
+    for (d in factsByArtifact[artifact].orEmpty()) refs.add(d.fromType, d.fromKey, d.toType, d.kind)
+    for (c in classes) store.applyClass(artifact, c.facts, refs.refsOf(c.facts.fqn))
+}
 ```
 
-`result.detailRefs` are not part of the GraphStore. Write them to a snapshot so
-member-level queries can read them.
+Roll up per artifact: the accumulator is keyed by FQN, and two artifacts may define
+the same one; every fact names its artifact (`fromArtifact`).
 
-### 11.4 Rescan a changed class
+`result.dependencies` are not part of the GraphStore. Write them to a snapshot so
+detail-level queries can read them.
 
-Scanning is per class file, and so is the GraphStore's update. To refresh one
-changed class, scan its artifact (or a directory holding just that class, keyed as
-its artifact) and apply the new facts for that FQN. Each class's `classHash` tells a
-change detector which classes need this.
+### 11.4 Pick up a change
+
+Scanning is per class file, so a rescan costs only what changed. To pick up a
+change, rescan the artifacts whose output changed, and build a fresh GraphStore from
+their new scans together with the unchanged scans of the others, as the server does
+in build-watching mode
+([GraphStore specification §8.3](../../io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md#83-apply-a-change)).
+A store is not patched in place: a deleted class is simply absent from the new scan.
+Each class's `classHash` lets a change detector tell which classes changed.
 
 ---
 
 ## 12. Guarantees
 
-1. **Isolation.** The facts of a class depend only on its own bytes. The same class
-   file scanned in any artifact, project or order yields the same facts.
+1. **Isolation.** The facts of a class depend only on its own bytes and on the key of
+   the artifact it is scanned from, which every detail fact carries as
+   `fromArtifact`. The same class file scanned in any project or order yields the
+   same facts; scanned in another artifact, they differ only in that key.
 2. **One record per class.** Each scanned class file yields exactly one
    `ClassFacts`, and a multi-release class is scanned exactly once.
 3. **Consistent keys.** Every member key a reference uses, as source or as target,
@@ -508,7 +547,7 @@ change detector which classes need this.
    reference to a scanned member matches that member's key exactly.
 4. **Self-contained references.** Every reference's source is a member or type of
    the scanned class itself. A detail reference's `fromType` is always the class that
-   was scanned.
+   was scanned, and its `fromArtifact` the artifact it was scanned from.
 5. **Determinism.** Output content and order are a function of the inputs alone
    (§7).
 6. **All or nothing.** A scan returns a complete result or fails (§8).

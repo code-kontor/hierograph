@@ -25,6 +25,10 @@
             <artifactId>io.hierograph.server</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.server.views</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
         </dependency>
@@ -75,6 +79,14 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!-- For the opt-in Gradle ITs (-Dhierograph.itest.gradle=true): the plugin version to use and
+                         the Maven installation that runs the Maven side of the parity test. -->
+                    <systemPropertyVariables>
+                        <hierograph.version>${project.version}</hierograph.version>
+                        <maven.home>${maven.home}</maven.home>
+                    </systemPropertyVariables>
+                </configuration>
                 <executions>
                     <execution>
                         <id>integration-tests</id>

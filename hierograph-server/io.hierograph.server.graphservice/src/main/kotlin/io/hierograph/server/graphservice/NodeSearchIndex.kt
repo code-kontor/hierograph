@@ -22,23 +22,35 @@ import io.hierograph.hierarchicalgraph.model.NodeMetadata
 /**
  * Immutable, precomputed search index over the hierarchical model, used by `find_node`.
  *
- * Each loaded graph snapshot builds its own index, and the snapshot's model is never mutated afterwards,
- * so each node's name and fully-qualified name are lower-cased a single time here rather than on every
- * search. A search is
- * then an allocation-free scan over a flat [entries] array (substring matching is
- * inherently linear; this just removes the per-query lower-casing cost).
+ * Each loaded graph snapshot builds its own index, and the snapshot's model is never mutated afterwards.
+ * A search is an allocation-free scan over a flat [entries] array. The entries refer to the node's own
+ * name and fully-qualified name strings, so the index adds no string copies; [NodeSearch] compares them
+ * case-insensitively. (Lower-cased copies would cost about a third of a large graph's per-build memory.)
  *
  * `kind` is intentionally not cached — it is a cheap field read on the node and is needed live so
  * the matching predicate keeps exactly the same typing as the rest of the tool surface.
  */
 class NodeSearchIndex private constructor(val entries: List<Entry>) {
 
-    /** One searchable node: the node itself plus its pre-lower-cased name and fqn. */
+    /** One searchable node: the node itself plus its name and fqn, the node's own strings. */
     class Entry(
         val node: HGNode,
-        val nameLower: String,
-        val fqnLower: String,
+        val name: String,
+        val fqn: String,
     )
+
+    /**
+     * This index plus [nodes], for a grouping view whose group nodes are added to an otherwise unchanged graph:
+     * the entries of the real nodes are shared, not recomputed. A restructuring view changes the graph's nodes
+     * and needs [build] instead.
+     */
+    fun withAdditional(nodes: Collection<HGNode>): NodeSearchIndex {
+        if (nodes.isEmpty()) return this
+        val combined = ArrayList<Entry>(entries.size + nodes.size)
+        combined.addAll(entries)
+        nodes.mapTo(combined) { entry(it) }
+        return NodeSearchIndex(combined)
+    }
 
     companion object {
 
@@ -49,17 +61,11 @@ class NodeSearchIndex private constructor(val entries: List<Entry>) {
         fun build(model: HGModel): NodeSearchIndex {
             val hierarchy = model.hierarchy
             val entries = ArrayList<Entry>()
-            hierarchy.traverse(hierarchy.rootNode) { node ->
-                entries.add(
-                    Entry(
-                        node = node,
-                        nameLower = NodeMetadata.getName(node).lowercase(),
-                        fqnLower = NodeMetadata.getQualifiedName(node).lowercase(),
-                    )
-                )
-            }
+            hierarchy.traverse(hierarchy.rootNode) { node -> entries.add(entry(node)) }
             entries.trimToSize()
             return NodeSearchIndex(entries)
         }
+
+        private fun entry(node: HGNode) = Entry(node, NodeMetadata.getName(node), NodeMetadata.getQualifiedName(node))
     }
 }

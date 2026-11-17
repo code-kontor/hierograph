@@ -34,8 +34,11 @@ class ReloadGraphTool(
         name = "reload_graph",
         description = "[Maintenance] Rebuild the hierarchical graph from its source without restarting the " +
                 "server: in manifest mode every module is rescanned, in Parquet mode the snapshot is re-read. In manifest mode the graph follows compiled classes " +
-                "and manifest changes on its own; call this when it seems out of date, or after changing " +
-                "something the watcher does not see. Returns a status ('reloaded' or 'error'), the " +
+                "and manifest changes on its own, and with build files=regenerate also edits of the build files " +
+                "(POMs, Gradle scripts): don't call this after such an edit. Call it when the graph seems out of " +
+                "date, or after changing something the watcher does not see. While a manifest is being applied " +
+                "or another reload runs (graph_update in server_info), the call waits for that update and returns " +
+                "its result with joined='manifest-apply' or 'reload', instead of scanning again. Returns a status ('reloaded' or 'error'), the " +
                 "refreshed root-child count, the data-snapshot hash and, in manifest mode, the " +
                 "build_state: 'current', or 'stale' with the build files edited since the manifest was " +
                 "written (run the build that writes the manifest), 'regenerating', or " +

@@ -49,7 +49,7 @@ all matching edges, not just the page: the most-used targets, the busiest source
 types, the kinds of dependency. Most questions ("what does `Invoice` lean on most?")
 are answered by the summary of a one-edge page.
 
-**An open form for "what does X use?".** At the type level the target is optional.
+**An open form for "what does X use?".** The target is optional, at both levels.
 Without it, the tool lists every dependency of the source, to anywhere in the graph,
 including external types.
 
@@ -75,11 +75,13 @@ of view.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `fromId` | node id | yes | — | The depending subtree |
-| `toId` | node id | at detail level | — | The depended-upon subtree |
+| `toId` | node id | no | — | The depended-upon subtree; omitted, the target side is unconstrained |
 | `detailLevel` | string | no | `"type"` | `"type"` for type edges, `"detail"` for member references |
 | `relationship` | string | no | — | Detail level only: keep references of this relationship |
-| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 400 (type), 250 (detail) |
-| `cursor` | string | no | — | `next_cursor` of the previous page |
+| `parameterPosition` | integer ≥ 0 | no | — | Detail level only: keep the parameter references of the parameter at this 0-based position |
+| `limit` | integer | no | 100 (type), 80 (detail) | Edges per page; capped at 300; fewer when they would not fit the response budget |
+| `cursor` | string | no | — | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
+| `view` | string | no | none | the view to answer in |
 
 **`fromId`** names the subtree whose outgoing dependencies are listed. It stands for
 the node and everything below it: a module, a package, a type, the root (the whole
@@ -96,10 +98,13 @@ questions without listing the whole type.
 **`toId`** restricts the result to dependencies whose target lies in this subtree. It
 is what turns "everything `billing` uses" into "what `billing` uses of `money`". At
 the type level it is optional: omitted, the target side is unconstrained (the
-**open form**). At the detail level it is required, because an unconstrained member
-listing of a package is too large to be useful and the type level already answers the
-open question. `toId` may lie inside `fromId` or equal it; the result is then the
-internal dependencies.
+**open form**). The detail level has the open form too: omitted, it lists every
+member reference of `fromId`, to any type the graph knows. The depending side keeps
+its supertype closure, so code `fromId` inherits is listed and marked `inherited`.
+`to_scope` is then `null`, and `by_target_nodes` drills down from the root, each
+child weighed by its type-level weight from `fromId`. A member listing of a package
+can be large, so ask for the summary first (`limit = 1`). `toId` may lie inside
+`fromId` or equal it; the result is then the internal dependencies.
 
 **`detailLevel`** chooses the level. Only `"type"` and `"detail"` are accepted, case
 sensitive. The type level is the default because it is cheap and usually enough;
@@ -110,17 +115,35 @@ such as `calls` or `reads_field` (vocabulary in §3.2). A type edge has no singl
 relationship, so passing a `relationship` at the type level is an error rather than
 being silently ignored. An empty string counts as absent.
 
+**`parameterPosition`** keeps the `parameter_type` and `parameter_annotated_by` rows
+of the parameter at this 0-based position, the same position `method_details`
+reports. `relationship = "parameter_type", parameterPosition = 0` answers "which
+methods take this type as their first parameter" in one call. Only these two
+relationships have positions, so without `relationship` the filter selects both, and
+with any other relationship it is an error. It is an error at the type level, where
+an edge sums references of every kind, and when negative.
+
 **`limit`** is the page size. The defaults differ per level because a detail row is
-larger than a type edge. Values are clamped as described in
-[Parameters](hierograph-mcp-tools.md#5-parameters): the caps are 142 type edges and
-90 detail rows, the largest pages that fit the
-[response budget](hierograph-mcp-tools.md#73-the-response-budget).
+larger than a type edge. Values are clamped to 300 as described in
+[Parameters](hierograph-mcp-tools.md#5-parameters), and a page holds fewer edges when
+they would not fit the [response budget](hierograph-mcp-tools.md#73-the-response-budget)
+— measured on the page with its `nodes` map and summary; `next_cursor` continues after
+the last edge.
 
 **`cursor`** continues a listing. It is bound to `outgoing_dependencies`, to `fromId`,
-`toId`, `detailLevel` and (at the detail level) `relationship`, and to the loaded
+`toId`, `detailLevel` and (at the detail level) `relationship` and `parameterPosition`, and to the loaded
 graph; see [Cursors](hierograph-mcp-tools.md#72-cursors). A type-level cursor passed
-to a detail-level call fails with `STALE_CURSOR_QUERY`. `limit` may change between
-pages.
+to a detail-level call fails with `STALE_CURSOR_QUERY`. Passing the cursor alone is
+enough: the server remembers the other arguments. `limit` may change between pages.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. In a view, a group's id is
+accepted wherever this tool takes a node id, and stands for the subtree below the group
+in the view. Dependencies are the same in every view; only where nodes sit changes.
 
 ---
 
@@ -143,9 +166,10 @@ edge:
 | `to` | the depended-upon type; may be an external type |
 | `weight` | the number of individual references from `from` to `to`, over all reference kinds |
 | `attributes` | the dependency's four attribute flags |
+| `kinds` | the number of references per kind; they sum to `weight` |
 
-The weight comes from the snapshot's type-level references (see
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)):
+The weight comes from the snapshot's dependencies, rolled up per pair of types (see the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate)):
 two calls to `Money` methods and one `Money` return type give a weight of 3. In the
 open form on a package, the edges between types of the package itself are included:
 they are outgoing dependencies of the types, and the caller may filter on `to`.
@@ -160,30 +184,47 @@ ids as tiebreakers. The order is total, so pages are stable.
 - `by_source_type`: the anchor types ranked by number of edges, top 10. This shows
   which types of a package carry its dependencies.
 - `by_attribute`: for each of the four flags, the number of edges that carry it.
+- `by_kind`: for each kind, the number of references over all kept edges, the
+  `kinds` of every edge summed.
 
 Rankings with equal values keep the order in which the edges were found.
 
 ### 3.2 Detail level
 
 **Scope.** The tool collects the types of the `fromId` subtree and of the `toId`
-subtree, as at the type level, and then adds to each side the transitive supertypes
-of its types: everything reached through `extends` and `implements`, scanned or
-external. The scope is the **inheritance closure** of each side. The root is accepted
-on either side and stands for every type.
+subtree, as at the type level. To the `fromId` side it then adds the transitive
+supertypes of its types: everything reached through `extends` and `implements`,
+scanned or external. That side's scope is its **inheritance closure**; the `toId` side
+is its own types only. The root is accepted on either side and stands for every type.
 
-The closure exists because a type's behaviour includes code it inherits and calls
-compiled against its supertypes. A reference from a method that `Invoice` inherits
-from a base class belongs to what `Invoice` does, and a call compiled against an
-interface that `Money` implements is a use of `Money`. The consequence is that a
-detail result can contain rows whose `from_parent` lies outside `fromId`, and targets
-outside `toId`: a supertype's own references, and references to members of the
-target's supertypes. Such a row is **inherited**: it carries `"inherited": true`, and
-`summary.inherited` counts them, so a caller can keep or drop them deliberately. A row
-whose two types lie in the scopes' own subtrees carries no `inherited` key.
+The closure exists because a type's behaviour includes the code it inherits. A
+reference from a method that `Invoice` inherits from a base class belongs to what
+`Invoice` does. The consequence is that a detail result can contain rows whose
+`from_parent` lies outside `fromId`: a supertype's own references. Such a row is
+**inherited**: it carries `"inherited": true`, and `summary.inherited` counts them, so
+a caller can keep or drop them deliberately. A row whose depending type lies in the
+`fromId` subtree carries no `inherited` key.
+
+A supertype that lies in the `toId` subtree is taken out of the `fromId` side again.
+Its code only references the target, so its rows would describe the target's
+internals (a base class reading its own fields, calling its own lambdas), never a use
+of the target by `fromId`. The supertypes reached through it still count when they
+lie outside `toId`. A type that lies in both subtrees keeps its own rows: it is part
+of `fromId`, not a supertype added to it.
+
+The `toId` side has no closure, because a reference to a supertype is not a use of
+the types below it. Static methods, constructors and type references (a field or
+parameter of type `PriceCalculator`) never reach an implementing class. A call that
+may dispatch into one at run time, such as `calculator.calc(…)` against an interface
+that `TaxAwarePriceCalculator` implements, is already a row of its own: the virtual-call
+target derived at load, `calls TaxAwarePriceCalculator#calc`, whose type lies in the
+scope. Those targets are derived for scanned supertypes only, so a call against an
+external interface such as `java.util.Comparator` never counts as a use of a module
+that happens to implement it.
 
 **Edges.** The tool reads every member reference whose depending type lies in the
 `from` side and whose target type lies in the `to` side from the snapshot's
-[`detail_refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#45-detail_refsparquet),
+[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet),
 then adds the references derived when the graph was loaded: method overrides and the
 possible run-time targets of virtual calls. It keeps the references whose two types
 are known to the graph and lie in the scopes.
@@ -193,10 +234,25 @@ several artifacts (a library vendored twice, say). Each reference is read from t
 snapshot artifact that defines its depending type, so the tool resolves the depending
 type in that artifact, and the target type the way that artifact's classpath resolves
 it, the rule type-level dependencies follow too (see
-[binding type names to artifacts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#61-binding-type-names-to-artifacts)).
+[binding type names to artifacts](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#61-binding-type-names-to-artifacts)).
 A scope that names one definition therefore never lists the rows of its twin. Where
 the artifact is not known (a snapshot in the unpacked layout, or a reference derived
 at load), an FQN resolves to its first definer.
+
+**Inherited members.** A call or field access names its member on the type the
+compiler saw, the static type of the receiver, which may only inherit it:
+`config.withEicCodes(…)` on a `RestInboundParticipantConfiguration` is compiled
+against `RestInboundParticipantConfiguration#withEicCodes(List)`, although the method
+is declared in its base class `AbstractParticipantConfiguration`. Whether the row is
+in scope is decided by the receiver, because the receiver is the type the depending
+code uses. The row's `to` is the member that is actually declared: the tool looks it
+up in the receiver's supertypes the way the JVM resolves a reference, the superclass
+chain first, then every supertype, nearest first. `to` and `to_parent` then name the
+declaration, and `receiver` names the type the reference was compiled against. When
+the receiver and the declaring type both lie in the `toId` scope, the call's resolved
+target derived at load names the same declaration; the tool lists the call once. When
+no scanned supertype declares the member (`getMessage()` on an exception, `name()` on
+an enum), `to` keeps the member as compiled, with the kind `external.member`.
 
 Each reference becomes one row:
 
@@ -206,9 +262,11 @@ Each reference becomes one row:
 | `from_parent` | the type that declares `from` |
 | `to` | the referenced member, or the referenced type |
 | `to_parent` | the type that declares `to`; only when `to` is a member |
+| `receiver` | the type the reference was compiled against, when it only inherits `to` |
 | `relationship` | the meaning of the reference |
 | `location` | the source line, or `null` |
-| `inherited` | `true` when a type of the row lies outside its scope's own subtree; absent otherwise |
+| `parameter` | for `parameter_type` and `parameter_annotated_by`: the parameter's `position` and `name`; absent otherwise |
+| `inherited` | `true` when the depending type lies outside the `fromId` subtree; absent otherwise |
 
 **Relationships.** The `relationship` filter accepts these values:
 
@@ -224,12 +282,24 @@ Each reference becomes one row:
 | `raises` | method → a type it constructs and throws | snapshot |
 | `has_type` | field → its declared type | snapshot |
 | `annotated_by` | type, method or field → its annotation | snapshot |
+| `extends` | type → its superclass | snapshot |
+| `implements` | type → an interface it implements | snapshot |
+| `annotation_value` | type, method or field → a type used in an annotation value | snapshot |
+| `type_argument` | type, method or field → a type in a generic type argument or bound | snapshot |
+| `instantiates` | method → a type it creates an instance or array of | snapshot |
+| `casts` | method → a type it casts to or tests with `instanceof` | snapshot |
+| `catches` | method → an exception type it catches | snapshot |
+| `class_literal` | method → a type it uses as a class literal | snapshot |
 | `read_by` | field → method that reads it | reverse view of `reads_field` |
 | `written_by` | field → method that assigns it | reverse view of `writes_field` |
 | `parameter_annotated_by` | method → an annotation on one of its parameters | snapshot |
 
+`parameter_type` and `parameter_annotated_by` are recorded once per parameter, so a
+method that takes `Money` twice has two `parameter_type` rows to `Money`. Each row
+carries its parameter in the `parameter` field.
+
 The stored relationships are defined in the format specification's
-[member-level relationships](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#53-member-level-relationships-detail_refsrelationship).
+[dependency kinds](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#52-dependency-kinds-dependenciesrelationship).
 
 `read_by` and `written_by` exist only as filters; an unfiltered result never contains
 them. They turn the stored field access around: the rows read field → method, and
@@ -310,7 +380,7 @@ The same pair at the detail level,
 `outgoing_dependencies(fromId = 4702, toId = 4720, detailLevel = "detail")`, lists
 six rows (member names shortened to simple type names). `Invoice#total` is the method
 of the
-[format example](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#7-example);
+[format example](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#7-example);
 its first line is 13:
 
 | `from` | `relationship` | `to` | line |
@@ -325,8 +395,8 @@ its first line is 13:
 The three `Invoice` rows correspond to the type-level weight 3 (one return type, two
 calls). The rows are ordered by depending type, then member key, then target key;
 the target `Money` sorts before the keys of its members. `Ledger#post` is abstract and
-has no line. None of the types has a supertype in the graph, so the inheritance
-closure adds nothing.
+has no line. None of the `billing` types has a supertype in the graph, so the
+inheritance closure adds nothing.
 
 The summaries: `by_relationship` is `calls` 2, `has_type` 1, `parameter_type` 1,
 `returns` 2 (six rows). `by_source_type` is `Invoice` 3, `Invoice$Line` 2, `Ledger` 1.
@@ -353,16 +423,19 @@ The open form of §3.3 with `limit = 2`:
   "edges": [
     { "from": 4711, "to": 4712, "weight": 4, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } },
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "has_type": 1, "type_argument": 1, "calls": 2 } },
     { "from": 4711, "to": 4713, "weight": 1, "type_pair_count": 1,
       "attributes": { "is_extends": false, "is_implements": false,
-                      "is_annotated_by": false, "is_depends_on_other": true } }
+                      "is_annotated_by": false, "is_depends_on_other": true },
+      "kinds": { "calls": 1 } }
   ],
   "summary": {
     "total": 4,
     "returned": 2,
     "truncated": true,
     "by_attribute": { "is_extends": 0, "is_implements": 0, "is_annotated_by": 0, "is_depends_on_other": 4 },
+    "by_kind": { "has_type": 2, "returns": 1, "type_argument": 1, "calls": 6 },
     "by_source_type": [ { "id": 4711, "count": 4 } ],
     "by_target": [
       { "id": 4712, "weight": 4 },
@@ -397,6 +470,7 @@ Edge fields:
 | `weight` | integer | Number of references from `from` to `to` |
 | `type_pair_count` | integer | Always `1` |
 | `attributes` | object | The four attribute flags of the dependency |
+| `kinds` | object | Number of references per kind; the counts sum to `weight` |
 
 **`type_pair_count`** is always 1 because each edge is one type pair. The field
 exists so that type edges have the same shape as the aggregated edges of
@@ -408,6 +482,15 @@ three with the same code.
 whether `from` extends, implements or is annotated with `to`, or uses it in any
 other way. It tells inheritance apart from use without a detail-level call.
 
+**`kinds`** breaks `weight` down by what the references are: `{"calls": 14,
+"class_literal": 1}` says fourteen calls and one class literal. Only kinds with a
+count appear, in a fixed vocabulary order. Each name is the detail-level relationship
+that lists those references, so `relationship: "class_literal"` at detail level shows
+the one class literal. `annotated_by` counts the annotations of the type and of its
+members together; the `is_annotated_by` flag is set by the type's own annotations only. The
+kinds are defined in the
+[type-level aggregate](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#64-the-type-level-aggregate).
+
 Summary fields:
 
 | Field | Type | Description |
@@ -416,6 +499,7 @@ Summary fields:
 | `returned` | integer | Number of edges on this page |
 | `truncated` | boolean | `true` when `total > returned` |
 | `by_attribute` | object | For each of the four flags, the number of matching edges that carry it |
+| `by_kind` | object | For each kind, the number of references over all matching edges |
 | `by_source_type` | array of `{id, count}` | Depending types by number of edges, top 10 |
 | `by_target` | array of `{id, weight}` | Depended-upon types by summed weight, top 10 |
 
@@ -424,6 +508,11 @@ Summary fields:
 
 **`by_attribute`** always lists all four flags, with 0 for absent ones, so a caller
 can test "does anything here inherit?" by reading one number.
+
+**`by_kind`** is the `kinds` of every matching edge summed. It shows what the
+dependencies consist of — calls, signatures, annotation values, casts — without
+fetching the edges, for example that a module pair is held together only by Spring
+wiring (`annotation_value`, `class_literal`).
 
 **`by_source_type`** counts edges, not weight: it shows how many distinct targets each
 depending type has, which is the measure of how spread out its dependencies are.
@@ -492,15 +581,17 @@ The detail example of §3.4 with `limit = 3`:
 |-------|------|-------------|
 | `nodes` | object | Slim node map: the scopes, the summary nodes and the endpoints of this page |
 | `from_scope` | node id | The depending scope, `fromId` |
-| `to_scope` | node id | The depended-upon scope, `toId` |
+| `to_scope` | node id or `null` | The depended-upon scope, `toId`; `null` in the open form |
 | `edges` | array | This page of member references |
 | `summary` | object | Counts and rankings over all matching rows |
 | `next_cursor` | string | Cursor for the next page; absent on the last page |
 
-**`nodes`** names the two scopes, every node in `by_source_nodes`, `by_target_nodes`
+**`nodes`** names the scopes (one, in the open form), every node in `by_source_nodes`, `by_target_nodes`
 and `by_source_type`, and every `from`, `from_parent`, `to` and `to_parent` on the
-page. A member of an external type, which is not a graph node, is named from the
-snapshot; its kind is `"unknown"` when the snapshot has no record of it.
+page, and every `receiver`. A member no scanned type declares, which is not a graph
+node, is named by its key and has the kind `"external.member"`: a member of an
+external type, or one a scanned type inherits from a supertype outside the scanned
+code.
 
 **`from_scope`** and **`to_scope`** echo the scope ids. They state which side is which,
 which matters for
@@ -515,22 +606,34 @@ Edge fields:
 | `from_parent` | node id | always | The type that declares `from` |
 | `to` | node id | always | The referenced member or type |
 | `to_parent` | node id | when `to` is a member | The type that declares `to` |
+| `receiver` | node id | when `to` is inherited | The type the reference was compiled against, which only inherits `to` (§3.2) |
 | `relationship` | string | always | One of the values in §3.2 |
 | `location` | object or `null` | always | `{"line_number": n}`, or `null` without a line |
+| `parameter` | object | `parameter_type`, `parameter_annotated_by` | `{"position": n, "name": s}`: the 0-based position and name of the parameter, as in `method_details` |
 | `inherited` | boolean | when `true` | The row comes from the inheritance closure (§3.2) |
 
 **`from_parent`** and **`to_parent`** let a caller group rows by type without a lookup.
 **`inherited`** marks the rows that only the inheritance closure brings in, a
-supertype's code or a target's inherited member, so the scope's own rows stay
+supertype's own code, so the scope's own rows stay
 recognisable; it is absent on all other rows to keep them small.
 `to_parent` is absent when `to` is a type, because the type is its own parent.
+**`receiver`** is present only when the receiver does not declare `to` itself. It is
+the type in the `toId` scope that puts the row there; `to_parent`, the declaring type,
+may lie outside it.
 
 **`location`** is the line of the instruction for `calls`, `reads_field` and
 `writes_field`, and the first line of the method for the signature relationships. It
 is `null` for annotations, field types, methods without code, and classes compiled
 without line information (see
-[Line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)).
+[Line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#34-line-numbers)).
 The line is what lets a caller open the source at the right place.
+
+**`parameter`** tells the parameters of one method apart: `transfer(Money from, Money
+to)` has two `parameter_type` rows to `Money`, with positions 0 and 1. Positions
+follow the method's bytecode descriptor, so a parameter the compiler adds (the outer
+instance of an inner-class constructor, an enum constructor's name and ordinal) has a
+position too. The name falls back to `arg<position>` when the class was compiled
+without parameter names.
 
 Summary fields:
 
@@ -574,7 +677,7 @@ The two levels report errors in different shapes, as described in
 |------|-----------|--------------|
 | `INVALID_PARAMETER` | `detailLevel` is not `"type"` or `"detail"` | — |
 | `INVALID_PARAMETER` | `relationship` given at the type level | — |
-| `INVALID_PARAMETER` | `toId` missing at the detail level | — |
+| `INVALID_PARAMETER` | `parameterPosition` given at the type level, negative, or with a relationship other than `parameter_type` / `parameter_annotated_by` | — |
 | `NODE_NOT_FOUND` | `fromId`, then `toId`, names no node | — |
 | `INVALID_NODE_KIND` | `fromId` or `toId` names a method or a field | `actual_kind`, `declaring_type` |
 | cursor codes | the cursor is malformed, from another tool, or stale | see [Cursors](hierograph-mcp-tools.md#72-cursors) |
@@ -631,7 +734,7 @@ before paging through a large result.
 `"written_by"` with the fields' type as `fromId` and the suspected users as `toId`.
 
 **Page.** Pass `next_cursor` back with the same `fromId`, `toId`, `detailLevel` and
-`relationship`. A page holds at most 142 type edges or 90 detail rows.
+`relationship`. A page holds at most 125 type edges or 90 detail rows.
 
 **Read the other direction.** For "what uses X?", call
 [`incoming_dependencies`](hierograph-tool-incoming-dependencies.md) with the same

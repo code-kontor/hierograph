@@ -3,8 +3,13 @@ type Query {
     The served hierarchical graph: the tree of modules, packages, types and members over the scanned
     code, with the dependencies between types. `null`, with a GRAPH_UNAVAILABLE error, while no graph is
     loaded.
+
+    With `view`, the hierarchy of that view: its groups are nodes of type `view.group` above the nodes
+    they group, and the whole request is answered in the view. A request answers in one view; selecting
+    `hierarchicalGraph` again with another view is a BAD_REQUEST. An unknown view is a VIEW_NOT_FOUND
+    error, a view whose document does not parse a VIEW_INVALID error.
     """
-    hierarchicalGraph: HierarchicalGraph
+    hierarchicalGraph(view: String): HierarchicalGraph
 }
 
 """

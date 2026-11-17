@@ -150,7 +150,10 @@ repository, and `.mvn/maven.config` and `.mvn/extensions.xml` of the multi-modul
 project directory. A watching server compares the hashes with the files' current
 content to detect a POM edited since the merge. Hashes are cached per file while
 its size and modification time are unchanged, so a full build hashes each file
-once.
+once. Maven reads the POMs when the session starts, so a build file modified after
+the session's start time is recorded as `changed-during-build`, not hashed: the
+modules and classpaths come from the content Maven read, and the manifest is
+stale for that file from the start.
 
 **Build tool and regeneration command.** The manifest names its producer's tool,
 `buildTool: { "name": "maven", "version": <the running Maven version> }`, and the
@@ -431,25 +434,17 @@ scan, published under the `hierograph` type.
 ├── types.parquet         # the artifact's types
 ├── members.parquet       # methods and fields
 ├── parameters.parquet    # method parameters
-├── refs.parquet          # type-level references (extends / implements / uses)
-├── detail_refs.parquet   # member-level references (calls, field access, …)
+├── dependencies.parquet  # every dependency, one detail fact per row (extends, calls, field access, …)
 └── classpath.parquet     # the module's ordered classpath (§5.4)
 ```
 
-Each Parquet file carries **footer metadata** describing the scan, so an archive
-is self-describing wherever it travels:
-
-| Key | Meaning |
-|-----|---------|
-| `artifactKey` | the artifact's GAV |
-| `origin` | `MODULE_MAIN`, `MODULE_TEST`, `LIBRARY`, or `JDK` |
-| `contentHash` | sha-256 of the scanned bytecode (jar, or the class files of a directory) |
-| `scannerVersion` | the scanner that produced it |
-| `schemaVersion` | the table schema version |
-| `scanMode` | `FULL` (bodies scanned) or `API` (signatures only) |
-
-The `contentHash` ties an archive to the exact bytecode it was scanned from: a
-consumer can detect an archive that no longer matches its artifact and rescan.
+The tables are defined in the
+[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
+Each table carries the format version in its footer key-value metadata
+(`hierograph.format.version`), so an archive says which format it was written in
+wherever it travels. A consumer rejects an archive of an older format, which has to
+be rescanned, and one of a newer format, which needs a newer Hierograph. The
+artifact's key is stored in the tables themselves (`types.artifact`).
 
 ### 5.4 `classpath.parquet`
 

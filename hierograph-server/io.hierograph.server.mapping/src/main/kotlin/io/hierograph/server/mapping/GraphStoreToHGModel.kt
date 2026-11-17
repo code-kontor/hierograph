@@ -16,26 +16,27 @@
 package io.hierograph.server.mapping
 
 import io.hierograph.graphstore.jvm.GraphStore
-import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.hierarchicalgraph.model.DefaultNodeSource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.hierarchicalgraph.model.NodeHandle
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
+import java.util.Collections
 
 /**
- * Builds the production hierarchical graph ([HGModel]) directly from a [GraphStore] — the bridge that
- * lets the existing Hierograph API run off a Parquet-loaded graph.
+ * Builds Hierograph's hierarchical graph ([HGModel]) from a [GraphStore]: the bridge from the ingest model
+ * to the analysis model. See `spec/hierograph-mapping.md`.
  *
- * It builds the standard hierarchy shape (root → top-level modules →
- * parent/child → type dependencies, using the same `HGGraphFactory` / `HierarchyFactory`), reading
- * everything from the in-memory GraphStore. Each `HGNode`'s identifier is a
- * content-addressed [NodeHandle] derived from its stable GraphStore key (so handles survive rescans and
- * restarts), while the key itself is carried as `fqn`/`name` on the node source for the metadata provider
- * and detail lookups to read; the type-dependency flags are encoded into the [JavaEdgeAttributes] bitmap
- * exactly as the Java provider expects.
+ * The model has one node per GraphStore node under a synthetic root (top-level modules hang under the
+ * root, every other node under its GraphStore parent) and one `DEPENDS_ON` core dependency per
+ * [GraphStore.typeDependencies] entry whose endpoints both exist. Each node's identifier is the
+ * content-addressed [NodeHandle] of its GraphStore key, so handles survive rescans and restarts; its
+ * [GraphStoreNodeSource] carries the display name, the FQN, the key and the modifier bits. The
+ * type-dependency flags are encoded into the [JavaEdgeAttributes] bitmap.
+ *
+ * Reads the store without modifying it; the caller must not modify the store while [build] runs.
  */
 object GraphStoreToHGModel {
 
@@ -55,8 +56,8 @@ object GraphStoreToHGModel {
         val rootNode = HGGraphFactory.createNode(coreGraph) { DefaultNodeSource(handle(ROOT_ID)) }
         val hierarchy = HierarchyFactory.createHierarchy(coreGraph, rootNode)
 
-        // One HGNode per GraphStore node; identifier = the content-addressed handle, with the stable key as
-        // name/fqn on the node source so the metadata provider (and detail lookups) can read them.
+        // One HGNode per GraphStore node; identifier = the content-addressed handle. The node source carries
+        // name, FQN, key and modifiers so the metadata provider and detail lookups can read them.
         val byKey = HashMap<String, HGNode>()
         for (n in store.nodes()) {
             val hg = HGGraphFactory.createNode(coreGraph) {
@@ -75,11 +76,15 @@ object GraphStoreToHGModel {
 
         // Type-to-type dependencies, keyed on resolved artifact-scoped node keys (so edges connect the
         // correct distinct nodes when an FQN is defined in more than one artifact).
-        for (dep in store.typeDependencyEdges()) {
+        // The kind counts repeat across dependencies ({CALLS=1}, {EXTENDS=1, CALLS=1}, ...): share one read-only
+        // map per distinct combination instead of keeping a map per dependency.
+        val kindsPool = HashMap<Map<DependencyKind, Int>, Map<DependencyKind, Int>>()
+        for (dep in store.typeDependencies()) {
             val from = byKey[dep.fromKey] ?: continue
             val to = byKey[dep.toKey] ?: continue
+            val kinds = kindsPool.getOrPut(dep.kinds) { Collections.unmodifiableMap(dep.kinds) }
             val coreDep = HGGraphFactory.createCoreDependency(from, to, DEPENDS_ON) {
-                DefaultDependencySource("${dep.fromKey} -> ${dep.toKey}")
+                GraphStoreDependencySource(kinds)
             }
             coreDep.weight = dep.weight
             coreDep.attributesBitmap = bitmapOf(dep.extends, dep.implements, dep.annotatedBy, dep.other)

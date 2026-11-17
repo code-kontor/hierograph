@@ -21,7 +21,11 @@ import io.hierograph.hierarchicalgraph.model.HGNode
 interface IDependencyStructureMatrix {
     val orderedNodes: List<HGNode>
     val upwardDependencies: List<AggregatedDependency>
+    /** The cycles: each lists its nodes in [orderedNodes] order, and the cycles are sorted by their first node. */
     val cycles: List<List<HGNode>>
+
+    /** Whether every cycle got the exact order, the one with the least upward weight (an acyclic set always does). */
+    val isOrderExact: Boolean
 
     fun isCellInCycle(i: Int, j: Int): Boolean
     fun isRowInCycle(i: Int): Boolean

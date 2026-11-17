@@ -1,13 +1,14 @@
 # Hierograph MCP Tools — Specification
 
 `io.hierograph.mcp.server` is Hierograph's **architectural query surface for language
-models**: a set of fourteen MCP tools that answer structural and dependency questions
-about a scanned JVM codebase. Every architectural question an assistant asks Hierograph
+models**: a set of eighteen MCP tools that answer structural and dependency questions
+about a scanned JVM codebase, and that manage the views those questions can be
+asked in. Every architectural question an assistant asks Hierograph
 (what is in this module, what depends on this type, is there a path from here to there)
 goes through one of these tools.
 
 This document explains why the tool surface exists, the concepts all tools share (node
-identity, kinds, node references, pagination, errors), and how the tools fit together.
+identity, kinds, views, node references, pagination, errors), and how the tools fit together.
 Each tool has its own specification, linked from §4.
 
 ---
@@ -68,7 +69,7 @@ error knows what to do next without guessing.
                     │
                     ▼
    ┌──────────────────────────────────┐
-   │   MCP tool surface               │  14 tools, node references,
+   │   MCP tool surface               │  18 tools, views, node refs,
    │   (io.hierograph.mcp.server)     │  pagination, errors
    └────────────────┬─────────────────┘
                     │  MCP (JSON over HTTP)
@@ -79,8 +80,10 @@ error knows what to do next without guessing.
 **Producers.** The
 [hierarchical graph service](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md)
 supplies the loaded model, the node search index, the data hash used by cursors (§7.2)
-and the detail-level snapshot read by the detail tools. The tools never read build
-output or Parquet files on their own.
+and the detail-level snapshot read by the detail tools. Its view service supplies the
+view documents and each view applied to the loaded graph (see the
+[views specification](../../io.hierograph.server.views/spec/hierograph-views.md#7-registry-and-service)).
+The tools never read build output, Parquet files or view documents on their own.
 
 **Consumers.**
 
@@ -159,6 +162,7 @@ dependency on `BigDecimal` is as visible as a dependency on `Money`.
 | `java.method` | A method or constructor |
 | `java.field` | A field |
 | `external.type` | A type referenced from outside the scanned code |
+| `view.group` | A group of a view (§5); exists only in the view that defines it |
 
 One further kind appears only inside responses and never as a tree node:
 `java.primitive`, for primitive types such as `int` and `void` (always with `id: null`).
@@ -185,9 +189,9 @@ without a second lookup:
 ```json
 { "error": {
     "code": "INVALID_KIND",
-    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field, external.type. Group aliases: types, members, packages.",
+    "message": "Unknown kind: 'classes'. Valid kinds: java.module, java.package, java.class, java.interface, java.enum, java.record, java.annotation, java.method, java.field, external.type, view.group. Group aliases: types, members, packages.",
     "invalid_values": ["classes"],
-    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field", "external.type"],
+    "valid_kinds": ["java.module", "java.package", "java.class", "java.interface", "java.enum", "java.record", "java.annotation", "java.method", "java.field", "external.type", "view.group"],
     "valid_aliases": ["types", "members", "packages"],
     "recovery": "Use values from valid_kinds or valid_aliases, or omit kindFilter." } }
 ```
@@ -233,7 +237,7 @@ relationship vocabulary is listed in the
 
 | Tool | Category | Answers | Paginated |
 |------|----------|---------|-----------|
-| [`graph_overview`](hierograph-tool-graph-overview.md) | Orientation | What is in the graph, and what do kinds and relationships mean? | no |
+| [`graph_overview`](hierograph-tool-graph-overview.md) | Orientation | What is in the graph, and what do kinds and relationships mean? | its hierarchy, on a very large codebase |
 | [`find_node`](hierograph-tool-find-node.md) | Navigation | Which node has this name? | no (capped) |
 | [`list_children`](hierograph-tool-list-children.md) | Navigation | What is directly inside this node? | no (capped) |
 | [`list_descendants`](hierograph-tool-list-descendants.md) | Navigation | What is anywhere inside this node? | yes |
@@ -247,6 +251,11 @@ relationship vocabulary is listed in the
 | [`method_details`](hierograph-tool-method-details.md) | Entity detail | What is this method's signature? | no |
 | [`field_details`](hierograph-tool-field-details.md) | Entity detail | What is this field, and which methods use it? | no |
 | [`reload_graph`](hierograph-tool-reload-graph.md) | Maintenance | Rebuild the graph from its source now. | no |
+| [`server_info`](hierograph-tool-server-info.md) | Maintenance | Which workspace does this server serve, which build is it, and what has it loaded? | no |
+| [`define_view`](hierograph-tool-define-view.md) | Views | Regroup the hierarchy: store and apply a view document. | no |
+| [`list_views`](hierograph-tool-list-views.md) | Views | Which views are there, and do they apply cleanly? | no |
+| [`get_view`](hierograph-tool-get-view.md) | Views | What does this view define, and what did applying it report? | no |
+| [`delete_view`](hierograph-tool-delete-view.md) | Views | Remove a view defined at runtime. | no |
 
 Each tool description starts with its category in brackets, for example
 `[Discovery and navigation]`, so a client that lists the tools sees them grouped.
@@ -266,8 +275,26 @@ whose values form a closed set (`direction`, `detailLevel`, `edgeSort`) are plai
 strings in the schema; the tool validates them and returns `INVALID_PARAMETER` for a
 value outside the set.
 
+**Argument types.** Before a tool runs, the server checks each argument against the
+JSON type its schema declares, and the item type of an array. A value that cannot be
+converted to the tool's parameter, such as `"abc"` for a node id, an object for a
+string, or a string holding JSON for an object, is answered with `INVALID_PARAMETER`
+naming the argument (`'nodeIds[1]' must be an integer, not a string.`). The check
+accepts what the conversion accepts: a numeric string or a fraction for an integer
+(`"12"`, `1.5` becomes `1`), a number or boolean for a string, a number or
+`"true"`/`"false"` for a boolean. `null` passes; each tool decides whether a missing
+argument is allowed.
+
 Optional numeric limits are clamped to the tool's range, not rejected: a `limit` of
 `0` becomes `1`, a `limit` above the cap becomes the cap.
+
+**`view`.** Every tool that reads the graph — all but `reload_graph`, `server_info` and
+the view tools — takes an optional `view`: the name of a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to answer in. A view
+regroups the hierarchy: its groups are nodes of kind `view.group` above the nodes
+they group, and a group's id is accepted wherever a node id is. Dependencies are the
+same in every view; only where nodes sit changes. The parameter is added to each
+tool's schema by the server ([views specification, §8.1](../../io.hierograph.server.views/spec/hierograph-views.md#81-the-view-parameter));
+without it, or with a blank value, a tool answers from the hierarchy as scanned.
 
 ---
 
@@ -295,11 +322,22 @@ val minimal = mapOf(
 `parent_id` and `parent_kind` let a caller place a node in the tree without a second
 call.
 
+In a restructuring view ([views specification, §6.4](../../io.hierograph.server.views/spec/hierograph-views.md#64-restructuring)),
+a node reference of a virtual module or package also carries `virtual: true`, and so
+does its entry in a slim node map (§6.3). The key is absent for every other node.
+
+A module that holds a module's compiled tests carries `is_test: true`, in a node
+reference and in a slim node map. A manifest declares a module's test output beside
+its main output, and the server scans it into a module of its own, named
+`<module> (test)`, with the module's build key plus `:test` as its qualified name.
+The key is absent for every other node, so a caller tells test modules apart without
+matching names.
+
 ### 6.2 Enriched NodeRef
 
 A minimal NodeRef plus counts and modifiers that depend on the kind. Browse results
-(`find_node`, `list_children`, `list_descendants`, `affected_by`, `graph_overview`'s
-hierarchy) use it, because a caller choosing where to look next needs to know how big
+(`find_node`, `list_children`, `list_descendants`, `affected_by`) use it, and `graph_overview`'s
+hierarchy uses a part of it (id, name, kind and counts), because a caller choosing where to look next needs to know how big
 each candidate is and whether it is part of an API.
 
 | Kind | Extra fields | Why |
@@ -310,6 +348,7 @@ each candidate is and whether it is part of an API.
 | `java.method` | `modifiers` | tells API from implementation without a detail call |
 | `java.field` | `modifiers` | tells constants and state apart |
 | `external.type` | none | it was not scanned, so nothing beyond its identity is known |
+| `view.group` | `child_count`, `descendant_module_count`, `descendant_type_count` | what a group of a view holds |
 
 `descendant_type_count` and `direct_type_count` count the five Java type kinds, not
 `external.type`. Packages under `External Types` therefore report `0`.
@@ -343,6 +382,18 @@ Keys are ids as strings, because JSON object keys are strings. An edge then read
 `{"from": 4711, "to": 4730, "weight": 3}`. On a response with a few hundred edges between
 a few dozen types, this removes most of the repetition.
 
+`qualified_name` appears only where it adds something to `name`. It is left out when
+the two are equal (a package named by its dotted path), and for a module, whose
+qualified name is its build coordinate — the longest field of the entry, and rarely
+needed in an edge list. `find_node` and `list_children` still report it:
+
+```json
+"nodes": {
+  "4700": { "name": "billing-core", "kind": "java.module" },
+  "4702": { "name": "com.example.billing", "kind": "java.package" }
+}
+```
+
 ---
 
 ## 7. Pagination
@@ -363,9 +414,14 @@ Every page of every paginated tool carries:
 a multi-page walk. The presence of `next_cursor` is the signal that more pages follow.
 
 The other summary fields (`by_kind`, `by_target`, `by_distance`, …) describe the full
-result, on every page. `pairwise_dependencies` is the one exception: its matrix
+result, on every page. `pairwise_dependencies` is an exception: its matrix
 analysis (cycles, layering, density) appears on the first page only, because it does
-not change from page to page; later pages carry the three counts alone.
+not change from page to page; later pages carry the three counts alone. So is
+`graph_overview`, which pages only its `hierarchy`: the first page carries the whole
+overview, the later ones the rest of the hierarchy with its counts.
+
+A page may hold fewer items than `limit`: the server keeps every response within the
+budget (§7.3) and continues after the last item that fit.
 
 ### 7.2 Cursors
 
@@ -380,9 +436,8 @@ needed to resume:
 | `dh` | **data hash** of the loaded graph | resuming over changed data skips or repeats items |
 | `offset` | position of the next item | where to resume |
 
-The server keeps no session state. A cursor stays valid across reloads and server
-restarts that leave the graph unchanged, and becomes invalid as soon as a rebuild
-changes it.
+A cursor stays valid across reloads and server restarts that leave the graph
+unchanged, and becomes invalid as soon as a rebuild changes it.
 
 The query hash covers the parameters that define the result and excludes `limit` and
 `cursor`, so a caller can change the page size between pages. Kind and modifier
@@ -402,34 +457,70 @@ A cursor is checked in this order, and the first failure is reported:
 | `STALE_CURSOR_VERSION` | a format version the server does not support |
 | `WRONG_TOOL_CURSOR` | issued by another tool; the error names `issued_by` and `called_on` |
 | `STALE_CURSOR_QUERY` | the query parameters differ from those it was issued for |
-| `STALE_CURSOR_DATA` | the graph changed since it was issued |
+| `STALE_CURSOR_DATA` | the graph changed since it was issued, or it was issued in another view (or none): a view's data hash also covers its document |
 
 Every cursor error carries a `recovery` that says to restart without a cursor (or, for
 `WRONG_TOOL_CURSOR` and `STALE_CURSOR_QUERY`, to restore the original tool or
 parameters).
 
+**Continuing with the cursor alone.** A continuation needs only `cursor`. The server
+remembers the arguments of every call that returned a `next_cursor` — `view` and
+`limit` included — and runs a cursor-only call with them; a `limit` passed with the
+cursor replaces the remembered one. Passing the arguments again still works; they must then be the original ones, or
+the call fails with `STALE_CURSOR_QUERY`.
+
+The cursor itself stays stateless: it carries only the hash of the arguments, not the
+arguments. The remembered arguments live in the server's memory, for 30 minutes and up
+to 512 cursors, and are lost on a restart. A cursor-only call whose arguments the
+server no longer knows fails with `CURSOR_ARGUMENTS_UNKNOWN`; passing the original
+arguments with the cursor continues it.
+
+So that a cursor-only call passes the MCP layer's schema check, the input schema of a
+paginated tool declares no parameter as required. The server checks them itself: a
+call without a cursor that misses one fails with `INVALID_PARAMETER`, naming it.
+
 ### 7.3 The response budget
 
-Each paginated tool estimates the size of a page as `returned × bytes per item` and
-caps its page size so that a full page stays within **50,000 bytes**, well below the
-point where an MCP client truncates a response:
+No response of a paginated tool exceeds **50,000 characters**, counted on the text the
+client receives — the items together with everything around them: the `nodes` map, the
+summary, the scope blocks, the cursor. The server **measures** a page rather than
+estimating it: it renders the page, and when it is over the budget, it shrinks it to
+the largest number of items that fit (a binary search over the item count) and
+continues after them. So a page may hold fewer items than `limit`, and the caps below
+only bound the work:
 
-| Tool | Default `limit` | Cap | Bytes per item | Full page |
-|------|-----------------|-----|----------------|-----------|
-| `list_descendants` | 150 | 200 | 250 | 50,000 |
-| `pairwise_dependencies` | 25 | 200 | 250 | 50,000 |
-| `outgoing_dependencies`, `incoming_dependencies` (type level) | 100 | 142 | 350 | 49,700 |
-| `outgoing_dependencies`, `incoming_dependencies` (detail level) | 80 | 90 | 550 | 49,500 |
-| `affected_by` | 100 | 111 | 450 | 49,950 |
+| Tool | Default `limit` | Cap |
+|------|-----------------|-----|
+| `list_descendants` | 150 | 300 |
+| `pairwise_dependencies` | 25 | 500 |
+| `outgoing_dependencies`, `incoming_dependencies` (type and detail level) | 100 (type), 80 (detail) | 300 |
+| `affected_by` | 100 | 300 |
+| `graph_overview` (its `hierarchy`) | 500 | 1,000 |
 
-A larger `limit` is clamped to the cap ([Parameters](#5-parameters)), so no page ever
-exceeds the budget and no call fails for its size.
+A larger `limit` is clamped to the cap ([Parameters](#5-parameters)).
 
-**Why the budget exists.** Without it, a page on a dense node would overflow the
-client's context, the client would truncate it, and the model would lose the summary
-along with the edges. Capping each tool by its item size keeps every page whole. The
-server enforces the rule when it starts: a tool whose cap would allow a page above the
-budget cannot be configured.
+Two edge cases:
+
+- **The parts around the items alone exceed the budget.** The first page of
+  `pairwise_dependencies` carries a `nodes` map and an analysis that grow with the node
+  set, not with the page. When even a page without items is over the budget, the call
+  fails with `RESPONSE_TOO_LARGE`; its `recovery` names the remedy (for
+  `pairwise_dependencies`, `includeNodes = false` or fewer `nodeIds`), and
+  `response_size` and `budget` give the numbers.
+- **A single item exceeds the budget.** It is returned alone, over the budget, so that
+  walking the cursor always makes progress.
+
+**Why the budget exists.** An MCP client decides by size how to deliver a result:
+Claude Code puts a small one into the conversation and saves a larger one to a file,
+handing the model only the path. A paged query whose pages straddle that limit arrives
+half inline and half in files, and no script can read all of it. Keeping every page
+within the budget makes every page arrive the same way.
+
+**Why measured, not estimated.** Until 0.3.0 each tool estimated a page as `returned ×
+bytes per item` and capped its page size by that. The estimates were off by a factor
+of three in both directions, and the parts around the items were not counted at all:
+on a 154-module reactor, the first page of a `pairwise_dependencies` query was 81,021
+characters and a `list_descendants` page 95,989.
 
 ---
 
@@ -459,23 +550,31 @@ Each tool specification lists its errors and their extra fields.
 | `NODE_NOT_FOUND` | an id names no node |
 | `INVALID_NODE_KIND` / `WRONG_NODE_KIND` | an id names a node of the wrong kind for this tool (for example a method passed to a type-level tool) |
 | `INVALID_KIND` | a kind filter contains an unknown kind |
-| `INVALID_PARAMETER` | a parameter is missing or outside its value set |
+| `INVALID_PARAMETER` | a parameter is missing, of the wrong JSON type (§5), or outside its value set |
 | `INPUT_TOO_SMALL` / `INPUT_TOO_LARGE` | a list parameter has too few or too many entries |
 | `DETAIL_REBUILDING` | the entity-detail tools cannot read the detail-level snapshot yet; retry shortly |
 | `DETAIL_UNAVAILABLE` | the detail-level engine finds no detail-level data for the loaded graph |
+| `VIEW_NOT_FOUND` | `view` (or a view tool's `name`) names no view; the message lists the known views |
+| `VIEW_INVALID` | the view's document does not parse; the message lists its problems |
+| `INVALID_VIEW_DOCUMENT` | `define_view` was given an invalid document; `problems` lists what is wrong |
+| `PROJECT_VIEW` | `delete_view` was given a project view, which only the project can remove |
+| `RESPONSE_TOO_LARGE` | a paginated response would exceed the budget even without any items (§7.3) |
+| `CURSOR_ARGUMENTS_UNKNOWN` | a call passed only a cursor whose arguments the server no longer knows (§7.2) |
 | cursor codes | §7.2 |
 
 ### 8.3 No graph loaded
 
 The server starts even when no graph can be built, for example before the project has
-been compiled. While no graph is loaded, every tool except `reload_graph` returns:
+been compiled. While no graph is loaded, every tool except `reload_graph`, `server_info`,
+`list_views`, `get_view` and `delete_view` returns:
 
 ```json
 { "status": "no_graph_available", "message": "No hierarchical graph is available. …" }
 ```
 
 `status` is stable and meant for programmatic checks. `reload_graph` is exempt because it is the
-way to load a graph once the input exists.
+way to load a graph once the input exists; `server_info` because it describes the server,
+not the graph; the three view tools only read or remove documents.
 
 ---
 
@@ -492,7 +591,7 @@ well they match. Take the `id` of the right one.
 package.
 
 **Measure coupling.** `pairwise_dependencies(nodeIds = [<module ids>])` gives the full
-dependency matrix between modules, with cycles and a topological order.
+dependency matrix between modules, in dependency order, with the cycles and the edges that close them.
 `aggregated_dependencies(sourceIds = [a], targetIds = [b])` gives the weight between
 specific scopes.
 
@@ -507,28 +606,38 @@ that transitively depends on `t`. `find_dependency_path(fromId = a, toId = b)` s
 **Read a declaration.** `type_details`, `method_details` and `field_details` describe
 one element's signature, modifiers and annotations.
 
-**Page.** When a response carries `next_cursor`, pass it back unchanged with the same
-parameters. When only the summary is needed, ask for `limit = 1`.
+**Look through a view.** `define_view(document = {…})` groups modules into layers,
+contexts or teams; then `pairwise_dependencies(nodeIds = [<group ids>], view = "<name>")`
+shows whether the groups are layered, and every other tool answers in the view with
+`view = "<name>"`. The report of `define_view` says what could not be applied.
+
+**Page.** When a response carries `next_cursor`, pass it back unchanged — alone, or with
+the original parameters (§7.2). When only the summary is needed, ask for `limit = 1`.
 
 ---
 
 ## 10. Guarantees
 
 1. **Stable ids.** Within one loaded graph, a node's id does not change, and every id a
-   tool returns is accepted by every tool that takes an id of that kind.
+   tool returns is accepted by every tool that takes an id of that kind. A node has the
+   same id in every view; a group's id depends only on its view and its path, so it
+   survives rebuilds, and it is accepted in that view.
 2. **Deterministic order.** For the same graph and parameters, a tool returns the same
    items in the same order. Pagination relies on this.
 3. **Full-result summaries.** Summary fields of a paginated tool describe the whole
    result on every page.
-4. **Whole pages.** Every page of a paginated tool fits the response budget, and none
-   is silently shortened: a page holds `limit` items, clamped to the tool's cap, or all
-   that remain.
+4. **Whole pages within the budget.** Every page of a paginated tool fits the response
+   budget, measured on what the client receives (§7.3). A page holds at most `limit`
+   items, clamped to the tool's cap, and fewer when they would not fit; `summary.returned`
+   says how many, and `next_cursor` continues after the last one. No item is skipped.
 5. **Cursors never cross graphs.** A cursor issued against one graph is rejected after
    the graph changes.
 6. **One graph per call.** Each tool call is computed from the graph that is live
    when it starts, even when a reload replaces the graph while it runs. Its data hash,
    and the cursor it issues, belong to that same graph.
-7. **Read-only.** No tool other than `reload_graph` changes server state.
+7. **Read-only.** No tool other than `reload_graph`, `define_view` and `delete_view`
+   changes server state, and the view tools change only the view documents in the
+   state directory, never the graph.
 
 ---
 
@@ -536,7 +645,7 @@ parameters. When only the summary is needed, ask for `limit = 1`.
 
 | Not in the tool surface | Where it lives |
 |-------------------------|----------------|
-| Scanning bytecode, building the graph | [GraphStore](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md) and the [bytecode scanner](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md) |
+| Scanning bytecode, building the graph | [GraphStore](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md) and the [bytecode scanner](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.scanner/spec/hierograph-graphstore-scanner.md) |
 | Loading, watching and reloading the graph | [hierarchical graph service](../../io.hierograph.server.graphservice/spec/hierarchical-graph-service.md) |
 | Rolling dependencies up the tree, caching | [hierarchical graph model](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.model/spec/hierarchicalgraph-model.md) |
 | The GraphQL API | `io.hierograph.server.graphql` |

@@ -17,35 +17,34 @@ package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.Origin
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-/** Verifies the stats and vocabularies of [GraphOverviewTool]. */
+/** Verifies the stats, vocabularies and hierarchy of [GraphOverviewTool]. */
 @Suppress("UNCHECKED_CAST")
 class GraphOverviewToolTest {
 
     private val store = GraphStore().apply {
-        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core", Origin.MODULE_MAIN))
+        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core"))
         applyClass(
             "billing-core",
             ClassFacts(
-                "com.example.billing.Invoice", JavaKinds.CLASS, 0, emptyList(),
-                refs = listOf(
-                    Ref("com.example.billing.Invoice", "org.slf4j.Logger", RefKind.DEPENDS_ON, count = 1),
-                    Ref("com.example.billing.Invoice", "com.example.money.Money", RefKind.DEPENDS_ON, count = 2),
-                ),
+                "com.example.billing.Invoice", JavaNodeKind.CLASS, 0, emptyList(),
                 classHash = "h",
             ),
+            listOf(
+                Ref("org.slf4j.Logger", DependencyKind.CALLS, count = 1),
+                Ref("com.example.money.Money", DependencyKind.CALLS, count = 2),
+            ),
         )
-        applyClass("billing-core", ClassFacts("com.example.money.Money", JavaKinds.RECORD, 0, emptyList(), emptyList(), "m"))
+        applyClass("billing-core", ClassFacts("com.example.money.Money", JavaNodeKind.RECORD, 0, emptyList(), "m"), emptyList())
     }
     private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }
     private val overview = GraphOverviewTool(graphService, NodeRefFactory(graphService)).graphOverview()
@@ -57,7 +56,7 @@ class GraphOverviewToolTest {
         assertThat(byKind["java.module"]).isEqualTo(2) // billing-core and External Types
         assertThat(byKind["external.type"]).isEqualTo(1)
         assertThat(byKind["java.record"]).isEqualTo(1)
-        assertThat(stats["total_nodes"]).isEqualTo(store.nodeCount())
+        assertThat(stats["total_nodes"]).isEqualTo(store.nodes().size)
         assertThat(byKind.values.sum()).isEqualTo(stats["total_nodes"])
     }
 
@@ -80,6 +79,28 @@ class GraphOverviewToolTest {
         assertThat(modules["billing-core"]!!["outgoing_dep_count"]).isEqualTo(1)
         assertThat(modules["billing-core"]!!["incoming_dep_count"]).isEqualTo(0)
         assertThat(modules["External Types"]!!["incoming_dep_count"]).isEqualTo(1)
+    }
+
+    @Test
+    fun `a hierarchy entry carries id, name, kind and counts, not what every top-level entry shares`() {
+        val module = (overview["hierarchy"] as List<Map<String, Any?>>).single { it["name"] == "billing-core" }
+        assertThat(module.keys).containsExactly(
+            "id", "name", "kind", "child_count", "descendant_type_count", "outgoing_dep_count", "incoming_dep_count",
+        )
+        assertThat(module["descendant_type_count"]).isEqualTo(2)
+    }
+
+    @Test
+    fun `a paged hierarchy carries everything on the first page and only the rest of the hierarchy on the next`() {
+        val tool = GraphOverviewTool(graphService, NodeRefFactory(graphService))
+        val first = tool.graphOverview(limit = 1)
+        assertThat(first.keys).contains("stats", "kinds", "relationships", "hierarchy", "summary", "model", "next_cursor")
+        assertThat(first["summary"]).isEqualTo(mapOf("total" to 2, "returned" to 1, "truncated" to true))
+
+        val second = tool.graphOverview(limit = 1, cursor = first["next_cursor"] as String)
+        assertThat(second.keys).containsExactly("hierarchy", "summary")
+        val names = listOf(first, second).flatMap { page -> (page["hierarchy"] as List<Map<String, Any?>>).map { it["name"] } }
+        assertThat(names).containsExactlyInAnyOrder("billing-core", "External Types")
     }
 
     @Test

@@ -17,12 +17,14 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.server.mapping.JavaEdgeAttributes
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.server.mapping.GraphStoreDependencySource
+import java.util.EnumMap
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.server.graphservice.pagination.DataHashProvider
-import io.hierograph.mcp.server.pagination.PageResult
 import io.hierograph.mcp.server.pagination.PaginationSpec
 import io.hierograph.mcp.server.pagination.Paginator
 import io.hierograph.mcp.server.pagination.QueryHash
@@ -55,10 +57,16 @@ class OutgoingDependenciesTool(
                 "detailLevel='detail' returns method/field-level edges with source locations (slower); " +
                 "it also accepts a method or field id as fromId or toId, narrowing the edges to that member. " +
                 "The 'relationship' filter is only valid at detail level. " +
-                "The by_target, by_source_type, and by_attribute/by_relationship summaries are computed " +
+                "At detail level, parameter_type and parameter_annotated_by edges carry " +
+                "parameter={position,name}; parameterPosition keeps only the edges of the parameter at that " +
+                "0-based position (e.g. relationship='parameter_type', parameterPosition=0: 'which methods take " +
+                "this type as their first parameter'). " +
+                "At type level each edge carries `kinds`: how many facts of each kind (calls, extends, casts, …) " +
+                "make up its weight; a kind name is also the detail-level relationship that lists those facts. " +
+                "The by_target, by_source_type, by_attribute/by_kind and by_relationship summaries are computed " +
                 "over the ENTIRE result set, independent of page size — they give the shape without " +
                 "processing all edges. " +
-                "On a hub node a full page of edges fills the ~50 KB response budget, most of it edges " +
+                "On a hub node a page of edges fills the ~50 KB response budget, most of it edges " +
                 "you will not read. If you only need the ranking or attribute breakdown " +
                 "(the common case, especially when toId is omitted), pass limit=1 and read the " +
                 "summary — do NOT page through edges you won't use. " +
@@ -70,14 +78,23 @@ class OutgoingDependenciesTool(
                 "by_source_type summary, not by the edge list — request a minimal page (limit=1). " +
                 "The summary always includes 'by_target': the depended-upon " +
                 "types ranked by summed weight over the full result set (whole graph when toId is " +
-                "omitted, within the toId subtree otherwise). toId is required at detail level."
+                "omitted, within the toId subtree otherwise). " +
+                "At detail level, toId is optional too: omit it to return every member-level reference " +
+                "out of fromId, to anywhere (to_scope is then null; by_target_nodes drills down from the root). " +
+                "Detail rows: 'inherited': true marks a row whose depending type is a supertype outside fromId — " +
+                "code a fromId type inherits, counted as its own (a base class's own references are left out " +
+                "when the base class lies in toId). 'receiver' appears when the code used a toId type that only " +
+                "inherits the member: 'to' and 'to_parent' then name the declaring member and type, which may " +
+                "lie outside toId, and 'receiver' names the toId type the reference was compiled against. " +
+                "A 'to' of kind external.member is a member no scanned type declares (a member of an external " +
+                "type, or one inherited from outside the scanned code, like getMessage() on an exception)."
     )
     fun outgoingDependencies(
         @ToolParam(description = "Source subtree root ID.")
         fromId: Long,
         @ToolParam(
             description = "Target subtree root ID. Optional at type level — omit to return ALL " +
-                    "outgoing dependencies of fromId (every edge to anywhere). Required at detail level.",
+                    "outgoing dependencies of fromId (every edge to anywhere), at type or detail level.",
             required = false
         )
         toId: Long?,
@@ -87,27 +104,36 @@ class OutgoingDependenciesTool(
         )
         detailLevel: String?,
         @ToolParam(
-            description = "Filter to a specific detail-level relationship kind. Only valid when detailLevel='detail'.",
+            description = "Filter to a specific detail-level relationship kind (e.g. calls, extends, casts, read_by; " +
+                    "graph_overview lists them all). Only valid when detailLevel='detail'.",
             required = false
         )
         relationship: String?,
         @ToolParam(
-            description = "Maximum edges per page. Default: 100 (type) / 80 (detail). Caps: 142 / 90, the most " +
-                    "that fit the ~50 KB response budget; larger values are clamped. Pass limit=1 when you " +
-                    "only need the summary (by_target / by_source_type / by_attribute).",
+            description = "Maximum edges per page. Default: 100 (type) / 80 (detail); cap 300. A page never exceeds " +
+                    "the ~50 KB response budget: when the edges would not fit, it holds fewer. Pass limit=1 when you " +
+                    "only need the summary (by_target / by_source_type / by_attribute / by_kind).",
             required = false
         )
         limit: Int?,
         @ToolParam(
             description = "Opaque pagination cursor from a previous response's next_cursor. " +
                     "Pass it to retrieve the next page; omit to start from the first page. " +
-                    "When continuing, keep the other parameters identical to the original call. " +
+                    "To continue, the cursor alone is enough: the server remembers the other arguments; " +
+                    "if you pass them, they must be identical to the original call's. " +
                     "If the result set is larger than you need, prefer the full-set summary (limit=1) or " +
                     "narrowing the query (a smaller subtree, or detail-level relationship filter) over " +
                     "paginating through all of it.",
             required = false
         )
-        cursor: String?
+        cursor: String?,
+        @ToolParam(
+            description = "Detail level only: keep the parameter_type / parameter_annotated_by edges of the " +
+                    "parameter at this 0-based position (0 = first parameter). Without relationship it selects " +
+                    "both parameter relationships; with any other relationship it is an error.",
+            required = false
+        )
+        parameterPosition: Int? = null
     ): Map<String, Any?> {
 
         val level = detailLevel ?: "type"
@@ -119,6 +145,18 @@ class OutgoingDependenciesTool(
                     "code" to "INVALID_PARAMETER",
                     "message" to "Invalid detailLevel: '$level'. Must be 'type' or 'detail'.",
                     "recovery" to "Use 'type' for type-to-type edges or 'detail' for method/field-level edges."
+                )
+            )
+        }
+
+        // ── validate parameterPosition at type level ───────────────────
+        if (level == "type" && parameterPosition != null) {
+            return mapOf(
+                "error" to mapOf(
+                    "code" to "INVALID_PARAMETER",
+                    "message" to "The 'parameterPosition' parameter is only valid at detailLevel='detail'. " +
+                            "Type-level edges aggregate all references between two types and have no parameter position.",
+                    "recovery" to "Either remove 'parameterPosition', or set detailLevel='detail' to filter parameter edges by position."
                 )
             )
         }
@@ -137,21 +175,12 @@ class OutgoingDependenciesTool(
 
         return if (level == "type") {
             typeLevelDependencies(fromId, toId, limit, cursor, outgoing = true, spec = TYPE_SPEC)
-        } else if (toId == null) {
-            // detail level requires an explicit target — the open form is type-level only
-            mapOf(
-                "error" to mapOf(
-                    "code" to "INVALID_PARAMETER",
-                    "message" to "toId is required at detailLevel='detail'. The open form " +
-                            "(omitted toId, returning all dependencies) is supported only at detailLevel='type'.",
-                    "recovery" to "Provide a toId, or set detailLevel='type' to query all dependencies of fromId."
-                )
-            )
         } else {
             // Check the ids in parameter order, then delegate; the detail engine owns detail-level pagination.
+            // toId may be null → every member-level reference out of fromId, to anywhere.
             missingDetailScope(fromId, toId)?.let { return it }
             val effectiveRel = if (relationship.isNullOrBlank()) null else relationship
-            detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC)
+            detailDependenciesTool.detailDependencies(fromId, toId, effectiveRel, limit, cursor, DETAIL_SPEC, parameterPosition)
         }
     }
 
@@ -211,7 +240,8 @@ class OutgoingDependenciesTool(
             val from: HGNode,
             val to: HGNode,
             val weight: Int,
-            val bitmap: Int
+            val bitmap: Int,
+            val kinds: Map<DependencyKind, Int>,
         )
 
         val allEdges = mutableListOf<TypeEdge>()
@@ -219,6 +249,7 @@ class OutgoingDependenciesTool(
         for ((_, name) in JavaEdgeAttributes.ALL) {
             byAttribute[name] = 0
         }
+        val byKind = EnumMap<DependencyKind, Int>(DependencyKind::class.java)
         val sourceTypeCounts = linkedMapOf<Any, Int>()
         // Summed edge weight per depended-upon endpoint (dep.to). Used only by the
         // open form's by_target rollup; accumulated over the full result set.
@@ -230,7 +261,9 @@ class OutgoingDependenciesTool(
             for (dep in deps) {
                 val otherEndpoint = if (outgoing) dep.to else dep.from
                 if (otherSideTypeIds == null || otherEndpoint.identifier in otherSideTypeIds) {
-                    allEdges.add(TypeEdge(dep.from, dep.to, dep.weight, dep.attributesBitmap))
+                    val kinds = GraphStoreDependencySource.kindsOf(dep)
+                    allEdges.add(TypeEdge(dep.from, dep.to, dep.weight, dep.attributesBitmap, kinds))
+                    for ((kind, count) in kinds) byKind.merge(kind, count, Int::plus)
 
                     for ((pos, name) in JavaEdgeAttributes.ALL) {
                         if (JavaEdgeAttributes.isSet(dep.attributesBitmap, pos)) {
@@ -255,43 +288,6 @@ class OutgoingDependenciesTool(
             )
         )
 
-        // ── paginate ───────────────────────────────────────────────────
-        val pageResult = Paginator.paginate(
-            allItems = allEdges,
-            spec = spec,
-            queryHash = queryHash,
-            dataHash = dataHashProvider.dataHash,
-            cursor = cursor,
-            limit = limit
-        )
-        val pageData = when (pageResult) {
-            is PageResult.Failed -> return pageResult.error.toResponse()
-            is PageResult.Page -> pageResult
-        }
-        val total = pageData.total
-        val truncated = pageData.truncated
-        val page = pageData.items
-
-        // ── build slim nodes map ───────────────────────────────────────
-        val nodes = linkedMapOf<String, Any>()
-        nodeRefFactory.putSlimNode(nodes, fromNode)
-        toNode?.let { nodeRefFactory.putSlimNode(nodes, it) }
-        for (edge in page) {
-            nodeRefFactory.putSlimNode(nodes, edge.from)
-            nodeRefFactory.putSlimNode(nodes, edge.to)
-        }
-
-        // ── build edge entries ─────────────────────────────────────────
-        val edges = page.map { edge ->
-            linkedMapOf<String, Any?>(
-                "from" to edge.from.identifier,
-                "to" to edge.to.identifier,
-                "weight" to edge.weight,
-                "type_pair_count" to 1,
-                "attributes" to JavaEdgeAttributes.toMap(edge.bitmap)
-            )
-        }
-
         // ── by_source_type (top 10) ────────────────────────────────────
         val bySourceType = sourceTypeCounts.entries
             .sortedByDescending { it.value }
@@ -300,14 +296,6 @@ class OutgoingDependenciesTool(
                 linkedMapOf<String, Any?>("id" to id, "count" to count)
             }
 
-        val summary = linkedMapOf<String, Any?>(
-            "total" to total,
-            "returned" to page.size,
-            "truncated" to truncated,
-            "by_attribute" to byAttribute,
-            "by_source_type" to bySourceType
-        )
-
         // Rank the depended-upon endpoints (dep.to) by summed weight, top 10.
         // Computed over the FULL result set — not just the returned page — so the
         // ranking is complete even when edges are truncated. In the open form
@@ -315,26 +303,69 @@ class OutgoingDependenciesTool(
         // ranks within the toId subtree. For incoming, dep.to is the fromId type,
         // so this ranks the most heavily used types within fromId; for outgoing, it
         // ranks what fromId leans on most.
-        summary["by_target"] = targetWeights.entries
+        val byTarget = targetWeights.entries
             .sortedByDescending { it.value }
             .take(10)
             .map { (id, weight) ->
                 linkedMapOf<String, Any?>("id" to id, "weight" to weight)
             }
 
-        // Name every id the summary uses, too: a ranked type need not appear on this page.
-        for (entry in bySourceType + (summary["by_target"] as List<Map<String, Any?>>)) {
-            graphService.model.lookupNode(entry["id"]!!)?.let { nodeRefFactory.putSlimNode(nodes, it) }
-        }
+        // ── paginate, within the response budget ───────────────────────
+        return Paginator.respond(
+            allItems = allEdges,
+            spec = spec,
+            queryHash = queryHash,
+            dataHash = dataHashProvider.dataHash,
+            cursor = cursor,
+            limit = limit,
+            tooLarge = "Narrow the scope: pass a toId, or a smaller fromId (a package or a type instead of a module).",
+        ) { pageData ->
+            val page = pageData.items
 
-        val response = linkedMapOf<String, Any?>(
-            "nodes" to nodes,
-            "edges" to edges,
-            "summary" to summary
-        )
-        // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
-        pageData.nextCursor?.let { response["next_cursor"] = it }
-        return response
+            // ── build slim nodes map ───────────────────────────────────
+            val nodes = linkedMapOf<String, Any>()
+            nodeRefFactory.putSlimNode(nodes, fromNode)
+            toNode?.let { nodeRefFactory.putSlimNode(nodes, it) }
+            for (edge in page) {
+                nodeRefFactory.putSlimNode(nodes, edge.from)
+                nodeRefFactory.putSlimNode(nodes, edge.to)
+            }
+            // Name every id the summary uses, too: a ranked type need not appear on this page.
+            for (entry in bySourceType + byTarget) {
+                graphService.model.lookupNode(entry["id"]!!)?.let { nodeRefFactory.putSlimNode(nodes, it) }
+            }
+
+            // ── build edge entries ─────────────────────────────────────
+            val edges = page.map { edge ->
+                linkedMapOf<String, Any?>(
+                    "from" to edge.from.identifier,
+                    "to" to edge.to.identifier,
+                    "weight" to edge.weight,
+                    "type_pair_count" to 1,
+                    "attributes" to JavaEdgeAttributes.toMap(edge.bitmap),
+                    "kinds" to DependencyKind.toMap(edge.kinds),
+                )
+            }
+
+            val summary = linkedMapOf<String, Any?>(
+                "total" to pageData.total,
+                "returned" to page.size,
+                "truncated" to pageData.truncated,
+                "by_attribute" to byAttribute,
+                "by_kind" to DependencyKind.toMap(byKind),
+                "by_source_type" to bySourceType,
+                "by_target" to byTarget,
+            )
+
+            val response = linkedMapOf<String, Any?>(
+                "nodes" to nodes,
+                "edges" to edges,
+                "summary" to summary
+            )
+            // next_cursor is present iff more results follow this page (omitted, not null, on the last page).
+            pageData.nextCursor?.let { response["next_cursor"] = it }
+            response
+        }
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
@@ -342,9 +373,9 @@ class OutgoingDependenciesTool(
     private fun collectTypes(node: HGNode): List<HGNode> {
         val hierarchy = graphService.model.hierarchy
         val types = mutableListOf<HGNode>()
-        if (JavaKinds.isTypeKind(node.kind)) types.add(node)
+        if (JavaNodeKind.isTypeKind(node.kind)) types.add(node)
         hierarchy.traverse(node) { n ->
-            if (JavaKinds.isTypeKind(n.kind)) types.add(n)
+            if (JavaNodeKind.isTypeKind(n.kind)) types.add(n)
         }
         return types
     }
@@ -352,16 +383,16 @@ class OutgoingDependenciesTool(
     private fun collectTypeIds(node: HGNode): Set<Any> {
         val hierarchy = graphService.model.hierarchy
         val ids = mutableSetOf<Any>()
-        if (JavaKinds.isTypeKind(node.kind)) ids.add(node.identifier)
+        if (JavaNodeKind.isTypeKind(node.kind)) ids.add(node.identifier)
         hierarchy.traverse(node) { n ->
-            if (JavaKinds.isTypeKind(n.kind)) ids.add(n.identifier)
+            if (JavaNodeKind.isTypeKind(n.kind)) ids.add(n.identifier)
         }
         return ids
     }
 
     internal fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
-        if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
+        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(
@@ -385,9 +416,9 @@ class OutgoingDependenciesTool(
      * keeps the error the same for both directions: `incoming_dependencies` hands the engine its ids
      * exchanged.
      */
-    internal fun missingDetailScope(fromId: Long, toId: Long): Map<String, Any?>? {
+    internal fun missingDetailScope(fromId: Long, toId: Long?): Map<String, Any?>? {
         val root = graphService.model.hierarchy.rootNode.identifier
-        for (id in listOf(fromId, toId)) {
+        for (id in listOfNotNull(fromId, toId)) {
             if (graphService.model.lookupNode(id) == null && root != id) return nodeNotFound(id)
         }
         return null
@@ -402,10 +433,10 @@ class OutgoingDependenciesTool(
     )
 
     companion object {
-        /** Type-level pagination for outgoing_dependencies (~350 bytes/edge): default 100, cap 142 (the budget's fill). */
-        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 142, bytesPerItem = 350)
+        /** Type-level pagination for outgoing_dependencies: default 100, cap 300; the response budget trims a page further. */
+        val TYPE_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 100, maxLimit = 300)
 
-        /** Detail-level pagination for outgoing_dependencies (~550 bytes/edge): default 80, cap 90 (the budget's fill). */
-        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 90, bytesPerItem = 550)
+        /** Detail-level pagination for outgoing_dependencies: default 80, cap 300; the response budget trims a page further. */
+        val DETAIL_SPEC = PaginationSpec(tool = "outgoing_dependencies", defaultLimit = 80, maxLimit = 300)
     }
 }

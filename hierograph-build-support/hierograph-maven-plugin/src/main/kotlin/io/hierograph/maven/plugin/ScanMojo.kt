@@ -15,9 +15,9 @@
  */
 package io.hierograph.maven.plugin
 
-import io.hierograph.graphstore.jvm.model.ArtifactClasspath
-import io.hierograph.graphstore.jvm.model.ClasspathEntry
-import io.hierograph.graphstore.jvm.parquet.HierographArchive
+import io.hierograph.graphstore.jvm.archive.model.ArtifactClasspath
+import io.hierograph.graphstore.jvm.archive.model.ClasspathEntry
+import io.hierograph.graphstore.jvm.archive.HierographArchive
 import io.hierograph.graphstore.jvm.scanner.BytecodeScanner
 import io.hierograph.graphstore.jvm.scanner.ScanArtifact
 import org.apache.maven.execution.MavenSession
@@ -130,7 +130,7 @@ class ScanMojo : AbstractMojo() {
 
         log.info(
             "hierograph:scan $name: ${result.classes.size} types, " +
-                "${result.classes.sumOf { it.facts.members.size }} members, ${result.detailRefs.size} detail refs, " +
+                "${result.classes.sumOf { it.facts.members.size }} members, ${result.dependencies.size} detail refs, " +
                 "${classpath.entries.size} classpath entries → $archive",
         )
 

@@ -17,14 +17,14 @@ package io.hierograph.mcp.server.tools
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.model.ArtifactInfo
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.Origin
-import io.hierograph.graphstore.jvm.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.TestArtifacts
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -36,19 +36,21 @@ import org.junit.jupiter.api.Test
 class NodeRefFactoryTest {
 
     private val store = GraphStore().apply {
-        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core", Origin.MODULE_MAIN))
+        registerArtifact(ArtifactInfo("billing-core", "billing-core", "billing-core"))
+        registerArtifact(ArtifactInfo(TestArtifacts.key("billing-core"), TestArtifacts.name("billing-core"), TestArtifacts.key("billing-core")))
         applyClass(
             "billing-core",
             ClassFacts(
-                "com.example.billing.Ledger", JavaKinds.CLASS, TypeModifiers.pack("public", abstract = true),
+                "com.example.billing.Ledger", JavaNodeKind.CLASS, TypeModifiers.pack("public", abstract = true),
                 members = listOf(
-                    MemberFacts("com.example.billing.Ledger#void post()", JavaKinds.METHOD, "void post()",
+                    MemberFacts("com.example.billing.Ledger#void post()", JavaNodeKind.METHOD, "void post()",
                         modifiers = MemberModifiers.pack("public", abstract = true)),
-                    MemberFacts("com.example.billing.Ledger#int SIZE", JavaKinds.FIELD, "int SIZE",
+                    MemberFacts("com.example.billing.Ledger#int SIZE", JavaNodeKind.FIELD, "int SIZE",
                         modifiers = MemberModifiers.pack("public", static = true, final = true)),
                 ),
-                refs = emptyList(), classHash = "h",
+                classHash = "h",
             ),
+            emptyList(),
         )
     }
     private val graphService = HierarchicalGraphService().also { it.seed(GraphStoreToHGModel.build(store)) }
@@ -73,10 +75,43 @@ class NodeRefFactoryTest {
     }
 
     @Test
+    fun `a slim node names its qualified name only where it adds something to the name`() {
+        val nodes = linkedMapOf<String, Any>()
+        factory.putSlimNode(nodes, 1L, "Ledger", "com.example.billing.Ledger", JavaNodeKind.CLASS.value)
+        factory.putSlimNode(nodes, 2L, "billing-core", "com.example:billing-core:1.0", JavaNodeKind.MODULE.value)
+        factory.putSlimNode(nodes, 3L, "com.example.billing", "com.example.billing", JavaNodeKind.PACKAGE.value)
+
+        assertThat(nodes["1"]).isEqualTo(mapOf("name" to "Ledger", "qualified_name" to "com.example.billing.Ledger", "kind" to "java.class"))
+        // A module's qualified name is its build coordinate; a name equal to the qualified name says it already.
+        assertThat(nodes["2"]).isEqualTo(mapOf("name" to "billing-core", "kind" to "java.module"))
+        assertThat(nodes["3"]).isEqualTo(mapOf("name" to "com.example.billing", "kind" to "java.package"))
+    }
+
+    @Test
     fun `packages carry counts, not modifiers`() {
         val pkg = store.nodes().first { it.fqn == "com.example.billing" }
         val ref = ref(pkg.key)
         assertThat(ref).doesNotContainKey("modifiers")
         assertThat(ref["direct_type_count"]).isEqualTo(1)
+    }
+
+    @Test
+    fun `a module of compiled tests is marked is_test, in a node reference and in a slim node`() {
+        val testModule = graphService.model.lookupNode(NodeHandle.of(TestArtifacts.key("billing-core")))!!
+        val mainModule = graphService.model.lookupNode(NodeHandle.of("billing-core"))!!
+        assertThat(factory.enrichedNodeRef(testModule)["is_test"]).isEqualTo(true)
+        assertThat(factory.minimalNodeRef(testModule)["is_test"]).isEqualTo(true)
+        assertThat(factory.enrichedNodeRef(mainModule)).doesNotContainKey("is_test")
+
+        val nodes = linkedMapOf<String, Any>()
+        factory.putSlimNode(nodes, testModule)
+        factory.putSlimNode(nodes, mainModule)
+        assertThat(nodes[testModule.identifier.toString()]).isEqualTo(
+            mapOf("name" to "billing-core (test)", "kind" to "java.module", "is_test" to true),
+        )
+        assertThat(nodes[mainModule.identifier.toString()] as Map<String, Any?>).doesNotContainKey("is_test")
+        // Only a module: a package whose qualified name happens to end the same way is not a test module.
+        factory.putSlimNode(nodes, 9L, "a", "x:test", JavaNodeKind.PACKAGE.value)
+        assertThat(nodes["9"] as Map<String, Any?>).doesNotContainKey("is_test")
     }
 }

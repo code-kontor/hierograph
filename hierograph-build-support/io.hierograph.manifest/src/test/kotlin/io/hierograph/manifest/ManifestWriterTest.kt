@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.FileTime
+import java.time.Instant
 
 class ManifestWriterTest {
 
@@ -128,5 +130,27 @@ class ManifestWriterTest {
         )
         assertThat(manifestModules(outcome)).containsExactly(api, core)
         assertThat(Files.exists(tmp.resolve("billing-core/target"))).isFalse()
+    }
+
+    @Test
+    fun `a build file modified after the build read it is marked as changed during the build`(@TempDir tmp: Path) {
+        ManifestWriter.writeDescriptor(descriptor(core), source(tmp, core).descriptorFile!!)
+        val readAt = Instant.parse("2026-11-17T07:50:20Z")
+        val before = Files.writeString(tmp.resolve("pom.xml"), "<project/>")
+        val after = Files.writeString(Files.createDirectories(tmp.resolve("billing-core")).resolve("pom.xml"), "<project/>")
+        Files.setLastModifiedTime(before, FileTime.from(readAt.minusSeconds(60)))
+        Files.setLastModifiedTime(after, FileTime.from(readAt.plusSeconds(14)))
+        val warnings = ArrayList<String>()
+
+        val outcome = ManifestWriter.merge(
+            request(tmp, listOf(source(tmp, core)), listOf(before, after)).copy(buildFilesReadAt = readAt),
+        ) { warnings += it }
+
+        val hashes = JsonParser.parseString(Files.readString(outcome.file)).asJsonObject.getAsJsonArray("buildFiles")
+            .associate { it.asJsonObject["path"].asString to it.asJsonObject["sha256"].asString }
+        assertThat(hashes[before.toString()]).hasSize(64)
+        // The modules came from the content read before the edit, which no hash of the current content describes.
+        assertThat(hashes[after.toString()]).isEqualTo(BuildFile.CHANGED_DURING_BUILD)
+        assertThat(warnings).singleElement().asString().contains(after.toString(), "changed while the build ran")
     }
 }

@@ -9,19 +9,38 @@ Input (JSON, via argv[1]) - ids may be any hashable scalar:
     "scanned":  "2026-11-07",
     "source":   "Hierograph Maven plugin",
     "unit":     "modules",                          # what a node is called in the UI
-    "nodes":    {"23815330338705": "hierarchicalgraph.core.model", "5968189658062703": "javaspec", ...},
+    "total":    156,                                # size of the set the nodes come from
+    "omitted":  ["legacy-tools", "sandbox"],        # what of that set was left out, by name
+    "nodes":    {"23815330338705": "hierarchicalgraph.core.model",     # id -> name, or
+                 "5968189658062703": {"name": "javaspec (test)", "is_test": true}, ...},
     "edges":    [[7802159431405318, 23815330338705, 385], ...],  # [from, to, weight]
-    "test_patterns": ["itest", "-test"],            # substring match -> dashed outline
+    "test_patterns": ["-test-support"],             # optional, substring match
     "pin_groups": [                                 # optional, see Groups below
       {"name": "API",  "patterns": ["-api"]},
       {"name": "Core", "names": ["model", "algorithms"], "span": true}
     ],
+    "view_groups": {                                # optional, see Groups below
+      "web": [5968189658062703, 23815330338705]     # a view's group -> its members' node ids
+    },
     "aggregator_groups": {                          # optional, see Groups below
       "hierograph-server": ["io.hierograph.server", "io.hierograph.server.graphql"]
     }
   }
 
 Output: graphdata.json next to the input (or argv[2]).
+
+Coverage. `total` is the size of the set the nodes were taken from (all top-level
+modules, all children of a scope), and `omitted` names what of it was left out.
+When the nodes are fewer than `total`, the page's subtitle says "n of m modules;
+omitted: ...", so a partial graph never passes for the whole system. A `total`
+that doesn't match the nodes plus `omitted` is reported.
+
+Test nodes get a dashed outline and can be hidden on the page. A node is a test
+node when its entry says `"is_test": true` (hierograph marks a module of compiled
+tests that way, in graph_overview and in every `nodes` map), when its name ends in
+" (test)" (hierograph's name for such a module), or when its name contains one of
+the `test_patterns`. The patterns are for main modules that exist for tests, such
+as test fixtures or acceptance-test harnesses; leave them out otherwise.
 
 Levels come from the longest dependency chain beneath a node, which is what puts
 core code at the bottom. That is only well defined on a DAG, so cycles are
@@ -37,10 +56,22 @@ as one box around its members.
   "span": true      members keep their own levels and the box stretches from the
                     lowest to the highest; nothing is contracted.
   "place": n        a pinned group is stacked above everything else, lowest `n`
-                    nearest the rest of the graph.
+                    nearest the rest of the graph. Pinned groups only: `place` on a
+                    spanning group is an error, since stacking it would flatten its
+                    own layering.
+  "min_level": n    the group's lowest member sits at level `n` or higher. Members
+                    keep their relative layering, and the levels are computed again
+                    over the whole graph, so whatever depends on the group moves up
+                    with it. Works for spanning and pinned groups.
 
 A placed group owns its level and also names it. Edges that no longer point downward because of pinning are reported as
 violations, not hidden.
+
+`view_groups` maps the path of a group of a hierograph view (get_view) to its
+members, the nodes directly below it in the view, by node id. Each
+becomes a spanning group, after the `pin_groups` and before the
+`aggregator_groups`. This is how the boxes of a layered graph come from a view
+rather than from hand-collected membership.
 
 `aggregator_groups` maps the name of a multi-module (a Maven aggregator, a Gradle
 parent project) to its member modules, by exact node name. Each becomes a spanning
@@ -102,7 +133,14 @@ def sccs(ids, out):
 def main():
     src = sys.argv[1]
     spec = json.load(open(src))
-    names = {str(k): v for k, v in spec["nodes"].items()}
+    names, flagged_test = {}, set()
+    for k, v in spec["nodes"].items():
+        if isinstance(v, dict):
+            names[str(k)] = v["name"]
+            if v.get("is_test"):
+                flagged_test.add(str(k))
+        else:
+            names[str(k)] = v
     ids = list(names.keys())
     raw = [(str(a), str(b), int(w)) for a, b, w in spec["edges"]]
     edges = [(a, b, w) for a, b, w in raw if a in names and b in names and a != b]
@@ -134,18 +172,38 @@ def main():
     # which therefore win any overlap. A multi-module with fewer than two members
     # in the node set is skipped - a box around one module says nothing.
     present = set(names.values())
+    for name, members in spec.get("view_groups", {}).items():
+        # Members by node id, so two nodes of one name (a main and a test artifact) stay apart.
+        member_ids = [str(m) for m in members]
+        hits = [m for m in member_ids if m in names]
+        if len(hits) >= 2:
+            pins.append({"name": name, "ids": set(member_ids), "span": True})
+        else:
+            print(f"  view group '{name}' skipped: {len(hits)} member(s) in the node set")
     for name, members in spec.get("aggregator_groups", {}).items():
         hits = [n for n in members if n in present]
         if len(hits) >= 2:
             pins.append({"name": name, "names": list(members), "span": True})
         else:
             print(f"  multi-module '{name}' skipped: {len(hits)} member(s) in the node set")
-    def pin_of(nm):
+    for gi, g in enumerate(pins):
+        label = g.get("name", gi)
+        if g.get("place") is not None and g.get("span"):
+            sys.exit(f"group '{label}': `place` applies to pinned groups only; a spanning group "
+                     f"keeps its own layering - use \"min_level\" to lift it")
+        if g.get("place") is not None and g.get("min_level") is not None:
+            sys.exit(f"group '{label}': give `place` or `min_level`, not both")
+        if g.get("min_level") is not None and (not isinstance(g["min_level"], int) or g["min_level"] < 0):
+            sys.exit(f"group '{label}': `min_level` must be a non-negative integer")
+    def pin_of(n):
+        nm = names[n]
         # First match wins, so list order is precedence. `names` is exact and is
         # the right tool when membership comes from something the name does not
         # encode - a source folder, an owning team - where a substring pattern
         # would quietly capture the wrong modules.
         for gi, g in enumerate(pins):
+            if n in g.get("ids", ()):
+                return gi
             if nm in set(g.get("names", ())):
                 return gi
             if any(p in nm for p in g.get("patterns", [])):
@@ -153,7 +211,7 @@ def main():
         return None
     # A `span` group is only drawn as a box: its members keep their own levels
     # and the box stretches over the levels they occupy.
-    group = {n: pin_of(names[n]) for n in ids}
+    group = {n: pin_of(n) for n in ids}
     pinned = lambda gi: gi is not None and not pins[gi].get("span")
     key = {n: (f"P{group[n]}" if pinned(group[n]) else f"N{n}") for n in ids}
     keys = sorted(set(key.values()))
@@ -173,21 +231,50 @@ def main():
             if gid_of[k] != gid_of[j]:
                 gout[gid_of[k]].add(gid_of[j])
 
-    memo = {}
-    for g in kgroups:
-        stack = [(g, False)]
-        while stack:
-            cur, done = stack.pop()
-            if done:
-                memo[cur] = max((memo[c] + 1 for c in gout.get(cur, ())), default=0)
-                continue
-            if cur in memo:
-                continue
-            stack.append((cur, True))
-            for c in gout.get(cur, ()):
-                if c not in memo:
-                    stack.append((c, False))
+    def longest_paths(floor):
+        """Level of every condensed component: one above its highest dependency, and at least its floor."""
+        memo = {}
+        for g in kgroups:
+            stack = [(g, False)]
+            while stack:
+                cur, done = stack.pop()
+                if done:
+                    memo[cur] = max(floor.get(cur, 0), max((memo[c] + 1 for c in gout.get(cur, ())), default=0))
+                    continue
+                if cur in memo:
+                    continue
+                stack.append((cur, True))
+                for c in gout.get(cur, ()):
+                    if c not in memo:
+                        stack.append((c, False))
+        return memo
+    memo = longest_paths({})
     level = {n: memo[gid_of[key[n]]] for n in ids}
+
+    # Minimum levels. A group with `min_level` is lifted so that its lowest member sits at that level: every member
+    # gets a floor of its own level plus the lift, which keeps the group's own layering, and the longest-path pass
+    # runs again over the whole graph, so everything that depends on the group moves up with it. Lifting only the
+    # members and keeping the other levels would make edges into the group point upward - violations that do not
+    # exist in the code.
+    lifted = [(gi, g) for gi, g in enumerate(pins) if g.get("min_level") is not None]
+    if lifted:
+        floor = {}
+        for gi, g in lifted:
+            members = [n for n in ids if group[n] == gi]
+            if not members:
+                continue
+            lift = g["min_level"] - min(level[n] for n in members)
+            if lift <= 0:
+                print(f"  '{g.get('name', gi)}' already starts at level {min(level[n] for n in members)} "
+                      f"(min_level {g['min_level']})")
+                continue
+            for n in members:
+                c = gid_of[key[n]]
+                floor[c] = max(floor.get(c, 0), level[n] + lift)
+            print(f"  '{g.get('name', gi)}' lifted by {lift} to start at level {g['min_level']}")
+        if floor:
+            memo = longest_paths(floor)
+            level = {n: memo[gid_of[key[n]]] for n in ids}
 
     # Explicit placement. `place` overrides the computed depth and stacks a group
     # above everything else, lowest `place` nearest the rest of the graph. Use it
@@ -216,7 +303,9 @@ def main():
             level_names[str(level[members[0]])] = g.get("name", f"group {gi}")
 
     pats = spec.get("test_patterns", [])
-    is_test = lambda nm: any(p in nm for p in pats)
+    def is_test(n):
+        nm = names[n]
+        return n in flagged_test or nm.endswith(" (test)") or any(p in nm for p in pats)
 
     iw, ow, ind, outd = defaultdict(int), defaultdict(int), defaultdict(int), defaultdict(int)
     for a, b, w in edges:
@@ -245,6 +334,22 @@ def main():
     n_side = len(viol) - n_up
     violation = classify
 
+    # --- coverage: is this the whole set, or part of it? ---
+    total, omitted = spec.get("total"), [str(o) for o in spec.get("omitted", [])]
+    coverage = None
+    if total is not None:
+        if not isinstance(total, int) or total < len(ids):
+            sys.exit(f"`total` must be an integer of at least the node count ({len(ids)})")
+        if len(ids) + len(omitted) != total:
+            print(f"  WARNING: {len(ids)} nodes + {len(omitted)} omitted != total {total}; "
+                  f"name every left-out member in `omitted`")
+        if len(ids) < total:
+            unit = spec.get("unit", "modules")
+            shown = ", ".join(omitted[:8]) + (f" and {len(omitted) - 8} more" if len(omitted) > 8 else "")
+            coverage = f"{len(ids)} of {total} {unit}" + (f"; omitted: {shown}" if omitted else "")
+    elif omitted:
+        sys.exit("`omitted` needs `total`, the size of the set the nodes come from")
+
     data = {
         "title": spec.get("title"),
         "project": spec.get("project"), "scanned": spec.get("scanned"),
@@ -254,10 +359,11 @@ def main():
         "violations": len(viol),
         "internal": len(internal),
         "levelNames": level_names,
+        "coverage": coverage,
         "groups": [g.get("name", f"group {gi}") for gi, g in enumerate(pins)],
         "nodes": [{
             "n": names[n], "l": level[n],
-            "t": 1 if is_test(names[n]) else 0,
+            "t": 1 if is_test(n) else 0,
             "c": 1 if n in cyclic else 0,
             "g": group[n] + 1 if group[n] is not None else 0,
             "iw": iw[n], "ow": ow[n], "id": ind[n], "od": outd[n],
@@ -268,6 +374,10 @@ def main():
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(src) or ".", "graphdata.json")
     json.dump(data, open(dst, "w"), separators=(",", ":"))
     print(f"nodes {len(ids)}  edges {len(edges)}  levels {data['maxLevel'] + 1}  cycles {n_cycles}")
+    if coverage:
+        print(f"  coverage: {coverage}")
+    elif total is None:
+        print("  coverage: no `total` given - the page can't say whether the node set is complete")
     for gi, g in enumerate(pins):
         lv = sorted({level[n] for n in ids if group[n] == gi})
         if lv:

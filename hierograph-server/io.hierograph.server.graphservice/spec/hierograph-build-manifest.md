@@ -19,7 +19,9 @@ classpath to resolve references*.
   the [Maven plugin](../../../hierograph-build-support/hierograph-maven-plugin/spec/hierograph-maven-plugin.md)'s
   `hierograph:create-descriptor` writes it on every build that reaches
   `process-classes`, and its `hierograph:manifest` writes it without compiling —
-  the way the Hierograph Docker image produces it inside the container
+  the way the Hierograph Docker image produces it inside the container; the
+  [Gradle plugin](../../../hierograph-build-support/hierograph-gradle-plugin/spec/hierograph-gradle-plugin.md)'s
+  `hierographManifest` task writes it without compiling, too
 - **Consumer:** the server's manifest-mode graph source (`hierograph.graph.source=manifest`)
 - **Location:** `<build root>/.hierograph/manifest.json` by default; any directory
   when the consumer is told the build root (§3)
@@ -115,7 +117,7 @@ producer records one directory per list (`target/classes`,
 | Field | Type | Meaning |
 |-------|------|---------|
 | `path` | string | Absolute path of a file that defines the build. |
-| `sha256` | string | Lower-case hex SHA-256 of the file's content when the manifest was merged. |
+| `sha256` | string | Lower-case hex SHA-256 of the content the build read, or `"changed-during-build"` when the file changed after the build read it. |
 
 The producer lists what its build tool treats as the build definition. The Maven
 producer lists every project's POM, including `pom`-packaged aggregators; each
@@ -127,7 +129,9 @@ and `.mvn/extensions.xml` of the multi-module project directory when present.
 the build tool computes. When a build file changes, the manifest may not match the
 build definition until the build runs again. The hashes let the server decide this
 exactly: a build file whose current content differs from its recorded hash is
-**stale**, a missing file is stale, and an edit that is reverted is not. Any build
+**stale**, a missing file is stale, and an edit that is reverted is not. A file
+recorded as `"changed-during-build"` is always stale: the producer saw it modified
+while the build ran, so the manifest describes content that is gone. Any build
 that merges after the edit records the edited file's hash, so the manifest changes
 and the staleness clears.
 
@@ -179,10 +183,15 @@ owner's classpath wins).
   `test`: `compile`, `runtime`, `provided`, and `system`. (`provided` and `system`
   matter: a class compiled against a `provided` API references its types, so
   dropping them would leave those references dangling as external placeholders.)
+  The Gradle producer records the entries of `compileClasspath` followed by those
+  only in `runtimeClasspath`, which covers the same ground (`compileOnly` ≈
+  `provided`, `runtimeOnly` ≈ `runtime`).
 - **`testClasspath` (test)** — the **full** test classpath, against which test
   bytecode (JUnit, AssertJ, Mockito, …) is resolved. The Maven producer records
   every resolved dependency, test scope included. It is recorded as the complete
   list, not a delta over `classpath`, so the consumer never has to merge two lists.
+  The Gradle producer records `testCompileClasspath` followed by the entries only in
+  `testRuntimeClasspath`. Following Gradle, it holds no `compileOnly` entries.
 
 **Entries list dependencies only; the owner is implicit.** Neither list contains
 the module itself — the consumer prepends the owner as index 0 (the owner's own

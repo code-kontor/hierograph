@@ -423,10 +423,29 @@ Scenarios restructure; they do not edit facts.
 |--------|--------|
 | `move(node, newParent)` | detaches `node` from its current parent and appends it to `newParent`'s children, with its whole subtree |
 | `addChild(parent, child)` | appends `child` to `parent`'s children; for a node that is not yet in the tree |
+| `remove(node)` | takes a childless `node` out of the tree; `lookupNode` no longer finds it in this hierarchy |
 
-Both clear the hierarchy's caches (§9). Use `move` to re-parent a node that is
+All three clear the hierarchy's caches (§9). Use `move` to re-parent a node that is
 already placed, and `addChild` only for a node that has no parent in this
-hierarchy yet (§12).
+hierarchy yet.
+
+`remove` is for nodes a restructuring leaves empty, such as a package whose types
+moved elsewhere. A removed local node is dropped. A removed core node stays in the
+core graph and in every other hierarchy, but this hierarchy, and the forks made from
+it afterwards, no longer find it with `lookupNode`; its own dependencies drop out of
+every accumulation here. Adding it again with `addChild` makes it visible again.
+
+All of them keep the hierarchy a tree and fail with `IllegalArgumentException`, leaving it
+unchanged, when a call would break it:
+
+| Call | Rejected when |
+|------|---------------|
+| `move(node, newParent)` | `node` is the root; `newParent` is `node` or lies in its subtree |
+| `addChild(parent, child)` | `child` already has a parent (use `move`); `child` is the root; `parent` lies in `child`'s subtree |
+| `remove(node)` | `node` is the root; `node` has children (move them first) |
+
+The subtree check walks `newParent`'s (or `parent`'s) parent chain, so it costs the
+depth of the target, not the size of the subtree.
 
 ### 7.3 Local nodes
 
@@ -435,9 +454,9 @@ a package is moved into. **Local nodes** belong to one hierarchy only:
 
 | Method | Description |
 |--------|-------------|
-| `createLocalNode(kind, sourceSupplier)` | creates a node that is known to this hierarchy (and its later forks), but not to the core graph |
+| `createLocalNode(kind, sourceSupplier)` | creates a node that is known to this hierarchy (and its later forks), but not to the core graph; fails with `IllegalArgumentException` when a core node or a local node of this hierarchy already has the source's identifier |
 | `localNodes` | the hierarchy's local nodes |
-| `lookupNode(identifier)` | finds a node among the local nodes first, then in the core graph |
+| `lookupNode(identifier)` | finds a node among the local nodes first, then in the core graph, leaving out core nodes removed from this hierarchy (§7.2) |
 
 A local node is placed with `addChild` like any other node and works everywhere a
 node does in that hierarchy: traversal, accumulation, aggregation. It has no core
@@ -445,6 +464,11 @@ dependencies of its own. Its accumulated and aggregated dependencies are those o
 the real nodes moved underneath it, which is exactly what makes "what would this new
 module depend on?" answerable. `SyntheticNodeSource` is the natural source for a
 local node.
+
+Because `lookupNode` searches the local nodes first, a local node with a taken
+identifier would hide the other node; `createLocalNode` therefore rejects it. The
+check covers the local nodes a fork inherits. Two separate forks of one hierarchy may
+each create a local node with the same identifier, since neither sees the other's.
 
 ---
 
@@ -530,7 +554,7 @@ the links between nodes, dependencies, sources and the graph.
 | Function | Description |
 |----------|-------------|
 | `createHierarchy(graph, rootNode)` | creates an empty hierarchy over `graph` with the given root |
-| `addChild(hierarchy, parent, child)` | places `child` under `parent`, **without clearing caches**: the fast path for building a hierarchy before it is first queried |
+| `addChild(hierarchy, parent, child)` | places `child` under `parent`, **without clearing caches**: the fast path for building a hierarchy before it is first queried; rejects the same calls as `Hierarchy.addChild` (§7.2) |
 
 ### 10.3 `HGModel`
 
@@ -642,7 +666,7 @@ model.withScope { billing.outgoingTo(money)?.aggregatedWeight }   // still 4
 - **Reads.** Any number of threads may query the same hierarchy at the same time —
   structure, traversal, accumulation, aggregation — also while its caches are still
   empty (§9).
-- **Changes.** `move`, `addChild` and `createLocalNode` change the hierarchy's maps
+- **Changes.** `move`, `addChild`, `remove` and `createLocalNode` change the hierarchy's maps
   and clear its caches. A change while another thread reads the hierarchy, or two
   changes at the same time, is never safe.
 - **Build, then publish.** Build or restructure a hierarchy on one thread, then hand
@@ -679,17 +703,20 @@ invariants are stated for a hierarchy `H`.
    created.
 8. **View independence.** Restructuring `H` never changes the structure or the derived
    results of any other hierarchy.
+9. **Tree.** Every node of `H` except the root has exactly one parent, appears once
+   among its parent's children, and is not its own ancestor. `move`, `addChild`,
+   `HierarchyFactory.addChild` and `createLocalNode` reject every call that would break
+   this, or make `H.lookupNode` ambiguous (§7.2, §7.3).
 
 ### 12.2 Caller obligations
 
-The model favours speed over defensive checks. These rules are the caller's
-responsibility; breaking them leaves the hierarchy inconsistent:
+The model checks what keeps a hierarchy a tree (§12.1, invariant 9) and otherwise
+favours speed over defensive checks. These rules are the caller's responsibility;
+breaking them leaves the hierarchy inconsistent:
 
 | Rule | Why |
 |------|-----|
-| Give every node a **unique identifier**. | The graph indexes nodes by identifier; a second node with the same identifier replaces the first in the index. |
-| Place a node with `addChild` **only once**, and re-parent with `move`. | `addChild` does not detach a node from a previous parent, and does not check for duplicates among the children. |
-| Never `move` a node **into its own subtree**. | The parent chain would become a cycle, and ancestor queries would not terminate. |
+| Give every core node a **unique identifier**. | The graph indexes nodes by identifier; a second node with the same identifier replaces the first in the index. (Local nodes are checked, §7.3.) |
 | **Finish the core graph** (dependencies and weights) before the first query. | Caches are cleared only by restructuring (§9). |
 | Use `HierarchyFactory.addChild` **only before the first query**; afterwards use `Hierarchy.addChild`. | The factory variant does not clear caches. |
 | Remove only nodes **without dependencies**. | `removeNode` drops the node from the index, but dependency lists still point at it. |

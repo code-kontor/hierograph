@@ -42,6 +42,13 @@ private fun shortHash(input: ByteArray): String {
  */
 object DataHash {
 
+    /**
+     * The data hash of a view: [dataHash] of the base graph combined with a fingerprint of the view
+     * document's text, so a cursor issued in a view is rejected when either the graph or the document changes.
+     */
+    fun combine(dataHash: String, documentText: String): String =
+        shortHash("$dataHash\u0000$documentText".toByteArray(Charsets.UTF_8))
+
     /** Computes the data-snapshot fingerprint for the loaded [model]. */
     fun fingerprint(model: HGModel): String {
         val hierarchy = model.hierarchy

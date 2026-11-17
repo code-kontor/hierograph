@@ -55,10 +55,16 @@ abstract class AbstractMcpApplicationIntegrationTest : AbstractSpringIntegration
 
     companion object {
 
+        /** Where the application reads and writes view documents during the tests. */
+        val VIEWS_DIR: java.nio.file.Path = java.nio.file.Path.of("target", "itest-views").toAbsolutePath()
+
         @JvmStatic
         @DynamicPropertySource
         fun graphProperties(registry: DynamicPropertyRegistry) {
             registry.add("hierograph.graph.dumpFile") { "target/hierarchical-graph.txt" }
+            // Keep view documents out of the working directory; tests that define views clean up after them.
+            registry.add("hierograph.views.projectDir") { VIEWS_DIR.resolve("project").toString() }
+            registry.add("hierograph.views.stateDir") { VIEWS_DIR.resolve("state").toString() }
         }
     }
 }

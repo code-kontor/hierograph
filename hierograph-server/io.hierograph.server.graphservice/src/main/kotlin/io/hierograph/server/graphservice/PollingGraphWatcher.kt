@@ -42,6 +42,8 @@ class PollingGraphWatcher(
     private val log = LoggerFactory.getLogger(PollingGraphWatcher::class.java)
 
     private var exec: ScheduledExecutorService? = null
+    // Set by close(), before the executors are shut down, so a poll they interrupt is known to be a stop, not a failure.
+    @Volatile private var closed = false
     // walks the module directories concurrently, for the baseline and every poll
     private var walkers: ExecutorService? = null
 
@@ -78,9 +80,29 @@ class PollingGraphWatcher(
         }
         exec = e
         e.scheduleWithFixedDelay(
-            { runCatching { poll(targets, onChange, onManifestChange, onBuildFilesChange) }.onFailure { log.warn("Watch poll failed", it) } },
+            { pollOnce(targets, onChange, onManifestChange, onBuildFilesChange) },
             intervalMs, intervalMs, TimeUnit.MILLISECONDS,
         )
+    }
+
+    /**
+     * One poll, failures logged so the next one still runs. [close] interrupts a poll that is still walking the
+     * module directories (re-targeting the watcher after a manifest change does that); such a poll ends quietly.
+     */
+    private fun pollOnce(
+        targets: WatchTargets,
+        onChange: (Set<String>) -> Unit,
+        onManifestChange: () -> Unit,
+        onBuildFilesChange: (Set<Path>) -> Unit,
+    ) {
+        try {
+            poll(targets, onChange, onManifestChange, onBuildFilesChange)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            if (!closed) log.warn("Watch poll interrupted", e)
+        } catch (e: Throwable) {
+            if (!closed) log.warn("Watch poll failed", e)
+        }
     }
 
     private fun poll(
@@ -116,7 +138,7 @@ class PollingGraphWatcher(
                 changed += gav
             }
         }
-        if (changed.isNotEmpty()) onChange(changed)
+        if (changed.isNotEmpty() && !closed) onChange(changed)
     }
 
     /**
@@ -132,6 +154,7 @@ class PollingGraphWatcher(
     }
 
     override fun close() {
+        closed = true
         exec?.shutdownNow()
         exec = null
         walkers?.shutdownNow()

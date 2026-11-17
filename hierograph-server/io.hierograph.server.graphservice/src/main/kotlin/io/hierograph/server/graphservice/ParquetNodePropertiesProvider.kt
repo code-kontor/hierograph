@@ -17,13 +17,12 @@ package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.server.mapping.GraphStoreNodeSource
-import io.hierograph.graphstore.jvm.model.MemberModifiers
-import io.hierograph.graphstore.jvm.model.TypeModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.springframework.stereotype.Component
 import java.nio.file.Path
 
@@ -41,7 +40,7 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
         val hierarchy = graphService.model.hierarchy
         val dir = Path.of(graphService.parquetDirectory)
 
-        val scannedTypes = nodes.filter { it.kind in JavaKinds.TYPE_KINDS }
+        val scannedTypes = nodes.filter { it.kind in JavaNodeKind.TYPES }
         val typeFqns = scannedTypes.mapNotNullTo(HashSet()) { source(it)?.qualifiedName }
         val reader = ParquetReader()
         val typeRows = reader.readTypeRows(dir, typeFqns).associateBy { it.artifact to it.fqn }
@@ -54,21 +53,21 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
                 put("name", source.name)
                 put("kind", node.kind?.toString())
                 when {
-                    node.kind == JavaKinds.MODULE -> {
+                    node.kind == JavaNodeKind.MODULE -> {
                         if (source.key == GraphStore.EXTERNAL_ARTIFACT_KEY) put("external", "true")
                         else put("artifact", source.key)
-                        put("packageCount", countDescendants(hierarchy, node) { it.kind == JavaKinds.PACKAGE }.toString())
-                        put("typeCount", countDescendants(hierarchy, node) { JavaKinds.isTypeKind(it.kind) }.toString())
+                        put("packageCount", countDescendants(hierarchy, node) { it.kind == JavaNodeKind.PACKAGE }.toString())
+                        put("typeCount", countDescendants(hierarchy, node) { JavaNodeKind.isTypeKind(it.kind) }.toString())
                     }
-                    node.kind == JavaKinds.PACKAGE -> {
+                    node.kind == JavaNodeKind.PACKAGE -> {
                         val children = hierarchy.childrenOf(node)
                         putArtifact(hierarchy, node)
-                        put("subPackageCount", children.count { it.kind == JavaKinds.PACKAGE }.toString())
-                        put("directTypeCount", children.count { JavaKinds.isTypeKind(it.kind) }.toString())
-                        put("descendantTypeCount", countDescendants(hierarchy, node) { JavaKinds.isTypeKind(it.kind) }.toString())
+                        put("subPackageCount", children.count { it.kind == JavaNodeKind.PACKAGE }.toString())
+                        put("directTypeCount", children.count { JavaNodeKind.isTypeKind(it.kind) }.toString())
+                        put("descendantTypeCount", countDescendants(hierarchy, node) { JavaNodeKind.isTypeKind(it.kind) }.toString())
                     }
-                    node.kind == JavaKinds.EXTERNAL_TYPE -> put("external", "true")
-                    node.kind in JavaKinds.TYPE_KINDS -> {
+                    node.kind == JavaNodeKind.EXTERNAL_TYPE -> put("external", "true")
+                    node.kind in JavaNodeKind.TYPES -> {
                         val artifact = putArtifact(hierarchy, node)
                         typeRows[artifact to source.qualifiedName]?.let { row ->
                             row.sourceFile?.let { put("sourceFile", it) }
@@ -97,7 +96,7 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
     /** Puts the key of [node]'s owning module as `artifact` (unless it is the external module) and returns it. */
     private fun MutableMap<String, String?>.putArtifact(hierarchy: Hierarchy, node: HGNode): String? {
         var n: HGNode? = node
-        while (n != null && n.kind != JavaKinds.MODULE) n = hierarchy.parentOf(n)
+        while (n != null && n.kind != JavaNodeKind.MODULE) n = hierarchy.parentOf(n)
         val key = n?.let { source(it)?.key }?.takeIf { it != GraphStore.EXTERNAL_ARTIFACT_KEY } ?: return null
         put("artifact", key)
         return key

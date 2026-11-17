@@ -78,6 +78,7 @@ The browse tools and `type_details` both describe a type, and both are needed:
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `typeId` | integer | yes | Id of a node of kind `java.class`, `java.interface`, `java.enum`, `java.record`, `java.annotation` or `external.type`. |
+| `view` | string | no | Name of a view to answer in. |
 
 **`typeId`** is the only input because a type is fully identified by its id
 ([shared spec §5](hierograph-mcp-tools.md#5-parameters)). Every tool that returns a
@@ -87,6 +88,15 @@ names a type: one defined in the scanned code, or an external type (kind
 type ids itself, as supertypes and annotations; a caller following one must not
 dead-end. Its description is limited to what the graph knows (§4.3).
 
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. A view changes where nodes
+sit, not the facts this tool reports. A type a restructuring view moves is still read
+from the artifact that defines it.
+
 ---
 
 ## 3. Behaviour
@@ -95,16 +105,16 @@ dead-end. Its description is limited to what the graph knows (§4.3).
 
 The tool combines the in-memory model with the type's rows in the Parquet snapshot,
 described in the
-[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 
 | Response field | Source | Why there |
 |----------------|--------|-----------|
 | `type`, `parent_container` | the model; nesting from binary names | identity and tree position are the model's job |
 | `modifiers`, `is_abstract` | `types.parquet`, column `modifiers` | the model keeps no declaration flags |
 | `location.source_file` | `types.parquet`, column `source_file` | same |
-| `superclass` | the type's `EXTENDS` row in `refs.parquet` | keeps targets the model leaves out (§3.2) |
-| `interfaces` | the type's `IMPLEMENTS` rows in `refs.parquet` | same |
-| `annotations` | the type's `ANNOTATED_BY` rows in `refs.parquet` | same |
+| `superclass` | the type's `extends` row in `dependencies.parquet` | keeps targets the model leaves out (§3.2) |
+| `interfaces` | the type's `implements` rows in `dependencies.parquet` | same |
+| `annotations` | the type's own `annotated_by` rows in `dependencies.parquet` | same |
 | `member_summary` | the type's rows in `members.parquet` | only the snapshot tells constructors from methods |
 | `inner_types` | the type's siblings in the model, by binary name | see below |
 | `is_generic` | `types.parquet`, the `generic` bit of `modifiers` | the scanner reads it from the class signature |
@@ -112,10 +122,10 @@ described in the
 The `types.parquet` row, the members and the refs are all read from the snapshot
 artifact of the type's own module, so two artifacts that define the same FQN never mix
 modifiers, members or supertypes: each definition is described as it was compiled. See
-[`types.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#41-typesparquet),
-[`members.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#42-membersparquet)
+[`types.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#41-typesparquet),
+[`members.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#42-membersparquet)
 and
-[`refs.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#44-refsparquet)
+[`dependencies.parquet`](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#44-dependenciesparquet)
 for the meaning of each column.
 
 **Superclass.** The `EXTENDS` row is the superclass named in the class file. Every
@@ -154,7 +164,7 @@ snapshot does not keep it; the names carry the same information for code compile
 from Java or Kotlin.
 
 **Modifiers.** Modifiers are decoded from the
-[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
+[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#51-modifier-bits)
 in a fixed order: visibility first, then `abstract`, `final`, `static`.
 
 | Modifier | When present |
@@ -190,10 +200,10 @@ it is filled depends on whether the referenced type is a node in the graph:
 | an external type without a node | `null` | `external.type` | `java.lang.Object`, `java.lang.Comparable`, `kotlin.Metadata` |
 
 The graph does not create placeholder nodes for every external type. The
-[placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md#6-external-types-and-placeholders)
 leaves out ubiquitous names such as `java.lang.*`, `kotlin.*` and the JetBrains
 `@NotNull` / `@Nullable` annotations, because a dependency on them carries no
-architectural information. The type's `refs.parquet` rows still name them, so
+architectural information. The type's `dependencies.parquet` rows still name them, so
 `type_details` reports them with `id: null`. Without this fallback, every interface's
 superclass and every Kotlin type's annotations would be missing from the response. The
 `name` of such a reference is the part of the FQN after the last dot.
@@ -310,7 +320,7 @@ is not generic. It answers "is this a container or a template?" without opening 
 source. Like `modifiers`, it is `null` when the type has no `types.parquet` row.
 
 **`superclass`**, **`interfaces`** and **`annotations`** are the type's structural
-dependencies, the three `refs.parquet` kinds that describe how a type is defined rather
+dependencies, the three kinds of the type's own facts that describe how a type is defined rather
 than how it is used. They are type references (§3.2) so the caller can follow each one.
 `annotations` wraps each reference in `{"type": …}` so the entry shape matches
 `method_details`' annotations.

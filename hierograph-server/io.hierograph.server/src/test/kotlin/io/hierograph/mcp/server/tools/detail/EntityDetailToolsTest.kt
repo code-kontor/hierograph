@@ -15,13 +15,13 @@
  */
 package io.hierograph.mcp.server.tools.detail
 
-import io.hierograph.graphstore.jvm.model.ClassFacts
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberFacts
-import io.hierograph.graphstore.jvm.model.Ref
-import io.hierograph.graphstore.jvm.model.RefKind
-import io.hierograph.graphstore.jvm.model.TypeModifiers
-import io.hierograph.graphstore.jvm.parquet.ParquetWriter
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.ClassFacts
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberFacts
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.TypeModifiers
+import io.hierograph.graphstore.jvm.archive.ParquetWriter
 import io.hierograph.hierarchicalgraph.model.NodeHandle
 import io.hierograph.mcp.server.tools.NodeRefFactory
 import io.hierograph.mcp.server.tools.detail.DetailFixture.Companion.DOC
@@ -90,16 +90,18 @@ class EntityDetailToolsTest {
         val twin = "com.example.dup.Twin"
         fun twinIn(artifact: String, memberCount: Int, iface: String) = ParquetWriter.ArtifactClass(
             artifact, ClassFacts(
-                twin, JavaKinds.CLASS, TypeModifiers.pack("public"),
-                members = List(memberCount) { MemberFacts("$twin#void m$it()", JavaKinds.METHOD, "void m$it()", "m$it") },
-                refs = listOf(Ref(twin, iface, RefKind.IMPLEMENTS, count = 1)), classHash = artifact,
+                twin, JavaNodeKind.CLASS, TypeModifiers.pack("public"),
+                members = List(memberCount) { MemberFacts("$twin#void m$it()", JavaNodeKind.METHOD, "void m$it()", "m$it") }, classHash = artifact,
             ),
         )
         val dir = Files.createTempDirectory("hierograph-twin")
-        ParquetWriter.writeArtifacts(
-            dir, listOf(twinIn("lib-a", 1, "java.io.Serializable"), twinIn("lib-b", 3, "java.lang.Runnable")),
-            emptyList(), packaging = ParquetWriter.Packaging.EXPLODED,
-        )
+        // One write per artifact: the facts of a duplicated FQN are filed with the artifact written alongside them.
+        for ((artifact, count, iface) in listOf(Triple("lib-a", 1, "java.io.Serializable"), Triple("lib-b", 3, "java.lang.Runnable"))) {
+            ParquetWriter.writeArtifacts(
+                dir, listOf(twinIn(artifact, count, iface)),
+                listOf(Dependency(twin, twin, iface, iface, DependencyKind.IMPLEMENTS)), packaging = ParquetWriter.Packaging.EXPLODED,
+            )
+        }
         val service = HierarchicalGraphService().also { it.seedFromParquet(dir) }
         val details = ParquetTypeDetails(service, NodeRefFactory(service))
 

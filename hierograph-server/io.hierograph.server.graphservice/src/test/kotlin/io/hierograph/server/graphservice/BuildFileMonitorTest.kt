@@ -158,5 +158,21 @@ class BuildFileMonitorTest {
             assertThat(it.generateMissingManifest(tmp)).isFalse()
         }
     }
-}
 
+    @Test
+    @EnabledOnOs(OS.MAC, OS.LINUX)
+    fun `a build file edited during a run gets another run, even when nothing is stale against the old manifest`(@TempDir tmp: Path) {
+        val buildFile = Files.writeString(tmp.resolve("pom.xml"), "<project><modules><module>a</module></modules></project>")
+        // The first run edits the build file while it runs, as a checkout during a regeneration does; later runs don't.
+        val command = listOf("sh", "-c", "echo run >> runs.log; if [ ! -f edited ]; then touch edited; echo '<project/>' > pom.xml; fi")
+        // The inspection reports the file stale once, to start the first run, and never again: the edit restored what the
+        // previous manifest recorded, so a follow-up can't come from staleness.
+        var inspections = 0
+        val inspect = { Inspection(if (inspections++ == 0) listOf(buildFile) else emptyList(), tmp, relocated = false, buildFiles = listOf(buildFile)) }
+        BuildFileMonitor(Mode.REGENERATE, command, timeoutMs = 10_000, stateDir = tmp.resolve("state"), inspect = inspect).use { monitor ->
+            monitor.refresh()
+            await().atMost(Duration.ofSeconds(10)).until { monitor.state.status == Status.CURRENT }
+            assertThat(Files.readAllLines(tmp.resolve("runs.log"))).hasSize(2)
+        }
+    }
+}

@@ -15,8 +15,8 @@
  */
 package io.hierograph.mcp.server.tools.navigation
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.mapping.GraphStoreNodeSource
 
@@ -34,8 +34,8 @@ class ModifierFilter private constructor(private val required: Set<String>) {
     fun matches(node: HGNode): Boolean {
         val bits = (node.nodeSource as? GraphStoreNodeSource)?.modifiers ?: return false
         val modifiers = when (node.kind) {
-            JavaKinds.METHOD -> MemberModifiers.methodModifiers(bits)
-            JavaKinds.FIELD -> MemberModifiers.fieldModifiers(bits)
+            JavaNodeKind.METHOD -> MemberModifiers.methodModifiers(bits)
+            JavaNodeKind.FIELD -> MemberModifiers.fieldModifiers(bits)
             else -> return false
         }
         return modifiers.containsAll(required)

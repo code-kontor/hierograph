@@ -107,6 +107,8 @@ internal object MavenManifest {
             regenerate = regenerateCommand(session, regenerateArgs),
             modules = modules,
             buildFiles = buildFiles(session),
+            // Maven reads the POMs right after the session starts; a POM modified since then isn't what it read.
+            buildFilesReadAt = session.request.startTime?.toInstant(),
         )
         return ManifestWriter.merge(request) { log.warn("hierograph: $it") }
     }

@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.reachability
 
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.DefaultDependencySource
 import io.hierograph.hierarchicalgraph.model.HGGraphFactory
 import io.hierograph.hierarchicalgraph.model.HGModel
@@ -48,14 +48,14 @@ class ReachabilityValidationTest {
     }
 
     // Two modules with one package each; Money is used from both modules, A and B form a cycle.
-    private val core = add(root, JavaKinds.MODULE, "core")
-    private val app = add(root, JavaKinds.MODULE, "app")
-    private val money = add(add(core, JavaKinds.PACKAGE, "money"), JavaKinds.CLASS, "Money")
-    private val corePkg = add(core, JavaKinds.PACKAGE, "ledger")
-    private val appPkg = add(app, JavaKinds.PACKAGE, "web")
-    private val a = add(corePkg, JavaKinds.CLASS, "A")
-    private val b = add(appPkg, JavaKinds.CLASS, "B")
-    private val method = add(a, JavaKinds.METHOD, "void run()")
+    private val core = add(root, JavaNodeKind.MODULE, "core")
+    private val app = add(root, JavaNodeKind.MODULE, "app")
+    private val money = add(add(core, JavaNodeKind.PACKAGE, "money"), JavaNodeKind.CLASS, "Money")
+    private val corePkg = add(core, JavaNodeKind.PACKAGE, "ledger")
+    private val appPkg = add(app, JavaNodeKind.PACKAGE, "web")
+    private val a = add(corePkg, JavaNodeKind.CLASS, "A")
+    private val b = add(appPkg, JavaNodeKind.CLASS, "B")
+    private val method = add(a, JavaNodeKind.METHOD, "void run()")
 
     init {
         a.dependsOn(money); b.dependsOn(money); a.dependsOn(b); b.dependsOn(a)
@@ -98,7 +98,7 @@ class ReachabilityValidationTest {
     fun `a scope searched against itself yields its cycles, and an empty scope names both scopes`() {
         val cycle = paths.findDependencyPath(id(a), id(a), null, null)["paths"] as List<Map<String, Any?>>
         assertThat(cycle.map { it["length"] }).containsExactly(2)
-        val empty = paths.findDependencyPath(id(add(root, JavaKinds.MODULE, "empty")), id(a), null, null)
+        val empty = paths.findDependencyPath(id(add(root, JavaNodeKind.MODULE, "empty")), id(a), null, null)
         assertThat((empty["nodes"] as Map<String, Any?>)).hasSize(2)
     }
 }

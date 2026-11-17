@@ -15,10 +15,11 @@
  */
 package io.hierograph.itest.graphstore
 
-import io.hierograph.graphstore.jvm.model.DetailRef
-import io.hierograph.graphstore.jvm.parquet.ParquetReader
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.itest.fwk.SpringFixture
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -34,17 +35,18 @@ class DetailEdgeVocabularyIT {
 
     private val dir = SpringFixture.directory
     private val reader = ParquetReader()
-    private lateinit var all: List<DetailRef>
+    private lateinit var all: List<Dependency>
 
     @BeforeAll
     fun load() {
-        all = reader.readDetailRefs(dir)
+        all = reader.readDependencies(dir)
     }
 
     @Test
     fun `every scanner-emitted detail relationship is present`() {
-        val byRel = all.groupingBy { it.relationship }.eachCount()
-        for (rel in listOf("calls", "reads_field", "writes_field", "throws", "raises", "annotated_by", "returns", "parameter_type", "has_type")) {
+        val byRel = all.groupingBy { it.kind.value }.eachCount()
+        // Every kind a class file can carry; the derived ones (overrides, read_by, written_by) never appear.
+        for (rel in DependencyKind.entries.filterNot { it.derived }.map { it.value }) {
             assertThat(byRel[rel]).describedAs(rel).isNotNull.matches { it!! > 0 }
         }
         // overrides is derived at load (HierarchyResolution), never emitted directly by the scanner.
@@ -53,12 +55,34 @@ class DetailEdgeVocabularyIT {
 
     @Test
     fun `throws is the declared clause and raises is the body-thrown set, and some method has both`() {
-        val throwsFrom = all.filter { it.relationship == "throws" }.map { it.fromKey }.toSet()
-        val raisesFrom = all.filter { it.relationship == "raises" }.map { it.fromKey }.toSet()
+        val throwsFrom = all.filter { it.kind == DependencyKind.THROWS }.map { it.fromKey }.toSet()
+        val raisesFrom = all.filter { it.kind == DependencyKind.RAISES }.map { it.fromKey }.toSet()
         assertThat(throwsFrom).isNotEmpty
         assertThat(raisesFrom).isNotEmpty
         // A method that declares `throws X` and also does `throw new Y(...)` appears in both.
         assertThat(throwsFrom.intersect(raisesFrom)).describedAs("methods with both throws and raises").isNotEmpty
+    }
+
+    @Test
+    fun `parameter facts are positioned and named like the members' parameters`() {
+        val parameterKinds = setOf(DependencyKind.PARAMETER_TYPE, DependencyKind.PARAMETER_ANNOTATED_BY)
+        assertThat(all.filter { it.kind == DependencyKind.PARAMETER_TYPE }).allSatisfy {
+            assertThat(it.parameterIndex).isNotNull.matches { i -> i!! >= 0 }
+            assertThat(it.parameterName).isNotBlank()
+        }
+        assertThat(all.filter { it.kind == DependencyKind.PARAMETER_ANNOTATED_BY }).allSatisfy {
+            assertThat(it.parameterIndex).isNotNull
+        }
+        assertThat(all.filter { it.kind !in parameterKinds }).allSatisfy { assertThat(it.parameterIndex).isNull() }
+        // Some method takes one type at two positions: two facts to the same target, told apart by position.
+        val repeated = all.filter { it.kind == DependencyKind.PARAMETER_TYPE }.groupBy { it.fromKey to it.toType }.values
+            .first { it.size > 1 }
+        assertThat(repeated.map { it.parameterIndex }).doesNotHaveDuplicates()
+        // The facts agree with the member's parameters (stored in target-type order, so compared by position).
+        val member = reader.readMember(dir, repeated.first().fromKey)!!
+        assertThat(all.filter { it.fromKey == member.key && it.kind == DependencyKind.PARAMETER_TYPE }
+            .sortedBy { it.parameterIndex }.map { Triple(it.parameterIndex, it.parameterName, it.toType) })
+            .containsExactlyElementsOf(member.parameters.map { Triple(it.index, it.name, it.typeFqn) })
     }
 
     @Test

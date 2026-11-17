@@ -17,8 +17,10 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.graphservice.HierarchicalGraphService
-import io.hierograph.graphstore.jvm.model.JavaEdgeAttributes
-import io.hierograph.graphstore.jvm.model.JavaKinds
+import io.hierograph.server.mapping.JavaEdgeAttributes
+import io.hierograph.server.mapping.GraphStoreDependencySource
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.mcp.server.core.INodeRefFactory
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -41,8 +43,9 @@ class AggregatedDependenciesTool(
         description = "[Dependency analysis] " +
                 "Return aggregated pairwise dependencies from source subtrees to target subtrees. " +
                 "Direction is implicit: put the depender in sourceIds, the depended-on in targetIds. " +
-                "Each edge carries weight, type_pair_count, and structured attributes (is_extends, " +
-                "is_implements, is_annotated_by, is_depends_on_other). " +
+                "Each edge carries weight, type_pair_count, structured attributes (is_extends, " +
+                "is_implements, is_annotated_by, is_depends_on_other), and kinds: how many facts of each kind " +
+                "(calls, extends, casts, …) make up the weight. " +
                 "Pairs with no dependency are omitted; check the summary for honest accounting. " +
                 "No limit needed — result size is controlled by input size (cross-product cap: 2500). " +
                 "For matrix-style all-pairs analysis, use pairwise_dependencies instead. " +
@@ -135,7 +138,8 @@ class AggregatedDependenciesTool(
                         "to" to target.identifier,
                         "weight" to aggDep.aggregatedWeight,
                         "type_pair_count" to typePairs.size,
-                        "attributes" to JavaEdgeAttributes.toMap(unionBitmap)
+                        "attributes" to JavaEdgeAttributes.toMap(unionBitmap),
+                        "kinds" to DependencyKind.toMap(GraphStoreDependencySource.kindsOf(coreDeps)),
                     )
                 )
             }
@@ -159,7 +163,7 @@ class AggregatedDependenciesTool(
 
     private fun validateNodeKind(node: HGNode): Map<String, Any?>? {
         val kind = node.kind
-        if (kind == JavaKinds.METHOD || kind == JavaKinds.FIELD) {
+        if (kind == JavaNodeKind.METHOD || kind == JavaNodeKind.FIELD) {
             val declaringType = graphService.model.hierarchy.parentOf(node)
             return mapOf(
                 "error" to mapOf(

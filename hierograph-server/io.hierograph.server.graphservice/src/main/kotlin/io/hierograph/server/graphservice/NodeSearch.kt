@@ -16,8 +16,9 @@
 package io.hierograph.server.graphservice
 
 import io.hierograph.hierarchicalgraph.model.HGNode
-import io.hierograph.graphstore.jvm.model.JavaKinds
-import io.hierograph.graphstore.jvm.model.JavaNodeKind
+import io.hierograph.server.views.KindAliases
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.server.views.ViewGroups
 import org.springframework.stereotype.Component
 
 /**
@@ -32,13 +33,13 @@ import org.springframework.stereotype.Component
 @Component
 class NodeSearch(private val graphService: HierarchicalGraphService) {
 
-    /** The `kindFilter` values that [search] accepts: the [JavaKinds.ALL_KINDS] values plus the group aliases. */
-    val validKindValues: List<String> get() = JavaKinds.ALL_KINDS.map { it.value } + JavaKinds.EXTERNAL_TYPE
-    val validAliases: List<String> get() = JavaKinds.ALL_ALIASES.toList()
+    /** The `kindFilter` values that [search] accepts: the [JavaNodeKind.NODE_KINDS] values plus the group aliases. */
+    val validKindValues: List<String> get() = JavaNodeKind.NODE_KINDS.map { it.value } + JavaNodeKind.EXTERNAL_TYPE + ViewGroups.KIND
+    val validAliases: List<String> get() = KindAliases.ALL.toList()
 
     /** The entries of [kindFilter] that are neither a kind value nor a group alias. */
     fun invalidKinds(kindFilter: List<String>?): List<String> =
-        kindFilter.orEmpty().filter { it !in validKindValues && it !in JavaKinds.ALL_ALIASES }
+        kindFilter.orEmpty().filter { it !in validKindValues && it !in KindAliases.ALL }
 
     /** The best [limit] matches for [name] and the number of all matches. */
     data class Result(val nodes: List<HGNode>, val total: Int)
@@ -56,19 +57,19 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
             null -> { node -> node.kind != JavaNodeKind.METHOD && node.kind != JavaNodeKind.FIELD }
             else -> { node -> node.kind in expandedKinds }
         }
-        val query = name.lowercase()
+        val query = CaseInsensitive(name)
 
         val matches = ArrayList<RankedNode>()
         for (entry in graphService.searchIndex.entries) {
             if (!kindMatches(entry.node)) continue
-            if (!entry.nameLower.contains(query) && !entry.fqnLower.contains(query)) continue
+            if (!query.isIn(entry.name) && !query.isIn(entry.fqn)) continue
             val rank = when {
-                entry.nameLower == query -> 0
-                entry.fqnLower == query -> 1
-                entry.nameLower.startsWith(query) -> 2
+                query.equalsTo(entry.name) -> 0
+                query.equalsTo(entry.fqn) -> 1
+                query.startsOf(entry.name) -> 2
                 else -> 3
             }
-            matches.add(RankedNode(entry.node, rank, entry.fqnLower.length))
+            matches.add(RankedNode(entry.node, rank, entry.fqn.length))
         }
         val best = matches.sortedWith(compareBy({ it.rank }, { it.fqnLength })).take(limit).map { it.node }
         return Result(best, matches.size)
@@ -79,10 +80,11 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
         if (kindFilter.isNullOrEmpty()) return null
         val result = mutableSetOf<Any>()
         for (entry in kindFilter) {
-            val expanded = JavaKinds.expandAlias(entry)
+            val expanded = KindAliases.expand(entry)
             when {
                 expanded != null -> result.addAll(expanded)
-                entry == JavaKinds.EXTERNAL_TYPE -> result.add(JavaKinds.EXTERNAL_TYPE)
+                entry == JavaNodeKind.EXTERNAL_TYPE -> result.add(JavaNodeKind.EXTERNAL_TYPE)
+                entry == ViewGroups.KIND -> result.add(ViewGroups.KIND)
                 else -> JavaNodeKind.fromValue(entry)?.let { result.add(it) }
             }
         }
@@ -90,4 +92,50 @@ class NodeSearch(private val graphService: HierarchicalGraphService) {
     }
 
     private data class RankedNode(val node: HGNode, val rank: Int, val fqnLength: Int)
+
+    /**
+     * A query matched case-insensitively against the index's original strings, so the index needs no
+     * lower-cased copies. The query's lower- and upper-case forms are prepared once; a candidate character
+     * matches when it equals either, which avoids converting every character of every candidate.
+     */
+    internal class CaseInsensitive(query: String) {
+        private val lower = CharArray(query.length) { Character.toLowerCase(query[it]) }
+        private val upper = CharArray(query.length) { Character.toUpperCase(query[it]) }
+
+        private fun matchesAt(text: String, start: Int): Boolean {
+            for (j in lower.indices) {
+                val c = text[start + j]
+                if (c != lower[j] && c != upper[j]) return false
+            }
+            return true
+        }
+
+        /**
+         * Whether the query occurs anywhere in [text]. The JVM's vectorized `indexOf` finds the candidate
+         * positions of the query's first character in either case; only there is the rest compared.
+         */
+        fun isIn(text: String): Boolean {
+            if (lower.isEmpty()) return true
+            val last = text.length - lower.size
+            if (last < 0) return false
+            val first = lower[0]
+            val firstUpper = upper[0]
+            var nextLower = text.indexOf(first)
+            var nextUpper = if (firstUpper == first) -1 else text.indexOf(firstUpper)
+            while (true) {
+                val i = when {
+                    nextLower < 0 -> nextUpper
+                    nextUpper < 0 -> nextLower
+                    else -> minOf(nextLower, nextUpper)
+                }
+                if (i < 0 || i > last) return false
+                if (matchesAt(text, i)) return true
+                if (i == nextLower) nextLower = text.indexOf(first, i + 1) else nextUpper = text.indexOf(firstUpper, i + 1)
+            }
+        }
+
+        fun equalsTo(text: String): Boolean = text.length == lower.size && matchesAt(text, 0)
+
+        fun startsOf(text: String): Boolean = text.length >= lower.size && matchesAt(text, 0)
+    }
 }

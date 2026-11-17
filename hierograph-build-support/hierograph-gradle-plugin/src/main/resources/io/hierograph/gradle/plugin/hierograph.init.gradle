@@ -1,0 +1,16 @@
+// Applies the Hierograph settings plugin without changing the project:
+//   ./gradlew -q --init-script hierograph.init.gradle hierographManifest
+// Writes .hierograph/manifest.json for the whole build, without building it.
+initscript {
+    repositories {
+        mavenCentral()
+        mavenLocal() // snapshots, after `./gradlew publishToMavenLocal` of the plugin
+    }
+    dependencies {
+        classpath "io.hierograph:hierograph-gradle-plugin:@version@"
+    }
+}
+
+beforeSettings { settings ->
+    settings.pluginManager.apply(io.hierograph.gradle.plugin.HierographSettingsPlugin)
+}

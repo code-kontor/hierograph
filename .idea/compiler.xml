@@ -7,13 +7,15 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="io.hierograph.manifest" />
-        <module name="io.hierograph.hierarchicalgraph.model" />
         <module name="io.hierograph.hierarchicalgraph.algorithms" />
+        <module name="io.hierograph.server.views" />
         <module name="io.hierograph.graphstore.jvm.scanner" />
-        <module name="hierograph-maven-plugin" />
-        <module name="io.hierograph.graphstore.jvm" />
         <module name="io.hierograph.server.graphql" />
         <module name="io.hierograph.server.mapping" />
+        <module name="io.hierograph.graphstore.jvm.store" />
+        <module name="io.hierograph.hierarchicalgraph.model" />
+        <module name="hierograph-maven-plugin" />
+        <module name="io.hierograph.graphstore.jvm.archive" />
         <module name="io.hierograph.itest.tests" />
         <module name="io.hierograph.server.graphservice" />
         <module name="io.hierograph.server" />
@@ -29,8 +31,9 @@
       <module name="hierograph-maven-plugin" options="-parameters" />
       <module name="hierograph-parent" options="-parameters" />
       <module name="hierograph-server" options="-parameters" />
-      <module name="io.hierograph.graphstore.jvm" options="-parameters" />
+      <module name="io.hierograph.graphstore.jvm.archive" options="-parameters" />
       <module name="io.hierograph.graphstore.jvm.scanner" options="-parameters" />
+      <module name="io.hierograph.graphstore.jvm.store" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.algorithms" options="-parameters" />
       <module name="io.hierograph.hierarchicalgraph.model" options="-parameters" />
       <module name="io.hierograph.itest.tests" options="-parameters" />
@@ -39,6 +42,7 @@
       <module name="io.hierograph.server.graphql" options="-parameters" />
       <module name="io.hierograph.server.graphservice" options="-parameters" />
       <module name="io.hierograph.server.mapping" options="-parameters" />
+      <module name="io.hierograph.server.views" options="-parameters" />
     </option>
   </component>
 </project>

@@ -15,12 +15,15 @@
  */
 package io.hierograph.server.graphservice
 
+import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.server.graphservice.HierarchyResolution.Method
 import io.hierograph.server.graphservice.HierarchyResolution.Type
-import io.hierograph.graphstore.jvm.model.DetailRef
-import io.hierograph.graphstore.jvm.model.MemberModifiers
+import io.hierograph.graphstore.jvm.archive.model.Dependency
+import io.hierograph.graphstore.jvm.archive.model.MemberModifiers
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CancellationException
 
 /**
  * The load-time hierarchy resolver: from `Sub extends Base` (both declaring `foo()`) it derives the
@@ -37,16 +40,26 @@ class HierarchyResolutionTest {
     @Test
     fun `derives overrides and virtual dispatch`() {
         // caller com.Client#run() calls the static type Base#foo()
-        val directCall = DetailRef("com.Client#void run()", "com.Client", "com.Base#void foo()", "com.Base", "calls", 5)
+        val directCall = Dependency("com.Client#void run()", "com.Client", "com.Base#void foo()", "com.Base", DependencyKind.CALLS, 5)
 
         val derived = HierarchyResolution.resolve(listOf(base, sub), listOf(directCall))
 
         assertThat(derived).contains(
-            DetailRef("com.Sub#void foo()", "com.Sub", "com.Base#void foo()", "com.Base", "overrides", 1),
-            DetailRef("com.Client#void run()", "com.Client", "com.Sub#void foo()", "com.Sub", "calls", 5),
+            Dependency("com.Sub#void foo()", "com.Sub", "com.Base#void foo()", "com.Base", DependencyKind.OVERRIDES, 1),
+            Dependency("com.Client#void run()", "com.Client", "com.Sub#void foo()", "com.Sub", DependencyKind.CALLS, 5),
         )
         // nothing is derived into or through unscanned types
         assertThat(derived).noneMatch { it.toType == "com.Client" }
+    }
+
+    @Test
+    fun `a resolution cancelled after the overrides stops before the calls`() {
+        val directCall = Dependency("com.Client#void run()", "com.Client", "com.Base#void foo()", "com.Base", DependencyKind.CALLS, 5)
+        var checks = 0
+
+        assertThatThrownBy { HierarchyResolution.resolve(listOf(base, sub), listOf(directCall)) { ++checks > 0 } }
+            .isInstanceOf(CancellationException::class.java)
+        assertThat(checks).isEqualTo(1)
     }
 
     @Test
@@ -61,15 +74,15 @@ class HierarchyResolutionTest {
                 Method("com.B#java.lang.Object self()", "java.lang.Object self()", modifiers = 0, lineFrom = 1, bridgeTarget = "com.B#com.B self()"),
             ),
         )
-        val call = DetailRef("com.C#void run()", "com.C", "com.A#java.lang.Object self()", "com.A", "calls", 5)
+        val call = Dependency("com.C#void run()", "com.C", "com.A#java.lang.Object self()", "com.A", DependencyKind.CALLS, 5)
 
         val derived = HierarchyResolution.resolve(listOf(a, b), listOf(call))
 
         // the virtual dispatch resolves to the real method, and no edge points at the synthetic bridge
         assertThat(derived).contains(
-            DetailRef("com.C#void run()", "com.C", "com.B#com.B self()", "com.B", "calls", 5),
+            Dependency("com.C#void run()", "com.C", "com.B#com.B self()", "com.B", DependencyKind.CALLS, 5),
         )
-        assertThat(derived).noneMatch { it.relationship == "calls" && it.toKey == "com.B#java.lang.Object self()" }
+        assertThat(derived).noneMatch { it.kind == DependencyKind.CALLS && it.toKey == "com.B#java.lang.Object self()" }
     }
 
     @Test

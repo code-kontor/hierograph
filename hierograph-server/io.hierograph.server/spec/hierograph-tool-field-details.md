@@ -71,11 +71,20 @@ write digests, so referring to nodes by id keeps the response small.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `fieldId` | integer | yes | Id of a node of kind `java.field`, as returned by `list_children`, `find_node` or the detail-level dependency tools. |
+| `view` | string | no | Name of a view to answer in. |
 
 **`fieldId`** is the field's node id. A field is fully identified by it
 ([shared spec §5](hierograph-mcp-tools.md#5-parameters)), so the tool needs no other
 input. The digest has no size parameter because its caps (§3.3) already bound the
 response.
+
+**`view`** names a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to
+answer in ([§5 of the MCP tools specification](hierograph-mcp-tools.md#5-parameters)).
+The server adds it to the tool's schema and resolves it before the tool runs: an unknown
+name is a `VIEW_NOT_FOUND` error, a document that does not parse a `VIEW_INVALID` error,
+and a value that is not a string an `INVALID_PARAMETER` error. Without it, or with a
+blank value, the tool answers from the hierarchy as scanned. A view changes where nodes
+sit, not the facts this tool reports.
 
 ---
 
@@ -85,20 +94,20 @@ response.
 
 The tool resolves `fieldId` to the field's **member key** (`<owner FQN>#<type> <name>`,
 see
-[member signature and member key](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#33-member-signature-and-member-key))
+[member signature and member key](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#33-member-signature-and-member-key))
 and reads the snapshot described in the
-[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md).
+[snapshot format specification](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md).
 
 | Response field | Source |
 |----------------|--------|
 | `field`, `modifiers`, `is_constant`, `type`, `type_name` | the field's row in `members.parquet` |
-| `annotations` | the field's `annotated_by` edges in `detail_refs.parquet` |
-| `read_access` | the `reads_field` edges in `detail_refs.parquet` that target the field, directly or through an inheriting subtype |
-| `write_access` | the `writes_field` edges in `detail_refs.parquet` that target the field, the same way |
+| `annotations` | the field's `annotated_by` edges in `dependencies.parquet` |
+| `read_access` | the `reads_field` edges in `dependencies.parquet` that target the field, directly or through an inheriting subtype |
+| `write_access` | the `writes_field` edges in `dependencies.parquet` that target the field, the same way |
 | `declaring_type` | the owner FQN in the member key, resolved against the graph |
 
 **Modifiers.** Modifiers are decoded from the
-[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#51-modifier-bits)
+[modifier bits](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#51-modifier-bits)
 in a fixed order: one visibility value (`public`, `protected`, `private` or
 `package-private`), then any of `static`, `final`, `transient`, `volatile`, and last
 `synthetic` for a field the compiler generated (an enum's `$VALUES`, a captured outer
@@ -124,7 +133,7 @@ for a `Money[]` field. `type` is the id of the element type when that type is a 
 
 `type_name` is never `null`: the signature always names the type. Types without a node
 are explained by the
-[placeholder policy](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore.md#6-external-types-and-placeholders).
+[external-type filter](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.store/spec/hierograph-graphstore.md#6-external-types-and-placeholders).
 
 **Annotations.** The annotations on the field, each once, as
 `{"type": <id>, "type_name": <qualified name>}`. An annotation whose type has no node
@@ -134,7 +143,7 @@ Annotations with `SOURCE` retention are not in the class file and never appear.
 
 **No location.** A class file records line numbers for code only, and a field
 declaration has none (see
-[line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm/spec/hierograph-graphstore-format.md#34-line-numbers)),
+[line numbers](../../../hierograph-graphstore/io.hierograph.graphstore.jvm.archive/spec/hierograph-graphstore-format.md#34-line-numbers)),
 so the response has no `location`. To find the declaration, open the declaring type's
 source file (`type_details`' `location.source_file`).
 
