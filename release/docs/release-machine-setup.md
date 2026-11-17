@@ -124,9 +124,11 @@ Central checks it when validating the deployment.
 Use the classic PAT from [`credentials.md`](credentials.md) §3, piped via stdin so it never lands in
 shell history:
 
-```bash
-read -rsp "GHCR PAT: " GHCR_PAT && echo "$GHCR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin; unset GHCR_PAT
+```zsh
+read -rs "GHCR_PAT?GHCR PAT: " && echo && echo "$GHCR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin; unset GHCR_PAT
 ```
+
+(zsh syntax, the macOS default shell; in bash the prompt is `read -rsp "GHCR PAT: " GHCR_PAT`.)
 
 `Login Succeeded` persists in `~/.docker/config.json` — one-time per machine.
 
