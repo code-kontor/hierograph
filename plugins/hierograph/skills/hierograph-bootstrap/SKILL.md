@@ -461,7 +461,9 @@ There is no rescan step.
   mode — and applies it as a diff. For Gradle in `docker` mode, and without `regenerate` in `jvm`
   mode, `graph_overview` / `reload_graph` report `build_state: "stale"` until the manifest command
   (or a Maven build reaching `process-classes`) reruns on the host; the server applies the rewritten
-  manifest by itself.
+  manifest by itself. Don't call `reload_graph` after a build-file edit: while the server regenerates
+  and applies the manifest, `server_info` shows `build_state: "regenerating"` and a `graph_update`
+  other than `idle`, and a reload during that time only waits for the update in progress.
 - **Something the watcher can't see** (a profile activated in `settings.xml`, an updated SNAPSHOT
   dependency, a new file in `buildSrc`): rebuild, then call the `reload_graph` tool.
 - **After a restart:** `docker start hierograph-mcp` (the state volume keeps the manifest), or start

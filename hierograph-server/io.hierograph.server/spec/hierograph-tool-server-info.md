@@ -94,6 +94,7 @@ The REST interface serves the same response at `GET /api/server-info`.
     "detail_dir": "/home/dev/project/.hierograph/snapshot/gen-0003"
   },
   "build_state": { "status": "current", "changed_files": [], "build_tool": "maven" },
+  "graph_update": "idle",
   "runtime_file": "/home/dev/project/.hierograph/server.json"
 }
 ```
@@ -120,6 +121,7 @@ The REST interface serves the same response at `GET /api/server-info`.
 | `artifacts` | always; `null` outside manifest mode or before a manifest was read | `declared` outputs (main and test outputs of each module), how many are `scanned`, and the `not_compiled` ones with their directories: watched, and scanned once they appear |
 | `snapshot` | always; `null` without a graph | `generation` (the build id of the graph in service), `data_hash` (as in cursors and `reload_graph`), `total_nodes` (as in `graph_overview`), `detail_dir` (the detail snapshot the detail tools read; `null` while it is being written) |
 | `build_state` | manifest mode | as in [`graph_overview`](hierograph-tool-graph-overview.md) and [`reload_graph`](hierograph-tool-reload-graph.md) |
+| `graph_update` | manifest mode | what the server's updater is doing: `idle`, `pending` (a change or a reload waits for its turn), `rescanning` (changed modules), `applying-manifest` or `reloading`; anything but `idle` means the graph is about to change, and a `reload_graph` would only wait for it |
 | `runtime_file` | always | the `server.json` this server wrote; `null` when it wrote none |
 
 The response contains no environment variables and no secrets.

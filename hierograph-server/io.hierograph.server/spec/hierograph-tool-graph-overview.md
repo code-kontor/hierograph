@@ -235,6 +235,7 @@ root has id `4600`.
 | `model` | how aggregation works and which tools serve each dependency level | lets the model choose the right dependency tool |
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |
 | `build_state` | present only when the server reads a build manifest | tells the caller whether the graph still matches the build files |
+| `graph_update` | present only while the server is updating the graph: `pending`, `rescanning`, `applying-manifest` or `reloading` | the graph is about to change, so the answer may be outdated within seconds; no `reload_graph` is needed |
 | `view` | present only when called with `view`: the view's name, description, source, file, shadowing, `group_count`, `errors`, `warnings` and its `report` | tells the caller what the view regroups and what could not be applied |
 
 **A hierarchy entry is a part of an enriched node reference.** It leaves out what every

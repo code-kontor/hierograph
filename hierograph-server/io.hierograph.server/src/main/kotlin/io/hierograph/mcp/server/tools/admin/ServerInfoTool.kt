@@ -39,7 +39,8 @@ class ServerInfoTool(
                 "{mode, build_files}, or kind 'parquet' with parquet_dir), artifacts (manifest mode: " +
                 "declared, scanned, and not_compiled with each output that is watched but not scanned yet), " +
                 "snapshot (generation, data_hash, total_nodes, and detail_dir, null while the detail " +
-                "snapshot is being written; null without a graph), build_state in manifest mode, and " +
+                "snapshot is being written; null without a graph), build_state and graph_update in manifest " +
+                "mode (graph_update: 'idle', 'pending', 'rescanning', 'applying-manifest' or 'reloading'), and " +
                 "runtime_file (the server.json this server wrote, or null). Answers also while no graph " +
                 "is loaded. No parameters."
     )

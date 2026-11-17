@@ -34,8 +34,11 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
@@ -47,6 +50,17 @@ class HierarchicalGraphService {
 
     companion object {
         private val log = LoggerFactory.getLogger(HierarchicalGraphService::class.java)
+
+        /** `joined` of a reload result: the full load the call joined. */
+        const val RELOAD = "reload"
+        const val MANIFEST_APPLY = "manifest-apply"
+
+        /** The values of [updateState]. */
+        const val IDLE = "idle"
+        const val PENDING = "pending"
+        const val RESCANNING = "rescanning"
+        const val APPLYING_MANIFEST = "applying-manifest"
+        const val RELOADING = "reloading"
 
         /**
          * The state directory for the settings `hierograph.graph.stateDir` ([stateDirSetting]) and
@@ -196,6 +210,26 @@ class HierarchicalGraphService {
         Thread(r, "hierograph-graph-updater").apply { isDaemon = true }
     }
 
+    /** A full load on the updater, a manifest apply or a reload, with the result a joining reload returns. */
+    private class FullLoad(
+        val kind: String,   // what a joining reload reports as `joined`
+        val state: String,  // what [updateState] reports while it runs
+        val result: CompletableFuture<Map<String, Any?>> = CompletableFuture(),
+    )
+
+    /** Guards [runningFullLoad] and [queuedReload]. */
+    private val updateLock = Any()
+
+    /** The full load running on the updater, if any; a reload arriving meanwhile joins it. */
+    private var runningFullLoad: FullLoad? = null
+
+    /** A reload submitted to the updater and not started yet; a reload arriving meanwhile joins it. */
+    private var queuedReload: CompletableFuture<Map<String, Any?>>? = null
+
+    /** What the updater is running now ([updateState]); `null` while it runs nothing. */
+    @Volatile
+    private var runningUpdate: String? = null
+
     /** Rate guard for sustained churn; `null` when disabled (max-rebuilds <= 0). Built after config is injected. */
     private val saturationBreaker: SaturationBreaker? by lazy {
         if (breakerMaxRebuilds > 0) SaturationBreaker(breakerWindowMs, breakerMaxRebuilds, breakerCooldownMs) else null
@@ -214,7 +248,16 @@ class HierarchicalGraphService {
      */
     private val coalescer by lazy {
         UpdateCoalescer(updateExecutor, saturationBreaker, rescanDelayMs = { buildActivity.rescanDelayMs() }) { reload, gavs ->
-            if (reload) reloadFromManifest() else applyIncremental(gavs)
+            if (reload) {
+                reloadFromManifest()
+            } else {
+                runningUpdate = RESCANNING
+                try {
+                    applyIncremental(gavs)
+                } finally {
+                    runningUpdate = null
+                }
+            }
         }
     }
 
@@ -477,15 +520,72 @@ class HierarchicalGraphService {
     }
 
     /**
-     * Rebuild the graph from the Parquet snapshot and swap it in atomically, without restarting the
-     * server. Call this after a re-scan rewrites the snapshot so the tools reflect the current code.
+     * Rebuild the graph from its source and swap it in atomically, without restarting the server: in manifest
+     * mode every module is rescanned, in Parquet mode the snapshot is read again.
      *
      * The new snapshot is built fully before the swap, so on failure the previously loaded graph keeps
      * being served and an `error` status is returned rather than leaving the server empty. Note that
      * pagination cursors issued against the previous snapshot become stale (their data hash no longer
      * matches) and must be re-requested.
+     *
+     * In manifest mode the reload runs on the graph updater, after whatever update it is running, so it never
+     * scans side by side with a manifest apply or a rescan. A call that arrives while a manifest apply or another
+     * reload is running or queued joins it: it waits for that update and returns its result, marked `joined`,
+     * instead of scanning again. That update reads the build as it is, so a second full scan would only repeat it.
      */
     fun reload(): Map<String, Any?> {
+        if (!manifestMode) return reloadNow()
+        val (result, joined) = synchronized(updateLock) {
+            runningFullLoad?.let { return@synchronized it.result to it.kind }
+            queuedReload?.let { return@synchronized it to RELOAD }
+            val queued = CompletableFuture<Map<String, Any?>>()
+            queuedReload = queued
+            queued to null
+        }
+        if (joined == null) {
+            try {
+                updateExecutor.submit { runQueuedReload() }
+            } catch (e: RejectedExecutionException) {
+                synchronized(updateLock) { queuedReload = null }
+                return errorResult(IllegalStateException("The server is shutting down"))
+            }
+        } else {
+            log.info("reload_graph joins the {} in progress instead of scanning again", joined)
+        }
+        val outcome = try {
+            result.get()
+        } catch (e: Exception) {
+            errorResult((e as? ExecutionException)?.cause as? Exception ?: e)
+        }
+        return if (joined == null) outcome else LinkedHashMap(outcome).apply { put("joined", joined) }
+    }
+
+    /** Runs the queued reload on the updater; calls that arrive while it runs join it. */
+    private fun runQueuedReload() {
+        val load = synchronized(updateLock) {
+            val queued = queuedReload ?: return
+            queuedReload = null
+            FullLoad(RELOAD, RELOADING, queued).also { runningFullLoad = it }
+        }
+        runFullLoad(load) { reloadNow() }
+    }
+
+    /** Runs [body] as the full load [load], so a reload arriving meanwhile joins it; completes its result. */
+    private fun runFullLoad(load: FullLoad, body: () -> Map<String, Any?>) {
+        runningUpdate = load.state
+        try {
+            load.result.complete(body())
+        } catch (t: Throwable) {
+            load.result.completeExceptionally(t)
+            throw t
+        } finally {
+            synchronized(updateLock) { if (runningFullLoad === load) runningFullLoad = null }
+            runningUpdate = null
+        }
+    }
+
+    /** The reload itself, on the calling thread. */
+    private fun reloadNow(): Map<String, Any?> {
         log.info("Reloading hierarchical graph ({} source): {}", graphSource, if (manifestMode) manifestFile else parquetDir)
         return try {
             generateManifestIfMissing()
@@ -493,29 +593,44 @@ class HierarchicalGraphService {
             publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
-            val snapshot = built.snapshot
-            val rootChildren = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
-            log.info("Reload complete: {} root children, hash {} in {}.", rootChildren, snapshot.dataHash, elapsed)
-            linkedMapOf<String, Any?>(
-                "status" to "reloaded",
-                "root_children" to rootChildren,
-                "search_index_entries" to snapshot.searchIndex.entries.size,
-                "data_hash" to snapshot.dataHash,
-                "reload_millis" to elapsed.inWholeMilliseconds
-            ).apply { buildState()?.let { put("build_state", it) } }
+            log.info("Reload complete: {} root children, hash {} in {}.", rootChildren(built.snapshot), built.snapshot.dataHash, elapsed)
+            successResult(built.snapshot, elapsed)
         } catch (e: Exception) {
             log.error("Reload failed; keeping the previously loaded graph.", e)
             startWatchingIfEnabled()
-            linkedMapOf<String, Any?>(
-                "status" to "error",
-                "message" to (e.message ?: e.javaClass.simpleName),
-                "data_hash" to snapshotRef.get()?.dataHash,
-                "note" to if (snapshotRef.get() != null)
-                    "The previously loaded graph is still being served; fix the cause and retry."
-                else
-                    "No graph is loaded; fix the cause and retry."
-            ).apply { buildState()?.let { put("build_state", it) } }
+            errorResult(e)
         }
+    }
+
+    private fun rootChildren(snapshot: GraphSnapshot) = snapshot.model.hierarchy.let { it.childrenOf(it.rootNode).size }
+
+    private fun successResult(snapshot: GraphSnapshot, elapsed: Duration): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "status" to "reloaded",
+        "root_children" to rootChildren(snapshot),
+        "search_index_entries" to snapshot.searchIndex.entries.size,
+        "data_hash" to snapshot.dataHash,
+        "reload_millis" to elapsed.inWholeMilliseconds,
+    ).apply { buildState()?.let { put("build_state", it) } }
+
+    private fun errorResult(e: Exception): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "status" to "error",
+        "message" to (e.message ?: e.javaClass.simpleName),
+        "data_hash" to snapshotRef.get()?.dataHash,
+        "note" to if (snapshotRef.get() != null)
+            "The previously loaded graph is still being served; fix the cause and retry."
+        else
+            "No graph is loaded; fix the cause and retry.",
+    ).apply { buildState()?.let { put("build_state", it) } }
+
+    /**
+     * What the graph updater is doing: `idle`, `pending` (a change or a reload waits for its turn), `rescanning`
+     * (changed modules), `applying-manifest` or `reloading`. `null` outside `manifest` mode.
+     */
+    fun updateState(): String? {
+        if (!manifestMode) return null
+        runningUpdate?.let { return it }
+        val queued = synchronized(updateLock) { queuedReload != null }
+        return if (queued || coalescer.isBusy()) PENDING else IDLE
     }
 
     /**
@@ -710,27 +825,34 @@ class HierarchicalGraphService {
      * ([ManifestGraphSource.reload]), so only added or changed modules are scanned, and re-target the watcher.
      */
     private fun reloadFromManifest() {
+        val load = synchronized(updateLock) { FullLoad(MANIFEST_APPLY, APPLYING_MANIFEST).also { runningFullLoad = it } }
+        runFullLoad(load) { applyManifest() }
+    }
+
+    /** Applies the changed manifest; returns what a reload joining it reports. */
+    private fun applyManifest(): Map<String, Any?> {
         try {
             log.info("Manifest changed; applying it and re-targeting the watcher")
             val previous = currentScanned
-            val built = if (previous == null) {
-                loadSnapshot() // nothing cached yet: a full scan, which also refreshes currentScanned
-            } else {
-                val (built, elapsed) = measureTimedValue {
+            val (built, elapsed) = measureTimedValue {
+                if (previous == null) {
+                    loadSnapshot() // nothing cached yet: a full scan, which also refreshes currentScanned
+                } else {
                     val scanned = manifestGraphSource.reload(previous, manifestPath(), includeTests, configuredBuildRoot())
                     currentScanned = scanned
                     requireCompiled(scanned)
                     buildManifestSnapshot(scanned)
                 }
-                log.info("Manifest applied in {}: hash {}", elapsed, built.snapshot.dataHash)
-                built
             }
+            log.info("Manifest applied in {}: hash {}", elapsed, built.snapshot.dataHash)
             publish(built.snapshot)
             built.publishDetail()
             startWatchingIfEnabled()
+            return successResult(built.snapshot, elapsed)
         } catch (e: Exception) {
             log.error("Manifest reload failed; keeping the previous graph.", e)
             startWatchingIfEnabled() // follow the new module set even when nothing in it is compiled yet
+            return errorResult(e)
         }
     }
 

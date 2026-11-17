@@ -136,6 +136,17 @@ for the `reload_graph` tool. Outstanding pagination cursors become stale across 
 reload that changes the graph (their data hash does not match); a reload of
 unchanged code keeps the hash and the cursors.
 
+**In manifest mode a reload runs on the updater** (§6), after whatever update it is
+running, never side by side with it: two full scans at once compete for the same
+scanner threads, and the second replaces a graph the first has just built from the
+same input. A reload that arrives while a manifest apply or another reload is
+running, or while a reload is queued, **joins** it: it waits for that update and
+returns its result with `joined` (`manifest-apply` or `reload`), instead of scanning
+again. That update reads the build as it is, so a second scan would repeat it. A
+reload behind a rescan of changed modules waits for it and then scans.
+`updateState()` reports what the updater is doing: `idle`, `pending` (a change or a
+reload waits for its turn), `rescanning`, `applying-manifest` or `reloading`.
+
 **Shutdown** stops the watcher and the background executors.
 
 ---
@@ -360,8 +371,9 @@ the pinned one inside `withPinnedSnapshot`):
 | `readyDetailDir()` | the Parquet detail directory, or `null` while rebuilding (§7) |
 | `derivedDependencies(from, to, kind)` | load-derived cross-artifact edges for a scope (§8) |
 | `parquetDirectory` | directory the node-property provider reads (may lag during a rescan) |
-| `reload()` | rebuild and swap; returns a status map, with `build_state` in `manifest` mode |
+| `reload()` | rebuild and swap; returns a status map, with `build_state` in `manifest` mode; in `manifest` mode it runs on the updater and joins a full load in progress (§5) |
 | `buildState()` | the `build_state` map (§6), or `null` outside `manifest` mode |
+| `updateState()` | what the updater is doing (§5), or `null` outside `manifest` mode |
 | `seed(model)` | install a ready-made model directly — for tests, bypassing any source |
 
 ---

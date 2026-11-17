@@ -117,6 +117,7 @@ class ServerInstance(
         put("artifacts", graphService.artifactStatus())
         put("snapshot", graphService.snapshotStatus())
         graphService.buildState()?.let { put("build_state", it) }
+        graphService.updateState()?.let { put("graph_update", it) }
         put("runtime_file", if (wroteRuntimeFile) runtimeFile.path.toString() else null)
     }
 

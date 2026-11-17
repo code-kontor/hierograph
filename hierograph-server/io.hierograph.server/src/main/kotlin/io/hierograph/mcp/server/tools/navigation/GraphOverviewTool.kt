@@ -59,7 +59,8 @@ class GraphOverviewTool(
                 "counts by attribute), the kind and relationship vocabularies, top-level " +
                 "module structure, and the zoom-level model. In manifest mode it also returns the " +
                 "build_state ('current', or 'stale' with the build files edited since the graph's manifest was " +
-                "written). With view=<name>, the hierarchy is the view's top level — its groups and the nodes no group " +
+                "written), and graph_update while the graph is being updated ('pending', 'rescanning', " +
+                "'applying-manifest' or 'reloading'): the graph is about to change, and no reload_graph is needed. With view=<name>, the hierarchy is the view's top level — its groups and the nodes no group " +
                 "takes — and a 'view' section summarizes the view and what applying it reported. " +
                 "The hierarchy entries carry id, name, kind and counts, and is_test=true for a module of compiled tests; find_node or list_children give a node's " +
                 "qualified name. The response stays within the ~50 KB budget: on a very large codebase the hierarchy " +
@@ -258,6 +259,8 @@ class GraphOverviewTool(
                     }
                 }
                 graphService.buildState()?.let { response["build_state"] = it }
+                // Only while the graph is about to change: the answer may then be replaced within seconds.
+                graphService.updateState()?.takeIf { it != HierarchicalGraphService.IDLE }?.let { response["graph_update"] = it }
             }
             // next_cursor is present iff more hierarchy entries follow (omitted, not null, on the last page).
             page.nextCursor?.let { response["next_cursor"] = it }
