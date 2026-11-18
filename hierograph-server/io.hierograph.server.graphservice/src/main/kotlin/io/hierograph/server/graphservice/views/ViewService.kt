@@ -119,6 +119,19 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
     /** The applicable views, valid or not, and the invalid duplicates; see [ViewRegistry.entries]. */
     fun entries(): List<ViewEntry> = registry.entries()
 
+    /**
+     * The [entries] as listed: each valid view with the summary of applying it to the graph in service, when
+     * a graph is loaded and the view applies; without a graph, the entries alone.
+     */
+    fun infos(): List<ViewInfo> = entries().map { entry ->
+        val applied = if (entry.isValid && graphService.isGraphAvailable) {
+            runCatching { view(entry.name) }.getOrNull()?.let(AppliedViewSummary::of)
+        } else {
+            null
+        }
+        ViewInfo(entry, applied)
+    }
+
     /** The applicable view named [name]; fails with [UnknownViewException]. */
     fun entry(name: String): ViewEntry = registry.find(name) ?: throw UnknownViewException(name, registry.names())
 

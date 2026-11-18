@@ -16,6 +16,7 @@
 package io.hierograph.mcp.server.tools.views
 
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
+import io.hierograph.server.graphservice.views.AppliedViewSummary
 import io.hierograph.server.graphservice.views.ViewEntry
 import io.hierograph.server.graphservice.views.ViewSnapshot
 import io.hierograph.server.views.ModuleDependency
@@ -111,17 +112,7 @@ object ViewResponses {
     ).apply { if (report.findings.size > MAX_FINDINGS) put("finding_count", report.findings.size) }
 
     /** Counts only: errors, warnings and applied groups; for a restructuring view also its virtual modules and new cycles. */
-    fun summary(view: ViewSnapshot): LinkedHashMap<String, Any?> = linkedMapOf<String, Any?>(
-        "group_count" to view.materialized.groupNodes.size,
-        "errors" to view.materialized.report.errors.size,
-        "warnings" to view.materialized.report.warnings.size,
-    ).apply {
-        if (view.materialized.document.restructure) {
-            put("restructure", true)
-            put("virtual_module_count", view.materialized.virtualModules.size)
-            view.materialized.effect?.let { put("introduces_cycles", it.newCycles.isNotEmpty()) }
-        }
-    }
+    fun summary(view: ViewSnapshot): LinkedHashMap<String, Any?> = AppliedViewSummary.of(view).toMap()
 
     /** [entry] plus the applied groups and the full report of [view]; for a restructuring view its virtual modules and effect. */
     fun applied(view: ViewSnapshot): LinkedHashMap<String, Any?> = entry(view.entry).apply {

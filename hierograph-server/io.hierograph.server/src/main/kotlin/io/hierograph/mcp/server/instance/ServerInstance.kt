@@ -98,28 +98,43 @@ class ServerInstance(
     @Volatile
     private var wroteRuntimeFile = false
 
+    /** The server's version, from the build info baked into the jar; `null` when it runs without, e.g. in an IDE. */
+    val version: String?
+        get() = buildProperties.ifAvailable?.version ?: ServerInstance::class.java.`package`?.implementationVersion
+
+    /** The commit the server was built from, from the git info baked into the jar; `null` without it. */
+    val commit: Commit?
+        get() = gitProperties.ifAvailable?.let { Commit(it.shortCommitId, it.get("dirty")?.toBoolean(), it.commitTime?.toString()) }
+
+    /** When the server was built, from the build info; `null` without it. */
+    val buildTime: String?
+        get() = buildProperties.ifAvailable?.time?.toString()
+
+    /** Where the server writes its state. */
+    val stateDir: String
+        get() = graphService.stateDirectory.toString()
+
+    /** A commit: its short [id], whether the tree was [dirty], and its [time]. */
+    data class Commit(val id: String?, val dirty: Boolean?, val time: String?)
+
     /**
      * Who the server is, as the runtime file records it: what stays the same while the server runs. `version`
      * comes from the build info and `commit` from the git info baked into the jar; both are `null` when the
      * server runs from classes without them, for example in an IDE.
      */
-    fun identity(): Map<String, Any?> {
-        val build = buildProperties.ifAvailable
-        val git = gitProperties.ifAvailable
-        return linkedMapOf(
-            "url" to url,
-            "ui_url" to uiUrl,
-            "port" to port,
-            "pid" to pid,
-            "version" to (build?.version ?: ServerInstance::class.java.`package`?.implementationVersion),
-            "commit" to git?.let { linkedMapOf("id" to it.shortCommitId, "dirty" to it.get("dirty")?.toBoolean(), "time" to it.commitTime?.toString()) },
-            "build_time" to build?.time?.toString(),
-            "started_at" to startedAt.toString(),
-            "workspace" to workspace,
-            "state_dir" to graphService.stateDirectory.toString(),
-            "source" to graphService.sourceSettings(),
-        )
-    }
+    fun identity(): Map<String, Any?> = linkedMapOf(
+        "url" to url,
+        "ui_url" to uiUrl,
+        "port" to port,
+        "pid" to pid,
+        "version" to version,
+        "commit" to commit?.let { linkedMapOf("id" to it.id, "dirty" to it.dirty, "time" to it.time) },
+        "build_time" to buildTime,
+        "started_at" to startedAt.toString(),
+        "workspace" to workspace,
+        "state_dir" to stateDir,
+        "source" to graphService.sourceSettings(),
+    )
 
     /**
      * Everything `server_info` returns: the [identity], and what the server serves right now — the
@@ -175,8 +190,8 @@ class ServerInstance(
     /** `workspace …, 24 of 26 artifacts, 9017 nodes` — what the ready line says the server serves. */
     internal fun readySummary(): String {
         val parts = mutableListOf("workspace $workspace")
-        graphService.artifactStatus()?.let { parts += "${it["scanned"]} of ${it["declared"]} artifacts" }
-        parts += graphService.snapshotStatus()?.let { "${it["total_nodes"]} nodes" } ?: "no graph loaded"
+        graphService.artifacts()?.let { parts += "${it.scanned} of ${it.declared} artifacts" }
+        parts += graphService.nodeCounts()?.let { "${it.total} nodes" } ?: "no graph loaded"
         return parts.joinToString(", ")
     }
 }

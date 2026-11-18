@@ -1,0 +1,131 @@
+extend type Query {
+    """
+    The running server itself: which workspace it serves, how it was started, and the state of the graph.
+    The GraphQL counterpart of the MCP tool `server_info`; both answer from the same values. Answers also while
+    no graph is loaded.
+    """
+    server: ServerInfo!
+
+    """
+    The views that can be passed as `view`: project views kept with the code and views defined at runtime (a
+    runtime view shadows a project view of the same name). A valid view carries the summary of applying it to
+    the graph in service; an invalid document is listed with its problems. The GraphQL counterpart of the MCP
+    tool `list_views`. Answers also while no graph is loaded, then without the summaries.
+    """
+    views: [ViewInfo!]!
+}
+
+"""
+The running server. Times are ISO-8601 strings.
+"""
+type ServerInfo {
+    "The MCP URL clients connect to; `null` until the web server is started."
+    url: String
+    "The web UI's URL; `null` until the web server is started."
+    uiUrl: String
+    "The port the server listens on; `null` until the web server is started."
+    port: Int
+    pid: Int!
+    "The server's version; `null` when it runs without build info, e.g. in an IDE."
+    version: String
+    "The commit the server was built from; `null` without git info."
+    commit: Commit
+    buildTime: String
+    startedAt: String!
+    "The workspace the server serves: its build root, or the configured workspace."
+    workspace: String!
+    "Where the server writes its state."
+    stateDir: String!
+    source: GraphSource!
+    "Manifest mode: the declared, scanned and not yet compiled outputs; `null` otherwise or before a manifest was read."
+    artifacts: ArtifactStatus
+    graph: GraphStatus!
+}
+
+type Commit {
+    id: String
+    "Whether the server was built from a tree with uncommitted changes."
+    dirty: Boolean
+    time: String
+}
+
+"""
+Where the graph comes from: `kind` `manifest` (the server scans the build outputs a build manifest lists) or
+`parquet` (a Parquet snapshot); `null` when neither is configured.
+"""
+type GraphSource {
+    kind: String
+    manifest: String
+    buildRoot: String
+    includeTests: Boolean
+    "How build outputs are watched."
+    watchMode: String
+    "What happens when a build file changes."
+    buildFilesMode: String
+    parquetDir: String
+}
+
+type ArtifactStatus {
+    declared: Int!
+    scanned: Int!
+    "Outputs the manifest declares that are not compiled yet: watched, and scanned once they appear. They are missing from the graph."
+    notCompiled: [NotCompiledArtifact!]!
+}
+
+type NotCompiledArtifact {
+    artifact: String!
+    dirs: [String!]!
+}
+
+"""
+The graph in service. Cheap to ask for, except `counts`, which is computed once per graph and then cached.
+"""
+type GraphStatus {
+    state: GraphState!
+    "Manifest mode: what the graph updater is doing: idle, pending, rescanning, applying-manifest or reloading; `null` otherwise."
+    update: String
+    "Changes with every graph build; an opaque token to compare. `null` without a graph."
+    generation: String
+    dataHash: String
+    "When the graph in service became live."
+    loadedAt: String
+    "How many nodes the graph has; `null` without a graph."
+    counts: NodeCounts
+}
+
+enum GraphState {
+    "A graph is loaded and the updater is idle."
+    LOADED
+    "A graph is loaded and the updater is working on a new one."
+    UPDATING
+    "No graph is loaded."
+    UNAVAILABLE
+}
+
+type NodeCounts {
+    modules: Int!
+    packages: Int!
+    "Scanned types: classes, interfaces, enums, records and annotations."
+    types: Int!
+    "All nodes, members included."
+    total: Int!
+}
+
+type ViewInfo {
+    name: String!
+    description: String
+    "Where the document lives: `project` (kept with the code) or `state` (defined at runtime)."
+    source: String!
+    file: String!
+    "For a runtime view: whether it hides a project view of the same name."
+    shadowsProjectView: Boolean!
+    valid: Boolean!
+    "Why the document cannot be applied; empty for a valid one."
+    problems: [String!]!
+    "How many groups applying the view produced; `null` when it was not applied (invalid, or no graph)."
+    groupCount: Int
+    errors: Int
+    warnings: Int
+    "Whether the view restructures the code (moves packages or types between modules)."
+    restructure: Boolean!
+}

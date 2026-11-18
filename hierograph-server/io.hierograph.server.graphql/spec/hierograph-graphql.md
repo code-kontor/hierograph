@@ -34,6 +34,7 @@ GraphQL types, how each field behaves, and how to query it.
     7. [`DependencyPage` and `PageInfo`](#117-dependencypage-and-pageinfo)
     8. [`OrderedAdjacencyMatrix`](#118-orderedadjacencymatrix)
     9. [Enums, inputs and `MapEntry`](#119-enums-inputs-and-mapentry)
+    10. [`server` and `views`](#1110-server-and-views)
 12. [Working with the API](#12-working-with-the-api)
 13. [Guarantees](#13-guarantees)
 14. [Boundaries](#14-boundaries)
@@ -92,6 +93,7 @@ exist.
 | Node addressing | handles only (plus `findNodes` by name) | handles, qualified names, or partial names |
 | Pagination | page number and size, on dependency lists | opaque cursors bound to the graph's fingerprint |
 | Member-level detail (methods, fields, call sites) | not served | the detail tools |
+| The server and its views | `server`, `views` (read-only) | `server_info`, `list_views` |
 | Graph administration | not served | `reload_graph` |
 
 Both are needed because:
@@ -160,8 +162,10 @@ The server application picks the module up by component scan of
 
 ## 3. The schema at a glance
 
-The schema has one query field, `hierarchicalGraph`. Everything else is reached from
-it.
+The schema has three query fields. `hierarchicalGraph` serves the graph, and
+everything about the graph is reached from it. `server` and `views` describe the
+running server and the views it knows (§11.10); they answer also while no graph is
+loaded.
 
 ```
 Query.hierarchicalGraph ──► HierarchicalGraph
@@ -741,6 +745,54 @@ stronglyConnectedComponents  []
 
 `NodeType` names a side of a dependency, not a node kind: `SOURCE` is the depending
 end, `TARGET` the end depended upon.
+
+### 11.10 `server` and `views`
+
+```graphql
+extend type Query {
+    server: ServerInfo!
+    views: [ViewInfo!]!
+}
+```
+
+`server` and `views` are the GraphQL counterparts of the MCP tools `server_info` and
+`list_views`, and answer from the same values (`ServerInstance` and the graph
+service's typed status, `ViewService.infos()`). Both answer also while no graph is
+loaded. A web UI uses them for its start screen and to follow the graph: it polls
+`{ server { graph { state generation } } }` and refetches when the generation changes.
+
+`server` (`ServerInfoController`, in the server module because `ServerInstance` is
+part of the application) returns `ServerInfo`:
+
+| Field | Type | Description |
+|---|---|---|
+| `url`, `uiUrl`, `port` | `String`, `String`, `Int` | The MCP URL, the web UI's URL, the port; `null` until the web server is started. |
+| `pid` | `Int!` | The server process. |
+| `version`, `commit`, `buildTime` | `String`, `Commit`, `String` | From the build and git info in the jar; `null` without it. `Commit` has `id`, `dirty` and `time`. |
+| `startedAt` | `String!` | ISO-8601. |
+| `workspace`, `stateDir` | `String!` | The workspace served and the state directory. |
+| `source` | `GraphSource!` | `kind` (`manifest`, `parquet`, or `null`), and `manifest`, `buildRoot`, `includeTests`, `watchMode`, `buildFilesMode` in manifest mode or `parquetDir` in Parquet mode. |
+| `artifacts` | `ArtifactStatus` | Manifest mode: `declared`, `scanned`, and `notCompiled` (`artifact`, `dirs`), the outputs missing from the graph. `null` otherwise. |
+| `graph` | `GraphStatus!` | See below. |
+
+`GraphStatus`:
+
+| Field | Type | Description |
+|---|---|---|
+| `state` | `GraphState!` | `UNAVAILABLE` without a graph, `UPDATING` while the graph updater is busy, otherwise `LOADED`. |
+| `update` | `String` | Manifest mode: `idle`, `pending`, `rescanning`, `applying-manifest` or `reloading`. |
+| `generation` | `String` | Changes with every graph build; an opaque token to compare. `null` without a graph. |
+| `dataHash`, `loadedAt` | `String` | The graph's data hash and when it became live (ISO-8601). |
+| `counts` | `NodeCounts` | `modules`, `packages` and `types` of the scanned code (the synthetic *External Types* module and its packages are not counted), and `total`, all nodes. |
+
+Everything but `counts` is cheap. `counts` walks the graph once per graph build and
+is then cached; it is resolved only when the query asks for it.
+
+`views` (`ViewInfoController`) returns one `ViewInfo` per view, as `list_views`
+lists them: `name`, `description`, `source` (`project` or `state`), `file`,
+`shadowsProjectView`, `valid`, `problems` (empty for a valid view), `restructure`,
+and, when the view could be applied to the graph in service, `groupCount`, `errors`
+and `warnings` (`null` otherwise).
 
 ---
 

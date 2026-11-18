@@ -88,12 +88,8 @@ class ViewTools(
             "'default' describes the hierarchy as scanned, which a call without view answers in; it is not a view name."
     )
     fun listViews(): Map<String, Any?> {
-        val views = viewService.entries().map { entry ->
-            ViewResponses.entry(entry).apply {
-                if (entry.isValid && graphService.isGraphAvailable) {
-                    runCatching { viewService.view(entry.name) }.getOrNull()?.let { putAll(ViewResponses.summary(it)) }
-                }
-            }
+        val views = viewService.infos().map { info ->
+            ViewResponses.entry(info.entry).apply { info.applied?.let { putAll(it.toMap()) } }
         }
         return linkedMapOf("default" to defaultEntry(), "views" to views, "summary" to linkedMapOf("total" to views.size))
     }

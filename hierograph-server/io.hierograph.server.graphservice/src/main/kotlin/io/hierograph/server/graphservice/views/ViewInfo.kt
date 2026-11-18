@@ -1,0 +1,73 @@
+/*
+ * Copyright 2026 Gerd Wuetherich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.hierograph.server.graphservice.views
+
+/**
+ * A view as listed: its registry [entry] and, when it could be applied to the graph in service, a summary of
+ * the result ([applied]). `list_views` (MCP) and `views` (GraphQL) both list these.
+ */
+class ViewInfo(val entry: ViewEntry, val applied: AppliedViewSummary?) {
+    val name: String get() = entry.name
+    val description: String? get() = entry.document?.description
+    /** Where the document lives: `project` (kept with the code) or `state` (defined at runtime). */
+    val source: String get() = entry.source.name.lowercase()
+    val file: String get() = entry.file.toString()
+    val shadowsProjectView: Boolean get() = entry.shadowsProjectView
+    val valid: Boolean get() = entry.isValid
+    /** Why the document cannot be applied; empty for a valid one. */
+    val problems: List<String> get() = entry.problems
+    val groupCount: Int? get() = applied?.groupCount
+    val errors: Int? get() = applied?.errors
+    val warnings: Int? get() = applied?.warnings
+    val restructure: Boolean get() = applied?.restructure ?: (entry.document?.restructure == true)
+}
+
+/** What applying a view to a graph produced: how many groups, errors and warnings, and for a restructuring its size and effect. */
+data class AppliedViewSummary(
+    val groupCount: Int,
+    val errors: Int,
+    val warnings: Int,
+    val restructure: Boolean,
+    val virtualModuleCount: Int?,
+    val introducesCycles: Boolean?,
+) {
+    fun toMap(): LinkedHashMap<String, Any?> = linkedMapOf<String, Any?>(
+        "group_count" to groupCount,
+        "errors" to errors,
+        "warnings" to warnings,
+    ).apply {
+        if (restructure) {
+            put("restructure", true)
+            put("virtual_module_count", virtualModuleCount)
+            introducesCycles?.let { put("introduces_cycles", it) }
+        }
+    }
+
+    companion object {
+        fun of(view: ViewSnapshot): AppliedViewSummary {
+            val materialized = view.materialized
+            val restructure = materialized.document.restructure
+            return AppliedViewSummary(
+                groupCount = materialized.groupNodes.size,
+                errors = materialized.report.errors.size,
+                warnings = materialized.report.warnings.size,
+                restructure = restructure,
+                virtualModuleCount = if (restructure) materialized.virtualModules.size else null,
+                introducesCycles = if (restructure) materialized.effect?.let { it.newCycles.isNotEmpty() } else null,
+            )
+        }
+    }
+}

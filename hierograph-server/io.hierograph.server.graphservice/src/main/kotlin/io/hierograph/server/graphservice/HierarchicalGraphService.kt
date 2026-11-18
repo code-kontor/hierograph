@@ -17,6 +17,7 @@ package io.hierograph.server.graphservice
 
 import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.ExternalTypeFilter
+import io.hierograph.server.mapping.GraphStoreNodeSource
 import io.hierograph.server.mapping.GraphStoreToHGModel
 import io.hierograph.graphstore.jvm.archive.ParquetReader
 import io.hierograph.graphstore.jvm.SnapshotLoader
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutionException
@@ -299,19 +301,23 @@ class HierarchicalGraphService {
      * [seed]), and the manifest, build root and watch settings in `manifest` mode or the snapshot directory in
      * `parquet` mode.
      */
-    fun sourceSettings(): Map<String, Any?> = when {
-        manifestMode -> linkedMapOf(
-            "kind" to "manifest",
-            "manifest" to manifestPath().toString(),
-            "build_root" to buildRoot().toString(),
-            "include_tests" to includeTests,
-            "watch" to linkedMapOf("mode" to watchMode, "build_files" to buildFilesMode),
+    fun sourceSettings(): Map<String, Any?> = graphSourceSettings().toMap()
+
+    /** [sourceSettings], typed. */
+    fun graphSourceSettings(): GraphSourceSettings = when {
+        manifestMode -> GraphSourceSettings(
+            kind = GraphSourceSettings.MANIFEST,
+            manifest = manifestPath().toString(),
+            buildRoot = buildRoot().toString(),
+            includeTests = includeTests,
+            watchMode = watchMode,
+            buildFilesMode = buildFilesMode,
         )
-        ::graphSource.isInitialized -> linkedMapOf(
-            "kind" to graphSource.lowercase(),
-            "parquet_dir" to Path.of(parquetDir).toAbsolutePath().normalize().toString(),
+        ::graphSource.isInitialized -> GraphSourceSettings(
+            kind = graphSource.lowercase(),
+            parquetDir = Path.of(parquetDir).toAbsolutePath().normalize().toString(),
         )
-        else -> linkedMapOf("kind" to null)
+        else -> GraphSourceSettings(kind = null)
     }
 
     /**
@@ -319,16 +325,61 @@ class HierarchicalGraphService {
      * compiled yet (watched, and scanned once they appear). `null` in `parquet` mode and before a manifest was
      * read.
      */
-    fun artifactStatus(): Map<String, Any?>? {
+    fun artifactStatus(): Map<String, Any?>? = artifacts()?.toMap()
+
+    /** [artifactStatus], typed. */
+    fun artifacts(): ArtifactStatus? {
         if (!manifestMode) return null
         val scanned = currentScanned ?: return null
         val notCompiled = scanned.declared.values.filter { it.gav !in scanned.modules }
-        return linkedMapOf(
-            "declared" to scanned.declared.size,
-            "scanned" to scanned.modules.size,
-            "not_compiled" to notCompiled.map { linkedMapOf("artifact" to it.gav, "dirs" to it.dirs.map(Path::toString)) },
+        return ArtifactStatus(
+            declared = scanned.declared.size,
+            scanned = scanned.modules.size,
+            notCompiled = notCompiled.map { NotCompiledArtifact(it.gav, it.dirs.map(Path::toString)) },
         )
     }
+
+    /**
+     * The graph in service, without a walk over the graph: its build [generation][GraphSnapshot.generation],
+     * data hash, when it became live, and the detail snapshot directory, which is `null` while the detail
+     * snapshot for this graph is still being written. `null` while no graph is loaded.
+     */
+    fun snapshot(): SnapshotStatus? {
+        val (live, loadedAt) = published.get() ?: return null
+        return SnapshotStatus(
+            generation = live.generation,
+            dataHash = live.dataHash,
+            loadedAt = loadedAt,
+            detailDir = withPinnedSnapshot(live) { readyDetailDir() }?.toString(),
+        )
+    }
+
+    /**
+     * How many nodes the graph in service has, by kind and in total; `null` while no graph is loaded. Counting
+     * walks the whole graph, so it happens once per snapshot and is kept until the next one goes live.
+     */
+    fun nodeCounts(): NodeCounts? {
+        val live = snapshotRef.get() ?: return null
+        countsCache.get()?.takeIf { it.first === live }?.let { return it.second }
+        var modules = 0
+        var packages = 0
+        var types = 0
+        var total = 0
+        val hierarchy = live.model.hierarchy
+        hierarchy.traverse(hierarchy.rootNode) { total++ }
+        // Modules, packages and types count the scanned code: not the synthetic "External Types" module, which
+        // holds the referenced types the scan did not cover, and its packages.
+        hierarchy.traverse(hierarchy.rootNode, { node ->
+            when (node.kind) {
+                JavaNodeKind.MODULE -> modules++
+                JavaNodeKind.PACKAGE -> packages++
+                in JavaNodeKind.TYPES -> types++
+            }
+        }) { node -> (node.nodeSource as? GraphStoreNodeSource)?.key != GraphStore.EXTERNAL_ARTIFACT_KEY }
+        return NodeCounts(modules, packages, types, total).also { countsCache.set(live to it) }
+    }
+
+    private val countsCache = AtomicReference<Pair<GraphSnapshot, NodeCounts>?>()
 
     /**
      * The graph in service: its build [generation][GraphSnapshot.generation], data hash and node count, and
@@ -336,14 +387,12 @@ class HierarchicalGraphService {
      * written. `null` while no graph is loaded.
      */
     fun snapshotStatus(): Map<String, Any?>? {
-        val live = snapshotRef.get() ?: return null
-        var nodes = 0
-        live.model.hierarchy.let { h -> h.traverse(h.rootNode) { nodes++ } }
+        val status = snapshot() ?: return null
         return linkedMapOf(
-            "generation" to live.generation,
-            "data_hash" to live.dataHash,
-            "total_nodes" to nodes,
-            "detail_dir" to withPinnedSnapshot(live) { readyDetailDir() }?.toString(),
+            "generation" to status.generation,
+            "data_hash" to status.dataHash,
+            "total_nodes" to nodeCounts()?.total,
+            "detail_dir" to status.detailDir,
         )
     }
 
@@ -424,7 +473,11 @@ class HierarchicalGraphService {
         snapshotListeners += listener
     }
 
+    /** The live snapshot and when it became live; set together with [snapshotRef]. */
+    private val published = AtomicReference<Pair<GraphSnapshot, Instant>?>()
+
     private fun publish(snapshot: GraphSnapshot) {
+        published.set(snapshot to Instant.now())
         snapshotRef.set(snapshot)
         for (listener in snapshotListeners) {
             try {
@@ -621,6 +674,17 @@ class HierarchicalGraphService {
         else
             "No graph is loaded; fix the cause and retry.",
     ).apply { buildState()?.let { put("build_state", it) } }
+
+    /**
+     * The state of the graph in one word: [GraphState.UNAVAILABLE] while no graph is loaded,
+     * [GraphState.UPDATING] while the graph updater is busy ([updateState] is not `idle`), else
+     * [GraphState.LOADED].
+     */
+    fun graphState(): GraphState = when {
+        snapshotRef.get() == null -> GraphState.UNAVAILABLE
+        updateState().let { it != null && it != IDLE } -> GraphState.UPDATING
+        else -> GraphState.LOADED
+    }
 
     /**
      * What the graph updater is doing: `idle`, `pending` (a change or a reload waits for its turn), `rescanning`
