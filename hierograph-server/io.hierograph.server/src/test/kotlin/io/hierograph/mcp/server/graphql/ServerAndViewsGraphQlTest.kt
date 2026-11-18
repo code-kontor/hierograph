@@ -115,6 +115,26 @@ class ServerAndViewsGraphQlTest {
     }
 
     @Test
+    fun `server reports the JVM's metrics`() {
+        val jvm = query(
+            """{ server { jvm { javaVersion javaVendor vmName uptimeMs availableProcessors
+                 heap { usedBytes committedBytes maxBytes usedAfterGcBytes } nonHeap { usedBytes committedBytes maxBytes usedAfterGcBytes }
+                 garbageCollectors { name count timeMs } threads { live peak daemon } processCpuLoad } } }""",
+        ).path("server").path("jvm")
+
+        assertThat(jvm.path("javaVersion").asText()).isEqualTo(System.getProperty("java.version"))
+        assertThat(jvm.path("availableProcessors").asInt()).isEqualTo(Runtime.getRuntime().availableProcessors())
+        assertThat(jvm.path("uptimeMs").asLong()).isPositive()
+        val heap = jvm.path("heap")
+        assertThat(heap.path("usedBytes").asLong()).isPositive()
+            .isLessThanOrEqualTo(heap.path("committedBytes").asLong())
+        assertThat(jvm.path("nonHeap").path("usedAfterGcBytes").isNull).isTrue()
+        assertThat(jvm.path("garbageCollectors").size()).isPositive()
+        assertThat(jvm.path("threads").path("live").asInt()).isPositive()
+            .isLessThanOrEqualTo(jvm.path("threads").path("peak").asInt())
+    }
+
+    @Test
     fun `views lists the valid and the invalid view, as list_views does`() {
         val views = query("{ views { name description source file shadowsProjectView valid problems groupCount restructure } }")
             .path("views")

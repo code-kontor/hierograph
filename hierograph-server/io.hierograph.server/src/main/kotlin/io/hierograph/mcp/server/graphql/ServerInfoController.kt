@@ -33,7 +33,7 @@ import org.springframework.stereotype.Controller
  * It lives here rather than in the GraphQL module because [ServerInstance] belongs to the application. The
  * fields of `ServerInfo` are [ServerInstance]'s properties; the parts that come from the graph service are
  * resolved below. `counts` walks the graph (once per graph, then cached), so it is only resolved when asked
- * for: a client polling `state` and `generation` never triggers it.
+ * for: a client polling `state` and `generation` never triggers it. `jvm` is read from the JVM on each request.
  */
 @Controller
 class ServerInfoController(
@@ -53,6 +53,9 @@ class ServerInfoController(
     @SchemaMapping(typeName = "ServerInfo")
     fun graph(server: ServerInstance): GraphStatus =
         GraphStatus(graphService.graphState(), graphService.updateState(), graphService.snapshot())
+
+    @SchemaMapping(typeName = "ServerInfo")
+    fun jvm(server: ServerInstance): JvmStatus = JvmStatus.current()
 
     @SchemaMapping(typeName = "GraphStatus")
     fun counts(status: GraphStatus): NodeCounts? = graphService.nodeCounts()

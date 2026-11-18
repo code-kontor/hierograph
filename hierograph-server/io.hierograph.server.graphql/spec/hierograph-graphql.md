@@ -774,6 +774,7 @@ part of the application) returns `ServerInfo`:
 | `source` | `GraphSource!` | `kind` (`manifest`, `parquet`, or `null`), and `manifest`, `buildRoot`, `includeTests`, `watchMode`, `buildFilesMode` in manifest mode or `parquetDir` in Parquet mode. |
 | `artifacts` | `ArtifactStatus` | Manifest mode: `declared`, `scanned`, and `notCompiled` (`artifact`, `dirs`), the outputs missing from the graph. `null` otherwise. |
 | `graph` | `GraphStatus!` | See below. |
+| `jvm` | `JvmStatus!` | The server JVM's current metrics; see below. `server_info` doesn't report them. |
 
 `GraphStatus`:
 
@@ -787,6 +788,19 @@ part of the application) returns `ServerInfo`:
 
 Everything but `counts` is cheap. `counts` walks the graph once per graph build and
 is then cached; it is resolved only when the query asks for it.
+
+`JvmStatus` is read from the JVM's platform MXBeans on each request; the server keeps
+no history. Byte and millisecond values are `Float`s (GraphQL's `Int` is 32 bits),
+exact up to 2^53.
+
+| Field | Type | Description |
+|---|---|---|
+| `javaVersion`, `javaVendor`, `vmName` | `String!` | The Java runtime. |
+| `uptimeMs`, `availableProcessors` | `Float!`, `Int!` | Since the JVM started; the processors it may use. |
+| `heap`, `nonHeap` | `MemoryUsage!` | `usedBytes`, `committedBytes`, and `maxBytes` (`null` when the JVM sets no limit, usual for non-heap). For the heap, `usedAfterGcBytes` is what the last collection left in use: the memory really kept, while `usedBytes` also counts garbage between collections. `null` for non-heap and before the first collection. |
+| `garbageCollectors` | `[GarbageCollector!]!` | Per collector: `name`, `count` and `timeMs` since the JVM started. |
+| `threads` | `ThreadCounts!` | `live`, `peak`, `daemon`. |
+| `processCpuLoad` | `Float` | The process's recent CPU load, 0 to 1; `null` when the JVM doesn't report it. |
 
 `views` (`ViewInfoController`) returns one `ViewInfo` per view, as `list_views`
 lists them: `name`, `description`, `source` (`project` or `state`), `file`,

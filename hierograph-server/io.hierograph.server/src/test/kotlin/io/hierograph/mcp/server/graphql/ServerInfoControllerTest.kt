@@ -88,4 +88,31 @@ class ServerInfoControllerTest {
         assertThat(controller.source(controller.server()).toMap()).isEqualTo(service.sourceSettings())
         assertThat(controller.artifacts(controller.server())).isNull() // not in manifest mode
     }
+
+    @Test
+    fun `the heap reports what the last collection left in use`() {
+        val service = graphService()
+        val controller = ServerInfoController(instance(service), service)
+        System.gc()
+
+        val heap = controller.jvm(controller.server()).heap
+        assertThat(heap.usedAfterGcBytes).isNotNull().isPositive().isLessThanOrEqualTo(heap.committedBytes)
+    }
+
+    @Test
+    fun `the JVM's metrics are read on each request`() {
+        val service = graphService()
+        val controller = ServerInfoController(instance(service), service)
+
+        val jvm = controller.jvm(controller.server())
+        assertThat(jvm.javaVersion).isEqualTo(System.getProperty("java.version"))
+        assertThat(jvm.heap.usedBytes).isPositive().isLessThanOrEqualTo(jvm.heap.committedBytes)
+        jvm.heap.maxBytes?.let { assertThat(it).isGreaterThanOrEqualTo(jvm.heap.committedBytes) }
+        jvm.nonHeap.maxBytes?.let { assertThat(it).isPositive() } // often no limit
+        assertThat(jvm.nonHeap.usedAfterGcBytes).isNull()
+        assertThat(jvm.garbageCollectors).isNotEmpty().allSatisfy { assertThat(it.count).isNotNegative() }
+        assertThat(jvm.threads.live).isLessThanOrEqualTo(jvm.threads.peak)
+        jvm.processCpuLoad?.let { assertThat(it).isBetween(0.0, 1.0) }
+        assertThat(controller.jvm(controller.server()).uptimeMs).isGreaterThanOrEqualTo(jvm.uptimeMs)
+    }
 }

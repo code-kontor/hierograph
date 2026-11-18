@@ -40,6 +40,8 @@ type ServerInfo {
     "Manifest mode: the declared, scanned and not yet compiled outputs; `null` otherwise or before a manifest was read."
     artifacts: ArtifactStatus
     graph: GraphStatus!
+    "The server JVM's current metrics, read on each request."
+    jvm: JvmStatus!
 }
 
 type Commit {
@@ -128,4 +130,45 @@ type ViewInfo {
     warnings: Int
     "Whether the view restructures the code (moves packages or types between modules)."
     restructure: Boolean!
+}
+
+"""
+The server JVM's current metrics, read from the platform MXBeans on each request; no history. Byte and
+millisecond values are `Float`s, exact up to 2^53.
+"""
+type JvmStatus {
+    javaVersion: String!
+    javaVendor: String!
+    vmName: String!
+    uptimeMs: Float!
+    availableProcessors: Int!
+    heap: MemoryUsage!
+    "Memory outside the heap, mainly metaspace and the code cache."
+    nonHeap: MemoryUsage!
+    garbageCollectors: [GarbageCollector!]!
+    threads: ThreadCounts!
+    "The process's recent CPU load, 0 to 1; `null` when the JVM doesn't report it."
+    processCpuLoad: Float
+}
+
+type MemoryUsage {
+    usedBytes: Float!
+    committedBytes: Float!
+    "`null` when the JVM sets no limit."
+    maxBytes: Float
+    "Heap only: what the last garbage collection left in use, the memory really kept. Between collections `usedBytes` also counts garbage. `null` for non-heap and before the first collection."
+    usedAfterGcBytes: Float
+}
+
+"A garbage collector's collections and their accumulated time since the JVM started."
+type GarbageCollector {
+    name: String!
+    count: Float!
+    timeMs: Float!
+}
+
+type ThreadCounts {
+    live: Int!
+    peak: Int!
+    daemon: Int!
 }
