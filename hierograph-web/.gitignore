@@ -9,3 +9,4 @@ tsconfig.tsbuildinfo
 # toMatchScreenshot baselines live in __screenshots__ and are committed.
 .vitest-attachments
 __artifacts__
+__traces__

@@ -15,6 +15,7 @@
     <modules>
         <module>hierograph-parent</module>
         <module>hierograph-hierarchicalgraph</module>
+        <module>hierograph-web</module>
         <module>hierograph-server</module>
         <module>hierograph-graphstore</module>
         <module>hierograph-build-support</module>

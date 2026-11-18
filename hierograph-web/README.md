@@ -33,6 +33,22 @@ pnpm dev
   `VITE_GRAPHQL_PROXY_TARGET` (see [GraphQL](#graphql)). See the repository's
   `BUILD.md` for how to start the server.
 
+## Maven build
+
+The Maven build (`mvn install` at the repository root, or
+`mvn install -pl hierograph-web`) builds, checks and tests the UI; there is no
+separate frontend build to run. It installs its own Node and pnpm (versions in
+`hierograph-parent/pom.xml`), runs `pnpm install`, builds the UI into the jar
+under `META-INF/resources/ui`, and in the `test` phase runs the lint, Prettier
+and architecture checks and the unit and browser tests.
+
+- `-DskipTests` skips the checks and tests, as for the Java modules.
+- `-Dhierograph.web.skip` skips the web build entirely, for fast backend-only
+  builds. The jar is still built, without the UI.
+- Offline (`mvn -o`) works once Node, pnpm, the pnpm store and Playwright's
+  Chromium are cached. The first build, or a changed lockfile or Playwright
+  version, needs network once.
+
 ## Scripts
 
 | Script                    | What it does                                               |

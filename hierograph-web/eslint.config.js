@@ -26,6 +26,7 @@ const to = (type, only) => ({ type, internalPath: only ?? PUBLIC[type] });
 export default defineConfig([
   globalIgnores([
     "dist",
+    "target",
     "eslint.config.js",
     "prettier.config.js",
     "src/graphql/generated",

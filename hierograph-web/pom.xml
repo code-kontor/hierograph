@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.hierograph</groupId>
+        <artifactId>hierograph-parent</artifactId>
+        <version>0.4.0-SNAPSHOT</version>
+        <relativePath>../hierograph-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>io.hierograph.web</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Hierograph Web UI</name>
+    <description>
+        The Hierograph web UI, built with pnpm and Vite and packaged under
+        META-INF/resources/ui, which the server serves at /ui/.
+    </description>
+
+    <!--
+        One build: everything pnpm checks also runs here.
+
+          initialize          install Node and pnpm (cached in the local Maven repository)
+          generate-resources  pnpm install; Playwright's Chromium for the browser tests
+          compile             pnpm build (type check + Vite) into META-INF/resources/ui
+          test                lint, Prettier, architecture check, unit and browser tests
+
+        -DskipTests skips the test phase. -Dhierograph.web.skip skips everything; the
+        jar is still built, without the UI, and the server then says so at /ui/.
+
+        Offline (mvn -o) works once the caches are warm: Node and pnpm come from the
+        local Maven repository, npm packages from the pnpm store (prefer-offline), and
+        Chromium from Playwright's cache. The first build, or a changed lockfile or
+        Playwright version, needs network once:  mvn install -pl hierograph-web
+    -->
+
+    <properties>
+        <hierograph.web.skip>false</hierograph.web.skip>
+        <hierograph.web.outputDirectory>${project.build.outputDirectory}/META-INF/resources/ui</hierograph.web.outputDirectory>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <configuration>
+                    <skip>${hierograph.web.skip}</skip>
+                    <nodeVersion>${node.version}</nodeVersion>
+                    <pnpmVersion>${pnpm.version}</pnpmVersion>
+                    <installDirectory>${project.build.directory}</installDirectory>
+                    <workingDirectory>${project.basedir}</workingDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-and-pnpm</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-node-and-pnpm</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>pnpm-install</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>install --frozen-lockfile --prefer-offline</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>playwright-install</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <!-- A no-op when the browser is already in Playwright's cache. -->
+                            <arguments>exec playwright install chromium</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-build</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--silent run build</arguments>
+                            <environmentVariables>
+                                <HIEROGRAPH_WEB_OUT_DIR>${hierograph.web.outputDirectory}</HIEROGRAPH_WEB_OUT_DIR>
+                            </environmentVariables>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-check-lint</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--silent run check:lint</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-check-prettier</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--silent run check:prettier</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-check-architecture</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--silent run check:architecture</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--silent run test</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
