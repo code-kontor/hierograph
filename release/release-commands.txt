@@ -1,0 +1,73 @@
+Hierograph release — commands to copy and paste, block by block, from the repo root.
+Details and troubleshooting: release/docs/performing-a-release.md
+
+
+0. Versions (adjust, then paste into the terminal you release from)
+
+BRANCH=0.3.0
+REL=0.3.0
+NEXT=0.4.0-SNAPSHOT
+
+
+1. Check out main
+
+git fetch origin
+git checkout main
+git merge --ff-only origin/main
+
+
+2. Merge the release branch into main (fast-forward if possible)
+
+git merge --ff-only $BRANCH || git merge --no-edit $BRANCH
+
+
+3. Set the release version (POMs and non-POM files)
+
+mvn -o versions:set -DnewVersion=$REL -DprocessAllModules=true -DgenerateBackupPoms=false
+find . -name '*.versionsBackup' -delete
+./release/bump-nonpom-version.sh $REL-SNAPSHOT $REL
+git status
+
+
+4. Maven build
+
+mvn -o clean install
+mvn clean install -Pitest
+
+
+5. Gradle build
+
+(cd hierograph-build-support/hierograph-gradle-plugin && ./gradlew clean build)
+
+
+6. Docker build (local, host arch)
+
+mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package -DskipTests
+
+
+7. Release
+
+NOTE:  Gradle uses the same token as the central server in ~/.m2/settings-release.xml. If you'd rather have it permanent,
+put centralUsername=… and centralPassword=… in ~/.gradle/gradle.properties (mode 600).
+
+git commit -am "build: Release $REL"
+git tag v$REL
+
+mvn -s ~/.m2/settings-release.xml clean deploy -Prelease
+(cd hierograph-build-support/hierograph-gradle-plugin && ./gradlew clean build publish -Prelease)
+mvn -s ~/.m2/settings-release.xml -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.skip=false -DskipTests
+docker buildx imagetools inspect ghcr.io/code-kontor/hierograph-mcp-server:$REL
+
+git push origin main
+git push origin v$REL
+
+Then publish both staged deployments: https://central.sonatype.com/publishing/deployments
+
+
+8. Next development version
+
+mvn -o versions:set -DnewVersion=$NEXT -DprocessAllModules=true -DgenerateBackupPoms=false
+find . -name '*.versionsBackup' -delete
+./release/bump-nonpom-version.sh $REL $NEXT
+git commit -am "build: Start $NEXT"
+git push origin main
