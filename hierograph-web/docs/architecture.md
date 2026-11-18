@@ -107,7 +107,10 @@ hierarchy view, the graph status) and the matched screen. It owns:
 - **Right:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
   view, as tall as the left column. It loads level by level as nodes are
   expanded, with queries keyed by the graph scope; expanded nodes are local
-  state and reset when the view changes.
+  state and reset when the view changes. Each level's siblings are in
+  dependency order (`orderedAdjacencyMatrix`: those depending on the others on
+  top), dependency cycles marked with a bar; a type's members keep source
+  order.
 
 The server data is live: its query is polled like the graph status and keyed
 by the generation, so a reload shows at once. The start screen handles a server

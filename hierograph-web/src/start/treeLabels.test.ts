@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { treeNodeKind, treeNodeLabel } from "./treeLabels";
+import { ordersChildren, treeNodeKind, treeNodeLabel } from "./treeLabels";
 
 describe("treeNodeLabel", () => {
   it("names a view group without its view", () => {
@@ -52,5 +52,14 @@ describe("treeNodeKind", () => {
     expect(treeNodeKind("external.type", "java.lang.String")).toBe("type");
     expect(treeNodeKind("java.field", "a.B#x")).toBe("member");
     expect(treeNodeKind("Unknown", "")).toBe("other");
+  });
+});
+
+describe("ordersChildren", () => {
+  it("orders all children but a type's members", () => {
+    expect(ordersChildren("view.group", "l:a")).toBe(true);
+    expect(ordersChildren("java.module", "g:a:1")).toBe(true);
+    expect(ordersChildren("java.package", "a")).toBe(true);
+    expect(ordersChildren("java.class", "a.B")).toBe(false);
   });
 });

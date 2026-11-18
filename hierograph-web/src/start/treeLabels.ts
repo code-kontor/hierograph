@@ -56,3 +56,9 @@ function moduleLabel(text: string): string {
   const classifier = parts.length > 3 ? parts[3] : undefined;
   return classifier ? `${artifactId} (${classifier})` : artifactId;
 }
+
+// Whether a node's children are ordered by their dependencies on each other: a
+// type's children are its members, which keep source order.
+export function ordersChildren(type: string, text: string): boolean {
+  return treeNodeKind(type, text) !== "type";
+}

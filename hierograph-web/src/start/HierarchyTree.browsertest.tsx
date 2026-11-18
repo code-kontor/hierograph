@@ -29,6 +29,18 @@ function item(screen: TreeRender, name: string) {
   return screen.getByRole("treeitem", { name, exact: true });
 }
 
+// The labels of an expanded item's children, in display order, once loaded.
+async function childLabels(screen: TreeRender, name: string) {
+  const children = item(screen, name)
+    .getByRole("group")
+    .first()
+    .getByRole("treeitem");
+  await expect.element(children.first()).toBeVisible();
+  return children
+    .elements()
+    .map((element) => element.getAttribute("aria-label"));
+}
+
 // Expands the items along `path`, each found by its label.
 async function expand(screen: TreeRender, ...path: string[]) {
   for (const name of path) {
@@ -80,6 +92,78 @@ describe("HierarchyTree", () => {
 
     await expect.element(item(screen, "PlainClass")).toBeVisible();
     await expect.element(item(screen, "Pair")).toBeVisible();
+  });
+
+  it("orders siblings by their dependencies: dependents on top, the used at the bottom", async () => {
+    const screen = await renderTree();
+    await expand(screen, "fixture-app", "org", "hg", "fixture", "basic");
+
+    expect(await childLabels(screen, "basic")).toEqual([
+      "rel",
+      "jdk",
+      "isolated",
+      "cycle",
+      "core",
+    ]);
+  });
+
+  it("marks the siblings in a dependency cycle", async () => {
+    const screen = await renderTree();
+    await expand(
+      screen,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "cycle",
+    );
+
+    expect(await childLabels(screen, "cycle")).toEqual([
+      "gamma",
+      "alpha",
+      "beta",
+    ]);
+    for (const name of ["gamma", "alpha", "beta"]) {
+      await expect
+        .element(item(screen, name))
+        .toHaveAttribute("data-cycle", "true");
+    }
+    await expect
+      .element(item(screen, "alpha").getByRole("button"))
+      .toHaveAttribute(
+        "title",
+        "org.hg.fixture.basic.cycle.alpha\nIn a dependency cycle with gamma, beta",
+      );
+    await expect
+      .element(item(screen, "core"))
+      .not.toHaveAttribute("data-cycle");
+  });
+
+  it("keeps a type's members in source order", async () => {
+    const screen = await renderTree();
+    await expand(
+      screen,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "core",
+      "PlainClass",
+    );
+
+    expect(await childLabels(screen, "PlainClass")).toEqual([
+      "int publicField",
+      "int protectedField",
+      "int packagePrivateField",
+      "int privateField",
+      "void <init>()",
+      "void publicMethod()",
+      "void protectedMethod()",
+      "void packagePrivateMethod()",
+      "void privateMethod()",
+    ]);
   });
 
   it("collapses an expanded node", async () => {

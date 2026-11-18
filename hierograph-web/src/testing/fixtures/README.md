@@ -21,7 +21,8 @@ operations are listed in `record-fixtures.ts`: `GraphStatus` and
 variables and in every scenario; and the hierarchy tree's `HierarchyTreeRoot`
 and `HierarchyTreeChildren`, with variables and only in the `default` scenario.
 They hold the complete tree of the fixture-app, in the scanned hierarchy and in
-the `layers` view, one entry per expandable node.
+the `layers` view, one entry per expandable node, each level asked for as the
+screen asks for it (in dependency order, a type's members in source order).
 
 The `updating` scenario (the graph updater busy) can't be recorded reliably; the
 handlers derive it from `default` by changing only the graph's state.

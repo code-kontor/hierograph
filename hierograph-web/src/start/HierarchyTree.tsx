@@ -9,6 +9,7 @@ import {
   Layers,
   type LucideIcon,
   Package,
+  Repeat2,
 } from "lucide-react";
 import { useState } from "react";
 import { twMerge } from "tailwind-merge";
@@ -20,15 +21,15 @@ import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 import {
   hierarchyTreeChildrenQueryOptions,
   hierarchyTreeRootQueryOptions,
+  type TreeLevelData,
+  type TreeNode,
 } from "./queries";
-import { type TreeNodeKind, treeNodeKind, treeNodeLabel } from "./treeLabels";
-
-type TreeNode = {
-  id: string;
-  text: string;
-  type: string;
-  hasChildren: boolean;
-};
+import {
+  ordersChildren,
+  type TreeNodeKind,
+  treeNodeKind,
+  treeNodeLabel,
+} from "./treeLabels";
 
 const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
   group: Layers,
@@ -41,7 +42,9 @@ const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
 };
 
 // The hierarchy of the current hierarchy view (or the scanned hierarchy
-// without one) as a tree, loaded level by level as nodes are expanded.
+// without one) as a tree, loaded level by level as nodes are expanded. Each
+// level's siblings are in dependency order (those depending on the others on
+// top), its dependency cycles marked; a type's members are in source order.
 export function HierarchyTree() {
   const scope = useGraphScope();
   return (
@@ -87,11 +90,32 @@ function TreeRoot({ scope }: TreeRootProps) {
     <TreeLevel
       role="tree"
       scope={scope}
-      nodes={query.data}
+      level={query.data}
       parentText=""
       depth={0}
       expanded={expanded}
       toggle={toggle}
+    />
+  );
+}
+
+type CycleBarProps = {
+  mark: CycleMark;
+  depth: number;
+};
+
+// One segment of the bar along a cycle's block, at the nodes' indent; the
+// block's ends are inset, so two adjacent cycles read as two.
+function CycleBar({ mark, depth }: CycleBarProps) {
+  return (
+    <span
+      aria-hidden
+      className="bg-status-warning absolute w-0.5 rounded-full"
+      style={{
+        left: `${depth * 14}px`,
+        top: mark.first ? "4px" : "0",
+        bottom: mark.last ? "4px" : "0",
+      }}
     />
   );
 }
@@ -103,22 +127,57 @@ function isExternal(node: TreeNode): boolean {
 type TreeLevelProps = {
   role: "tree" | "group";
   scope: GraphScope;
-  nodes: TreeNode[];
+  level: TreeLevelData;
   parentText: string;
   depth: number;
   expanded: ReadonlySet<string>;
   toggle: (id: string) => void;
 };
 
+// Where a node sits in a cycle's contiguous block, to draw the block's bar.
+type CycleMark = {
+  first: boolean;
+  last: boolean;
+  // The other members, by label, for the tooltip.
+  others: string[];
+};
+
+function cycleMarks(
+  level: TreeLevelData,
+  parentText: string,
+): Map<string, CycleMark> {
+  const labels = new Map(
+    level.nodes.map((node) => [
+      node.id,
+      treeNodeLabel(node.type, node.text, parentText),
+    ]),
+  );
+  const marks = new Map<string, CycleMark>();
+  for (const cycle of level.cycles) {
+    cycle.forEach((id, index) => {
+      marks.set(id, {
+        first: index === 0,
+        last: index === cycle.length - 1,
+        others: cycle
+          .filter((other) => other !== id)
+          .map((other) => labels.get(other) ?? other),
+      });
+    });
+  }
+  return marks;
+}
+
 function TreeLevel({
   role,
   scope,
-  nodes,
+  level,
   parentText,
   depth,
   expanded,
   toggle,
 }: TreeLevelProps) {
+  const nodes = level.nodes;
+  const marks = cycleMarks(level, parentText);
   // At the top level, External Types (the library types the code uses, not a
   // module or group of its own) goes last, below a separator.
   const ordered =
@@ -134,6 +193,7 @@ function TreeLevel({
       scope={scope}
       node={node}
       separated={depth === 0 && isExternal(node) && ordered.length > 1}
+      cycle={marks.get(node.id)}
       parentText={parentText}
       depth={depth}
       expanded={expanded}
@@ -155,6 +215,7 @@ type TreeItemProps = {
   scope: GraphScope;
   node: TreeNode;
   separated: boolean;
+  cycle: CycleMark | undefined;
   parentText: string;
   depth: number;
   expanded: ReadonlySet<string>;
@@ -165,11 +226,16 @@ function TreeItem({
   scope,
   node,
   separated,
+  cycle,
   parentText,
   depth,
   expanded,
   toggle,
 }: TreeItemProps) {
+  const label = treeNodeLabel(node.type, node.text, parentText);
+  const title = cycle
+    ? `${node.text}\nIn a dependency cycle with ${cycle.others.join(", ")}`
+    : node.text;
   const open = node.hasChildren && expanded.has(node.id);
   const kind = treeNodeKind(node.type, node.text);
   const Icon = KIND_ICONS[kind];
@@ -178,7 +244,9 @@ function TreeItem({
     <li
       role="treeitem"
       aria-expanded={node.hasChildren ? open : undefined}
-      aria-label={treeNodeLabel(node.type, node.text, parentText)}
+      aria-label={label}
+      aria-description={cycle ? "in a dependency cycle" : undefined}
+      data-cycle={cycle ? "true" : undefined}
       className={twMerge(separated && "border-border mt-1 border-t pt-1")}
     >
       <button
@@ -186,13 +254,14 @@ function TreeItem({
         onClick={() => {
           if (node.hasChildren) toggle(node.id);
         }}
-        title={node.text}
+        title={title}
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
         className={twMerge(
-          "hover:bg-state-hover flex w-full items-center gap-1 rounded-[4px] py-[3px] pr-1.5 text-left text-[13px]",
+          "hover:bg-state-hover relative flex w-full items-center gap-1 rounded-[4px] py-[3px] pr-1.5 text-left text-[13px]",
           !node.hasChildren && "cursor-default",
         )}
       >
+        {cycle && <CycleBar mark={cycle} depth={depth} />}
         <span className="text-fg-subtle flex size-3.5 shrink-0 items-center justify-center">
           {node.hasChildren && <Chevron className="size-3.5" />}
         </span>
@@ -210,8 +279,14 @@ function TreeItem({
               "font-mono text-[12px]",
           )}
         >
-          {treeNodeLabel(node.type, node.text, parentText)}
+          {label}
         </span>
+        {cycle && (
+          <Repeat2
+            aria-hidden
+            className="text-status-warning size-3.5 shrink-0"
+          />
+        )}
       </button>
       {open && (
         <TreeChildren
@@ -246,7 +321,13 @@ function TreeChildren({
   expanded,
   toggle,
 }: TreeChildrenProps) {
-  const query = useQuery(hierarchyTreeChildrenQueryOptions(scope, node.id));
+  const query = useQuery(
+    hierarchyTreeChildrenQueryOptions(
+      scope,
+      node.id,
+      ordersChildren(node.type, node.text),
+    ),
+  );
   if (query.isPending) {
     return (
       <p
@@ -271,7 +352,7 @@ function TreeChildren({
     <TreeLevel
       role="group"
       scope={scope}
-      nodes={query.data}
+      level={query.data}
       parentText={childParentText}
       depth={depth}
       expanded={expanded}

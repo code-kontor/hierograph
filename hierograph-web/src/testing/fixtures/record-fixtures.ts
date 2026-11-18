@@ -21,6 +21,7 @@ import {
   HierarchyViewsDocument,
   StartScreenDocument,
 } from "../../graphql/generated/graphql.ts";
+import { ordersChildren } from "../../start/treeLabels.ts";
 import { normalize } from "./normalize.ts";
 
 const GRAPHQL_URL =
@@ -63,8 +64,21 @@ for (const operation of OPERATIONS) {
 
 // The hierarchy tree, only with a graph: the complete tree (the fixture-app is
 // small), in the scanned hierarchy and in the `layers` view, whose groups sit
-// deep inside the module.
-type TreeNode = { id: string; hasChildren: boolean };
+// deep inside the module. Each level is asked for as the screen asks for it:
+// in dependency order, a type's members in source order (`ordersChildren`).
+type TreeNode = {
+  id: string;
+  text: string;
+  type: string;
+  hasChildren: boolean;
+};
+type TreeChildren = {
+  nodes?: TreeNode[];
+  orderedAdjacencyMatrix?: { orderedNodes: TreeNode[] };
+};
+
+const childNodes = (children: TreeChildren) =>
+  children.orderedAdjacencyMatrix?.orderedNodes ?? children.nodes ?? [];
 
 if (scenario === "default") {
   const roots: Entry[] = [];
@@ -72,21 +86,25 @@ if (scenario === "default") {
   const expand = async (view: string | null, nodes: TreeNode[]) => {
     for (const node of nodes) {
       if (!node.hasChildren) continue;
-      const variables = { view, id: node.id };
+      const variables = {
+        view,
+        id: node.id,
+        ordered: ordersChildren(node.type, node.text),
+      };
       const data = await client.request<{
-        hierarchicalGraph: { node: { children: { nodes: TreeNode[] } } };
+        hierarchicalGraph: { node: { children: TreeChildren } };
       }>(HierarchyTreeChildrenDocument, variables);
       children.push({ variables, data: normalize(data as never) });
-      await expand(view, data.hierarchicalGraph.node.children.nodes);
+      await expand(view, childNodes(data.hierarchicalGraph.node.children));
     }
   };
   for (const view of [null, "layers"]) {
     const variables = { view };
     const data = await client.request<{
-      hierarchicalGraph: { rootNode: { children: { nodes: TreeNode[] } } };
+      hierarchicalGraph: { rootNode: { children: TreeChildren } };
     }>(HierarchyTreeRootDocument, variables);
     roots.push({ variables, data: normalize(data as never) });
-    await expand(view, data.hierarchicalGraph.rootNode.children.nodes);
+    await expand(view, childNodes(data.hierarchicalGraph.rootNode.children));
   }
   write("HierarchyTreeRoot", roots);
   write("HierarchyTreeChildren", children);
