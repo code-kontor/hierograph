@@ -64,6 +64,7 @@ The REST interface serves the same response at `GET /api/server-info`.
 ```json
 {
   "url": "http://localhost:8765/mcp",
+  "ui_url": "http://localhost:8765/ui/",
   "port": 8765,
   "pid": 75925,
   "version": "0.3.0",
@@ -104,6 +105,7 @@ The REST interface serves the same response at `GET /api/server-info`.
 | Field | Description |
 |-------|-------------|
 | `url` | the MCP URL clients connect to: `hierograph.server.url`, else `http://localhost:<port>/mcp` |
+| `ui_url` | the web UI's URL: the address of `url` with `/ui/` in place of the MCP endpoint; `null` without a web server |
 | `port` | the port the server listens on; `null` without a web server |
 | `pid` | the server's process id |
 | `version` | the server's build version; `null` when the server runs without build info, for example from an IDE |

@@ -15,6 +15,7 @@
  */
 package io.hierograph.mcp.server.instance
 
+import io.hierograph.mcp.server.web.WebUiConfiguration
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -39,7 +40,8 @@ import java.time.Instant
  *
  * Settings:
  * - `hierograph.server.url`: the MCP URL to advertise, when clients reach the server under another address than
- *   `http://localhost:<port>/mcp`, for example through a container's port mapping.
+ *   `http://localhost:<port>/mcp`, for example through a container's port mapping. The web UI's URL
+ *   (`ui_url`) is derived from it.
  * - `hierograph.server.workspace`: the workspace to report, when the server sees the project under another
  *   path than the client does, for example `/workspace` in a container.
  * - `hierograph.server.runtime-file.enabled` (default `true`): write the runtime file.
@@ -70,7 +72,17 @@ class ServerInstance(
     /** The MCP URL clients connect to: `hierograph.server.url`, else `http://localhost:<port><endpoint>`. */
     val url: String?
         get() = environment.getProperty("hierograph.server.url")?.trim()?.takeIf { it.isNotEmpty() }
-            ?: port?.let { "http://localhost:$it" + environment.getProperty("spring.ai.mcp.server.streamable-http.mcp-endpoint", "/mcp") }
+            ?: port?.let { "http://localhost:$it$mcpEndpoint" }
+
+    /**
+     * The web UI's URL: the address of [url] with `/ui/` instead of the MCP endpoint, so it follows an
+     * advertised `hierograph.server.url` (e.g. a container's port mapping).
+     */
+    val uiUrl: String?
+        get() = url?.let { it.removeSuffix(mcpEndpoint).trimEnd('/') + WebUiConfiguration.UI_PATH + "/" }
+
+    private val mcpEndpoint: String
+        get() = environment.getProperty("spring.ai.mcp.server.streamable-http.mcp-endpoint", "/mcp")
 
     /** The workspace the server serves: `hierograph.server.workspace`, else the build root. */
     val workspace: String
@@ -96,6 +108,7 @@ class ServerInstance(
         val git = gitProperties.ifAvailable
         return linkedMapOf(
             "url" to url,
+            "ui_url" to uiUrl,
             "port" to port,
             "pid" to pid,
             "version" to (build?.version ?: ServerInstance::class.java.`package`?.implementationVersion),

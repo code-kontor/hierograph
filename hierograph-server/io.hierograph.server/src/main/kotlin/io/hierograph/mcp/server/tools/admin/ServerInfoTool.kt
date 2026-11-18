@@ -34,7 +34,8 @@ class ServerInfoTool(
         description = "[Maintenance] Describe the running server itself: which workspace it serves, how it " +
                 "was started and what it has loaded. Call it first to check that this server serves the " +
                 "project you are working in: compare 'workspace' with the project's build root. Returns " +
-                "url, port, pid, version, commit {id, dirty, time}, build_time, started_at, workspace, " +
+                "url, ui_url (the web UI, to hand to the user for a visual view), port, pid, version, commit {id, dirty, time}, " +
+                "build_time, started_at, workspace, " +
                 "state_dir, source (kind 'manifest' with manifest, build_root, include_tests and watch " +
                 "{mode, build_files}, or kind 'parquet' with parquet_dir), artifacts (manifest mode: " +
                 "declared, scanned, and not_compiled with each output that is watched but not scanned yet), " +

@@ -79,6 +79,12 @@
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.server.mapping</artifactId>
         </dependency>
+        <!-- The web UI, served at /ui/ (META-INF/resources/ui in this jar). -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.web</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!-- kotlin -->
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

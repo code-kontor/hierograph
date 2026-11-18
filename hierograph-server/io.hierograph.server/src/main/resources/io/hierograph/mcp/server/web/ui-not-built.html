@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>hierograph – web UI not built</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 48px 24px;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #1c1f25;
+        background: #fdfdfe;
+      }
+      main {
+        max-width: 560px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 12px;
+      }
+      p {
+        font-size: 14px;
+        line-height: 1.5;
+        color: #4a4f57;
+      }
+      code {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 13px;
+        background: #eef0f3;
+        padding: 1px 4px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>The web UI is not part of this build</h1>
+      <p>
+        This server was built with <code>-Dhierograph.web.skip</code>, which leaves the web UI out.
+        Build without it to include the UI.
+      </p>
+      <p>The MCP endpoint and <code>/graphql</code> work as usual.</p>
+    </main>
+  </body>
+</html>

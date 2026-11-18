@@ -75,6 +75,7 @@ class ServerInstanceTest {
         val info = ServerInfoTool(instance).serverInfo()
 
         assertThat(info["url"]).isEqualTo("http://localhost:8765/mcp")
+        assertThat(info["ui_url"]).isEqualTo("http://localhost:8765/ui/")
         assertThat(info["port"]).isEqualTo(8765)
         assertThat(info["pid"]).isEqualTo(ProcessHandle.current().pid())
         assertThat(info["version"]).isEqualTo("0.3.0-SNAPSHOT")
@@ -94,6 +95,7 @@ class ServerInstanceTest {
         val info = instance(graphService(seeded = false)).info()
         assertThat(info["snapshot"]).isNull()
         assertThat(info["url"]).isNull() // no web server started
+        assertThat(info["ui_url"]).isNull()
     }
 
     @Test
@@ -102,6 +104,7 @@ class ServerInstanceTest {
         environment.setProperty("hierograph.server.workspace", "/home/dev/project")
         val info = instance().apply { serverStarted(8765) }.info()
         assertThat(info["url"]).isEqualTo("http://localhost:9000/mcp")
+        assertThat(info["ui_url"]).isEqualTo("http://localhost:9000/ui/")
         assertThat(info["workspace"]).isEqualTo("/home/dev/project")
         assertThat(info["port"]).isEqualTo(8765)
     }

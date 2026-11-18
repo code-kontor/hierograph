@@ -62,6 +62,7 @@ Once the server is ready to serve, it writes `<state dir>/server.json`:
 ```json
 {
   "url" : "http://localhost:8765/mcp",
+  "ui_url" : "http://localhost:8765/ui/",
   "port" : 8765,
   "pid" : 75925,
   "version" : "0.3.0",
@@ -167,7 +168,7 @@ it; on the host, `docker ps` and `server_info` identify the server.
 | Setting | Default | Meaning |
 |---------|---------|---------|
 | `server.port` | `8765` | port of the MCP endpoint; `0` picks a free one |
-| `hierograph.server.url` | `http://localhost:<port>/mcp` | the MCP URL reported to clients |
+| `hierograph.server.url` | `http://localhost:<port>/mcp` | the MCP URL reported to clients; the web UI's URL (`ui_url`) is derived from it |
 | `hierograph.server.workspace` | the build root | the workspace reported to clients |
 | `hierograph.server.runtime-file.enabled` | `true` | write `server.json` (§4) |
 | `hierograph.server.single-instance` | `true` | refuse to start next to a running server (§5) |

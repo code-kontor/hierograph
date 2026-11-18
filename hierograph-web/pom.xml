@@ -140,4 +140,81 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Maven Central requires a sources and a Javadoc jar for every published jar. The
+            parent's release profile builds them from Kotlin/Java sources, which this module
+            doesn't have: the sources plugin would create no archive and Dokka no Javadoc. Here
+            the sources jar holds the web sources, and the Javadoc jar a README saying there is
+            no API documentation.
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jetbrains.dokka</groupId>
+                        <artifactId>dokka-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadoc</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>web-sources</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>sources</classifier>
+                                    <classesDirectory>${project.basedir}</classesDirectory>
+                                    <includes>
+                                        <include>src/**</include>
+                                        <include>public/**</include>
+                                        <include>docs/**</include>
+                                        <include>*.json</include>
+                                        <include>*.yaml</include>
+                                        <include>*.ts</include>
+                                        <include>*.js</include>
+                                        <include>*.cjs</include>
+                                        <include>index.html</include>
+                                        <include>README.md</include>
+                                    </includes>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>web-javadoc</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>javadoc</classifier>
+                                    <classesDirectory>${project.basedir}/javadoc</classesDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
