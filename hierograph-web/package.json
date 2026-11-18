@@ -21,7 +21,8 @@
     "test:unit": "vitest --project unit",
     "test:browser": "vitest --project browser",
     "test:browser:update": "vitest run --project browser -u",
-    "test:headed": "HG_HEADED=true vitest"
+    "test:headed": "HG_HEADED=true vitest",
+    "fixtures:record": "node src/testing/fixtures/record-fixtures.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

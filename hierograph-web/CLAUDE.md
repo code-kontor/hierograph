@@ -93,7 +93,10 @@ run it through corepack (`corepack pnpm …`).
   graph, so tests and links may use ids directly.
 - Use `renderWithQueryClient` / `renderWithRouter` (`@/testing/render`); MSW
   intercepts GraphQL and fails a test on an unhandled request. Recorded
-  fixtures live in `src/testing/fixtures/` and are never edited by hand.
+  fixtures live in `src/testing/fixtures/` and are never edited by hand —
+  re-record with `pnpm fixtures:record` against a server serving
+  `examples/fixture-app` (see the README there). Scenarios: `default`,
+  `no-graph`, `updating` (`handlersFor` in `src/testing/msw/handlers.ts`).
 - Harmless: an occasional `CancelledError` console line from query cancellation
   on teardown — never fails a test, safe to ignore.
 - Strategy: [`docs/testing-strategy.md`](docs/testing-strategy.md).

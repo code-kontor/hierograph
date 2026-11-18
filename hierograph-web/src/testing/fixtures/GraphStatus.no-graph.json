@@ -1,0 +1,18 @@
+{
+  "operation": "GraphStatus",
+  "scenario": "no-graph",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "server": {
+          "graph": {
+            "state": "UNAVAILABLE",
+            "update": "idle",
+            "generation": null
+          }
+        }
+      }
+    }
+  ]
+}

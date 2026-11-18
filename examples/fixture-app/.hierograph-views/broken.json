@@ -1,0 +1,4 @@
+{
+  "name": "broken",
+  "description": "Deliberately invalid: the document does not parse.",
+  "groups": [

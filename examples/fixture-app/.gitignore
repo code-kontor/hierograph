@@ -1,0 +1,2 @@
+# The rel/target Java package conflicts with the target/ ignore rule; un-ignore it.
+!src/main/java/org/hg/fixture/basic/rel/target/

@@ -73,8 +73,10 @@ project and re-record. Recording must be deterministic — volatile values such
 as paths, times and process ids are normalised before writing, so re-recording
 unchanged data produces identical files.
 
-The recorder and the first fixtures come with the start screen, which is the
-first component that queries the server.
+Recorded scenarios: `default` (the fixture-app, graph loaded) and `no-graph`;
+`updating` is derived from `default`. A test switches with
+`worker.use(...handlersFor("no-graph"))`. How to record, and how to add an
+operation: [`src/testing/fixtures/README.md`](../src/testing/fixtures/README.md).
 
 ## Adding New Tests
 

@@ -1,0 +1,82 @@
+{
+  "operation": "StartScreen",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "server": {
+          "url": "http://localhost:8765/mcp",
+          "uiUrl": "http://localhost:8765/ui/",
+          "version": "0.0.0-fixture",
+          "commit": {
+            "id": "0000000",
+            "dirty": false
+          },
+          "startedAt": "2026-01-01T00:00:00Z",
+          "workspace": "/fixture-app",
+          "stateDir": "/fixture-app/.hierograph",
+          "source": {
+            "kind": "manifest",
+            "manifest": "/fixture-app/.hierograph/manifest.json",
+            "buildRoot": "/fixture-app",
+            "includeTests": true,
+            "watchMode": "polling",
+            "buildFilesMode": "notify",
+            "parquetDir": null
+          },
+          "artifacts": {
+            "declared": 2,
+            "scanned": 1,
+            "notCompiled": [
+              {
+                "artifact": "io.hierograph.examples:fixture-app:1.0.0:test",
+                "dirs": [
+                  "/fixture-app/target/test-classes"
+                ]
+              }
+            ]
+          },
+          "graph": {
+            "state": "LOADED",
+            "update": "idle",
+            "generation": "1",
+            "loadedAt": "2026-01-01T00:00:00Z",
+            "counts": {
+              "modules": 1,
+              "packages": 26,
+              "types": 42,
+              "total": 181
+            }
+          }
+        },
+        "views": [
+          {
+            "name": "broken",
+            "description": null,
+            "source": "project",
+            "valid": false,
+            "problems": [
+              "Invalid JSON at line 5, column 1: Unexpected end-of-input: expected close marker for Array (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 4, column: 13])"
+            ],
+            "groupCount": null,
+            "errors": null,
+            "warnings": null,
+            "restructure": false
+          },
+          {
+            "name": "layers",
+            "description": "The locations tenant by layer: application on top of the library.",
+            "source": "project",
+            "valid": true,
+            "problems": [],
+            "groupCount": 2,
+            "errors": 0,
+            "warnings": 0,
+            "restructure": false
+          }
+        ]
+      }
+    }
+  ]
+}

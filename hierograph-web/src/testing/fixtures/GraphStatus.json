@@ -1,0 +1,18 @@
+{
+  "operation": "GraphStatus",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "server": {
+          "graph": {
+            "state": "LOADED",
+            "update": "idle",
+            "generation": "1"
+          }
+        }
+      }
+    }
+  ]
+}

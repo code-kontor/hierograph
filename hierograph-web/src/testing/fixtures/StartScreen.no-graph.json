@@ -1,0 +1,66 @@
+{
+  "operation": "StartScreen",
+  "scenario": "no-graph",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "server": {
+          "url": "http://localhost:8765/mcp",
+          "uiUrl": "http://localhost:8765/ui/",
+          "version": "0.0.0-fixture",
+          "commit": {
+            "id": "0000000",
+            "dirty": false
+          },
+          "startedAt": "2026-01-01T00:00:00Z",
+          "workspace": "/fixture-app",
+          "stateDir": "/fixture-app/.hierograph",
+          "source": {
+            "kind": "manifest",
+            "manifest": "/fixture-app/.hierograph/no-manifest.json",
+            "buildRoot": "/fixture-app",
+            "includeTests": true,
+            "watchMode": "polling",
+            "buildFilesMode": "notify",
+            "parquetDir": null
+          },
+          "artifacts": null,
+          "graph": {
+            "state": "UNAVAILABLE",
+            "update": "idle",
+            "generation": null,
+            "loadedAt": null,
+            "counts": null
+          }
+        },
+        "views": [
+          {
+            "name": "broken",
+            "description": null,
+            "source": "project",
+            "valid": false,
+            "problems": [
+              "Invalid JSON at line 5, column 1: Unexpected end-of-input: expected close marker for Array (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 4, column: 13])"
+            ],
+            "groupCount": null,
+            "errors": null,
+            "warnings": null,
+            "restructure": false
+          },
+          {
+            "name": "layers",
+            "description": "The locations tenant by layer: application on top of the library.",
+            "source": "project",
+            "valid": true,
+            "problems": [],
+            "groupCount": null,
+            "errors": null,
+            "warnings": null,
+            "restructure": false
+          }
+        ]
+      }
+    }
+  ]
+}

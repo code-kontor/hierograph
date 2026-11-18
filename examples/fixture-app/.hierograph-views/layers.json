@@ -1,0 +1,8 @@
+{
+  "name": "layers",
+  "description": "The locations tenant by layer: application on top of the library.",
+  "groups": [
+    { "name": "application", "members": ["org.hg.fixture.locations.app"] },
+    { "name": "library", "members": ["org.hg.fixture.locations.lib"] }
+  ]
+}
