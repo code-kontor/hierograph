@@ -16,9 +16,12 @@ One file per operation and scenario:
 | `<Operation>.no-graph.json` | `no-graph` | a server without a graph         |
 
 Each file is `{ operation, scenario, entries: [{ variables, data }] }`. The
-operations are listed in `record-fixtures.ts`; today `GraphStatus` and
-`HierarchyViews` (the frame) and `StartScreen` (the start screen), all without
-variables.
+operations are listed in `record-fixtures.ts`: `GraphStatus` and
+`HierarchyViews` (the frame) and `StartScreen` (the start screen), without
+variables and in every scenario; and the hierarchy tree's `HierarchyTreeRoot`
+and `HierarchyTreeChildren`, with variables and only in the `default` scenario.
+They hold the complete tree of the fixture-app, in the scanned hierarchy and in
+the `layers` view, one entry per expandable node.
 
 The `updating` scenario (the graph updater busy) can't be recorded reliably; the
 handlers derive it from `default` by changing only the graph's state.

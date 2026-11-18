@@ -92,19 +92,27 @@ hierarchy view, the graph status) and the matched screen. It owns:
 
 ## The start screen
 
-`StartPage` shows what the server serves in two stacked panes. On top, headed
-by the workspace's name, the hierarchy views; choosing a valid one sets
-`view=`. The scanned hierarchy comes first as `default`: it isn't a view name,
-so choosing it drops `view=`. Below, a tab each for the workspace and its graph
-source (with the artifacts not compiled yet), the graph (state, generation,
-load time, counts), the server, and its JVM (heap against its limit and what
-the last collection kept, threads, CPU load, garbage collection). The tab is
-the start screen's own search param `tab` (`workspace`, `graph`, `server`,
-`jvm`; validated in `routes/index.tsx`), so a link can open one; switching
-replaces the history entry, and the first tab leaves no param behind.
-It is live: its query is polled like the graph status and keyed by the
-generation, so a reload shows at once. It handles a server that can't be
-reached itself, since the frame doesn't block a screen without `needsGraph`.
+`StartPage` shows what the server serves, in two columns on wide screens.
+
+- **Left, on top:** the hierarchy views, headed by the workspace's name;
+  choosing a valid one sets `view=`. The scanned hierarchy comes first as
+  `default`: it isn't a view name, so choosing it drops `view=`.
+- **Left, below:** a tab each for the workspace and its graph source (with the
+  artifacts not compiled yet), the graph (state, generation, load time,
+  counts), the server, and its JVM (heap against its limit and what the last
+  collection kept, threads, CPU load, garbage collection). The tab is the start
+  screen's own search param `tab` (`workspace`, `graph`, `server`, `jvm`;
+  validated in `routes/index.tsx`), so a link can open one; switching replaces
+  the history entry, and the first tab leaves no param behind.
+- **Right:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
+  view, as tall as the left column. It loads level by level as nodes are
+  expanded, with queries keyed by the graph scope; expanded nodes are local
+  state and reset when the view changes.
+
+The server data is live: its query is polled like the graph status and keyed
+by the generation, so a reload shows at once. The start screen handles a server
+that can't be reached itself, since the frame doesn't block a screen without
+`needsGraph`.
 
 ## Router context & data loading
 

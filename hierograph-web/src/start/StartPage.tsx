@@ -30,6 +30,7 @@ import {
   watchModeLabel,
   yesNo,
 } from "./format";
+import { HierarchyTree } from "./HierarchyTree";
 import { startScreenQueryOptions } from "./queries";
 
 type Server = StartScreenQuery["server"];
@@ -60,13 +61,21 @@ export function StartPage() {
 
   const { server, views } = query.data;
   return (
-    <div className="text-fg mx-auto flex w-full max-w-[1280px] flex-col gap-3">
-      <HierarchyViewsBlock
-        workspace={lastSegment(server.workspace)}
-        modules={server.graph.counts?.modules}
-        views={views}
-      />
-      <ServerTabs server={server} />
+    <div className="text-fg mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="flex min-w-0 flex-col gap-3">
+        <HierarchyViewsBlock
+          workspace={lastSegment(server.workspace)}
+          modules={server.graph.counts?.modules}
+          views={views}
+        />
+        <ServerTabs server={server} />
+      </div>
+      {/* As tall as the left column on wide screens, scrolling on its own. */}
+      <div className="relative h-[480px] min-w-0 lg:h-auto">
+        <div className="absolute inset-0">
+          <HierarchyTree />
+        </div>
+      </div>
     </div>
   );
 }
@@ -180,25 +189,25 @@ function WorkspaceBlock({ server }: WorkspaceBlockProps) {
           <Fact label="Tests included">{yesNo(source.includeTests)}</Fact>
         )}
         {artifacts && (
-          <Fact
-            label="Build outputs"
-            highlight={artifacts.notCompiled.length > 0 ? "warning" : undefined}
-          >
-            {buildOutputsLabel(artifacts)}
-          </Fact>
+          // Neutral: the note below carries the warning.
+          <Fact label="Build outputs">{buildOutputsLabel(artifacts)}</Fact>
+        )}
+        {source.kind === "manifest" && (
+          <FileWatching
+            watchMode={source.watchMode}
+            buildFilesMode={source.buildFilesMode}
+          />
         )}
       </Facts>
       {artifacts && artifacts.notCompiled.length > 0 && (
-        <NotCompiledList
-          workspace={workspace}
-          artifacts={artifacts.notCompiled}
-        />
-      )}
-      {source.kind === "manifest" && (
-        <FileWatching
-          watchMode={source.watchMode}
-          buildFilesMode={source.buildFilesMode}
-        />
+        <>
+          {/* The same thin line as above External Types in the tree. */}
+          <hr className="border-border" />
+          <NotCompiledList
+            workspace={workspace}
+            artifacts={artifacts.notCompiled}
+          />
+        </>
       )}
     </TabBody>
   );
@@ -229,17 +238,17 @@ type FileWatchingProps = {
 };
 
 // How the server follows the build: what happens, not the watcher's name.
+// Rows of the workspace's facts under a section heading, so their values line
+// up with the rest.
 function FileWatching({ watchMode, buildFilesMode }: FileWatchingProps) {
   return (
-    <div className="text-[13px]">
-      <div className="text-fg-muted">File watching</div>
-      <dl className="mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-0.5 pl-3">
-        <dt className="text-fg-muted">Build outputs</dt>
-        <dd>{watchModeLabel(watchMode)}</dd>
-        <dt className="text-fg-muted">Build files</dt>
-        <dd>{buildFilesModeLabel(buildFilesMode)}</dd>
-      </dl>
-    </div>
+    <>
+      <div className="text-fg-muted col-span-2 mt-2 font-mono text-[11px] tracking-[0.06em] uppercase">
+        File watching
+      </div>
+      <Fact label="Build outputs">{watchModeLabel(watchMode)}</Fact>
+      <Fact label="Build files">{buildFilesModeLabel(buildFilesMode)}</Fact>
+    </>
   );
 }
 
@@ -282,10 +291,46 @@ type NotCompiledItemProps = {
 function NotCompiledItem({ workspace, artifact }: NotCompiledItemProps) {
   const dirs = artifact.dirs.map((dir) => relativeTo(workspace, dir));
   return (
-    <li className="font-mono break-all" title={artifact.dirs.join("\n")}>
-      {artifact.artifact}
-      <span className="text-fg-muted"> → {dirs.join(", ")}</span>
+    <li className="font-mono" title={artifact.dirs.join("\n")}>
+      <Breakable text={artifact.artifact} at=":" />
+      <span className="text-fg-muted">
+        {" → "}
+        <Breakable text={dirs.join(", ")} at="/" />
+      </span>
     </li>
+  );
+}
+
+type BreakableProps = {
+  text: string;
+  at: string;
+};
+
+// A path or coordinate that wraps only after `at` (a `/` or `:`), never
+// mid-word or at a hyphen.
+function Breakable({ text, at }: BreakableProps) {
+  const parts = text.split(at);
+  const pieces = parts.map((part, index) => (
+    <BreakablePiece
+      // The pieces of one text never reorder.
+      key={index}
+      text={index < parts.length - 1 ? part + at : part}
+    />
+  ));
+  return <span className="break-normal">{pieces}</span>;
+}
+
+type BreakablePieceProps = {
+  text: string;
+};
+
+// Kept together: a hyphen inside a piece is no place to wrap.
+function BreakablePiece({ text }: BreakablePieceProps) {
+  return (
+    <>
+      <span className="whitespace-nowrap">{text}</span>
+      <wbr />
+    </>
   );
 }
 
@@ -364,7 +409,14 @@ function HierarchyViewsBlock({
     />
   ));
   return (
-    <Block title="Hierarchy views">
+    <Block
+      title="Hierarchy views"
+      toolbar={
+        <span className="text-fg-muted text-[11px]">
+          Click to switch · this UI only, not the agent
+        </span>
+      }
+    >
       <h2 className="text-[16px] font-semibold">{workspace}</h2>
       <ul className="flex flex-col gap-2">
         <DefaultViewRow
@@ -725,13 +777,14 @@ function GarbageCollectorRow({ collector }: GarbageCollectorRowProps) {
 
 type BlockProps = {
   title: string;
+  toolbar?: ReactNode;
   children: ReactNode;
 };
 
-function Block({ title, children }: BlockProps) {
+function Block({ title, toolbar, children }: BlockProps) {
   return (
     <section aria-label={title}>
-      <Pane title={title} bodyClassName="flex flex-col gap-2">
+      <Pane title={title} toolbar={toolbar} bodyClassName="flex flex-col gap-2">
         {children}
       </Pane>
     </section>

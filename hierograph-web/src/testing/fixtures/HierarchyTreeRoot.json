@@ -1,0 +1,62 @@
+{
+  "operation": "HierarchyTreeRoot",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {
+        "view": null
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "children": {
+              "nodes": [
+                {
+                  "id": "4400363846879942",
+                  "text": "External Types",
+                  "type": "java.module",
+                  "hasChildren": true
+                },
+                {
+                  "id": "5909467489117502",
+                  "text": "io.hierograph.examples:fixture-app:1.0.0",
+                  "type": "java.module",
+                  "hasChildren": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "layers"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "children": {
+              "nodes": [
+                {
+                  "id": "4400363846879942",
+                  "text": "External Types",
+                  "type": "java.module",
+                  "hasChildren": true
+                },
+                {
+                  "id": "5909467489117502",
+                  "text": "io.hierograph.examples:fixture-app:1.0.0",
+                  "type": "java.module",
+                  "hasChildren": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

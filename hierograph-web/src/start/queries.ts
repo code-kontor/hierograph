@@ -1,5 +1,6 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
+import { graphQueryKey, type GraphScope } from "@/frame/GraphScope";
 import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
@@ -109,5 +110,73 @@ export function startScreenQueryOptions(generation: string | null) {
     refetchInterval: START_SCREEN_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+  });
+}
+
+// The hierarchy tree: the top level of the hierarchy in a view (or the scanned
+// hierarchy without one), then each node's children when it is expanded.
+export const HierarchyTreeRootQuery = graphql(`
+  query HierarchyTreeRoot($view: String) {
+    hierarchicalGraph(view: $view) {
+      rootNode {
+        id
+        children {
+          nodes {
+            id
+            text
+            type
+            hasChildren
+          }
+        }
+      }
+    }
+  }
+`);
+
+export const HierarchyTreeChildrenQuery = graphql(`
+  query HierarchyTreeChildren($view: String, $id: ID!) {
+    hierarchicalGraph(view: $view) {
+      node(id: $id) {
+        id
+        children {
+          nodes {
+            id
+            text
+            type
+            hasChildren
+          }
+        }
+      }
+    }
+  }
+`);
+
+// Graph queries: keyed by the graph scope, so a new generation or another
+// hierarchy view loads them again; within one they never go stale.
+export function hierarchyTreeRootQueryOptions(scope: GraphScope) {
+  return queryOptions({
+    queryKey: graphQueryKey("start", scope, "tree", "root"),
+    async queryFn() {
+      const data = await execute(HierarchyTreeRootQuery, {
+        view: scope.view ?? null,
+      });
+      return data.hierarchicalGraph?.rootNode.children.nodes ?? [];
+    },
+  });
+}
+
+export function hierarchyTreeChildrenQueryOptions(
+  scope: GraphScope,
+  id: string,
+) {
+  return queryOptions({
+    queryKey: graphQueryKey("start", scope, "tree", id),
+    async queryFn() {
+      const data = await execute(HierarchyTreeChildrenQuery, {
+        view: scope.view ?? null,
+        id,
+      });
+      return data.hierarchicalGraph?.node?.children.nodes ?? [];
+    },
   });
 }

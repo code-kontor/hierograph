@@ -2,6 +2,8 @@ import { graphql, HttpResponse, type RequestHandler } from "msw";
 
 import graphStatus from "@/testing/fixtures/GraphStatus.json";
 import graphStatusNoGraph from "@/testing/fixtures/GraphStatus.no-graph.json";
+import hierarchyTreeChildren from "@/testing/fixtures/HierarchyTreeChildren.json";
+import hierarchyTreeRoot from "@/testing/fixtures/HierarchyTreeRoot.json";
 import hierarchyViews from "@/testing/fixtures/HierarchyViews.json";
 import hierarchyViewsNoGraph from "@/testing/fixtures/HierarchyViews.no-graph.json";
 import startScreen from "@/testing/fixtures/StartScreen.json";
@@ -26,13 +28,20 @@ export type Scenario = "default" | "no-graph" | "updating";
 type FixtureEntry = { variables: Record<string, unknown>; data: unknown };
 type FixtureFile = { operation: string; entries: FixtureEntry[] };
 
-const RECORDED: Record<string, Record<"default" | "no-graph", FixtureFile>> = {
+// Per operation, the recorded scenarios. The tree queries exist only with a
+// graph; without one the screen never asks for them.
+const RECORDED: Record<
+  string,
+  Partial<Record<"default" | "no-graph", FixtureFile>>
+> = {
   GraphStatus: { default: graphStatus, "no-graph": graphStatusNoGraph },
   HierarchyViews: {
     default: hierarchyViews,
     "no-graph": hierarchyViewsNoGraph,
   },
   StartScreen: { default: startScreen, "no-graph": startScreenNoGraph },
+  HierarchyTreeRoot: { default: hierarchyTreeRoot },
+  HierarchyTreeChildren: { default: hierarchyTreeChildren },
 };
 
 export function handlersFor(scenario: Scenario): RequestHandler[] {
@@ -54,6 +63,9 @@ export function fixtureData(
     return updating(fixtureData(operation, "default", variables));
   }
   const fixture = RECORDED[operation][scenario];
+  if (!fixture) {
+    throw new Error(`No ${operation} recorded for the ${scenario} scenario.`);
+  }
   const key = stableKey(variables);
   const entry = fixture.entries.find((e) => stableKey(e.variables) === key);
   if (!entry) {

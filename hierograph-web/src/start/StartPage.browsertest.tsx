@@ -134,6 +134,10 @@ describe("StartPage", () => {
     await expect
       .element(workspace.getByText("1 of 2 scanned, 1 not compiled yet"))
       .toBeVisible();
+    // The summary is neutral; the note below carries the warning.
+    await expect
+      .element(workspace.getByText("1 of 2 scanned, 1 not compiled yet"))
+      .not.toHaveClass(/text-status/);
     // File watching says what happens, not the watcher's name alone.
     await expect
       .element(workspace.getByText(/checked for changes periodically/))
@@ -261,6 +265,10 @@ describe("StartPage", () => {
     const screen = await renderStart();
     const views = block(screen, "Hierarchy views");
 
+    // Says what clicking a view does.
+    await expect
+      .element(views.getByText(/this UI only, not the agent/))
+      .toBeVisible();
     // The workspace's name heads the list.
     await expect
       .element(views.getByRole("heading", { name: "fixture-app" }))
