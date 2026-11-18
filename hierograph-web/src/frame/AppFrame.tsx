@@ -103,7 +103,10 @@ export function AppFrame({ screens, children }: AppFrameProps) {
             hierograph
           </span>
         </Link>
-        <nav className="flex h-full items-stretch gap-0.5">{screenLinks}</nav>
+        {/* A single screen needs no navigation: the brand links to it. */}
+        {screens.length > 1 && (
+          <nav className="flex h-full items-stretch gap-0.5">{screenLinks}</nav>
+        )}
         <div className="flex-1" />
         {view !== undefined && <HierarchyViewLabel view={view} />}
         <GraphStatusIndicator status={graph} unreachable={unreachable} />

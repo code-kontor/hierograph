@@ -83,6 +83,7 @@ export default defineConfig(({ mode }) => {
               "msw",
               "msw/browser",
               "@tanstack/react-router",
+              "radix-ui",
             ],
           },
           test: {

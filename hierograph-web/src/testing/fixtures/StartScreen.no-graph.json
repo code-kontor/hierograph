@@ -32,6 +32,48 @@
             "generation": null,
             "loadedAt": null,
             "counts": null
+          },
+          "jvm": {
+            "javaVersion": "21.0.0",
+            "javaVendor": "Fixture Vendor",
+            "vmName": "Fixture VM",
+            "uptimeMs": 3600000,
+            "availableProcessors": 8,
+            "heap": {
+              "usedBytes": 536870912,
+              "committedBytes": 1073741824,
+              "maxBytes": 4294967296,
+              "usedAfterGcBytes": 268435456
+            },
+            "nonHeap": {
+              "usedBytes": 134217728,
+              "committedBytes": 167772160,
+              "maxBytes": null,
+              "usedAfterGcBytes": null
+            },
+            "garbageCollectors": [
+              {
+                "name": "G1 Young Generation",
+                "count": 12,
+                "timeMs": 340
+              },
+              {
+                "name": "G1 Concurrent GC",
+                "count": 3,
+                "timeMs": 25
+              },
+              {
+                "name": "G1 Old Generation",
+                "count": 0,
+                "timeMs": 0
+              }
+            ],
+            "threads": {
+              "live": 42,
+              "peak": 48,
+              "daemon": 30
+            },
+            "processCpuLoad": 0.05
           }
         },
         "views": [

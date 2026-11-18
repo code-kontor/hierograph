@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FIXED_JVM,
   FIXED_ORIGIN,
   FIXED_PID,
   FIXED_TIME,
@@ -36,6 +37,12 @@ const recorded = {
       dataHash: "bmrtNIEm-A1CJU_I",
       loadedAt: "2026-11-18T12:41:04.855Z",
       counts: { modules: 1, total: 181 },
+    },
+    jvm: {
+      javaVersion: "25.0.1",
+      heap: { usedBytes: 123456789, maxBytes: null },
+      garbageCollectors: [{ name: "ZGC Cycles", count: 7 }],
+      processCpuLoad: null,
     },
   },
   views: [{ name: "layers", problems: [] }],
@@ -83,7 +90,30 @@ describe("normalize", () => {
     });
   });
 
+  it("replaces the JVM's metrics by fixed ones, in the shape asked for", () => {
+    expect(result.server.jvm).toEqual({
+      javaVersion: FIXED_JVM.javaVersion,
+      heap: {
+        usedBytes: FIXED_JVM.heap.usedBytes,
+        maxBytes: FIXED_JVM.heap.maxBytes,
+      },
+      garbageCollectors: FIXED_JVM.garbageCollectors.map(({ name, count }) => ({
+        name,
+        count,
+      })),
+      processCpuLoad: FIXED_JVM.processCpuLoad,
+    });
+  });
+
   it("is idempotent", () => {
     expect(normalize(result)).toEqual(result);
+  });
+});
+
+describe("normalize, JVM metrics", () => {
+  it("fails on a JVM metric without a fixed value", () => {
+    expect(() => normalize({ server: { jvm: { somethingNew: 1 } } })).toThrow(
+      /somethingNew/,
+    );
   });
 });

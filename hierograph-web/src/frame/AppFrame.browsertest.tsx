@@ -35,14 +35,16 @@ function Probe() {
   );
 }
 
-function screens(needsGraph: boolean) {
-  return [{ path: "/", label: "Start", needsGraph }] as unknown as Screen[];
+function screens(needsGraph: boolean, more = true) {
+  const start = { path: "/", label: "Start", needsGraph };
+  const other = { path: "/other", label: "Other", needsGraph: true };
+  return (more ? [start, other] : [start]) as unknown as Screen[];
 }
 
-function renderFrame(needsGraph = false, search = "") {
+function renderFrame(needsGraph = false, search = "", more = true) {
   fetches = 0;
   return renderWithRouter(
-    <AppFrame screens={screens(needsGraph)}>
+    <AppFrame screens={screens(needsGraph, more)}>
       <Probe />
     </AppFrame>,
     "/",
@@ -60,6 +62,18 @@ describe("AppFrame", () => {
     await expect.element(screen.getByText("Graph loaded")).toBeVisible();
     await expect
       .element(screen.getByText("scope 1 -; fetched 1"))
+      .toBeVisible();
+  });
+
+  it("shows no navigation for a single screen", async () => {
+    const screen = await renderFrame(false, "", false);
+
+    await expect.element(screen.getByText("Graph loaded")).toBeVisible();
+    await expect
+      .element(screen.getByRole("navigation"))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: "hierograph" }))
       .toBeVisible();
   });
 

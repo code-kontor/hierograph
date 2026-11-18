@@ -183,7 +183,10 @@ describe("router integration (memory history)", () => {
     // A toggle replaces — the URL updates but no new history entry appears.
     await router.navigate({
       to: "/",
-      search: (prev) => ({ ...prev, tab: "paths" }),
+      search: ((prev: Record<string, unknown>) => ({
+        ...prev,
+        tab: "paths",
+      })) as never,
       replace: true,
     });
     expect(router.state.location.search.tab).toBe("paths");

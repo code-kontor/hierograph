@@ -30,8 +30,8 @@ example project with known structure, its hierarchy views (one valid, one
 deliberately invalid) and a declared but uncompiled test artifact.
 
 Responses are **normalised** before writing (`normalize.ts`): the workspace
-path becomes `/fixture-app`, and times, process id, port, version, commit and
-URL origins get fixed values. So re-recording unchanged data yields identical
+path becomes `/fixture-app`, and times, process id, port, version, commit,
+URL origins and the JVM's metrics get fixed values. So re-recording unchanged data yields identical
 files, and a diff means the schema, the queries or the fixture-app changed.
 
 ## Recording

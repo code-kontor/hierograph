@@ -69,8 +69,8 @@ code.
 The server also serves a web UI, at `http://localhost:8765/ui/`. It's the companion to
 your agent session, not a replacement: the agent stays where you ask questions, and it
 opens the UI with links into a given state when a picture says more than a terminal.
-For now the UI has a start screen: the workspace, the graph, the hierarchy views and the
-server, live.
+For now the UI has a start screen: the workspace, the graph, the hierarchy views, and the
+server with its JVM's metrics, live.
 
 ### Always current
 

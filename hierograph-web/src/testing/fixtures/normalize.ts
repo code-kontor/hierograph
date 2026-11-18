@@ -7,6 +7,8 @@
 // - Times, the process id, the port, the server's version and its commit are
 //   replaced by fixed values.
 // - URLs keep their path but get a fixed origin.
+// - The JVM's metrics (`jvm`) change with every request; they are replaced by
+//   the fixed values below, keeping only the fields the query asked for.
 //
 // Everything else — the graph, its hash, the counts and the views — comes from
 // the fixture-app and is deterministic.
@@ -18,6 +20,34 @@ export const FIXED_PID = 4242;
 export const FIXED_PORT = 8765;
 export const FIXED_VERSION = "0.0.0-fixture";
 export const FIXED_COMMIT = { id: "0000000", dirty: false, time: FIXED_TIME };
+
+const MIB = 1024 * 1024;
+export const FIXED_JVM = {
+  javaVersion: "21.0.0",
+  javaVendor: "Fixture Vendor",
+  vmName: "Fixture VM",
+  uptimeMs: 3_600_000,
+  availableProcessors: 8,
+  heap: {
+    usedBytes: 512 * MIB,
+    committedBytes: 1024 * MIB,
+    maxBytes: 4096 * MIB,
+    usedAfterGcBytes: 256 * MIB,
+  },
+  nonHeap: {
+    usedBytes: 128 * MIB,
+    committedBytes: 160 * MIB,
+    maxBytes: null,
+    usedAfterGcBytes: null,
+  },
+  garbageCollectors: [
+    { name: "G1 Young Generation", count: 12, timeMs: 340 },
+    { name: "G1 Concurrent GC", count: 3, timeMs: 25 },
+    { name: "G1 Old Generation", count: 0, timeMs: 0 },
+  ],
+  threads: { live: 42, peak: 48, daemon: 30 },
+  processCpuLoad: 0.05,
+};
 
 const TIME_KEYS = new Set(["startedAt", "loadedAt", "buildTime"]);
 const URL_KEYS = new Set(["url", "uiUrl"]);
@@ -47,6 +77,7 @@ function visit(value: Json, workspace: string | undefined, key?: string): Json {
   }
   if (typeof value === "object") {
     if (key === "commit") return pick(value);
+    if (key === "jvm") return shaped(value, FIXED_JVM as Json);
     const result: { [key: string]: Json } = {};
     for (const [childKey, child] of Object.entries(value)) {
       result[childKey] = visit(child, workspace, childKey);
@@ -74,6 +105,37 @@ function pick(commit: { [key: string]: Json }): { [key: string]: Json } {
   const result: { [key: string]: Json } = {};
   for (const key of Object.keys(commit)) {
     result[key] = key in fixed ? fixed[key] : commit[key];
+  }
+  return result;
+}
+
+// `fixed` cut to the shape of `recorded`: only the fields the query asked for,
+// at every level. An array takes the shape of its first recorded element.
+function shaped(recorded: Json, fixed: Json): Json {
+  if (Array.isArray(fixed)) {
+    const shape = Array.isArray(recorded) ? recorded[0] : undefined;
+    return shape === undefined
+      ? fixed
+      : fixed.map((item) => shaped(shape, item));
+  }
+  if (
+    fixed === null ||
+    typeof fixed !== "object" ||
+    recorded === null ||
+    typeof recorded !== "object" ||
+    Array.isArray(recorded)
+  ) {
+    return fixed;
+  }
+  const result: { [key: string]: Json } = {};
+  for (const key of Object.keys(recorded)) {
+    if (!(key in fixed)) {
+      // A volatile value without a fixed one would make every recording differ.
+      throw new Error(
+        `No fixed value for the JVM metric "${key}": add it to FIXED_JVM in normalize.ts.`,
+      );
+    }
+    result[key] = shaped(recorded[key], fixed[key]);
   }
   return result;
 }
