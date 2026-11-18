@@ -2,6 +2,8 @@ import { graphql, HttpResponse, type RequestHandler } from "msw";
 
 import graphStatus from "@/testing/fixtures/GraphStatus.json";
 import graphStatusNoGraph from "@/testing/fixtures/GraphStatus.no-graph.json";
+import hierarchyViews from "@/testing/fixtures/HierarchyViews.json";
+import hierarchyViewsNoGraph from "@/testing/fixtures/HierarchyViews.no-graph.json";
 import startScreen from "@/testing/fixtures/StartScreen.json";
 import startScreenNoGraph from "@/testing/fixtures/StartScreen.no-graph.json";
 
@@ -26,6 +28,10 @@ type FixtureFile = { operation: string; entries: FixtureEntry[] };
 
 const RECORDED: Record<string, Record<"default" | "no-graph", FixtureFile>> = {
   GraphStatus: { default: graphStatus, "no-graph": graphStatusNoGraph },
+  HierarchyViews: {
+    default: hierarchyViews,
+    "no-graph": hierarchyViewsNoGraph,
+  },
   StartScreen: { default: startScreen, "no-graph": startScreenNoGraph },
 };
 

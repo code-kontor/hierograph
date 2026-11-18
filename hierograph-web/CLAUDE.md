@@ -76,6 +76,10 @@ run it through corepack (`corepack pnpm …`).
 - Query colocation: each vertical owns `queries.ts` (document + `queryOptions`
   factory). Query-key first part = vertical name. Requests go through
   `execute()` (`src/graphql/client.ts`).
+- **Graph queries are keyed by the graph scope**: `graphQueryKey(vertical,
+scope, ...)` with `scope = useGraphScope()` (`@/frame/GraphScope`), and
+  `enabled: scope !== undefined`. A new graph generation then refetches them;
+  never invalidate graph queries by hand.
 - `src/graphql/generated/` is committed and **never hand-edited**. After a
   new/changed document: `pnpm codegen`, then typecheck (`pnpm codegen:watch`
   for ongoing work). The schema is read from the server's schema files

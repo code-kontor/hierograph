@@ -16,6 +16,7 @@ import { GraphQLClient } from "graphql-request";
 
 import {
   GraphStatusDocument,
+  HierarchyViewsDocument,
   StartScreenDocument,
 } from "../../graphql/generated/graphql.ts";
 import { normalize } from "./normalize.ts";
@@ -28,6 +29,7 @@ const FIXTURES_DIR = import.meta.dirname;
 // need is added here (and a handler in ../msw/handlers.ts).
 const OPERATIONS = [
   { name: "GraphStatus", document: GraphStatusDocument },
+  { name: "HierarchyViews", document: HierarchyViewsDocument },
   { name: "StartScreen", document: StartScreenDocument },
 ] as const;
 

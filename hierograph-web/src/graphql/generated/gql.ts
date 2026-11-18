@@ -15,10 +15,12 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  */
 type Documents = {
     "\n  query GraphStatus {\n    server {\n      graph {\n        state\n        update\n        generation\n      }\n    }\n  }\n": typeof types.GraphStatusDocument,
+    "\n  query HierarchyViews {\n    views {\n      name\n      valid\n      problems\n    }\n  }\n": typeof types.HierarchyViewsDocument,
     "\n  query StartScreen {\n    server {\n      url\n      uiUrl\n      version\n      commit {\n        id\n        dirty\n      }\n      startedAt\n      workspace\n      stateDir\n      source {\n        kind\n        manifest\n        buildRoot\n        includeTests\n        watchMode\n        buildFilesMode\n        parquetDir\n      }\n      artifacts {\n        declared\n        scanned\n        notCompiled {\n          artifact\n          dirs\n        }\n      }\n      graph {\n        state\n        update\n        generation\n        loadedAt\n        counts {\n          modules\n          packages\n          types\n          total\n        }\n      }\n    }\n    views {\n      name\n      description\n      source\n      valid\n      problems\n      groupCount\n      errors\n      warnings\n      restructure\n    }\n  }\n": typeof types.StartScreenDocument,
 };
 const documents: Documents = {
     "\n  query GraphStatus {\n    server {\n      graph {\n        state\n        update\n        generation\n      }\n    }\n  }\n": types.GraphStatusDocument,
+    "\n  query HierarchyViews {\n    views {\n      name\n      valid\n      problems\n    }\n  }\n": types.HierarchyViewsDocument,
     "\n  query StartScreen {\n    server {\n      url\n      uiUrl\n      version\n      commit {\n        id\n        dirty\n      }\n      startedAt\n      workspace\n      stateDir\n      source {\n        kind\n        manifest\n        buildRoot\n        includeTests\n        watchMode\n        buildFilesMode\n        parquetDir\n      }\n      artifacts {\n        declared\n        scanned\n        notCompiled {\n          artifact\n          dirs\n        }\n      }\n      graph {\n        state\n        update\n        generation\n        loadedAt\n        counts {\n          modules\n          packages\n          types\n          total\n        }\n      }\n    }\n    views {\n      name\n      description\n      source\n      valid\n      problems\n      groupCount\n      errors\n      warnings\n      restructure\n    }\n  }\n": types.StartScreenDocument,
 };
 
@@ -40,6 +42,10 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GraphStatus {\n    server {\n      graph {\n        state\n        update\n        generation\n      }\n    }\n  }\n"): (typeof documents)["\n  query GraphStatus {\n    server {\n      graph {\n        state\n        update\n        generation\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query HierarchyViews {\n    views {\n      name\n      valid\n      problems\n    }\n  }\n"): (typeof documents)["\n  query HierarchyViews {\n    views {\n      name\n      valid\n      problems\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

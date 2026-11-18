@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3080,
+      // The Maven build writes Node, pnpm and the built UI into target/; a
+      // Maven run must not reload the dev server's page.
+      watch: { ignored: ["**/target/**"] },
       proxy: {
         "/graphql": {
           target: env.VITE_GRAPHQL_PROXY_TARGET ?? "http://localhost:8765",
@@ -77,7 +80,9 @@ export default defineConfig(({ mode }) => {
               "tailwind-merge",
               "clsx",
               "vitest-browser-react",
+              "msw",
               "msw/browser",
+              "@tanstack/react-router",
             ],
           },
           test: {

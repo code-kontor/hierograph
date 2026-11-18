@@ -16,8 +16,9 @@ One file per operation and scenario:
 | `<Operation>.no-graph.json` | `no-graph` | a server without a graph         |
 
 Each file is `{ operation, scenario, entries: [{ variables, data }] }`. The
-operations are listed in `record-fixtures.ts`; today `GraphStatus` (the frame)
-and `StartScreen` (the start screen), both without variables.
+operations are listed in `record-fixtures.ts`; today `GraphStatus` and
+`HierarchyViews` (the frame) and `StartScreen` (the start screen), all without
+variables.
 
 The `updating` scenario (the graph updater busy) can't be recorded reliably; the
 handlers derive it from `default` by changing only the graph's state.

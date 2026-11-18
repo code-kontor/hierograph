@@ -15,6 +15,10 @@ import {
   stringifyIdList,
 } from "./searchCodec";
 
+// These tests build their own routers with their own search shapes, so the
+// app's registered route types (which know only `view`) don't apply.
+const ids = (subject_ids: string[]) => ({ subject_ids }) as never;
+
 describe("isIdListKey", () => {
   it("recognises params ending in _ids", () => {
     expect(isIdListKey("subject_ids")).toBe(true);
@@ -144,7 +148,7 @@ describe("router integration (memory history)", () => {
 
     const location = router.buildLocation({
       to: "/",
-      search: { subject_ids: ["42", "43"] },
+      search: ids(["42", "43"]),
     });
 
     expect(location.searchStr).toContain("subject_ids=42,43");
@@ -167,11 +171,11 @@ describe("router integration (memory history)", () => {
     const startLength = router.history.length;
 
     // Selection chain A → A,B → A,B,C — each a pushed history entry.
-    await router.navigate({ to: "/", search: { subject_ids: ["A"] } });
-    await router.navigate({ to: "/", search: { subject_ids: ["A", "B"] } });
+    await router.navigate({ to: "/", search: ids(["A"]) });
+    await router.navigate({ to: "/", search: ids(["A", "B"]) });
     await router.navigate({
       to: "/",
-      search: { subject_ids: ["A", "B", "C"] },
+      search: ids(["A", "B", "C"]),
     });
     expect(router.state.location.search.subject_ids).toEqual(["A", "B", "C"]);
     expect(router.history.length).toBe(startLength + 3);
