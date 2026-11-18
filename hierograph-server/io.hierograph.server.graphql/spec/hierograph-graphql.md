@@ -752,6 +752,7 @@ end, `TARGET` the end depended upon.
 extend type Query {
     server: ServerInfo!
     views: [ViewInfo!]!
+    defaultView: DefaultView!
 }
 ```
 
@@ -807,6 +808,12 @@ lists them: `name`, `description`, `source` (`project` or `state`), `file`,
 `shadowsProjectView`, `valid`, `problems` (empty for a valid view), `restructure`,
 and, when the view could be applied to the graph in service, `groupCount`, `errors`
 and `warnings` (`null` otherwise).
+
+`defaultView` (`ViewInfoController`) is `default` of `list_views`: the hierarchy as
+scanned, which a query without `view` answers in. It has a `description` and the
+`topLevelCount` of the scanned hierarchy (`null` without a graph). It is listed beside
+the views, not among them, so no view name is reserved for it: `view: "default"`
+names a view like any other.
 
 ---
 

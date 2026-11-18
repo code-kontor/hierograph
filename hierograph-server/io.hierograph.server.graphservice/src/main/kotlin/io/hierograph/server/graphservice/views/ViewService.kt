@@ -132,6 +132,16 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
         ViewInfo(entry, applied)
     }
 
+    /** The hierarchy as scanned, listed beside the views. */
+    fun defaultInfo(): DefaultViewInfo = DefaultViewInfo(
+        if (graphService.isGraphAvailable) {
+            val hierarchy = graphService.model.hierarchy
+            hierarchy.childrenOf(hierarchy.rootNode).size
+        } else {
+            null
+        },
+    )
+
     /** The applicable view named [name]; fails with [UnknownViewException]. */
     fun entry(name: String): ViewEntry = registry.find(name) ?: throw UnknownViewException(name, registry.names())
 

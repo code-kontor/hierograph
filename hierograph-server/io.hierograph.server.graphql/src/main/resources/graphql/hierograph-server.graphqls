@@ -13,6 +13,19 @@ extend type Query {
     tool `list_views`. Answers also while no graph is loaded, then without the summaries.
     """
     views: [ViewInfo!]!
+
+    """
+    The hierarchy as scanned: what a query without `view` answers in. Listed beside the views, not among them,
+    so no view name is reserved for it (`view: "default"` names a view like any other). The counterpart of
+    `default` in `list_views`.
+    """
+    defaultView: DefaultView!
+}
+
+type DefaultView {
+    description: String!
+    "How many nodes the scanned hierarchy has at its top level; `null` while no graph is loaded."
+    topLevelCount: Int
 }
 
 """

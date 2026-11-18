@@ -35,6 +35,22 @@ class ViewInfo(val entry: ViewEntry, val applied: AppliedViewSummary?) {
     val restructure: Boolean get() = applied?.restructure ?: (entry.document?.restructure == true)
 }
 
+/**
+ * The hierarchy as scanned: what a call without `view` answers in. Listed beside the views rather than among
+ * them, so no view name is reserved for it. [topLevelCount] is `null` while no graph is loaded.
+ */
+class DefaultViewInfo(val topLevelCount: Int?) {
+    val description: String get() = DESCRIPTION
+
+    fun toMap(): LinkedHashMap<String, Any?> = linkedMapOf<String, Any?>("description" to description).apply {
+        topLevelCount?.let { put("top_level_count", it) }
+    }
+
+    companion object {
+        const val DESCRIPTION = "The hierarchy as scanned. Omit view to use it."
+    }
+}
+
 /** What applying a view to a graph produced: how many groups, errors and warnings, and for a restructuring its size and effect. */
 data class AppliedViewSummary(
     val groupCount: Int,

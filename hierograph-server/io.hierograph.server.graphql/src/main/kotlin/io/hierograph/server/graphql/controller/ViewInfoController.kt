@@ -15,15 +15,22 @@
  */
 package io.hierograph.server.graphql.controller
 
+import io.hierograph.server.graphservice.views.DefaultViewInfo
 import io.hierograph.server.graphservice.views.ViewInfo
 import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
-/** `views`: the views that can be passed as `view`, as the MCP tool `list_views` lists them. */
+/**
+ * `views` and `defaultView`: the views that can be passed as `view` and, beside them, the hierarchy as scanned,
+ * as the MCP tool `list_views` lists them.
+ */
 @Controller
 class ViewInfoController(private val viewService: ViewService? = null) {
 
     @QueryMapping
     fun views(): List<ViewInfo> = viewService?.infos() ?: emptyList()
+
+    @QueryMapping
+    fun defaultView(): DefaultViewInfo = viewService?.defaultInfo() ?: DefaultViewInfo(null)
 }

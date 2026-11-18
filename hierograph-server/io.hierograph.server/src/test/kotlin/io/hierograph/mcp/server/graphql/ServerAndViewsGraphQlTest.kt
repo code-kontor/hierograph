@@ -135,6 +135,16 @@ class ServerAndViewsGraphQlTest {
     }
 
     @Test
+    fun `defaultView describes the scanned hierarchy, as list_views does`() {
+        val default = query("{ defaultView { description topLevelCount } }").path("defaultView")
+        val listed = viewTools.listViews()["default"] as Map<String, Any?>
+
+        assertThat(default.path("description").asText()).isEqualTo(listed["description"])
+        assertThat(default.path("topLevelCount").isNull).isTrue() // no graph
+        assertThat(listed).doesNotContainKey("top_level_count")
+    }
+
+    @Test
     fun `views lists the valid and the invalid view, as list_views does`() {
         val views = query("{ views { name description source file shadowsProjectView valid problems groupCount restructure } }")
             .path("views")

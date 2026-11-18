@@ -91,20 +91,7 @@ class ViewTools(
         val views = viewService.infos().map { info ->
             ViewResponses.entry(info.entry).apply { info.applied?.let { putAll(it.toMap()) } }
         }
-        return linkedMapOf("default" to defaultEntry(), "views" to views, "summary" to linkedMapOf("total" to views.size))
-    }
-
-    /**
-     * The hierarchy as scanned: what a call without `view` answers in. Listed beside the views rather than
-     * among them, so no view name is reserved for it; its top-level count is left out while no graph is loaded.
-     */
-    private fun defaultEntry(): Map<String, Any?> = linkedMapOf<String, Any?>(
-        "description" to "The hierarchy as scanned. Omit view to use it.",
-    ).apply {
-        if (graphService.isGraphAvailable) {
-            val hierarchy = graphService.model.hierarchy
-            put("top_level_count", hierarchy.childrenOf(hierarchy.rootNode).size)
-        }
+        return linkedMapOf("default" to viewService.defaultInfo().toMap(), "views" to views, "summary" to linkedMapOf("total" to views.size))
     }
 
     @Tool(
