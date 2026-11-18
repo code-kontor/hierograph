@@ -64,6 +64,14 @@ code.
 - *If I change this class, what breaks?* Everything it affects transitively, and the
   dependency chain that connects any two of them.
 
+### Explore it in the browser
+
+The server also serves a web UI, at `http://localhost:8765/ui/`. It's the companion to
+your agent session, not a replacement: the agent stays where you ask questions, and it
+opens the UI with links into a given state when a picture says more than a terminal.
+For now the UI has a start screen: the workspace, the graph, the hierarchy views and the
+server, live.
+
 ### Always current
 
 Hierograph doesn't take a snapshot and go stale. It watches the compiled output of your

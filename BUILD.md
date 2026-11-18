@@ -27,6 +27,7 @@ configuration lives in `hierograph-parent`.
 | `hierograph-hierarchicalgraph` | The in-memory hierarchical graph model and its algorithms         |
 | `hierograph-server`            | MCP server (`io.hierograph.server`), GraphQL (`io.hierograph.server.graphql`), the graph service they share (`io.hierograph.server.graphservice`: loading/reload, search, node properties, pagination), and the GraphStore-to-model mapping (`io.hierograph.server.mapping`) |
 | `hierograph-build-support`     | The build-tool-independent manifest library (`io.hierograph.manifest`) and the Maven plugin (`hierograph-maven-plugin`) that records build facts and scans modules into `.hierograph` archives. The Gradle plugin (`hierograph-gradle-plugin`) lives here too, as a Gradle build of its own (see below) |
+| `hierograph-web`               | The web UI (React, TypeScript), built by Maven into the jar `io.hierograph.web`, which the server serves at `/ui/` (see below) |
 | `hierograph-itest`             | Integration tests (opt-in, see below)                            |
 
 The runnable artifact is the Spring Boot MCP server in
@@ -114,6 +115,40 @@ opt-in. They need the Gradle plugin published to `~/.m2` and the reactor install
 ```bash
 mvn -Pitest verify -pl hierograph-itest/io.hierograph.itest.tests -Dhierograph.itest.gradle=true -Dit.test='Gradle*IT'
 ```
+
+## The web UI
+
+`hierograph-web` is part of the one Maven build; there is no separate frontend build to run. Maven
+installs its own Node and pnpm into `hierograph-web/target/`, runs `pnpm install`, builds the UI into the
+jar under `META-INF/resources/ui`, and in the `test` phase runs the lint, Prettier and architecture checks
+and the unit and browser tests (Vitest with Playwright's Chromium). The server depends on the jar and
+serves the UI at `http://127.0.0.1:8765/ui/`.
+
+- **The first build needs network** (run it without `-o`): it downloads Node, pnpm, the npm packages into
+  the pnpm store and Playwright's Chromium. A changed `pnpm-lock.yaml` or Playwright version needs
+  network once again.
+- **After that, `mvn -o` works**, from the cached downloads.
+- **`-DskipTests`** skips the web checks and tests, as for the other modules.
+- **`-Dhierograph.web.skip`** skips the web build entirely, for fast backend-only builds. The jar is
+  still built, without the UI; the server then answers `/ui/` with a page that says so.
+
+```bash
+mvn -o install -pl hierograph-web                   # build, check and test the UI
+mvn -o install -DskipTests -Dhierograph.web.skip    # backend only, fast
+```
+
+For work on the UI, run the Vite dev server with hot reload. It serves the UI on port 3080 and proxies
+`/graphql` to a running Hierograph server, by default on port 8765:
+
+```bash
+cd hierograph-web
+corepack pnpm install
+corepack pnpm dev                                                  # http://localhost:3080/ui/
+VITE_GRAPHQL_PROXY_TARGET=http://localhost:8080 corepack pnpm dev  # a server on another port
+```
+
+The scripts, the fixtures the browser tests run against and the architecture rules are described in
+[`hierograph-web/README.md`](hierograph-web/README.md).
 
 ## Running the MCP server
 
@@ -291,5 +326,7 @@ mvn -o -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.
 | Unit tests with coverage reports        | `mvn -o -Pcoverage clean verify`                         |
 | Build MCP server Docker image (needs Docker) | `mvn -o -pl hierograph-server/io.hierograph.server -Pdocker package` |
 | Build **and push** the image (needs `docker login`) | `mvn -o -pl hierograph-server/io.hierograph.server -Pdocker deploy -Ddocker.push.skip=false` |
+| Backend only, without the web UI        | `mvn -o install -DskipTests -Dhierograph.web.skip`       |
+| Web UI dev server (port 3080)           | `cd hierograph-web && corepack pnpm dev`                 |
 | Apply license headers                   | `mvn -o license:format`                                  |
 | Clean                                   | `mvn -o clean`                                           |

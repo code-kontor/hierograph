@@ -33,10 +33,39 @@ lower-triangular.
 
 The `frame` owns what applies to every screen. Screens are verticals like
 `start`: they may import the `frame`, never each other, and the `frame` never
-imports a screen. A new screen gets its own vertical, its own route under
-`src/routes/`, an entry in the screen registry (`SCREENS` in
-`src/routes/__root.tsx`), and a rule in `eslint.config.js` like the one for
-`start`.
+imports a screen.
+
+## Folders
+
+| Folder               | Holds                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `src/frame/`         | `AppFrame`, the graph status, the graph scope, the screen registry type, frame queries |
+| `src/start/`         | the start screen, its query and display helpers                                        |
+| `src/routes/`        | one file per route; `__root.tsx` holds the screen registry and the frame-level params  |
+| `src/routing/`       | the search-param codec                                                                 |
+| `src/graphql/`       | the client (`execute`) and the generated documents and types (`generated/`)            |
+| `src/design-system/` | shadcn components (`ui/`), layouts (`layout/`), small hooks                            |
+| `src/testing/`       | render helpers, MSW handlers and worker, the recorded fixtures and their recorder      |
+
+## Adding a screen
+
+A screen registers with the frame in four places; the frame itself doesn't
+change.
+
+1. **A vertical** `src/<screen>/` with the screen component and its
+   `queries.ts`. Graph queries are keyed with
+   `graphQueryKey("<screen>", useGraphScope(), …)` and wait for the scope.
+2. **A route** `src/routes/<screen>.tsx` (create it empty, run
+   `pnpm routes:generate`), rendering the screen and validating the screen's
+   own search params.
+3. **A registry entry** in `SCREENS` (`src/routes/__root.tsx`): `path`, the
+   navigation `label`, and `needsGraph`. The frame builds the navigation from
+   it and shows a message instead of a screen that needs a graph while none is
+   loaded.
+4. **Boundary rules** in `eslint.config.js`: an element for the vertical, its
+   public files in `PUBLIC`, a rule like the one for `start`, and the vertical
+   added to what `routes` may import. Update the tables in this document in
+   the same change.
 
 ## The frame
 
@@ -60,6 +89,15 @@ hierarchy view, the graph status) and the matched screen. It owns:
   `needsGraph`. Without a graph, or when the server can't be reached, the frame
   shows a message instead of such a screen; the start screen doesn't need a
   graph and stays visible.
+
+## The start screen
+
+`StartPage` shows what the server serves: the workspace and its graph source
+(with the artifacts not compiled yet), the graph (state, generation, load time,
+counts), the hierarchy views (choosing a valid one sets `view=`) and the server.
+It is live: its query is polled like the graph status and keyed by the
+generation, so a reload shows at once. It handles a server that can't be
+reached itself, since the frame doesn't block a screen without `needsGraph`.
 
 ## Router context & data loading
 

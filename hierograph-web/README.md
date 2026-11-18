@@ -6,8 +6,9 @@ primary interface: the agent opens the UI with links into a given state.
 
 The Hierograph server serves the built UI at `http://127.0.0.1:8765/ui/`.
 
-**Work in progress:** for now the UI is the frame, with a start screen and no
-screens yet.
+For now the UI is the frame and the start screen. The start screen shows,
+live, what the server serves: the workspace and its graph source, the graph,
+the hierarchy views (choosing one sets `view=`) and the server.
 
 ## Prerequisites
 
