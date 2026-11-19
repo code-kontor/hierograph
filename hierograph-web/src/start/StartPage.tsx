@@ -24,7 +24,6 @@ import {
   formatMillis,
   formatPercent,
   formatTime,
-  lastSegment,
   relativeTo,
   sourceKindLabel,
   watchModeLabel,
@@ -64,7 +63,6 @@ export function StartPage() {
     <div className="text-fg mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <div className="flex min-w-0 flex-col gap-3">
         <HierarchyViewsBlock
-          workspace={lastSegment(server.workspace)}
           modules={server.graph.counts?.modules}
           views={views}
         />
@@ -388,18 +386,12 @@ function GraphBlock({ graph }: GraphBlockProps) {
 }
 
 type HierarchyViewsBlockProps = {
-  // The workspace's name, the block's headline.
-  workspace: string;
   // The scanned modules, `undefined` without a graph.
   modules: number | undefined;
   views: HierarchyView[];
 };
 
-function HierarchyViewsBlock({
-  workspace,
-  modules,
-  views,
-}: HierarchyViewsBlockProps) {
+function HierarchyViewsBlock({ modules, views }: HierarchyViewsBlockProps) {
   const current: { view?: string } = useSearch({ strict: false });
   const rows = views.map((view) => (
     <HierarchyViewRow
@@ -417,7 +409,6 @@ function HierarchyViewsBlock({
         </span>
       }
     >
-      <h2 className="text-[16px] font-semibold">{workspace}</h2>
       <ul className="flex flex-col gap-2">
         <DefaultViewRow
           modules={modules}

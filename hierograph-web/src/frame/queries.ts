@@ -4,10 +4,12 @@ import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
 // The graph status the frame polls: cheap on the server (no node counts). A new
-// `generation` means the server reloaded the graph.
+// `generation` means the server reloaded the graph. The workspace names the
+// project in the header.
 export const GraphStatusQuery = graphql(`
   query GraphStatus {
     server {
+      workspace
       graph {
         state
         update

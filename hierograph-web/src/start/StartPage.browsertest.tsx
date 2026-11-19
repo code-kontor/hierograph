@@ -192,9 +192,7 @@ describe("StartPage", () => {
       .toHaveClass(/text-status-error/);
     await expect
       .element(
-        block(screen, "Hierarchy views").getByRole("heading", {
-          name: "fixture-app",
-        }),
+        (await tab(screen, "Workspace")).getByText("/fixture-app").first(),
       )
       .toBeVisible();
     await expect
@@ -269,10 +267,8 @@ describe("StartPage", () => {
     await expect
       .element(views.getByText(/this UI only, not the agent/))
       .toBeVisible();
-    // The workspace's name heads the list.
-    await expect
-      .element(views.getByRole("heading", { name: "fixture-app" }))
-      .toBeVisible();
+    // The project's name is in the header, not here.
+    await expect.element(views.getByRole("heading")).not.toBeInTheDocument();
 
     const first = views.getByRole("listitem").first();
     await expect

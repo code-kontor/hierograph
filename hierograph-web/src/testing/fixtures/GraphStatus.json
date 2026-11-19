@@ -6,6 +6,7 @@
       "variables": {},
       "data": {
         "server": {
+          "workspace": "/fixture-app",
           "graph": {
             "state": "LOADED",
             "update": "idle",

@@ -65,6 +65,25 @@ describe("AppFrame", () => {
       .toBeVisible();
   });
 
+  it("names the project the server serves, with its path on hover", async () => {
+    const screen = await renderFrame();
+
+    const brand = screen.getByRole("banner").getByRole("link").first();
+    await expect.element(brand).toHaveTextContent("hierograph – fixture-app");
+    await expect
+      .element(brand)
+      .toHaveAttribute("title", "hierograph: /fixture-app");
+  });
+
+  it('shows "hierograph" while the server can\'t be reached', async () => {
+    worker.use(graphql.query("GraphStatus", () => HttpResponse.error()));
+    const screen = await renderFrame();
+
+    await expect
+      .element(screen.getByRole("banner").getByRole("link").first())
+      .toHaveTextContent(/^hierograph$/);
+  });
+
   it("shows no navigation for a single screen", async () => {
     const screen = await renderFrame(false, "", false);
 
@@ -73,7 +92,7 @@ describe("AppFrame", () => {
       .element(screen.getByRole("navigation"))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("link", { name: "hierograph" }))
+      .element(screen.getByRole("link", { name: "hierograph – fixture-app" }))
       .toBeVisible();
   });
 

@@ -57,6 +57,7 @@ export function AppFrame({ screens, children }: AppFrameProps) {
   const screen = currentScreen(screens, withoutBase(pathname));
 
   const graph = status.data?.server.graph;
+  const workspace = status.data?.server.workspace;
   const unreachable = status.isError;
   const views = useQuery({
     ...hierarchyViewsQueryOptions(graph?.generation ?? null),
@@ -97,10 +98,21 @@ export function AppFrame({ screens, children }: AppFrameProps) {
   return (
     <div className="flex h-svh flex-col">
       <header className="border-border-strong bg-panel flex h-[52px] shrink-0 items-center gap-7 border-b px-[18px]">
-        <Link to="/" className="flex items-center gap-[9px]">
+        {/* "hierograph – <project>": the project the server serves, by name,
+            once the server has answered. */}
+        <Link
+          to="/"
+          title={workspace ? `hierograph: ${workspace}` : "hierograph"}
+          className="flex min-w-0 items-center gap-[9px]"
+        >
           <img src={lupeUrl} alt="" className="block h-[26px] w-auto" />
-          <span className="text-fg font-sans text-[18px] font-bold tracking-[-0.01em]">
+          <span className="text-fg truncate font-sans text-[18px] font-bold tracking-[-0.01em]">
             hierograph
+            {workspace && (
+              <span className="text-fg-muted font-semibold">
+                {` – ${workspaceName(workspace)}`}
+              </span>
+            )}
           </span>
         </Link>
         {/* A single screen needs no navigation: the brand links to it. */}
@@ -200,6 +212,11 @@ type ProblemItemProps = {
 
 function ProblemItem({ problem }: ProblemItemProps) {
   return <li className="font-mono text-[12px]">{problem}</li>;
+}
+
+// The last segment of the workspace's path: the project's name.
+function workspaceName(path: string): string {
+  return path.split(/[/\\]/).filter(Boolean).at(-1) ?? path;
 }
 
 // The location's path without the base path the UI is served under (`/ui`).

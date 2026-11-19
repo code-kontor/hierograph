@@ -69,8 +69,9 @@ change.
 
 ## The frame
 
-`AppFrame` renders the header (brand, navigation from the screen registry, the
-hierarchy view, the graph status) and the matched screen. It owns:
+`AppFrame` renders the header (the logo and "hierograph – <project>", the
+project the server serves; navigation from the screen registry; the hierarchy
+view; the graph status) and the matched screen. It owns:
 
 - **The graph status.** It polls `server { graph { state update generation } }`
   every 5 s (`frame/queries.ts`), paused while the tab is hidden, with an
@@ -94,9 +95,9 @@ hierarchy view, the graph status) and the matched screen. It owns:
 
 `StartPage` shows what the server serves, in two columns on wide screens.
 
-- **Left, on top:** the hierarchy views, headed by the workspace's name;
-  choosing a valid one sets `view=`. The scanned hierarchy comes first as
-  `default`: it isn't a view name, so choosing it drops `view=`.
+- **Left, on top:** the hierarchy views; choosing a valid one sets `view=`.
+  The scanned hierarchy comes first as `default`: it isn't a view name, so
+  choosing it drops `view=`.
 - **Left, below:** a tab each for the workspace and its graph source (with the
   artifacts not compiled yet), the graph (state, generation, load time,
   counts), the server, and its JVM (heap against its limit and what the last
