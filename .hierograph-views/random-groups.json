@@ -1,0 +1,49 @@
+{
+  "name": "random-groups",
+  "description": "Six groups with the modules assigned at random (seed 4), an example of a grouping with cycles",
+  "groups": [
+    {
+      "name": "red",
+      "members": [
+        "io.hierograph:hierograph-maven-plugin:**",
+        "io.hierograph:io.hierograph.hierarchicalgraph.model:**",
+        "io.hierograph:io.hierograph.server.views:**"
+      ]
+    },
+    {
+      "name": "orange",
+      "members": [
+        "io.hierograph:io.hierograph.manifest:**",
+        "io.hierograph:io.hierograph.server.mapping:**"
+      ]
+    },
+    {
+      "name": "yellow",
+      "members": [
+        "io.hierograph:io.hierograph.graphstore.jvm.store:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.archive:**"
+      ]
+    },
+    {
+      "name": "green",
+      "members": [
+        "io.hierograph:io.hierograph.itest.tests:**",
+        "io.hierograph:io.hierograph.server.graphql:**"
+      ]
+    },
+    {
+      "name": "blue",
+      "members": [
+        "io.hierograph:io.hierograph.server:**",
+        "io.hierograph:io.hierograph.hierarchicalgraph.algorithms:**"
+      ]
+    },
+    {
+      "name": "violet",
+      "members": [
+        "io.hierograph:io.hierograph.graphstore.jvm.scanner:**",
+        "io.hierograph:io.hierograph.server.graphservice:**"
+      ]
+    }
+  ]
+}
