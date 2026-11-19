@@ -23,6 +23,9 @@ and `HierarchyTreeChildren`, with variables and only in the `default` scenario.
 They hold the complete tree of the fixture-app, in the scanned hierarchy and in
 the `layers` view, one entry per expandable node, each level asked for as the
 screen asks for it (in dependency order, a type's members in source order).
+`HierarchyArcs` holds the arcs between the visible rows for every state the
+tree tests pass through: the paths in `record-fixtures.ts`, expanded one node
+at a time. A test that expands another path needs that path added there.
 
 The `updating` scenario (the graph updater busy) can't be recorded reliably; the
 handlers derive it from `default` by changing only the graph's state.

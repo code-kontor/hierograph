@@ -236,3 +236,53 @@ export function hierarchyTreeChildrenQueryOptions(
     },
   });
 }
+
+// The dependencies between the tree's visible rows: the aggregated weight from
+// each row's subtree into each other's, as the cells of a matrix over them.
+export const HierarchyArcsQuery = graphql(`
+  query HierarchyArcs($view: String, $ids: [ID!]!) {
+    hierarchicalGraph(view: $view) {
+      nodes(ids: $ids) {
+        orderedAdjacencyMatrix {
+          orderedNodes {
+            id
+          }
+          cells {
+            row
+            column
+            value
+          }
+        }
+      }
+    }
+  }
+`);
+
+// A dependency between two rows: `from`'s subtree uses `to`'s.
+export type TreeDependency = { from: string; to: string; weight: number };
+
+// `ids` sorted, so the same rows share one cache entry whatever their order.
+// The previous arcs stay on screen while the next ones load.
+export function hierarchyArcsQueryOptions(scope: GraphScope, ids: string[]) {
+  const sorted = [...ids].sort();
+  return queryOptions({
+    queryKey: graphQueryKey("start", scope, "arcs", sorted.join(",")),
+    async queryFn(): Promise<TreeDependency[]> {
+      const data = await execute(HierarchyArcsQuery, {
+        view: scope.view ?? null,
+        ids: sorted,
+      });
+      const matrix = data.hierarchicalGraph?.nodes?.orderedAdjacencyMatrix;
+      if (!matrix) return [];
+      const id = (index: number) => matrix.orderedNodes[index].id;
+      return matrix.cells
+        .filter((cell) => cell.row !== cell.column && cell.value > 0)
+        .map((cell) => ({
+          from: id(cell.row),
+          to: id(cell.column),
+          weight: cell.value,
+        }));
+    },
+    placeholderData: keepPreviousData,
+  });
+}

@@ -11,7 +11,7 @@ import {
   Package,
   Repeat2,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
@@ -24,6 +24,7 @@ import {
   type TreeLevelData,
   type TreeNode,
 } from "./queries";
+import { ARC_AREA_WIDTH, TreeArcs } from "./TreeArcs";
 import {
   ordersChildren,
   type TreeNodeKind,
@@ -41,10 +42,19 @@ const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
   other: CircleDot,
 };
 
+// What every row needs from the tree: which nodes are open, and the hovered
+// row, whose dependency arcs are highlighted.
+type TreeControls = {
+  expanded: ReadonlySet<string>;
+  toggle: (id: string) => void;
+  hover: (id: string | null) => void;
+};
+
 // The hierarchy of the current hierarchy view (or the scanned hierarchy
 // without one) as a tree, loaded level by level as nodes are expanded. Each
 // level's siblings are in dependency order (those depending on the others on
 // top), its dependency cycles marked; a type's members are in source order.
+// Beside the tree, arcs show the dependencies between the visible rows.
 export function HierarchyTree() {
   const scope = useGraphScope();
   return (
@@ -69,11 +79,24 @@ type TreeRootProps = {
 function TreeRoot({ scope }: TreeRootProps) {
   const query = useQuery(hierarchyTreeRootQueryOptions(scope));
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const toggle = (id: string) => {
-    const next = new Set(expanded);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpanded(next);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const clearHover = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const controls: TreeControls = {
+    expanded,
+    toggle(id) {
+      const next = new Set(expanded);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setExpanded(next);
+    },
+    // Leaving a row clears the hover a moment later, so the pointer can move
+    // onto one of the row's arcs (which keeps them) without them vanishing.
+    hover(id) {
+      if (clearHover.current) clearTimeout(clearHover.current);
+      clearHover.current = undefined;
+      if (id !== null) setHovered(id);
+      else clearHover.current = setTimeout(() => setHovered(null), 150);
+    },
   };
 
   if (query.isPending) {
@@ -87,15 +110,17 @@ function TreeRoot({ scope }: TreeRootProps) {
     );
   }
   return (
-    <TreeLevel
-      role="tree"
-      scope={scope}
-      level={query.data}
-      parentText=""
-      depth={0}
-      expanded={expanded}
-      toggle={toggle}
-    />
+    <TreeArcs scope={scope} hovered={hovered}>
+      <TreeLevel
+        role="tree"
+        scope={scope}
+        level={query.data}
+        parentText=""
+        depth={0}
+        inExternal={false}
+        controls={controls}
+      />
+    </TreeArcs>
   );
 }
 
@@ -130,8 +155,9 @@ type TreeLevelProps = {
   level: TreeLevelData;
   parentText: string;
   depth: number;
-  expanded: ReadonlySet<string>;
-  toggle: (id: string) => void;
+  // Below External Types: no arcs.
+  inExternal: boolean;
+  controls: TreeControls;
 };
 
 // Where a node sits in a cycle's contiguous block, to draw the block's bar.
@@ -173,8 +199,8 @@ function TreeLevel({
   level,
   parentText,
   depth,
-  expanded,
-  toggle,
+  inExternal,
+  controls,
 }: TreeLevelProps) {
   const nodes = level.nodes;
   const marks = cycleMarks(level, parentText);
@@ -196,8 +222,8 @@ function TreeLevel({
       cycle={marks.get(node.id)}
       parentText={parentText}
       depth={depth}
-      expanded={expanded}
-      toggle={toggle}
+      inExternal={inExternal || isExternal(node)}
+      controls={controls}
     />
   ));
   return (
@@ -218,8 +244,8 @@ type TreeItemProps = {
   cycle: CycleMark | undefined;
   parentText: string;
   depth: number;
-  expanded: ReadonlySet<string>;
-  toggle: (id: string) => void;
+  inExternal: boolean;
+  controls: TreeControls;
 };
 
 function TreeItem({
@@ -229,17 +255,31 @@ function TreeItem({
   cycle,
   parentText,
   depth,
-  expanded,
-  toggle,
+  inExternal,
+  controls,
 }: TreeItemProps) {
+  const open = node.hasChildren && controls.expanded.has(node.id);
+  const children = useQuery({
+    ...hierarchyTreeChildrenQueryOptions(
+      scope,
+      node.id,
+      ordersChildren(node.type, node.text),
+    ),
+    enabled: open,
+  });
+  const kind = treeNodeKind(node.type, node.text);
+  const Icon = KIND_ICONS[kind];
+  const Chevron = open ? ChevronDown : ChevronRight;
   const label = treeNodeLabel(node.type, node.text, parentText);
   const title = cycle
     ? `${node.text}\nIn a dependency cycle with ${cycle.others.join(", ")}`
     : node.text;
-  const open = node.hasChildren && expanded.has(node.id);
-  const kind = treeNodeKind(node.type, node.text);
-  const Icon = KIND_ICONS[kind];
-  const Chevron = open ? ChevronDown : ChevronRight;
+  // A row with arcs: its children aren't shown (an open node still loading
+  // them counts as closed, so the arcs don't flicker).
+  const frontier = !inExternal && !(open && children.isSuccess);
+  // A view group's children are named relative to the level above the group:
+  // `app` below `locations` › `application`.
+  const childParentText = kind === "group" ? parentText : node.text;
   return (
     <li
       role="treeitem"
@@ -252,12 +292,17 @@ function TreeItem({
       <button
         type="button"
         onClick={() => {
-          if (node.hasChildren) toggle(node.id);
+          if (node.hasChildren) controls.toggle(node.id);
         }}
+        onMouseEnter={() => controls.hover(node.id)}
+        onMouseLeave={() => controls.hover(null)}
         title={title}
+        data-node-id={node.id}
+        data-label={label}
+        data-frontier={frontier ? "true" : undefined}
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
         className={twMerge(
-          "hover:bg-state-hover relative flex w-full items-center gap-1 rounded-[4px] py-[3px] pr-1.5 text-left text-[13px]",
+          "hover:bg-state-hover relative flex w-full items-center gap-1 rounded-[4px] py-[3px] text-left text-[13px]",
           !node.hasChildren && "cursor-default",
         )}
       >
@@ -273,6 +318,7 @@ function TreeItem({
           )}
         />
         <span
+          data-tree-label
           className={twMerge(
             "truncate",
             (kind === "type" || kind === "member" || kind === "package") &&
@@ -284,20 +330,26 @@ function TreeItem({
         {cycle && (
           <Repeat2
             aria-hidden
+            // Ends the label: the arcs start after it.
+            data-tree-label
             className="text-status-warning size-3.5 shrink-0"
           />
         )}
+        {/* The labels stop short of the arcs. */}
+        <span
+          aria-hidden
+          className="shrink-0"
+          style={{ width: `${ARC_AREA_WIDTH}px` }}
+        />
       </button>
       {open && (
         <TreeChildren
           scope={scope}
-          node={node}
-          // A view group's children are named relative to the level above
-          // the group: `app` below `locations` › `application`.
-          childParentText={kind === "group" ? parentText : node.text}
+          query={children}
+          childParentText={childParentText}
           depth={depth + 1}
-          expanded={expanded}
-          toggle={toggle}
+          inExternal={inExternal}
+          controls={controls}
         />
       )}
     </li>
@@ -306,38 +358,21 @@ function TreeItem({
 
 type TreeChildrenProps = {
   scope: GraphScope;
-  node: TreeNode;
+  query: { isPending: boolean; isError: boolean; data?: TreeLevelData };
   childParentText: string;
   depth: number;
-  expanded: ReadonlySet<string>;
-  toggle: (id: string) => void;
+  inExternal: boolean;
+  controls: TreeControls;
 };
 
 function TreeChildren({
   scope,
-  node,
+  query,
   childParentText,
   depth,
-  expanded,
-  toggle,
+  inExternal,
+  controls,
 }: TreeChildrenProps) {
-  const query = useQuery(
-    hierarchyTreeChildrenQueryOptions(
-      scope,
-      node.id,
-      ordersChildren(node.type, node.text),
-    ),
-  );
-  if (query.isPending) {
-    return (
-      <p
-        className="text-fg-muted py-[3px] text-[12px]"
-        style={{ paddingLeft: `${depth * 14 + 22}px` }}
-      >
-        Loading…
-      </p>
-    );
-  }
   if (query.isError) {
     return (
       <p
@@ -348,6 +383,16 @@ function TreeChildren({
       </p>
     );
   }
+  if (query.isPending || !query.data) {
+    return (
+      <p
+        className="text-fg-muted py-[3px] text-[12px]"
+        style={{ paddingLeft: `${depth * 14 + 22}px` }}
+      >
+        Loading…
+      </p>
+    );
+  }
   return (
     <TreeLevel
       role="group"
@@ -355,8 +400,8 @@ function TreeChildren({
       level={query.data}
       parentText={childParentText}
       depth={depth}
-      expanded={expanded}
-      toggle={toggle}
+      inExternal={inExternal}
+      controls={controls}
     />
   );
 }

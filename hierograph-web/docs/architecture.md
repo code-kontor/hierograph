@@ -110,7 +110,13 @@ hierarchy view, the graph status) and the matched screen. It owns:
   state and reset when the view changes. Each level's siblings are in
   dependency order (`orderedAdjacencyMatrix`: those depending on the others on
   top), dependency cycles marked with a bar; a type's members keep source
-  order.
+  order. Directly to the right of the labels, `TreeArcs` draws, for the
+  hovered row only, thin bracket arcs to the visible rows it depends on and
+  that depend on it (rows whose children aren't shown; External Types left
+  out): with the order to the right, against it to the left, dotted red; what
+  the row uses blue, what uses it grey; all of one thickness. It measures the
+  rows marked `data-frontier` whenever the tree changes and loads their
+  dependencies in one query.
 
 The server data is live: its query is polled like the graph status and keyed
 by the generation, so a reload shows at once. The start screen handles a server

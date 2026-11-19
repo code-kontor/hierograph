@@ -2,6 +2,7 @@ import { graphql, HttpResponse, type RequestHandler } from "msw";
 
 import graphStatus from "@/testing/fixtures/GraphStatus.json";
 import graphStatusNoGraph from "@/testing/fixtures/GraphStatus.no-graph.json";
+import hierarchyArcs from "@/testing/fixtures/HierarchyArcs.json";
 import hierarchyTreeChildren from "@/testing/fixtures/HierarchyTreeChildren.json";
 import hierarchyTreeRoot from "@/testing/fixtures/HierarchyTreeRoot.json";
 import hierarchyViews from "@/testing/fixtures/HierarchyViews.json";
@@ -42,6 +43,7 @@ const RECORDED: Record<
   StartScreen: { default: startScreen, "no-graph": startScreenNoGraph },
   HierarchyTreeRoot: { default: hierarchyTreeRoot },
   HierarchyTreeChildren: { default: hierarchyTreeChildren },
+  HierarchyArcs: { default: hierarchyArcs },
 };
 
 export function handlersFor(scenario: Scenario): RequestHandler[] {

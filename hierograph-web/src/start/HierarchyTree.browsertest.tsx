@@ -29,6 +29,29 @@ function item(screen: TreeRender, name: string) {
   return screen.getByRole("treeitem", { name, exact: true });
 }
 
+// The drawn arcs, read from the SVG.
+function arcs() {
+  return Array.from(
+    document.querySelectorAll<SVGGElement>('svg[aria-label="Dependencies"] g'),
+  ).map((g) => ({
+    from: g.dataset.from ?? "",
+    to: g.dataset.to ?? "",
+    direction: g.dataset.direction,
+    relation: g.dataset.relation,
+    strokeWidth: g.querySelector("path")?.getAttribute("stroke-width"),
+    dotted: g.querySelector("path")?.hasAttribute("stroke-dasharray") ?? false,
+    title: g.querySelector("title")?.textContent ?? "",
+  }));
+}
+
+// A visible row's node id, by its label.
+function nodeId(label: string) {
+  return (
+    document.querySelector<HTMLElement>(`[data-label="${label}"]`)?.dataset
+      .nodeId ?? ""
+  );
+}
+
 // The labels of an expanded item's children, in display order, once loaded.
 async function childLabels(screen: TreeRender, name: string) {
   const children = item(screen, name)
@@ -193,6 +216,92 @@ describe("HierarchyTree", () => {
     await expand(screen, "application");
 
     await expect.element(item(screen, "app")).toBeVisible();
+  });
+
+  it("draws no arcs until a row is hovered", async () => {
+    const screen = await renderTree();
+    await expand(
+      screen,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "cycle",
+    );
+    await expect.element(item(screen, "gamma")).toBeVisible();
+
+    expect(arcs()).toEqual([]);
+  });
+
+  it("draws the hovered row's arcs: with the order and against it", async () => {
+    const screen = await renderTree();
+    await expand(
+      screen,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "cycle",
+    );
+    await expect.element(item(screen, "gamma")).toBeVisible();
+    const cycle = new Set(["gamma", "alpha", "beta"].map(nodeId));
+
+    // The last of a cycle depends on one above it: an arc against the order.
+    await item(screen, "beta").getByRole("button").first().hover();
+    const beta = nodeId("beta");
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
+      true,
+    );
+    const up = arcs().filter((arc) => arc.direction === "up");
+    expect(up.length).toBeGreaterThan(0);
+    for (const arc of up) {
+      expect(cycle.has(arc.from) && cycle.has(arc.to)).toBe(true);
+      expect(arc.dotted).toBe(true);
+    }
+    // Seen from beta: its own dependencies outgoing, the others' incoming;
+    // all of one thickness.
+    for (const arc of arcs()) {
+      expect(arc.relation).toBe(arc.from === beta ? "outgoing" : "incoming");
+    }
+    expect(new Set(arcs().map((arc) => arc.strokeWidth)).size).toBe(1);
+    // The tooltip names both ends and the weight.
+    expect(arcs()[0].title).toMatch(/^.+ → .+: weight \d+$/);
+
+    // The first of a cycle depends on one below it: an arc with the order.
+    await item(screen, "gamma").getByRole("button").first().hover();
+    const gamma = nodeId("gamma");
+    await expect
+      .poll(() => arcs().every((arc) => arc.from === gamma || arc.to === gamma))
+      .toBe(true);
+    expect(arcs().some((arc) => arc.direction === "down")).toBe(true);
+    expect(
+      arcs()
+        .filter((arc) => arc.direction === "down")
+        .every((arc) => !arc.dotted),
+    ).toBe(true);
+  });
+
+  it("removes the arcs when the pointer leaves the row", async () => {
+    const screen = await renderTree();
+    await expand(
+      screen,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "cycle",
+    );
+    await item(screen, "alpha").getByRole("button").first().hover();
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+
+    await screen.getByRole("tree").unhover();
+    await item(screen, "External Types").getByRole("button").first().hover();
+
+    await expect.poll(() => arcs().length).toBe(0);
   });
 
   it("says when there is no graph", async () => {

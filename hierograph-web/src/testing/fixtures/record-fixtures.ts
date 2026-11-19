@@ -16,12 +16,12 @@ import { GraphQLClient } from "graphql-request";
 
 import {
   GraphStatusDocument,
+  HierarchyArcsDocument,
   HierarchyTreeChildrenDocument,
   HierarchyTreeRootDocument,
   HierarchyViewsDocument,
   StartScreenDocument,
 } from "../../graphql/generated/graphql.ts";
-import { ordersChildren } from "../../start/treeLabels.ts";
 import { normalize } from "./normalize.ts";
 
 const GRAPHQL_URL =
@@ -77,6 +77,22 @@ type TreeChildren = {
   orderedAdjacencyMatrix?: { orderedNodes: TreeNode[] };
 };
 
+// The screen's rules (start/treeLabels.ts), repeated here: the recorder may
+// not import a screen (dependency-cruiser's folder cycles). Should they drift
+// apart, the tests fail on a request without a recorded answer.
+const TYPE_KINDS = new Set([
+  "java.class",
+  "java.interface",
+  "java.enum",
+  "java.record",
+  "java.annotation",
+  "external.type",
+]);
+// A type's children are its members, which keep source order.
+const ordersChildren = (node: TreeNode) => !TYPE_KINDS.has(node.type);
+const isExternal = (node: TreeNode) =>
+  node.type === "java.module" && node.text === "External Types";
+
 const childNodes = (children: TreeChildren) =>
   children.orderedAdjacencyMatrix?.orderedNodes ?? children.nodes ?? [];
 
@@ -89,7 +105,7 @@ if (scenario === "default") {
       const variables = {
         view,
         id: node.id,
-        ordered: ordersChildren(node.type, node.text),
+        ordered: ordersChildren(node),
       };
       const data = await client.request<{
         hierarchicalGraph: { node: { children: TreeChildren } };
@@ -108,4 +124,96 @@ if (scenario === "default") {
   }
   write("HierarchyTreeRoot", roots);
   write("HierarchyTreeChildren", children);
+
+  // The arcs between the visible rows, for every state the tests pass
+  // through: from a collapsed tree, expanding the nodes along each path one by
+  // one. The visible rows are computed as the screen marks them (`frontier` in
+  // HierarchyTree.tsx): rows whose children aren't shown, External Types left
+  // out.
+  const levels = new Map<string, TreeNode[]>();
+  const levelKey = (view: string | null, id: string) => `${view}|${id}`;
+  for (const entry of roots) {
+    const view = entry.variables.view as string | null;
+    const data = entry.data as {
+      hierarchicalGraph: { rootNode: { children: TreeChildren } };
+    };
+    levels.set(
+      levelKey(view, "root"),
+      childNodes(data.hierarchicalGraph.rootNode.children),
+    );
+  }
+  for (const entry of children) {
+    const { view, id } = entry.variables as { view: string | null; id: string };
+    const data = entry.data as {
+      hierarchicalGraph: { node: { children: TreeChildren } };
+    };
+    levels.set(
+      levelKey(view, id),
+      childNodes(data.hierarchicalGraph.node.children),
+    );
+  }
+  const frontier = (view: string | null, expanded: Set<string>) => {
+    const ids: string[] = [];
+    const visit = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        if (isExternal(node)) continue;
+        if (expanded.has(node.id) && node.hasChildren) {
+          visit(levels.get(levelKey(view, node.id)) ?? []);
+        } else {
+          ids.push(node.id);
+        }
+      }
+    };
+    visit(levels.get(levelKey(view, "root")) ?? []);
+    return ids.sort();
+  };
+  // The paths, by the nodes' qualified names (a view group's is `<view>:<name>`).
+  const BASIC = [
+    "io.hierograph.examples:fixture-app:1.0.0",
+    "org",
+    "org.hg",
+    "org.hg.fixture",
+    "org.hg.fixture.basic",
+  ];
+  const PATHS: { view: string | null; path: string[] }[] = [
+    {
+      view: null,
+      path: [
+        ...BASIC,
+        "org.hg.fixture.basic.core",
+        "org.hg.fixture.basic.core.PlainClass",
+      ],
+    },
+    { view: null, path: [...BASIC, "org.hg.fixture.basic.cycle"] },
+    { view: null, path: [...BASIC.slice(0, 4), "org.hg.fixture.locations"] },
+    {
+      view: "layers",
+      path: [
+        ...BASIC.slice(0, 4),
+        "org.hg.fixture.locations",
+        "layers:application",
+      ],
+    },
+  ];
+  const arcs: Entry[] = [];
+  const recorded = new Set<string>();
+  for (const { view, path } of PATHS) {
+    const expanded = new Set<string>();
+    let level = levels.get(levelKey(view, "root")) ?? [];
+    for (const text of path) {
+      const node = level.find((candidate) => candidate.text === text);
+      if (!node)
+        throw new Error(`No "${text}" in the tree (${path.join(" › ")})`);
+      expanded.add(node.id);
+      level = levels.get(levelKey(view, node.id)) ?? [];
+      const ids = frontier(view, expanded);
+      const key = `${view}|${ids.join(",")}`;
+      if (ids.length < 2 || recorded.has(key)) continue;
+      recorded.add(key);
+      const variables = { view, ids };
+      const data = await client.request(HierarchyArcsDocument, variables);
+      arcs.push({ variables, data: normalize(data as never) });
+    }
+  }
+  write("HierarchyArcs", arcs);
 }
