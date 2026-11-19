@@ -73,19 +73,25 @@ change.
 project the server serves; navigation from the screen registry; the hierarchy
 view; the graph status) and the matched screen. It owns:
 
-- **The graph status.** It polls `server { graph { state update generation } }`
-  every 5 s (`frame/queries.ts`), paused while the tab is hidden, with an
-  immediate check when it becomes visible again.
+- **The graph status.** It polls
+  `server { workspace viewsVersion graph { state update generation } }` every
+  5 s (`frame/queries.ts`), paused while the tab is hidden, with an immediate
+  check when it becomes visible again. A new `generation` means a reloaded
+  graph; a new `viewsVersion` that a view document was added, changed or
+  removed, for example by the agent, which doesn't change the generation.
 - **The graph scope.** `useGraphScope()` gives a screen the scope its graph
-  queries run in: the graph `generation` and the hierarchy `view`. Every graph
-  query puts it into its key with `graphQueryKey(vertical, scope, ...)` and
-  waits until it is defined (`enabled: scope !== undefined`). Within one
-  generation the cache never goes stale (`staleTime: Infinity`); a new
-  generation refetches everything, with no manual invalidation.
+  queries run in: the graph `generation`, the hierarchy `view` and, with a
+  view, the `viewsVersion`. Every graph query puts it into its key with
+  `graphQueryKey(vertical, scope, ...)` and waits until it is defined
+  (`enabled: scope !== undefined`). Within one generation the cache never goes
+  stale (`staleTime: Infinity`); a new generation refetches everything, and a
+  changed view document everything in a view, with no manual invalidation.
 - **The hierarchy view.** `view` is the only search param of the root route,
   kept across screen switches (`retainSearchParams`). The frame checks it
-  against the server's views and shows a message, with a way to drop it, for an
-  unknown or invalid one.
+  against the server's views, fetched again with every new generation or
+  `viewsVersion`, so a view defined after the page was loaded can be chosen at
+  once. It shows a message, with a way to drop it, for an unknown or invalid
+  one.
 - **Messages instead of a screen.** A registry entry says whether its screen
   `needsGraph`. Without a graph, or when the server can't be reached, the frame
   shows a message instead of such a screen; the start screen doesn't need a

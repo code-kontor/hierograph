@@ -170,6 +170,57 @@ describe("AppFrame", () => {
       .toBeVisible();
   });
 
+  it("accepts a hierarchy view defined after the page was loaded, without a reload", async () => {
+    const screen = await renderFrame(false, "?view=added");
+    await expect
+      .element(screen.getByText('There is no hierarchy view "added"'))
+      .toBeVisible();
+
+    // The agent defines the view: the views' version changes, and the list
+    // the frame checks `view` against has it.
+    const status = structuredClone(fixtureData("GraphStatus", "default")) as {
+      server: { viewsVersion: string };
+    };
+    status.server.viewsVersion = "after-define";
+    const views = structuredClone(fixtureData("HierarchyViews", "default")) as {
+      views: { name: string; valid: boolean; problems: string[] }[];
+    };
+    views.views.push({ name: "added", valid: true, problems: [] });
+    worker.use(
+      graphql.query("GraphStatus", () => HttpResponse.json({ data: status })),
+      graphql.query("HierarchyViews", () => HttpResponse.json({ data: views })),
+    );
+    await screen.queryClient.refetchQueries({
+      queryKey: graphStatusQueryOptions().queryKey,
+    });
+
+    await expect
+      .element(screen.getByText("scope 1 added; fetched 1"))
+      .toBeVisible();
+  });
+
+  it("refetches graph queries in a view when a view document changes", async () => {
+    const screen = await renderFrame(false, "?view=layers");
+    await expect
+      .element(screen.getByText("scope 1 layers; fetched 1"))
+      .toBeVisible();
+
+    const status = structuredClone(fixtureData("GraphStatus", "default")) as {
+      server: { viewsVersion: string };
+    };
+    status.server.viewsVersion = "after-redefine";
+    worker.use(
+      graphql.query("GraphStatus", () => HttpResponse.json({ data: status })),
+    );
+    await screen.queryClient.refetchQueries({
+      queryKey: graphStatusQueryOptions().queryKey,
+    });
+
+    await expect
+      .element(screen.getByText("scope 1 layers; fetched 2"))
+      .toBeVisible();
+  });
+
   it("names an unknown hierarchy view and offers to drop it", async () => {
     const screen = await renderFrame(false, "?view=nope");
 

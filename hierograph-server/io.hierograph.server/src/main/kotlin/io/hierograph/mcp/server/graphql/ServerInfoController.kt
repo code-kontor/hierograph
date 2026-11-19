@@ -22,6 +22,7 @@ import io.hierograph.server.graphservice.GraphState
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.graphservice.NodeCounts
 import io.hierograph.server.graphservice.SnapshotStatus
+import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
@@ -39,6 +40,7 @@ import org.springframework.stereotype.Controller
 class ServerInfoController(
     private val instance: ServerInstance,
     private val graphService: HierarchicalGraphService,
+    private val viewService: ViewService? = null,
 ) {
 
     @QueryMapping
@@ -56,6 +58,9 @@ class ServerInfoController(
 
     @SchemaMapping(typeName = "ServerInfo")
     fun jvm(server: ServerInstance): JvmStatus = JvmStatus.current()
+
+    @SchemaMapping(typeName = "ServerInfo")
+    fun viewsVersion(server: ServerInstance): String = viewService?.version() ?: ""
 
     @SchemaMapping(typeName = "GraphStatus")
     fun counts(status: GraphStatus): NodeCounts? = graphService.nodeCounts()

@@ -319,4 +319,28 @@ class ViewServiceTest {
         started.define("""{ "name": "draft", "groups": [ { "name": "g", "members": ["acme:app:*"] } ] }""")
         assertThat(started.entries().map { it.name }).containsExactly("draft", "layers")
     }
+
+    @Test
+    fun `the version changes when a view is added, changed or removed, and only then`() {
+        val empty = service.version()
+        assertThat(service.version()).isEqualTo(empty)
+
+        val file = project("layers.json", layers)
+        val added = service.version()
+        assertThat(added).isNotEqualTo(empty)
+        assertThat(service.version()).isEqualTo(added)
+
+        service.define("""{ "name": "draft", "groups": [ { "name": "g", "members": ["acme:app:*"] } ] }""")
+        val defined = service.version()
+        assertThat(defined).isNotEqualTo(added)
+
+        val before = Files.getLastModifiedTime(file).toMillis()
+        file.writeText(layers.replace("front", "web"))
+        Files.setLastModifiedTime(file, FileTime.fromMillis(before + 2_000))
+        val changed = service.version()
+        assertThat(changed).isNotEqualTo(defined)
+
+        service.delete("draft")
+        assertThat(service.version()).isNotEqualTo(changed)
+    }
 }

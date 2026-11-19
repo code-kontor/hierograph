@@ -4,12 +4,14 @@ import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
 // The graph status the frame polls: cheap on the server (no node counts). A new
-// `generation` means the server reloaded the graph. The workspace names the
-// project in the header.
+// `generation` means the server reloaded the graph, a new `viewsVersion` that a
+// view document was added, changed or removed. The workspace names the project
+// in the header.
 export const GraphStatusQuery = graphql(`
   query GraphStatus {
     server {
       workspace
+      viewsVersion
       graph {
         state
         update
@@ -48,11 +50,15 @@ export function graphStatusQueryOptions() {
   });
 }
 
-// The views change with the graph (a reload) or a redefinition; the latter
-// shows up on the next generation or a reload of the page.
-export function hierarchyViewsQueryOptions(generation: string | null) {
+// The views change with the graph (a reload: their summaries) and whenever a
+// view document is added, changed or removed (`viewsVersion`, polled with the
+// graph status), so a view the agent just defined can be chosen at once.
+export function hierarchyViewsQueryOptions(
+  generation: string | null,
+  viewsVersion: string | null,
+) {
   return queryOptions({
-    queryKey: ["frame", "hierarchyViews", generation],
+    queryKey: ["frame", "hierarchyViews", generation, viewsVersion],
     queryFn() {
       return execute(HierarchyViewsQuery);
     },

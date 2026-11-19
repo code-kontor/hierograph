@@ -28,6 +28,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.nio.file.Path
+import java.security.MessageDigest
+import java.util.HexFormat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.measureTimedValue
@@ -125,6 +127,23 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
 
     /** The applicable views, valid or not, and the invalid duplicates; see [ViewRegistry.entries]. */
     fun entries(): List<ViewEntry> = registry.entries()
+
+    /**
+     * A token that changes whenever a view document is added, changed or removed, in the project or the state
+     * directory; an opaque value to compare. A client that follows the views (the web UI) polls it instead of
+     * the views themselves. Cheap: the registry re-reads documents only when their files changed.
+     */
+    fun version(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        for (entry in entries()) {
+            // Not the file's path: the token is the same on every machine for the same documents.
+            for (part in listOf(entry.source.name, entry.name, entry.text)) {
+                digest.update(part.toByteArray(Charsets.UTF_8))
+                digest.update(0)
+            }
+        }
+        return HexFormat.of().formatHex(digest.digest(), 0, 8)
+    }
 
     /**
      * The [entries] as listed: each valid view with the summary of applying it to the graph in service, when

@@ -58,9 +58,10 @@ export function AppFrame({ screens, children }: AppFrameProps) {
 
   const graph = status.data?.server.graph;
   const workspace = status.data?.server.workspace;
+  const viewsVersion = status.data?.server.viewsVersion ?? null;
   const unreachable = status.isError;
   const views = useQuery({
-    ...hierarchyViewsQueryOptions(graph?.generation ?? null),
+    ...hierarchyViewsQueryOptions(graph?.generation ?? null, viewsVersion),
     enabled: view !== undefined && status.isSuccess,
   });
   const viewCheck = checkView(view, views.data?.views);
@@ -69,7 +70,7 @@ export function AppFrame({ screens, children }: AppFrameProps) {
     graph?.generation &&
     graph.state !== "UNAVAILABLE" &&
     (viewCheck.kind === "none" || viewCheck.kind === "valid")
-      ? { generation: graph.generation, view }
+      ? { generation: graph.generation, view, viewsVersion }
       : undefined;
 
   const needsGraph = screen?.needsGraph ?? false;

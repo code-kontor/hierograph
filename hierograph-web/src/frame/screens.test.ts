@@ -27,20 +27,37 @@ describe("currentScreen", () => {
 });
 
 describe("graphQueryKey", () => {
-  it("puts the vertical, the generation and the hierarchy view first", () => {
-    expect(
-      graphQueryKey("dsm", { generation: "7", view: "layers" }, "matrix", 42),
-    ).toEqual(["dsm", "graph", "7", "layers", "matrix", 42]);
+  const scope = (
+    generation: string,
+    view: string | undefined,
+    viewsVersion = "v1",
+  ) => ({ generation, view, viewsVersion });
+
+  it("puts the vertical, the generation, the view and its version first", () => {
+    expect(graphQueryKey("dsm", scope("7", "layers"), "matrix", 42)).toEqual([
+      "dsm",
+      "graph",
+      "7",
+      "layers",
+      "v1",
+      "matrix",
+      42,
+    ]);
   });
 
   it("differs between generations and hierarchy views", () => {
-    const base = graphQueryKey("dsm", { generation: "7", view: undefined });
-    expect(base).toEqual(["dsm", "graph", "7", null]);
-    expect(
-      graphQueryKey("dsm", { generation: "8", view: undefined }),
-    ).not.toEqual(base);
-    expect(
-      graphQueryKey("dsm", { generation: "7", view: "layers" }),
-    ).not.toEqual(base);
+    const base = graphQueryKey("dsm", scope("7", undefined));
+    expect(base).toEqual(["dsm", "graph", "7", null, null]);
+    expect(graphQueryKey("dsm", scope("8", undefined))).not.toEqual(base);
+    expect(graphQueryKey("dsm", scope("7", "layers"))).not.toEqual(base);
+  });
+
+  it("follows the views' version only in a view", () => {
+    expect(graphQueryKey("dsm", scope("7", undefined, "v2"))).toEqual(
+      graphQueryKey("dsm", scope("7", undefined, "v1")),
+    );
+    expect(graphQueryKey("dsm", scope("7", "layers", "v2"))).not.toEqual(
+      graphQueryKey("dsm", scope("7", "layers", "v1")),
+    );
   });
 });

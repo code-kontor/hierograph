@@ -776,6 +776,7 @@ part of the application) returns `ServerInfo`:
 | `artifacts` | `ArtifactStatus` | Manifest mode: `declared`, `scanned`, and `notCompiled` (`artifact`, `dirs`), the outputs missing from the graph. `null` otherwise. |
 | `graph` | `GraphStatus!` | See below. |
 | `jvm` | `JvmStatus!` | The server JVM's current metrics; see below. `server_info` doesn't report them. |
+| `viewsVersion` | `String!` | Changes whenever a view document is added, changed or removed, in the project or at runtime; an opaque token. Defining a view doesn't change the graph's `generation`, so a client that follows the views polls this. |
 
 `GraphStatus`:
 

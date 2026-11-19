@@ -55,6 +55,11 @@ type ServerInfo {
     graph: GraphStatus!
     "The server JVM's current metrics, read on each request."
     jvm: JvmStatus!
+    """
+    Changes whenever a view document is added, changed or removed, in the project or at runtime; an opaque token
+    to compare. Cheap: a client that follows the views polls it instead of `views`.
+    """
+    viewsVersion: String!
 }
 
 type Commit {

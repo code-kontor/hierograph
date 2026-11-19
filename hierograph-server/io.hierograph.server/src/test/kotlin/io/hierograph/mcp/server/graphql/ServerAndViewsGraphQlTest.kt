@@ -31,6 +31,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * `server` and `views` through `/graphql` on a running server without a graph: both answer, and agree with
@@ -41,12 +42,15 @@ import java.nio.file.Files
 class ServerAndViewsGraphQlTest {
 
     companion object {
+        private lateinit var projectViews: Path
+
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
             val stateDir = Files.createTempDirectory("hierograph-graphql-server-test")
             // Project views: runtime views left in the state directory are deleted when the server starts.
             val views = Files.createDirectories(stateDir.resolve("project-views"))
+            projectViews = views
             Files.writeString(
                 views.resolve("layers.json"),
                 """{"name": "layers", "description": "By layer", "groups": [{"name": "core", "members": ["com.example.**"]}]}""",
@@ -144,6 +148,22 @@ class ServerAndViewsGraphQlTest {
         assertThat(default.path("description").asText()).isEqualTo(listed["description"])
         assertThat(default.path("topLevelCount").isNull).isTrue() // no graph
         assertThat(listed).doesNotContainKey("top_level_count")
+    }
+
+    @Test
+    fun `viewsVersion changes when a view document is added and when it is removed`() {
+        val version = { query("{ server { viewsVersion } }").path("server").path("viewsVersion").asText() }
+        val before = version()
+        assertThat(before).isNotBlank().isEqualTo(version())
+
+        val file = projectViews.resolve("added.json")
+        Files.writeString(file, """{"name": "added", "groups": [{"name": "g", "members": ["x:*"]}]}""")
+        try {
+            assertThat(version()).isNotEqualTo(before)
+        } finally {
+            Files.delete(file)
+        }
+        assertThat(version()).isEqualTo(before)
     }
 
     @Test

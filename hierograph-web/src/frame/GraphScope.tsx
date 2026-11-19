@@ -1,13 +1,16 @@
 import { createContext, type ReactNode, use } from "react";
 
 // What a graph query is answered in: the graph build (`generation`) and the
-// hierarchy view (`view`, from the URL). Every query that reads the graph puts
-// both into its key (`graphQueryKey`): within one generation the cache never
-// goes stale (`staleTime: Infinity`), and a new generation refetches
-// everything, with no manual invalidation.
+// hierarchy view (`view`, from the URL), and with a view the version of the
+// view documents (`viewsVersion`). Every query that reads the graph puts them
+// into its key (`graphQueryKey`): within one generation the cache never goes
+// stale (`staleTime: Infinity`), and a new generation refetches everything,
+// with no manual invalidation; so does a changed view document for the queries
+// in a view, e.g. after the agent redefined it.
 export type GraphScope = {
   generation: string;
   view: string | undefined;
+  viewsVersion: string | null;
 };
 
 const GraphScopeContext = createContext<GraphScope | undefined>(undefined);
@@ -32,11 +35,19 @@ export function useGraphScope(): GraphScope | undefined {
 }
 
 // The query key of a graph query: the vertical, then the scope, then the
-// query's own parts.
+// query's own parts. The views' version counts only in a view: a query without
+// one doesn't depend on any view document.
 export function graphQueryKey(
   vertical: string,
   scope: GraphScope,
   ...parts: unknown[]
 ): unknown[] {
-  return [vertical, "graph", scope.generation, scope.view ?? null, ...parts];
+  return [
+    vertical,
+    "graph",
+    scope.generation,
+    scope.view ?? null,
+    scope.view === undefined ? null : scope.viewsVersion,
+    ...parts,
+  ];
 }
