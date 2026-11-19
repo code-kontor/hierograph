@@ -219,4 +219,32 @@ class ViewRegistryTest {
         assertThat(same.entries().single().source).isEqualTo(ViewSource.STATE)
         assertThat(same.delete("layers")).isNull()
     }
+
+    @Test
+    fun `clearing deletes every state view and leaves the project views`() {
+        write(projectDir, "layers.json", doc("layers"))
+        write(stateDir, "layers.json", doc("layers", "shadowing"))
+        write(stateDir, "draft.json", doc("draft"))
+        write(stateDir, "notes.txt", "not a view")
+
+        assertThat(registry.clearStateViews()).isEqualTo(2)
+
+        val layers = registry.entries().single()
+        assertThat(layers.source).isEqualTo(ViewSource.PROJECT)
+        assertThat(layers.shadowsProjectView).isFalse()
+        assertThat(stateDir.listDirectoryEntries().map { it.name }).containsExactly("notes.txt")
+    }
+
+    @Test
+    fun `clearing without a state directory deletes nothing`() {
+        assertThat(registry.clearStateViews()).isZero()
+    }
+
+    @Test
+    fun `clearing leaves the documents when the project and the state directory are one`() {
+        write(stateDir, "layers.json", doc("layers"))
+
+        assertThat(ViewRegistry(stateDir, stateDir).clearStateViews()).isZero()
+        assertThat(stateDir.resolve("layers.json").exists()).isTrue()
+    }
 }

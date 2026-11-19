@@ -431,19 +431,20 @@ It walks `<modules>` recursively (pass the `PROFILES` that add modules), makes o
 aggregator below the root, named by its `artifactId`, with its modules as members by GAV
 (`groupId:artifactId:**`, test artifacts included; `--main-only` leaves them out); nested
 aggregators become nested groups, and modules the root lists directly stay ungrouped. Show the
-groups to the user, then let them choose where the view lives:
+groups to the user, then save the document as a **project view**,
+`BUILD_ROOT/.hierograph-views/multi-modules.json`: the standard place for a view, versioned with the
+code and read by the server in both modes. In `docker` mode this is the one change to the project, so
+ask first; committing the file is the user's to decide.
 
-| Where | How | Note |
-|-------|-----|------|
-| in the project, versioned | save the document as `BUILD_ROOT/.hierograph-views/multi-modules.json` and commit it | the server reads it in both modes; in `docker` mode this is the one change to the project, so ask first |
-| on the server only | after reconnecting, `define_view(document = <the JSON>)` | kept in the server's state (the state volume in `docker` mode); the project is untouched |
+If the user wants no change to the project, there is no multi-modules view: don't fall back to
+`define_view`. A view defined at runtime is an internal draft that the server deletes when it
+restarts, so it would vanish with the next container or server start.
 
 Pass on every warning the script prints. It resolves `${...}` references in a groupId or artifactId
 from the POMs' properties; a module whose coordinates it cannot resolve is left out of the view, and
 the warning names it.
 
-The tools are not available in this session, so the server-only variant happens in the next one;
-hand the document over for it. In the next session, `graph_overview(view = "multi-modules")`
+In the next session, `graph_overview(view = "multi-modules")`
 shows the groups and the view's report. Zero errors means no group conflicts; it does not mean
 every module was placed. A `SELECTOR_MATCHES_NOTHING` warning names a selector that found no
 module: a module without compiled output, which is not in the graph, or coordinates that differ

@@ -45,13 +45,15 @@ class ServerAndViewsGraphQlTest {
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
             val stateDir = Files.createTempDirectory("hierograph-graphql-server-test")
-            val views = Files.createDirectories(stateDir.resolve("runtime-views"))
+            // Project views: runtime views left in the state directory are deleted when the server starts.
+            val views = Files.createDirectories(stateDir.resolve("project-views"))
             Files.writeString(
                 views.resolve("layers.json"),
                 """{"name": "layers", "description": "By layer", "groups": [{"name": "core", "members": ["com.example.**"]}]}""",
             )
             Files.writeString(views.resolve("broken.json"), "{ not json")
             registry.add("hierograph.graph.stateDir") { stateDir.toString() }
+            registry.add("hierograph.views.projectDir") { views.toString() }
             registry.add("hierograph.graph.manifest") { stateDir.resolve("no-manifest.json").toString() }
             registry.add("hierograph.server.single-instance") { "false" }
             registry.add("hierograph.server.runtime-file.enabled") { "false" }
@@ -165,7 +167,7 @@ class ServerAndViewsGraphQlTest {
 
         val layers = views.single { it.path("name").asText() == "layers" }
         assertThat(layers.path("description").asText()).isEqualTo("By layer")
-        assertThat(layers.path("source").asText()).isEqualTo("state")
+        assertThat(layers.path("source").asText()).isEqualTo("project")
         assertThat(layers.path("problems").size()).isZero()
 
         val broken = views.single { it.path("name").asText() == "broken" }

@@ -597,7 +597,7 @@ be acyclic, and the list of build changes the real refactoring needs.
 | Source | Location (property) | Written by the server | For |
 |--------|---------------------|-----------------------|-----|
 | project | `hierograph.views.projectDir`, default `<build root>/.hierograph-views` | no | views kept with the code: versioned, reviewed, shared |
-| state | `hierograph.views.stateDir`, default `<state dir>/runtime-views` | yes | views defined at runtime |
+| state | `hierograph.views.stateDir`, default `<state dir>/runtime-views` | yes | internal views defined at runtime: drafts, short-lived |
 
 Every `*.json` file directly in one of the directories (not starting with `.`) is a
 view document, named by its `name` field, not by its file name. The project default
@@ -609,6 +609,17 @@ manifest's directory, `<build root>/.hierograph`, so runtime views default to
 `<build root>/.hierograph/runtime-views`: on the build machine, but never versioned. When both properties name the same directory,
 its documents are state views.
 
+**Project views are the standard; runtime views are internal and short-lived.** A view
+that is meant to be used, by people or by an agent across sessions, is a project view:
+whoever writes it, a person or an agent, saves the document as
+`.hierograph-views/<name>.json`, and the server reads it with the next request. A
+runtime view is a draft an agent makes while working, for example the iterations of a
+restructuring plan, and deletes when it is done. The server enforces the short life:
+it deletes every state document once per process, when it first sets up the registry,
+before any view is read or defined, so a runtime view lives at most as long as the
+server that defined it. When both properties name the same directory, its documents
+are the project's own and nothing is deleted.
+
 | Situation | Effect |
 |-----------|--------|
 | A name in both directories | the state document applies and is marked as shadowing the project one; deleting it restores the project view |
@@ -616,6 +627,7 @@ its documents are state views.
 | A document that does not parse | listed under its file name without `.json`, with its problems; it is not applied |
 | A file added, edited or removed | takes effect with the next request: every read compares the files' modification times and sizes with the last read |
 
+`clearStateViews()` deletes every state document, as described above.
 `define(json)` parses the document and writes it as `<state dir>/<name>.json`
 (atomically, replacing a state view of the same name, also one stored under another
 file name); an invalid document is rejected and nothing is written. `delete(name)`

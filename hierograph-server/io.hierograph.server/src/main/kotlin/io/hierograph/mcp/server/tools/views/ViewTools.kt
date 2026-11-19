@@ -51,9 +51,12 @@ class ViewTools(
             "their subtrees, a module merges into the target); groups then apply to the restructured hierarchy. " +
             "Its result adds virtual_modules and restructuring: the module dependencies added, removed and changed, " +
             "and new_cycles / introduces_cycles. The view is stored on the " +
-            "server, replacing a runtime view of the same name and shadowing a project view of that name, then " +
-            "applied: returns the applied groups with their ids and the report of what could not be applied. " +
-            "Iterate by defining the document again."
+            "server as an internal, short-lived runtime view, replacing a runtime view of the same name and " +
+            "shadowing a project view of that name, then applied: returns the applied groups with their ids and " +
+            "the report of what could not be applied. Iterate by defining the document again; delete drafts " +
+            "with delete_view when done. Runtime views are deleted when the server restarts: to keep a view, " +
+            "save the document as .hierograph-views/<name>.json in the build root instead, where it is versioned " +
+            "with the code and read by the server on the next request."
     )
     fun defineView(
         @ToolParam(description = "The view document as a JSON object.")

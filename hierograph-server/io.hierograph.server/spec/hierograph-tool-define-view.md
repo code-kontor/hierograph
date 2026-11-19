@@ -37,11 +37,15 @@ moving `com.example.money` into a module of its own create a cycle? A view answe
 them by laying that structure over the same nodes and dependencies, and every other
 tool then works on it unchanged.
 
-**Defined by the caller, at runtime.** A model that plans a refactoring writes the
-view it needs, looks at the result and refines it. `define_view` is that loop's write
-step. Views kept with the code (project views) are written by people and versioned;
-`define_view` writes runtime views to the server's state directory and never touches
-the project.
+**Defined by the caller, at runtime, for a short time.** A model that plans a
+refactoring writes the view it needs, looks at the result and refines it. `define_view`
+is that loop's write step. The views it writes are internal drafts: runtime views in
+the server's state directory, never in the project, and deleted when the server
+starts again (views specification, §7.1). A view meant to be used, by people or in a
+later session, is a project view: the caller saves the document as
+`.hierograph-views/<name>.json`, where it is versioned with the code, and the server
+reads it with the next request. A draft that turns out to be worth keeping is saved
+there and then deleted with `delete_view`.
 
 **Store and apply in one call.** The tool validates the document, stores it and
 applies it to the current graph, and returns what applying it found: the groups it
@@ -303,7 +307,10 @@ questions in the view, for example `incoming_dependencies` on the virtual module
 
 **Try a variant of a project view.** Define a view with the project view's name. It
 shadows the project view for every client of this server until `delete_view` removes
-it; the project's file is never changed.
+it or the server restarts; the project's file is never changed.
+
+**Keep a view.** Don't define it: save the document as `.hierograph-views/<name>.json`
+in the build root. A runtime view would be gone after the next restart.
 
 ---
 
@@ -316,5 +323,7 @@ it; the project's file is never changed.
 3. **Stable group ids.** A group's id depends only on the view's name and the group's
    path; redefining the view or rebuilding the graph does not change it.
 4. **Project views are untouched.** The tool writes only to the state directory.
-5. **The graph is untouched.** A view is applied to a fork; the scanned hierarchy and
+5. **Short-lived.** A runtime view lasts at most as long as the server process that
+   defined it: a starting server deletes the runtime views of the one before.
+6. **The graph is untouched.** A view is applied to a fork; the scanned hierarchy and
    every call without `view` are unaffected.

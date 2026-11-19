@@ -73,6 +73,9 @@ define_view(document = {
   one), or a package in one (`<module>/<package fqn>`).
 - The view name is lower-case letters, digits, `.`, `_`, `-`. View names are global on the
   server; reuse the name for every draft so `define_view` replaces the previous one.
+- **The drafts are internal.** `define_view` stores a runtime view: short-lived, deleted when the
+  server restarts, never in the project. That is right while the plan changes with every step;
+  the finished plan is saved as a project view at the end (*Output of the skill*).
 
 **Check the report before anything else.** `report.errors` must be `0`, and the warnings must be
 understood. The errors `NODE_MOVED_TWICE`, `MOVE_OF_MERGED_PACKAGE` and `CANNOT_MOVE`, and the
@@ -181,13 +184,22 @@ A plan file (markdown) with these sections:
 - **Verification** — commands to run after implementation (build, re-scan, grep), and that the
   real module graph then matches the projection
 
-When the plan is done, ask whether to keep the view. `delete_view(name)` removes it; to keep it
-with the code, the user saves the document as `.hierograph-views/<name>.json` in the build root and
-commits it; the server then applies it on every rebuilt graph, so `get_view(name)` re-checks the code
-against the planned split whenever it is asked.
+When the plan is done, keep the view and remove the draft:
+
+1. **Save the final document as a project view**, `<build root>/.hierograph-views/<name>.json`, with
+   your file tools. It is the standard place for a view: versioned with the code, read by the server
+   with the next request, and still there after a restart. The server applies it to every rebuilt
+   graph, so `get_view(name)` re-checks the code against the planned split whenever it is asked,
+   also while the split is being implemented.
+2. **`delete_view(name)`** the runtime draft, which would otherwise shadow the project view until the
+   server restarts. `list_views` then shows the view with `source: project`.
+3. Tell the user the file is there; committing it is theirs to decide. If they don't want the view
+   in the project, delete the file again; the plan file keeps the document.
 
 ## Anti-patterns to avoid
 
+- ❌ Leaving the plan as a runtime view. It is gone after the next server restart, and until then
+  it shadows a project view of the same name. Save it in `.hierograph-views/` and delete the draft.
 - ❌ Concluding "no cycle" from `pairwise_dependencies` on the current graph. That analysis is
   pre-split. Read `new_cycles` of the restructuring view.
 - ❌ Trusting a projection whose report has errors or unexplained warnings. A skipped or empty

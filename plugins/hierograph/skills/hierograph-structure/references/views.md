@@ -1,6 +1,6 @@
 # Views — analysing in a view, and proposing one
 
-A **view** is a named regrouping of the hierarchy that the server keeps: groups of
+A **view** is a named regrouping of the hierarchy that the server applies: groups of
 modules (or packages, or types) that sit above their members as nodes of kind
 `view.group`. Multi-modules, layers, bounded contexts, team ownership and target
 architectures are all views. Every structural tool takes an optional `view` and then
@@ -15,7 +15,8 @@ report](#reading-the-report) · [Things that bite](#things-that-bite)
 ## Use an existing view
 
 1. `list_views()` — the views there are: `source` `project` (versioned with the code,
-   in `.hierograph-views/`) or `state` (defined at runtime), `valid`, and counts of
+   in `.hierograph-views/`) or `state` (an internal draft defined at runtime with
+   `define_view`, gone after the next server restart), `valid`, and counts of
    groups, errors and warnings. An invalid view lists its `problems`; fix it before
    using it. `default` beside them is the hierarchy as scanned — what a call without
    `view` answers in; it is not a name to pass.
@@ -71,17 +72,23 @@ Then:
 
 1. **Write the document** (below) and read the groups back to the user — like the
    node set, the grouping silently changes every later number.
-2. **`define_view(document = {…})`.** It stores the view on the server (replacing a
-   runtime view of the same name) and returns the applied groups with their ids and
-   the report.
-3. **Read the report** and fix what it names; define again. Repeat until it has no
-   errors and the warnings are understood.
+2. **Save it as a project view**: `<build root>/.hierograph-views/<name>.json`, with
+   your file tools, not with `define_view`. This is the standard: a view the user asked
+   for is meant to be used again, by them and in later sessions, and lives with the
+   code. The server reads the file with the next request; in Docker mode too (the
+   container reads the mounted project, you write it on the host). Tell the user the
+   file is there; committing it is theirs to decide.
+3. **`get_view(name)`** returns the applied groups with their ids and the report.
+   Read the report and fix what it names in the file; read it again. Repeat until it
+   has no errors and the warnings are understood.
 4. **Analyse** with the group ids: group-level DSM, layered graph.
-5. **Keeping it.** A defined view lives in the server's state directory: the state
-   volume when the server runs in Docker, `<build root>/.hierograph/runtime-views` when
-   it runs as a local process. Neither is versioned (`.hierograph/` is git-ignored). To
-   version it, the user saves the document as `.hierograph-views/<name>.json` in the
-   build root and commits it; offer the content, and let them decide. Clean up experiments with `delete_view(name)`.
+
+**Internal drafts.** To try a variant quickly without touching the project, for
+example several candidate layerings to compare, `define_view(document = {…})` stores
+a runtime view and returns the groups and the report in one call. Runtime views are
+internal and short-lived: the server deletes them when it restarts. Delete every
+draft with `delete_view(name)` when the comparison is done, and save the one the user
+picks as a project view (step 2). Never leave a runtime view as the result of a task.
 
 ## The document
 

@@ -157,6 +157,26 @@ class ViewRegistry(
         return active[name]
     }
 
+    /**
+     * Deletes every state view: runtime views are internal and short-lived, so a server starts without any
+     * (views specification, §7). Returns how many documents were deleted. Does nothing when [projectDir] and
+     * [stateDir] are the same directory: its documents are then the project's own.
+     */
+    @Synchronized
+    fun clearStateViews(): Int {
+        if (projectDir != null && projectDirIfDistinct() == null) return 0
+        var deleted = 0
+        for (file in files(stateDir)) {
+            try {
+                if (Files.deleteIfExists(file)) deleted++
+            } catch (e: IOException) {
+                log.warn("Cannot delete the runtime view {}: {}", file, e.message)
+            }
+        }
+        stamps = null
+        return deleted
+    }
+
     private fun stateFile(name: String): Path = stateDir.resolve("$name.json")
 
     private fun refresh() {

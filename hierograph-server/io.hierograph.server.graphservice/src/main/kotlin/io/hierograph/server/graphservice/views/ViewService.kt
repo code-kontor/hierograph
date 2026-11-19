@@ -79,9 +79,16 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
         init()
     }
 
+    /**
+     * The registry, set up on the first use of views in this server process. Runtime views from an earlier
+     * process are deleted then, before any view is read or defined: they are internal and short-lived; views to
+     * keep are project views (views specification, §7).
+     */
     val registry: ViewRegistry by lazy {
         registryOverride ?: ViewRegistry(projectDir(), stateDir()).also {
             log.info("Views: project documents in {}, state documents in {}", projectDir(), stateDir())
+            val deleted = it.clearStateViews()
+            if (deleted > 0) log.info("Deleted {} runtime view(s) left by an earlier server", deleted)
         }
     }
 

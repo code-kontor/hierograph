@@ -29,6 +29,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.springframework.test.util.ReflectionTestUtils
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
@@ -300,5 +301,22 @@ class ViewServiceTest {
         assertThatThrownBy { graphService.withPinnedSnapshot { service.withView(view) { } } }
             .isInstanceOf(IllegalStateException::class.java)
             .hasMessageContaining("already pinned")
+    }
+
+    @Test
+    fun `a server starts without the runtime views of an earlier one`() {
+        project("layers.json", layers)
+        Files.createDirectories(stateDir)
+        stateDir.resolve("draft.json").writeText("""{ "name": "draft", "groups": [ { "name": "g", "members": ["acme:app:*"] } ] }""")
+        val started = ViewService(graphService).also {
+            ReflectionTestUtils.setField(it, "projectDirSetting", projectDir.toString())
+            ReflectionTestUtils.setField(it, "stateDirSetting", stateDir.toString())
+        }
+
+        assertThat(started.entries().map { it.name }).containsExactly("layers")
+        assertThat(stateDir.resolve("draft.json")).doesNotExist()
+        // A view defined by this server stays for its lifetime.
+        started.define("""{ "name": "draft", "groups": [ { "name": "g", "members": ["acme:app:*"] } ] }""")
+        assertThat(started.entries().map { it.name }).containsExactly("draft", "layers")
     }
 }
