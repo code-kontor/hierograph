@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { bracketPath, layoutArcs } from "./arcs";
+import { arrowHead, bracketPath, cycleDependencies, layoutArcs } from "./arcs";
 
-const LAYOUT = { anchorX: 100, maxDown: 80, maxUp: 30 };
+const LAYOUT = { anchorX: 100, gap: 0, maxDown: 80, maxUp: 30 };
 
 describe("layoutArcs", () => {
   const rows = [
@@ -28,6 +28,27 @@ describe("layoutArcs", () => {
     // Down to the right of the anchors, up to their left.
     expect(arcs[0].path).toMatch(/^M 100 10 H 1\d\d(\.\d+)? Q 1\d\d/);
     expect(arcs[1].path).toMatch(/^M 100 60 H \d\d(\.\d+)? Q \d\d/);
+    // The arrowhead on the anchor of the row depended on.
+    expect(arcs[0].head).toBe(arrowHead(100, 60, 1));
+    expect(arcs[1].head).toBe(arrowHead(100, 35, -1));
+  });
+
+  it("starts the two sides a gap apart, around the anchor column", () => {
+    const arcs = layoutArcs(
+      rows,
+      [
+        { from: "a", to: "c", weight: 1 },
+        { from: "c", to: "b", weight: 1 },
+      ],
+      { ...LAYOUT, gap: 6 },
+    );
+
+    expect(arcs[0].path).toMatch(/^M 103 10 H 1\d\d/);
+    expect(arcs[0].path).toMatch(/H 103$/);
+    expect(arcs[0].head).toBe(arrowHead(103, 60, 1));
+    expect(arcs[1].path).toMatch(/^M 97 60 H \d\d/);
+    expect(arcs[1].path).toMatch(/H 97$/);
+    expect(arcs[1].head).toBe(arrowHead(97, 35, -1));
   });
 
   it("draws long arcs first, so short ones end up on top", () => {
@@ -50,6 +71,13 @@ describe("layoutArcs", () => {
   });
 });
 
+describe("arrowHead", () => {
+  it("points back to the anchor from the bracket's side", () => {
+    expect(arrowHead(100, 50, 1)).toBe("M 100 50 L 104.5 47.5 L 104.5 52.5 Z");
+    expect(arrowHead(100, 50, -1)).toBe("M 100 50 L 95.5 47.5 L 95.5 52.5 Z");
+  });
+});
+
 describe("bracketPath", () => {
   it("reaches out by the offset on the given side and comes back", () => {
     // Corners with a radius of at most 8 px.
@@ -62,6 +90,38 @@ describe("bracketPath", () => {
     // A short span curves all the way.
     expect(bracketPath(100, 0, 6, -1, 20)).toBe(
       "M 100 0 H 83 Q 80 0 80 3 V 3 Q 80 6 83 6 H 100",
+    );
+  });
+});
+
+describe("cycleDependencies", () => {
+  // The cycle a ⇄ b; a is expanded into a1 and a2; c stands outside.
+  const rows = [
+    { id: "a1", lineage: ["a1", "a", "root"] },
+    { id: "a2", lineage: ["a2", "a", "root"] },
+    { id: "b", lineage: ["b", "root"] },
+    { id: "c", lineage: ["c", "root"] },
+  ];
+  const dependency = (from: string, to: string) => ({ from, to, weight: 1 });
+
+  it("keeps the dependencies between rows of different members, also inside an expanded member", () => {
+    const dependencies = [
+      dependency("a1", "b"),
+      dependency("b", "a2"),
+      dependency("a1", "a2"),
+      dependency("b", "c"),
+      dependency("c", "a1"),
+    ];
+
+    expect(cycleDependencies(dependencies, ["a", "b"], rows)).toEqual([
+      dependency("a1", "b"),
+      dependency("b", "a2"),
+    ]);
+  });
+
+  it("keeps nothing for rows it doesn't know", () => {
+    expect(cycleDependencies([dependency("x", "b")], ["a", "b"], rows)).toEqual(
+      [],
     );
   });
 });

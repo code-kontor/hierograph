@@ -24,7 +24,7 @@ import {
   type TreeLevelData,
   type TreeNode,
 } from "./queries";
-import { ARC_AREA_WIDTH, TreeArcs } from "./TreeArcs";
+import { ARC_AREA_WIDTH, type ArcFocus, TreeArcs } from "./TreeArcs";
 import {
   ordersChildren,
   type TreeNodeKind,
@@ -42,12 +42,12 @@ const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
   other: CircleDot,
 };
 
-// What every row needs from the tree: which nodes are open, and the hovered
-// row, whose dependency arcs are highlighted.
+// What every row needs from the tree: which nodes are open, and what is
+// hovered (a row or a cycle bar), whose dependency arcs are drawn.
 type TreeControls = {
   expanded: ReadonlySet<string>;
   toggle: (id: string) => void;
-  hover: (id: string | null) => void;
+  hover: (focus: ArcFocus | null) => void;
 };
 
 // The hierarchy of the current hierarchy view (or the scanned hierarchy
@@ -79,7 +79,7 @@ type TreeRootProps = {
 function TreeRoot({ scope }: TreeRootProps) {
   const query = useQuery(hierarchyTreeRootQueryOptions(scope));
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<ArcFocus | null>(null);
   const clearHover = useRef<ReturnType<typeof setTimeout>>(undefined);
   const controls: TreeControls = {
     expanded,
@@ -91,10 +91,10 @@ function TreeRoot({ scope }: TreeRootProps) {
     },
     // Leaving a row clears the hover a moment later, so the pointer can move
     // onto one of the row's arcs (which keeps them) without them vanishing.
-    hover(id) {
+    hover(focus) {
       if (clearHover.current) clearTimeout(clearHover.current);
       clearHover.current = undefined;
-      if (id !== null) setHovered(id);
+      if (focus !== null) setHovered(focus);
       else clearHover.current = setTimeout(() => setHovered(null), 150);
     },
   };
@@ -117,7 +117,6 @@ function TreeRoot({ scope }: TreeRootProps) {
         level={query.data}
         parentText=""
         depth={0}
-        inExternal={false}
         controls={controls}
       />
     </TreeArcs>
@@ -127,21 +126,32 @@ function TreeRoot({ scope }: TreeRootProps) {
 type CycleBarProps = {
   mark: CycleMark;
   depth: number;
+  // The row the bar segment is on, hovered again when the pointer leaves the
+  // bar for the rest of the row.
+  row: string;
+  controls: TreeControls;
 };
 
 // One segment of the bar along a cycle's block, at the nodes' indent; the
-// block's ends are inset, so two adjacent cycles read as two.
-function CycleBar({ mark, depth }: CycleBarProps) {
+// block's ends are inset, so two adjacent cycles read as two. Hovering it
+// draws the arcs that close the cycle; a hit area wider than the bar makes it
+// easy to hit.
+function CycleBar({ mark, depth, row, controls }: CycleBarProps) {
   return (
     <span
       aria-hidden
-      className="bg-status-warning absolute w-0.5 rounded-full"
+      data-cycle-bar
+      onMouseEnter={() => controls.hover({ kind: "cycle", members: mark.ids })}
+      onMouseLeave={() => controls.hover({ kind: "row", id: row })}
+      className="absolute flex w-2 justify-center"
       style={{
-        left: `${depth * 14}px`,
+        left: `${depth * 14 - 3}px`,
         top: mark.first ? "4px" : "0",
         bottom: mark.last ? "4px" : "0",
       }}
-    />
+    >
+      <span className="bg-status-warning w-0.5 rounded-full" />
+    </span>
   );
 }
 
@@ -155,8 +165,6 @@ type TreeLevelProps = {
   level: TreeLevelData;
   parentText: string;
   depth: number;
-  // Below External Types: no arcs.
-  inExternal: boolean;
   controls: TreeControls;
 };
 
@@ -164,8 +172,10 @@ type TreeLevelProps = {
 type CycleMark = {
   first: boolean;
   last: boolean;
-  // The other members, by label, for the tooltip.
+  // The other members, by label, for the row's description.
   others: string[];
+  // All members, by id, for the arcs.
+  ids: string[];
 };
 
 function cycleMarks(
@@ -180,13 +190,13 @@ function cycleMarks(
   );
   const marks = new Map<string, CycleMark>();
   for (const cycle of level.cycles) {
+    const cycleLabels = cycle.map((id) => labels.get(id) ?? id);
     cycle.forEach((id, index) => {
       marks.set(id, {
         first: index === 0,
         last: index === cycle.length - 1,
-        others: cycle
-          .filter((other) => other !== id)
-          .map((other) => labels.get(other) ?? other),
+        others: cycleLabels.filter((_, other) => other !== index),
+        ids: cycle,
       });
     });
   }
@@ -199,13 +209,13 @@ function TreeLevel({
   level,
   parentText,
   depth,
-  inExternal,
   controls,
 }: TreeLevelProps) {
   const nodes = level.nodes;
   const marks = cycleMarks(level, parentText);
   // At the top level, External Types (the library types the code uses, not a
-  // module or group of its own) goes last, below a separator.
+  // module or group of its own) goes last, below a separator: everything
+  // depends on it, so the arcs to it run with the order.
   const ordered =
     depth === 0
       ? [
@@ -222,7 +232,6 @@ function TreeLevel({
       cycle={marks.get(node.id)}
       parentText={parentText}
       depth={depth}
-      inExternal={inExternal || isExternal(node)}
       controls={controls}
     />
   ));
@@ -244,7 +253,6 @@ type TreeItemProps = {
   cycle: CycleMark | undefined;
   parentText: string;
   depth: number;
-  inExternal: boolean;
   controls: TreeControls;
 };
 
@@ -255,7 +263,6 @@ function TreeItem({
   cycle,
   parentText,
   depth,
-  inExternal,
   controls,
 }: TreeItemProps) {
   const open = node.hasChildren && controls.expanded.has(node.id);
@@ -271,12 +278,9 @@ function TreeItem({
   const Icon = KIND_ICONS[kind];
   const Chevron = open ? ChevronDown : ChevronRight;
   const label = treeNodeLabel(node.type, node.text, parentText);
-  const title = cycle
-    ? `${node.text}\nIn a dependency cycle with ${cycle.others.join(", ")}`
-    : node.text;
   // A row with arcs: its children aren't shown (an open node still loading
   // them counts as closed, so the arcs don't flicker).
-  const frontier = !inExternal && !(open && children.isSuccess);
+  const frontier = !(open && children.isSuccess);
   // A view group's children are named relative to the level above the group:
   // `app` below `locations` › `application`.
   const childParentText = kind === "group" ? parentText : node.text;
@@ -285,8 +289,14 @@ function TreeItem({
       role="treeitem"
       aria-expanded={node.hasChildren ? open : undefined}
       aria-label={label}
-      aria-description={cycle ? "in a dependency cycle" : undefined}
+      // No tooltip: it would cover the arcs.
+      aria-description={
+        cycle
+          ? `in a dependency cycle with ${cycle.others.join(", ")}`
+          : undefined
+      }
       data-cycle={cycle ? "true" : undefined}
+      data-tree-node={node.id}
       className={twMerge(separated && "border-border mt-1 border-t pt-1")}
     >
       <button
@@ -294,9 +304,8 @@ function TreeItem({
         onClick={() => {
           if (node.hasChildren) controls.toggle(node.id);
         }}
-        onMouseEnter={() => controls.hover(node.id)}
+        onMouseEnter={() => controls.hover({ kind: "row", id: node.id })}
         onMouseLeave={() => controls.hover(null)}
-        title={title}
         data-node-id={node.id}
         data-label={label}
         data-frontier={frontier ? "true" : undefined}
@@ -306,7 +315,14 @@ function TreeItem({
           !node.hasChildren && "cursor-default",
         )}
       >
-        {cycle && <CycleBar mark={cycle} depth={depth} />}
+        {cycle && (
+          <CycleBar
+            mark={cycle}
+            depth={depth}
+            row={node.id}
+            controls={controls}
+          />
+        )}
         <span className="text-fg-subtle flex size-3.5 shrink-0 items-center justify-center">
           {node.hasChildren && <Chevron className="size-3.5" />}
         </span>
@@ -348,7 +364,6 @@ function TreeItem({
           query={children}
           childParentText={childParentText}
           depth={depth + 1}
-          inExternal={inExternal}
           controls={controls}
         />
       )}
@@ -361,7 +376,6 @@ type TreeChildrenProps = {
   query: { isPending: boolean; isError: boolean; data?: TreeLevelData };
   childParentText: string;
   depth: number;
-  inExternal: boolean;
   controls: TreeControls;
 };
 
@@ -370,7 +384,6 @@ function TreeChildren({
   query,
   childParentText,
   depth,
-  inExternal,
   controls,
 }: TreeChildrenProps) {
   if (query.isError) {
@@ -400,7 +413,6 @@ function TreeChildren({
       level={query.data}
       parentText={childParentText}
       depth={depth}
-      inExternal={inExternal}
       controls={controls}
     />
   );

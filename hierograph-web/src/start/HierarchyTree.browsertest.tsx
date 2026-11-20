@@ -40,6 +40,8 @@ function arcs() {
     relation: g.dataset.relation,
     strokeWidth: g.querySelector("path")?.getAttribute("stroke-width"),
     dotted: g.querySelector("path")?.hasAttribute("stroke-dasharray") ?? false,
+    colour: g.querySelector("path")?.getAttribute("class") ?? "",
+    arrowhead: g.querySelector("[data-arrowhead]") !== null,
     title: g.querySelector("title")?.textContent ?? "",
   }));
 }
@@ -94,10 +96,10 @@ describe("HierarchyTree", () => {
     await expect
       .element(item(screen, "External Types"))
       .toHaveClass(/border-t/);
-    // The full name on hover.
+    // No tooltip, which would cover the arcs.
     await expect
       .element(item(screen, "fixture-app").getByRole("button").first())
-      .toHaveAttribute("title", "io.hierograph.examples:fixture-app:1.0.0");
+      .not.toHaveAttribute("title");
   });
 
   it("loads a node's children when it is expanded, named relative to it", async () => {
@@ -153,10 +155,10 @@ describe("HierarchyTree", () => {
         .toHaveAttribute("data-cycle", "true");
     }
     await expect
-      .element(item(screen, "alpha").getByRole("button"))
+      .element(item(screen, "alpha"))
       .toHaveAttribute(
-        "title",
-        "org.hg.fixture.basic.cycle.alpha\nIn a dependency cycle with gamma, beta",
+        "aria-description",
+        "in a dependency cycle with gamma, beta",
       );
     await expect
       .element(item(screen, "core"))
@@ -261,10 +263,15 @@ describe("HierarchyTree", () => {
       expect(cycle.has(arc.from) && cycle.has(arc.to)).toBe(true);
       expect(arc.dotted).toBe(true);
     }
-    // Seen from beta: its own dependencies outgoing, the others' incoming;
-    // all of one thickness.
+    // Seen from beta: its own dependencies outgoing (blue), the others'
+    // incoming (grey), whichever way they run; each with an arrowhead; all of
+    // one thickness.
     for (const arc of arcs()) {
       expect(arc.relation).toBe(arc.from === beta ? "outgoing" : "incoming");
+      expect(arc.colour).toContain(
+        arc.relation === "outgoing" ? "--hg-accent" : "--hg-fg-subtle",
+      );
+      expect(arc.arrowhead).toBe(true);
     }
     expect(new Set(arcs().map((arc) => arc.strokeWidth)).size).toBe(1);
     // The tooltip names both ends and the weight.
@@ -299,9 +306,92 @@ describe("HierarchyTree", () => {
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
 
     await screen.getByRole("tree").unhover();
-    await item(screen, "External Types").getByRole("button").first().hover();
+    await screen.getByText("Hierarchy", { exact: true }).hover();
 
     await expect.poll(() => arcs().length).toBe(0);
+  });
+
+  it("draws the whole cycle when its bar is hovered", async () => {
+    const screen = await renderTree();
+    await expand(
+      screen,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "cycle",
+    );
+    await expect.element(item(screen, "gamma")).toBeVisible();
+    const cycle = new Set(["gamma", "alpha", "beta"].map(nodeId));
+
+    // The tests run without the stylesheet, so the bar has no size to hover
+    // with the pointer: the pointer arrives at it as an event.
+    item(screen, "alpha")
+      .element()
+      .querySelector("[data-cycle-bar]")
+      ?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+
+    // The dependencies between the members, each in the cycle's own colour,
+    // at least one against the order (else there were no cycle).
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    for (const arc of arcs()) {
+      expect(cycle.has(arc.from) && cycle.has(arc.to)).toBe(true);
+      expect(arc.relation).toBe("cycle");
+    }
+    expect(new Set(arcs().flatMap((arc) => [arc.from, arc.to]))).toEqual(cycle);
+    expect(arcs().some((arc) => arc.direction === "up" && arc.dotted)).toBe(
+      true,
+    );
+
+    // Back on the row: its own arcs again.
+    await item(screen, "alpha").getByText("alpha").hover();
+    const alpha = nodeId("alpha");
+    await expect
+      .poll(() => arcs().every((arc) => arc.from === alpha || arc.to === alpha))
+      .toBe(true);
+    expect(arcs().every((arc) => arc.relation !== "cycle")).toBe(true);
+  });
+
+  it("draws the arcs to External Types, with the order", async () => {
+    const screen = await renderTree();
+    await expand(screen, "fixture-app");
+    await expect.element(item(screen, "org")).toBeVisible();
+
+    await item(screen, "org").getByRole("button").first().hover();
+
+    const org = nodeId("org");
+    const external = nodeId("External Types");
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    expect(arcs()).toContainEqual(
+      expect.objectContaining({
+        from: org,
+        to: external,
+        direction: "down",
+        relation: "outgoing",
+        dotted: false,
+      }),
+    );
+  });
+
+  it("draws the arcs of a row inside External Types: the code that uses it", async () => {
+    const screen = await renderTree();
+    await expand(screen, "External Types", "java");
+    await expect.element(item(screen, "util")).toBeVisible();
+
+    await item(screen, "util").getByRole("button").first().hover();
+
+    const util = nodeId("util");
+    const app = nodeId("fixture-app");
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    expect(arcs()).toContainEqual(
+      expect.objectContaining({
+        from: app,
+        to: util,
+        direction: "down",
+        relation: "incoming",
+      }),
+    );
   });
 
   it("says when there is no graph", async () => {

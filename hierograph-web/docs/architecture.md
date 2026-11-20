@@ -119,9 +119,13 @@ view; the graph status) and the matched screen. It owns:
   top), dependency cycles marked with a bar; a type's members keep source
   order. Directly to the right of the labels, `TreeArcs` draws, for the
   hovered row only, thin bracket arcs to the visible rows it depends on and
-  that depend on it (rows whose children aren't shown; External Types left
-  out): with the order to the right, against it to the left, dotted red; what
-  the row uses blue, what uses it grey; all of one thickness. It measures the
+  that depend on it (rows whose children aren't shown, External Types and its
+  rows included), each with an arrowhead on the row depended on: with the
+  order to the right, against it to the left and dotted; what the row uses
+  blue, what uses it grey, whichever way they run; all of one thickness.
+  Hovering a cycle bar draws instead the arcs between the cycle's members
+  (rows inside an expanded member counted to it), in the bar's colour: the
+  whole cycle, with the edges that close it against the order. It measures the
   rows marked `data-frontier` whenever the tree changes and loads their
   dependencies in one query.
 

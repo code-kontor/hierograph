@@ -90,8 +90,6 @@ const TYPE_KINDS = new Set([
 ]);
 // A type's children are its members, which keep source order.
 const ordersChildren = (node: TreeNode) => !TYPE_KINDS.has(node.type);
-const isExternal = (node: TreeNode) =>
-  node.type === "java.module" && node.text === "External Types";
 
 const childNodes = (children: TreeChildren) =>
   children.orderedAdjacencyMatrix?.orderedNodes ?? children.nodes ?? [];
@@ -128,8 +126,7 @@ if (scenario === "default") {
   // The arcs between the visible rows, for every state the tests pass
   // through: from a collapsed tree, expanding the nodes along each path one by
   // one. The visible rows are computed as the screen marks them (`frontier` in
-  // HierarchyTree.tsx): rows whose children aren't shown, External Types left
-  // out.
+  // HierarchyTree.tsx): rows whose children aren't shown.
   const levels = new Map<string, TreeNode[]>();
   const levelKey = (view: string | null, id: string) => `${view}|${id}`;
   for (const entry of roots) {
@@ -156,7 +153,6 @@ if (scenario === "default") {
     const ids: string[] = [];
     const visit = (nodes: TreeNode[]) => {
       for (const node of nodes) {
-        if (isExternal(node)) continue;
         if (expanded.has(node.id) && node.hasChildren) {
           visit(levels.get(levelKey(view, node.id)) ?? []);
         } else {
@@ -186,6 +182,7 @@ if (scenario === "default") {
     },
     { view: null, path: [...BASIC, "org.hg.fixture.basic.cycle"] },
     { view: null, path: [...BASIC.slice(0, 4), "org.hg.fixture.locations"] },
+    { view: null, path: ["External Types", "java"] },
     {
       view: "layers",
       path: [
@@ -197,8 +194,20 @@ if (scenario === "default") {
   ];
   const arcs: Entry[] = [];
   const recorded = new Set<string>();
+  const record = async (view: string | null, expanded: Set<string>) => {
+    const ids = frontier(view, expanded);
+    const key = `${view}|${ids.join(",")}`;
+    if (ids.length < 2 || recorded.has(key)) return;
+    recorded.add(key);
+    const variables = { view, ids };
+    const data = await client.request(HierarchyArcsDocument, variables);
+    arcs.push({ variables, data: normalize(data as never) });
+  };
   for (const { view, path } of PATHS) {
     const expanded = new Set<string>();
+    // The collapsed tree has rows with arcs already: the modules and External
+    // Types.
+    await record(view, expanded);
     let level = levels.get(levelKey(view, "root")) ?? [];
     for (const text of path) {
       const node = level.find((candidate) => candidate.text === text);
@@ -206,13 +215,7 @@ if (scenario === "default") {
         throw new Error(`No "${text}" in the tree (${path.join(" › ")})`);
       expanded.add(node.id);
       level = levels.get(levelKey(view, node.id)) ?? [];
-      const ids = frontier(view, expanded);
-      const key = `${view}|${ids.join(",")}`;
-      if (ids.length < 2 || recorded.has(key)) continue;
-      recorded.add(key);
-      const variables = { view, ids };
-      const data = await client.request(HierarchyArcsDocument, variables);
-      arcs.push({ variables, data: normalize(data as never) });
+      await record(view, expanded);
     }
   }
   write("HierarchyArcs", arcs);
