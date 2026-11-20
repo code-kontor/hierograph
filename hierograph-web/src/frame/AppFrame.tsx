@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import lupeUrl from "@/assets/hierograph-lupe.svg";
 import { Message } from "@/design-system/ui/message";
+import { useNoNativeContextMenu } from "@/design-system/useNoNativeContextMenu";
 import { type GraphScope, GraphScopeProvider } from "@/frame/GraphScope";
 import { GraphStatusIndicator } from "@/frame/GraphStatusIndicator";
 import {
@@ -46,10 +47,12 @@ function checkView(
 // The app shell every screen is rendered into. It owns what applies to all
 // screens: the header and navigation, the graph status (polled), the
 // hierarchy view (`view` in the URL), and the scope graph queries run in
-// (`GraphScope`). Instead of a screen it shows a message when the screen
-// can't work: no graph for a screen that needs one, the server not reachable,
-// or an unknown or invalid hierarchy view.
+// (`GraphScope`), and the page's context menus: the app's own, never the
+// browser's. Instead of a screen it shows a message when the screen can't
+// work: no graph for a screen that needs one, the server not reachable, or an
+// unknown or invalid hierarchy view.
 export function AppFrame({ screens, children }: AppFrameProps) {
+  useNoNativeContextMenu();
   const status = useQuery(graphStatusQueryOptions());
   const search: { view?: string } = useSearch({ strict: false });
   const view = search.view;

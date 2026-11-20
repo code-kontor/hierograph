@@ -1,0 +1,81 @@
+import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
+import * as React from "react";
+
+import { cn } from "@/design-system/cn";
+
+// The right-click menu, styled like the dropdown menu (`dropdown-menu.tsx`).
+
+function ContextMenu({
+  ...props
+}: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
+  return <ContextMenuPrimitive.Root {...props} />;
+}
+
+function ContextMenuTrigger({
+  ...props
+}: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>) {
+  return <ContextMenuPrimitive.Trigger {...props} />;
+}
+
+type ContextMenuContentProps = React.ComponentProps<
+  typeof ContextMenuPrimitive.Content
+>;
+
+function ContextMenuContent({ className, ...props }: ContextMenuContentProps) {
+  return (
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.Content
+        className={cn(
+          "bg-popover border-border-strong z-50 min-w-[214px] rounded-[7px] border p-1 shadow-[var(--hg-shadow)]",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+          className,
+        )}
+        {...props}
+      />
+    </ContextMenuPrimitive.Portal>
+  );
+}
+
+type ContextMenuItemProps = React.ComponentProps<
+  typeof ContextMenuPrimitive.Item
+>;
+
+function ContextMenuItem({ className, ...props }: ContextMenuItemProps) {
+  return (
+    <ContextMenuPrimitive.Item
+      className={cn(
+        "text-fg flex h-[30px] cursor-pointer items-center gap-[9px] rounded-[5px] px-2 text-[12.5px] outline-none select-none",
+        "focus:bg-state-hover data-[highlighted]:bg-state-hover",
+        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "[&_svg]:text-fg-subtle [&_svg]:size-[14px] [&_svg]:shrink-0",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+type ContextMenuSeparatorProps = React.ComponentProps<
+  typeof ContextMenuPrimitive.Separator
+>;
+
+function ContextMenuSeparator({
+  className,
+  ...props
+}: ContextMenuSeparatorProps) {
+  return (
+    <ContextMenuPrimitive.Separator
+      className={cn("bg-border mx-[6px] my-1 h-px", className)}
+      {...props}
+    />
+  );
+}
+
+export {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+};

@@ -24,7 +24,12 @@ import {
   type TreeLevelData,
   type TreeNode,
 } from "./queries";
-import { ARC_AREA_WIDTH, type ArcFocus, TreeArcs } from "./TreeArcs";
+import {
+  ARC_AREA_WIDTH,
+  type ArcFocus,
+  ArcFocusMenu,
+  TreeArcs,
+} from "./TreeArcs";
 import {
   ordersChildren,
   type TreeNodeKind,
@@ -53,7 +58,8 @@ type TreeControls = {
 // The hierarchy of the current hierarchy view (or the scanned hierarchy
 // without one) as a tree, loaded level by level as nodes are expanded. Each
 // level's siblings are in dependency order (those depending on the others on
-// top), its dependency cycles marked; a type's members are in source order.
+// top), its dependency cycles marked. The tree ends at the types: their
+// members' dependencies aren't resolved yet, so they would have no arcs.
 // Beside the tree, arcs show the dependencies between the visible rows.
 export function HierarchyTree() {
   const scope = useGraphScope();
@@ -90,7 +96,7 @@ function TreeRoot({ scope }: TreeRootProps) {
       setExpanded(next);
     },
     // Leaving a row clears the hover a moment later, so the pointer can move
-    // onto one of the row's arcs (which keeps them) without them vanishing.
+    // into the arc area (which keeps the arcs) without them vanishing.
     hover(focus) {
       if (clearHover.current) clearTimeout(clearHover.current);
       clearHover.current = undefined;
@@ -134,24 +140,30 @@ type CycleBarProps = {
 
 // One segment of the bar along a cycle's block, at the nodes' indent; the
 // block's ends are inset, so two adjacent cycles read as two. Hovering it
-// draws the arcs that close the cycle; a hit area wider than the bar makes it
-// easy to hit.
+// draws the arcs that close the cycle, and its context menu pins them; a hit
+// area wider than the bar makes it easy to hit.
 function CycleBar({ mark, depth, row, controls }: CycleBarProps) {
   return (
-    <span
-      aria-hidden
-      data-cycle-bar
-      onMouseEnter={() => controls.hover({ kind: "cycle", members: mark.ids })}
-      onMouseLeave={() => controls.hover({ kind: "row", id: row })}
-      className="absolute flex w-2 justify-center"
-      style={{
-        left: `${depth * 14 - 3}px`,
-        top: mark.first ? "4px" : "0",
-        bottom: mark.last ? "4px" : "0",
-      }}
-    >
-      <span className="bg-status-warning w-0.5 rounded-full" />
-    </span>
+    <ArcFocusMenu focus={{ kind: "cycle", members: mark.ids }}>
+      <span
+        aria-hidden
+        data-cycle-bar
+        onMouseEnter={() =>
+          controls.hover({ kind: "cycle", members: mark.ids })
+        }
+        onMouseLeave={() => controls.hover({ kind: "row", id: row })}
+        // The bar's menu, not the row's.
+        onContextMenu={(event) => event.stopPropagation()}
+        className="absolute flex w-2 justify-center"
+        style={{
+          left: `${depth * 14 - 3}px`,
+          top: mark.first ? "4px" : "0",
+          bottom: mark.last ? "4px" : "0",
+        }}
+      >
+        <span className="bg-status-warning w-0.5 rounded-full" />
+      </span>
+    </ArcFocusMenu>
   );
 }
 
@@ -265,7 +277,10 @@ function TreeItem({
   depth,
   controls,
 }: TreeItemProps) {
-  const open = node.hasChildren && controls.expanded.has(node.id);
+  const kind = treeNodeKind(node.type, node.text);
+  // A type's members aren't shown: their dependencies aren't resolved yet.
+  const expandable = node.hasChildren && kind !== "type";
+  const open = expandable && controls.expanded.has(node.id);
   const children = useQuery({
     ...hierarchyTreeChildrenQueryOptions(
       scope,
@@ -274,7 +289,6 @@ function TreeItem({
     ),
     enabled: open,
   });
-  const kind = treeNodeKind(node.type, node.text);
   const Icon = KIND_ICONS[kind];
   const Chevron = open ? ChevronDown : ChevronRight;
   const label = treeNodeLabel(node.type, node.text, parentText);
@@ -287,7 +301,7 @@ function TreeItem({
   return (
     <li
       role="treeitem"
-      aria-expanded={node.hasChildren ? open : undefined}
+      aria-expanded={expandable ? open : undefined}
       aria-label={label}
       // No tooltip: it would cover the arcs.
       aria-description={
@@ -299,65 +313,73 @@ function TreeItem({
       data-tree-node={node.id}
       className={twMerge(separated && "border-border mt-1 border-t pt-1")}
     >
-      <button
-        type="button"
-        onClick={() => {
-          if (node.hasChildren) controls.toggle(node.id);
-        }}
-        onMouseEnter={() => controls.hover({ kind: "row", id: node.id })}
-        onMouseLeave={() => controls.hover(null)}
-        data-node-id={node.id}
-        data-label={label}
-        data-frontier={frontier ? "true" : undefined}
-        style={{ paddingLeft: `${depth * 14 + 4}px` }}
-        className={twMerge(
-          "hover:bg-state-hover relative flex w-full items-center gap-1 rounded-[4px] py-[3px] text-left text-[13px]",
-          !node.hasChildren && "cursor-default",
-        )}
-      >
-        {cycle && (
-          <CycleBar
-            mark={cycle}
-            depth={depth}
-            row={node.id}
-            controls={controls}
-          />
-        )}
-        <span className="text-fg-subtle flex size-3.5 shrink-0 items-center justify-center">
-          {node.hasChildren && <Chevron className="size-3.5" />}
-        </span>
-        <Icon
-          aria-hidden
+      {/* Its context menu pins the row's arcs. */}
+      <ArcFocusMenu focus={{ kind: "row", id: node.id }}>
+        <button
+          type="button"
+          onClick={(event) => {
+            // A click in the cycle bar's menu reaches the row too (the menu
+            // is a portal), but isn't on it.
+            if (!event.currentTarget.contains(event.target as Node)) return;
+            if (expandable) controls.toggle(node.id);
+          }}
+          onMouseEnter={() => controls.hover({ kind: "row", id: node.id })}
+          onMouseLeave={() => controls.hover(null)}
+          data-node-id={node.id}
+          data-label={label}
+          data-frontier={frontier ? "true" : undefined}
+          style={{ paddingLeft: `${depth * 14 + 4}px` }}
+          // Not selectable: a right click (for the row's menu) would select
+          // the word under the pointer.
           className={twMerge(
-            "text-fg-subtle size-3.5 shrink-0",
-            kind === "group" && "text-primary",
-          )}
-        />
-        <span
-          data-tree-label
-          className={twMerge(
-            "truncate",
-            (kind === "type" || kind === "member" || kind === "package") &&
-              "font-mono text-[12px]",
+            "hover:bg-state-hover relative flex w-full items-center gap-1 rounded-[4px] py-[3px] text-left text-[13px] select-none",
+            !expandable && "cursor-default",
           )}
         >
-          {label}
-        </span>
-        {cycle && (
-          <Repeat2
+          {cycle && (
+            <CycleBar
+              mark={cycle}
+              depth={depth}
+              row={node.id}
+              controls={controls}
+            />
+          )}
+          <span className="text-fg-subtle flex size-3.5 shrink-0 items-center justify-center">
+            {expandable && <Chevron className="size-3.5" />}
+          </span>
+          <Icon
             aria-hidden
-            // Ends the label: the arcs start after it.
-            data-tree-label
-            className="text-status-warning size-3.5 shrink-0"
+            className={twMerge(
+              "text-fg-subtle size-3.5 shrink-0",
+              kind === "group" && "text-primary",
+            )}
           />
-        )}
-        {/* The labels stop short of the arcs. */}
-        <span
-          aria-hidden
-          className="shrink-0"
-          style={{ width: `${ARC_AREA_WIDTH}px` }}
-        />
-      </button>
+          <span
+            data-tree-label
+            className={twMerge(
+              "truncate",
+              (kind === "type" || kind === "member" || kind === "package") &&
+                "font-mono text-[12px]",
+            )}
+          >
+            {label}
+          </span>
+          {cycle && (
+            <Repeat2
+              aria-hidden
+              // Ends the label: the arcs start after it.
+              data-tree-label
+              className="text-status-warning size-3.5 shrink-0"
+            />
+          )}
+          {/* The labels stop short of the arcs. */}
+          <span
+            aria-hidden
+            className="shrink-0"
+            style={{ width: `${ARC_AREA_WIDTH}px` }}
+          />
+        </button>
+      </ArcFocusMenu>
       {open && (
         <TreeChildren
           scope={scope}

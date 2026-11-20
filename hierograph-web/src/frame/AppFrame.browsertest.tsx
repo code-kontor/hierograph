@@ -65,6 +65,25 @@ describe("AppFrame", () => {
       .toBeVisible();
   });
 
+  it("keeps the browser's context menu closed, except in text fields", async () => {
+    const screen = await renderFrame();
+    const link = screen.getByRole("link", { name: "Start" });
+    await expect.element(link).toBeVisible();
+    const field = document.body.appendChild(document.createElement("input"));
+    // Whether the browser would open its own menu on a right click.
+    const opensNative = (target: Element) =>
+      target.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+
+    try {
+      expect(opensNative(link.element())).toBe(false);
+      expect(opensNative(field)).toBe(true);
+    } finally {
+      field.remove();
+    }
+  });
+
   it("names the project the server serves, with its path on hover", async () => {
     const screen = await renderFrame();
 
