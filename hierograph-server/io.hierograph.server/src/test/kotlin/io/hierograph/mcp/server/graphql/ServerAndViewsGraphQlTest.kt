@@ -141,6 +141,19 @@ class ServerAndViewsGraphQlTest {
     }
 
     @Test
+    fun `runGarbageCollection collects and answers the JVM's metrics after it`() {
+        val collections = { jvm: JsonNode -> jvm.path("garbageCollectors").sumOf { it.path("count").asLong() } }
+        val before = query("{ server { jvm { garbageCollectors { count } } } }").path("server").path("jvm")
+
+        val after = query(
+            "mutation { runGarbageCollection { heap { usedBytes usedAfterGcBytes } garbageCollectors { count } } }",
+        ).path("runGarbageCollection")
+
+        assertThat(collections(after)).isGreaterThan(collections(before))
+        assertThat(after.path("heap").path("usedAfterGcBytes").asLong()).isPositive()
+    }
+
+    @Test
     fun `defaultView describes the scanned hierarchy, as list_views does`() {
         val default = query("{ defaultView { description topLevelCount } }").path("defaultView")
         val listed = viewTools.listViews()["default"] as Map<String, Any?>

@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Info } from "lucide-react";
+import { Info, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
@@ -30,7 +30,10 @@ import {
   yesNo,
 } from "./format";
 import { HierarchyTree } from "./HierarchyTree";
-import { startScreenQueryOptions } from "./queries";
+import {
+  runGarbageCollectionMutationOptions,
+  startScreenQueryOptions,
+} from "./queries";
 
 type Server = StartScreenQuery["server"];
 type HierarchyView = StartScreenQuery["views"][number];
@@ -650,12 +653,18 @@ type JvmBlockProps = {
 };
 
 // The server JVM's current metrics. The graph is held in memory, so the heap
-// against its limit comes first.
+// against its limit comes first, with the collection that shows what of it is
+// really kept.
 function JvmBlock({ jvm }: JvmBlockProps) {
   const { threads } = jvm;
   return (
     <TabBody>
-      <MemoryMeter label="Heap" usage={jvm.heap} />
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <MemoryMeter label="Heap" usage={jvm.heap} />
+        </div>
+        <RunGarbageCollection />
+      </div>
       <Facts>
         <Fact label="Heap">{memoryLabel(jvm.heap)}</Fact>
         <Fact label="Kept after GC">
@@ -747,6 +756,31 @@ function GarbageCollectorList({ collectors }: GarbageCollectorListProps) {
       <dl className="mt-0.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-0.5 pl-3">
         {rows}
       </dl>
+    </div>
+  );
+}
+
+// Asks the server for a collection, so "Kept after GC" shows what is really
+// kept right now; the JVM figures are reloaded once it is done.
+function RunGarbageCollection() {
+  const mutation = useMutation(runGarbageCollectionMutationOptions());
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {mutation.isError && (
+        <span className="text-status-error text-[12px]">
+          The collection failed: {mutation.error.message}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        title="Run a garbage collection on the server"
+        className="border-border hover:bg-state-hover focus-visible:ring-ring flex h-6 items-center gap-1 rounded-[4px] border px-2 text-[12px] outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-60"
+      >
+        <RotateCcw aria-hidden className="text-fg-subtle size-3.5" />
+        {mutation.isPending ? "Collecting…" : "Run GC"}
+      </button>
     </div>
   );
 }

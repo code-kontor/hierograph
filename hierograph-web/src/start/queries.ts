@@ -1,4 +1,8 @@
-import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  mutationOptions,
+  queryOptions,
+} from "@tanstack/react-query";
 
 import { graphQueryKey, type GraphScope } from "@/frame/GraphScope";
 import { execute } from "@/graphql/client";
@@ -110,6 +114,31 @@ export function startScreenQueryOptions(generation: string | null) {
     refetchInterval: START_SCREEN_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+  });
+}
+
+// Asks the server JVM for a garbage collection. The start screen is refetched
+// afterwards, so its JVM figures show what the collection kept.
+export const RunGarbageCollectionMutation = graphql(`
+  mutation RunGarbageCollection {
+    runGarbageCollection {
+      heap {
+        usedAfterGcBytes
+      }
+    }
+  }
+`);
+
+export function runGarbageCollectionMutationOptions() {
+  return mutationOptions({
+    mutationFn() {
+      return execute(RunGarbageCollectionMutation);
+    },
+    onSuccess(_data, _variables, _result, context) {
+      return context.client.invalidateQueries({
+        queryKey: ["start", "screen"],
+      });
+    },
   });
 }
 

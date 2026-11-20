@@ -804,6 +804,18 @@ exact up to 2^53.
 | `threads` | `ThreadCounts!` | `live`, `peak`, `daemon`. |
 | `processCpuLoad` | `Float` | The process's recent CPU load, 0 to 1; `null` when the JVM doesn't report it. |
 
+```graphql
+type Mutation {
+    runGarbageCollection: JvmStatus!
+}
+```
+
+`runGarbageCollection` (`ServerInfoController`) asks the JVM for a full collection
+(`System.gc()`) and answers its `JvmStatus` afterwards, so `heap.usedAfterGcBytes` is
+the memory really kept right now. The web UI's JVM tab offers it as *Run GC*. The JVM
+may ignore the request (e.g. with `-XX:+DisableExplicitGC`); the answer is then just
+the current metrics.
+
 `views` (`ViewInfoController`) returns one `ViewInfo` per view, as `list_views`
 lists them: `name`, `description`, `source` (`project` or `state`), `file`,
 `shadowsProjectView`, `valid`, `problems` (empty for a valid view), `restructure`,
@@ -932,8 +944,8 @@ For `findNodes`, seed a `HierarchicalGraphService` with the model and pass a
 
 ## 13. Guarantees
 
-1. **Read-only.** No query changes the graph, the hierarchy or any file. The schema
-   has no mutations.
+1. **Read-only.** No query changes the graph, the hierarchy or any file. The only
+   mutation, `runGarbageCollection` (§11.10), touches none of them either.
 2. **Ids round-trip.** Every `id`, `nodeIds` entry and `filteredChildrenIds` entry a
    response contains is accepted by the id arguments of the next query, and resolves
    to the same node or dependency while the node still exists.

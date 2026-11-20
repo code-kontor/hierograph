@@ -23,6 +23,7 @@ import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.server.graphservice.NodeCounts
 import io.hierograph.server.graphservice.SnapshotStatus
 import io.hierograph.server.graphservice.views.ViewService
+import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
@@ -34,7 +35,8 @@ import org.springframework.stereotype.Controller
  * It lives here rather than in the GraphQL module because [ServerInstance] belongs to the application. The
  * fields of `ServerInfo` are [ServerInstance]'s properties; the parts that come from the graph service are
  * resolved below. `counts` walks the graph (once per graph, then cached), so it is only resolved when asked
- * for: a client polling `state` and `generation` never triggers it. `jvm` is read from the JVM on each request.
+ * for: a client polling `state` and `generation` never triggers it. `jvm` is read from the JVM on each request;
+ * `runGarbageCollection` reads it after asking the JVM for a collection.
  */
 @Controller
 class ServerInfoController(
@@ -58,6 +60,12 @@ class ServerInfoController(
 
     @SchemaMapping(typeName = "ServerInfo")
     fun jvm(server: ServerInstance): JvmStatus = JvmStatus.current()
+
+    @MutationMapping
+    fun runGarbageCollection(): JvmStatus {
+        System.gc()
+        return JvmStatus.current()
+    }
 
     @SchemaMapping(typeName = "ServerInfo")
     fun viewsVersion(server: ServerInstance): String = viewService?.version() ?: ""

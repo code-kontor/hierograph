@@ -22,6 +22,15 @@ extend type Query {
     defaultView: DefaultView!
 }
 
+type Mutation {
+    """
+    Asks the server JVM for a full garbage collection (`System.gc()`) and answers its metrics afterwards, so
+    `heap.usedAfterGcBytes` shows the memory really kept. The JVM may ignore the request (e.g. with
+    `-XX:+DisableExplicitGC`); then the metrics are just the current ones.
+    """
+    runGarbageCollection: JvmStatus!
+}
+
 type DefaultView {
     description: String!
     "How many nodes the scanned hierarchy has at its top level; `null` while no graph is loaded."

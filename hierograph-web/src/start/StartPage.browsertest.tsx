@@ -343,6 +343,56 @@ describe("StartPage", () => {
     await expect.element(jvm.getByText("12 collections, 340 ms")).toBeVisible();
   });
 
+  it("runs a garbage collection and shows what it kept", async () => {
+    const collected = structuredClone(
+      fixtureData("StartScreen", "default"),
+    ) as { server: { jvm: { heap: { usedAfterGcBytes: number } } } };
+    collected.server.jvm.heap.usedAfterGcBytes = 64 * 1024 * 1024;
+    let runs = 0;
+    worker.use(
+      graphql.mutation("RunGarbageCollection", () => {
+        runs++;
+        // From now on, the server reports the collection.
+        worker.use(
+          graphql.query("StartScreen", () =>
+            HttpResponse.json({ data: collected }),
+          ),
+        );
+        return HttpResponse.json({
+          data: {
+            runGarbageCollection: {
+              heap: { usedAfterGcBytes: 64 * 1024 * 1024 },
+            },
+          },
+        });
+      }),
+    );
+    const screen = await renderStart();
+    const jvm = await tab(screen, "JVM");
+    await expect.element(jvm.getByText("256 MiB")).toBeVisible();
+
+    await jvm.getByRole("button", { name: "Run GC" }).click();
+
+    await expect.element(jvm.getByText("64 MiB")).toBeVisible();
+    expect(runs).toBe(1);
+  });
+
+  it("says when a garbage collection fails", async () => {
+    worker.use(
+      graphql.mutation("RunGarbageCollection", () =>
+        HttpResponse.json({ errors: [{ message: "refused" }] }),
+      ),
+    );
+    const screen = await renderStart();
+    const jvm = await tab(screen, "JVM");
+
+    await jvm.getByRole("button", { name: "Run GC" }).click();
+
+    await expect
+      .element(jvm.getByText(/The collection failed: refused/))
+      .toBeVisible();
+  });
+
   it("shows a JVM without a heap limit, a collection or CPU load", async () => {
     const data = structuredClone(fixtureData("StartScreen", "default")) as {
       server: {
