@@ -406,8 +406,8 @@ session** (or after reconnecting via `/mcp`).
 - **In this session:** the readiness check and log lines from Step 4 prove build → manifest →
   server end to end. Don't hand-roll the MCP JSON-RPC handshake with `curl`.
 - **After reconnecting:** call `server_info`. Its `workspace` is `BUILD_ROOT`, its `version` is
-  `HIEROGRAPH_VERSION`, and `artifacts.not_compiled` lists the outputs that are declared but not
-  compiled (usually test outputs of modules without tests). Then call `graph_overview`. It returns
+  `HIEROGRAPH_VERSION`, and `artifacts.not_compiled` lists the outputs that have sources but are
+  not compiled yet (usually empty after a full build; outputs without sources are left out). Then call `graph_overview`. It returns
   `stats` (node counts by kind), the top-level `hierarchy` — one entry per module — and
   `build_state` with `status: "current"` and `build_tool: "maven"` or `"gradle"`.
 

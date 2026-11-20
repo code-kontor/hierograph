@@ -120,7 +120,7 @@ The REST interface serves the same response at `GET /api/server-info`.
 
 | Field | Present | Description |
 |-------|---------|-------------|
-| `artifacts` | always; `null` outside manifest mode or before a manifest was read | `declared` outputs (main and test outputs of each module), how many are `scanned`, and the `not_compiled` ones with their directories: watched, and scanned once they appear |
+| `artifacts` | always; `null` outside manifest mode or before a manifest was read | `declared` outputs (main and test outputs of each module that the build writes), how many are `scanned`, and the `not_compiled` ones with their directories: watched, and scanned once they appear. An output whose source roots (from the manifest) hold no file, such as the test output of a module without tests, is never written: it is neither declared nor not compiled. It stays watched, and counts as soon as a source file is added |
 | `snapshot` | always; `null` without a graph | `generation` (the build id of the graph in service), `data_hash` (as in cursors and `reload_graph`), `total_nodes` (as in `graph_overview`), `detail_dir` (the detail snapshot the detail tools read; `null` while it is being written) |
 | `build_state` | manifest mode | as in [`graph_overview`](hierograph-tool-graph-overview.md) and [`reload_graph`](hierograph-tool-reload-graph.md) |
 | `graph_update` | manifest mode | what the server's updater is doing: `idle`, `pending` (a change or a reload waits for its turn), `rescanning` (changed modules), `applying-manifest` or `reloading`; anything but `idle` means the graph is about to change, and a `reload_graph` would only wait for it |
@@ -147,7 +147,7 @@ started before a change was merged has an older `commit`, or `dirty: true` when 
 built from a working tree.
 
 **Find artifacts that are missing from the graph.** `artifacts.not_compiled` names each
-declared output that has no compiled classes yet. A module that is missing from
+declared output that has sources but no compiled classes yet. A module that is missing from
 `graph_overview` and not listed there was not declared: a profile is missing from the
 manifest build.
 

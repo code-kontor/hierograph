@@ -95,9 +95,10 @@ type GraphSource {
 }
 
 type ArtifactStatus {
+    "The outputs a build writes: those with sources, and any other that is there and scanned."
     declared: Int!
     scanned: Int!
-    "Outputs the manifest declares that are not compiled yet: watched, and scanned once they appear. They are missing from the graph."
+    "Outputs the manifest declares that have sources but are not compiled yet: watched, and scanned once they appear. They are missing from the graph. An output without sources (a module without tests) is never written, so it isn't listed."
     notCompiled: [NotCompiledArtifact!]!
 }
 

@@ -78,11 +78,24 @@ class ManifestGraphSource internal constructor(
      * An output the manifest names, keyed like a [ModuleScan] (`<gav>`, or `<gav>:test`): one or more
      * directories that together form one artifact (a source set compiled by Java and Kotlin into separate
      * directories). The directories need not exist: an output not compiled yet is declared, watched, and
-     * scanned once one of them appears.
+     * scanned once one of them appears. [sourceRoots] are the (local) source roots the build compiles it from.
      */
-    data class DeclaredOutput(val gav: String, val name: String, val dirs: List<Path>) {
+    data class DeclaredOutput(
+        val gav: String,
+        val name: String,
+        val dirs: List<Path>,
+        val sourceRoots: List<Path> = emptyList(),
+    ) {
         /** Whether any of the directories exists, i.e. there is something to scan. */
         val present: Boolean get() = dirs.any { it.isDirectory() }
+
+        /**
+         * Whether the build has anything to compile into this output: one of its source roots holds a file. An
+         * output without sources is never written (a module without tests, a test-only module's main output), so
+         * it isn't missing. Without recorded source roots (an older producer) it counts as having sources. Read
+         * from the file system on each call, so a first source file counts at once; a walk stops at the first file.
+         */
+        val hasSources: Boolean get() = sourceRoots.isEmpty() || sourceRoots.any(::holdsSourceFile)
     }
 
     /**
@@ -250,7 +263,8 @@ class ManifestGraphSource internal constructor(
             classpaths[module.gav] = ArtifactClasspath(module.gav, name, mainCp)
             // The directory lists, falling back to the single directory a manifest from an older producer records.
             val mainDirs = (module.mainOutputDirs ?: listOfNotNull(module.mainOutputDir)).map { remap.map(Path.of(it)) }
-            if (mainDirs.isNotEmpty()) declared[module.gav] = DeclaredOutput(module.gav, name, mainDirs)
+            val mainSources = module.sourceRoots.map { remap.map(Path.of(it)) }
+            if (mainDirs.isNotEmpty()) declared[module.gav] = DeclaredOutput(module.gav, name, mainDirs, mainSources)
 
             if (includeTests) {
                 val testDirs = (module.testOutputDirs ?: listOfNotNull(module.testOutputDir)).map { remap.map(Path.of(it)) }
@@ -264,7 +278,8 @@ class ManifestGraphSource internal constructor(
                     val testCp = module.testClasspath?.map { ClasspathEntry(it.gav, it.internal) } ?: mainCp
                     val selfMain = if (mainDirs.isNotEmpty()) listOf(ClasspathEntry(module.gav, internal = true)) else emptyList()
                     classpaths[testKey] = ArtifactClasspath(testKey, testName, selfMain + testCp)
-                    declared[testKey] = DeclaredOutput(testKey, testName, testDirs)
+                    val testSources = module.testSourceRoots.map { remap.map(Path.of(it)) }
+                    declared[testKey] = DeclaredOutput(testKey, testName, testDirs, testSources)
                 }
             }
         }
@@ -445,5 +460,19 @@ class ManifestGraphSource internal constructor(
             .addModule(kotlinModule())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .build()
+    }
+}
+
+/** Whether [root] is a directory holding a regular file below it, hidden files (`.gitkeep`) aside. */
+private fun holdsSourceFile(root: Path): Boolean {
+    if (!root.isDirectory()) return false
+    return try {
+        Files.walk(root).use { paths ->
+            paths.anyMatch { Files.isRegularFile(it) && !it.fileName.toString().startsWith(".") }
+        }
+    } catch (_: java.io.UncheckedIOException) {
+        true // a root that changes while walked: not known to be empty
+    } catch (_: java.io.IOException) {
+        true
     }
 }

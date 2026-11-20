@@ -323,7 +323,8 @@ class HierarchicalGraphService {
     /**
      * `manifest` mode: how many outputs the manifest declares, how many are scanned, and the ones that are not
      * compiled yet (watched, and scanned once they appear). `null` in `parquet` mode and before a manifest was
-     * read.
+     * read. An output without sources that isn't there is neither declared nor missing: the build never writes
+     * it. It stays watched, so it is scanned like any other once sources are added and compiled.
      */
     fun artifactStatus(): Map<String, Any?>? = artifacts()?.toMap()
 
@@ -331,9 +332,10 @@ class HierarchicalGraphService {
     fun artifacts(): ArtifactStatus? {
         if (!manifestMode) return null
         val scanned = currentScanned ?: return null
-        val notCompiled = scanned.declared.values.filter { it.gav !in scanned.modules }
+        val missing = scanned.declared.values.filter { it.gav !in scanned.modules }
+        val notCompiled = missing.filter { it.hasSources }
         return ArtifactStatus(
-            declared = scanned.declared.size,
+            declared = scanned.declared.size - (missing.size - notCompiled.size),
             scanned = scanned.modules.size,
             notCompiled = notCompiled.map { NotCompiledArtifact(it.gav, it.dirs.map(Path::toString)) },
         )

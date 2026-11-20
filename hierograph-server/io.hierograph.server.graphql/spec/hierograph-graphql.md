@@ -773,7 +773,7 @@ part of the application) returns `ServerInfo`:
 | `startedAt` | `String!` | ISO-8601. |
 | `workspace`, `stateDir` | `String!` | The workspace served and the state directory. |
 | `source` | `GraphSource!` | `kind` (`manifest`, `parquet`, or `null`), and `manifest`, `buildRoot`, `includeTests`, `watchMode`, `buildFilesMode` in manifest mode or `parquetDir` in Parquet mode. |
-| `artifacts` | `ArtifactStatus` | Manifest mode: `declared`, `scanned`, and `notCompiled` (`artifact`, `dirs`), the outputs missing from the graph. `null` otherwise. |
+| `artifacts` | `ArtifactStatus` | Manifest mode: `declared`, `scanned`, and `notCompiled` (`artifact`, `dirs`), the outputs missing from the graph. An output whose source roots hold no file is never written by the build: it is neither declared nor listed, as in `server_info`. `null` otherwise. |
 | `graph` | `GraphStatus!` | See below. |
 | `jvm` | `JvmStatus!` | The server JVM's current metrics; see below. `server_info` doesn't report them. |
 | `viewsVersion` | `String!` | Changes whenever a view document is added, changed or removed, in the project or at runtime; an opaque token. Defining a view doesn't change the graph's `generation`, so a client that follows the views polls this. |
