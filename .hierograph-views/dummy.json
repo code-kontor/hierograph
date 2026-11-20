@@ -1,0 +1,44 @@
+{
+  "name": "dummy",
+  "description": "A dummy view with an arbitrary grouping of the modules, for trying out the web UI",
+  "groups": [
+    {
+      "name": "north",
+      "members": [
+        "io.hierograph:io.hierograph.server.graphql:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.store:**",
+        "io.hierograph:hierograph-maven-plugin:**"
+      ]
+    },
+    {
+      "name": "east",
+      "members": [
+        "io.hierograph:io.hierograph.server:**",
+        "io.hierograph:io.hierograph.hierarchicalgraph.algorithms:**"
+      ]
+    },
+    {
+      "name": "south",
+      "members": [
+        "io.hierograph:io.hierograph.server.views:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.archive:**",
+        "io.hierograph:io.hierograph.manifest:**"
+      ]
+    },
+    {
+      "name": "west",
+      "members": [
+        "io.hierograph:io.hierograph.server.graphservice:**",
+        "io.hierograph:io.hierograph.hierarchicalgraph.model:**",
+        "io.hierograph:io.hierograph.itest.tests:**"
+      ]
+    },
+    {
+      "name": "center",
+      "members": [
+        "io.hierograph:io.hierograph.server.mapping:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.scanner:**"
+      ]
+    }
+  ]
+}
