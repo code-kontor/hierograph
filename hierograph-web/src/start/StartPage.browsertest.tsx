@@ -1,5 +1,6 @@
 import { graphql, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { page, userEvent } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
 import type { Screen } from "@/frame/screens";
@@ -259,14 +260,37 @@ describe("StartPage", () => {
       .toBeVisible();
   });
 
+  it("shows the views as cards, or as a list as chosen in the block's corner", async () => {
+    try {
+      const screen = await renderStart();
+      const views = block(screen, "Hierarchy views");
+      const list = views.getByRole("button", { name: "Show as a list" });
+      const cards = views.getByRole("button", { name: "Show as cards" });
+      await expect.element(cards).toHaveAttribute("aria-pressed", "true");
+      await expect.element(list).toHaveAttribute("aria-pressed", "false");
+      // Every row as tall as the tallest card: all of one size.
+      await expect
+        .element(views.getByRole("list").first())
+        .toHaveClass("grid", "auto-rows-fr");
+
+      await list.click();
+
+      await expect.element(list).toHaveAttribute("aria-pressed", "true");
+      await expect.element(cards).toHaveAttribute("aria-pressed", "false");
+      await expect
+        .element(views.getByRole("list").first())
+        .not.toHaveClass("grid");
+      // Kept by the browser.
+      expect(localStorage.getItem("start-views-layout")).toBe('"list"');
+    } finally {
+      localStorage.clear();
+    }
+  });
+
   it("lists the scanned hierarchy first, current without a hierarchy view", async () => {
     const screen = await renderStart();
     const views = block(screen, "Hierarchy views");
 
-    // Says what clicking a view does.
-    await expect
-      .element(views.getByText(/this UI only, not the agent/))
-      .toBeVisible();
     // The project's name is in the header, not here.
     await expect.element(views.getByRole("heading")).not.toBeInTheDocument();
 
@@ -284,7 +308,10 @@ describe("StartPage", () => {
     await expect
       .element(first.getByRole("link"))
       .toHaveAttribute("aria-current", "page");
-    await expect.element(first.getByText("current")).toBeVisible();
+    // Marked by its highlight only, no badge.
+    await expect
+      .element(first.getByText("current", { exact: true }))
+      .not.toBeInTheDocument();
     // Hovering says what choosing does.
     await expect
       .element(first.getByRole("link"))
@@ -294,12 +321,8 @@ describe("StartPage", () => {
   it("sets the hierarchy view when one is chosen, and drops it with the default", async () => {
     const screen = await renderStart();
     const views = block(screen, "Hierarchy views");
-    const currentRow = () =>
-      views.getByRole("link").filter({ hasText: "current" });
-
     await views.getByRole("link", { name: "layers" }).click();
 
-    await expect.element(currentRow()).toHaveTextContent(/^layers/);
     await expect
       .element(views.getByRole("link", { name: "layers" }))
       .toHaveAttribute("aria-current", "page");
@@ -313,7 +336,9 @@ describe("StartPage", () => {
 
     await views.getByRole("link", { name: "default" }).click();
 
-    await expect.element(currentRow()).toHaveTextContent(/^default/);
+    await expect
+      .element(views.getByRole("link", { name: "default" }))
+      .toHaveAttribute("aria-current", "page");
     expect(screen.router.state.location.search).not.toHaveProperty("view");
   });
 
@@ -418,6 +443,61 @@ describe("StartPage", () => {
       .toHaveAttribute("aria-valuemax", String(1024 * 1024 * 1024));
     await expect.element(jvm.getByText("—")).toBeVisible();
     await expect.element(jvm.getByText("no collection yet")).toBeVisible();
+  });
+
+  describe("on a wide screen", () => {
+    afterEach(async () => {
+      localStorage.clear();
+      await page.viewport(414, 896);
+    });
+
+    it("puts the hierarchy on the left, the split moved by the user", async () => {
+      await page.viewport(1400, 900);
+      const screen = await renderStart();
+      const split = screen.getByRole("separator", {
+        name: "Resize the hierarchy",
+        exact: true,
+      });
+      // Without the stylesheet the handle has no width: there, not visible.
+      await expect.element(split).toBeInTheDocument();
+      await expect.element(screen.getByRole("tree")).toBeVisible();
+      const tree = screen.getByRole("tree").element();
+      const views = block(screen, "Hierarchy views").element();
+      expect(tree.getBoundingClientRect().right).toBeLessThanOrEqual(
+        views.getBoundingClientRect().left,
+      );
+      const before = Number(split.element().getAttribute("aria-valuenow"));
+
+      (split.element() as HTMLElement).focus();
+      await userEvent.keyboard("{ArrowRight}");
+
+      await expect
+        .poll(() => Number(split.element().getAttribute("aria-valuenow")))
+        .toBeGreaterThan(before);
+    });
+
+    it("puts the hierarchy views above the server's tabs, the split moved by the user", async () => {
+      await page.viewport(1400, 900);
+      const screen = await renderStart();
+      const split = screen.getByRole("separator", {
+        name: "Resize the hierarchy views",
+      });
+      await expect.element(split).toBeInTheDocument();
+      const views = block(screen, "Hierarchy views").element();
+      const tabs = screen.getByRole("tablist").element();
+      // Without the stylesheet a box doesn't clip its content: tops only.
+      expect(views.getBoundingClientRect().top).toBeLessThan(
+        tabs.getBoundingClientRect().top,
+      );
+      const before = Number(split.element().getAttribute("aria-valuenow"));
+
+      (split.element() as HTMLElement).focus();
+      await userEvent.keyboard("{ArrowUp}");
+
+      await expect
+        .poll(() => Number(split.element().getAttribute("aria-valuenow")))
+        .toBeLessThan(before);
+    });
   });
 
   it("says when the server can't be reached", async () => {

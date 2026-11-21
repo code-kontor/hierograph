@@ -9,12 +9,14 @@ import {
   Layers,
   type LucideIcon,
   Package,
+  PinOff,
   Repeat2,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
+import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
@@ -63,12 +65,25 @@ type TreeControls = {
 // Beside the tree, arcs show the dependencies between the visible rows.
 export function HierarchyTree() {
   const scope = useGraphScope();
+  const view = scope?.view ?? "";
+  // The pinned arcs, with the view they were pinned in: another view starts
+  // without.
+  const [pin, setPin] = useState<{ view: string; focus: ArcFocus } | null>(
+    null,
+  );
+  const pinned = pin?.view === view ? pin.focus : null;
+  const onPin = (focus: ArcFocus | null) =>
+    setPin(focus === null ? null : { view, focus });
   return (
     // The view is named on its card and in the header already.
-    <Pane title="Hierarchy" bodyClassName="p-1.5">
+    <Pane
+      title="Hierarchy"
+      toolbar={pinned !== null && <UnpinButton onUnpin={() => onPin(null)} />}
+      bodyClassName="p-1.5"
+    >
       {scope ? (
         // A new view starts collapsed.
-        <TreeRoot key={scope.view ?? ""} scope={scope} />
+        <TreeRoot key={view} scope={scope} pinned={pinned} onPin={onPin} />
       ) : (
         <p className="text-fg-muted p-1.5 text-[13px]">
           No graph is loaded, so there is no hierarchy to show yet.
@@ -78,11 +93,31 @@ export function HierarchyTree() {
   );
 }
 
-type TreeRootProps = {
-  scope: GraphScope;
+type UnpinButtonProps = {
+  onUnpin: () => void;
 };
 
-function TreeRoot({ scope }: TreeRootProps) {
+function UnpinButton({ onUnpin }: UnpinButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label="Unpin the arcs"
+      title="Unpin the arcs (Esc)"
+      onClick={onUnpin}
+      className={twMerge(ghostIconTriggerClassName, "size-5")}
+    >
+      <PinOff className="size-3.5" />
+    </button>
+  );
+}
+
+type TreeRootProps = {
+  scope: GraphScope;
+  pinned: ArcFocus | null;
+  onPin: (focus: ArcFocus | null) => void;
+};
+
+function TreeRoot({ scope, pinned, onPin }: TreeRootProps) {
   const query = useQuery(hierarchyTreeRootQueryOptions(scope));
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [hovered, setHovered] = useState<ArcFocus | null>(null);
@@ -116,7 +151,7 @@ function TreeRoot({ scope }: TreeRootProps) {
     );
   }
   return (
-    <TreeArcs scope={scope} hovered={hovered}>
+    <TreeArcs scope={scope} hovered={hovered} pinned={pinned} onPin={onPin}>
       <TreeLevel
         role="tree"
         scope={scope}

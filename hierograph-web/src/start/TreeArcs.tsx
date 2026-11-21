@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { twMerge } from "tailwind-merge";
 
 import {
   ContextMenu,
@@ -17,7 +16,6 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/design-system/ui/context-menu";
-import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import type { GraphScope } from "@/frame/GraphScope";
 
 import {
@@ -88,6 +86,10 @@ type TreeArcsProps = {
   scope: GraphScope;
   // Only the arcs of what is hovered are drawn.
   hovered: ArcFocus | null;
+  // The arcs pinned from a context menu, drawn whatever is hovered, until
+  // unpinned (`null`); the tree's pane offers to unpin them.
+  pinned: ArcFocus | null;
+  onPin: (focus: ArcFocus | null) => void;
   children: ReactNode;
 };
 
@@ -98,7 +100,13 @@ type TreeArcsProps = {
 // marked `data-frontier` (see `TreeItem`); they're measured whenever the tree
 // changes, and their dependencies are loaded for exactly that set of rows.
 // An arc's context menu pins the arcs.
-export function TreeArcs({ scope, hovered, children }: TreeArcsProps) {
+export function TreeArcs({
+  scope,
+  hovered,
+  pinned,
+  onPin,
+  children,
+}: TreeArcsProps) {
   const ref = useRef<HTMLDivElement>(null);
   const area = useRef<SVGSVGElement>(null);
   const [rows, setRows] = useState<MeasuredRow[]>([]);
@@ -113,8 +121,6 @@ export function TreeArcs({ scope, hovered, children }: TreeArcsProps) {
   const [held, setHeld] = useState<ArcFocus | null>(null);
   // The arcs an open context menu belongs to.
   const [menu, setMenu] = useState<ArcFocus | null>(null);
-  // The arcs pinned from the context menu, until unpinned.
-  const [pinned, setPinned] = useState<ArcFocus | null>(null);
   const shown = pinned ?? menu ?? hovered ?? held;
 
   // Escape unpins, unless an open menu takes it: the menu marks the Escape
@@ -122,11 +128,11 @@ export function TreeArcs({ scope, hovered, children }: TreeArcsProps) {
   useEffect(() => {
     if (pinned === null || menu !== null) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) setPinned(null);
+      if (event.key === "Escape" && !event.defaultPrevented) onPin(null);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [pinned, menu]);
+  }, [pinned, menu, onPin]);
 
   useEffect(() => {
     const container = ref.current;
@@ -226,7 +232,7 @@ export function TreeArcs({ scope, hovered, children }: TreeArcsProps) {
         ));
 
   return (
-    <ArcPinningContext value={{ pinned, pin: setPinned, menuFor }}>
+    <ArcPinningContext value={{ pinned, pin: onPin, menuFor }}>
       <div ref={ref} className="relative">
         {children}
         {/* The arc area takes the pointer over its whole height, so moving
@@ -245,21 +251,6 @@ export function TreeArcs({ scope, hovered, children }: TreeArcsProps) {
         >
           {paths}
         </svg>
-        {pinned !== null && (
-          <button
-            type="button"
-            aria-label="Unpin the arcs"
-            title="Unpin the arcs (Esc)"
-            onClick={() => setPinned(null)}
-            className={twMerge(
-              ghostIconTriggerClassName,
-              "absolute top-0 size-5",
-            )}
-            style={{ left: `${left + ARC_AREA_WIDTH - 20}px` }}
-          >
-            <PinOff className="size-3.5" />
-          </button>
-        )}
       </div>
     </ArcPinningContext>
   );

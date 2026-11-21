@@ -84,6 +84,7 @@ export default defineConfig(({ mode }) => {
               "msw/browser",
               "@tanstack/react-router",
               "radix-ui",
+              "react-resizable-panels",
             ],
           },
           test: {

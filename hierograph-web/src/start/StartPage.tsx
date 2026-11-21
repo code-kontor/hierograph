@@ -1,17 +1,31 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Info, RotateCcw } from "lucide-react";
+import {
+  Info,
+  LayoutGrid,
+  List,
+  type LucideIcon,
+  RotateCcw,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
+import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/design-system/ui/resizable";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/design-system/ui/tabs";
+import { useLocalStorage } from "@/design-system/useLocalStorage";
+import { useMediaQuery } from "@/design-system/useMediaQuery";
 import { useGraphScope } from "@/frame/GraphScope";
 import type { StartScreenQuery } from "@/graphql/generated/graphql";
 
@@ -48,6 +62,8 @@ type GarbageCollector = Jvm["garbageCollectors"][number];
 export function StartPage() {
   const scope = useGraphScope();
   const query = useQuery(startScreenQueryOptions(scope?.generation ?? null));
+  // Tailwind's `lg`.
+  const wide = useMediaQuery("(min-width: 64rem)");
 
   if (query.isPending) {
     return <Message variant="loading" title="Loading the server's state…" />;
@@ -62,22 +78,69 @@ export function StartPage() {
   }
 
   const { server, views } = query.data;
-  return (
-    <div className="text-fg mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      <div className="flex min-w-0 flex-col gap-3">
-        <HierarchyViewsBlock
-          modules={server.graph.counts?.modules}
-          views={views}
-        />
-        <ServerTabs server={server} />
-      </div>
-      {/* As tall as the left column on wide screens, scrolling on its own. */}
-      <div className="relative h-[480px] min-w-0 lg:h-auto">
-        <div className="absolute inset-0">
-          <HierarchyTree />
-        </div>
+  const viewsBlock = (
+    <HierarchyViewsBlock modules={server.graph.counts?.modules} views={views} />
+  );
+  const tabs = <ServerTabs server={server} />;
+  // As tall as the space it is given, scrolling on its own.
+  const tree = (
+    <div className="relative h-full min-h-[480px] min-w-0">
+      <div className="absolute inset-0">
+        <HierarchyTree />
       </div>
     </div>
+  );
+  return wide ? (
+    <WideLayout tree={tree} views={viewsBlock} tabs={tabs} />
+  ) : (
+    <div className="text-fg mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-3">
+      {viewsBlock}
+      {tabs}
+      {tree}
+    </div>
+  );
+}
+
+type WideLayoutProps = {
+  tree: ReactNode;
+  views: ReactNode;
+  tabs: ReactNode;
+};
+
+// On a wide screen the tree on the left, the hierarchy views above the
+// server's tabs on the right, all as tall as the window. Both splits are moved
+// by the user (and remembered by the browser); each box scrolls on its own.
+function WideLayout({ tree, views, tabs }: WideLayoutProps) {
+  return (
+    <ResizablePanelGroup
+      direction="horizontal"
+      autoSaveId="start-columns"
+      className="text-fg mx-auto max-w-[1600px]"
+    >
+      <ResizablePanel id="tree" order={1} defaultSize={40} minSize={20}>
+        {tree}
+      </ResizablePanel>
+      <ResizableHandle
+        withHandle
+        aria-label="Resize the hierarchy"
+        className="mx-0.5 rounded-[4px]"
+      />
+      <ResizablePanel id="status" order={2} defaultSize={60} minSize={25}>
+        <ResizablePanelGroup direction="vertical" autoSaveId="start-rows">
+          <ResizablePanel id="views" order={1} defaultSize={45} minSize={15}>
+            {views}
+          </ResizablePanel>
+          <ResizableHandle
+            withHandle
+            aria-label="Resize the hierarchy views"
+            className="my-0.5 rounded-[4px]"
+          />
+          <ResizablePanel id="tabs" order={2} defaultSize={55} minSize={15}>
+            {tabs}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
 
@@ -394,8 +457,18 @@ type HierarchyViewsBlockProps = {
   views: HierarchyView[];
 };
 
+// How the views are laid out: as cards side by side, in as many rows as
+// needed (the default), or one per line. Chosen in the block's corner, kept
+// by the browser.
+type ViewsLayout = "list" | "cards";
+
 function HierarchyViewsBlock({ modules, views }: HierarchyViewsBlockProps) {
   const current: { view?: string } = useSearch({ strict: false });
+  const [stored, setLayout] = useLocalStorage<string>(
+    "start-views-layout",
+    "cards",
+  );
+  const layout: ViewsLayout = stored === "list" ? "list" : "cards";
   const rows = views.map((view) => (
     <HierarchyViewRow
       key={view.name}
@@ -406,13 +479,16 @@ function HierarchyViewsBlock({ modules, views }: HierarchyViewsBlockProps) {
   return (
     <Block
       title="Hierarchy views"
-      toolbar={
-        <span className="text-fg-muted text-[11px]">
-          Click to switch · this UI only, not the agent
-        </span>
-      }
+      toolbar={<ViewsLayoutToggle layout={layout} onChange={setLayout} />}
     >
-      <ul className="flex flex-col gap-2">
+      <ul
+        className={twMerge(
+          "flex flex-col gap-2",
+          layout === "cards" &&
+            // Every card the same size: rows as tall as the tallest card.
+            "grid auto-rows-fr grid-cols-[repeat(auto-fill,minmax(220px,1fr))]",
+        )}
+      >
         <DefaultViewRow
           modules={modules}
           current={current.view === undefined}
@@ -426,6 +502,61 @@ function HierarchyViewsBlock({ modules, views }: HierarchyViewsBlockProps) {
         </p>
       )}
     </Block>
+  );
+}
+
+type ViewsLayoutToggleProps = {
+  layout: ViewsLayout;
+  onChange: (layout: ViewsLayout) => void;
+};
+
+function ViewsLayoutToggle({ layout, onChange }: ViewsLayoutToggleProps) {
+  return (
+    <div role="group" aria-label="Layout" className="flex items-center gap-0.5">
+      <LayoutButton
+        icon={List}
+        label="Show as a list"
+        pressed={layout === "list"}
+        onPress={() => onChange("list")}
+      />
+      <LayoutButton
+        icon={LayoutGrid}
+        label="Show as cards"
+        pressed={layout === "cards"}
+        onPress={() => onChange("cards")}
+      />
+    </div>
+  );
+}
+
+type LayoutButtonProps = {
+  icon: LucideIcon;
+  label: string;
+  pressed: boolean;
+  onPress: () => void;
+};
+
+function LayoutButton({
+  icon: Icon,
+  label,
+  pressed,
+  onPress,
+}: LayoutButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      onClick={onPress}
+      className={twMerge(
+        ghostIconTriggerClassName,
+        "size-5",
+        pressed && "bg-state-selected-bg text-primary",
+      )}
+    >
+      <Icon className="size-3.5" />
+    </button>
   );
 }
 
@@ -473,7 +604,7 @@ function HierarchyViewRow({ view, current }: HierarchyViewRowProps) {
   ];
   if (!view.valid) {
     return (
-      <li className="border-border rounded-[6px] border px-2.5 py-2">
+      <li className="border-border h-full rounded-[6px] border px-2.5 py-2">
         <ViewRowHead
           name={view.name}
           meta={meta}
@@ -515,12 +646,7 @@ function ChoosableViewRow({
   restructure,
   description,
 }: ChoosableViewRowProps) {
-  const badges = (
-    <>
-      {restructure && <Badge>restructuring</Badge>}
-      {current && <Badge accent>current</Badge>}
-    </>
-  );
+  const badges = <>{restructure && <Badge>restructuring</Badge>}</>;
   return (
     <li>
       <Link
@@ -530,7 +656,7 @@ function ChoosableViewRow({
         // `view: undefined` (the scanned hierarchy) must not match a set view.
         activeOptions={{ explicitUndefined: true }}
         className={twMerge(
-          "border-border hover:bg-state-hover hover:border-border-strong block rounded-[6px] border px-2.5 py-2 transition-colors",
+          "border-border hover:bg-state-hover hover:border-border-strong block h-full rounded-[6px] border px-2.5 py-2 transition-colors",
           current &&
             "border-primary bg-state-selected-bg hover:border-primary hover:bg-state-selected-bg",
         )}
@@ -568,18 +694,12 @@ function ViewDescription({ text }: ViewDescriptionProps) {
 }
 
 type BadgeProps = {
-  accent?: boolean;
   children: ReactNode;
 };
 
-function Badge({ accent, children }: BadgeProps) {
+function Badge({ children }: BadgeProps) {
   return (
-    <span
-      className={twMerge(
-        "border-border text-fg-muted rounded-[4px] border px-1 text-[11px]",
-        accent && "border-primary text-primary",
-      )}
-    >
+    <span className="border-border text-fg-muted rounded-[4px] border px-1 text-[11px]">
       {children}
     </span>
   );
@@ -808,7 +928,7 @@ type BlockProps = {
 
 function Block({ title, toolbar, children }: BlockProps) {
   return (
-    <section aria-label={title}>
+    <section aria-label={title} className="h-full">
       <Pane title={title} toolbar={toolbar} bodyClassName="flex flex-col gap-2">
         {children}
       </Pane>
