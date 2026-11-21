@@ -85,6 +85,13 @@ The fields are the identity part of [`server_info`](hierograph-tool-server-info.
 what stays the same while the server runs. What changes while it runs (artifacts,
 snapshot, build state) is only in `server_info`.
 
+The server JVM's metrics (Java version and vendor, uptime, processors, heap and
+non-heap memory with what the last collection kept, the garbage collectors, threads,
+CPU load) are neither in the runtime file nor in `server_info`. GraphQL's
+`server { jvm }` reads them from the JVM on each request, and the mutation
+`runGarbageCollection` asks the JVM for a collection first; the web UI's JVM tab shows
+both ([GraphQL API §11.10](../../io.hierograph.server.graphql/spec/hierograph-graphql.md#1110-server-and-views)).
+
 - **Written when ready.** The file appears once the web server listens and the graph is
   loaded, or the server has started empty. A client that finds the file can connect.
 - **Replaced in one step.** A reader never sees a partial file.
