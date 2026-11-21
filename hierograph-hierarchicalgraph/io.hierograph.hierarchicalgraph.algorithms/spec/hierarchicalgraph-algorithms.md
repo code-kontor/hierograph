@@ -355,6 +355,41 @@ first access, over `orderedNodes`.
 | `isCellInCycle(i, j)` | Whether `orderedNodes[i]` and `orderedNodes[j]` belong to the same cycle. `false` when either index is out of range. |
 | `isRowInCycle(i)` | Whether `orderedNodes[i]` belongs to a cycle; the same as `isCellInCycle(i, i)`. |
 
+### 7.3 Levelization
+
+```kotlin
+fun levelize(nodes: Collection<HGNode>, hierarchy: Hierarchy): ILevelization
+```
+
+The node set in rows by level, as a levelized structure map draws the children of a
+container: a node sits above everything it depends on, so every ordinary dependency
+points down, and the nodes of a cycle (a **tangle**) share a row. Built on the DSM of
+the set:
+
+1. **Tangles** are the DSM's cycles, with their members in DSM order (dependents
+   first, the heaviest dependencies pointing down, §6.2).
+2. **Levels.** Condense every tangle to one node. A node's level is the length of the
+   longest chain of dependencies beneath it on the condensed graph: `0` for a node
+   that depends on no other node of the set. The members of a tangle get its level.
+3. **Feedback dependencies** are the dependencies inside a tangle from a member to an
+   earlier one: the DSM's `upwardDependencies` (§7.2), as aggregated dependencies,
+   sorted heaviest first (ties in DSM order of source, then target). They are the
+   cheapest set whose removal untangles the tangles, so they are the refactoring
+   candidates.
+4. **Rows inside a tangle.** Ignoring the feedback dependencies, a member's row inside
+   its tangle is the longest chain beneath it of dependencies on later members.
+
+| Member | Description |
+|--------|-------------|
+| `levels` | The rows, bottom first: `levels[0]` holds the nodes that depend on no other node of the set. Each row lists its nodes in DSM order; the order carries no other meaning. |
+| `tangles` | One `Tangle(level, members, rows)` per cycle, sorted by the first member's DSM position. `members` dependents first; `rows` bottom first. |
+| `feedbackDependencies` | The aggregated dependencies against a tangle's order, heaviest first. Empty for an acyclic set. |
+| `levelOf(node)` | The row `node` sits in; `-1` for a node not in the set. |
+
+Dependencies inside a node's own subtree (the DSM's diagonal) never lift it. The
+condensed graph is walked recursively, like the component search (§5), so the depth
+grows with the number of levels.
+
 ---
 
 ## 8. Example
@@ -419,7 +454,7 @@ AggregatedEdge(fromIndex = 1, toIndex = 3, weight = 1, typePairCount = 1, attrib
 ## 10. API reference
 
 All entry points are on the `GraphUtils` object. The classes in the `impl` package
-(`Tarjan`, `FastFAS`, `FastFasSorter`, `DependencyStructureMatrixImpl`) implement
+(`Tarjan`, `FastFAS`, `FastFasSorter`, `DependencyStructureMatrixImpl`, `LevelizationImpl`) implement
 them and are not meant to be used directly.
 
 | Method | Returns | Section |
@@ -431,6 +466,7 @@ them and are not meant to be used directly.
 | `detectCycles(nodes, hierarchy)` | `List<List<HGNode>>`: components with more than one node | §5 |
 | `createFasNodeSorter()` | `INodeSorter` | §6.2 |
 | `createDependencyStructureMatrix(nodes, hierarchy)` | `IDependencyStructureMatrix` | §7 |
+| `levelize(nodes, hierarchy)` | `ILevelization`: levels, tangles, feedback dependencies | §7.3 |
 
 Every call computes its result afresh. Only the DSM caches anything, and only its
 own weight matrix.
@@ -514,6 +550,9 @@ For a node set of distinct nodes:
 7. **Determinism.** The same node list over the same model gives the same results,
    in the same order (apart from pairwise edges, §4.3).
 8. **Read-only.** No algorithm modifies the hierarchy or the graph.
+9. **Levels point down.** In a levelization, every dependency between two nodes of
+   the set goes to a lower row, except those between members of one tangle; of
+   those, only the feedback dependencies point against the tangle's order.
 
 ---
 

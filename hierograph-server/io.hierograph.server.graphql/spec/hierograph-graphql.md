@@ -174,6 +174,8 @@ Query.hierarchicalGraph ──► HierarchicalGraph
                               │                 │ children,         │ sourceNode,
                               │ nodes(ids)      │ referencedNodes…  │ targetNode
                               ├──────────────► NodeSet ──► OrderedAdjacencyMatrix
+                              │                 │ levelization      │
+                              │                 └──► Levelization ──► FeedbackDependency ──► DependencySet
                               │                                     │
                               │ dependencySetForAggregatedDependency│
                               ├──────────────► DependencySet ──► Dependency
@@ -196,6 +198,7 @@ Each GraphQL type is backed by one object on the server:
 | `DependencySet` | `DependencySetModel(dependencyList)` | an ordered list of core dependencies |
 | `FilteredDependencies` | `FilteredDependenciesModel(dependencyList)` | a `DependencySet` narrowed by a node selection |
 | `OrderedAdjacencyMatrix` | `OrderedAdjacencyMatrixModel` | a dependency structure matrix |
+| `Levelization` | `LevelizationModel` | a node set in rows by level, with its tangles and feedback dependencies |
 | `DependencyPage` / `PageInfo` | `DependencyPageModel` / `PageInfoModel` | one page of a dependency list |
 
 A **core dependency** is a direct fact between two nodes. In Hierograph the graph
@@ -602,6 +605,7 @@ Resolvers in `NodeSetController`. A node set is an ordered list of nodes.
 | `nodes` | `[Node!]!` | The nodes, in set order. |
 | `nodeIds` | `[ID!]!` | Their handles, in the same order. |
 | `orderedAdjacencyMatrix` | `OrderedAdjacencyMatrix!` | The DSM over the set (§11.8). |
+| `levelization` | `Levelization!` | The set in rows by level, with its tangles and feedback dependencies (§11.8, *Levelization*). |
 | `referencedNodes(includePredecessors)` | `NodeSet!` | The union of the members' referenced nodes (§6). |
 | `referencingNodes(includePredecessors)` | `NodeSet!` | The union of the members' referencing nodes. |
 | `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessors)` | `NodeSet!` | The union of the members' filtered referenced nodes (§5). |
@@ -733,6 +737,33 @@ cells         (0,0) 2    Ledger → Invoice, internal to billing
               (0,1) 4    Invoice → Money 3 + Ledger → Money 1
 stronglyConnectedComponents  []
 ```
+
+#### Levelization
+
+`NodeSet.levelization` lays the set out in rows by level with
+`GraphUtils.levelize`, as a levelized structure map draws a container's children:
+`node(id) { children { levelization } }`. The
+[algorithms specification](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md#73-levelization)
+defines the levels, tangles and feedback dependencies; this type serialises them.
+
+| Type | Field | Returns | Description |
+|---|---|---|---|
+| `Levelization` | `levels` | `[Level!]!` | The rows, bottom first: `levels[0]` holds the members that depend on no other member, and a member sits one row above the highest member it depends on. |
+| | `tangles` | `[Tangle!]!` | The cycles of two or more members, each on one row, in DSM order of their first member. Empty for an acyclic set. |
+| | `feedbackDependencies` | `[FeedbackDependency!]!` | The dependencies against a tangle's order, heaviest first: the cheapest set whose removal untangles the tangles. |
+| `Level` | `index` | `Int!` | The row, `0` at the bottom. |
+| | `nodes` | `[Node!]!` | The members in the row, in DSM order; the order carries no other meaning. |
+| `Tangle` | `level` | `Int!` | The row the tangle sits in. |
+| | `nodes` | `[Node!]!` | The members, dependents first: the order that keeps the heaviest dependencies pointing down. |
+| | `rows` | `[Level!]!` | The members in rows inside the tangle, bottom first: a member sits above the later members it depends on. |
+| `FeedbackDependency` | `sourceNode`, `targetNode` | `Node!` | The member that depends, and the member it depends on, placed before it. |
+| | `weight` | `Int!` | The summed weight of the core dependencies from the source's subtree into the target's. |
+| | `dependencies` | `DependencySet!` | Those core dependencies: what has to change to remove it. Paged like any dependency set (`dependencyPage`). |
+
+Every dependency between two members points to a lower row, except those inside a
+tangle. A client draws the rows bottom-up and only the feedback dependencies as
+arrows: a clean set is all rows and no arrows. A container's map is loaded one
+container at a time, as it is expanded.
 
 ### 11.9 Enums, inputs and `MapEntry`
 

@@ -196,7 +196,7 @@ class GraphOverviewTool(
                 mapOf(
                     "name" to "aggregated",
                     "description" to "Pairwise rollup of dependencies between subtrees, with weight and attributes",
-                    "tools" to listOf("aggregated_dependencies", "pairwise_dependencies")
+                    "tools" to listOf("aggregated_dependencies", "pairwise_dependencies", "levelized_structure")
                 ),
                 mapOf(
                     "name" to "type",

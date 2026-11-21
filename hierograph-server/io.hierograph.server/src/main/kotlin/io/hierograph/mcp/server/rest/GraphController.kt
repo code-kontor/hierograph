@@ -25,6 +25,7 @@ import io.hierograph.mcp.server.tools.navigation.ListChildrenTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.AggregatedDependenciesTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.IncomingDependenciesTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
+import io.hierograph.mcp.server.tools.dependencyanalysis.LevelizedStructureTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesTool
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
@@ -41,6 +42,7 @@ class GraphController(
     private val listDescendantsTool: ListDescendantsTool,
     private val aggregatedDependenciesTool: AggregatedDependenciesTool,
     private val pairwiseDependenciesTool: PairwiseDependenciesTool,
+    private val levelizedStructureTool: LevelizedStructureTool,
     private val outgoingDependenciesTool: OutgoingDependenciesTool,
     private val incomingDependenciesTool: IncomingDependenciesTool,
     private val affectedByTool: AffectedByTool,
@@ -108,6 +110,12 @@ class GraphController(
     ): Map<String, Any?> = pairwiseDependenciesTool.pairwiseDependencies(
         nodeIds, edgeSort, minWeight, limit, cursor
     )
+
+    @GetMapping("/levelized-structure")
+    fun levelizedStructure(
+        @RequestParam(name = "nodeId") nodeId: Long,
+        @RequestParam(name = "limit", required = false) limit: Int?
+    ): Map<String, Any?> = levelizedStructureTool.levelizedStructure(nodeId, limit)
 
     @GetMapping("/outgoing-dependencies")
     fun outgoingDependencies(

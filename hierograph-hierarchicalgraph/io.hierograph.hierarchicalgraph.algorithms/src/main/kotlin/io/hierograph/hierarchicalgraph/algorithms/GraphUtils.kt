@@ -17,6 +17,7 @@ package io.hierograph.hierarchicalgraph.algorithms
 
 import io.hierograph.hierarchicalgraph.algorithms.impl.DependencyStructureMatrixImpl
 import io.hierograph.hierarchicalgraph.algorithms.impl.FastFasSorter
+import io.hierograph.hierarchicalgraph.algorithms.impl.LevelizationImpl
 import io.hierograph.hierarchicalgraph.algorithms.impl.Tarjan
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
@@ -33,6 +34,11 @@ object GraphUtils {
 
     fun createDependencyStructureMatrix(nodes: Collection<HGNode>, hierarchy: Hierarchy): IDependencyStructureMatrix {
         return DependencyStructureMatrixImpl(nodes, hierarchy)
+    }
+
+    /** The levelization of [nodes]: rows by level, tangles and feedback dependencies (see [ILevelization]). */
+    fun levelize(nodes: Collection<HGNode>, hierarchy: Hierarchy): ILevelization {
+        return LevelizationImpl(nodes, hierarchy)
     }
 
     /**

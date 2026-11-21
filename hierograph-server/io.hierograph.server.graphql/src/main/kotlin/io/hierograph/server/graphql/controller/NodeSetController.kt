@@ -17,10 +17,15 @@ package io.hierograph.server.graphql.controller
 
 import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphql.model.CellModel
+import io.hierograph.server.graphql.model.DependencySetModel
+import io.hierograph.server.graphql.model.FeedbackDependencyModel
+import io.hierograph.server.graphql.model.LevelModel
+import io.hierograph.server.graphql.model.LevelizationModel
 import io.hierograph.server.graphql.model.NodeSetModel
 import io.hierograph.server.graphql.model.NodesToConsider
 import io.hierograph.server.graphql.model.OrderedAdjacencyMatrixModel
 import io.hierograph.server.graphql.model.StronglyConnectedComponentModel
+import io.hierograph.server.graphql.model.TangleModel
 import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
@@ -60,6 +65,19 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
         }
 
         return OrderedAdjacencyMatrixModel(orderedNodes, cells, sccs)
+    }
+
+    @SchemaMapping(typeName = "NodeSet")
+    fun levelization(nodeSet: NodeSetModel): LevelizationModel {
+        val levelization = GraphUtils.levelize(nodeSet.nodeList, provider.hierarchy())
+        fun rows(rows: List<List<HGNode>>) = rows.mapIndexed { index, nodes -> LevelModel(index, nodes) }
+        return LevelizationModel(
+            levels = rows(levelization.levels),
+            tangles = levelization.tangles.map { TangleModel(it.level, it.members, rows(it.rows)) },
+            feedbackDependencies = levelization.feedbackDependencies.map {
+                FeedbackDependencyModel(it.from, it.to, it.aggregatedWeight, DependencySetModel(it.coreDependencies))
+            },
+        )
     }
 
     @SchemaMapping(typeName = "NodeSet")

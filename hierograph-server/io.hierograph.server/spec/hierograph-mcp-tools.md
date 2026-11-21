@@ -243,6 +243,7 @@ relationship vocabulary is listed in the
 | [`list_descendants`](hierograph-tool-list-descendants.md) | Navigation | What is anywhere inside this node? | yes |
 | [`aggregated_dependencies`](hierograph-tool-aggregated-dependencies.md) | Dependencies | How strongly does each source depend on each target? | no (capped input) |
 | [`pairwise_dependencies`](hierograph-tool-pairwise-dependencies.md) | Dependencies | How are these nodes coupled to each other, and are they layered? | yes |
+| [`levelized_structure`](hierograph-tool-levelized-structure.md) | Dependencies | How are this node's children layered, where are their cycles, and which dependencies untangle them? | no (capped) |
 | [`outgoing_dependencies`](hierograph-tool-outgoing-dependencies.md) | Dependencies | What does this node depend on, type by type or reference by reference? | yes |
 | [`incoming_dependencies`](hierograph-tool-incoming-dependencies.md) | Dependencies | What depends on this node? | yes |
 | [`affected_by`](hierograph-tool-affected-by.md) | Reachability | What is transitively affected by, or needed by, this node? | yes |

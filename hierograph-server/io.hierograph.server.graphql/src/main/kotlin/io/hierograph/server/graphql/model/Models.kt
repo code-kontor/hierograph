@@ -40,6 +40,24 @@ data class OrderedAdjacencyMatrixModel(
     val stronglyConnectedComponents: List<StronglyConnectedComponentModel>
 )
 
+/** `Levelization`: the rows bottom first, the tangles, the feedback dependencies heaviest first. */
+data class LevelizationModel(
+    val levels: List<LevelModel>,
+    val tangles: List<TangleModel>,
+    val feedbackDependencies: List<FeedbackDependencyModel>
+)
+
+data class LevelModel(val index: Int, val nodes: List<HGNode>)
+
+data class TangleModel(val level: Int, val nodes: List<HGNode>, val rows: List<LevelModel>)
+
+data class FeedbackDependencyModel(
+    val sourceNode: HGNode,
+    val targetNode: HGNode,
+    val weight: Int,
+    val dependencies: DependencySetModel
+)
+
 data class MapEntryModel(val key: String, val value: String?)
 
 data class PageInfoModel(

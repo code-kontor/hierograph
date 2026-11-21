@@ -84,6 +84,13 @@ type NodeSet {
     orderedAdjacencyMatrix: OrderedAdjacencyMatrix!
 
     """
+    The set in rows by level, as a levelized structure map draws a container's children (`children.levelization`):
+    a member sits one row above the highest member it depends on, the members of a cycle (a tangle) share a row,
+    and only the feedback dependencies inside the tangles point against the levels.
+    """
+    levelization: Levelization!
+
+    """
     The nodes the members depend on, without duplicates. A member's dependencies inside its own subtree
     are not references and are left out. With `includePredecessors`, each result node is followed by its
     ancestors up to the root.
@@ -188,6 +195,52 @@ type OrderedAdjacencyMatrix {
     cells: [Cell!]!
     "The cycles: components of more than one node. Empty for an acyclic set."
     stronglyConnectedComponents: [StronglyConnectedComponent!]!
+}
+
+"""
+A node set in rows by level. Every dependency between two members points down, except the feedback
+dependencies inside the tangles.
+"""
+type Levelization {
+    "The rows, bottom first: `levels[0]` holds the members that depend on no other member."
+    levels: [Level!]!
+    "The cycles of two or more members, each on one row, in matrix order of their first member."
+    tangles: [Tangle!]!
+    """
+    The dependencies against a tangle's order, from a member to one placed before it, heaviest first: the
+    cheapest set whose removal untangles the tangles, and so the refactoring candidates.
+    """
+    feedbackDependencies: [FeedbackDependency!]!
+}
+
+"One row of a levelization."
+type Level {
+    "The row, 0 at the bottom."
+    index: Int!
+    "The members in the row, in matrix order (dependents first, a tangle's members together); the order carries no other meaning."
+    nodes: [Node!]!
+}
+
+"A cycle of two or more members of a levelized set."
+type Tangle {
+    "The row the tangle sits in."
+    level: Int!
+    "The members, dependents first, in the order that keeps the heaviest dependencies pointing down."
+    nodes: [Node!]!
+    "The members in rows inside the tangle, bottom first: a member sits above the later members it depends on."
+    rows: [Level!]!
+}
+
+"A dependency between two members of a tangle that points against the tangle's order."
+type FeedbackDependency {
+    "The member that depends."
+    sourceNode: Node!
+    "The member depended upon, placed before the source in the tangle's order."
+    targetNode: Node!
+    "The summed weight of the dependencies from the source's subtree into the target's."
+    weight: Int!
+    "Those dependencies, between types: what has to change to remove it."
+    dependencies: DependencySet!
 }
 
 "One non-zero cell of a dependency structure matrix."

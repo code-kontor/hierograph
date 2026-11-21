@@ -203,7 +203,7 @@ for every graph.
   "model": {
     "aggregation": "Aggregation is pairwise. …",
     "levels": [
-      { "name": "aggregated", "description": "…", "tools": ["aggregated_dependencies", "pairwise_dependencies"] },
+      { "name": "aggregated", "description": "…", "tools": ["aggregated_dependencies", "pairwise_dependencies", "levelized_structure"] },
       { "name": "type", "description": "…", "tools": ["outgoing_dependencies", "incoming_dependencies"], "parameter": "…" },
       { "name": "detail", "description": "…", "tools": ["outgoing_dependencies", "incoming_dependencies"], "parameter": "…" }
     ]

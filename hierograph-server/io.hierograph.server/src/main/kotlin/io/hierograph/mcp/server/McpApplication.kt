@@ -28,6 +28,7 @@ import io.hierograph.mcp.server.tools.navigation.ListDescendantsTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.AggregatedDependenciesTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.IncomingDependenciesTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.OutgoingDependenciesTool
+import io.hierograph.mcp.server.tools.dependencyanalysis.LevelizedStructureTool
 import io.hierograph.mcp.server.tools.dependencyanalysis.PairwiseDependenciesTool
 import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
@@ -61,6 +62,7 @@ class McpApplication {
         listDescendantsTool: ListDescendantsTool,
         aggregatedDependenciesTool: AggregatedDependenciesTool,
         pairwiseDependenciesTool: PairwiseDependenciesTool,
+        levelizedStructureTool: LevelizedStructureTool,
         outgoingDependenciesTool: OutgoingDependenciesTool,
         incomingDependenciesTool: IncomingDependenciesTool,
         affectedByTool: AffectedByTool,
@@ -76,7 +78,7 @@ class McpApplication {
         val delegate = MethodToolCallbackProvider.builder()
             .toolObjects(
                 findNodeTool, graphOverviewTool, listChildrenTool, listDescendantsTool,
-                aggregatedDependenciesTool, pairwiseDependenciesTool,
+                aggregatedDependenciesTool, pairwiseDependenciesTool, levelizedStructureTool,
                 outgoingDependenciesTool, incomingDependenciesTool,
                 affectedByTool, findDependencyPathTool,
                 typeDetailsTool, methodDetailsTool, fieldDetailsTool,
