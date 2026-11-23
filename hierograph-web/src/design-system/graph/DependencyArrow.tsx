@@ -1,16 +1,19 @@
 import { type ComponentProps, useId } from "react";
 
 // How a drawn dependency relates to what is in focus: one the focus uses, one
-// on it, or one of a cycle (a feedback dependency against the levels, or one
-// closing a cycle).
-export type DependencyRole = "uses" | "usedBy" | "feedback";
+// on it, one of a cycle (a feedback dependency against the levels, or one
+// closing a cycle), or one handed to the screen from outside (e.g. the
+// dependencies in an agent's link).
+export type DependencyRole = "uses" | "usedBy" | "feedback" | "given";
 
 // The colours of the roles, from the tokens: what the focus uses in the
-// accent, what uses it in grey, a cycle's in the cycle colour.
+// accent, what uses it in grey, a cycle's in the cycle colour, given ones in
+// green.
 const ROLE_COLOURS: Record<DependencyRole, string> = {
   uses: "var(--hg-accent)",
   usedBy: "var(--hg-fg-muted)",
   feedback: "var(--hg-status-warning)",
+  given: "var(--hg-status-success)",
 };
 
 const ROLES = Object.keys(ROLE_COLOURS) as DependencyRole[];

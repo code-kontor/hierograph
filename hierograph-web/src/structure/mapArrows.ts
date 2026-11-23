@@ -22,6 +22,8 @@ export type ArrowSpec = {
   from: Rect;
   to: Rect;
   role: ArrowRole;
+  // Against the levels: dashed.
+  against: boolean;
   weight: number;
   width: number;
   title: string;
@@ -33,6 +35,7 @@ export type Arrow = {
   toId: string;
   d: string;
   role: ArrowRole;
+  against: boolean;
   weight: number;
   width: number;
   title: string;
@@ -236,6 +239,7 @@ export function layoutArrows(specs: ArrowSpec[]): {
       toId: spec.toId,
       d: pathOf(kind, p, q),
       role: spec.role,
+      against: spec.against,
       weight: spec.weight,
       width: spec.width,
       title: spec.title,

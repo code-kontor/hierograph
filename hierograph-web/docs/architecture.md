@@ -170,13 +170,34 @@ arrows, and greys out the rest.
   levelization too, and the module opens once they have. The first hovered box loads the matrix over the
   frontier (`orderedAdjacencyMatrix`) for the weights; hovering traces a
   box's dependencies, its context menu pins them (as the start screen's tree
-  pins its arcs), Esc or the pane's unpin button unpins them.
+  pins its arcs), Esc or the pane's unpin button unpins them. A button in the
+  pane's corner switches tracing on hover off and on (kept by the browser,
+  `structure-trace-on-hover`); off, only a pinned box is traced, and
+  Shift + click pins a box (again, or on the canvas, unpins).
 - **Layout.** A box takes a share of its row by how many boxes are visible in
   it, and is never narrower than its content; a map wider than the pane
   scrolls. The arrows are measured from the boxes whenever the map changes or
   is resized (`mapArrows.ts`, the template's routing).
-- **URL.** `expanded_ids` (expanding replaces the history entry) and
-  `pinned_id` (pinning pushes one), validated in `routes/structure.tsx`.
+- **Given dependencies.** `dependency_ids` hands the map a set of
+  dependencies (`<source>-<target>`, a source's targets grouped as
+  `<source>-<target>.<target>`; at most 200), e.g. from the agent's
+  `structure_map_link`. `givenDependencies.ts` parses them and, once
+  `aggregatedDependencies(pairs)` has resolved their ends (with their
+  ancestors in the view) and weights, places each between the visible boxes
+  its ends lie in; the arrows are the `given` role, dashed against the levels
+  in place of the feedback arrow. Without
+  `expanded_ids`, the map opens just far enough that every dependency's ends
+  lie in different boxes and writes that into the URL (once per set);
+  `given_only` (the pane's "Only these" switch) draws only these: the map keeps only the boxes they join and the
+  boxes around them (`restrictModel`), laid out compactly. Once they are drawn
+  where they stay (expanded and loaded), the map zooms and scrolls to the
+  boxes they join (at most 100%) instead of fitting the whole map, once per
+  set; a zoom control brings them back. Where a set comes from
+  is kept apart from how it is drawn, so a named set (#59) is one more source
+  of pairs.
+- **URL.** `expanded_ids` (expanding replaces the history entry),
+  `pinned_id` (pinning pushes one), `dependency_ids` and `given_only`
+  (replaces), validated in `routes/structure.tsx`.
 
 ## Router context & data loading
 

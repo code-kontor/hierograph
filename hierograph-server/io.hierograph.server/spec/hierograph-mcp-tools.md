@@ -253,6 +253,7 @@ relationship vocabulary is listed in the
 | [`field_details`](hierograph-tool-field-details.md) | Entity detail | What is this field, and which methods use it? | no |
 | [`reload_graph`](hierograph-tool-reload-graph.md) | Maintenance | Rebuild the graph from its source now. | no |
 | [`server_info`](hierograph-tool-server-info.md) | Maintenance | Which workspace does this server serve, which build is it, and what has it loaded? | no |
+| [`structure_map_link`](hierograph-tool-structure-map-link.md) | Web UI | A link to the structure map with these dependencies drawn on it, to hand to the user. | no (capped) |
 | [`define_view`](hierograph-tool-define-view.md) | Views | Regroup the hierarchy: store and apply a view document as a short-lived runtime view (views to keep go to `.hierograph-views/`). | no |
 | [`list_views`](hierograph-tool-list-views.md) | Views | Which views are there, and do they apply cleanly? | no |
 | [`get_view`](hierograph-tool-get-view.md) | Views | What does this view define, and what did applying it report? | no |

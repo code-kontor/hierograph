@@ -4,6 +4,8 @@ import { graphQueryKey, type GraphScope } from "@/frame/GraphScope";
 import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
+import type { GivenEnd, GivenPair, ResolvedPair } from "./givenDependencies";
+
 // The levelized structure map: the root of the hierarchy (in a view, or the
 // scanned one), then, per container as it is expanded, its children in rows by
 // level with their tangles and feedback dependencies (the server's
@@ -159,6 +161,84 @@ export function structureCellsQueryOptions(scope: GraphScope, ids: string[]) {
           to: ordered[cell.column],
           weight: cell.value,
         }));
+    },
+  });
+}
+
+// The dependencies handed to the map (`dependency_ids`): each pair's ends
+// with their ancestors in the view, and its weight. Ids that name no node
+// come back as `null` ends, not as an error.
+export const StructureGivenQuery = graphql(`
+  query StructureGiven($view: String, $pairs: [NodePair!]!) {
+    hierarchicalGraph(view: $view) {
+      aggregatedDependencies(pairs: $pairs) {
+        sourceId
+        targetId
+        weight
+        sourceNode {
+          id
+          text
+          type
+          predecessors {
+            id
+            type
+            hasChildren
+          }
+        }
+        targetNode {
+          id
+          text
+          type
+          predecessors {
+            id
+            type
+            hasChildren
+          }
+        }
+      }
+    }
+  }
+`);
+
+export function structureGivenQueryOptions(
+  scope: GraphScope,
+  pairs: GivenPair[],
+) {
+  return queryOptions({
+    queryKey: graphQueryKey(
+      "structure",
+      scope,
+      "given",
+      pairs.map((pair) => `${pair.sourceId}-${pair.targetId}`).join(","),
+    ),
+    async queryFn(): Promise<ResolvedPair[]> {
+      const data = await execute(StructureGivenQuery, {
+        view: scope.view ?? null,
+        pairs,
+      });
+      type End = NonNullable<
+        NonNullable<
+          typeof data.hierarchicalGraph
+        >["aggregatedDependencies"][number]["sourceNode"]
+      >;
+      const end = (node: End | null | undefined): GivenEnd | null =>
+        node
+          ? {
+              id: node.id,
+              text: node.text,
+              type: node.type,
+              ancestors: node.predecessors,
+            }
+          : null;
+      return (data.hierarchicalGraph?.aggregatedDependencies ?? []).map(
+        (pair) => ({
+          sourceId: pair.sourceId,
+          targetId: pair.targetId,
+          source: end(pair.sourceNode),
+          target: end(pair.targetNode),
+          weight: pair.weight,
+        }),
+      );
     },
   });
 }

@@ -10,6 +10,7 @@ import hierarchyViewsNoGraph from "@/testing/fixtures/HierarchyViews.no-graph.js
 import startScreen from "@/testing/fixtures/StartScreen.json";
 import startScreenNoGraph from "@/testing/fixtures/StartScreen.no-graph.json";
 import structureCells from "@/testing/fixtures/StructureCells.json";
+import structureGiven from "@/testing/fixtures/StructureGiven.json";
 import structureLevel from "@/testing/fixtures/StructureLevel.json";
 import structureRoot from "@/testing/fixtures/StructureRoot.json";
 
@@ -50,6 +51,7 @@ const RECORDED: Record<
   StructureRoot: { default: structureRoot },
   StructureLevel: { default: structureLevel },
   StructureCells: { default: structureCells },
+  StructureGiven: { default: structureGiven },
 };
 
 export function handlersFor(scenario: Scenario): RequestHandler[] {

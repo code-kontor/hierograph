@@ -48,6 +48,14 @@ extend type HierarchicalGraph {
     the two subtrees, or (with a NOT_FOUND error) when an id names no node.
     """
     dependencySetForAggregatedDependency(sourceNodeId: ID!, targetNodeId: ID!): DependencySet
+
+    """
+    Each pair's aggregated dependency: its weight from anywhere in the source node's subtree to anywhere in
+    the target node's subtree, in argument order, duplicates kept. Unlike the other fields, an id that names
+    no node is not an error: its end comes back `null` and the weight 0, so a client holding ids from an
+    older graph (a link) tells per pair what no longer resolves. At most 1000 pairs; more is a BAD_REQUEST.
+    """
+    aggregatedDependencies(pairs: [NodePair!]!): [NodePairDependency!]!
 }
 
 "Which side of a dependency a node is on."
@@ -349,6 +357,38 @@ input NodeSelection {
 
     "Which side of the dependencies the nodes select."
     selectedNodesType: NodeType!
+}
+
+"Two node ids: a dependency's source and target, each standing for its subtree."
+input NodePair {
+
+    "The depending end."
+    sourceId: ID!
+
+    "The end depended upon."
+    targetId: ID!
+}
+
+"The aggregated dependency of one `NodePair`."
+type NodePairDependency {
+
+    "The source id as given."
+    sourceId: ID!
+
+    "The target id as given."
+    targetId: ID!
+
+    "The source node; `null` when `sourceId` names no node."
+    sourceNode: Node
+
+    "The target node; `null` when `targetId` names no node."
+    targetNode: Node
+
+    """
+    The number of individual references from the source's subtree into the target's: the summed weight of
+    the core dependencies between them. 0 when there are none, or when an end names no node.
+    """
+    weight: Int!
 }
 
 "A key-value pair."

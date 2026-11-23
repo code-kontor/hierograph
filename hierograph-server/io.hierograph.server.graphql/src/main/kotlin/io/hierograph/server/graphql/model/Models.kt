@@ -77,6 +77,21 @@ data class NodeSelection(
     val selectedNodesType: NodeType
 )
 
+/** `NodePair`: a dependency's ends by id, each standing for its subtree. */
+data class NodePair(
+    val sourceId: String,
+    val targetId: String
+)
+
+/** `NodePairDependency`: a pair's ends (`null` when an id names no node) and its aggregated weight. */
+data class NodePairDependencyModel(
+    val sourceId: String,
+    val targetId: String,
+    val sourceNode: HGNode?,
+    val targetNode: HGNode?,
+    val weight: Int
+)
+
 enum class NodeType {
     SOURCE, TARGET
 }

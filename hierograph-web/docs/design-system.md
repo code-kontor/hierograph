@@ -17,7 +17,8 @@ renders, and it is the source of truth.
   never ad-hoc colors or spacings. A screen that needs colours of its own (a map's role
   colours, say) defines them once, next to the screen, from the tokens where it can.
 - **Dependencies are drawn with `DependencyArrow`** (`src/design-system/graph/`), on
-  every screen: its role colours (what the focus uses, what uses it, a cycle's), widths
+  every screen: its role colours (what the focus uses, what uses it, a cycle's, given ones handed
+  to the screen), widths
   by weight, dashed against the order, open arrowheads (`DependencyArrowHeads` once per
   SVG). A screen lays out the paths; the arrows look the same everywhere.
 - **Open example — `src/design-system/ui/button.tsx`:** still the stock shadcn Button

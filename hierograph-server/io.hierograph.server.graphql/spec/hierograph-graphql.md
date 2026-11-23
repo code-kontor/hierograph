@@ -428,7 +428,8 @@ for its own mistake or a server fault.
 | `dependencyPage` with `pageNumber` < 1 or `pageSize` < 1 | `BAD_REQUEST`: `pageNumber must be >= 1 (pages are 1-based), was …` / `pageSize must be >= 1, was …` |
 | A node id that is not a number | `BAD_REQUEST`: `Invalid node id '…': a node id is a numeric handle`; the field resolves to `null`, or, for a non-null field such as `nodes(ids)`, its nearest nullable parent does |
 | A dependency id not of the form `<number>_<number>_<type>` | `BAD_REQUEST`: `Invalid dependency id '…': expected <source id>_<target id>_<type>` |
-| A node or dependency id that is well-formed but names nothing | `NOT_FOUND`, non-fatal: the field answers without the id, and the error lists it |
+| A node or dependency id that is well-formed but names nothing | `NOT_FOUND`, non-fatal: the field answers without the id, and the error lists it; except `aggregatedDependencies`, which answers the pair with that end `null` (§11.1) |
+| `aggregatedDependencies` with more than 1000 pairs | `BAD_REQUEST`: `At most 1000 pairs, was …` |
 | No graph loaded yet | `GRAPH_UNAVAILABLE`; `hierarchicalGraph` is `null` |
 | `hierarchicalGraph(view)` naming no view | `VIEW_NOT_FOUND`, listing the known views; `hierarchicalGraph` is `null` |
 | `hierarchicalGraph(view)` naming a view whose document does not parse | `VIEW_INVALID`, with its problems |
@@ -500,6 +501,7 @@ fields that start at the whole graph cost in proportion to the graph.
 | `node`, `nodes`, `rootNode`, `parent`, `children`, `hasChildren` | lookups: constant per id |
 | `referencedNodes`, `dependenciesTo`, `filter*`, … | the receiver's accumulated dependencies, cached per hierarchy |
 | `dependencySetForAggregatedDependency` | the aggregated dependency, cached per hierarchy |
+| `aggregatedDependencies` | per pair: the aggregated dependency, cached per hierarchy |
 | `orderedAdjacencyMatrix` | builds a DSM over the set: SCCs, ordering and a weight matrix |
 | `findNodes` | one pass over the search index |
 | `dependency(id)`, `dependencies(ids)` | per id: the source node's outgoing core dependencies |
@@ -543,6 +545,15 @@ the nodes they group. Their ids work in every field that takes node ids, and
 | `dependency(id)` | `Dependency` | The core dependency with this id (§4), or `null` with a `NOT_FOUND` error. A malformed id is a `BAD_REQUEST`. |
 | `dependencies(ids)` | `DependencySet` | The core dependencies with these ids, in argument order without duplicates; unknown ids are dropped and reported. `null` only when an id is malformed. |
 | `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | `DependencySet` | The core dependencies of the aggregated dependency from the first subtree to the second; `null` when either id names no node or no core dependency connects the subtrees. |
+| `aggregatedDependencies(pairs)` | `[NodePairDependency!]!` | Each pair's aggregated weight, source subtree into target subtree, in argument order, duplicates kept; 0 when none. An id that names no node is not reported: its end is `null` (see below). At most 1000 pairs. |
+
+**`aggregatedDependencies`** answers for a list of dependencies a client was handed,
+such as the pairs in a structure map link: for each pair, whether its ends still name
+nodes and how heavily the source's subtree depends on the target's. A link outlives
+the graph it was made from, and the client reports every pair itself, so an id that
+names no node is not a `NOT_FOUND` error here: the pair comes back with `sourceNode`
+or `targetNode` `null` and weight 0. An id that is not a number is still a
+`BAD_REQUEST`, and so are more than 1000 pairs.
 
 **`findNodes`** is the only name-based entry point; every other field takes ids. It
 delegates to the graph service's `NodeSearch`, the implementation behind the MCP
@@ -772,6 +783,8 @@ container at a time, as it is expanded.
 | `NodeType` | enum | `SOURCE`, `TARGET` | `filteredChildren`, `NodeSelection`, `FilteredDependencies` node fields |
 | `NodesToConsider` | enum | `SELF`, `SELF_AND_CHILDREN`, `SELF_AND_SUCCESSORS` | the `filter*` fields (§5) |
 | `NodeSelection` | input | `selectedNodeIds: [ID!]!`, `selectedNodesType: NodeType!` | `filteredDependencies` |
+| `NodePair` | input | `sourceId: ID!`, `targetId: ID!` | `aggregatedDependencies` |
+| `NodePairDependency` | type | `sourceId: ID!`, `targetId: ID!` (as given), `sourceNode: Node`, `targetNode: Node` (`null` when the id names no node), `weight: Int!` | `aggregatedDependencies` |
 | `MapEntry` | type | `key: String!`, `value: String` | `Node.properties` |
 
 `NodeType` names a side of a dependency, not a node kind: `SOURCE` is the depending

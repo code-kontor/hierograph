@@ -18,6 +18,8 @@ package io.hierograph.server.graphql.controller
 import io.hierograph.server.graphservice.NodeSearch
 import io.hierograph.server.graphql.UnknownIds
 import io.hierograph.server.graphql.model.DependencySetModel
+import io.hierograph.server.graphql.model.NodePair
+import io.hierograph.server.graphql.model.NodePairDependencyModel
 import io.hierograph.server.graphql.model.NodeSetModel
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -91,6 +93,24 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
         return DependencySetModel(aggregated.coreDependencies)
     }
 
+    /**
+     * Each pair's aggregated weight, source subtree into target subtree. An id that names no node leaves its
+     * end `null` and is not reported: the client checks every pair itself (see the schema).
+     */
+    @SchemaMapping(typeName = "HierarchicalGraph")
+    fun aggregatedDependencies(hierarchy: Hierarchy, @Argument pairs: List<NodePair>): List<NodePairDependencyModel> {
+        if (pairs.size > MAX_NODE_PAIRS) {
+            throw InvalidArgumentException("At most $MAX_NODE_PAIRS pairs, was ${pairs.size}")
+        }
+        return pairs.map { pair ->
+            val source = hierarchy.lookupNode(NodeController.nodeId(pair.sourceId))
+            val target = hierarchy.lookupNode(NodeController.nodeId(pair.targetId))
+            val weight = if (source == null || target == null) 0
+            else hierarchy.getAggregatedDependency(source, target)?.aggregatedWeight ?: 0
+            NodePairDependencyModel(pair.sourceId, pair.targetId, source, target, weight)
+        }
+    }
+
     /** The dependency named by [id], or `null`; an id that names no dependency is reported to [UnknownIds]. */
     private fun lookupDependency(hierarchy: Hierarchy, id: String): HGCoreDependency? =
         findCoreDependencyById(hierarchy, id) ?: null.also { UnknownIds.dependency(id) }
@@ -98,6 +118,9 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
     companion object {
         /** Upper bound for `findNodes(limit:)`; the result is a top-N, not a page. */
         const val MAX_FIND_LIMIT = 200
+
+        /** Upper bound for `aggregatedDependencies(pairs:)`. */
+        const val MAX_NODE_PAIRS = 1000
 
         fun coreDependencyId(dep: HGCoreDependency): String =
             "${dep.from.identifier}_${dep.to.identifier}_${dep.type}"

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { AppFrame } from "@/frame/AppFrame";
 import type { Screen } from "@/frame/screens";
+import structureGiven from "@/testing/fixtures/StructureGiven.json";
 import { renderWithRouter } from "@/testing/render";
 
 import { StructurePage } from "./StructurePage";
@@ -31,7 +32,20 @@ function searchOf(screen: MapRender) {
   return screen.router.state.location.search as {
     expanded_ids?: string[];
     pinned_id?: string;
+    given_only?: boolean;
   };
+}
+
+// The recorded given dependencies (see record-fixtures.ts), in the scanned
+// hierarchy: OrderController → OrderService and CustomerController →
+// CustomerApi (app → lib), CycleB → CycleC (against the cycle's levels),
+// Island → PlainClass (no dependency), and an id that names no node.
+const GIVEN = structureGiven.entries[0].variables.pairs
+  .map((pair) => `${pair.sourceId}-${pair.targetId}`)
+  .join(",");
+
+function arrowsOf(role: string) {
+  return document.querySelectorAll(`path[data-role="${role}"]`).length;
 }
 
 // Opens a box's context menu, as a right click does.
@@ -58,6 +72,10 @@ async function expand(screen: MapRender, ...labels: string[]) {
 }
 
 describe("StructurePage", () => {
+  afterEach(() => {
+    localStorage.removeItem("structure-trace-on-hover");
+  });
+
   it("shows the top level in rows by level: the module above External Types, which it uses", async () => {
     const screen = await renderMap();
 
@@ -158,6 +176,34 @@ describe("StructurePage", () => {
       .element(box(screen, "External Types"))
       .not.toHaveClass("lsm-uses");
     await expect.element(app).not.toHaveAttribute("aria-current");
+  });
+
+  it("traces nothing on hover when switched off in the corner, pins on Shift + click, and remembers it", async () => {
+    const screen = await renderMap();
+    const app = box(screen, "fixture-app");
+    const toggle = screen.getByRole("button", { name: "Trace on hover" });
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+
+    await toggle.click();
+    await app.hover();
+
+    await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect.element(app).not.toHaveAttribute("aria-current");
+    expect(localStorage.getItem("structure-trace-on-hover")).toBe("false");
+
+    // Shift + click pins the box instead; again, it unpins.
+    await app.click({ modifiers: ["Shift"] });
+    await expect.element(app).toHaveAttribute("aria-current", "true");
+    expect(searchOf(screen).pinned_id).toBeDefined();
+    await app.click({ modifiers: ["Shift"] });
+    await expect.element(app).not.toHaveAttribute("aria-current");
+    expect(searchOf(screen).pinned_id).toBeUndefined();
+
+    await toggle.click();
+    await screen.getByText("Structure", { exact: true }).hover();
+    await app.hover();
+
+    await expect.element(app).toHaveAttribute("aria-current", "true");
   });
 
   it("greys out what a hovered box isn't coupled to, until the pointer leaves", async () => {
@@ -372,5 +418,68 @@ describe("StructurePage", () => {
     await expand(screen, "fixture-app", "org.hg.fixture", "locations");
 
     await expect.element(box(screen, "application")).toBeVisible();
+  });
+
+  describe("given dependencies", () => {
+    it("opens the map just far enough to draw them, and keeps that in the URL", async () => {
+      const screen = await renderMap(`?dependency_ids=${GIVEN}`);
+
+      // app → lib (two dependencies, one arrow) and beta → gamma.
+      await expect.poll(() => arrowsOf("given")).toBe(2);
+      await expect.element(box(screen, "app")).toBeVisible();
+      await expect.element(box(screen, "lib")).toBeVisible();
+      await expect.element(box(screen, "gamma")).toBeVisible();
+      // The given beta → gamma is drawn instead of the feedback arrow.
+      expect(arrowsOf("feedback")).toBe(0);
+      expect(searchOf(screen).expanded_ids?.length).toBeGreaterThan(0);
+      await expect
+        .element(
+          screen.getByRole("button", { name: "Zoom to the dependencies" }),
+        )
+        .toBeVisible();
+    });
+
+    it("keeps the expansion of the URL: both ends in one box, no arrow", async () => {
+      const root =
+        structureGiven.entries[0].data.hierarchicalGraph
+          .aggregatedDependencies[0].sourceNode!.predecessors;
+      // The module, just below the root.
+      const module = root[root.length - 2].id;
+      const screen = await renderMap(
+        `?dependency_ids=${GIVEN}&expanded_ids=${module}`,
+      );
+
+      await expect.element(box(screen, "org.hg.fixture")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Only these" }))
+        .toBeVisible();
+      expect(searchOf(screen).expanded_ids).toEqual([module]);
+      expect(arrowsOf("given")).toBe(0);
+    });
+
+    it("draws only the given dependencies when switched: their boxes and the boxes around them", async () => {
+      const screen = await renderMap(`?dependency_ids=${GIVEN}`);
+      await expect.poll(() => arrowsOf("given")).toBe(2);
+      await expect.element(box(screen, "rel")).toBeVisible();
+
+      await screen.getByRole("button", { name: "Only these" }).click();
+
+      await expect.poll(() => searchOf(screen).given_only).toBe(true);
+      await expect.element(box(screen, "rel")).not.toBeInTheDocument();
+      await expect
+        .element(box(screen, "External Types"))
+        .not.toBeInTheDocument();
+      await expect.element(box(screen, "app")).toBeVisible();
+      await expect.element(box(screen, "lib")).toBeVisible();
+      await expect.element(box(screen, "beta")).toBeVisible();
+      // In the tangle, only the members the dependency joins.
+      await expect.element(box(screen, "alpha")).not.toBeInTheDocument();
+      expect(arrowsOf("given")).toBe(2);
+      expect(document.querySelectorAll(".lsm-dim")).toHaveLength(0);
+
+      await screen.getByRole("button", { name: "Only these" }).click();
+
+      await expect.element(box(screen, "rel")).toBeVisible();
+    });
   });
 });

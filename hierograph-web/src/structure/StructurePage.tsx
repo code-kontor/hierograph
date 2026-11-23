@@ -4,6 +4,7 @@ import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   CircleDot,
+  Crosshair,
   FileCode,
   Folder,
   Globe,
@@ -12,6 +13,7 @@ import {
   ListChevronsUpDown,
   type LucideIcon,
   Maximize,
+  MousePointer2,
   Package,
   Pin,
   PinOff,
@@ -48,8 +50,15 @@ import {
 } from "@/design-system/ui/context-menu";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
+import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
+import {
+  expansionFor,
+  type GivenPlacement,
+  parseGiven,
+  placeGiven,
+} from "./givenDependencies";
 import {
   type Arrow,
   type ArrowRole,
@@ -63,11 +72,13 @@ import {
   itemWeight,
   type MapItem,
   type MapModel,
+  restrictModel,
   trace,
   type TracedLink,
 } from "./mapModel";
 import {
   structureCellsQueryOptions,
+  structureGivenQueryOptions,
   type StructureLevel,
   structureLevelQueryOptions,
   structureRootQueryOptions,
@@ -78,11 +89,15 @@ import {
   structureKind,
 } from "./structureLabels";
 
-// The map's navigation state, in the URL: the expanded containers and the
-// box whose arrows are pinned.
+// The map's navigation state, in the URL: the expanded containers, the box
+// whose arrows are pinned, the dependencies handed to the map (`<source
+// id>-<target id>`, see givenDependencies.ts) and whether only those are
+// drawn.
 type MapSearch = {
   expanded_ids?: string[];
   pinned_id?: string;
+  dependency_ids?: string[];
+  given_only?: boolean;
 };
 
 // What every box needs: the map, the box whose arrows are drawn (the pinned
@@ -97,6 +112,17 @@ type MapState = {
   usedBy: Map<string, number>;
   // The couplings the arrows are drawn for, between visible boxes.
   links: TracedLink[];
+  // The dependencies handed to the map, placed on its boxes; null without
+  // any, or while they load.
+  given: GivenPlacement | null;
+  // Only the given dependencies drawn: the other arrows hidden, the boxes
+  // they don't touch greyed out.
+  givenOnly: boolean;
+  // The given dependencies, as a key that changes with the set.
+  givenKey: string;
+  // Whether the given dependencies are drawn where they will stay: resolved,
+  // the map expanded for them and every container on the way loaded.
+  givenSettled: boolean;
   // Whether a box is greyed out: it is none of the arrows' ends, nor holds
   // one, nor lies in the box they are drawn for.
   dimmed: (id: string) => boolean;
@@ -114,6 +140,8 @@ type MapState = {
   keepHover: () => void;
   pin: (id: string | null) => Promise<void>;
   menuFor: (id: string | null) => void;
+  // Whether hovering traces a box; off, Shift + click pins one instead.
+  traceOnHover: boolean;
 };
 
 const MapContext = createContext<MapState | null>(null);
@@ -132,35 +160,90 @@ function useMap(): MapState {
 // box traces what it uses (accent) and what uses it (grey), in the start
 // screen's arc colours; its context menu pins them, as the start screen's
 // tree pins its arcs. Containers load their rows as they are expanded.
+//
+// Dependencies handed to the map in the URL (`dependency_ids`) are drawn as
+// arrows of their own; without `expanded_ids`, the map opens just far enough
+// to tell their ends apart, and then on them. A toolbar switch draws only
+// these.
 export function StructurePage() {
   const scope = useGraphScope();
-  const search: MapSearch = useSearch({ strict: false });
-  const navigate = useNavigate();
-  const unpin = async () => {
-    await navigate({
-      to: ".",
-      search: (previous: Record<string, unknown>) => ({
-        ...previous,
-        pinned_id: undefined,
-      }),
-    } as never);
-  };
+  return scope ? (
+    <StructureMap key={scope.view ?? ""} scope={scope} />
+  ) : (
+    <MapPane toolbar={null}>
+      <p className="text-fg-muted text-[13px]">
+        No graph is loaded, so there is no structure to show yet.
+      </p>
+    </MapPane>
+  );
+}
+
+type MapPaneProps = {
+  toolbar: ReactNode;
+  children: ReactNode;
+};
+
+function MapPane({ toolbar, children }: MapPaneProps) {
   return (
     <Pane
       title="Structure"
-      toolbar={
-        search.pinned_id !== undefined && <UnpinButton onUnpin={unpin} />
-      }
+      toolbar={toolbar}
       bodyClassName="flex min-h-0 flex-col p-3"
     >
-      {scope ? (
-        <StructureMap key={scope.view ?? ""} scope={scope} />
-      ) : (
-        <p className="text-fg-muted text-[13px]">
-          No graph is loaded, so there is no structure to show yet.
-        </p>
-      )}
+      {children}
     </Pane>
+  );
+}
+
+type GivenOnlyButtonProps = {
+  pressed: boolean;
+  onPress: () => void;
+};
+
+// Draws only the given dependencies, and the boxes they touch.
+function GivenOnlyButton({ pressed, onPress }: GivenOnlyButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      title="Draw only the given dependencies"
+      onClick={onPress}
+      className={twMerge(
+        ghostIconTriggerClassName,
+        "w-auto px-1.5 font-mono text-[11px]",
+        pressed && "bg-state-selected-bg text-state-selected-fg",
+      )}
+    >
+      Only these
+    </button>
+  );
+}
+
+type TraceOnHoverButtonProps = {
+  pressed: boolean;
+  onPress: () => void;
+};
+
+// Switches tracing a box's dependencies by hovering it on and off.
+function TraceOnHoverButton({ pressed, onPress }: TraceOnHoverButtonProps) {
+  const label = pressed
+    ? "Stop tracing dependencies on hover (then Shift + click a box)"
+    : "Trace dependencies on hover (now: Shift + click a box)";
+  return (
+    <button
+      type="button"
+      aria-label="Trace on hover"
+      aria-pressed={pressed}
+      title={label}
+      onClick={onPress}
+      className={twMerge(
+        ghostIconTriggerClassName,
+        "size-5",
+        pressed && "bg-state-selected-bg text-state-selected-fg",
+      )}
+    >
+      <MousePointer2 className="size-3.5" />
+    </button>
   );
 }
 
@@ -195,6 +278,12 @@ function StructureMap({ scope }: StructureMapProps) {
   const pinnedParam =
     search.pinned_id === undefined ? undefined : String(search.pinned_id);
   const [hovered, setHovered] = useState<string | null>(null);
+  // Whether hovering a box traces its dependencies; switched off, only a
+  // pinned box (or the one whose menu is open) does. Kept by the browser.
+  const [traceOnHover, setTraceOnHover] = useLocalStorage<boolean>(
+    "structure-trace-on-hover",
+    true,
+  );
   const [menu, setMenu] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -229,7 +318,21 @@ function StructureMap({ scope }: StructureMapProps) {
       : undefined;
   const live = (id: string | null) =>
     id !== null && model?.boxes.has(id) ? id : undefined;
-  const focusId = pinnedId ?? live(menu) ?? live(hovered);
+
+  // The dependencies handed to the map, resolved in the view and placed on
+  // the boxes as they are shown now.
+  const given = parseGiven(search.dependency_ids?.map(String));
+  const resolvedGiven = useQuery({
+    ...structureGivenQueryOptions(scope, given.pairs),
+    enabled: given.pairs.length > 0,
+  });
+  const placement =
+    model && resolvedGiven.data ? placeGiven(model, resolvedGiven.data) : null;
+  const givenOnly = search.given_only === true && placement !== null;
+  // With only the given dependencies drawn, nothing is traced.
+  const focusId = givenOnly
+    ? undefined
+    : (pinnedId ?? live(menu) ?? (traceOnHover ? live(hovered) : undefined));
 
   // The couplings between the shown boxes, loaded for all of them when a box
   // is first hovered: hovering the next one draws its arrows at once.
@@ -262,8 +365,10 @@ function StructureMap({ scope }: StructureMapProps) {
     }
   }
   // Only the outermost box of an uninvolved part is greyed out, so nested
-  // boxes don't fade twice.
+  // boxes don't fade twice. With only the given dependencies drawn, nothing
+  // else is on the map to grey out.
   const dimmed = (id: string) => {
+    if (givenOnly) return false;
     if (!model || !focusId || involved.size === 0) return false;
     if (involved.has(id) || isWithin(model, id, focusId)) return false;
     const parentId = model.boxes.get(id)?.parentId ?? null;
@@ -332,6 +437,39 @@ function StructureMap({ scope }: StructureMapProps) {
   const pin = async (id: string | null) => {
     await setSearch({ pinned_id: id ?? undefined }, false);
   };
+  const setGivenOnly = async (only: boolean) => {
+    await setSearch({ given_only: only || undefined }, true);
+  };
+
+  // Without an expansion in the URL, the map opens just far enough that the
+  // ends of every given dependency lie in different boxes, once per set of
+  // dependencies, and writes it into the URL, so a reload or a copied link
+  // shows the same. A set that comes with an expansion keeps it.
+  const givenKey = given.pairs
+    .map((pair) => `${pair.sourceId}-${pair.targetId}`)
+    .join(",");
+  const expandedFor = useRef<string | null>(null);
+  const givenSettled =
+    placement !== null &&
+    resolvedGiven.data !== undefined &&
+    (search.expanded_ids !== undefined ||
+      expansionFor(resolvedGiven.data).length === 0) &&
+    !levelQueries.some((query) => query.isPending) &&
+    (model?.pending.length ?? 0) === 0;
+  useEffect(() => {
+    const resolved = resolvedGiven.data;
+    if (!resolved || givenKey === "" || expandedFor.current === givenKey) {
+      return;
+    }
+    expandedFor.current = givenKey;
+    if (search.expanded_ids !== undefined) return;
+    const ids = expansionFor(resolved);
+    if (ids.length === 0) return;
+    const expand = async () => {
+      await setSearch({ expanded_ids: ids }, true);
+    };
+    expand().catch((error: unknown) => console.error(error));
+  });
   // A box's arrows show once the pointer has rested on it for a moment, so
   // passing over the map doesn't flash them; leaving a box clears them a
   // moment later, so moving across the gap to the next box doesn't make them
@@ -363,25 +501,53 @@ function StructureMap({ scope }: StructureMapProps) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   });
+  const toolbar = (
+    <>
+      {placement !== null && (
+        <GivenOnlyButton
+          pressed={search.given_only === true}
+          onPress={() => setGivenOnly(search.given_only !== true)}
+        />
+      )}
+      {pinnedParam !== undefined && <UnpinButton onUnpin={() => pin(null)} />}
+      <TraceOnHoverButton
+        pressed={traceOnHover}
+        onPress={() => setTraceOnHover(!traceOnHover)}
+      />
+    </>
+  );
   if (root.isPending) {
-    return <Message variant="loading" title="Loading the structure…" />;
+    return (
+      <MapPane toolbar={toolbar}>
+        <Message variant="loading" title="Loading the structure…" />
+      </MapPane>
+    );
   }
   if (root.isError || model === null) {
     return (
-      <Message variant="error" title="The structure can't be loaded">
-        {root.error?.message}
-      </Message>
+      <MapPane toolbar={toolbar}>
+        <Message variant="error" title="The structure can't be loaded">
+          {root.error?.message}
+        </Message>
+      </MapPane>
     );
   }
 
   const state: MapState = {
-    model,
+    // With only the given dependencies drawn, only the boxes they touch and
+    // the boxes those lie in.
+    model:
+      givenOnly && placement ? restrictModel(model, placement.involved) : model,
     expanded,
     focusId,
     pinnedId,
     uses: traced.uses,
     usedBy: traced.usedBy,
     links: traced.links,
+    given: placement,
+    givenOnly,
+    givenKey,
+    givenSettled,
     dimmed,
     toggle,
     expandAll,
@@ -392,12 +558,15 @@ function StructureMap({ scope }: StructureMapProps) {
     keepHover,
     pin,
     menuFor: setMenu,
+    traceOnHover,
   };
   return (
     <MapContext value={state}>
-      <div className="lsm flex min-h-0 flex-1 flex-col">
-        <MapCanvas />
-      </div>
+      <MapPane toolbar={toolbar}>
+        <div className="lsm flex min-h-0 flex-1 flex-col">
+          <MapCanvas />
+        </div>
+      </MapPane>
     </MapContext>
   );
 }
@@ -409,6 +578,8 @@ const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 1.25;
 const WHEEL_CAP = 20;
+// The margin around the given dependencies' boxes when the map zooms to them.
+const GIVEN_MARGIN = 48;
 // Moving the pointer this far with the button down pans instead of clicking.
 const DRAG_START = 4;
 
@@ -430,10 +601,25 @@ function fitZoom(
 // dragging and zooms (ctrl/⌘ + wheel or pinch around the pointer, or the
 // buttons around the centre). The map is laid out at the viewport's width
 // and scaled, so zooming never rearranges it. A box pinned in the URL is
-// scrolled into view once it is drawn. A box's context menu pins its arrows.
+// scrolled into view once it is drawn. A box's context menu pins its arrows;
+// with tracing on hover off, so does Shift + click (again, or on the canvas,
+// unpins).
 function MapCanvas() {
-  const { model, focusId, pinnedId, links, hover, keepHover, menuFor } =
-    useMap();
+  const {
+    model,
+    focusId,
+    pinnedId,
+    links,
+    given,
+    givenOnly,
+    givenKey,
+    givenSettled,
+    hover,
+    keepHover,
+    menuFor,
+    pin,
+    traceOnHover,
+  } = useMap();
   const heads = useArrowHeadsId();
   // The box or arrow a right click opened the menu for.
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
@@ -479,6 +665,55 @@ function MapCanvas() {
     zoomAsked.current = clamped;
     setZoom(clamped);
   };
+  // Zooms and scrolls to the boxes the given dependencies join, with a margin,
+  // never above 100%.
+  const zoomToGiven = () => {
+    const view = viewport.current;
+    const element = map.current;
+    if (!view || !element || !given) return;
+    const rects = given.arrows
+      .flatMap((arrow) => [arrow.fromBox, arrow.toBox])
+      .map((id) => boxRect(element, id))
+      .filter((rect) => rect !== null);
+    if (rects.length === 0) return;
+    const l = Math.min(...rects.map((rect) => rect.l));
+    const t = Math.min(...rects.map((rect) => rect.t));
+    const r = Math.max(...rects.map((rect) => rect.r));
+    const bottom = Math.max(...rects.map((rect) => rect.b));
+    const next = Math.max(
+      MIN_ZOOM,
+      Math.min(
+        1,
+        view.clientWidth / (r - l + 2 * GIVEN_MARGIN),
+        view.clientHeight / (bottom - t + 2 * GIVEN_MARGIN),
+      ),
+    );
+    const point = {
+      map: { x: (l + r) / 2, y: (t + bottom) / 2 },
+      view: { x: view.clientWidth / 2, y: view.clientHeight / 2 },
+    };
+    zoomAsked.current = next;
+    if (next === zoom) {
+      view.scrollLeft = point.map.x * zoom - point.view.x;
+      view.scrollTop = point.map.y * zoom - point.view.y;
+      return;
+    }
+    anchor.current = point;
+    setZoom(next);
+  };
+  // The map opens on the given dependencies, once per set, when they are
+  // drawn where they stay.
+  const zoomedFor = useRef<string | null>(null);
+  const hasGivenArrows = (given?.arrows.length ?? 0) > 0;
+  useLayoutEffect(() => {
+    if (!givenSettled || !hasGivenArrows || viewWidth === 0) return;
+    // Again when only these are drawn, or all again: the map changes.
+    const key = `${givenKey}|${givenOnly}`;
+    if (zoomedFor.current === key) return;
+    zoomedFor.current = key;
+    zoomToGiven();
+  });
+
   const fit = () => {
     const view = viewport.current;
     if (!view || size.width === 0 || size.height === 0) return;
@@ -497,6 +732,8 @@ function MapCanvas() {
     if (fitted.current || !view || !element || !drawn || viewWidth === 0) {
       return;
     }
+    // Opened on the given dependencies already.
+    if (zoomedFor.current !== null) return;
     fitted.current = true;
     const next = fitZoom(view, {
       width: element.offsetWidth,
@@ -586,59 +823,69 @@ function MapCanvas() {
     const element = map.current;
     if (!element) return;
     const draw = () => {
-      const base = element.getBoundingClientRect();
-      // The map is drawn scaled; the arrows are laid out in its own units.
-      const scale =
-        element.offsetWidth > 0 ? base.width / element.offsetWidth : 1;
-      const rect = (id: string): Rect | null => {
-        const box = element.querySelector(`[data-box-id="${CSS.escape(id)}"]`);
-        if (!box) return null;
-        const r = box.getBoundingClientRect();
-        // In whole pixels: unscaling leaves fractions that differ from zoom to
-        // zoom, and would lay the same arrows out again.
-        return {
-          l: Math.round((r.left - base.left) / scale),
-          t: Math.round((r.top - base.top) / scale),
-          r: Math.round((r.right - base.left) / scale),
-          b: Math.round((r.bottom - base.top) / scale),
-        };
-      };
+      const rect = (id: string): Rect | null => boxRect(element, id);
       const groups = new Map<
         string,
-        { from: string; to: string; weight: number; role: ArrowRole }
+        {
+          from: string;
+          to: string;
+          weight: number;
+          role: ArrowRole;
+          count: number;
+        }
       >();
       const add = (
         from: string,
         to: string,
         weight: number,
         role: ArrowRole,
+        count = 0,
       ) => {
         if (from === to) return;
         const key = `${from}>${to}>${role}`;
-        const group = groups.get(key) ?? { from, to, weight: 0, role };
+        const group = groups.get(key) ?? { from, to, weight: 0, role, count };
         group.weight += weight;
         groups.set(key, group);
       };
-      for (const dep of model.feedback) {
-        add(dep.sourceId, dep.targetId, dep.weight, "feedback");
-      }
-      // A pair a feedback arrow already joins gets no second arrow.
       const feedbackPairs = new Set(
         model.feedback.map((dep) => `${dep.sourceId}>${dep.targetId}`),
       );
+      // A given dependency against the levels is drawn once, as given and
+      // dashed, instead of as a feedback arrow.
+      const givenPairs = new Set(
+        given?.arrows.map((arrow) => `${arrow.fromBox}>${arrow.toBox}`) ?? [],
+      );
+      for (const arrow of given?.arrows ?? []) {
+        add(arrow.fromBox, arrow.toBox, arrow.weight, "given", arrow.count);
+      }
+      if (!givenOnly) {
+        for (const dep of model.feedback) {
+          const pair = `${dep.sourceId}>${dep.targetId}`;
+          if (!givenPairs.has(pair)) {
+            add(dep.sourceId, dep.targetId, dep.weight, "feedback");
+          }
+        }
+      }
+      // A pair a feedback or a given arrow already joins gets no second one.
       if (focusId) {
         for (const link of links) {
-          if (!feedbackPairs.has(`${link.from}>${link.to}`)) {
+          const pair = `${link.from}>${link.to}`;
+          if (!feedbackPairs.has(pair) && !givenPairs.has(pair)) {
             add(link.from, link.to, link.weight, link.role);
           }
         }
       }
-      const maxWeight = Math.max(
-        1,
-        ...[...groups.values()]
-          .filter((group) => group.role !== "feedback")
-          .map((group) => group.weight),
-      );
+      const maxWeight = (role: ArrowRole) =>
+        Math.max(
+          1,
+          ...[...groups.values()]
+            .filter((group) =>
+              role === "given"
+                ? group.role === "given"
+                : group.role === "uses" || group.role === "usedBy",
+            )
+            .map((group) => group.weight),
+        );
       const specs: ArrowSpec[] = [];
       for (const [key, group] of groups) {
         const from = rect(group.from);
@@ -648,6 +895,8 @@ function MapCanvas() {
           focusId !== undefined &&
           (isWithin(model, group.from, focusId) ||
             isWithin(model, group.to, focusId));
+        const pair = `${group.from}>${group.to}`;
+        const names = `${model.boxes.get(group.from)?.text} → ${model.boxes.get(group.to)?.text}`;
         specs.push({
           key,
           fromId: group.from,
@@ -655,14 +904,20 @@ function MapCanvas() {
           from,
           to,
           role: group.role,
+          against:
+            group.role === "feedback" ||
+            (group.role === "given" && feedbackPairs.has(pair)),
           weight: group.weight,
           width: dependencyArrowWidth(
             group.role,
             group.weight,
-            maxWeight,
+            maxWeight(group.role),
             touches,
           ),
-          title: `${model.boxes.get(group.from)?.text} → ${model.boxes.get(group.to)?.text} · ${group.weight}`,
+          title:
+            group.role === "given"
+              ? `${names} · ${group.count} given ${group.count === 1 ? "dependency" : "dependencies"} · weight ${group.weight}`
+              : `${names} · ${group.weight}`,
         });
       }
       const key = JSON.stringify(specs);
@@ -693,7 +948,7 @@ function MapCanvas() {
     const resizes = new ResizeObserver(draw);
     resizes.observe(element);
     return () => resizes.disconnect();
-  }, [model, focusId, links]);
+  }, [model, focusId, links, given, givenOnly]);
 
   useEffect(() => {
     if (!pinnedId || scrolledTo.current === pinnedId) return;
@@ -742,6 +997,15 @@ function MapCanvas() {
             onPointerUp={pointerUp}
             onPointerCancel={pointerUp}
             onClickCapture={clickCapture}
+            onMouseDown={(event) => {
+              // Shift would extend the text selection.
+              if (event.shiftKey && !traceOnHover) event.preventDefault();
+            }}
+            onClick={async (event) => {
+              if (!event.shiftKey || traceOnHover || event.button !== 0) return;
+              const id = boxAt(event.target);
+              await pin(id === null || id === pinnedId ? null : id);
+            }}
             onMouseOver={(event) => {
               if (panning) return;
               // On an arrow, the arrows it belongs to stay.
@@ -815,9 +1079,27 @@ function MapCanvas() {
         onZoomIn={() => zoomTo(zoom * ZOOM_STEP)}
         onReset={() => zoomTo(1)}
         onFit={fit}
+        onGiven={hasGivenArrows ? zoomToGiven : undefined}
       />
     </div>
   );
+}
+
+// A box's rectangle in the map's own units (it is drawn scaled), in whole
+// pixels: unscaling leaves fractions that differ from zoom to zoom, and would
+// lay the same arrows out again.
+function boxRect(element: HTMLElement, id: string): Rect | null {
+  const box = element.querySelector(`[data-box-id="${CSS.escape(id)}"]`);
+  if (!box) return null;
+  const base = element.getBoundingClientRect();
+  const scale = element.offsetWidth > 0 ? base.width / element.offsetWidth : 1;
+  const r = box.getBoundingClientRect();
+  return {
+    l: Math.round((r.left - base.left) / scale),
+    t: Math.round((r.top - base.top) / scale),
+    r: Math.round((r.right - base.left) / scale),
+    b: Math.round((r.bottom - base.top) / scale),
+  };
 }
 
 type MenuTarget =
@@ -946,6 +1228,8 @@ type ZoomControlsProps = {
   onZoomIn: () => void;
   onReset: () => void;
   onFit: () => void;
+  // Zooms to the given dependencies; without them, no such control.
+  onGiven: (() => void) | undefined;
 };
 
 function ZoomControls({
@@ -954,6 +1238,7 @@ function ZoomControls({
   onZoomIn,
   onReset,
   onFit,
+  onGiven,
 }: ZoomControlsProps) {
   return (
     <div role="group" aria-label="Zoom" className="lsm-zoom">
@@ -981,6 +1266,13 @@ function ZoomControls({
         onPress={onZoomIn}
       />
       <ZoomButton icon={Maximize} label="Fit the map" onPress={onFit} />
+      {onGiven && (
+        <ZoomButton
+          icon={Crosshair}
+          label="Zoom to the dependencies"
+          onPress={onGiven}
+        />
+      )}
     </div>
   );
 }
@@ -1018,7 +1310,7 @@ function ArrowPath({ arrow, heads }: ArrowPathProps) {
     <DependencyArrow
       d={arrow.d}
       role={arrow.role}
-      against={arrow.role === "feedback"}
+      against={arrow.against}
       width={arrow.width}
       heads={heads}
       title={arrow.title}

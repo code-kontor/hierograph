@@ -34,6 +34,7 @@ import io.hierograph.mcp.server.tools.reachability.AffectedByTool
 import io.hierograph.mcp.server.tools.reachability.FindDependencyPathTool
 import io.hierograph.mcp.server.tools.admin.ReloadGraphTool
 import io.hierograph.mcp.server.tools.admin.ServerInfoTool
+import io.hierograph.mcp.server.tools.ui.StructureMapLinkTool
 import io.hierograph.mcp.server.instance.InstanceGuard
 import io.hierograph.mcp.server.instance.ServerVersion
 import io.hierograph.mcp.server.tools.views.ViewTools
@@ -72,6 +73,7 @@ class McpApplication {
         fieldDetailsTool: FieldDetailsTool,
         reloadGraphTool: ReloadGraphTool,
         serverInfoTool: ServerInfoTool,
+        structureMapLinkTool: StructureMapLinkTool,
         viewTools: ViewTools,
         viewService: ViewService,
     ): ToolCallbackProvider {
@@ -82,7 +84,7 @@ class McpApplication {
                 outgoingDependenciesTool, incomingDependenciesTool,
                 affectedByTool, findDependencyPathTool,
                 typeDetailsTool, methodDetailsTool, fieldDetailsTool,
-                reloadGraphTool, serverInfoTool,
+                reloadGraphTool, serverInfoTool, structureMapLinkTool,
                 viewTools
             )
             .build()

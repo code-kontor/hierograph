@@ -167,6 +167,15 @@ export function buildModel(
   };
   open(rootId, "", 0, false);
   feedback.sort((a, b) => b.weight - a.weight);
+  const weights = weightsOf(boxes.keys(), rowsOf);
+  return { rootId, boxes, rowsOf, frontier, feedback, weights, pending };
+}
+
+// Each box's weight: how many boxes are visible in it.
+function weightsOf(
+  ids: Iterable<string>,
+  rowsOf: Map<string, MapItem[][]>,
+): Map<string, number> {
   const weights = new Map<string, number>();
   const weightOf = (id: string): number => {
     const known = weights.get(id);
@@ -176,8 +185,46 @@ export function buildModel(
     weights.set(id, weight);
     return weight;
   };
-  for (const id of boxes.keys()) weightOf(id);
-  return { rootId, boxes, rowsOf, frontier, feedback, weights, pending };
+  for (const id of ids) weightOf(id);
+  return weights;
+}
+
+// The map with only the boxes in `keep` drawn: the others left out of their
+// rows, rows and tangles left empty dropped, and the weights counted again,
+// so what is kept lays out compactly. The root is always kept.
+export function restrictModel(
+  model: MapModel,
+  keep: ReadonlySet<string>,
+): MapModel {
+  const rowsOf = new Map<string, MapItem[][]>();
+  for (const [id, rows] of model.rowsOf) {
+    if (id !== model.rootId && !keep.has(id)) continue;
+    const kept = rows
+      .map((row) =>
+        row.flatMap((item): MapItem[] => {
+          if (item.kind === "box") return keep.has(item.id) ? [item] : [];
+          const tangleRows = item.rows
+            .map((ids) => ids.filter((member) => keep.has(member)))
+            .filter((ids) => ids.length > 0);
+          return tangleRows.length > 0
+            ? [{ kind: "tangle", rows: tangleRows }]
+            : [];
+        }),
+      )
+      .filter((row) => row.length > 0);
+    rowsOf.set(id, kept);
+  }
+  const boxes = new Map([...model.boxes].filter(([id]) => keep.has(id)));
+  return {
+    ...model,
+    boxes,
+    rowsOf,
+    frontier: model.frontier.filter((id) => keep.has(id)),
+    feedback: model.feedback.filter(
+      (dep) => keep.has(dep.sourceId) && keep.has(dep.targetId),
+    ),
+    weights: weightsOf(boxes.keys(), rowsOf),
+  };
 }
 
 // The weight of a set of rows: the widest row's, a row's the sum of its

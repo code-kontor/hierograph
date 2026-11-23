@@ -22,6 +22,7 @@ import {
   HierarchyViewsDocument,
   StartScreenDocument,
   StructureCellsDocument,
+  StructureGivenDocument,
   StructureLevelDocument,
   StructureRootDocument,
 } from "../../graphql/generated/graphql.ts";
@@ -374,4 +375,44 @@ if (scenario === "default") {
     }
   }
   write("StructureCells", cellEntries);
+
+  // Dependencies handed to the map (`dependency_ids`), in both views: types
+  // by qualified name, so the tests take the ids from this file. Two that
+  // exist, one in the cycle, one pair without a dependency, and one id that
+  // names no node.
+  const idOfText = new Map<string, string>();
+  for (const entry of structureLevels) {
+    if (entry.variables.view !== null) continue;
+    for (const row of (entry.data as Level).hierarchicalGraph.node.children
+      .levelization.levels) {
+      for (const node of row.nodes as (Node & { text?: string })[]) {
+        if (node.text) idOfText.set(node.text, node.id);
+      }
+    }
+  }
+  const typeId = (text: string) => {
+    const id = idOfText.get(`org.hg.fixture.${text}`);
+    if (!id) throw new Error(`No type org.hg.fixture.${text} in the levels`);
+    return id;
+  };
+  const given = [
+    ["locations.app.web.OrderController", "locations.lib.order.OrderService"],
+    [
+      "locations.app.web.CustomerController",
+      "locations.lib.customer.CustomerApi",
+    ],
+    ["basic.cycle.beta.CycleB", "basic.cycle.gamma.CycleC"],
+    ["basic.isolated.Island", "basic.core.PlainClass"],
+  ].map(([source, target]) => ({
+    sourceId: typeId(source),
+    targetId: typeId(target),
+  }));
+  given.push({ sourceId: "424242", targetId: given[0].targetId });
+  const givenEntries: Entry[] = [];
+  for (const view of [null, "layers"]) {
+    const variables = { view, pairs: given };
+    const data = await client.request(StructureGivenDocument, variables);
+    givenEntries.push({ variables, data: normalize(data as never) });
+  }
+  write("StructureGiven", givenEntries);
 }

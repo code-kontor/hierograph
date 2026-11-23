@@ -1,6 +1,6 @@
 ---
 name: hierograph-structure
-description: Analyse and visualise the dependency structure among a set of modules (or packages, services, types) with hierograph — render a Dependency Structure Matrix (DSM), draw an interactive layered dependency graph (core at the bottom, every arrow pointing down, click-to-trace, coupling weights, filters), draw a levelized structure map (modules and packages as nested, collapsible boxes in rows by level, package tangles boxed in red, only the dependencies against the levels drawn as arrows), and answer layering / cycle-detection questions. Use this whenever the user wants to see, explore, diagram or "get a picture of" how the parts of a codebase depend on each other; asks for a dependency graph, module graph, architecture overview, coupling map, DSM or dependency structure matrix, levelized structure map or package structure map; asks "how are the packages of X layered" or "where are the package cycles"; asks "is X properly layered", "are there cycles", "what's the structure of these modules", or "which modules are core / most depended on"; or wants to look at the system by multi-module, layer, bounded context or target architecture — a hierograph view, which this skill uses and proposes. Reach for it even when they only say "show me the structure" or "can I see the dependencies" without naming a chart. Do NOT use for single-target blast-radius questions ("what depends on X" / "what does X depend on" — query hierograph's incoming/outgoing/aggregated_dependencies directly), one-off pair checks, planning a module extraction (that is hierograph-extract), or first-time hierograph setup (that is hierograph-bootstrap).
+description: Analyse and visualise the dependency structure among a set of modules (or packages, services, types) with hierograph — render a Dependency Structure Matrix (DSM), draw an interactive layered dependency graph (core at the bottom, every arrow pointing down, click-to-trace, coupling weights, filters), draw a levelized structure map (modules and packages as nested, collapsible boxes in rows by level, package tangles boxed in red, only the dependencies against the levels drawn as arrows), and answer layering / cycle-detection questions. Use this whenever the user wants to see, explore, diagram or "get a picture of" how the parts of a codebase depend on each other; asks for a dependency graph, module graph, architecture overview, coupling map, DSM or dependency structure matrix, levelized structure map or package structure map; asks "how are the packages of X layered" or "where are the package cycles"; asks "is X properly layered", "are there cycles", "what's the structure of these modules", or "which modules are core / most depended on"; or wants to look at the system by multi-module, layer, bounded context or target architecture — a hierograph view, which this skill uses and proposes; or wants to see a specific set of dependencies (the ones an extraction has to cut, the ones against a layering) where they sit in the structure — a link to the web UI's structure map with them drawn on it. Reach for it even when they only say "show me the structure" or "can I see the dependencies" without naming a chart. Do NOT use for single-target blast-radius questions ("what depends on X" / "what does X depend on" — query hierograph's incoming/outgoing/aggregated_dependencies directly), one-off pair checks, planning a module extraction (that is hierograph-extract), or first-time hierograph setup (that is hierograph-bootstrap).
 ---
 
 # hierograph-structure — DSM, layering, cycles, and the layered graph
@@ -122,6 +122,7 @@ the writeup, scan the `edges` array yourself (`max(edges, key=…["weight"])`).
 | an interactive picture to explore, >~20 nodes, "a picture of the structure", something clickable/publishable | **`references/layered.md`** |
 | the structure *inside* modules: packages as nested boxes in rows by level, tangles, "a levelized / structure map", one picture of the system down to packages | **`references/levelized.md`** |
 | the structure by multi-module, layer or context; a view to use, or to propose | **`references/views.md`**, then one of the above |
+| a specific set of dependencies shown where they sit in the structure, while the server runs | **Showing dependencies on the live map**, below |
 
 Read only the one you need. The DSM and the layered graph start from the node set
 and digest you already have; neither re-queries the structure. The levelized map
@@ -129,6 +130,28 @@ is the exception: its node set is a containment *tree* down to packages, so it
 collects its own tree and leaf-level edges (its steps 1–2 replace the ones above,
 but the rules of step 1 — read the scope back, never drop a module silently —
 still apply).
+
+## Showing dependencies on the live map
+
+When the answer is a set of dependencies — the ones a planned extraction has to cut,
+the feedback dependencies of a tangle, the uses of a type about to move — and the
+server's web UI is reachable, show them on the UI's structure map instead of
+building a page:
+
+1. Compute the set with the dependency tools (`outgoing_dependencies`,
+   `aggregated_dependencies`, `levelized_structure`'s feedback dependencies). Prefer
+   coarse ends: a package-to-package dependency is one arrow; its type-level
+   dependencies are many.
+2. Call `structure_map_link(dependencies=[{sourceId, targetId}, …])`, with `view`
+   when the question is asked in a view. Leave `expandedIds` out: the map opens just
+   far enough to tell the ends apart.
+3. Hand the user the `url`, and say in a sentence what they'll see. Mention the
+   summary's `unknown_ids` and `without_dependency` if any: the map doesn't draw
+   them, so the user only learns of them from you.
+
+At most 200 dependencies fit a link. For more, lift them to coarser ends, or pick the
+heaviest. The link stores nothing in the server; it stays valid as long as the ids
+name the same nodes.
 
 ## Reporting (either rendering)
 
