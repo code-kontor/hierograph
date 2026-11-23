@@ -39,10 +39,15 @@ function arcs() {
     to: g.dataset.to ?? "",
     direction: g.dataset.direction,
     relation: g.dataset.relation,
-    strokeWidth: g.querySelector("path")?.getAttribute("stroke-width"),
-    dotted: g.querySelector("path")?.hasAttribute("stroke-dasharray") ?? false,
-    colour: g.querySelector("path")?.getAttribute("class") ?? "",
-    arrowhead: g.querySelector("[data-arrowhead]") !== null,
+    strokeWidth: Number(
+      g.querySelector("[data-arrow-line]")?.getAttribute("stroke-width"),
+    ),
+    dotted:
+      g.querySelector("[data-arrow-line]")?.hasAttribute("stroke-dasharray") ??
+      false,
+    colour: g.querySelector("[data-arrow-line]")?.getAttribute("stroke") ?? "",
+    arrowhead:
+      g.querySelector("[data-arrow-line]")?.hasAttribute("marker-end") ?? false,
     title: g.querySelector("title")?.textContent ?? "",
     weight: g.dataset.weight ?? "",
   }));
@@ -282,8 +287,8 @@ describe("HierarchyTree", () => {
       expect(arc.dotted).toBe(true);
     }
     // Seen from beta: its own dependencies outgoing (blue), the others'
-    // incoming (grey), whichever way they run; each with an arrowhead; all of
-    // one thickness.
+    // incoming (grey), whichever way they run; each with an arrowhead; the
+    // heavier never thinner.
     for (const arc of arcs()) {
       expect(arc.relation).toBe(arc.from === beta ? "outgoing" : "incoming");
       expect(arc.colour).toContain(
@@ -291,7 +296,12 @@ describe("HierarchyTree", () => {
       );
       expect(arc.arrowhead).toBe(true);
     }
-    expect(new Set(arcs().map((arc) => arc.strokeWidth)).size).toBe(1);
+    const byWeight = arcs().sort((a, b) => Number(a.weight) - Number(b.weight));
+    for (let index = 1; index < byWeight.length; index++) {
+      expect(byWeight[index].strokeWidth).toBeGreaterThanOrEqual(
+        byWeight[index - 1].strokeWidth,
+      );
+    }
     // The tooltip names both ends and the weight.
     expect(arcs()[0].title).toMatch(/^.+ → .+: weight \d+$/);
 

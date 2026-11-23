@@ -19,7 +19,6 @@
   --lsm-ext-line: #5b93d6;
   --lsm-tangle: #f8dddd;
   --lsm-tangle-line: #e34948;
-  --lsm-bad: var(--hg-status-warning);
   --lsm-out: var(--hg-accent);
   --lsm-in: var(--hg-fg-muted);
   --lsm-sel: #0d366b;
@@ -79,15 +78,6 @@
   pointer-events: none;
   overflow: visible;
   z-index: 3;
-}
-/* An arrow takes the pointer along its invisible wide line, and shows it is
-   under the pointer at full strength. */
-.lsm-hit {
-  stroke: transparent;
-  pointer-events: stroke;
-}
-.lsm-arrow:hover .lsm-line {
-  stroke-opacity: 1;
 }
 
 .lsm-rows {

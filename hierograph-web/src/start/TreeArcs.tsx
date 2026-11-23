@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Pin, PinOff } from "lucide-react";
 import {
-  type ComponentProps,
   createContext,
   type ReactNode,
   useContext,
@@ -10,6 +9,13 @@ import {
   useState,
 } from "react";
 
+import {
+  DependencyArrow,
+  DependencyArrowHeads,
+  dependencyArrowWidth,
+  type DependencyRole,
+  useArrowHeadsId,
+} from "@/design-system/graph/DependencyArrow";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -34,8 +40,6 @@ export const ARC_AREA_WIDTH = 180;
 const ANCHOR_X = 40;
 // The space between the arcs up (left) and the arcs down (right).
 const SIDE_GAP = 15;
-// Every arc has the same thickness, whatever its weight.
-const ARC_STROKE = 1.25;
 // The space between the widest label and the arc area.
 const LABEL_GAP = 4;
 const LAYOUT = {
@@ -109,6 +113,7 @@ export function TreeArcs({
 }: TreeArcsProps) {
   const ref = useRef<HTMLDivElement>(null);
   const area = useRef<SVGSVGElement>(null);
+  const heads = useArrowHeadsId();
   const [rows, setRows] = useState<MeasuredRow[]>([]);
   // Where the arc area starts: just after the widest visible label.
   const [left, setLeft] = useState(0);
@@ -196,6 +201,7 @@ export function TreeArcs({
       ? layoutArcs(rows, dependencies, LAYOUT)
       : [];
   const byId = new Map(rows.map((row) => [row.id, row]));
+  const maxWeight = Math.max(1, ...arcs.map((arc) => arc.weight));
 
   // While a menu is open its arcs stay; once it closes, they stay as long as
   // the pointer is in the arc area, which the next move tells.
@@ -228,6 +234,8 @@ export function TreeArcs({
             from={byId.get(arc.from)}
             to={byId.get(arc.to)}
             focus={focus}
+            maxWeight={maxWeight}
+            heads={heads}
           />
         ));
 
@@ -249,6 +257,7 @@ export function TreeArcs({
           onMouseEnter={() => setHeld(shown)}
           onMouseLeave={() => setHeld(null)}
         >
+          <DependencyArrowHeads id={heads} />
           {paths}
         </svg>
       </div>
@@ -312,39 +321,50 @@ type ArcPathProps = {
   to: MeasuredRow | undefined;
   // What the arcs are drawn for.
   focus: ArcFocus;
+  // The heaviest drawn arc's weight.
+  maxWeight: number;
+  // The id of the arc area's arrowheads.
+  heads: string;
 };
 
-// The colour of an arc and its arrowhead, by its relation to what is hovered.
-const RELATION_COLOURS: Record<ArcRelation, { line: string; head: string }> = {
-  outgoing: {
-    line: "stroke-[var(--hg-accent)]",
-    head: "fill-[var(--hg-accent)]",
-  },
-  incoming: {
-    line: "stroke-[var(--hg-fg-muted)]",
-    head: "fill-[var(--hg-fg-muted)]",
-  },
-  cycle: {
-    line: "stroke-[var(--hg-status-warning)]",
-    head: "fill-[var(--hg-status-warning)]",
-  },
+// The arrow's role, by the arc's relation to what is hovered.
+const RELATION_ROLES: Record<ArcRelation, DependencyRole> = {
+  outgoing: "uses",
+  incoming: "usedBy",
+  cycle: "feedback",
 };
 
-// One dependency of the hovered row, all of one thickness, with an arrowhead
-// on the row depended on: what the row uses (outgoing) blue, what uses it
-// (incoming) grey, whichever way they run; one of a hovered cycle in the cycle
-// bar's colour. Against the tree's order, dotted (and on the left of the
-// anchors). A wider invisible stroke makes it easy to hover for its tooltip
-// and to right-click for its menu.
-function ArcPath({ arc, relation, from, to, focus }: ArcPathProps) {
+// One dependency of the hovered row, drawn as every screen draws them: what
+// the row uses (outgoing) in the accent, what uses it (incoming) grey,
+// whichever way they run; one of a hovered cycle in the cycle bar's colour;
+// by its weight, against the heaviest drawn. Against the tree's order, dashed
+// (and on the left of the anchors).
+function ArcPath({
+  arc,
+  relation,
+  from,
+  to,
+  focus,
+  maxWeight,
+  heads,
+}: ArcPathProps) {
   const fromLabel = from?.label ?? arc.from;
   const toLabel = to?.label ?? arc.to;
+  const role = RELATION_ROLES[relation];
   return (
     <ArcFocusMenu focus={focus}>
-      <ArcShape
-        arc={arc}
-        relation={relation}
+      <DependencyArrow
+        d={arc.path}
+        role={role}
+        against={arc.direction === "up"}
+        width={dependencyArrowWidth(role, arc.weight, maxWeight, true)}
+        heads={heads}
         title={`${fromLabel} → ${toLabel}: weight ${arc.weight}`}
+        data-from={arc.from}
+        data-to={arc.to}
+        data-direction={arc.direction}
+        data-relation={relation}
+        data-weight={arc.weight}
       />
     </ArcFocusMenu>
   );
@@ -384,49 +404,5 @@ function PinItem({ focus }: PinItemProps) {
       {isPinned ? <PinOff /> : <Pin />}
       {isPinned ? "Unpin the arcs" : "Pin these arcs"}
     </ContextMenuItem>
-  );
-}
-
-type ArcShapeProps = ComponentProps<"g"> & {
-  arc: Arc;
-  relation: ArcRelation;
-  title: string;
-};
-
-// The drawn arc, with its arrowhead and its tooltip. It passes the menu
-// trigger's props and ref on to its group.
-function ArcShape({ arc, relation, title, ...props }: ArcShapeProps) {
-  return (
-    <g
-      {...props}
-      data-from={arc.from}
-      data-to={arc.to}
-      data-direction={arc.direction}
-      data-relation={relation}
-      data-weight={arc.weight}
-    >
-      <title>{title}</title>
-      <path
-        d={arc.path}
-        fill="none"
-        className={RELATION_COLOURS[relation].line}
-        strokeWidth={ARC_STROKE}
-        // Against the order: dotted.
-        strokeDasharray={arc.direction === "up" ? "0.5 3" : undefined}
-        strokeLinecap="round"
-      />
-      <path
-        data-arrowhead
-        d={arc.head}
-        className={RELATION_COLOURS[relation].head}
-      />
-      <path
-        d={arc.path}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={8}
-        style={{ pointerEvents: "stroke" }}
-      />
-    </g>
   );
 }

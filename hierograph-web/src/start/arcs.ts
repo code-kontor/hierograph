@@ -2,8 +2,8 @@
 // shapes between rows, on the right of the anchor column (away from the tree)
 // for a dependency on a row below (with the tree's order), on the left, between
 // the anchors and the labels, for one on a row above. The two sides start a
-// gap apart, so the arcs of one side don't run into the other's. An arrowhead
-// at the anchor of the row depended on gives each arc its direction.
+// gap apart, so the arcs of one side don't run into the other's. Each arc ends
+// at the anchor of the row depended on, where its arrowhead goes.
 
 export type ArcRow = { id: string; y: number };
 
@@ -11,9 +11,8 @@ export type ArcDependency = { from: string; to: string; weight: number };
 
 export type Arc = ArcDependency & {
   direction: "down" | "up";
+  // Ends on the row depended on.
   path: string;
-  // The arrowhead at the end of the path, on the row depended on.
-  head: string;
   // The vertical distance, to draw long arcs first and short ones on top.
   span: number;
 };
@@ -55,8 +54,6 @@ const MIN_OFFSET = 8;
 const OFFSET_PER_PX = 0.15;
 const STUB = 4;
 const MAX_CORNER = 8;
-const HEAD_LENGTH = 4.5;
-const HEAD_HALF_WIDTH = 2.5;
 
 export function layoutArcs(
   rows: ArcRow[],
@@ -80,7 +77,6 @@ export function layoutArcs(
       direction,
       span,
       path: bracketPath(anchor, y1, y2, side, offset),
-      head: arrowHead(anchor, y2, side),
     });
   }
   return arcs.sort((a, b) => b.span - a.span);
@@ -111,12 +107,4 @@ export function bracketPath(
     `Q ${outer} ${y2} ${outer - side * r} ${y2}`,
     `H ${x}`,
   ].join(" ");
-}
-
-// A filled arrowhead with its tip at (x, y), on the end of a bracket that
-// comes back from the given side: pointing left for one on the right (+1),
-// right for one on the left (-1).
-export function arrowHead(x: number, y: number, side: -1 | 1): string {
-  const base = x + side * HEAD_LENGTH;
-  return `M ${x} ${y} L ${base} ${y - HEAD_HALF_WIDTH} L ${base} ${y + HEAD_HALF_WIDTH} Z`;
 }

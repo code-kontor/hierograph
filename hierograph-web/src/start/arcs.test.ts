@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { arrowHead, bracketPath, cycleDependencies, layoutArcs } from "./arcs";
+import { bracketPath, cycleDependencies, layoutArcs } from "./arcs";
 
 const LAYOUT = { anchorX: 100, gap: 0, maxDown: 80, maxUp: 30 };
 
@@ -29,8 +29,6 @@ describe("layoutArcs", () => {
     expect(arcs[0].path).toMatch(/^M 100 10 H 1\d\d(\.\d+)? Q 1\d\d/);
     expect(arcs[1].path).toMatch(/^M 100 60 H \d\d(\.\d+)? Q \d\d/);
     // The arrowhead on the anchor of the row depended on.
-    expect(arcs[0].head).toBe(arrowHead(100, 60, 1));
-    expect(arcs[1].head).toBe(arrowHead(100, 35, -1));
   });
 
   it("starts the two sides a gap apart, around the anchor column", () => {
@@ -45,10 +43,8 @@ describe("layoutArcs", () => {
 
     expect(arcs[0].path).toMatch(/^M 103 10 H 1\d\d/);
     expect(arcs[0].path).toMatch(/H 103$/);
-    expect(arcs[0].head).toBe(arrowHead(103, 60, 1));
     expect(arcs[1].path).toMatch(/^M 97 60 H \d\d/);
     expect(arcs[1].path).toMatch(/H 97$/);
-    expect(arcs[1].head).toBe(arrowHead(97, 35, -1));
   });
 
   it("draws long arcs first, so short ones end up on top", () => {
@@ -68,13 +64,6 @@ describe("layoutArcs", () => {
     expect(
       layoutArcs(rows, [{ from: "a", to: "x", weight: 1 }], LAYOUT),
     ).toEqual([]);
-  });
-});
-
-describe("arrowHead", () => {
-  it("points back to the anchor from the bracket's side", () => {
-    expect(arrowHead(100, 50, 1)).toBe("M 100 50 L 104.5 47.5 L 104.5 52.5 Z");
-    expect(arrowHead(100, 50, -1)).toBe("M 100 50 L 95.5 47.5 L 95.5 52.5 Z");
   });
 });
 

@@ -1,3 +1,5 @@
+import type { DependencyRole } from "@/design-system/graph/DependencyArrow";
+
 // The arrows' layout: near-straight lines from box to box, drawn over the
 // boxes, between the edges that face each other. An arrow to a box below
 // leaves its source at the bottom and enters its target at the top; one to a
@@ -9,9 +11,9 @@
 
 export type Rect = { l: number; t: number; r: number; b: number };
 
-// "feedback": against the levels (dashed red); "uses" and "usedBy": what the
-// selection depends on and what depends on it.
-export type ArrowRole = "feedback" | "uses" | "usedBy";
+// "feedback": against the levels (dashed, in the cycle colour); "uses" and
+// "usedBy": what the selection depends on and what depends on it.
+export type ArrowRole = DependencyRole;
 
 export type ArrowSpec = {
   key: string;
@@ -434,18 +436,4 @@ function untangle(
     }
     if (!improved) return;
   }
-}
-
-// The stroke width: feedback arrows fixed (heavier when they touch the
-// selection), the selection's arrows by weight on a log scale.
-export function arrowWidth(
-  role: ArrowRole,
-  weight: number,
-  maxWeight: number,
-  touchesSelection: boolean,
-): number {
-  if (role === "feedback") return touchesSelection ? 1.6 : 1;
-  return (
-    0.9 + (0.9 * Math.log(1 + weight)) / Math.log(1 + Math.max(1, maxWeight))
-  );
 }

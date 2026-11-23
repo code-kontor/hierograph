@@ -32,6 +32,12 @@ import {
 } from "react";
 import { twMerge } from "tailwind-merge";
 
+import {
+  DependencyArrow,
+  DependencyArrowHeads,
+  dependencyArrowWidth,
+  useArrowHeadsId,
+} from "@/design-system/graph/DependencyArrow";
 import { Pane } from "@/design-system/layout/Pane";
 import {
   ContextMenu,
@@ -48,7 +54,6 @@ import {
   type Arrow,
   type ArrowRole,
   type ArrowSpec,
-  arrowWidth,
   layoutArrows,
   type Rect,
 } from "./mapArrows";
@@ -429,6 +434,7 @@ function fitZoom(
 function MapCanvas() {
   const { model, focusId, pinnedId, links, hover, keepHover, menuFor } =
     useMap();
+  const heads = useArrowHeadsId();
   // The box or arrow a right click opened the menu for.
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
@@ -650,7 +656,12 @@ function MapCanvas() {
           to,
           role: group.role,
           weight: group.weight,
-          width: arrowWidth(group.role, group.weight, maxWeight, touches),
+          width: dependencyArrowWidth(
+            group.role,
+            group.weight,
+            maxWeight,
+            touches,
+          ),
           title: `${model.boxes.get(group.from)?.text} → ${model.boxes.get(group.to)?.text} · ${group.weight}`,
         });
       }
@@ -711,7 +722,7 @@ function MapCanvas() {
 
   const rows = model.rowsOf.get(model.rootId) ?? [];
   const paths = arrows.map((arrow) => (
-    <ArrowPath key={arrow.key} arrow={arrow} />
+    <ArrowPath key={arrow.key} arrow={arrow} heads={heads} />
   ));
   return (
     <div className="lsm-viewport">
@@ -781,11 +792,7 @@ function MapCanvas() {
                   height={size.height}
                   aria-hidden
                 >
-                  <defs>
-                    <ArrowHead id="lsm-ah-feedback" color="var(--lsm-bad)" />
-                    <ArrowHead id="lsm-ah-uses" color="var(--lsm-out)" />
-                    <ArrowHead id="lsm-ah-usedBy" color="var(--lsm-in)" />
-                  </defs>
+                  <DependencyArrowHeads id={heads} />
                   {paths}
                 </svg>
               </div>
@@ -1000,65 +1007,23 @@ function ZoomButton({ icon: Icon, label, disabled, onPress }: ZoomButtonProps) {
   );
 }
 
-type ArrowHeadProps = {
-  id: string;
-  color: string;
-};
-
-function ArrowHead({ id, color }: ArrowHeadProps) {
-  return (
-    <marker
-      id={id}
-      viewBox="0 0 10 10"
-      refX="9"
-      refY="5"
-      markerWidth="9"
-      markerHeight="9"
-      orient="auto-start-reverse"
-      markerUnits="userSpaceOnUse"
-    >
-      <path
-        d="M1.5,1.5 L9,5 L1.5,8.5"
-        fill="none"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </marker>
-  );
-}
-
-const ROLE_COLOURS: Record<ArrowRole, string> = {
-  feedback: "var(--lsm-bad)",
-  uses: "var(--lsm-out)",
-  usedBy: "var(--lsm-in)",
-};
-
 type ArrowPathProps = {
   arrow: Arrow;
+  // The id of the SVG's arrowheads.
+  heads: string;
 };
 
-// The drawn arrow, under a wider invisible line that takes the pointer, so
-// it is easy to hover and to right-click for its menu.
-function ArrowPath({ arrow }: ArrowPathProps) {
-  const feedback = arrow.role === "feedback";
+function ArrowPath({ arrow, heads }: ArrowPathProps) {
   return (
-    <g className="lsm-arrow" data-arrow-key={arrow.key}>
-      <title>{arrow.title}</title>
-      <path
-        className="lsm-line"
-        d={arrow.d}
-        fill="none"
-        stroke={ROLE_COLOURS[arrow.role]}
-        strokeWidth={arrow.width.toFixed(2)}
-        strokeDasharray={feedback ? "5 3" : undefined}
-        strokeOpacity={feedback ? 0.95 : 0.7}
-        markerEnd={`url(#lsm-ah-${arrow.role})`}
-        data-role={arrow.role}
-      />
-      <path className="lsm-hit" d={arrow.d} fill="none" strokeWidth={10} />
-    </g>
+    <DependencyArrow
+      d={arrow.d}
+      role={arrow.role}
+      against={arrow.role === "feedback"}
+      width={arrow.width}
+      heads={heads}
+      title={arrow.title}
+      data-arrow-key={arrow.key}
+    />
   );
 }
 

@@ -135,8 +135,8 @@ the tabs and the tree.
   hovered row only, thin bracket arcs to the visible rows it depends on and
   that depend on it (rows whose children aren't shown, External Types and its
   rows included), each with an arrowhead on the row depended on: with the
-  order to the right, against it to the left and dotted; what the row uses
-  blue, what uses it grey, whichever way they run; all of one thickness.
+  order to the right, against it to the left and dashed; what the row uses
+  blue, what uses it grey, whichever way they run; by weight.
   Hovering a cycle bar draws instead the arcs between the cycle's members
   (rows inside an expanded member counted to it), in the bar's colour: the
   whole cycle, with the edges that close it against the order. It measures the
@@ -156,7 +156,7 @@ structure map of the current hierarchy view, ported from the
 look in `structure-map.css`): every container's children in rows by level,
 bottom first, so a box sits above what it uses; the members of a cycle
 together in a red tangle frame, in their own rows; and only the dependencies
-against the levels drawn, as dashed red arrows. Hovering a box traces what it
+against the levels drawn, as dashed arrows in the cycle colour. Hovering a box traces what it
 uses (accent) and what uses it (grey) among the visible boxes, with rings and
 arrows, and greys out the rest.
 

@@ -223,12 +223,18 @@ describe("StructurePage", () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");
     await expect.element(app).toBeVisible();
-    await app.hover();
+    // Pinned, not hovered: the pointer could hover the other end meanwhile,
+    // which the menu would then name instead.
+    rightClick(app.element());
+    await screen.getByRole("menuitem", { name: "Pin these arrows" }).click();
     await expect
-      .poll(() => document.querySelectorAll(".lsm-arrow .lsm-hit").length)
+      .poll(
+        () =>
+          document.querySelectorAll("[data-arrow-key] [data-arrow-hit]").length,
+      )
       .toBeGreaterThan(0);
 
-    rightClick(document.querySelector(".lsm-arrow .lsm-hit")!);
+    rightClick(document.querySelector("[data-arrow-key] [data-arrow-hit]")!);
     const menu = screen.getByRole("menu");
     await expect.element(menu).toBeVisible();
     await expect
@@ -240,7 +246,7 @@ describe("StructurePage", () => {
         .elements()
         .map((element) => element.textContent),
     ).toEqual([
-      "Pin these arrows",
+      "Unpin the arrows",
       "Pin the arrows of External Types",
       "Expand fixture-app",
       "Expand External Types",
@@ -263,7 +269,7 @@ describe("StructurePage", () => {
     await screen.getByRole("menuitem", { name: "Pin these arrows" }).click();
     const appId = app.element().getAttribute("data-box-id");
     const starts = () =>
-      [...document.querySelectorAll<SVGElement>(".lsm-arrow")]
+      [...document.querySelectorAll<SVGElement>("[data-arrow-key]")]
         .filter((arrow) => arrow.dataset.arrowKey?.endsWith(">uses"))
         .map((arrow) => arrow.dataset.arrowKey?.split(">")[0]);
     await expect.poll(starts).toContain(appId);
