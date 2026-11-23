@@ -37,9 +37,9 @@ the tools the UI takes its character from, rather than inventing gestures of its
 
 The structure map (`src/structure/StructurePage.tsx`) and the start screen's hierarchy
 tree (`src/start/HierarchyTree.tsx`) follow the model. What they share lives in
-`src/design-system/graph/`: `SelectionStatus` (the status chip), `GesturesHelp` (the
-`?`, from `SELECTION_GESTURES` and `KEYBOARD_GESTURES` plus a graph's own) and
-`ContextMenuShortcut` for the menus. A graph zooms and pans only if it needs to: the
+`src/design-system/graph/`: `SelectionStatus` (the status chip),
+`PinSelectionButton` (the pin), `GesturesHelp` (the `?`, from `SELECTION_GESTURES` and
+`KEYBOARD_GESTURES` plus a graph's own) and `ContextMenuShortcut` for the menus. A graph zooms and pans only if it needs to: the
 tree neither zooms nor pans, so it leaves `Ctrl`/`⌘`+wheel to the browser and lists no
 zoom or pan gestures.
 
@@ -49,21 +49,21 @@ when the two copies drift.
 
 ### Gestures
 
-| Input                                                     | Action                                                                                                                                      |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Click a node                                              | Select it: its incoming and outgoing dependencies are drawn. Clicking the selected node again clears the selection.                         |
-| Click a node's chevron, or double-click the node          | Expand or collapse it.                                                                                                                      |
-| Right-click a node                                        | Context menu with the node's commands (see below).                                                                                          |
-| Click the empty canvas, `Esc`, or "Clear selection"       | Clear the selection.                                                                                                                        |
-| Wheel / `Shift`+wheel / trackpad swipe                    | Scroll vertically / horizontally — the browser's native scrolling.                                                                          |
-| `Ctrl`/`⌘`+wheel, trackpad pinch                          | Zoom, anchored at the pointer.                                                                                                              |
-| `Ctrl`/`⌘`+`+` / `−` / `0`, and a "Fit" button            | Zoom in / out / reset to 100 % / fit the graph to the viewport (while the graph has focus).                                                 |
-| "Zoom to the selection" button, next to "Fit"             | Zoom and scroll to the selected node and the nodes its arrows end at, with a margin, never above 100 %; disabled while nothing is selected. |
-| Drag the canvas (a node too: it has nothing else to drag) | Pan.                                                                                                                                        |
-| Arrow keys                                                | Move to the next node the way the graph is drawn (see the rule below).                                                                      |
-| `+` / `−`                                                 | Expand / collapse the node; `−` in a node that isn't open collapses the node it lies in, and moves there.                                   |
-| `Home` / `End` / `Enter` `Space`                          | The first / the last node / select.                                                                                                         |
-| `Ctrl`/`⌘`+click                                          | Reserved for multi-select; give it no other meaning.                                                                                        |
+| Input                                                                                                          | Action                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Click a node                                                                                                   | Select it: its incoming and outgoing dependencies are drawn. Clicking the selected node again clears the selection.                         |
+| Click a node's chevron (in a tree, anything left of its name: indent, chevron, icon), or double-click the node | Expand or collapse it.                                                                                                                      |
+| Right-click a node                                                                                             | Context menu with the node's commands (see below).                                                                                          |
+| Click the empty canvas, `Esc`, or "Clear selection"                                                            | Clear the selection.                                                                                                                        |
+| Wheel / `Shift`+wheel / trackpad swipe                                                                         | Scroll vertically / horizontally — the browser's native scrolling.                                                                          |
+| `Ctrl`/`⌘`+wheel, trackpad pinch                                                                               | Zoom, anchored at the pointer.                                                                                                              |
+| `Ctrl`/`⌘`+`+` / `−` / `0`, and a "Fit" button                                                                 | Zoom in / out / reset to 100 % / fit the graph to the viewport (while the graph has focus).                                                 |
+| "Zoom to the selection" button, next to "Fit"                                                                  | Zoom and scroll to the selected node and the nodes its arrows end at, with a margin, never above 100 %; disabled while nothing is selected. |
+| Drag the canvas (a node too: it has nothing else to drag)                                                      | Pan.                                                                                                                                        |
+| Arrow keys                                                                                                     | Move to the next node the way the graph is drawn (see the rule below).                                                                      |
+| `+` / `−`                                                                                                      | Expand / collapse the node; `−` in a node that isn't open collapses the node it lies in, and moves there.                                   |
+| `Home` / `End` / `Enter` `Space`                                                                               | The first / the last node / select.                                                                                                         |
+| `Ctrl`/`⌘`+click                                                                                               | Reserved for multi-select; give it no other meaning.                                                                                        |
 
 ### Rules
 
@@ -75,6 +75,15 @@ when the two copies drift.
   expanding or collapsing). The selected node gets a clear outline, and the graph pane
   shows a status chip in its upper-right corner — "Selected: `name` · Esc to clear" —
   with the button that clears it.
+- **A selection can be pinned.** The pin button sits in the pane's toolbar after the
+  status chip and before the `?`, disabled while nothing is selected. Pinned, the
+  selection stays whatever is clicked: a click, a double-click, a click on the empty
+  space and `Enter` leave it (a double-click and the expander still expand). Only a
+  menu's "Select …" changes it, and the pin stays; `Esc` or "Clear selection" clears it
+  and unpins it. It is a mode, so it must not go unnoticed: pressed, the pin is in the
+  warning orange (`status-warning` on `status-warning-bg`), the colour the start
+  screen gives uncommitted changes, and apart from the blues of the selection. The pin
+  is in the URL with the selection (`selection_pinned`).
 - **Left-click only selects.** A plain click never navigates, drills in or expands
   (the chevron is its own target). Anything heavier goes on double-click, `Enter` or the
   context menu.

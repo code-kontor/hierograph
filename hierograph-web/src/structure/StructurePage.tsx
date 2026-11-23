@@ -49,6 +49,7 @@ import {
   KEYBOARD_GESTURES,
   SELECTION_GESTURES,
 } from "@/design-system/graph/GesturesHelp";
+import { PinSelectionButton } from "@/design-system/graph/PinSelectionButton";
 import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
 import { Pane } from "@/design-system/layout/Pane";
 import {
@@ -101,11 +102,13 @@ import {
 } from "./structureLabels";
 
 // The map's navigation state, in the URL: the expanded containers, the
-// selected box, the dependencies handed to the map (`<source id>-<target
-// id>`, see givenDependencies.ts) and whether only those are drawn.
+// selected box and whether it is pinned, the dependencies handed to the map
+// (`<source id>-<target id>`, see givenDependencies.ts) and whether only
+// those are drawn.
 type MapSearch = {
   expanded_ids?: string[];
   selected_id?: string;
+  selection_pinned?: boolean;
   dependency_ids?: string[];
   given_only?: boolean;
 };
@@ -118,6 +121,9 @@ type MapState = {
   expanded: ReadonlySet<string>;
   focusId: string | undefined;
   selectedId: string | undefined;
+  // Whether the selection is pinned: clicks and Enter don't change it, only
+  // a menu does.
+  pinned: boolean;
   // The box the keyboard is on; shown while the map is used by keyboard.
   cursorId: string | undefined;
   setCursor: (id: string) => void;
@@ -397,9 +403,22 @@ function StructureMap({ scope }: StructureMapProps) {
   const collapseEverything = async () => {
     await setSearch({ expanded_ids: undefined }, true);
   };
+  // A pinned selection stays whatever is clicked; only a menu changes it,
+  // and clearing it unpins it. Only a selection can be pinned.
+  const pinned =
+    search.selection_pinned === true && selectedParam !== undefined;
   const select = async (id: string | null) => {
     if ((id ?? undefined) === selectedParam) return;
-    await setSearch({ selected_id: id ?? undefined }, true);
+    await setSearch(
+      {
+        selected_id: id ?? undefined,
+        selection_pinned: id === null ? undefined : search.selection_pinned,
+      },
+      true,
+    );
+  };
+  const setPinned = async (pin: boolean) => {
+    await setSearch({ selection_pinned: pin || undefined }, true);
   };
   const setGivenOnly = async (only: boolean) => {
     await setSearch({ given_only: only || undefined }, true);
@@ -448,6 +467,11 @@ function StructureMap({ scope }: StructureMapProps) {
           onClear={() => select(null)}
         />
       )}
+      <PinSelectionButton
+        pressed={pinned}
+        disabled={selectedParam === undefined}
+        onPress={() => setPinned(!pinned)}
+      />
       <GesturesHelp gestures={MAP_GESTURES} />
     </>
   );
@@ -477,6 +501,7 @@ function StructureMap({ scope }: StructureMapProps) {
     expanded,
     focusId,
     selectedId,
+    pinned,
     cursorId:
       cursor !== undefined && shown.boxes.has(cursor) ? cursor : undefined,
     setCursor,
@@ -545,6 +570,7 @@ function MapCanvas() {
     expanded,
     focusId,
     selectedId,
+    pinned,
     cursorId,
     setCursor,
     domId,
@@ -956,15 +982,17 @@ function MapCanvas() {
     if (arrowAt(event.target)) return;
     const id = boxAt(event.target);
     if (id !== null) setCursor(id);
+    if (pinned) return;
     await select(id === null || id === selectedId ? null : id);
   };
-  // A double-click expands or collapses a container, and leaves it selected.
+  // A double-click expands or collapses a container, and leaves it selected
+  // (pinned, the selection stays as it is).
   const doubleClick = async (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0 || arrowAt(event.target)) return;
     const id = boxAt(event.target);
     if (id === null) return;
     if (model.boxes.get(id)?.container) await toggle(id);
-    await select(id);
+    if (!pinned) await select(id);
   };
 
   // The arrow keys move the way the map is drawn: to the nearest box that
@@ -1034,7 +1062,9 @@ function MapCanvas() {
         case " ":
           event.preventDefault();
           setKeyboard(true);
-          if (at !== undefined) await select(at === selectedId ? null : at);
+          if (at !== undefined && !pinned) {
+            await select(at === selectedId ? null : at);
+          }
           return;
         default:
           return;

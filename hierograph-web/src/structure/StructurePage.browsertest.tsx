@@ -251,6 +251,51 @@ describe("StructurePage", () => {
     expect(searchOf(screen).selected_id).toBeUndefined();
   });
 
+  it("pins the selection: clicks keep it, a menu changes it, clearing it unpins", async () => {
+    const screen = await renderMap();
+    const app = box(screen, "fixture-app");
+    const external = box(screen, "External Types");
+    const pin = screen.getByRole("button", { name: "Pin the selection" });
+
+    // Nothing selected: nothing to pin.
+    await expect.element(pin).toBeDisabled();
+
+    await external.click();
+    // Unstyled in the test, the zoom controls may cover the button.
+    (pin.element() as HTMLElement).click();
+    await expect.element(pin).toHaveAttribute("aria-pressed", "true");
+    expect(
+      (screen.router.state.location.search as { selection_pinned?: boolean })
+        .selection_pinned,
+    ).toBe(true);
+
+    // A click, a click on the canvas and Enter leave the selection; a
+    // double-click still expands.
+    await app.click();
+    await expect.element(external).toHaveAttribute("aria-selected", "true");
+    canvas().click();
+    await expect.element(external).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(external).toHaveAttribute("aria-selected", "true");
+    const name = app.getByText("fixture-app", { exact: true });
+    await name.dblClick();
+    await expect.element(app).toHaveAttribute("aria-expanded", "true");
+    await expect.element(app).toHaveAttribute("aria-selected", "false");
+    await expect.element(external).toHaveAttribute("aria-selected", "true");
+
+    // The menu still selects, and the pin stays.
+    rightClick(app.element());
+    await screen.getByRole("menuitem", { name: "Select", exact: true }).click();
+    await expect.element(app).toHaveAttribute("aria-selected", "true");
+    await expect.element(pin).toHaveAttribute("aria-pressed", "true");
+
+    // Escape clears the selection and unpins it.
+    await userEvent.keyboard("{Escape}");
+    await expect.element(app).toHaveAttribute("aria-selected", "false");
+    await expect.element(pin).toBeDisabled();
+    expect(searchOf(screen).selected_id).toBeUndefined();
+  });
+
   it("expands and collapses a box on a double-click, and leaves it selected", async () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");

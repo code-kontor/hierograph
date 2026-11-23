@@ -30,6 +30,7 @@ import {
   KEYBOARD_GESTURES,
   SELECTION_GESTURES,
 } from "@/design-system/graph/GesturesHelp";
+import { PinSelectionButton } from "@/design-system/graph/PinSelectionButton";
 import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
 import { Pane } from "@/design-system/layout/Pane";
 import {
@@ -107,6 +108,9 @@ export function HierarchyTree() {
   const search: TreeSearch = useSearch({ strict: false });
   const setSearch = useSetTreeSearch();
   const selected = selectedFocus(search);
+  // A pinned selection stays whatever is clicked; only a menu changes it,
+  // and clearing it unpins it. Only a selection can be pinned.
+  const pinned = search.selection_pinned === true && selected !== null;
   // Selecting changes the view, not the place: it replaces the history
   // entry, so Back doesn't step through every click.
   const onSelect = async (focus: ArcFocus | null) => {
@@ -119,9 +123,13 @@ export function HierarchyTree() {
       {
         selected_id: focus?.kind === "row" ? focus.id : undefined,
         selected_cycle_ids: focus?.kind === "cycle" ? focus.members : undefined,
+        selection_pinned: focus === null ? undefined : search.selection_pinned,
       },
       true,
     );
+  };
+  const setPinned = async (pin: boolean) => {
+    await setSearch({ selection_pinned: pin || undefined }, true);
   };
   // The selection's name, as the tree draws it.
   const [selectedLabel, setSelectedLabel] = useState("");
@@ -130,6 +138,11 @@ export function HierarchyTree() {
       {selected !== null && (
         <SelectionStatus label={selectedLabel} onClear={() => onSelect(null)} />
       )}
+      <PinSelectionButton
+        pressed={pinned}
+        disabled={selected === null}
+        onPress={() => setPinned(!pinned)}
+      />
       <GesturesHelp gestures={TREE_GESTURES} />
     </>
   );
@@ -146,6 +159,7 @@ export function HierarchyTree() {
           key={view}
           scope={scope}
           selected={selected}
+          pinned={pinned}
           onSelect={onSelect}
           onSelectedLabel={setSelectedLabel}
         />
@@ -178,6 +192,7 @@ type TreeSearch = {
   expanded_ids?: (string | number)[];
   selected_id?: string | number;
   selected_cycle_ids?: (string | number)[];
+  selection_pinned?: boolean;
 };
 
 function useSetTreeSearch() {
@@ -207,6 +222,8 @@ function selectedFocus(search: TreeSearch): ArcFocus | null {
 type TreeRootProps = {
   scope: GraphScope;
   selected: ArcFocus | null;
+  // Whether the selection is pinned: clicks and Enter don't change it.
+  pinned: boolean;
   onSelect: (focus: ArcFocus | null) => Promise<void>;
   // Tells the selection's name, again whenever the rows change.
   onSelectedLabel: (label: string) => void;
@@ -224,6 +241,18 @@ function targetOf(target: EventTarget | null): ArcFocus | "arc" | null {
   if (row) return { kind: "row", id: row.dataset.nodeId ?? "" };
   if (target.closest("[data-arrow-hit]")) return "arc";
   return null;
+}
+
+// Whether a click on a row is left of its name: on its indent, its chevron
+// or its icon, which expand it.
+function inExpander(event: MouseEvent<HTMLElement>): boolean {
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  if (target.closest("[data-expander]")) return true;
+  // On the row itself, not on what is in it: its indent, or a gap.
+  if (!target.hasAttribute("data-node-id")) return false;
+  const label = target.querySelector("[data-tree-label]");
+  return label ? event.clientX < label.getBoundingClientRect().left : false;
 }
 
 // The rows' elements, top to bottom, and how they nest.
@@ -244,6 +273,7 @@ function parentRowOf(row: HTMLElement): HTMLElement | null {
 function TreeRoot({
   scope,
   selected,
+  pinned,
   onSelect,
   onSelectedLabel,
 }: TreeRootProps) {
@@ -287,8 +317,14 @@ function TreeRoot({
     domId,
   };
 
-  // A click selects the row or cycle bar under the pointer, or clears the
-  // selection if it is the selected one or the empty space; on an arc it
+  // Whether a row can be expanded: its tree item says whether it is.
+  const expandable = (id: string) =>
+    document.getElementById(domId(id))?.hasAttribute("aria-expanded") ?? false;
+
+  // A click left of a row's name (on its indent, its chevron or its icon)
+  // expands or collapses it, so the row's expander is easy to hit; anywhere
+  // else, a click selects the row or cycle bar under the pointer, or clears
+  // the selection if it is the selected one or the empty space; on an arc it
   // does nothing. The second click of a double-click is left to the
   // double-click. Clicks in a context menu (a portal) reach the tree too, but
   // aren't in it.
@@ -300,19 +336,27 @@ function TreeRoot({
     setKeyboard(false);
     const target = targetOf(event.target);
     if (target === "arc") return;
-    if (target?.kind === "row") setCursor(target.id);
+    if (target?.kind === "row") {
+      setCursor(target.id);
+      if (inExpander(event) && expandable(target.id)) {
+        await toggle(target.id);
+        return;
+      }
+    }
+    if (pinned) return;
     const same =
       target !== null && selected !== null && sameFocus(target, selected);
     await onSelect(target === null || same ? null : target);
   };
-  // A double-click expands or collapses a row, and leaves it selected.
+  // A double-click on a row's name expands or collapses it, and leaves it
+  // selected. Left of the name, the first click expanded it already.
   const doubleClick = async (event: MouseEvent<HTMLDivElement>) => {
     if (!event.currentTarget.contains(event.target as Node)) return;
     const target = targetOf(event.target);
     if (target === null || target === "arc" || target.kind !== "row") return;
-    const item = document.getElementById(domId(target.id));
-    if (item?.hasAttribute("aria-expanded")) await toggle(target.id);
-    await onSelect(target);
+    if (inExpander(event)) return;
+    if (expandable(target.id)) await toggle(target.id);
+    if (!pinned) await onSelect(target);
   };
   // The keyboard walks the visible rows as a tree: ↑ ↓ Home End move, →
   // expands or goes to the first child, ← collapses or goes to the parent;
@@ -398,7 +442,7 @@ function TreeRoot({
       case " ":
         event.preventDefault();
         setKeyboard(true);
-        if (cursorId !== undefined) {
+        if (cursorId !== undefined && !pinned) {
           const focus: ArcFocus = { kind: "row", id: cursorId };
           const same = selected !== null && sameFocus(focus, selected);
           await onSelect(same ? null : focus);
@@ -681,12 +725,8 @@ function TreeItem({
               // No tab stop: the keyboard expands with → and ←.
               tabIndex={-1}
               aria-label={`${open ? "Collapse" : "Expand"} ${label}`}
-              onClick={async (event) => {
-                event.stopPropagation();
-                await controls.toggle(node.id);
-              }}
-              // Clicked twice, it toggles twice: the row's double-click is not.
-              onDoubleClick={(event) => event.stopPropagation()}
+              // A click on it expands or collapses the row (see `TreeRoot`).
+              data-expander
               className="text-fg-subtle hover:text-fg flex size-3.5 shrink-0 items-center justify-center"
             >
               <Chevron className="size-3.5" />
@@ -696,6 +736,8 @@ function TreeItem({
           )}
           <Icon
             aria-hidden
+            // Left of the name: a click on it expands the row, too.
+            data-expander
             className={twMerge(
               "text-fg-subtle size-3.5 shrink-0",
               kind === "group" && "text-primary",

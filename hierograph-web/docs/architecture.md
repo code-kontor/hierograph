@@ -127,7 +127,9 @@ the tabs and the tree.
   view. It loads level by level as nodes are
   expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
   screen's search params `expanded_ids` and `selected_id`, or
-  `selected_cycle_ids` for a cycle (both replace the history entry). Each level's siblings are in
+  `selected_cycle_ids` for a cycle (both replace the history entry), and
+  `selection_pinned`: the pane's pin keeps the selection whatever is
+  clicked; only a menu changes it, and clearing it unpins it. Each level's siblings are in
   dependency order (`orderedAdjacencyMatrix`: those depending on the others on
   top), dependency cycles marked with a bar; the tree ends at the types (their
   members' dependencies aren't resolved yet). Directly to the right of the labels, `TreeArcs` draws, for the
@@ -143,7 +145,9 @@ the tabs and the tree.
   dependencies in one query. The tree follows the design system's interaction
   model without zoom and pan: hovering traces nothing; a click selects a row
   or a cycle bar (again, in the empty space, Esc or the pane's selection
-  status clears it), the chevron or a double-click expands a row, a right
+  status clears it). A click left of a row's name (its indent, chevron or
+  icon) expands or collapses it without selecting it; a double-click on the
+  name expands or collapses it and leaves it selected. A right
   click opens the menu of a row, a bar or an arc, each item with its gesture.
   The `tree` element is focusable, its active descendant the keyboard's
   cursor, walked over the rows as drawn (→ ← and `+` / `−` expand and
@@ -183,7 +187,8 @@ model (`docs/design-system.md`, "Interaction").
   `tree`: focusable, its active descendant the keyboard's cursor. The arrow
   keys move to the nearest box that way as drawn (`boxToward`, an open
   container by its name bar), Home and End in reading order (`boxOrder`),
-  `+` / `−` expand and collapse. The pane's `?` lists the gestures.
+  `+` / `−` expand and collapse. The pane's pin keeps the selection whatever
+  is clicked, as in the tree. The pane's `?` lists the gestures.
 - **Layout.** A box takes a share of its row by how many boxes are visible in
   it, and is never narrower than its content; a map wider than the pane
   scrolls. The arrows are measured from the boxes whenever the map changes or
@@ -207,7 +212,8 @@ model (`docs/design-system.md`, "Interaction").
   is kept apart from how it is drawn, so a named set (#59) is one more source
   of pairs.
 - **URL.** `expanded_ids` (expanding replaces the history entry),
-  `selected_id`, `dependency_ids` and `given_only` (all replace it), validated in `routes/structure.tsx`.
+  `selected_id`, `selection_pinned`, `dependency_ids` and `given_only` (all
+  replace it), validated in `routes/structure.tsx`.
 
 ## Router context & data loading
 
