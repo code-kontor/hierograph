@@ -45,6 +45,15 @@
 .lsm-canvas.lsm-panning * {
   cursor: grabbing;
 }
+/* Focused by the mouse, the canvas shows nothing; tabbed to, a ring, until
+   the keyboard's cursor is on a box. */
+.lsm-canvas:focus {
+  outline: none;
+}
+.lsm-canvas:focus-visible:not(:has(.lsm-cursor)) {
+  outline: 2px solid var(--hg-state-focus-ring);
+  outline-offset: -2px;
+}
 /* As big as the scaled map, so the canvas scrolls over all of it. */
 .lsm-sizer {
   position: relative;
@@ -189,6 +198,18 @@
    Roles colour the box's border, which keeps its width. */
 .lsm-box.lsm-sel {
   border-color: var(--lsm-sel);
+  box-shadow: 0 0 0 1px var(--lsm-sel);
+}
+/* Hovering only gives feedback: the innermost box under the pointer is
+   outlined, never traced. */
+.lsm-canvas:not(.lsm-panning) .lsm-box:hover:not(:has(.lsm-box:hover)) {
+  outline: 1px solid var(--lsm-ink-3);
+  outline-offset: 1px;
+}
+/* The keyboard's cursor, while the map is used by keyboard. */
+.lsm-canvas.lsm-kbd:focus .lsm-box.lsm-cursor {
+  outline: 2px solid var(--hg-state-focus-ring);
+  outline-offset: 2px;
 }
 .lsm-box.lsm-uses {
   border-color: var(--lsm-out);

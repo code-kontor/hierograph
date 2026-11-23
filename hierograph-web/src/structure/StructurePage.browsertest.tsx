@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
 import type { Screen } from "@/frame/screens";
@@ -31,7 +32,7 @@ function box(screen: MapRender, label: string) {
 function searchOf(screen: MapRender) {
   return screen.router.state.location.search as {
     expanded_ids?: string[];
-    pinned_id?: string;
+    selected_id?: string;
     given_only?: boolean;
   };
 }
@@ -46,6 +47,35 @@ const GIVEN = structureGiven.entries[0].variables.pairs
 
 function arrowsOf(role: string) {
   return document.querySelectorAll(`path[data-role="${role}"]`).length;
+}
+
+// A menu's items as they read, without the gestures at their right ends.
+function itemLabels(menu: ReturnType<MapRender["getByRole"]>) {
+  return menu
+    .getByRole("menuitem")
+    .elements()
+    .map((element) => {
+      const item = element.cloneNode(true) as Element;
+      item
+        .querySelectorAll('[data-slot="context-menu-shortcut"]')
+        .forEach((shortcut) => shortcut.remove());
+      return item.textContent;
+    });
+}
+
+function selectionStatus(screen: MapRender) {
+  return screen.getByRole("status").filter({ hasText: "Selected:" });
+}
+
+// The box the keyboard is on, by its name.
+function activeBox() {
+  return document
+    .getElementById(canvas().getAttribute("aria-activedescendant") ?? "")
+    ?.getAttribute("aria-label");
+}
+
+function canvas() {
+  return document.querySelector<HTMLElement>(".lsm-canvas")!;
 }
 
 // Opens a box's context menu, as a right click does.
@@ -72,10 +102,6 @@ async function expand(screen: MapRender, ...labels: string[]) {
 }
 
 describe("StructurePage", () => {
-  afterEach(() => {
-    localStorage.removeItem("structure-trace-on-hover");
-  });
-
   it("shows the top level in rows by level: the module above External Types, which it uses", async () => {
     const screen = await renderMap();
 
@@ -161,57 +187,205 @@ describe("StructurePage", () => {
     await expect.element(box(screen, "basic")).toBeVisible();
   });
 
-  it("traces a hovered box: rings on what it uses, until the pointer leaves", async () => {
+  it("selects a clicked box: rings on what it uses, in the URL, until it is clicked again", async () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");
 
-    await app.hover();
+    await app.click();
 
     await expect.element(app).toHaveAttribute("aria-current", "true");
+    await expect.element(app).toHaveAttribute("aria-selected", "true");
     await expect.element(box(screen, "External Types")).toHaveClass("lsm-uses");
+    expect(searchOf(screen).selected_id).toBeDefined();
+    await expect
+      .element(selectionStatus(screen))
+      .toHaveTextContent("Selected:fixture-app· Esc to clear");
 
-    await screen.getByText("Structure", { exact: true }).hover();
+    await app.click();
 
+    await expect.element(app).not.toHaveAttribute("aria-current");
     await expect
       .element(box(screen, "External Types"))
       .not.toHaveClass("lsm-uses");
-    await expect.element(app).not.toHaveAttribute("aria-current");
+    expect(searchOf(screen).selected_id).toBeUndefined();
+    await expect.element(selectionStatus(screen)).not.toBeInTheDocument();
   });
 
-  it("traces nothing on hover when switched off in the corner, pins on Shift + click, and remembers it", async () => {
+  it("traces nothing on hover: the selection stays whatever the pointer is on", async () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");
-    const toggle = screen.getByRole("button", { name: "Trace on hover" });
-    await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
 
-    await toggle.click();
     await app.hover();
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
     await expect.element(app).not.toHaveAttribute("aria-current");
-    expect(localStorage.getItem("structure-trace-on-hover")).toBe("false");
 
-    // Shift + click pins the box instead; again, it unpins.
-    await app.click({ modifiers: ["Shift"] });
-    await expect.element(app).toHaveAttribute("aria-current", "true");
-    expect(searchOf(screen).pinned_id).toBeDefined();
-    await app.click({ modifiers: ["Shift"] });
-    await expect.element(app).not.toHaveAttribute("aria-current");
-    expect(searchOf(screen).pinned_id).toBeUndefined();
-
-    await toggle.click();
-    await screen.getByText("Structure", { exact: true }).hover();
-    await app.hover();
+    await app.click();
+    await box(screen, "External Types").hover();
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     await expect.element(app).toHaveAttribute("aria-current", "true");
+    await expect.element(box(screen, "External Types")).toHaveClass("lsm-uses");
   });
 
-  it("greys out what a hovered box isn't coupled to, until the pointer leaves", async () => {
+  it("clears the selection on a click on the canvas, with Esc, and with the status's button", async () => {
+    const screen = await renderMap();
+    const app = box(screen, "fixture-app");
+
+    await app.click();
+    canvas().click();
+    await expect.element(app).not.toHaveAttribute("aria-current");
+
+    await app.click();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(app).not.toHaveAttribute("aria-current");
+
+    await app.click();
+    // Unstyled in the test, the zoom controls may cover the button.
+    (
+      screen
+        .getByRole("button", { name: "Clear selection" })
+        .element() as HTMLElement
+    ).click();
+    await expect.element(app).not.toHaveAttribute("aria-current");
+    expect(searchOf(screen).selected_id).toBeUndefined();
+  });
+
+  it("expands and collapses a box on a double-click, and leaves it selected", async () => {
+    const screen = await renderMap();
+    const app = box(screen, "fixture-app");
+    // Its name: once open, its middle is its contents.
+    const name = app.getByText("fixture-app", { exact: true });
+
+    await name.dblClick();
+
+    await expect.element(app).toHaveAttribute("aria-expanded", "true");
+    await expect.element(app).toHaveAttribute("aria-selected", "true");
+
+    await name.dblClick();
+
+    await expect.element(app).toHaveAttribute("aria-expanded", "false");
+    await expect.element(app).toHaveAttribute("aria-selected", "true");
+    expect(searchOf(screen).expanded_ids).toBeUndefined();
+  });
+
+  it("walks the boxes by keyboard: up and down as drawn, + and − expand and collapse, Enter selects", async () => {
+    const screen = await renderMap();
+    const app = box(screen, "fixture-app");
+    await expect.element(app).toBeVisible();
+
+    canvas().focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(activeBox()).toBe("fixture-app");
+    await expect.element(app).toHaveClass("lsm-cursor");
+
+    await userEvent.keyboard("+");
+    await expect.element(app).toHaveAttribute("aria-expanded", "true");
+    await expect.element(box(screen, "org.hg.fixture")).toBeVisible();
+    // Down from its name bar: into its top row.
+    await userEvent.keyboard("{ArrowDown}");
+    expect(activeBox()).toBe("org.hg.fixture");
+
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(box(screen, "org.hg.fixture"))
+      .toHaveAttribute("aria-current", "true");
+
+    // Up from its top row: out to the name bar.
+    await userEvent.keyboard("{ArrowUp}");
+    expect(activeBox()).toBe("fixture-app");
+
+    // − in a box that isn't open collapses the box it lies in.
+    await userEvent.keyboard("{ArrowDown}");
+    await userEvent.keyboard("-");
+    await expect.element(app).toHaveAttribute("aria-expanded", "false");
+    expect(activeBox()).toBe("fixture-app");
+
+    // External Types is drawn below the module, which uses it.
+    await userEvent.keyboard("{ArrowDown}");
+    expect(activeBox()).toBe("External Types");
+    await userEvent.keyboard("{Home}");
+    expect(activeBox()).toBe("fixture-app");
+  });
+
+  it("moves left and right along a row by keyboard", async () => {
+    const screen = await renderMap();
+    await expand(screen, "fixture-app", "org.hg.fixture", "basic");
+    // A row with two boxes side by side.
+    const row = [...document.querySelectorAll(".lsm-row")]
+      .map((element) =>
+        [...element.children]
+          .map((cell) =>
+            cell.querySelector<HTMLElement>(":scope > [data-box-id]"),
+          )
+          .filter((cell) => cell !== null),
+      )
+      .find((cells) => cells.length >= 2)!;
+    const [first, second] = row.map((cell) => cell.getAttribute("aria-label"));
+
+    await box(screen, first!).click();
+    canvas().focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(activeBox()).toBe(second);
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(activeBox()).toBe(first);
+  });
+
+  it("zooms with ctrl + = and - and back to 100% with ctrl + 0, while the map has focus", async () => {
+    const screen = await renderMap();
+    await expect.element(box(screen, "fixture-app")).toBeVisible();
+    const reset = screen.getByTitle("Reset the zoom to 100%");
+
+    canvas().focus();
+    await userEvent.keyboard("{Control>}0{/Control}");
+    await expect.element(reset).toHaveTextContent("100%");
+    await userEvent.keyboard("{Control>}={/Control}");
+    await expect.element(reset).toHaveTextContent("125%");
+    await userEvent.keyboard("{Control>}-{/Control}");
+    await expect.element(reset).toHaveTextContent("100%");
+  });
+
+  it("zooms to the selection from the zoom controls, next to fitting the map", async () => {
+    const screen = await renderMap();
+    const app = box(screen, "fixture-app");
+    await expect.element(app).toBeVisible();
+    const toSelection = screen.getByRole("button", {
+      name: "Zoom to the selection",
+    });
+    const reset = screen.getByTitle("Reset the zoom to 100%");
+    const percent = () => Number(reset.element().textContent?.slice(0, -1));
+
+    // Nothing selected: nothing to zoom to.
+    await expect.element(toSelection).toBeDisabled();
+    const controls = screen
+      .getByRole("group", { name: "Zoom" })
+      .getByRole("button")
+      .elements()
+      .map((button) => button.getAttribute("aria-label"));
+    expect(controls.indexOf("Zoom to the selection")).toBe(
+      controls.indexOf("Fit the map") + 1,
+    );
+
+    await app.click();
+    canvas().focus();
+    await userEvent.keyboard("{Control>}0{/Control}");
+    for (let step = 0; step < 4; step++) {
+      await userEvent.keyboard("{Control>}={/Control}");
+    }
+    await expect.poll(percent).toBeGreaterThan(200);
+
+    (toSelection.element() as HTMLElement).click();
+
+    // The box and what it uses, never above 100%.
+    await expect.poll(percent).toBeLessThanOrEqual(100);
+  });
+
+  it("greys out what a selected box isn't coupled to, until the selection is cleared", async () => {
     const screen = await renderMap();
     await expand(screen, "fixture-app", "org.hg.fixture", "basic", "cycle");
     const alpha = box(screen, "alpha");
 
-    await alpha.hover();
+    await alpha.click();
 
     await expect
       .poll(() => document.querySelectorAll(".lsm-dim").length)
@@ -220,14 +394,14 @@ describe("StructurePage", () => {
     // The containers it lies in stay as they are.
     await expect.element(box(screen, "cycle")).not.toHaveClass("lsm-dim");
 
-    await screen.getByText("Structure", { exact: true }).hover();
+    await userEvent.keyboard("{Escape}");
 
     await expect
       .poll(() => document.querySelectorAll(".lsm-dim").length)
       .toBe(0);
   });
 
-  it("pins a box's arrows from its context menu: in the URL, until unpinned", async () => {
+  it("selects a box from its context menu, with each item's gesture", async () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");
     await expect.element(app).toBeVisible();
@@ -235,44 +409,35 @@ describe("StructurePage", () => {
     rightClick(app.element());
     const menu = screen.getByRole("menu");
     await expect.element(menu).toBeVisible();
-    expect(
-      menu
-        .getByRole("menuitem")
-        .elements()
-        .map((element) => element.textContent),
-    ).toEqual([
-      "Pin these arrows",
+    expect(itemLabels(menu)).toEqual([
+      "Select",
       "Expand",
       "Expand all",
       "Collapse",
       "Collapse all",
     ]);
     await expect
+      .element(menu.getByText("Double-click").first())
+      .toBeInTheDocument();
+    await expect
       .element(screen.getByRole("menuitem", { name: "Collapse", exact: true }))
       .toHaveAttribute("aria-disabled", "true");
-    await screen.getByRole("menuitem", { name: "Pin these arrows" }).click();
+    await screen.getByRole("menuitem", { name: "Select", exact: true }).click();
 
-    expect(searchOf(screen).pinned_id).toBeDefined();
-    // Hovering another box keeps the pinned box's arrows.
-    await box(screen, "External Types").hover();
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(searchOf(screen).selected_id).toBeDefined();
     await expect.element(app).toHaveAttribute("aria-current", "true");
-    await expect.element(box(screen, "External Types")).toHaveClass("lsm-uses");
 
-    await screen.getByRole("button", { name: "Unpin the arrows" }).click();
+    rightClick(app.element());
+    await screen.getByRole("menuitem", { name: "Clear selection" }).click();
 
-    expect(searchOf(screen).pinned_id).toBeUndefined();
+    expect(searchOf(screen).selected_id).toBeUndefined();
     await expect.element(app).not.toHaveAttribute("aria-current");
   });
 
-  it("opens an arrow's menu on a right click: pin an end, expand an end", async () => {
+  it("opens an arrow's menu on a right click: select an end, expand an end", async () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");
-    await expect.element(app).toBeVisible();
-    // Pinned, not hovered: the pointer could hover the other end meanwhile,
-    // which the menu would then name instead.
-    rightClick(app.element());
-    await screen.getByRole("menuitem", { name: "Pin these arrows" }).click();
+    await app.click();
     await expect
       .poll(
         () =>
@@ -286,22 +451,17 @@ describe("StructurePage", () => {
     await expect
       .element(menu.getByText("fixture-app → External Types", { exact: false }))
       .toBeVisible();
-    expect(
-      menu
-        .getByRole("menuitem")
-        .elements()
-        .map((element) => element.textContent),
-    ).toEqual([
-      "Unpin the arrows",
-      "Pin the arrows of External Types",
+    expect(itemLabels(menu)).toEqual([
+      "Clear selection",
+      "Select External Types",
       "Expand fixture-app",
       "Expand External Types",
     ]);
     await screen
-      .getByRole("menuitem", { name: "Pin the arrows of External Types" })
+      .getByRole("menuitem", { name: "Select External Types" })
       .click();
 
-    expect(searchOf(screen).pinned_id).toBeDefined();
+    expect(searchOf(screen).selected_id).toBeDefined();
     await expect
       .element(box(screen, "External Types"))
       .toHaveAttribute("aria-current", "true");
@@ -310,9 +470,7 @@ describe("StructurePage", () => {
   it("draws an expanded box's arrows from its contents", async () => {
     const screen = await renderMap();
     const app = box(screen, "fixture-app");
-    await expect.element(app).toBeVisible();
-    rightClick(app.element());
-    await screen.getByRole("menuitem", { name: "Pin these arrows" }).click();
+    await app.click();
     const appId = app.element().getAttribute("data-box-id");
     const starts = () =>
       [...document.querySelectorAll<SVGElement>("[data-arrow-key]")]
@@ -355,7 +513,7 @@ describe("StructurePage", () => {
     await expect
       .element(screen.getByRole("menuitem", { name: "Collapse all" }))
       .toHaveAttribute("aria-disabled", "true");
-    await screen.getByRole("menuitem", { name: "Pin these arrows" }).click();
+    await screen.getByRole("menuitem", { name: "Select", exact: true }).click();
     await expand(screen, "fixture-app", "org.hg.fixture");
 
     rightClick(app.element());
@@ -395,9 +553,7 @@ describe("StructurePage", () => {
   it("collapses the whole map from the canvas's menu", async () => {
     const screen = await renderMap();
     await expand(screen, "fixture-app", "org.hg.fixture");
-    const canvas = document.querySelector(".lsm-canvas")!;
-
-    rightClick(canvas);
+    rightClick(canvas());
     await screen.getByRole("menuitem", { name: "Collapse all" }).click();
 
     await expect
@@ -406,7 +562,7 @@ describe("StructurePage", () => {
     expect(searchOf(screen).expanded_ids).toBeUndefined();
 
     // With nothing open, there is nothing to collapse.
-    rightClick(canvas);
+    rightClick(canvas());
     await expect
       .element(screen.getByRole("menuitem", { name: "Collapse all" }))
       .toHaveAttribute("aria-disabled", "true");

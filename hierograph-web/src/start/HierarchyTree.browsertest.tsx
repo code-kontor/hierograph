@@ -73,6 +73,36 @@ function rightClick(element: Element) {
   );
 }
 
+// A row's label: clicking it clicks the row.
+function row(screen: TreeRender, name: string) {
+  return item(screen, name).getByText(name, { exact: true }).first();
+}
+
+// A menu's items as they read, without the gestures at their right ends.
+function itemLabels(menu: ReturnType<TreeRender["getByRole"]>) {
+  return menu
+    .getByRole("menuitem")
+    .elements()
+    .map((element) => {
+      const copy = element.cloneNode(true) as Element;
+      copy
+        .querySelectorAll('[data-slot="context-menu-shortcut"]')
+        .forEach((shortcut) => shortcut.remove());
+      return copy.textContent;
+    });
+}
+
+function selectionStatus(screen: TreeRender) {
+  return screen.getByRole("status").filter({ hasText: "Selected:" });
+}
+
+// Whether the arcs drawn are all the row's.
+function onlyArcsOf(id: string) {
+  return arcs().every((arc) => arc.from === id || arc.to === id);
+}
+
+const CYCLE_PATH = ["fixture-app", "org", "hg", "fixture", "basic", "cycle"];
+
 // A visible row's node id, by its label.
 function nodeId(label: string) {
   return (
@@ -96,7 +126,9 @@ async function childLabels(screen: TreeRender, name: string) {
 // Expands the items along `path`, each found by its label.
 async function expand(screen: TreeRender, ...path: string[]) {
   for (const name of path) {
-    await item(screen, name).getByRole("button").first().click();
+    await item(screen, name)
+      .getByRole("button", { name: `Expand ${name}`, exact: true })
+      .click();
     await expect
       .element(item(screen, name))
       .toHaveAttribute("aria-expanded", "true");
@@ -124,9 +156,12 @@ describe("HierarchyTree", () => {
       .element(item(screen, "External Types"))
       .toHaveClass(/border-t/);
     // No tooltip, which would cover the arcs.
-    await expect
-      .element(item(screen, "fixture-app").getByRole("button").first())
-      .not.toHaveAttribute("title");
+    expect(
+      item(screen, "fixture-app")
+        .element()
+        .querySelector("[data-node-id]")
+        ?.hasAttribute("title"),
+    ).toBe(false);
   });
 
   it("loads a node's children when it is expanded, named relative to it", async () => {
@@ -208,7 +243,10 @@ describe("HierarchyTree", () => {
     await expect.element(type).toBeVisible();
     await expect.element(type).not.toHaveAttribute("aria-expanded");
 
-    await type.getByRole("button").first().click();
+    await expect
+      .element(type.getByRole("button", { name: /^Expand/ }))
+      .not.toBeInTheDocument();
+    await row(screen, "PlainClass").dblClick();
 
     await expect.element(type).not.toHaveAttribute("aria-expanded");
     await expect.element(type.getByRole("group")).not.toBeInTheDocument();
@@ -219,7 +257,9 @@ describe("HierarchyTree", () => {
     await expand(screen, "fixture-app");
     await expect.element(item(screen, "org")).toBeVisible();
 
-    await item(screen, "fixture-app").getByRole("button").first().click();
+    await screen
+      .getByRole("button", { name: "Collapse fixture-app", exact: true })
+      .click();
 
     await expect
       .element(item(screen, "fixture-app"))
@@ -243,43 +283,28 @@ describe("HierarchyTree", () => {
     await expect.element(item(screen, "app")).toBeVisible();
   });
 
-  it("draws no arcs until a row is hovered", async () => {
+  it("draws no arcs until a row is selected", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
+    await expand(screen, ...CYCLE_PATH);
     await expect.element(item(screen, "gamma")).toBeVisible();
 
     expect(arcs()).toEqual([]);
   });
 
-  it("draws the hovered row's arcs: with the order and against it", async () => {
+  it("draws the selected row's arcs: with the order and against it", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
+    await expand(screen, ...CYCLE_PATH);
     await expect.element(item(screen, "gamma")).toBeVisible();
     const cycle = new Set(["gamma", "alpha", "beta"].map(nodeId));
 
     // The last of a cycle depends on one above it: an arc against the order.
-    await item(screen, "beta").getByRole("button").first().hover();
+    await row(screen, "beta").click();
     const beta = nodeId("beta");
+    await expect
+      .element(item(screen, "beta"))
+      .toHaveAttribute("aria-selected", "true");
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
-    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
-      true,
-    );
+    expect(onlyArcsOf(beta)).toBe(true);
     const up = arcs().filter((arc) => arc.direction === "up");
     expect(up.length).toBeGreaterThan(0);
     for (const arc of up) {
@@ -306,11 +331,9 @@ describe("HierarchyTree", () => {
     expect(arcs()[0].title).toMatch(/^.+ → .+: weight \d+$/);
 
     // The first of a cycle depends on one below it: an arc with the order.
-    await item(screen, "gamma").getByRole("button").first().hover();
+    await row(screen, "gamma").click();
     const gamma = nodeId("gamma");
-    await expect
-      .poll(() => arcs().every((arc) => arc.from === gamma || arc.to === gamma))
-      .toBe(true);
+    await expect.poll(() => onlyArcsOf(gamma)).toBe(true);
     expect(arcs().some((arc) => arc.direction === "down")).toBe(true);
     expect(
       arcs()
@@ -319,143 +342,165 @@ describe("HierarchyTree", () => {
     ).toBe(true);
   });
 
-  it("removes the arcs when the pointer leaves the row", async () => {
+  it("traces nothing on hover: the selection stays whatever the pointer is on", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await item(screen, "alpha").getByRole("button").first().hover();
-    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    await expand(screen, ...CYCLE_PATH);
+    await row(screen, "alpha").hover();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(arcs()).toEqual([]);
 
-    await screen.getByRole("tree").unhover();
-    await screen.getByText("Hierarchy", { exact: true }).hover();
+    await row(screen, "beta").click();
+    const beta = nodeId("beta");
+    await row(screen, "gamma").hover();
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    await expect.poll(() => arcs().length).toBe(0);
+    expect(arcs().length).toBeGreaterThan(0);
+    expect(onlyArcsOf(beta)).toBe(true);
   });
 
-  it("keeps the row's arcs while the pointer is in the arc area", async () => {
+  it("clears the selection on a second click, on the empty space, with Escape and with the status's button", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await item(screen, "beta").getByRole("button").first().hover();
+    await expand(screen, ...CYCLE_PATH);
+    const tree = screen.getByRole("tree").element() as HTMLElement;
+
+    await row(screen, "beta").click();
+    await expect
+      .element(selectionStatus(screen))
+      .toHaveTextContent("Selected:beta· Esc to clear");
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    // Again, after the double-click time.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await row(screen, "beta").click();
+    await expect.poll(() => arcs().length).toBe(0);
+    await expect.element(selectionStatus(screen)).not.toBeInTheDocument();
+
+    await row(screen, "beta").click();
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    tree.click();
+    await expect.poll(() => arcs().length).toBe(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await row(screen, "beta").click();
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => arcs().length).toBe(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await row(screen, "beta").click();
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    await screen.getByRole("button", { name: "Clear selection" }).click();
+    await expect.poll(() => arcs().length).toBe(0);
+    expect(screen.router.state.location.search.selected_id).toBeUndefined();
+  });
+
+  it("expands and collapses a row on a double-click, and leaves it selected", async () => {
+    const screen = await renderTree();
+    const app = item(screen, "fixture-app");
+
+    await row(screen, "fixture-app").dblClick();
+
+    await expect.element(app).toHaveAttribute("aria-expanded", "true");
+    await expect.element(app).toHaveAttribute("aria-selected", "true");
+
+    await row(screen, "fixture-app").dblClick();
+
+    await expect.element(app).toHaveAttribute("aria-expanded", "false");
+    await expect.element(app).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("walks the rows by keyboard: moves, expands, goes in and out, selects", async () => {
+    const screen = await renderTree();
+    await expect.element(item(screen, "fixture-app")).toBeVisible();
+    const tree = screen.getByRole("tree").element() as HTMLElement;
+    const active = () =>
+      document
+        .getElementById(tree.getAttribute("aria-activedescendant") ?? "")
+        ?.getAttribute("aria-label");
+
+    tree.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(active()).toBe("fixture-app");
+
+    await userEvent.keyboard("{ArrowRight}");
+    await expect
+      .element(item(screen, "fixture-app"))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect.element(item(screen, "org")).toBeVisible();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(active()).toBe("org");
+
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(item(screen, "org"))
+      .toHaveAttribute("aria-selected", "true");
+
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(active()).toBe("fixture-app");
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect
+      .element(item(screen, "fixture-app"))
+      .toHaveAttribute("aria-expanded", "false");
+    await userEvent.keyboard("{End}");
+    expect(active()).toBe("External Types");
+    await userEvent.keyboard("{Home}");
+    expect(active()).toBe("fixture-app");
+
+    // + and − expand and collapse, as on every graph; − in a row that isn't
+    // open collapses the row it lies in.
+    await userEvent.keyboard("+");
+    await expect
+      .element(item(screen, "fixture-app"))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect.element(item(screen, "org")).toBeVisible();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(active()).toBe("org");
+    await userEvent.keyboard("-");
+    await expect
+      .element(item(screen, "fixture-app"))
+      .toHaveAttribute("aria-expanded", "false");
+    expect(active()).toBe("fixture-app");
+  });
+
+  it("opens an arc's menu on a right click: clear the selection, select its other end", async () => {
+    const screen = await renderTree();
+    await expand(screen, ...CYCLE_PATH);
+    await row(screen, "beta").click();
     const beta = nodeId("beta");
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
-
-    // Into the arc area, off any arc: the rows beneath don't take the hover.
-    await screen.getByRole("group", { name: "Dependencies" }).hover();
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(arcs().length).toBeGreaterThan(0);
-    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
-      true,
-    );
-
-    // Out of it: gone.
-    await screen.getByText("Hierarchy", { exact: true }).hover();
-    await expect.poll(() => arcs().length).toBe(0);
-  });
-
-  it("opens an arc's menu on a right click: pin the arcs", async () => {
-    const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await item(screen, "beta").getByRole("button").first().hover();
-    await expect.poll(() => arcs().length).toBeGreaterThan(0);
     const arc = arcs()[0];
+    const other = arc.from === beta ? arc.to : arc.from;
+    const otherLabel =
+      document.querySelector<HTMLElement>(`[data-node-id="${other}"]`)?.dataset
+        .label ?? "";
 
     rightClickArc(arc.from, arc.to);
 
     const menu = screen.getByRole("menu");
     await expect.element(menu).toBeVisible();
-    expect(
-      menu
-        .getByRole("menuitem")
-        .elements()
-        .map((element) => element.textContent),
-    ).toEqual(["Pin these arcs"]);
+    expect(itemLabels(menu)).toEqual([
+      "Clear selection",
+      `Select ${otherLabel}`,
+    ]);
     // The arcs stay while the menu is open.
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(arcs().length).toBeGreaterThan(0);
-  });
-
-  it("keeps pinned arcs whatever is hovered, until unpinned", async () => {
-    const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await item(screen, "beta").getByRole("button").first().hover();
-    const beta = nodeId("beta");
-    await expect.poll(() => arcs().length).toBeGreaterThan(0);
-    const arc = arcs()[0];
-
-    rightClickArc(arc.from, arc.to);
-    await screen.getByRole("menuitem", { name: "Pin these arcs" }).click();
-
-    // Another row hovered: still beta's arcs.
-    await item(screen, "gamma").getByRole("button").first().hover();
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(arcs().length).toBeGreaterThan(0);
-    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
-      true,
-    );
-
-    // The menu offers to unpin them.
-    rightClickArc(arc.from, arc.to);
-    await expect
-      .element(screen.getByRole("menuitem", { name: "Unpin the arcs" }))
-      .toBeVisible();
+    // Closing the menu with Escape leaves the selection.
     await userEvent.keyboard("{Escape}");
     await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
-    // Closing the menu with Escape leaves them pinned.
-    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
-      true,
-    );
+    expect(onlyArcsOf(beta)).toBe(true);
 
-    // The unpin button, then hovering gamma: gamma's arcs.
-    await screen.getByRole("button", { name: "Unpin the arcs" }).click();
-    await item(screen, "gamma").getByRole("button").first().hover();
-    const gamma = nodeId("gamma");
-    await expect
-      .poll(() => arcs().every((arc) => arc.from === gamma || arc.to === gamma))
-      .toBe(true);
+    rightClickArc(arc.from, arc.to);
+    await screen
+      .getByRole("menuitem", { name: `Select ${otherLabel}` })
+      .click();
+
+    await expect.poll(() => onlyArcsOf(other)).toBe(true);
+    expect(String(screen.router.state.location.search.selected_id)).toBe(other);
   });
 
   it("drills an expanded row's arcs down to the rows inside it", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
+    await expand(screen, ...CYCLE_PATH);
     await expect.element(item(screen, "gamma")).toBeVisible();
     // The visible rows inside the expanded module.
     const inside = new Set(
@@ -463,13 +508,11 @@ describe("HierarchyTree", () => {
         item(screen, "fixture-app")
           .element()
           .querySelectorAll<HTMLElement>("[data-frontier]"),
-      ).map((row) => row.dataset.nodeId ?? ""),
+      ).map((element) => element.dataset.nodeId ?? ""),
     );
 
     // Its code's dependencies across its border, on External Types.
-    await item(screen, "fixture-app")
-      .getByText("fixture-app", { exact: true })
-      .hover();
+    await row(screen, "fixture-app").click();
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
     for (const arc of arcs()) {
       expect(inside.has(arc.from)).not.toBe(inside.has(arc.to));
@@ -477,177 +520,55 @@ describe("HierarchyTree", () => {
     }
   });
 
-  it("pins a row's arcs from the row's context menu", async () => {
+  it("selects a row from its context menu, and expands it there", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
+    await expand(screen, ...CYCLE_PATH);
     await expect.element(item(screen, "beta")).toBeVisible();
-    const row = item(screen, "beta").getByRole("button").first();
     const beta = nodeId("beta");
 
-    rightClick(row.element());
+    rightClick(row(screen, "fixture-app").element());
+    await expect.element(screen.getByRole("menu")).toBeVisible();
+    expect(itemLabels(screen.getByRole("menu"))).toEqual([
+      "Select",
+      "Collapse",
+    ]);
+    await userEvent.keyboard("{Escape}");
+    await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+
+    rightClick(row(screen, "beta").element());
     const menu = screen.getByRole("menu");
     await expect.element(menu).toBeVisible();
-    expect(
-      menu
-        .getByRole("menuitem")
-        .elements()
-        .map((element) => element.textContent),
-    ).toEqual(["Pin these arcs"]);
-    await screen.getByRole("menuitem", { name: "Pin these arcs" }).click();
-
-    await item(screen, "gamma").getByRole("button").first().hover();
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(arcs().length).toBeGreaterThan(0);
-    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
-      true,
-    );
-
-    // Another row's menu pins its arcs instead; the pinned row's unpins them.
-    rightClick(item(screen, "gamma").getByRole("button").first().element());
-    await screen.getByRole("menuitem", { name: "Pin these arcs" }).click();
-    const gamma = nodeId("gamma");
+    // A package: it can be expanded too.
+    expect(itemLabels(menu)).toEqual(["Select", "Expand"]);
+    // Each item with its gesture.
     await expect
-      .poll(() => arcs().every((arc) => arc.from === gamma || arc.to === gamma))
-      .toBe(true);
-    rightClick(item(screen, "gamma").getByRole("button").first().element());
-    await screen.getByRole("menuitem", { name: "Unpin the arcs" }).click();
+      .element(menu.getByText("Click", { exact: true }))
+      .toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: "Unpin the arcs" }))
-      .not.toBeInTheDocument();
+      .element(menu.getByText("+ / Double-click", { exact: true }))
+      .toBeInTheDocument();
+    await screen.getByRole("menuitem", { name: "Select", exact: true }).click();
+
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    expect(onlyArcsOf(beta)).toBe(true);
+
+    // The selected row's menu clears the selection.
+    rightClick(row(screen, "beta").element());
+    await screen.getByRole("menuitem", { name: "Clear selection" }).click();
+    await expect.element(selectionStatus(screen)).not.toBeInTheDocument();
   });
 
-  it("pins a cycle's arcs from its bar's context menu", async () => {
+  it("selects a cycle with a click on its bar, or from the bar's menu", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
+    await expand(screen, ...CYCLE_PATH);
     await expect.element(item(screen, "gamma")).toBeVisible();
     const cycle = new Set(["gamma", "alpha", "beta"].map(nodeId));
+    // The tests run without the stylesheet, so the bar has no size to click:
+    // the click arrives at it as an event.
+    const bar = () =>
+      item(screen, "alpha").element().querySelector("[data-cycle-bar]")!;
 
-    // The tests run without the stylesheet, so the bar has no size to click.
-    const bar = item(screen, "alpha")
-      .element()
-      .querySelector("[data-cycle-bar]");
-    if (bar) rightClick(bar);
-    // The bar's menu only, not also the row's.
-    await expect.element(screen.getByRole("menu")).toBeVisible();
-    expect(screen.getByRole("menu").elements()).toHaveLength(1);
-    await screen.getByRole("menuitem", { name: "Pin these arcs" }).click();
-
-    // Choosing it left the bar's row as it was.
-    await expect
-      .element(item(screen, "alpha"))
-      .not.toHaveAttribute("aria-expanded", "true");
-    await item(screen, "beta").getByRole("button").first().hover();
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(arcs().length).toBeGreaterThan(0);
-    for (const arc of arcs()) {
-      expect(cycle.has(arc.from) && cycle.has(arc.to)).toBe(true);
-      expect(arc.relation).toBe("cycle");
-    }
-  });
-
-  it("keeps its open rows and pinned arcs in the URL, and opens as they say", async () => {
-    const first = await renderTree();
-    await expand(
-      first,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await expect.element(item(first, "beta")).toBeVisible();
-    const beta = nodeId("beta");
-    rightClick(item(first, "beta").getByRole("button").first().element());
-    await first.getByRole("menuitem", { name: "Pin these arcs" }).click();
-    await expect
-      .element(first.getByRole("button", { name: "Unpin the arcs" }))
-      .toBeVisible();
-    const { search, searchStr } = first.router.state.location;
-    // A lone numeric id comes back from the URL as a number.
-    expect(String(search.pinned_id)).toBe(beta);
-    expect(search.expanded_ids).toHaveLength(6);
-    await first.unmount();
-
-    const screen = await renderTree(searchStr);
-
-    await expect.element(item(screen, "beta")).toBeVisible();
-    await expect
-      .element(item(screen, "cycle"))
-      .toHaveAttribute("aria-expanded", "true");
-    await expect
-      .element(screen.getByRole("button", { name: "Unpin the arcs" }))
-      .toBeVisible();
-    await expect.poll(() => arcs().length).toBeGreaterThan(0);
-    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
-      true,
-    );
-  });
-
-  it("unpins the arcs with Escape", async () => {
-    const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await item(screen, "beta").getByRole("button").first().hover();
-    await expect.poll(() => arcs().length).toBeGreaterThan(0);
-    const arc = arcs()[0];
-    rightClickArc(arc.from, arc.to);
-    await screen.getByRole("menuitem", { name: "Pin these arcs" }).click();
-    await screen.getByText("Hierarchy", { exact: true }).hover();
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(arcs().length).toBeGreaterThan(0);
-
-    await userEvent.keyboard("{Escape}");
-
-    await expect.poll(() => arcs().length).toBe(0);
-    await expect
-      .element(screen.getByRole("button", { name: "Unpin the arcs" }))
-      .not.toBeInTheDocument();
-  });
-
-  it("draws the whole cycle when its bar is hovered", async () => {
-    const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
-    await expect.element(item(screen, "gamma")).toBeVisible();
-    const cycle = new Set(["gamma", "alpha", "beta"].map(nodeId));
-
-    // The tests run without the stylesheet, so the bar has no size to hover
-    // with the pointer: the pointer arrives at it as an event.
-    item(screen, "alpha")
-      .element()
-      .querySelector("[data-cycle-bar]")
-      ?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    bar().dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     // The dependencies between the members, each in the cycle's own colour,
     // at least one against the order (else there were no cycle).
@@ -660,14 +581,60 @@ describe("HierarchyTree", () => {
     expect(arcs().some((arc) => arc.direction === "up" && arc.dotted)).toBe(
       true,
     );
-
-    // Back on the row: its own arcs again.
-    await item(screen, "alpha").getByText("alpha").hover();
-    const alpha = nodeId("alpha");
     await expect
-      .poll(() => arcs().every((arc) => arc.from === alpha || arc.to === alpha))
-      .toBe(true);
+      .element(selectionStatus(screen))
+      .toHaveTextContent(/Selected:cycle of /);
+    // The row it is on stays unselected.
+    await expect
+      .element(item(screen, "alpha"))
+      .toHaveAttribute("aria-selected", "false");
+
+    // The bar's menu only, not also the row's.
+    rightClick(bar());
+    await expect.element(screen.getByRole("menu")).toBeVisible();
+    expect(screen.getByRole("menu").elements()).toHaveLength(1);
+    await screen.getByRole("menuitem", { name: "Clear selection" }).click();
+    await expect.poll(() => arcs().length).toBe(0);
+
+    rightClick(bar());
+    await screen.getByRole("menuitem", { name: "Select the cycle" }).click();
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    // Choosing it left the bar's row as it was.
+    await expect
+      .element(item(screen, "alpha"))
+      .not.toHaveAttribute("aria-expanded", "true");
+
+    // A click on the row: its own arcs.
+    await row(screen, "alpha").click();
+    const alpha = nodeId("alpha");
+    await expect.poll(() => onlyArcsOf(alpha)).toBe(true);
     expect(arcs().every((arc) => arc.relation !== "cycle")).toBe(true);
+  });
+
+  it("keeps its open rows and the selection in the URL, and opens as they say", async () => {
+    const first = await renderTree();
+    await expand(first, ...CYCLE_PATH);
+    await expect.element(item(first, "beta")).toBeVisible();
+    const beta = nodeId("beta");
+    await row(first, "beta").click();
+    await expect.element(selectionStatus(first)).toBeVisible();
+    const { search, searchStr } = first.router.state.location;
+    // A lone numeric id comes back from the URL as a number.
+    expect(String(search.selected_id)).toBe(beta);
+    expect(search.expanded_ids).toHaveLength(6);
+    await first.unmount();
+
+    const screen = await renderTree(searchStr);
+
+    await expect.element(item(screen, "beta")).toBeVisible();
+    await expect
+      .element(item(screen, "cycle"))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect
+      .element(selectionStatus(screen))
+      .toHaveTextContent("Selected:beta· Esc to clear");
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    expect(onlyArcsOf(beta)).toBe(true);
   });
 
   it("draws the arcs to External Types, with the order", async () => {
@@ -675,7 +642,7 @@ describe("HierarchyTree", () => {
     await expand(screen, "fixture-app");
     await expect.element(item(screen, "org")).toBeVisible();
 
-    await item(screen, "org").getByRole("button").first().hover();
+    await row(screen, "org").click();
 
     const org = nodeId("org");
     const external = nodeId("External Types");
@@ -696,7 +663,7 @@ describe("HierarchyTree", () => {
     await expand(screen, "External Types", "java");
     await expect.element(item(screen, "util")).toBeVisible();
 
-    await item(screen, "util").getByRole("button").first().hover();
+    await row(screen, "util").click();
 
     const util = nodeId("util");
     const app = nodeId("fixture-app");

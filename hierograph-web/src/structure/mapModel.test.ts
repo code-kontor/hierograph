@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { type MapBox, type MapModel, restrictModel } from "./mapModel";
+import {
+  boxOrder,
+  type MapBox,
+  type MapModel,
+  restrictModel,
+} from "./mapModel";
 
 // root ─ a (open: x, y in a tangle, z), b
 function model(): MapModel {
@@ -51,5 +56,18 @@ describe("restrictModel", () => {
 
     expect(restricted.weights.get("a")).toBe(1);
     expect(restricted.weights.get("x")).toBe(1);
+  });
+});
+
+describe("boxOrder", () => {
+  it("walks the rows top first, a box before what it holds, a tangle row by row", () => {
+    expect(boxOrder(model())).toEqual(["a", "x", "y", "z", "b"]);
+  });
+
+  it("walks only what is kept", () => {
+    expect(boxOrder(restrictModel(model(), new Set(["a", "z"])))).toEqual([
+      "a",
+      "z",
+    ]);
   });
 });

@@ -252,6 +252,26 @@ export function itemWeight(
   );
 }
 
+// The visible boxes in reading order, as the keyboard walks them: each
+// container's rows top first, left to right, a box followed by what it holds,
+// a tangle's members row by row.
+export function boxOrder(model: MapModel): string[] {
+  const order: string[] = [];
+  const visit = (id: string) => {
+    for (const row of model.rowsOf.get(id) ?? []) {
+      for (const item of row) {
+        const ids = item.kind === "box" ? [item.id] : item.rows.flat();
+        for (const member of ids) {
+          order.push(member);
+          visit(member);
+        }
+      }
+    }
+  };
+  visit(model.rootId);
+  return order;
+}
+
 // Whether `id` is `ancestor` or lies inside it.
 export function isWithin(
   model: MapModel,

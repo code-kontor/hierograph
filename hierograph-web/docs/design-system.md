@@ -25,6 +25,92 @@ renders, and it is the source of truth.
   (token-based but not restyled). When a component is first genuinely used, restyle it
   to fit the rest of the UI _first_. A component with such a documented "pending" note
   is the exception; everything else in `ui/` is expected to fit.
+- **Hierarchical graphs are operated the same way** on every screen and screen part
+  that shows one (the structure map, the hierarchy tree, …): the
+  [interaction model](#interaction) below.
+
+## Interaction
+
+Every hierarchical graph follows one interaction model, so what a user learns on one
+screen holds on all of them. It follows the platform conventions (macOS, Windows) and
+the tools the UI takes its character from, rather than inventing gestures of its own.
+
+The structure map (`src/structure/StructurePage.tsx`) and the start screen's hierarchy
+tree (`src/start/HierarchyTree.tsx`) follow the model. What they share lives in
+`src/design-system/graph/`: `SelectionStatus` (the status chip), `GesturesHelp` (the
+`?`, from `SELECTION_GESTURES` and `KEYBOARD_GESTURES` plus a graph's own) and
+`ContextMenuShortcut` for the menus. A graph zooms and pans only if it needs to: the
+tree neither zooms nor pans, so it leaves `Ctrl`/`⌘`+wheel to the browser and lists no
+zoom or pan gestures.
+
+**Pending:** the click, double-click and keyboard handling is still written once per
+screen. Pull it into `src/design-system/graph/` too once a third graph needs it, or
+when the two copies drift.
+
+### Gestures
+
+| Input                                                     | Action                                                                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Click a node                                              | Select it: its incoming and outgoing dependencies are drawn. Clicking the selected node again clears the selection.                         |
+| Click a node's chevron, or double-click the node          | Expand or collapse it.                                                                                                                      |
+| Right-click a node                                        | Context menu with the node's commands (see below).                                                                                          |
+| Click the empty canvas, `Esc`, or "Clear selection"       | Clear the selection.                                                                                                                        |
+| Wheel / `Shift`+wheel / trackpad swipe                    | Scroll vertically / horizontally — the browser's native scrolling.                                                                          |
+| `Ctrl`/`⌘`+wheel, trackpad pinch                          | Zoom, anchored at the pointer.                                                                                                              |
+| `Ctrl`/`⌘`+`+` / `−` / `0`, and a "Fit" button            | Zoom in / out / reset to 100 % / fit the graph to the viewport (while the graph has focus).                                                 |
+| "Zoom to the selection" button, next to "Fit"             | Zoom and scroll to the selected node and the nodes its arrows end at, with a margin, never above 100 %; disabled while nothing is selected. |
+| Drag the canvas (a node too: it has nothing else to drag) | Pan.                                                                                                                                        |
+| Arrow keys                                                | Move to the next node the way the graph is drawn (see the rule below).                                                                      |
+| `+` / `−`                                                 | Expand / collapse the node; `−` in a node that isn't open collapses the node it lies in, and moves there.                                   |
+| `Home` / `End` / `Enter` `Space`                          | The first / the last node / select.                                                                                                         |
+| `Ctrl`/`⌘`+click                                          | Reserved for multi-select; give it no other meaning.                                                                                        |
+
+### Rules
+
+- **No hover mode.** Hovering never changes which dependencies are drawn. It only gives
+  feedback: a pointer cursor, a subtle outline on the node under the pointer, and a
+  delayed tooltip for a name that is cut off. A node must look clickable.
+- **The selection is sticky.** It stays until another node is selected or it is
+  cleared; nothing clears it by accident (moving the pointer, scrolling, zooming,
+  expanding or collapsing). The selected node gets a clear outline, and the graph pane
+  shows a status chip in its upper-right corner — "Selected: `name` · Esc to clear" —
+  with the button that clears it.
+- **Left-click only selects.** A plain click never navigates, drills in or expands
+  (the chevron is its own target). Anything heavier goes on double-click, `Enter` or the
+  context menu.
+- **Right-click is the context menu,** never a direct action. The menu offers the
+  node's commands (Select / Clear selection, Expand / Collapse, Expand all, …) and
+  shows each command's gesture (`ContextMenuShortcut`), so the menu also teaches the
+  gestures.
+- **Scrolling is native.** Don't handle plain or `Shift`+wheel events: macOS and the
+  browsers already turn `Shift`+wheel into horizontal scrolling, and trackpads send
+  horizontal deltas themselves; handling them again scrolls twice or breaks the
+  trackpad.
+- **The zoom controls sit in the graph's lower right corner,** in this order: zoom out,
+  the zoom (a click resets it to 100 %), zoom in, fit the graph, zoom to the selection,
+  then the graph's own (the structure map's "Zoom to the dependencies"). Zoom to the
+  selection is always there, disabled while nothing is selected, so the controls don't
+  shift as the selection comes and goes.
+- **Zoom stays inside the graph** (where a graph zooms). `Ctrl`+wheel (which is also what a trackpad pinch
+  sends) and `⌘`+wheel are handled by a non-passive `wheel` listener that calls
+  `preventDefault()`, so the browser's page zoom does not kick in. The zoom shortcuts
+  apply only while the graph has focus.
+- **One word for it: select.** The UI, the docs, tooltips and URL parameters say
+  _select_ / _clear selection_, not _pin_ / _unpin_ or _focus_.
+- **Discoverable.** Every button's tooltip names its shortcut ("Clear selection (Esc)"),
+  and a `?` button in the graph pane lists the gestures above.
+- **Keyboard-operable** (WCAG 2.1.1): everything a mouse can do, the keyboard can do;
+  the graph is focusable and the focused node is visible.
+- **Arrow keys move the way the graph is drawn; `+` / `−` expand and collapse
+  everywhere.** In a graph laid out in two dimensions (the structure map: boxes side
+  by side in rows, rows stacked by level), the arrow keys move to the nearest node in
+  that direction, and an open container counts by its name bar, so ↓ enters it and ↑
+  leaves it. In a graph that runs top to bottom (the hierarchy tree), ↑ ↓ move and
+  → ← expand, collapse and step in and out, as in a file tree (the WAI-ARIA tree
+  pattern). `+` and `−` expand and collapse on every graph, as in Windows tree views and
+  JetBrains IDEs, and match the `+`/`−` toggles drawn on the nodes; the context menus
+  show them next to Expand and Collapse. Not `Shift`+arrows: those extend a selection,
+  which multi-select will need.
 
 ## Dev tooling
 

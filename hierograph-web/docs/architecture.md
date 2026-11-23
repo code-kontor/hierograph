@@ -125,23 +125,29 @@ the tabs and the tree.
   the history entry, and the first tab leaves no param behind.
 - **Left:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
   view. It loads level by level as nodes are
-  expanded, with queries keyed by the graph scope. Its open rows and pinned
-  arcs are the start screen's search params `expanded_ids` (expanding replaces
-  the history entry) and `pinned_id`, or `pinned_cycle_ids` for a cycle's
-  arcs (pinning pushes one). Each level's siblings are in
+  expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
+  screen's search params `expanded_ids` and `selected_id`, or
+  `selected_cycle_ids` for a cycle (both replace the history entry). Each level's siblings are in
   dependency order (`orderedAdjacencyMatrix`: those depending on the others on
   top), dependency cycles marked with a bar; the tree ends at the types (their
   members' dependencies aren't resolved yet). Directly to the right of the labels, `TreeArcs` draws, for the
-  hovered row only, thin bracket arcs to the visible rows it depends on and
+  selected row only, thin bracket arcs to the visible rows it depends on and
   that depend on it (rows whose children aren't shown, External Types and its
   rows included), each with an arrowhead on the row depended on: with the
   order to the right, against it to the left and dashed; what the row uses
   blue, what uses it grey, whichever way they run; by weight.
-  Hovering a cycle bar draws instead the arcs between the cycle's members
+  Selecting a cycle bar draws instead the arcs between the cycle's members
   (rows inside an expanded member counted to it), in the bar's colour: the
   whole cycle, with the edges that close it against the order. It measures the
   rows marked `data-frontier` whenever the tree changes and loads their
-  dependencies in one query.
+  dependencies in one query. The tree follows the design system's interaction
+  model without zoom and pan: hovering traces nothing; a click selects a row
+  or a cycle bar (again, in the empty space, Esc or the pane's selection
+  status clears it), the chevron or a double-click expands a row, a right
+  click opens the menu of a row, a bar or an arc, each item with its gesture.
+  The `tree` element is focusable, its active descendant the keyboard's
+  cursor, walked over the rows as drawn (→ ← and `+` / `−` expand and
+  collapse). The pane's `?` lists the gestures.
 
 The server data is live: its query is polled like the graph status and keyed
 by the generation, so a reload shows at once. The start screen handles a server
@@ -156,9 +162,10 @@ structure map of the current hierarchy view, ported from the
 look in `structure-map.css`): every container's children in rows by level,
 bottom first, so a box sits above what it uses; the members of a cycle
 together in a red tangle frame, in their own rows; and only the dependencies
-against the levels drawn, as dashed arrows in the cycle colour. Hovering a box traces what it
+against the levels drawn, as dashed arrows in the cycle colour. Selecting a box traces what it
 uses (accent) and what uses it (grey) among the visible boxes, with rings and
-arrows, and greys out the rest.
+arrows, and greys out the rest. It follows the design system's interaction
+model (`docs/design-system.md`, "Interaction").
 
 - **Data.** The root and each expanded container load their levelization
   (`node(id) { children { levelization } }`, #61), keyed by the graph scope;
@@ -167,13 +174,16 @@ arrows, and greys out the rest.
   feedback dependencies. In a module, a chain of packages that each hold
   nothing but the next package is folded into one box, its last package
   named in full (`io.hierograph.server`); the chain's packages load their
-  levelization too, and the module opens once they have. The first hovered box loads the matrix over the
-  frontier (`orderedAdjacencyMatrix`) for the weights; hovering traces a
-  box's dependencies, its context menu pins them (as the start screen's tree
-  pins its arcs), Esc or the pane's unpin button unpins them. A button in the
-  pane's corner switches tracing on hover off and on (kept by the browser,
-  `structure-trace-on-hover`); off, only a pinned box is traced, and
-  Shift + click pins a box (again, or on the canvas, unpins).
+  levelization too, and the module opens once they have. The first selected box loads the matrix over the
+  frontier (`orderedAdjacencyMatrix`) for the weights.
+- **Interaction.** Hovering traces nothing. A click selects a box (again,
+  on the canvas, Esc or the pane's selection status clears it), a
+  double-click expands or collapses it, a right click opens the menu of a
+  box, an arrow or the canvas, each item with its gesture. The canvas is the
+  `tree`: focusable, its active descendant the keyboard's cursor. The arrow
+  keys move to the nearest box that way as drawn (`boxToward`, an open
+  container by its name bar), Home and End in reading order (`boxOrder`),
+  `+` / `−` expand and collapse. The pane's `?` lists the gestures.
 - **Layout.** A box takes a share of its row by how many boxes are visible in
   it, and is never narrower than its content; a map wider than the pane
   scrolls. The arrows are measured from the boxes whenever the map changes or
@@ -192,12 +202,12 @@ arrows, and greys out the rest.
   boxes around them (`restrictModel`), laid out compactly. Once they are drawn
   where they stay (expanded and loaded), the map zooms and scrolls to the
   boxes they join (at most 100%) instead of fitting the whole map, once per
-  set; a zoom control brings them back. Where a set comes from
+  set; a zoom control brings them back. Next to fitting the map, another
+  zooms to the selection: the selected box and the boxes its arrows end at. Where a set comes from
   is kept apart from how it is drawn, so a named set (#59) is one more source
   of pairs.
 - **URL.** `expanded_ids` (expanding replaces the history entry),
-  `pinned_id` (pinning pushes one), `dependency_ids` and `given_only`
-  (replaces), validated in `routes/structure.tsx`.
+  `selected_id`, `dependency_ids` and `given_only` (all replace it), validated in `routes/structure.tsx`.
 
 ## Router context & data loading
 

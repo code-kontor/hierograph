@@ -72,10 +72,32 @@ function ContextMenuSeparator({
   );
 }
 
+type ContextMenuShortcutProps = React.ComponentProps<"span">;
+
+// The gesture or key that does what the item does, at the item's right end,
+// so the menu teaches it. Left out of the item's accessible name.
+function ContextMenuShortcut({
+  className,
+  ...props
+}: ContextMenuShortcutProps) {
+  return (
+    <span
+      data-slot="context-menu-shortcut"
+      aria-hidden
+      className={cn(
+        "text-fg-subtle ml-auto pl-4 font-mono text-[11px] tracking-tight",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 };

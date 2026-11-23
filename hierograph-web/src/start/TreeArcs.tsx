@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Pin, PinOff } from "lucide-react";
+import { MousePointerClick, X } from "lucide-react";
 import {
   createContext,
   type ReactNode,
@@ -20,6 +20,8 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/design-system/ui/context-menu";
 import type { GraphScope } from "@/frame/GraphScope";
@@ -49,8 +51,8 @@ const LAYOUT = {
   maxUp: ANCHOR_X - SIDE_GAP / 2 - 6,
 };
 
-// What the arcs are drawn for: a hovered row, its dependencies and its
-// dependents; or a hovered cycle bar, the dependencies between the cycle's
+// What the arcs are drawn for: a selected row, its dependencies and its
+// dependents; or a selected cycle bar, the dependencies between the cycle's
 // members (by id) that close it.
 export type ArcFocus =
   { kind: "row"; id: string } | { kind: "cycle"; members: string[] };
@@ -65,54 +67,48 @@ type MeasuredRow = {
   lineage: string[];
 };
 
-// Pinned arcs stay whatever is hovered, until unpinned. Pinning works from the
-// context menu of an arc, a row or a cycle bar; `ArcFocusMenu` is the menu of
-// a row or bar.
-type ArcPinning = {
-  pinned: ArcFocus | null;
-  pin: (focus: ArcFocus | null) => void;
-  // A context menu opened (with the focus its arcs belong to) or closed.
-  menuFor: (focus: ArcFocus | null) => void;
+// The selection, and the way to change it, for the context menus of an arc,
+// a row or a cycle bar (`ArcFocusMenu` is a row's or a bar's).
+type TreeSelection = {
+  selected: ArcFocus | null;
+  select: (focus: ArcFocus | null) => void;
+  // A context menu opened or closed: an open one takes Escape.
+  menuOpen: (open: boolean) => void;
 };
 
-const ArcPinningContext = createContext<ArcPinning>({
-  pinned: null,
-  pin: () => {},
-  menuFor: () => {},
+const TreeSelectionContext = createContext<TreeSelection>({
+  selected: null,
+  select: () => {},
+  menuOpen: () => {},
 });
 
-function sameFocus(a: ArcFocus, b: ArcFocus): boolean {
+export function sameFocus(a: ArcFocus, b: ArcFocus): boolean {
   if (a.kind === "row") return b.kind === "row" && a.id === b.id;
   return b.kind === "cycle" && a.members.join() === b.members.join();
 }
 
 type TreeArcsProps = {
   scope: GraphScope;
-  // Only the arcs of what is hovered are drawn.
-  hovered: ArcFocus | null;
-  // The arcs pinned from a context menu, drawn whatever is hovered, until
-  // unpinned (`null`); the tree's pane offers to unpin them.
-  pinned: ArcFocus | null;
-  onPin: (focus: ArcFocus | null) => void;
+  // Only the arcs of what is selected are drawn; `null` clears it.
+  selected: ArcFocus | null;
+  onSelect: (focus: ArcFocus | null) => void;
   children: ReactNode;
 };
 
-// Draws the dependency arcs of the hovered row (or the hovered cycle) between
-// the visible rows, over the tree's right edge; for an expanded row, those of
-// the rows inside it that cross its border, so expanding a row with pinned
-// arcs drills them down. The rows are the elements
-// marked `data-frontier` (see `TreeItem`); they're measured whenever the tree
-// changes, and their dependencies are loaded for exactly that set of rows.
-// An arc's context menu pins the arcs.
+// Draws the dependency arcs of the selected row (or the selected cycle)
+// between the visible rows, over the tree's right edge; for an expanded row,
+// those of the rows inside it that cross its border, so expanding a selected
+// row drills its arcs down. The rows are the elements marked `data-frontier`
+// (see `TreeItem`); they're measured whenever the tree changes, and their
+// dependencies are loaded for exactly that set of rows. An arc's context menu
+// selects one of its ends, or clears the selection. Escape clears it too.
 export function TreeArcs({
   scope,
-  hovered,
-  pinned,
-  onPin,
+  selected,
+  onSelect,
   children,
 }: TreeArcsProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const area = useRef<SVGSVGElement>(null);
   const heads = useArrowHeadsId();
   const [rows, setRows] = useState<MeasuredRow[]>([]);
   // Where the arc area starts: just after the widest visible label.
@@ -121,23 +117,21 @@ export function TreeArcs({
   // drawing, so the browser repaints all of it (with a relative height, some
   // browsers left stale pieces of arcs behind when the tree grew).
   const [height, setHeight] = useState(0);
-  // The row (or cycle) whose arcs stay while the pointer is in the arc area,
-  // so an arc's tooltip can be read after leaving the row.
-  const [held, setHeld] = useState<ArcFocus | null>(null);
-  // The arcs an open context menu belongs to.
-  const [menu, setMenu] = useState<ArcFocus | null>(null);
-  const shown = pinned ?? menu ?? hovered ?? held;
+  // Whether a context menu is open.
+  const [menu, setMenu] = useState(false);
+  const shown = selected;
 
-  // Escape unpins, unless an open menu takes it: the menu marks the Escape
-  // that closes it as handled, which can still arrive here once it's closed.
+  // Escape clears the selection, unless an open menu takes it: the menu marks
+  // the Escape that closes it as handled, which can still arrive here once
+  // it's closed.
   useEffect(() => {
-    if (pinned === null || menu !== null) return;
+    if (selected === null || menu) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) onPin(null);
+      if (event.key === "Escape" && !event.defaultPrevented) onSelect(null);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [pinned, menu, onPin]);
+  }, [selected, menu, onSelect]);
 
   useEffect(() => {
     const container = ref.current;
@@ -203,24 +197,6 @@ export function TreeArcs({
   const byId = new Map(rows.map((row) => [row.id, row]));
   const maxWeight = Math.max(1, ...arcs.map((arc) => arc.weight));
 
-  // While a menu is open its arcs stay; once it closes, they stay as long as
-  // the pointer is in the arc area, which the next move tells.
-  const menuFor = (focus: ArcFocus | null) => {
-    if (focus !== null) {
-      setMenu(focus);
-      return;
-    }
-    setHeld(menu);
-    setMenu(null);
-    document.addEventListener(
-      "pointermove",
-      (event) => {
-        if (!area.current?.contains(event.target as Node)) setHeld(null);
-      },
-      { once: true },
-    );
-  };
-
   // Arcs are only drawn for a focus.
   const focus = shown;
   const paths =
@@ -240,28 +216,32 @@ export function TreeArcs({
         ));
 
   return (
-    <ArcPinningContext value={{ pinned, pin: onPin, menuFor }}>
+    <TreeSelectionContext
+      value={{ selected, select: onSelect, menuOpen: setMenu }}
+    >
       <div ref={ref} className="relative">
         {children}
-        {/* The arc area takes the pointer over its whole height, so moving
-          along the arcs never hovers the rows beneath them. */}
+        {/* Only the arcs take the pointer: a click beside them reaches the
+          row beneath. */}
         <svg
-          ref={area}
           role="group"
           aria-label="Dependencies"
           // Positioned inline: it must never take room in the tree, whose
           // height it takes.
-          style={{ position: "absolute", top: 0, left: `${left}px` }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: `${left}px`,
+            pointerEvents: "none",
+          }}
           width={ARC_AREA_WIDTH}
           height={height}
-          onMouseEnter={() => setHeld(shown)}
-          onMouseLeave={() => setHeld(null)}
         >
           <DependencyArrowHeads id={heads} />
           {paths}
         </svg>
       </div>
-    </ArcPinningContext>
+    </TreeSelectionContext>
   );
 }
 
@@ -314,8 +294,8 @@ function relationOf(
 
 type ArcPathProps = {
   arc: Arc;
-  // Seen from the hovered row: a dependency of it, or one on it; or one of a
-  // hovered cycle.
+  // Seen from the selected row: a dependency of it, or one on it; or one of
+  // a selected cycle.
   relation: ArcRelation;
   from: MeasuredRow | undefined;
   to: MeasuredRow | undefined;
@@ -327,16 +307,16 @@ type ArcPathProps = {
   heads: string;
 };
 
-// The arrow's role, by the arc's relation to what is hovered.
+// The arrow's role, by the arc's relation to what is selected.
 const RELATION_ROLES: Record<ArcRelation, DependencyRole> = {
   outgoing: "uses",
   incoming: "usedBy",
   cycle: "feedback",
 };
 
-// One dependency of the hovered row, drawn as every screen draws them: what
+// One dependency of the selected row, drawn as every screen draws them: what
 // the row uses (outgoing) in the accent, what uses it (incoming) grey,
-// whichever way they run; one of a hovered cycle in the cycle bar's colour;
+// whichever way they run; one of a selected cycle in the cycle bar's colour;
 // by its weight, against the heaviest drawn. Against the tree's order, dashed
 // (and on the left of the anchors).
 function ArcPath({
@@ -352,7 +332,7 @@ function ArcPath({
   const toLabel = to?.label ?? arc.to;
   const role = RELATION_ROLES[relation];
   return (
-    <ArcFocusMenu focus={focus}>
+    <ArcMenu focus={focus} arc={arc} from={from} to={to}>
       <DependencyArrow
         d={arc.path}
         role={role}
@@ -366,43 +346,99 @@ function ArcPath({
         data-relation={relation}
         data-weight={arc.weight}
       />
-    </ArcFocusMenu>
+    </ArcMenu>
   );
 }
 
-type ArcFocusMenuProps = {
+type ArcMenuProps = {
   focus: ArcFocus;
-  // The menu's trigger: an element that takes its props and ref.
+  arc: Arc;
+  from: MeasuredRow | undefined;
+  to: MeasuredRow | undefined;
   children: ReactNode;
 };
 
-// The context menu of an arc, a row or a cycle bar: pins (or unpins) the
-// arcs.
-export function ArcFocusMenu({ focus, children }: ArcFocusMenuProps) {
-  const { menuFor } = useContext(ArcPinningContext);
+// An arc's menu: what it joins and how heavily, the selection to clear, and
+// its ends to select instead.
+function ArcMenu({ focus, arc, from, to, children }: ArcMenuProps) {
+  const { select, menuOpen } = useContext(TreeSelectionContext);
+  const ends = [from, to]
+    .filter((end) => end !== undefined)
+    .filter((end) => !(focus.kind === "row" && focus.id === end.id));
+  const endItems = ends.map((end) => (
+    <ContextMenuItem
+      key={end.id}
+      onSelect={() => select({ kind: "row", id: end.id })}
+    >
+      <MousePointerClick />
+      <span className="truncate">Select {end.label}</span>
+    </ContextMenuItem>
+  ));
   return (
-    <ContextMenu onOpenChange={(open) => menuFor(open ? focus : null)}>
+    <ContextMenu onOpenChange={menuOpen}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent onCloseAutoFocus={(event) => event.preventDefault()}>
-        <PinItem focus={focus} />
+        <div className="text-fg-subtle px-2 py-1 font-mono text-[11.5px]">
+          {from?.label ?? arc.from} → {to?.label ?? arc.to} · {arc.weight}
+        </div>
+        <ContextMenuSeparator />
+        <SelectItem focus={focus} name="Select" />
+        {endItems}
       </ContextMenuContent>
     </ContextMenu>
   );
 }
 
-type PinItemProps = {
+type ArcFocusMenuProps = {
   focus: ArcFocus;
+  // The items after selecting, if any (a row's expand or collapse).
+  items?: ReactNode;
+  // The menu's trigger: an element that takes its props and ref.
+  children: ReactNode;
 };
 
-// Pins the focus's arcs (instead of any pinned before), or unpins them if
-// they are the pinned ones.
-function PinItem({ focus }: PinItemProps) {
-  const { pinned, pin } = useContext(ArcPinningContext);
-  const isPinned = pinned !== null && sameFocus(pinned, focus);
+// The context menu of a row or a cycle bar: selects it (or clears the
+// selection), and whatever else it offers, each item with its gesture.
+export function ArcFocusMenu({ focus, items, children }: ArcFocusMenuProps) {
+  const { menuOpen } = useContext(TreeSelectionContext);
   return (
-    <ContextMenuItem onSelect={() => pin(isPinned ? null : focus)}>
-      {isPinned ? <PinOff /> : <Pin />}
-      {isPinned ? "Unpin the arcs" : "Pin these arcs"}
+    <ContextMenu onOpenChange={menuOpen}>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent onCloseAutoFocus={(event) => event.preventDefault()}>
+        <SelectItem
+          focus={focus}
+          name={focus.kind === "cycle" ? "Select the cycle" : "Select"}
+        />
+        {items && (
+          <>
+            <ContextMenuSeparator />
+            {items}
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+type SelectItemProps = {
+  focus: ArcFocus;
+  // The item's name while the focus isn't selected.
+  name: string;
+};
+
+// Selects the focus (instead of anything selected before), or clears the
+// selection if it is the selected one.
+function SelectItem({ focus, name }: SelectItemProps) {
+  const { selected, select } = useContext(TreeSelectionContext);
+  const isSelected = selected !== null && sameFocus(selected, focus);
+  return (
+    <ContextMenuItem
+      onSelect={() => select(isSelected ? null : focus)}
+      aria-keyshortcuts={isSelected ? "Escape" : undefined}
+    >
+      {isSelected ? <X /> : <MousePointerClick />}
+      {isSelected ? "Clear selection" : name}
+      <ContextMenuShortcut>{isSelected ? "Esc" : "Click"}</ContextMenuShortcut>
     </ContextMenuItem>
   );
 }

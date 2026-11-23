@@ -651,7 +651,7 @@ function ChoosableViewRow({
     <li>
       <Link
         to="/"
-        // The tree of another view starts collapsed and unpinned.
+        // The tree of another view starts collapsed, nothing selected.
         search={(previous) => ({ tab: previous.tab, view })}
         title={CHOOSE_HINT}
         // `view: undefined` (the scanned hierarchy) must not match a set view.

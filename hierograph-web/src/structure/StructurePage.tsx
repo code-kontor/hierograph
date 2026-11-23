@@ -6,6 +6,7 @@ import {
   CircleDot,
   Crosshair,
   FileCode,
+  Focus,
   Folder,
   Globe,
   Layers,
@@ -13,21 +14,23 @@ import {
   ListChevronsUpDown,
   type LucideIcon,
   Maximize,
-  MousePointer2,
+  MousePointerClick,
   Package,
-  Pin,
-  PinOff,
   SquareMinus,
   SquarePlus,
+  X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import {
   createContext,
+  type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type ReactNode,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -40,17 +43,24 @@ import {
   dependencyArrowWidth,
   useArrowHeadsId,
 } from "@/design-system/graph/DependencyArrow";
+import {
+  type Gesture,
+  GesturesHelp,
+  KEYBOARD_GESTURES,
+  SELECTION_GESTURES,
+} from "@/design-system/graph/GesturesHelp";
+import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
 import { Pane } from "@/design-system/layout/Pane";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/design-system/ui/context-menu";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
-import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import {
@@ -67,6 +77,7 @@ import {
   type Rect,
 } from "./mapArrows";
 import {
+  boxOrder,
   buildModel,
   isWithin,
   itemWeight,
@@ -89,25 +100,29 @@ import {
   structureKind,
 } from "./structureLabels";
 
-// The map's navigation state, in the URL: the expanded containers, the box
-// whose arrows are pinned, the dependencies handed to the map (`<source
-// id>-<target id>`, see givenDependencies.ts) and whether only those are
-// drawn.
+// The map's navigation state, in the URL: the expanded containers, the
+// selected box, the dependencies handed to the map (`<source id>-<target
+// id>`, see givenDependencies.ts) and whether only those are drawn.
 type MapSearch = {
   expanded_ids?: string[];
-  pinned_id?: string;
+  selected_id?: string;
   dependency_ids?: string[];
   given_only?: boolean;
 };
 
-// What every box needs: the map, the box whose arrows are drawn (the pinned
-// one, else the one whose menu is open, else the hovered one) and what it is
-// coupled to, and the ways to change them.
+// What every box needs: the map, the box whose arrows are drawn (the
+// selected one) and what it is coupled to, the keyboard's cursor, and the
+// ways to change them.
 type MapState = {
   model: MapModel;
   expanded: ReadonlySet<string>;
   focusId: string | undefined;
-  pinnedId: string | undefined;
+  selectedId: string | undefined;
+  // The box the keyboard is on; shown while the map is used by keyboard.
+  cursorId: string | undefined;
+  setCursor: (id: string) => void;
+  // The DOM id of a box's element, for the tree's active descendant.
+  domId: (id: string) => string;
   uses: Map<string, number>;
   usedBy: Map<string, number>;
   // The couplings the arrows are drawn for, between visible boxes.
@@ -135,13 +150,8 @@ type MapState = {
   collapseEverything: () => Promise<void>;
   // The expanded containers in a box, itself included.
   expandedWithin: (id: string) => string[];
-  hover: (id: string | null) => void;
-  // Keeps the hovered box's arrows while the pointer is on one of them.
-  keepHover: () => void;
-  pin: (id: string | null) => Promise<void>;
-  menuFor: (id: string | null) => void;
-  // Whether hovering traces a box; off, Shift + click pins one instead.
-  traceOnHover: boolean;
+  // Selects a box (null clears the selection).
+  select: (id: string | null) => Promise<void>;
 };
 
 const MapContext = createContext<MapState | null>(null);
@@ -156,10 +166,11 @@ function useMap(): MapState {
 // hierograph-structure skill's static page draws it: every container's
 // children in rows by level, bottom first, so a box sits above what it uses;
 // the members of a cycle together in a red tangle; and only the dependencies
-// against the levels drawn, as dashed arrows in the cycle colour. Hovering a
+// against the levels drawn, as dashed arrows in the cycle colour. Selecting a
 // box traces what it uses (accent) and what uses it (grey), in the start
-// screen's arc colours; its context menu pins them, as the start screen's
-// tree pins its arcs. Containers load their rows as they are expanded.
+// screen's arc colours. Containers load their rows as they are expanded. The
+// map follows the design system's interaction model (docs/design-system.md,
+// "Interaction").
 //
 // Dependencies handed to the map in the URL (`dependency_ids`) are drawn as
 // arrows of their own; without `expanded_ids`, the map opens just far enough
@@ -219,51 +230,15 @@ function GivenOnlyButton({ pressed, onPress }: GivenOnlyButtonProps) {
   );
 }
 
-type TraceOnHoverButtonProps = {
-  pressed: boolean;
-  onPress: () => void;
-};
-
-// Switches tracing a box's dependencies by hovering it on and off.
-function TraceOnHoverButton({ pressed, onPress }: TraceOnHoverButtonProps) {
-  const label = pressed
-    ? "Stop tracing dependencies on hover (then Shift + click a box)"
-    : "Trace dependencies on hover (now: Shift + click a box)";
-  return (
-    <button
-      type="button"
-      aria-label="Trace on hover"
-      aria-pressed={pressed}
-      title={label}
-      onClick={onPress}
-      className={twMerge(
-        ghostIconTriggerClassName,
-        "size-5",
-        pressed && "bg-state-selected-bg text-state-selected-fg",
-      )}
-    >
-      <MousePointer2 className="size-3.5" />
-    </button>
-  );
-}
-
-type UnpinButtonProps = {
-  onUnpin: () => void;
-};
-
-function UnpinButton({ onUnpin }: UnpinButtonProps) {
-  return (
-    <button
-      type="button"
-      aria-label="Unpin the arrows"
-      title="Unpin the arrows (Esc)"
-      onClick={onUnpin}
-      className={twMerge(ghostIconTriggerClassName, "size-5")}
-    >
-      <PinOff className="size-3.5" />
-    </button>
-  );
-}
+// The map's gestures: every graph's, and its zoom and pan.
+const MAP_GESTURES: Gesture[] = [
+  ...SELECTION_GESTURES,
+  { keys: "Ctrl/⌘ + wheel, pinch", action: "Zoom at the pointer" },
+  { keys: "Ctrl/⌘ + + / − / 0", action: "Zoom in, out, to 100%" },
+  { keys: "Drag", action: "Pan" },
+  { keys: "← → ↑ ↓", action: "Move to the nearest box that way" },
+  ...KEYBOARD_GESTURES,
+];
 
 type StructureMapProps = {
   scope: GraphScope;
@@ -275,20 +250,11 @@ function StructureMap({ scope }: StructureMapProps) {
   // A lone numeric id may come in as a number; ids are compared as strings.
   const expandedIds = (search.expanded_ids ?? []).map(String);
   const expanded = new Set(expandedIds);
-  const pinnedParam =
-    search.pinned_id === undefined ? undefined : String(search.pinned_id);
-  const [hovered, setHovered] = useState<string | null>(null);
-  // Whether hovering a box traces its dependencies; switched off, only a
-  // pinned box (or the one whose menu is open) does. Kept by the browser.
-  const [traceOnHover, setTraceOnHover] = useLocalStorage<boolean>(
-    "structure-trace-on-hover",
-    true,
-  );
-  const [menu, setMenu] = useState<string | null>(null);
+  const selectedParam =
+    search.selected_id === undefined ? undefined : String(search.selected_id);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const domPrefix = useId();
   const queryClient = useQueryClient();
-  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // The box the pointer is on, ahead of the hovered one while a delay runs.
-  const hoverTarget = useRef<string | null>(null);
 
   const root = useQuery(structureRootQueryOptions(scope));
   const rootId = root.data ?? null;
@@ -312,12 +278,10 @@ function StructureMap({ scope }: StructureMapProps) {
   // state that follows from what is rendered.
   const pending = model?.pending.filter((id) => !chainIds.includes(id)) ?? [];
   if (pending.length > 0) setChainIds([...chainIds, ...pending]);
-  const pinnedId =
-    pinnedParam !== undefined && model?.boxes.has(pinnedParam)
-      ? pinnedParam
+  const selectedId =
+    selectedParam !== undefined && model?.boxes.has(selectedParam)
+      ? selectedParam
       : undefined;
-  const live = (id: string | null) =>
-    id !== null && model?.boxes.has(id) ? id : undefined;
 
   // The dependencies handed to the map, resolved in the view and placed on
   // the boxes as they are shown now.
@@ -330,12 +294,10 @@ function StructureMap({ scope }: StructureMapProps) {
     model && resolvedGiven.data ? placeGiven(model, resolvedGiven.data) : null;
   const givenOnly = search.given_only === true && placement !== null;
   // With only the given dependencies drawn, nothing is traced.
-  const focusId = givenOnly
-    ? undefined
-    : (pinnedId ?? live(menu) ?? (traceOnHover ? live(hovered) : undefined));
+  const focusId = givenOnly ? undefined : selectedId;
 
   // The couplings between the shown boxes, loaded for all of them when a box
-  // is first hovered: hovering the next one draws its arrows at once.
+  // is first selected: selecting the next one draws its arrows at once.
   const cells = useQuery({
     ...structureCellsQueryOptions(scope, model?.frontier ?? []),
     enabled: focusId !== undefined && (model?.frontier.length ?? 0) >= 2,
@@ -385,7 +347,8 @@ function StructureMap({ scope }: StructureMapProps) {
       replace,
     } as never);
   };
-  // Expanding is a view toggle (replace); pinning is navigation (push).
+  // Expanding and selecting change the view, not the place: they replace the
+  // history entry, so Back doesn't step through every click.
   const toggle = async (id: string) => {
     const next = expanded.has(id)
       ? expandedIds.filter((other) => other !== id)
@@ -434,8 +397,9 @@ function StructureMap({ scope }: StructureMapProps) {
   const collapseEverything = async () => {
     await setSearch({ expanded_ids: undefined }, true);
   };
-  const pin = async (id: string | null) => {
-    await setSearch({ pinned_id: id ?? undefined }, false);
+  const select = async (id: string | null) => {
+    if ((id ?? undefined) === selectedParam) return;
+    await setSearch({ selected_id: id ?? undefined }, true);
   };
   const setGivenOnly = async (only: boolean) => {
     await setSearch({ given_only: only || undefined }, true);
@@ -470,37 +434,6 @@ function StructureMap({ scope }: StructureMapProps) {
     };
     expand().catch((error: unknown) => console.error(error));
   });
-  // A box's arrows show once the pointer has rested on it for a moment, so
-  // passing over the map doesn't flash them; leaving a box clears them a
-  // moment later, so moving across the gap to the next box doesn't make them
-  // flicker.
-  const hover = (id: string | null) => {
-    if (id === hoverTarget.current) return;
-    hoverTarget.current = id;
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(
-      () => setHovered(id),
-      id === null ? HOVER_CLEAR_DELAY : HOVER_SHOW_DELAY,
-    );
-  };
-  // On an arrow, the arrows drawn stay, and a box about to show its own
-  // doesn't.
-  const keepHover = () => {
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = undefined;
-    hoverTarget.current = hovered;
-  };
-
-  // Escape unpins, unless an open menu takes it: the menu marks the Escape
-  // that closes it as handled.
-  useEffect(() => {
-    if (pinnedId === undefined || menu !== null) return;
-    const onKey = async (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) await pin(null);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  });
   const toolbar = (
     <>
       {placement !== null && (
@@ -509,11 +442,13 @@ function StructureMap({ scope }: StructureMapProps) {
           onPress={() => setGivenOnly(search.given_only !== true)}
         />
       )}
-      {pinnedParam !== undefined && <UnpinButton onUnpin={() => pin(null)} />}
-      <TraceOnHoverButton
-        pressed={traceOnHover}
-        onPress={() => setTraceOnHover(!traceOnHover)}
-      />
+      {selectedParam !== undefined && (
+        <SelectionStatus
+          label={model?.boxes.get(selectedParam)?.label ?? selectedParam}
+          onClear={() => select(null)}
+        />
+      )}
+      <GesturesHelp gestures={MAP_GESTURES} />
     </>
   );
   if (root.isPending) {
@@ -533,14 +468,19 @@ function StructureMap({ scope }: StructureMapProps) {
     );
   }
 
+  // With only the given dependencies drawn, only the boxes they touch and
+  // the boxes those lie in.
+  const shown =
+    givenOnly && placement ? restrictModel(model, placement.involved) : model;
   const state: MapState = {
-    // With only the given dependencies drawn, only the boxes they touch and
-    // the boxes those lie in.
-    model:
-      givenOnly && placement ? restrictModel(model, placement.involved) : model,
+    model: shown,
     expanded,
     focusId,
-    pinnedId,
+    selectedId,
+    cursorId:
+      cursor !== undefined && shown.boxes.has(cursor) ? cursor : undefined,
+    setCursor,
+    domId: (id) => `${domPrefix}box-${id}`,
     uses: traced.uses,
     usedBy: traced.usedBy,
     links: traced.links,
@@ -554,11 +494,7 @@ function StructureMap({ scope }: StructureMapProps) {
     collapseAll,
     collapseEverything,
     expandedWithin,
-    hover,
-    keepHover,
-    pin,
-    menuFor: setMenu,
-    traceOnHover,
+    select,
   };
   return (
     <MapContext value={state}>
@@ -571,15 +507,13 @@ function StructureMap({ scope }: StructureMapProps) {
   );
 }
 
-const HOVER_SHOW_DELAY = 50;
-const HOVER_CLEAR_DELAY = 150;
-
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 1.25;
 const WHEEL_CAP = 20;
-// The margin around the given dependencies' boxes when the map zooms to them.
-const GIVEN_MARGIN = 48;
+// The margin around the boxes the map zooms to (the selection's, the given
+// dependencies').
+const FIT_MARGIN = 48;
 // Moving the pointer this far with the button down pans instead of clicking.
 const DRAG_START = 4;
 
@@ -597,28 +531,32 @@ function fitZoom(
 }
 
 // The map and, over it, the arrows, laid out from the boxes whenever the map
-// changes or is resized. The map sits in a viewport that scrolls, pans by
-// dragging and zooms (ctrl/⌘ + wheel or pinch around the pointer, or the
-// buttons around the centre). The map is laid out at the viewport's width
-// and scaled, so zooming never rearranges it. A box pinned in the URL is
-// scrolled into view once it is drawn. A box's context menu pins its arrows;
-// with tracing on hover off, so does Shift + click (again, or on the canvas,
-// unpins).
+// changes or is resized. The map sits in a viewport that scrolls natively,
+// pans by dragging and zooms (ctrl/⌘ + wheel or pinch around the pointer,
+// ctrl/⌘ + +/−/0, or the buttons around the centre). The map is laid out at
+// the viewport's width and scaled, so zooming never rearranges it. A click
+// selects a box (again, on the canvas or Esc clears it), a double-click
+// expands or collapses it, a right click opens its menu; the keyboard walks
+// the boxes as a tree. A box selected in the URL is scrolled into view once
+// it is drawn.
 function MapCanvas() {
   const {
     model,
+    expanded,
     focusId,
-    pinnedId,
+    selectedId,
+    cursorId,
+    setCursor,
+    domId,
+    uses,
+    usedBy,
     links,
     given,
     givenOnly,
     givenKey,
     givenSettled,
-    hover,
-    keepHover,
-    menuFor,
-    pin,
-    traceOnHover,
+    select,
+    toggle,
   } = useMap();
   const heads = useArrowHeadsId();
   // The box or arrow a right click opened the menu for.
@@ -638,6 +576,10 @@ function MapCanvas() {
   const [viewWidth, setViewWidth] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [panning, setPanning] = useState(false);
+  // Whether the map is used by keyboard: the cursor is shown only then.
+  const [keyboard, setKeyboard] = useState(false);
+  // Set when the keyboard moves the cursor, to scroll it into view.
+  const revealCursor = useRef(false);
   // The zoom asked for last, ahead of the one drawn while a render is due.
   const zoomAsked = useRef(1);
   // The point of the map to keep under a point of the viewport when the next
@@ -665,14 +607,23 @@ function MapCanvas() {
     zoomAsked.current = clamped;
     setZoom(clamped);
   };
-  // Zooms and scrolls to the boxes the given dependencies join, with a margin,
-  // never above 100%.
+  // Zooms and scrolls to the boxes the given dependencies join.
   const zoomToGiven = () => {
+    if (!given) return;
+    zoomToBoxes(given.arrows.flatMap((arrow) => [arrow.fromBox, arrow.toBox]));
+  };
+  // Zooms and scrolls to the selected box and the boxes its arrows end at,
+  // with a margin, never above 100%.
+  const zoomToSelection = () => {
+    if (selectedId === undefined) return;
+    zoomToBoxes([selectedId, ...uses.keys(), ...usedBy.keys()]);
+  };
+  // Zooms and scrolls to the boxes, with a margin, never above 100%.
+  const zoomToBoxes = (ids: string[]) => {
     const view = viewport.current;
     const element = map.current;
-    if (!view || !element || !given) return;
-    const rects = given.arrows
-      .flatMap((arrow) => [arrow.fromBox, arrow.toBox])
+    if (!view || !element) return;
+    const rects = ids
       .map((id) => boxRect(element, id))
       .filter((rect) => rect !== null);
     if (rects.length === 0) return;
@@ -684,8 +635,8 @@ function MapCanvas() {
       MIN_ZOOM,
       Math.min(
         1,
-        view.clientWidth / (r - l + 2 * GIVEN_MARGIN),
-        view.clientHeight / (bottom - t + 2 * GIVEN_MARGIN),
+        view.clientWidth / (r - l + 2 * FIT_MARGIN),
+        view.clientHeight / (bottom - t + 2 * FIT_MARGIN),
       ),
     );
     const point = {
@@ -783,6 +734,7 @@ function MapCanvas() {
   }, []);
 
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    setKeyboard(false);
     const view = viewport.current;
     if (!view || event.button !== 0) return;
     drag.current = {
@@ -951,13 +903,32 @@ function MapCanvas() {
   }, [model, focusId, links, given, givenOnly]);
 
   useEffect(() => {
-    if (!pinnedId || scrolledTo.current === pinnedId) return;
+    if (!selectedId || scrolledTo.current === selectedId) return;
     const box = map.current?.querySelector(
-      `[data-box-id="${CSS.escape(pinnedId)}"]`,
+      `[data-box-id="${CSS.escape(selectedId)}"]`,
     );
     if (!box) return;
     box.scrollIntoView({ block: "nearest", inline: "nearest" });
-    scrolledTo.current = pinnedId;
+    scrolledTo.current = selectedId;
+  });
+
+  useEffect(() => {
+    if (!revealCursor.current || cursorId === undefined) return;
+    revealCursor.current = false;
+    document
+      .getElementById(domId(cursorId))
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
+
+  // Escape clears the selection, unless an open menu takes it: the menu
+  // marks the Escape that closes it as handled.
+  useEffect(() => {
+    if (selectedId === undefined || menuTarget !== null) return;
+    const onKey = async (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) await select(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   });
 
   // The innermost box under the pointer.
@@ -975,6 +946,107 @@ function MapCanvas() {
     return arrows.find((arrow) => arrow.key === key) ?? null;
   };
 
+  // A click selects the box under the pointer, or clears the selection if it
+  // is the selected one or the canvas; on an arrow it does nothing. The
+  // second click of a double-click is left to the double-click.
+  const click = async (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.detail > 1) return;
+    // Reserved for selecting more than one box.
+    if (event.ctrlKey || event.metaKey) return;
+    if (arrowAt(event.target)) return;
+    const id = boxAt(event.target);
+    if (id !== null) setCursor(id);
+    await select(id === null || id === selectedId ? null : id);
+  };
+  // A double-click expands or collapses a container, and leaves it selected.
+  const doubleClick = async (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || arrowAt(event.target)) return;
+    const id = boxAt(event.target);
+    if (id === null) return;
+    if (model.boxes.get(id)?.container) await toggle(id);
+    await select(id);
+  };
+
+  // The arrow keys move the way the map is drawn: to the nearest box that
+  // way (`boxToward`); Home and End to the first and the last box in reading
+  // order; + and − expand and collapse; Enter and Space select; ctrl/⌘ +
+  // +/−/0 zoom.
+  const keyDown = async (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.altKey) return;
+    if (event.ctrlKey || event.metaKey) {
+      const zoomed = {
+        "+": zoomAsked.current * ZOOM_STEP,
+        "=": zoomAsked.current * ZOOM_STEP,
+        "-": zoomAsked.current / ZOOM_STEP,
+        "0": 1,
+      }[event.key];
+      if (zoomed === undefined) return;
+      event.preventDefault();
+      zoomTo(zoomed);
+      return;
+    }
+    const order = boxOrder(model);
+    if (order.length === 0) return;
+    const at = cursorId;
+    const box = at === undefined ? undefined : model.boxes.get(at);
+    const start = selectedId ?? order[0];
+    const direction = ARROW_DIRECTIONS[event.key];
+    let next: string | undefined;
+    if (direction !== undefined) {
+      const element = map.current;
+      next =
+        at === undefined || !element
+          ? start
+          : boxToward(element, at, direction);
+    } else {
+      switch (event.key) {
+        case "Home":
+          next = order[0];
+          break;
+        case "End":
+          next = order[order.length - 1];
+          break;
+        // Expands the box.
+        case "+":
+        case "=":
+          event.preventDefault();
+          setKeyboard(true);
+          if (at !== undefined && box?.container && !expanded.has(at)) {
+            await toggle(at);
+          }
+          return;
+        // Collapses the box, or, in a box that isn't open, its container,
+        // which the cursor moves to.
+        case "-": {
+          event.preventDefault();
+          setKeyboard(true);
+          if (at === undefined || !box) return;
+          if (box.container && expanded.has(at)) {
+            await toggle(at);
+            return;
+          }
+          if (box.parentId === null) return;
+          setCursor(box.parentId);
+          await toggle(box.parentId);
+          return;
+        }
+        case "Enter":
+        case " ":
+          event.preventDefault();
+          setKeyboard(true);
+          if (at !== undefined) await select(at === selectedId ? null : at);
+          return;
+        default:
+          return;
+      }
+    }
+    event.preventDefault();
+    setKeyboard(true);
+    if (next === undefined) return;
+    revealCursor.current = true;
+    setCursor(next);
+  };
+
   const rows = model.rowsOf.get(model.rootId) ?? [];
   const paths = arrows.map((arrow) => (
     <ArrowPath key={arrow.key} arrow={arrow} heads={heads} />
@@ -983,51 +1055,38 @@ function MapCanvas() {
     <div className="lsm-viewport">
       <ContextMenu
         onOpenChange={(open) => {
-          if (open) return;
-          menuFor(null);
-          setMenuTarget(null);
+          if (!open) setMenuTarget(null);
         }}
       >
         <ContextMenuTrigger asChild>
           <div
             ref={viewport}
-            className={twMerge("lsm-canvas", panning && "lsm-panning")}
+            role="tree"
+            aria-label="Levelized structure map"
+            tabIndex={0}
+            aria-activedescendant={
+              cursorId === undefined ? undefined : domId(cursorId)
+            }
+            className={twMerge(
+              "lsm-canvas",
+              panning && "lsm-panning",
+              keyboard && "lsm-kbd",
+            )}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
             onPointerUp={pointerUp}
             onPointerCancel={pointerUp}
             onClickCapture={clickCapture}
-            onMouseDown={(event) => {
-              // Shift would extend the text selection.
-              if (event.shiftKey && !traceOnHover) event.preventDefault();
-            }}
-            onClick={async (event) => {
-              if (!event.shiftKey || traceOnHover || event.button !== 0) return;
-              const id = boxAt(event.target);
-              await pin(id === null || id === pinnedId ? null : id);
-            }}
-            onMouseOver={(event) => {
-              if (panning) return;
-              // On an arrow, the arrows it belongs to stay.
-              if (arrowAt(event.target)) keepHover();
-              else hover(boxAt(event.target));
-            }}
-            onMouseLeave={() => hover(null)}
+            onClick={click}
+            onDoubleClick={doubleClick}
+            onKeyDown={keyDown}
             onContextMenu={(event) => {
-              // A box, an arrow and the canvas around them have a menu; an
-              // arrow's keeps the arrows drawn while it is open.
+              // A box, an arrow and the canvas around them have a menu.
               const arrow = arrowAt(event.target);
               const id = boxAt(event.target);
-              if (arrow) {
-                setMenuTarget({ kind: "arrow", arrow });
-                menuFor(focusId ?? null);
-              } else if (id !== null) {
-                setMenuTarget({ kind: "box", id });
-                menuFor(id);
-              } else {
-                setMenuTarget({ kind: "canvas" });
-                menuFor(null);
-              }
+              if (arrow) setMenuTarget({ kind: "arrow", arrow });
+              else if (id !== null) setMenuTarget({ kind: "box", id });
+              else setMenuTarget({ kind: "canvas" });
             }}
           >
             <div
@@ -1046,8 +1105,6 @@ function MapCanvas() {
                   paddingLeft: `${Math.max(8, gutter.left + 14)}px`,
                   paddingRight: `${Math.max(16, gutter.right + 14)}px`,
                 }}
-                role="tree"
-                aria-label="Levelized structure map"
               >
                 <MapRows rows={rows} />
                 <svg
@@ -1079,10 +1136,70 @@ function MapCanvas() {
         onZoomIn={() => zoomTo(zoom * ZOOM_STEP)}
         onReset={() => zoomTo(1)}
         onFit={fit}
+        onSelection={selectedId === undefined ? undefined : zoomToSelection}
         onGiven={hasGivenArrows ? zoomToGiven : undefined}
       />
     </div>
   );
+}
+
+type Direction = "left" | "right" | "up" | "down";
+
+const ARROW_DIRECTIONS: Record<string, Direction | undefined> = {
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  ArrowUp: "up",
+  ArrowDown: "down",
+};
+
+// How far apart two ranges are: 0 where they overlap.
+function rangeGap(a0: number, a1: number, b0: number, b1: number): number {
+  return Math.max(0, b0 - a1, a0 - b1);
+}
+
+// The box an arrow key moves to from `fromId`: the nearest box that lies
+// that way as the map is drawn, nearest along the way and, weighed double,
+// across it. An open container counts by its name bar, so ↓ from it enters
+// its top row and ↑ from its top row leaves it; ← and → stay in the row as
+// long as it has boxes that way. Equally near, the first in the map wins.
+function boxToward(
+  element: HTMLElement,
+  fromId: string,
+  direction: Direction,
+): string | undefined {
+  const anchors = new Map<string, DOMRect>();
+  for (const box of element.querySelectorAll<HTMLElement>("[data-box-id]")) {
+    const header = box.querySelector<HTMLElement>(":scope > .lsm-hd");
+    anchors.set(
+      box.dataset.boxId ?? "",
+      (header ?? box).getBoundingClientRect(),
+    );
+  }
+  const from = anchors.get(fromId);
+  if (!from) return undefined;
+  const horizontal = direction === "left" || direction === "right";
+  let best: string | undefined;
+  let bestScore = Infinity;
+  for (const [id, rect] of anchors) {
+    if (id === fromId) continue;
+    const along = {
+      right: rect.left - from.right,
+      left: from.left - rect.right,
+      down: rect.top - from.bottom,
+      up: from.top - rect.bottom,
+    }[direction];
+    // Not that way (a pixel of overlap allowed).
+    if (along < -1) continue;
+    const across = horizontal
+      ? rangeGap(from.top, from.bottom, rect.top, rect.bottom)
+      : rangeGap(from.left, from.right, rect.left, rect.right);
+    const score = Math.max(0, along) + 2 * across;
+    if (score < bestScore) {
+      best = id;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 // A box's rectangle in the map's own units (it is drawn scaled), in whole
@@ -1125,8 +1242,8 @@ type BoxMenuProps = {
   id: string;
 };
 
-// A box's menu: pin its arrows, and expand or collapse a container, one level
-// or all of it (what doesn't apply disabled).
+// A box's menu: select it, and expand or collapse a container, one level or
+// all of it (what doesn't apply disabled), each with its gesture.
 function BoxMenu({ id }: BoxMenuProps) {
   const { model, expanded, toggle, expandAll, collapseAll, expandedWithin } =
     useMap();
@@ -1135,13 +1252,14 @@ function BoxMenu({ id }: BoxMenuProps) {
   const anyExpanded = expandedWithin(id).length > 0;
   return (
     <>
-      <PinItem id={id} />
+      <SelectItem id={id} />
       {container && (
         <>
           <ContextMenuSeparator />
           <ContextMenuItem disabled={isExpanded} onSelect={() => toggle(id)}>
             <SquarePlus />
             Expand
+            <ContextMenuShortcut>+ / Double-click</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => expandAll(id)}>
             <ListChevronsUpDown />
@@ -1150,6 +1268,7 @@ function BoxMenu({ id }: BoxMenuProps) {
           <ContextMenuItem disabled={!isExpanded} onSelect={() => toggle(id)}>
             <SquareMinus />
             Collapse
+            <ContextMenuShortcut>− / Double-click</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem
             disabled={!anyExpanded}
@@ -1168,21 +1287,21 @@ type ArrowMenuProps = {
   arrow: Arrow;
 };
 
-// An arrow's menu: what it joins and how heavily, the arrows drawn to pin,
-// its ends to pin instead, and its collapsed ends to expand.
+// An arrow's menu: what it joins and how heavily, the selection to clear,
+// its ends to select instead, and its collapsed ends to expand.
 function ArrowMenu({ arrow }: ArrowMenuProps) {
-  const { model, expanded, focusId, pin, toggle } = useMap();
+  const { model, expanded, focusId, select, toggle } = useMap();
   const from = model.boxes.get(arrow.fromId);
   const to = model.boxes.get(arrow.toId);
   const ends = [from, to].filter((box) => box !== undefined);
-  const pinnable = ends.filter((box) => box.id !== focusId);
+  const selectable = ends.filter((box) => box.id !== focusId);
   const expandable = ends.filter(
     (box) => box.container && !expanded.has(box.id),
   );
-  const pinItems = pinnable.map((box) => (
-    <ContextMenuItem key={box.id} onSelect={() => pin(box.id)}>
-      <Pin />
-      <span className="truncate">Pin the arrows of {box.label}</span>
+  const selectItems = selectable.map((box) => (
+    <ContextMenuItem key={box.id} onSelect={() => select(box.id)}>
+      <MousePointerClick />
+      <span className="truncate">Select {box.label}</span>
     </ContextMenuItem>
   ));
   const expandItems = expandable.map((box) => (
@@ -1197,27 +1316,31 @@ function ArrowMenu({ arrow }: ArrowMenuProps) {
         {from?.label} → {to?.label} · {arrow.weight}
       </div>
       <ContextMenuSeparator />
-      {focusId !== undefined && <PinItem id={focusId} />}
-      {pinItems}
+      {focusId !== undefined && <SelectItem id={focusId} />}
+      {selectItems}
       {expandItems.length > 0 && <ContextMenuSeparator />}
       {expandItems}
     </>
   );
 }
 
-type PinItemProps = {
+type SelectItemProps = {
   id: string;
 };
 
-// Pins the box's arrows (instead of any pinned before), or unpins them if
-// they are the pinned ones.
-function PinItem({ id }: PinItemProps) {
-  const { pinnedId, pin } = useMap();
-  const isPinned = pinnedId === id;
+// Selects the box (instead of any selected before), or clears the selection
+// if it is the selected one.
+function SelectItem({ id }: SelectItemProps) {
+  const { selectedId, select } = useMap();
+  const isSelected = selectedId === id;
   return (
-    <ContextMenuItem onSelect={() => pin(isPinned ? null : id)}>
-      {isPinned ? <PinOff /> : <Pin />}
-      {isPinned ? "Unpin the arrows" : "Pin these arrows"}
+    <ContextMenuItem
+      onSelect={() => select(isSelected ? null : id)}
+      aria-keyshortcuts={isSelected ? "Escape" : undefined}
+    >
+      {isSelected ? <X /> : <MousePointerClick />}
+      {isSelected ? "Clear selection" : "Select"}
+      <ContextMenuShortcut>{isSelected ? "Esc" : "Click"}</ContextMenuShortcut>
     </ContextMenuItem>
   );
 }
@@ -1228,6 +1351,8 @@ type ZoomControlsProps = {
   onZoomIn: () => void;
   onReset: () => void;
   onFit: () => void;
+  // Zooms to the selection; without one, the control is disabled.
+  onSelection: (() => void) | undefined;
   // Zooms to the given dependencies; without them, no such control.
   onGiven: (() => void) | undefined;
 };
@@ -1238,6 +1363,7 @@ function ZoomControls({
   onZoomIn,
   onReset,
   onFit,
+  onSelection,
   onGiven,
 }: ZoomControlsProps) {
   return (
@@ -1266,6 +1392,12 @@ function ZoomControls({
         onPress={onZoomIn}
       />
       <ZoomButton icon={Maximize} label="Fit the map" onPress={onFit} />
+      <ZoomButton
+        icon={Focus}
+        label="Zoom to the selection"
+        disabled={onSelection === undefined}
+        onPress={() => onSelection?.()}
+      />
       {onGiven && (
         <ZoomButton
           icon={Crosshair}
@@ -1445,9 +1577,21 @@ type MapBoxViewProps = {
 
 // One box: a leaf (a collapsed container, a type) with its name centred, or
 // an open container with its name on top and its rows inside. The corner
-// toggle expands and collapses a container.
+// toggle expands and collapses a container; it is no tab stop, the keyboard
+// expands with → and ←.
 function MapBoxView({ id }: MapBoxViewProps) {
-  const { model, expanded, focusId, uses, usedBy, dimmed, toggle } = useMap();
+  const {
+    model,
+    expanded,
+    focusId,
+    selectedId,
+    cursorId,
+    domId,
+    uses,
+    usedBy,
+    dimmed,
+    toggle,
+  } = useMap();
   const box = model.boxes.get(id);
   if (!box) return null;
   const rows = model.rowsOf.get(id);
@@ -1459,10 +1603,13 @@ function MapBoxView({ id }: MapBoxViewProps) {
       className="lsm-tg"
       aria-label={`${open ? "Collapse" : "Expand"} ${box.label}`}
       aria-expanded={open}
+      tabIndex={-1}
       onClick={async (event) => {
         event.stopPropagation();
         await toggle(id);
       }}
+      // Clicked twice, it toggles twice: the box's double-click is not.
+      onDoubleClick={(event) => event.stopPropagation()}
     >
       {open ? "−" : "+"}
     </button>
@@ -1476,7 +1623,9 @@ function MapBoxView({ id }: MapBoxViewProps) {
   return (
     <div
       role="treeitem"
+      id={domId(id)}
       aria-label={box.label}
+      aria-selected={selectedId === id}
       aria-current={focusId === id || undefined}
       aria-expanded={box.container ? open : undefined}
       aria-busy={loading || undefined}
@@ -1489,6 +1638,7 @@ function MapBoxView({ id }: MapBoxViewProps) {
         box.external && "lsm-ext",
         box.container && !open && "lsm-hastg",
         focusId === id && "lsm-sel",
+        cursorId === id && "lsm-cursor",
         uses.has(id) && "lsm-uses",
         usedBy.has(id) && "lsm-usedby",
         dimmed(id) && "lsm-dim",

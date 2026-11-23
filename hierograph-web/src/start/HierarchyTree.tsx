@@ -10,14 +10,32 @@ import {
   Layers,
   type LucideIcon,
   Package,
-  PinOff,
   Repeat2,
+  SquareMinus,
+  SquarePlus,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { twMerge } from "tailwind-merge";
 
+import {
+  type Gesture,
+  GesturesHelp,
+  KEYBOARD_GESTURES,
+  SELECTION_GESTURES,
+} from "@/design-system/graph/GesturesHelp";
+import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
 import { Pane } from "@/design-system/layout/Pane";
-import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
+import {
+  ContextMenuItem,
+  ContextMenuShortcut,
+} from "@/design-system/ui/context-menu";
 import { Message } from "@/design-system/ui/message";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
@@ -31,6 +49,7 @@ import {
   ARC_AREA_WIDTH,
   type ArcFocus,
   ArcFocusMenu,
+  sameFocus,
   TreeArcs,
 } from "./TreeArcs";
 import {
@@ -50,48 +69,86 @@ const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
   other: CircleDot,
 };
 
-// What every row needs from the tree: which nodes are open, and what is
-// hovered (a row or a cycle bar), whose dependency arcs are drawn.
+// What every row needs from the tree: which nodes are open, what is
+// selected (a row or a cycle bar), whose dependency arcs are drawn, and where
+// the keyboard is.
 type TreeControls = {
   expanded: ReadonlySet<string>;
   toggle: (id: string) => Promise<void>;
-  hover: (focus: ArcFocus | null) => void;
+  selected: ArcFocus | null;
+  // The row the keyboard is on, and whether the tree is used by keyboard:
+  // only then the row is marked.
+  cursorId: string | undefined;
+  keyboard: boolean;
+  // The DOM id of a row's tree item, for the tree's active descendant.
+  domId: (id: string) => string;
 };
+
+// The tree's gestures: every graph's; it neither zooms nor pans.
+const TREE_GESTURES: Gesture[] = [
+  ...SELECTION_GESTURES,
+  { keys: "↑ ↓", action: "Move between rows" },
+  { keys: "→ ←", action: "Expand, collapse; the first child, the parent" },
+  ...KEYBOARD_GESTURES,
+];
 
 // The hierarchy of the current hierarchy view (or the scanned hierarchy
 // without one) as a tree, loaded level by level as nodes are expanded. Each
 // level's siblings are in dependency order (those depending on the others on
 // top), its dependency cycles marked. The tree ends at the types: their
 // members' dependencies aren't resolved yet, so they would have no arcs.
-// Beside the tree, arcs show the dependencies between the visible rows. The
-// open rows and the pinned arcs are in the URL, so the screen comes back as
-// it was left.
+// Beside the tree, arcs show the dependencies of the selected row or cycle
+// between the visible rows. It follows the design system's interaction model
+// (docs/design-system.md, "Interaction"), without zoom and pan. The open rows
+// and the selection are in the URL, so the screen comes back as it was left.
 export function HierarchyTree() {
   const scope = useGraphScope();
   const view = scope?.view ?? "";
   const search: TreeSearch = useSearch({ strict: false });
   const setSearch = useSetTreeSearch();
-  const pinned = pinnedFocus(search);
-  // Pinning is navigation (push).
-  const onPin = async (focus: ArcFocus | null) => {
+  const selected = selectedFocus(search);
+  // Selecting changes the view, not the place: it replaces the history
+  // entry, so Back doesn't step through every click.
+  const onSelect = async (focus: ArcFocus | null) => {
+    const same =
+      focus === null
+        ? selected === null
+        : selected !== null && sameFocus(focus, selected);
+    if (same) return;
     await setSearch(
       {
-        pinned_id: focus?.kind === "row" ? focus.id : undefined,
-        pinned_cycle_ids: focus?.kind === "cycle" ? focus.members : undefined,
+        selected_id: focus?.kind === "row" ? focus.id : undefined,
+        selected_cycle_ids: focus?.kind === "cycle" ? focus.members : undefined,
       },
-      false,
+      true,
     );
   };
+  // The selection's name, as the tree draws it.
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const toolbar = (
+    <>
+      {selected !== null && (
+        <SelectionStatus label={selectedLabel} onClear={() => onSelect(null)} />
+      )}
+      <GesturesHelp gestures={TREE_GESTURES} />
+    </>
+  );
   return (
     // The view is named on its card and in the header already.
     <Pane
       title="Hierarchy"
-      toolbar={pinned !== null && <UnpinButton onUnpin={() => onPin(null)} />}
-      bodyClassName="p-1.5"
+      toolbar={toolbar}
+      bodyClassName="flex flex-col p-1.5"
     >
       {scope ? (
         // A new view starts collapsed.
-        <TreeRoot key={view} scope={scope} pinned={pinned} onPin={onPin} />
+        <TreeRoot
+          key={view}
+          scope={scope}
+          selected={selected}
+          onSelect={onSelect}
+          onSelectedLabel={setSelectedLabel}
+        />
       ) : (
         <p className="text-fg-muted p-1.5 text-[13px]">
           No graph is loaded, so there is no hierarchy to show yet.
@@ -101,12 +158,26 @@ export function HierarchyTree() {
   );
 }
 
+// A row's label as drawn, or its id while it isn't.
+function rowLabel(id: string): string {
+  return (
+    document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)
+      ?.dataset.label ?? id
+  );
+}
+
+function selectionLabel(focus: ArcFocus): string {
+  return focus.kind === "row"
+    ? rowLabel(focus.id)
+    : `cycle of ${focus.members.map(rowLabel).join(", ")}`;
+}
+
 // The tree's params (see the start route). A lone numeric id may come in as
 // a number; ids are compared as strings.
 type TreeSearch = {
   expanded_ids?: (string | number)[];
-  pinned_id?: string | number;
-  pinned_cycle_ids?: (string | number)[];
+  selected_id?: string | number;
+  selected_cycle_ids?: (string | number)[];
 };
 
 function useSetTreeSearch() {
@@ -123,68 +194,227 @@ function useSetTreeSearch() {
   };
 }
 
-function pinnedFocus(search: TreeSearch): ArcFocus | null {
-  if (search.pinned_id !== undefined) {
-    return { kind: "row", id: String(search.pinned_id) };
+function selectedFocus(search: TreeSearch): ArcFocus | null {
+  if (search.selected_id !== undefined) {
+    return { kind: "row", id: String(search.selected_id) };
   }
-  if (search.pinned_cycle_ids !== undefined) {
-    return { kind: "cycle", members: search.pinned_cycle_ids.map(String) };
+  if (search.selected_cycle_ids !== undefined) {
+    return { kind: "cycle", members: search.selected_cycle_ids.map(String) };
   }
   return null;
 }
 
-type UnpinButtonProps = {
-  onUnpin: () => void;
-};
-
-function UnpinButton({ onUnpin }: UnpinButtonProps) {
-  return (
-    <button
-      type="button"
-      aria-label="Unpin the arcs"
-      title="Unpin the arcs (Esc)"
-      onClick={onUnpin}
-      className={twMerge(ghostIconTriggerClassName, "size-5")}
-    >
-      <PinOff className="size-3.5" />
-    </button>
-  );
-}
-
 type TreeRootProps = {
   scope: GraphScope;
-  pinned: ArcFocus | null;
-  onPin: (focus: ArcFocus | null) => Promise<void>;
+  selected: ArcFocus | null;
+  onSelect: (focus: ArcFocus | null) => Promise<void>;
+  // Tells the selection's name, again whenever the rows change.
+  onSelectedLabel: (label: string) => void;
 };
 
-function TreeRoot({ scope, pinned, onPin }: TreeRootProps) {
+// What a click in the tree is on: a cycle bar, a row, an arc, or the empty
+// space around them.
+function targetOf(target: EventTarget | null): ArcFocus | "arc" | null {
+  if (!(target instanceof Element)) return null;
+  const bar = target.closest<HTMLElement>("[data-cycle-bar]");
+  if (bar) {
+    return { kind: "cycle", members: (bar.dataset.members ?? "").split(",") };
+  }
+  const row = target.closest<HTMLElement>("[data-node-id]");
+  if (row) return { kind: "row", id: row.dataset.nodeId ?? "" };
+  if (target.closest("[data-arrow-hit]")) return "arc";
+  return null;
+}
+
+// The rows' elements, top to bottom, and how they nest.
+function rowElements(tree: HTMLElement): HTMLElement[] {
+  return Array.from(tree.querySelectorAll<HTMLElement>("[data-node-id]"));
+}
+
+function itemOf(row: HTMLElement): HTMLElement | null {
+  return row.closest<HTMLElement>("[data-tree-node]");
+}
+
+function parentRowOf(row: HTMLElement): HTMLElement | null {
+  const parent =
+    itemOf(row)?.parentElement?.closest<HTMLElement>("[data-tree-node]");
+  return parent?.querySelector<HTMLElement>("[data-node-id]") ?? null;
+}
+
+function TreeRoot({
+  scope,
+  selected,
+  onSelect,
+  onSelectedLabel,
+}: TreeRootProps) {
   const query = useQuery(hierarchyTreeRootQueryOptions(scope));
   const search: TreeSearch = useSearch({ strict: false });
   const setSearch = useSetTreeSearch();
   const expandedIds = (search.expanded_ids ?? []).map(String);
   const expanded = new Set(expandedIds);
-  const [hovered, setHovered] = useState<ArcFocus | null>(null);
-  const clearHover = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [keyboard, setKeyboard] = useState(false);
+  const domPrefix = useId();
+  const domId = (id: string) => `${domPrefix}row-${id}`;
+  const tree = useRef<HTMLDivElement>(null);
+  // The rows load level by level: the selection's name is read from them
+  // whenever they change.
+  useEffect(() => {
+    const element = tree.current;
+    const update = () =>
+      onSelectedLabel(selected === null ? "" : selectionLabel(selected));
+    update();
+    if (!element) return;
+    const mutations = new MutationObserver(update);
+    mutations.observe(element, { subtree: true, childList: true });
+    return () => mutations.disconnect();
+  });
+  // Expanding is a view toggle (replace).
+  const toggle = async (id: string) => {
+    const next = expanded.has(id)
+      ? expandedIds.filter((other) => other !== id)
+      : [...expandedIds, id];
+    await setSearch({ expanded_ids: next.length > 0 ? next : undefined }, true);
+  };
+  // The row the keyboard is on; it may have been collapsed away meanwhile.
+  const cursorId = cursor;
   const controls: TreeControls = {
     expanded,
-    // Expanding is a view toggle (replace).
-    async toggle(id) {
-      const next = expanded.has(id)
-        ? expandedIds.filter((other) => other !== id)
-        : [...expandedIds, id];
-      await setSearch(
-        { expanded_ids: next.length > 0 ? next : undefined },
-        true,
-      );
-    },
-    // Leaving a row clears the hover a moment later, so the pointer can move
-    // into the arc area (which keeps the arcs) without them vanishing.
-    hover(focus) {
-      if (clearHover.current) clearTimeout(clearHover.current);
-      clearHover.current = undefined;
-      if (focus !== null) setHovered(focus);
-      else clearHover.current = setTimeout(() => setHovered(null), 150);
-    },
+    toggle,
+    selected,
+    cursorId,
+    keyboard,
+    domId,
+  };
+
+  // A click selects the row or cycle bar under the pointer, or clears the
+  // selection if it is the selected one or the empty space; on an arc it
+  // does nothing. The second click of a double-click is left to the
+  // double-click. Clicks in a context menu (a portal) reach the tree too, but
+  // aren't in it.
+  const click = async (event: MouseEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.target as Node)) return;
+    if (event.button !== 0 || event.detail > 1) return;
+    // Reserved for selecting more than one row.
+    if (event.ctrlKey || event.metaKey) return;
+    setKeyboard(false);
+    const target = targetOf(event.target);
+    if (target === "arc") return;
+    if (target?.kind === "row") setCursor(target.id);
+    const same =
+      target !== null && selected !== null && sameFocus(target, selected);
+    await onSelect(target === null || same ? null : target);
+  };
+  // A double-click expands or collapses a row, and leaves it selected.
+  const doubleClick = async (event: MouseEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.target as Node)) return;
+    const target = targetOf(event.target);
+    if (target === null || target === "arc" || target.kind !== "row") return;
+    const item = document.getElementById(domId(target.id));
+    if (item?.hasAttribute("aria-expanded")) await toggle(target.id);
+    await onSelect(target);
+  };
+  // The keyboard walks the visible rows as a tree: ↑ ↓ Home End move, →
+  // expands or goes to the first child, ← collapses or goes to the parent;
+  // + and − expand and collapse, as on every graph; Enter and Space select.
+  const keyDown = async (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.target as Node)) return;
+    if (event.defaultPrevented || event.altKey || event.ctrlKey) return;
+    if (event.metaKey) return;
+    const rows = rowElements(event.currentTarget);
+    if (rows.length === 0) return;
+    const ids = rows.map((row) => row.dataset.nodeId ?? "");
+    const index = cursorId === undefined ? -1 : ids.indexOf(cursorId);
+    const row = index < 0 ? undefined : rows[index];
+    const state = row ? itemOf(row)?.getAttribute("aria-expanded") : null;
+    const start =
+      selected?.kind === "row" && ids.includes(selected.id)
+        ? selected.id
+        : ids[0];
+    let next: string | undefined;
+    switch (event.key) {
+      case "ArrowDown":
+        next = row ? ids[Math.min(index + 1, ids.length - 1)] : start;
+        break;
+      case "ArrowUp":
+        next = row ? ids[Math.max(index - 1, 0)] : start;
+        break;
+      case "Home":
+        next = ids[0];
+        break;
+      case "End":
+        next = ids[ids.length - 1];
+        break;
+      case "ArrowRight":
+        if (!row || cursorId === undefined) next = start;
+        else if (state === "false") {
+          event.preventDefault();
+          setKeyboard(true);
+          await toggle(cursorId);
+          return;
+        } else if (
+          state === "true" &&
+          rows[index + 1] &&
+          parentRowOf(rows[index + 1]) === row
+        ) {
+          next = ids[index + 1];
+        }
+        break;
+      case "ArrowLeft":
+        if (!row || cursorId === undefined) next = start;
+        else if (state === "true") {
+          event.preventDefault();
+          setKeyboard(true);
+          await toggle(cursorId);
+          return;
+        } else next = parentRowOf(row)?.dataset.nodeId;
+        break;
+      // Expands the row.
+      case "+":
+      case "=":
+        event.preventDefault();
+        setKeyboard(true);
+        if (row && cursorId !== undefined && state === "false") {
+          await toggle(cursorId);
+        }
+        return;
+      // Collapses the row, or, in a row that isn't open, the row it lies in,
+      // which the cursor moves to.
+      case "-": {
+        event.preventDefault();
+        setKeyboard(true);
+        if (!row || cursorId === undefined) return;
+        if (state === "true") {
+          await toggle(cursorId);
+          return;
+        }
+        const parent = parentRowOf(row)?.dataset.nodeId;
+        if (parent === undefined) return;
+        setCursor(parent);
+        await toggle(parent);
+        return;
+      }
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        setKeyboard(true);
+        if (cursorId !== undefined) {
+          const focus: ArcFocus = { kind: "row", id: cursorId };
+          const same = selected !== null && sameFocus(focus, selected);
+          await onSelect(same ? null : focus);
+        }
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    setKeyboard(true);
+    if (next === undefined) return;
+    setCursor(next);
+    document
+      .getElementById(domId(next))
+      ?.querySelector("[data-node-id]")
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   };
 
   if (query.isPending) {
@@ -198,52 +428,71 @@ function TreeRoot({ scope, pinned, onPin }: TreeRootProps) {
     );
   }
   return (
-    <TreeArcs scope={scope} hovered={hovered} pinned={pinned} onPin={onPin}>
-      <TreeLevel
-        role="tree"
-        scope={scope}
-        level={query.data}
-        parentText=""
-        depth={0}
-        controls={controls}
-      />
-    </TreeArcs>
+    <div
+      ref={tree}
+      role="tree"
+      aria-label="Hierarchy"
+      tabIndex={0}
+      aria-activedescendant={
+        cursorId === undefined ? undefined : domId(cursorId)
+      }
+      // Takes the whole pane, so a click below the rows clears the selection.
+      className="group/tree flex-1 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--hg-state-focus-ring)"
+      onClick={click}
+      onDoubleClick={doubleClick}
+      onKeyDown={keyDown}
+      onPointerDown={() => setKeyboard(false)}
+    >
+      <TreeArcs scope={scope} selected={selected} onSelect={onSelect}>
+        <TreeLevel
+          role="none"
+          scope={scope}
+          level={query.data}
+          parentText=""
+          depth={0}
+          controls={controls}
+        />
+      </TreeArcs>
+    </div>
   );
 }
 
 type CycleBarProps = {
   mark: CycleMark;
   depth: number;
-  // The row the bar segment is on, hovered again when the pointer leaves the
-  // bar for the rest of the row.
-  row: string;
   controls: TreeControls;
 };
 
 // One segment of the bar along a cycle's block, at the nodes' indent; the
-// block's ends are inset, so two adjacent cycles read as two. Hovering it
-// draws the arcs that close the cycle, and its context menu pins them; a hit
-// area wider than the bar makes it easy to hit.
-function CycleBar({ mark, depth, row, controls }: CycleBarProps) {
+// block's ends are inset, so two adjacent cycles read as two. A click selects
+// the cycle, drawing the arcs that close it, and so does its context menu; a
+// hit area wider than the bar makes it easy to hit. Selected, it is wider.
+function CycleBar({ mark, depth, controls }: CycleBarProps) {
+  const focus: ArcFocus = { kind: "cycle", members: mark.ids };
+  const selected =
+    controls.selected !== null && sameFocus(controls.selected, focus);
   return (
-    <ArcFocusMenu focus={{ kind: "cycle", members: mark.ids }}>
+    <ArcFocusMenu focus={focus}>
       <span
         aria-hidden
         data-cycle-bar
-        onMouseEnter={() =>
-          controls.hover({ kind: "cycle", members: mark.ids })
-        }
-        onMouseLeave={() => controls.hover({ kind: "row", id: row })}
+        data-members={mark.ids.join(",")}
+        data-selected={selected || undefined}
         // The bar's menu, not the row's.
         onContextMenu={(event) => event.stopPropagation()}
-        className="absolute flex w-2 justify-center"
+        className="absolute flex w-2 cursor-pointer justify-center"
         style={{
           left: `${depth * 14 - 3}px`,
           top: mark.first ? "4px" : "0",
           bottom: mark.last ? "4px" : "0",
         }}
       >
-        <span className="bg-status-warning w-0.5 rounded-full" />
+        <span
+          className={twMerge(
+            "bg-status-warning w-0.5 rounded-full",
+            selected && "w-1",
+          )}
+        />
       </span>
     </ArcFocusMenu>
   );
@@ -254,7 +503,8 @@ function isExternal(node: TreeNode): boolean {
 }
 
 type TreeLevelProps = {
-  role: "tree" | "group";
+  // The top level's list is no group: its items belong to the tree.
+  role: "none" | "group";
   scope: GraphScope;
   level: TreeLevelData;
   parentText: string;
@@ -330,11 +580,7 @@ function TreeLevel({
     />
   ));
   return (
-    <ul
-      role={role}
-      aria-label={role === "tree" ? "Hierarchy" : undefined}
-      className="flex flex-col"
-    >
+    <ul role={role} className="flex flex-col">
       {items}
     </ul>
   );
@@ -380,10 +626,26 @@ function TreeItem({
   // A view group's children are named relative to the level above the group:
   // `app` below `locations` › `application`.
   const childParentText = kind === "group" ? parentText : node.text;
+  const focus: ArcFocus = { kind: "row", id: node.id };
+  const selected =
+    controls.selected !== null && sameFocus(controls.selected, focus);
+  const atCursor = controls.keyboard && controls.cursorId === node.id;
+  // The row's menu: select it, and expand or collapse it.
+  const menuItems = expandable && (
+    <ContextMenuItem onSelect={() => controls.toggle(node.id)}>
+      {open ? <SquareMinus /> : <SquarePlus />}
+      {open ? "Collapse" : "Expand"}
+      <ContextMenuShortcut>
+        {open ? "− / Double-click" : "+ / Double-click"}
+      </ContextMenuShortcut>
+    </ContextMenuItem>
+  );
   return (
     <li
       role="treeitem"
+      id={controls.domId(node.id)}
       aria-expanded={expandable ? open : undefined}
+      aria-selected={selected}
       aria-label={label}
       // No tooltip: it would cover the arcs.
       aria-description={
@@ -395,40 +657,43 @@ function TreeItem({
       data-tree-node={node.id}
       className={twMerge(separated && "border-border mt-1 border-t pt-1")}
     >
-      {/* Its context menu pins the row's arcs. */}
-      <ArcFocusMenu focus={{ kind: "row", id: node.id }}>
-        <button
-          type="button"
-          onClick={async (event) => {
-            // A click in the cycle bar's menu reaches the row too (the menu
-            // is a portal), but isn't on it.
-            if (!event.currentTarget.contains(event.target as Node)) return;
-            if (expandable) await controls.toggle(node.id);
-          }}
-          onMouseEnter={() => controls.hover({ kind: "row", id: node.id })}
-          onMouseLeave={() => controls.hover(null)}
+      {/* A click selects the row (see `TreeRoot`); its context menu too. */}
+      <ArcFocusMenu focus={focus} items={menuItems}>
+        <div
           data-node-id={node.id}
           data-label={label}
           data-frontier={frontier ? "true" : undefined}
           style={{ paddingLeft: `${depth * 14 + 4}px` }}
-          // Not selectable: a right click (for the row's menu) would select
-          // the word under the pointer.
+          // Not selectable: a double-click would select the word under the
+          // pointer.
           className={twMerge(
-            "hover:bg-state-hover relative flex w-full items-center gap-1 rounded-[4px] py-[3px] text-left text-[13px] select-none",
-            !expandable && "cursor-default",
+            "hover:bg-state-hover relative flex w-full cursor-pointer items-center gap-1 rounded-[4px] py-[3px] text-left text-[13px] select-none",
+            selected &&
+              "bg-state-selected-bg text-state-selected-fg hover:bg-state-selected-bg",
+            atCursor &&
+              "group-focus/tree:outline-2 group-focus/tree:-outline-offset-2 group-focus/tree:outline-(--hg-state-focus-ring)",
           )}
         >
-          {cycle && (
-            <CycleBar
-              mark={cycle}
-              depth={depth}
-              row={node.id}
-              controls={controls}
-            />
+          {cycle && <CycleBar mark={cycle} depth={depth} controls={controls} />}
+          {expandable ? (
+            <button
+              type="button"
+              // No tab stop: the keyboard expands with → and ←.
+              tabIndex={-1}
+              aria-label={`${open ? "Collapse" : "Expand"} ${label}`}
+              onClick={async (event) => {
+                event.stopPropagation();
+                await controls.toggle(node.id);
+              }}
+              // Clicked twice, it toggles twice: the row's double-click is not.
+              onDoubleClick={(event) => event.stopPropagation()}
+              className="text-fg-subtle hover:text-fg flex size-3.5 shrink-0 items-center justify-center"
+            >
+              <Chevron className="size-3.5" />
+            </button>
+          ) : (
+            <span className="size-3.5 shrink-0" />
           )}
-          <span className="text-fg-subtle flex size-3.5 shrink-0 items-center justify-center">
-            {expandable && <Chevron className="size-3.5" />}
-          </span>
           <Icon
             aria-hidden
             className={twMerge(
@@ -460,7 +725,7 @@ function TreeItem({
             className="shrink-0"
             style={{ width: `${ARC_AREA_WIDTH}px` }}
           />
-        </button>
+        </div>
       </ArcFocusMenu>
       {open && (
         <TreeChildren
