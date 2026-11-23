@@ -17,6 +17,9 @@ The project is not part of the Hierograph build.
 ## Contents
 
 - `src/main/java/` — the code.
+- `src/test/java/` — one test source, never compiled by the recipe below: the
+  test output then has sources but no classes, which the server reports as
+  "not compiled yet" (the start screen's warning).
 - `.hierograph-views/` — hierarchy views for the tests: `layers` (valid) and
   `broken` (an invalid document, deliberately).
 - [EXPECTED_VALUES.md](EXPECTED_VALUES.md) — dependency counts per package pair,
