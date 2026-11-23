@@ -96,22 +96,47 @@ function facing(own: Rect, other: Rect): number {
   return Math.max(own.l + inset(own), Math.min(own.r - inset(own), target));
 }
 
-// Places ascending wanted positions at least SPACING apart within [lo, hi]:
-// separated outwards, then the cluster moved back so it centres where the
-// wanted positions do.
-function spread(wanted: number[], lo: number, hi: number): number[] {
+// Places ascending wanted positions at least SPACING apart (less where the
+// edge is too short) within [lo, hi], each as close to its own wanted place as
+// the spacing allows: a crowd spreads around where it wants to be, and ends
+// away from it stay put. Moving the whole cluster instead let a crowd at one
+// end of a wide box drag lone ends at the other far away from the boxes they
+// face.
+//
+// The closest placement with x[i+1] - x[i] >= gap is an isotonic regression
+// of wanted[i] - i * gap (pool adjacent violators), shifted back; the bounds
+// clamp the fitted values.
+export function spread(wanted: number[], lo: number, hi: number): number[] {
   const n = wanted.length;
   if (n === 0) return [];
   const gap = n > 1 ? Math.min(SPACING, (hi - lo) / (n - 1)) : 0;
-  const out = [...wanted];
-  for (let i = 1; i < n; i++) out[i] = Math.max(out[i], out[i - 1] + gap);
-  const mean = (values: number[]) =>
-    values.reduce((sum, v) => sum + v, 0) / values.length;
-  const shift = Math.max(
-    lo - out[0],
-    Math.min(hi - out[n - 1], mean(wanted) - mean(out)),
-  );
-  return out.map((v) => v + shift);
+  // Blocks of pooled values: their mean and size.
+  const means: number[] = [];
+  const sizes: number[] = [];
+  for (let i = 0; i < n; i++) {
+    means.push(wanted[i] - i * gap);
+    sizes.push(1);
+    while (
+      means.length > 1 &&
+      means[means.length - 2] > means[means.length - 1]
+    ) {
+      const size = sizes[sizes.length - 2] + sizes[sizes.length - 1];
+      const mean =
+        (means[means.length - 2] * sizes[sizes.length - 2] +
+          means[means.length - 1] * sizes[sizes.length - 1]) /
+        size;
+      means.splice(-2, 2, mean);
+      sizes.splice(-2, 2, size);
+    }
+  }
+  const low = lo;
+  const high = Math.max(lo, hi - (n - 1) * gap);
+  const out: number[] = [];
+  means.forEach((mean, block) => {
+    const fitted = Math.max(low, Math.min(high, mean));
+    for (let k = 0; k < sizes[block]; k++) out.push(fitted + out.length * gap);
+  });
+  return out;
 }
 
 export function layoutArrows(specs: ArrowSpec[]): {
