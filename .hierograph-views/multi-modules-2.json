@@ -1,0 +1,77 @@
+{
+  "name": "multi-modules-2",
+  "description": "multi-modules with io.hierograph.graphstore.jvm.archive.model extracted from the archive into a module of its own, its tests into a test module",
+  "restructure": true,
+  "modules": [
+    {
+      "name": "io.hierograph.graphstore.jvm.archive.model",
+      "description": "The archive's model, out of io.hierograph.graphstore.jvm.archive"
+    },
+    {
+      "name": "io.hierograph.graphstore.jvm.archive.model-test",
+      "description": "The model's tests, out of the archive's test artifact"
+    }
+  ],
+  "moves": [
+    {
+      "select": {
+        "match": "io.hierograph.graphstore.jvm.archive.model",
+        "kind": "java.package",
+        "within": "io.hierograph:io.hierograph.graphstore.jvm.archive:*"
+      },
+      "to": "io.hierograph.graphstore.jvm.archive.model"
+    },
+    {
+      "select": {
+        "match": "io.hierograph.graphstore.jvm.archive.model",
+        "kind": "java.package",
+        "within": "io.hierograph:io.hierograph.graphstore.jvm.archive:*:test"
+      },
+      "to": "io.hierograph.graphstore.jvm.archive.model-test"
+    }
+  ],
+  "groups": [
+    {
+      "name": "hierograph-hierarchicalgraph",
+      "members": [
+        "io.hierograph:io.hierograph.hierarchicalgraph.model:**",
+        "io.hierograph:io.hierograph.hierarchicalgraph.algorithms:**"
+      ]
+    },
+    {
+      "name": "hierograph-server",
+      "members": [
+        "io.hierograph:io.hierograph.server.mapping:**",
+        "io.hierograph:io.hierograph.server.views:**",
+        "io.hierograph:io.hierograph.server.graphservice:**",
+        "io.hierograph:io.hierograph.server:**",
+        "io.hierograph:io.hierograph.server.graphql:**"
+      ]
+    },
+    {
+      "name": "hierograph-graphstore",
+      "members": [
+        "io.hierograph:io.hierograph.graphstore.jvm.archive:**",
+        {
+          "match": "io.hierograph.graphstore.jvm.archive.model{,-test}",
+          "kind": "java.module"
+        },
+        "io.hierograph:io.hierograph.graphstore.jvm.store:**",
+        "io.hierograph:io.hierograph.graphstore.jvm.scanner:**"
+      ]
+    },
+    {
+      "name": "hierograph-build-support",
+      "members": [
+        "io.hierograph:io.hierograph.manifest:**",
+        "io.hierograph:hierograph-maven-plugin:**"
+      ]
+    },
+    {
+      "name": "hierograph-itest",
+      "members": [
+        "io.hierograph:io.hierograph.itest.tests:**"
+      ]
+    }
+  ]
+}
