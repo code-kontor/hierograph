@@ -9,6 +9,9 @@ import hierarchyViews from "@/testing/fixtures/HierarchyViews.json";
 import hierarchyViewsNoGraph from "@/testing/fixtures/HierarchyViews.no-graph.json";
 import startScreen from "@/testing/fixtures/StartScreen.json";
 import startScreenNoGraph from "@/testing/fixtures/StartScreen.no-graph.json";
+import structureCells from "@/testing/fixtures/StructureCells.json";
+import structureLevel from "@/testing/fixtures/StructureLevel.json";
+import structureRoot from "@/testing/fixtures/StructureRoot.json";
 
 // GraphQL handlers answering from the recorded fixtures
 // (`src/testing/fixtures/`, see the README there). Every unhandled request
@@ -29,8 +32,8 @@ export type Scenario = "default" | "no-graph" | "updating";
 type FixtureEntry = { variables: Record<string, unknown>; data: unknown };
 type FixtureFile = { operation: string; entries: FixtureEntry[] };
 
-// Per operation, the recorded scenarios. The tree queries exist only with a
-// graph; without one the screen never asks for them.
+// Per operation, the recorded scenarios. The tree and structure queries exist
+// only with a graph; without one the screens never ask for them.
 const RECORDED: Record<
   string,
   Partial<Record<"default" | "no-graph", FixtureFile>>
@@ -44,6 +47,9 @@ const RECORDED: Record<
   HierarchyTreeRoot: { default: hierarchyTreeRoot },
   HierarchyTreeChildren: { default: hierarchyTreeChildren },
   HierarchyArcs: { default: hierarchyArcs },
+  StructureRoot: { default: structureRoot },
+  StructureLevel: { default: structureLevel },
+  StructureCells: { default: structureCells },
 };
 
 export function handlersFor(scenario: Scenario): RequestHandler[] {

@@ -5,7 +5,7 @@ import {
   useNavigate,
   useSearch,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import lupeUrl from "@/assets/hierograph-lupe.svg";
 import { Message } from "@/design-system/ui/message";
@@ -50,14 +50,25 @@ function checkView(
 // (`GraphScope`), and the page's context menus: the app's own, never the
 // browser's. Instead of a screen it shows a message when the screen can't
 // work: no graph for a screen that needs one, the server not reachable, or an
-// unknown or invalid hierarchy view.
+// unknown or invalid hierarchy view. It also remembers the params each screen
+// was last left with, per hierarchy view, so going back to a screen finds it
+// as it was: the structure map with its boxes expanded and its arrows pinned.
 export function AppFrame({ screens, children }: AppFrameProps) {
   useNoNativeContextMenu();
   const status = useQuery(graphStatusQueryOptions());
-  const search: { view?: string } = useSearch({ strict: false });
+  const search: Record<string, unknown> & { view?: string } = useSearch({
+    strict: false,
+  });
   const view = search.view;
   const pathname = useLocation({ select: (location) => location.pathname });
   const screen = currentScreen(screens, withoutBase(pathname));
+
+  const [remembered, setRemembered] = useState<ScreenParams>({});
+  const own = screenParams(search);
+  const key = screen && rememberKey(screen, view);
+  if (key && JSON.stringify(remembered[key]) !== JSON.stringify(own)) {
+    setRemembered({ ...remembered, [key]: own });
+  }
 
   const graph = status.data?.server.graph;
   const workspace = status.data?.server.workspace;
@@ -96,7 +107,11 @@ export function AppFrame({ screens, children }: AppFrameProps) {
   }
 
   const screenLinks = screens.map((entry) => (
-    <ScreenLink key={String(entry.path)} screen={entry} />
+    <ScreenLink
+      key={String(entry.path)}
+      screen={entry}
+      search={{ ...remembered[rememberKey(entry, view)], view }}
+    />
   ));
 
   return (
@@ -134,14 +149,30 @@ export function AppFrame({ screens, children }: AppFrameProps) {
   );
 }
 
+// A screen's own params, per screen and hierarchy view.
+type ScreenParams = Record<string, Record<string, unknown>>;
+
+function rememberKey(screen: Screen, view: string | undefined): string {
+  return `${String(screen.path)} ${view ?? ""}`;
+}
+
+// The params of the current screen: all but the frame's `view`.
+function screenParams(search: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(search).filter(([name]) => name !== "view"),
+  );
+}
+
 type ScreenLinkProps = {
   screen: Screen;
+  search: Record<string, unknown>;
 };
 
-function ScreenLink({ screen }: ScreenLinkProps) {
+function ScreenLink({ screen, search }: ScreenLinkProps) {
   return (
     <Link
       to={screen.path}
+      search={search as never}
       className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
       activeOptions={{ exact: screen.path === "/" }}
       activeProps={{ className: "text-primary font-semibold" }}

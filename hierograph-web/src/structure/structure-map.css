@@ -1,0 +1,211 @@
+/* The levelized structure map, ported from the hierograph-structure skill's
+   static page (assets/lsm-template.html), with its default "slate" palette.
+   Colours are roles: red only for tangles, blue only for external code. The
+   arrows and the selection's rings take the start screen's arc colours: what
+   the selection uses in the accent, what uses it in grey, and dependencies
+   against the levels in the cycle colour. */
+
+.lsm {
+  --lsm-gap: 14px;
+  --lsm-ink: #0b0d10;
+  --lsm-ink-2: #4b5058;
+  --lsm-ink-3: #7f8692;
+  --lsm-cont-a: #e4e8ee;
+  --lsm-cont-b: #eef1f5;
+  --lsm-cont-line: #b4bfcc;
+  --lsm-leaf: #fbfcfd;
+  --lsm-leaf-line: #d3d9e1;
+  --lsm-ext: #dcebfb;
+  --lsm-ext-line: #5b93d6;
+  --lsm-tangle: #f8dddd;
+  --lsm-tangle-line: #e34948;
+  --lsm-bad: var(--hg-status-warning);
+  --lsm-out: var(--hg-accent);
+  --lsm-in: var(--hg-fg-muted);
+  --lsm-sel: #0d366b;
+  font-size: 13px;
+}
+
+/* The viewport: the canvas scrolls, the zoom controls float over it. */
+.lsm-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lsm-canvas {
+  flex: 1;
+  min-height: 0;
+  color: var(--lsm-ink);
+  overflow: auto;
+  cursor: grab;
+  user-select: none;
+}
+.lsm-canvas.lsm-panning,
+.lsm-canvas.lsm-panning * {
+  cursor: grabbing;
+}
+/* As big as the scaled map, so the canvas scrolls over all of it. */
+.lsm-sizer {
+  position: relative;
+}
+.lsm-map {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 8px;
+  min-width: min-content;
+  transform-origin: 0 0;
+}
+.lsm-zoom {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--hg-panel);
+  border: 1px solid var(--hg-border);
+  border-radius: 6px;
+  box-shadow: var(--hg-shadow);
+}
+.lsm-arrows {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 3;
+}
+/* An arrow takes the pointer along its invisible wide line, and shows it is
+   under the pointer at full strength. */
+.lsm-hit {
+  stroke: transparent;
+  pointer-events: stroke;
+}
+.lsm-arrow:hover .lsm-line {
+  stroke-opacity: 1;
+}
+
+.lsm-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lsm-gap);
+}
+.lsm-row {
+  display: flex;
+  gap: var(--lsm-gap);
+  align-items: stretch;
+}
+.lsm-item {
+  flex: 1 1 0;
+  min-width: min-content;
+  display: flex;
+}
+.lsm-item > * {
+  flex: 1;
+}
+
+.lsm-box {
+  position: relative;
+  transition: opacity 120ms;
+  border: 1px solid var(--lsm-leaf-line);
+  border-radius: 5px;
+  background: var(--lsm-leaf);
+  cursor: pointer;
+}
+.lsm-cont {
+  background: var(--lsm-cont-a);
+  border-color: var(--lsm-cont-line);
+  padding: 8px var(--lsm-gap) var(--lsm-gap);
+}
+.lsm-cont.lsm-odd {
+  background: var(--lsm-cont-b);
+}
+.lsm-ext,
+.lsm-cont.lsm-ext {
+  background: var(--lsm-ext);
+  border-color: var(--lsm-ext-line);
+}
+.lsm-box.lsm-leaf.lsm-ext {
+  background: color-mix(in srgb, var(--lsm-ext) 45%, var(--lsm-leaf));
+}
+.lsm-hd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+.lsm-hd .lsm-nm {
+  flex: 1;
+  text-align: center;
+  font-weight: 500;
+}
+.lsm-nm {
+  font: 400 12px var(--hg-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lsm-ic {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+  margin-right: 5px;
+}
+.lsm-leaf {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  min-height: 30px;
+}
+.lsm-leaf .lsm-nm {
+  flex: 1;
+  text-align: center;
+}
+/* The expand/collapse toggle sits in the box's top-left corner, out of the
+   flow, so the name stays centred whether or not a box has one. */
+.lsm-tg {
+  position: absolute;
+  top: 7px;
+  left: 10px;
+  font: 500 14px/1 var(--hg-font-mono);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: var(--lsm-ink-2);
+  cursor: pointer;
+}
+.lsm-tg:hover {
+  color: var(--lsm-ink);
+}
+.lsm-leaf.lsm-hastg {
+  padding: 0 28px;
+}
+.lsm-tangle {
+  background: var(--lsm-tangle);
+  border: 1.5px solid var(--lsm-tangle-line);
+  border-radius: 6px;
+  padding: var(--lsm-gap);
+}
+
+/* Selection never changes a box's fill: the fill says what the box is.
+   Roles colour the box's border, which keeps its width. */
+.lsm-box.lsm-sel {
+  border-color: var(--lsm-sel);
+}
+.lsm-box.lsm-uses {
+  border-color: var(--lsm-out);
+}
+.lsm-box.lsm-usedby {
+  border-color: var(--lsm-in);
+}
+.lsm-box.lsm-dim {
+  opacity: 0.35;
+}

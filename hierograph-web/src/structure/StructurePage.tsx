@@ -1,0 +1,1257 @@
+import "./structure-map.css";
+
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import {
+  CircleDot,
+  FileCode,
+  Folder,
+  Globe,
+  Layers,
+  ListChevronsDownUp,
+  ListChevronsUpDown,
+  type LucideIcon,
+  Maximize,
+  Package,
+  Pin,
+  PinOff,
+  SquareMinus,
+  SquarePlus,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import {
+  createContext,
+  type PointerEvent,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { twMerge } from "tailwind-merge";
+
+import { Pane } from "@/design-system/layout/Pane";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/design-system/ui/context-menu";
+import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
+import { Message } from "@/design-system/ui/message";
+import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
+
+import {
+  type Arrow,
+  type ArrowRole,
+  type ArrowSpec,
+  arrowWidth,
+  layoutArrows,
+  type Rect,
+} from "./mapArrows";
+import {
+  buildModel,
+  isWithin,
+  itemWeight,
+  type MapItem,
+  type MapModel,
+  trace,
+  type TracedLink,
+} from "./mapModel";
+import {
+  structureCellsQueryOptions,
+  type StructureLevel,
+  structureLevelQueryOptions,
+  structureRootQueryOptions,
+} from "./queries";
+import {
+  isContainer,
+  type StructureKind,
+  structureKind,
+} from "./structureLabels";
+
+// The map's navigation state, in the URL: the expanded containers and the
+// box whose arrows are pinned.
+type MapSearch = {
+  expanded_ids?: string[];
+  pinned_id?: string;
+};
+
+// What every box needs: the map, the box whose arrows are drawn (the pinned
+// one, else the one whose menu is open, else the hovered one) and what it is
+// coupled to, and the ways to change them.
+type MapState = {
+  model: MapModel;
+  expanded: ReadonlySet<string>;
+  focusId: string | undefined;
+  pinnedId: string | undefined;
+  uses: Map<string, number>;
+  usedBy: Map<string, number>;
+  // The couplings the arrows are drawn for, between visible boxes.
+  links: TracedLink[];
+  // Whether a box is greyed out: it is none of the arrows' ends, nor holds
+  // one, nor lies in the box they are drawn for.
+  dimmed: (id: string) => boolean;
+  toggle: (id: string) => Promise<void>;
+  // Expands a container and every container in it, at any depth.
+  expandAll: (id: string) => Promise<void>;
+  // Collapses a container and every container in it.
+  collapseAll: (id: string) => Promise<void>;
+  // Collapses every container in the map.
+  collapseEverything: () => Promise<void>;
+  // The expanded containers in a box, itself included.
+  expandedWithin: (id: string) => string[];
+  hover: (id: string | null) => void;
+  // Keeps the hovered box's arrows while the pointer is on one of them.
+  keepHover: () => void;
+  pin: (id: string | null) => Promise<void>;
+  menuFor: (id: string | null) => void;
+};
+
+const MapContext = createContext<MapState | null>(null);
+
+function useMap(): MapState {
+  const state = useContext(MapContext);
+  if (!state) throw new Error("A map box outside the map");
+  return state;
+}
+
+// The levelized structure map of the hierarchy in the current view, as the
+// hierograph-structure skill's static page draws it: every container's
+// children in rows by level, bottom first, so a box sits above what it uses;
+// the members of a cycle together in a red tangle; and only the dependencies
+// against the levels drawn, as dashed arrows in the cycle colour. Hovering a
+// box traces what it uses (accent) and what uses it (grey), in the start
+// screen's arc colours; its context menu pins them, as the start screen's
+// tree pins its arcs. Containers load their rows as they are expanded.
+export function StructurePage() {
+  const scope = useGraphScope();
+  const search: MapSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const unpin = async () => {
+    await navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        pinned_id: undefined,
+      }),
+    } as never);
+  };
+  return (
+    <Pane
+      title="Structure"
+      toolbar={
+        search.pinned_id !== undefined && <UnpinButton onUnpin={unpin} />
+      }
+      bodyClassName="flex min-h-0 flex-col p-3"
+    >
+      {scope ? (
+        <StructureMap key={scope.view ?? ""} scope={scope} />
+      ) : (
+        <p className="text-fg-muted text-[13px]">
+          No graph is loaded, so there is no structure to show yet.
+        </p>
+      )}
+    </Pane>
+  );
+}
+
+type UnpinButtonProps = {
+  onUnpin: () => void;
+};
+
+function UnpinButton({ onUnpin }: UnpinButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label="Unpin the arrows"
+      title="Unpin the arrows (Esc)"
+      onClick={onUnpin}
+      className={twMerge(ghostIconTriggerClassName, "size-5")}
+    >
+      <PinOff className="size-3.5" />
+    </button>
+  );
+}
+
+type StructureMapProps = {
+  scope: GraphScope;
+};
+
+function StructureMap({ scope }: StructureMapProps) {
+  const search: MapSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
+  // A lone numeric id may come in as a number; ids are compared as strings.
+  const expandedIds = (search.expanded_ids ?? []).map(String);
+  const expanded = new Set(expandedIds);
+  const pinnedParam =
+    search.pinned_id === undefined ? undefined : String(search.pinned_id);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // The box the pointer is on, ahead of the hovered one while a delay runs.
+  const hoverTarget = useRef<string | null>(null);
+
+  const root = useQuery(structureRootQueryOptions(scope));
+  const rootId = root.data ?? null;
+  // The packages of the chains the map folds, as it has asked for them.
+  const [chainIds, setChainIds] = useState<string[]>([]);
+  // The root and every expanded container, shown or not: a container inside
+  // a collapsed one keeps its rows for when it shows again; and the chains'
+  // packages.
+  const levelIds =
+    rootId === null ? [] : [...new Set([rootId, ...expandedIds, ...chainIds])];
+  const levelQueries = useQueries({
+    queries: levelIds.map((id) => structureLevelQueryOptions(scope, id)),
+  });
+  const levels = new Map<string, StructureLevel>();
+  levelQueries.forEach((query, index) => {
+    if (query.data) levels.set(levelIds[index], query.data);
+  });
+  const model = rootId === null ? null : buildModel(rootId, levels, expanded);
+  // Loads the chains' packages the model is waiting for; each loaded one may
+  // ask for the next one down. Adjusted while rendering, as React has it for
+  // state that follows from what is rendered.
+  const pending = model?.pending.filter((id) => !chainIds.includes(id)) ?? [];
+  if (pending.length > 0) setChainIds([...chainIds, ...pending]);
+  const pinnedId =
+    pinnedParam !== undefined && model?.boxes.has(pinnedParam)
+      ? pinnedParam
+      : undefined;
+  const live = (id: string | null) =>
+    id !== null && model?.boxes.has(id) ? id : undefined;
+  const focusId = pinnedId ?? live(menu) ?? live(hovered);
+
+  // The couplings between the shown boxes, loaded for all of them when a box
+  // is first hovered: hovering the next one draws its arrows at once.
+  const cells = useQuery({
+    ...structureCellsQueryOptions(scope, model?.frontier ?? []),
+    enabled: focusId !== undefined && (model?.frontier.length ?? 0) >= 2,
+  });
+  const traced =
+    model && focusId && cells.data
+      ? trace(model, focusId, cells.data)
+      : {
+          uses: new Map<string, number>(),
+          usedBy: new Map<string, number>(),
+          links: [],
+        };
+
+  // The boxes the arrows touch and the containers they lie in; null while
+  // nothing is traced, or the couplings are still loading.
+  const involved = new Set<string>();
+  if (model && focusId && cells.data) {
+    for (const id of [
+      focusId,
+      ...traced.uses.keys(),
+      ...traced.usedBy.keys(),
+    ]) {
+      for (let at: string | null = id; at !== null;) {
+        involved.add(at);
+        at = model.boxes.get(at)?.parentId ?? null;
+      }
+    }
+  }
+  // Only the outermost box of an uninvolved part is greyed out, so nested
+  // boxes don't fade twice.
+  const dimmed = (id: string) => {
+    if (!model || !focusId || involved.size === 0) return false;
+    if (involved.has(id) || isWithin(model, id, focusId)) return false;
+    const parentId = model.boxes.get(id)?.parentId ?? null;
+    return parentId === null || involved.has(parentId);
+  };
+
+  const setSearch = async (change: Partial<MapSearch>, replace: boolean) => {
+    await navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        ...change,
+      }),
+      replace,
+    } as never);
+  };
+  // Expanding is a view toggle (replace); pinning is navigation (push).
+  const toggle = async (id: string) => {
+    const next = expanded.has(id)
+      ? expandedIds.filter((other) => other !== id)
+      : [...expandedIds, id];
+    await setSearch({ expanded_ids: next.length > 0 ? next : undefined }, true);
+  };
+  // Every loaded node's container, from the levels: expanded containers
+  // inside a collapsed one are found too.
+  const parentOf = new Map<string, string>();
+  for (const [id, level] of levels) {
+    for (const nodes of level.levels) {
+      for (const node of nodes) parentOf.set(node.id, id);
+    }
+  }
+  const expandedWithin = (id: string) =>
+    expandedIds.filter((other) => {
+      for (let at: string | undefined = other; at; at = parentOf.get(at)) {
+        if (at === id) return true;
+      }
+      return false;
+    });
+  // Loads every container in the box, level by level, then opens them all
+  // at once.
+  const expandAll = async (id: string) => {
+    const found = new Set<string>([id]);
+    const visit = async (containerId: string): Promise<void> => {
+      const level = await queryClient.fetchQuery(
+        structureLevelQueryOptions(scope, containerId),
+      );
+      const inner = level.levels
+        .flat()
+        .filter((node) => isContainer(node.type, node.hasChildren))
+        .map((node) => node.id);
+      for (const innerId of inner) found.add(innerId);
+      await Promise.all(inner.map(visit));
+    };
+    await visit(id);
+    const next = [...new Set([...expandedIds, ...found])];
+    await setSearch({ expanded_ids: next }, true);
+  };
+  const collapseAll = async (id: string) => {
+    const closed = new Set(expandedWithin(id));
+    const next = expandedIds.filter((other) => !closed.has(other));
+    await setSearch({ expanded_ids: next.length > 0 ? next : undefined }, true);
+  };
+  const collapseEverything = async () => {
+    await setSearch({ expanded_ids: undefined }, true);
+  };
+  const pin = async (id: string | null) => {
+    await setSearch({ pinned_id: id ?? undefined }, false);
+  };
+  // A box's arrows show once the pointer has rested on it for a moment, so
+  // passing over the map doesn't flash them; leaving a box clears them a
+  // moment later, so moving across the gap to the next box doesn't make them
+  // flicker.
+  const hover = (id: string | null) => {
+    if (id === hoverTarget.current) return;
+    hoverTarget.current = id;
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(
+      () => setHovered(id),
+      id === null ? HOVER_CLEAR_DELAY : HOVER_SHOW_DELAY,
+    );
+  };
+  // On an arrow, the arrows drawn stay, and a box about to show its own
+  // doesn't.
+  const keepHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = undefined;
+    hoverTarget.current = hovered;
+  };
+
+  // Escape unpins, unless an open menu takes it: the menu marks the Escape
+  // that closes it as handled.
+  useEffect(() => {
+    if (pinnedId === undefined || menu !== null) return;
+    const onKey = async (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) await pin(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+  if (root.isPending) {
+    return <Message variant="loading" title="Loading the structure…" />;
+  }
+  if (root.isError || model === null) {
+    return (
+      <Message variant="error" title="The structure can't be loaded">
+        {root.error?.message}
+      </Message>
+    );
+  }
+
+  const state: MapState = {
+    model,
+    expanded,
+    focusId,
+    pinnedId,
+    uses: traced.uses,
+    usedBy: traced.usedBy,
+    links: traced.links,
+    dimmed,
+    toggle,
+    expandAll,
+    collapseAll,
+    collapseEverything,
+    expandedWithin,
+    hover,
+    keepHover,
+    pin,
+    menuFor: setMenu,
+  };
+  return (
+    <MapContext value={state}>
+      <div className="lsm flex min-h-0 flex-1 flex-col">
+        <MapCanvas />
+      </div>
+    </MapContext>
+  );
+}
+
+const HOVER_SHOW_DELAY = 50;
+const HOVER_CLEAR_DELAY = 150;
+
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 1.25;
+const WHEEL_CAP = 20;
+// Moving the pointer this far with the button down pans instead of clicking.
+const DRAG_START = 4;
+
+type Point = { x: number; y: number };
+
+// The zoom that shows all of the map in the viewport, never above 100%.
+function fitZoom(
+  view: HTMLElement,
+  size: { width: number; height: number },
+): number {
+  return Math.max(
+    MIN_ZOOM,
+    Math.min(1, view.clientWidth / size.width, view.clientHeight / size.height),
+  );
+}
+
+// The map and, over it, the arrows, laid out from the boxes whenever the map
+// changes or is resized. The map sits in a viewport that scrolls, pans by
+// dragging and zooms (ctrl/⌘ + wheel or pinch around the pointer, or the
+// buttons around the centre). The map is laid out at the viewport's width
+// and scaled, so zooming never rearranges it. A box pinned in the URL is
+// scrolled into view once it is drawn. A box's context menu pins its arrows.
+function MapCanvas() {
+  const { model, focusId, pinnedId, links, hover, keepHover, menuFor } =
+    useMap();
+  // The box or arrow a right click opened the menu for.
+  const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
+  const viewport = useRef<HTMLDivElement>(null);
+  const map = useRef<HTMLDivElement>(null);
+  const scrolledTo = useRef<string | undefined>(undefined);
+  const [arrows, setArrows] = useState<Arrow[]>([]);
+  // The last layout and what it was laid out from: zooming, scrolling and
+  // re-rendering draw the same arrows again without laying them out.
+  const lastLayout = useRef<{
+    key: string;
+    layout: ReturnType<typeof layoutArrows>;
+  } | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [gutter, setGutter] = useState({ left: 0, right: 0 });
+  const [viewWidth, setViewWidth] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [panning, setPanning] = useState(false);
+  // The zoom asked for last, ahead of the one drawn while a render is due.
+  const zoomAsked = useRef(1);
+  // The point of the map to keep under a point of the viewport when the next
+  // zoom is drawn.
+  const anchor = useRef<{ map: Point; view: Point } | null>(null);
+  const drag = useRef<{
+    start: Point;
+    scroll: Point;
+    moved: boolean;
+  } | null>(null);
+  const swallowClick = useRef(false);
+
+  const zoomTo = (next: number, at?: Point) => {
+    const view = viewport.current;
+    if (!view) return;
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+    const point = at ?? { x: view.clientWidth / 2, y: view.clientHeight / 2 };
+    anchor.current ??= {
+      map: {
+        x: (view.scrollLeft + point.x) / zoom,
+        y: (view.scrollTop + point.y) / zoom,
+      },
+      view: point,
+    };
+    zoomAsked.current = clamped;
+    setZoom(clamped);
+  };
+  const fit = () => {
+    const view = viewport.current;
+    if (!view || size.width === 0 || size.height === 0) return;
+    anchor.current = { map: { x: 0, y: 0 }, view: { x: 0, y: 0 } };
+    zoomTo(fitZoom(view, size));
+  };
+
+  // The screen opens with the whole map in view, once its top level is drawn
+  // at the viewport's width. The map is measured itself: the size of the
+  // last drawing may still be the empty map's.
+  const fitted = useRef(false);
+  const drawn = (model.rowsOf.get(model.rootId)?.length ?? 0) > 0;
+  useLayoutEffect(() => {
+    const view = viewport.current;
+    const element = map.current;
+    if (fitted.current || !view || !element || !drawn || viewWidth === 0) {
+      return;
+    }
+    fitted.current = true;
+    const next = fitZoom(view, {
+      width: element.offsetWidth,
+      height: element.offsetHeight,
+    });
+    zoomAsked.current = next;
+    setZoom(next);
+  }, [drawn, viewWidth]);
+
+  useLayoutEffect(() => {
+    const view = viewport.current;
+    const point = anchor.current;
+    if (!view || !point) return;
+    anchor.current = null;
+    view.scrollLeft = point.map.x * zoom - point.view.x;
+    view.scrollTop = point.map.y * zoom - point.view.y;
+  }, [zoom]);
+
+  // A wheel with ctrl or ⌘ (a pinch on a trackpad) zooms instead of
+  // scrolling; it needs a listener that can cancel the scroll.
+  useEffect(() => {
+    const view = viewport.current;
+    if (!view) return;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const bounds = view.getBoundingClientRect();
+      // A pinch sends small steps; a mouse wheel's notch, capped, about 20%.
+      const delta = Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, event.deltaY));
+      zoomTo(zoomAsked.current * Math.exp(-delta * 0.01), {
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
+    };
+    view.addEventListener("wheel", wheel, { passive: false });
+    return () => view.removeEventListener("wheel", wheel);
+  });
+
+  useLayoutEffect(() => {
+    const view = viewport.current;
+    if (!view) return;
+    const measure = () => setViewWidth(view.clientWidth);
+    measure();
+    const resizes = new ResizeObserver(measure);
+    resizes.observe(view);
+    return () => resizes.disconnect();
+  }, []);
+
+  const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const view = viewport.current;
+    if (!view || event.button !== 0) return;
+    drag.current = {
+      start: { x: event.clientX, y: event.clientY },
+      scroll: { x: view.scrollLeft, y: view.scrollTop },
+      moved: false,
+    };
+  };
+  const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const view = viewport.current;
+    const current = drag.current;
+    if (!view || !current) return;
+    const dx = event.clientX - current.start.x;
+    const dy = event.clientY - current.start.y;
+    if (!current.moved) {
+      if (Math.hypot(dx, dy) < DRAG_START) return;
+      current.moved = true;
+      view.setPointerCapture(event.pointerId);
+      setPanning(true);
+    }
+    view.scrollLeft = current.scroll.x - dx;
+    view.scrollTop = current.scroll.y - dy;
+  };
+  const pointerUp = () => {
+    // A drag ends in a click on whatever is under the pointer; that click
+    // doesn't select or toggle anything.
+    swallowClick.current = drag.current?.moved ?? false;
+    drag.current = null;
+    setPanning(false);
+  };
+  const clickCapture = (event: { stopPropagation(): void }) => {
+    if (!swallowClick.current) return;
+    swallowClick.current = false;
+    event.stopPropagation();
+  };
+
+  useLayoutEffect(() => {
+    const element = map.current;
+    if (!element) return;
+    const draw = () => {
+      const base = element.getBoundingClientRect();
+      // The map is drawn scaled; the arrows are laid out in its own units.
+      const scale =
+        element.offsetWidth > 0 ? base.width / element.offsetWidth : 1;
+      const rect = (id: string): Rect | null => {
+        const box = element.querySelector(`[data-box-id="${CSS.escape(id)}"]`);
+        if (!box) return null;
+        const r = box.getBoundingClientRect();
+        // In whole pixels: unscaling leaves fractions that differ from zoom to
+        // zoom, and would lay the same arrows out again.
+        return {
+          l: Math.round((r.left - base.left) / scale),
+          t: Math.round((r.top - base.top) / scale),
+          r: Math.round((r.right - base.left) / scale),
+          b: Math.round((r.bottom - base.top) / scale),
+        };
+      };
+      const groups = new Map<
+        string,
+        { from: string; to: string; weight: number; role: ArrowRole }
+      >();
+      const add = (
+        from: string,
+        to: string,
+        weight: number,
+        role: ArrowRole,
+      ) => {
+        if (from === to) return;
+        const key = `${from}>${to}>${role}`;
+        const group = groups.get(key) ?? { from, to, weight: 0, role };
+        group.weight += weight;
+        groups.set(key, group);
+      };
+      for (const dep of model.feedback) {
+        add(dep.sourceId, dep.targetId, dep.weight, "feedback");
+      }
+      // A pair a feedback arrow already joins gets no second arrow.
+      const feedbackPairs = new Set(
+        model.feedback.map((dep) => `${dep.sourceId}>${dep.targetId}`),
+      );
+      if (focusId) {
+        for (const link of links) {
+          if (!feedbackPairs.has(`${link.from}>${link.to}`)) {
+            add(link.from, link.to, link.weight, link.role);
+          }
+        }
+      }
+      const maxWeight = Math.max(
+        1,
+        ...[...groups.values()]
+          .filter((group) => group.role !== "feedback")
+          .map((group) => group.weight),
+      );
+      const specs: ArrowSpec[] = [];
+      for (const [key, group] of groups) {
+        const from = rect(group.from);
+        const to = rect(group.to);
+        if (!from || !to) continue;
+        const touches =
+          focusId !== undefined &&
+          (isWithin(model, group.from, focusId) ||
+            isWithin(model, group.to, focusId));
+        specs.push({
+          key,
+          fromId: group.from,
+          toId: group.to,
+          from,
+          to,
+          role: group.role,
+          weight: group.weight,
+          width: arrowWidth(group.role, group.weight, maxWeight, touches),
+          title: `${model.boxes.get(group.from)?.text} → ${model.boxes.get(group.to)?.text} · ${group.weight}`,
+        });
+      }
+      const key = JSON.stringify(specs);
+      const layout =
+        lastLayout.current?.key === key
+          ? lastLayout.current.layout
+          : layoutArrows(specs);
+      lastLayout.current = { key, layout };
+      const next: Arrow[] = layout.arrows;
+      setGutter((previous) =>
+        previous.left === layout.gutterLeft && previous.right === layout.gutter
+          ? previous
+          : { left: layout.gutterLeft, right: layout.gutter },
+      );
+      setArrows((previous) =>
+        JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
+      );
+      // The map's own box, not its scroll size: that would include the
+      // arrows' layer, which is as big as the last size and so never shrinks.
+      setSize((previous) =>
+        previous.width === element.offsetWidth &&
+        previous.height === element.offsetHeight
+          ? previous
+          : { width: element.offsetWidth, height: element.offsetHeight },
+      );
+    };
+    draw();
+    const resizes = new ResizeObserver(draw);
+    resizes.observe(element);
+    return () => resizes.disconnect();
+  }, [model, focusId, links]);
+
+  useEffect(() => {
+    if (!pinnedId || scrolledTo.current === pinnedId) return;
+    const box = map.current?.querySelector(
+      `[data-box-id="${CSS.escape(pinnedId)}"]`,
+    );
+    if (!box) return;
+    box.scrollIntoView({ block: "nearest", inline: "nearest" });
+    scrolledTo.current = pinnedId;
+  });
+
+  // The innermost box under the pointer.
+  const boxAt = (target: EventTarget | null): string | null => {
+    const box =
+      target instanceof Element ? target.closest("[data-box-id]") : null;
+    return box instanceof HTMLElement ? (box.dataset.boxId ?? null) : null;
+  };
+
+  // The arrow under the pointer.
+  const arrowAt = (target: EventTarget | null): Arrow | null => {
+    const line =
+      target instanceof Element ? target.closest("[data-arrow-key]") : null;
+    const key = line?.getAttribute("data-arrow-key");
+    return arrows.find((arrow) => arrow.key === key) ?? null;
+  };
+
+  const rows = model.rowsOf.get(model.rootId) ?? [];
+  const paths = arrows.map((arrow) => (
+    <ArrowPath key={arrow.key} arrow={arrow} />
+  ));
+  return (
+    <div className="lsm-viewport">
+      <ContextMenu
+        onOpenChange={(open) => {
+          if (open) return;
+          menuFor(null);
+          setMenuTarget(null);
+        }}
+      >
+        <ContextMenuTrigger asChild>
+          <div
+            ref={viewport}
+            className={twMerge("lsm-canvas", panning && "lsm-panning")}
+            onPointerDown={pointerDown}
+            onPointerMove={pointerMove}
+            onPointerUp={pointerUp}
+            onPointerCancel={pointerUp}
+            onClickCapture={clickCapture}
+            onMouseOver={(event) => {
+              if (panning) return;
+              // On an arrow, the arrows it belongs to stay.
+              if (arrowAt(event.target)) keepHover();
+              else hover(boxAt(event.target));
+            }}
+            onMouseLeave={() => hover(null)}
+            onContextMenu={(event) => {
+              // A box, an arrow and the canvas around them have a menu; an
+              // arrow's keeps the arrows drawn while it is open.
+              const arrow = arrowAt(event.target);
+              const id = boxAt(event.target);
+              if (arrow) {
+                setMenuTarget({ kind: "arrow", arrow });
+                menuFor(focusId ?? null);
+              } else if (id !== null) {
+                setMenuTarget({ kind: "box", id });
+                menuFor(id);
+              } else {
+                setMenuTarget({ kind: "canvas" });
+                menuFor(null);
+              }
+            }}
+          >
+            <div
+              className="lsm-sizer"
+              style={{
+                width: `${size.width * zoom}px`,
+                height: `${size.height * zoom}px`,
+              }}
+            >
+              <div
+                ref={map}
+                className="lsm-map"
+                style={{
+                  width: viewWidth > 0 ? `${viewWidth}px` : undefined,
+                  transform: `scale(${zoom})`,
+                  paddingLeft: `${Math.max(8, gutter.left + 14)}px`,
+                  paddingRight: `${Math.max(16, gutter.right + 14)}px`,
+                }}
+                role="tree"
+                aria-label="Levelized structure map"
+              >
+                <MapRows rows={rows} />
+                <svg
+                  className="lsm-arrows"
+                  width={size.width}
+                  height={size.height}
+                  aria-hidden
+                >
+                  <defs>
+                    <ArrowHead id="lsm-ah-feedback" color="var(--lsm-bad)" />
+                    <ArrowHead id="lsm-ah-uses" color="var(--lsm-out)" />
+                    <ArrowHead id="lsm-ah-usedBy" color="var(--lsm-in)" />
+                  </defs>
+                  {paths}
+                </svg>
+              </div>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent
+          onCloseAutoFocus={(event) => event.preventDefault()}
+        >
+          {menuTarget?.kind === "box" && <BoxMenu id={menuTarget.id} />}
+          {menuTarget?.kind === "canvas" && <CanvasMenu />}
+          {menuTarget?.kind === "arrow" && (
+            <ArrowMenu arrow={menuTarget.arrow} />
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+      <ZoomControls
+        zoom={zoom}
+        onZoomOut={() => zoomTo(zoom / ZOOM_STEP)}
+        onZoomIn={() => zoomTo(zoom * ZOOM_STEP)}
+        onReset={() => zoomTo(1)}
+        onFit={fit}
+      />
+    </div>
+  );
+}
+
+type MenuTarget =
+  | { kind: "box"; id: string }
+  | { kind: "arrow"; arrow: Arrow }
+  | { kind: "canvas" };
+
+// The canvas's menu, around the boxes: collapse the whole map.
+function CanvasMenu() {
+  const { expanded, collapseEverything } = useMap();
+  return (
+    <ContextMenuItem
+      disabled={expanded.size === 0}
+      onSelect={() => collapseEverything()}
+    >
+      <ListChevronsDownUp />
+      Collapse all
+    </ContextMenuItem>
+  );
+}
+
+type BoxMenuProps = {
+  id: string;
+};
+
+// A box's menu: pin its arrows, and expand or collapse a container, one level
+// or all of it (what doesn't apply disabled).
+function BoxMenu({ id }: BoxMenuProps) {
+  const { model, expanded, toggle, expandAll, collapseAll, expandedWithin } =
+    useMap();
+  const container = model.boxes.get(id)?.container ?? false;
+  const isExpanded = expanded.has(id);
+  const anyExpanded = expandedWithin(id).length > 0;
+  return (
+    <>
+      <PinItem id={id} />
+      {container && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem disabled={isExpanded} onSelect={() => toggle(id)}>
+            <SquarePlus />
+            Expand
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => expandAll(id)}>
+            <ListChevronsUpDown />
+            Expand all
+          </ContextMenuItem>
+          <ContextMenuItem disabled={!isExpanded} onSelect={() => toggle(id)}>
+            <SquareMinus />
+            Collapse
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!anyExpanded}
+            onSelect={() => collapseAll(id)}
+          >
+            <ListChevronsDownUp />
+            Collapse all
+          </ContextMenuItem>
+        </>
+      )}
+    </>
+  );
+}
+
+type ArrowMenuProps = {
+  arrow: Arrow;
+};
+
+// An arrow's menu: what it joins and how heavily, the arrows drawn to pin,
+// its ends to pin instead, and its collapsed ends to expand.
+function ArrowMenu({ arrow }: ArrowMenuProps) {
+  const { model, expanded, focusId, pin, toggle } = useMap();
+  const from = model.boxes.get(arrow.fromId);
+  const to = model.boxes.get(arrow.toId);
+  const ends = [from, to].filter((box) => box !== undefined);
+  const pinnable = ends.filter((box) => box.id !== focusId);
+  const expandable = ends.filter(
+    (box) => box.container && !expanded.has(box.id),
+  );
+  const pinItems = pinnable.map((box) => (
+    <ContextMenuItem key={box.id} onSelect={() => pin(box.id)}>
+      <Pin />
+      <span className="truncate">Pin the arrows of {box.label}</span>
+    </ContextMenuItem>
+  ));
+  const expandItems = expandable.map((box) => (
+    <ContextMenuItem key={box.id} onSelect={() => toggle(box.id)}>
+      <SquarePlus />
+      <span className="truncate">Expand {box.label}</span>
+    </ContextMenuItem>
+  ));
+  return (
+    <>
+      <div className="text-fg-subtle px-2 py-1 font-mono text-[11.5px]">
+        {from?.label} → {to?.label} · {arrow.weight}
+      </div>
+      <ContextMenuSeparator />
+      {focusId !== undefined && <PinItem id={focusId} />}
+      {pinItems}
+      {expandItems.length > 0 && <ContextMenuSeparator />}
+      {expandItems}
+    </>
+  );
+}
+
+type PinItemProps = {
+  id: string;
+};
+
+// Pins the box's arrows (instead of any pinned before), or unpins them if
+// they are the pinned ones.
+function PinItem({ id }: PinItemProps) {
+  const { pinnedId, pin } = useMap();
+  const isPinned = pinnedId === id;
+  return (
+    <ContextMenuItem onSelect={() => pin(isPinned ? null : id)}>
+      {isPinned ? <PinOff /> : <Pin />}
+      {isPinned ? "Unpin the arrows" : "Pin these arrows"}
+    </ContextMenuItem>
+  );
+}
+
+type ZoomControlsProps = {
+  zoom: number;
+  onZoomOut: () => void;
+  onZoomIn: () => void;
+  onReset: () => void;
+  onFit: () => void;
+};
+
+function ZoomControls({
+  zoom,
+  onZoomOut,
+  onZoomIn,
+  onReset,
+  onFit,
+}: ZoomControlsProps) {
+  return (
+    <div role="group" aria-label="Zoom" className="lsm-zoom">
+      <ZoomButton
+        icon={ZoomOut}
+        label="Zoom out"
+        disabled={zoom <= MIN_ZOOM}
+        onPress={onZoomOut}
+      />
+      <button
+        type="button"
+        title="Reset the zoom to 100%"
+        onClick={onReset}
+        className={twMerge(
+          ghostIconTriggerClassName,
+          "w-11 font-mono text-[11px]",
+        )}
+      >
+        {Math.round(zoom * 100)}%
+      </button>
+      <ZoomButton
+        icon={ZoomIn}
+        label="Zoom in"
+        disabled={zoom >= MAX_ZOOM}
+        onPress={onZoomIn}
+      />
+      <ZoomButton icon={Maximize} label="Fit the map" onPress={onFit} />
+    </div>
+  );
+}
+
+type ZoomButtonProps = {
+  icon: LucideIcon;
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+};
+
+function ZoomButton({ icon: Icon, label, disabled, onPress }: ZoomButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onPress}
+      className={ghostIconTriggerClassName}
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+type ArrowHeadProps = {
+  id: string;
+  color: string;
+};
+
+function ArrowHead({ id, color }: ArrowHeadProps) {
+  return (
+    <marker
+      id={id}
+      viewBox="0 0 10 10"
+      refX="9"
+      refY="5"
+      markerWidth="9"
+      markerHeight="9"
+      orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse"
+    >
+      <path
+        d="M1.5,1.5 L9,5 L1.5,8.5"
+        fill="none"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </marker>
+  );
+}
+
+const ROLE_COLOURS: Record<ArrowRole, string> = {
+  feedback: "var(--lsm-bad)",
+  uses: "var(--lsm-out)",
+  usedBy: "var(--lsm-in)",
+};
+
+type ArrowPathProps = {
+  arrow: Arrow;
+};
+
+// The drawn arrow, under a wider invisible line that takes the pointer, so
+// it is easy to hover and to right-click for its menu.
+function ArrowPath({ arrow }: ArrowPathProps) {
+  const feedback = arrow.role === "feedback";
+  return (
+    <g className="lsm-arrow" data-arrow-key={arrow.key}>
+      <title>{arrow.title}</title>
+      <path
+        className="lsm-line"
+        d={arrow.d}
+        fill="none"
+        stroke={ROLE_COLOURS[arrow.role]}
+        strokeWidth={arrow.width.toFixed(2)}
+        strokeDasharray={feedback ? "5 3" : undefined}
+        strokeOpacity={feedback ? 0.95 : 0.7}
+        markerEnd={`url(#lsm-ah-${arrow.role})`}
+        data-role={arrow.role}
+      />
+      <path className="lsm-hit" d={arrow.d} fill="none" strokeWidth={10} />
+    </g>
+  );
+}
+
+type MapRowsProps = {
+  rows: MapItem[][];
+};
+
+// A container's rows, top first: the highest level at the top.
+function MapRows({ rows }: MapRowsProps) {
+  const rowElements = rows.map((row, index) => (
+    <MapRow key={index} level={rows.length - 1 - index} items={row} />
+  ));
+  return <div className="lsm-rows">{rowElements}</div>;
+}
+
+type MapRowProps = {
+  level: number;
+  items: MapItem[];
+};
+
+function MapRow({ level, items }: MapRowProps) {
+  const { model } = useMap();
+  const weightOf = (id: string) => model.weights.get(id) ?? 1;
+  const cells = items.map((item) =>
+    item.kind === "box" ? (
+      <MapCell key={item.id} weight={itemWeight(item, weightOf)}>
+        <MapBoxView id={item.id} />
+      </MapCell>
+    ) : (
+      <MapCell
+        key={`tangle:${item.rows.flat()[0]}`}
+        weight={itemWeight(item, weightOf)}
+      >
+        <TangleView rows={item.rows} />
+      </MapCell>
+    ),
+  );
+  return (
+    <div className="lsm-row" role="group" aria-label={`Level ${level}`}>
+      {cells}
+    </div>
+  );
+}
+
+type MapCellProps = {
+  // Its share of the row: how many boxes are visible in it.
+  weight: number;
+  children: ReactNode;
+};
+
+// A box's place in its row: a share of the row by its weight, and never
+// narrower than its content, so a name is cut off only when the map is wider
+// than the screen (it scrolls then).
+function MapCell({ weight, children }: MapCellProps) {
+  return (
+    <div className="lsm-item" style={{ flexGrow: weight }}>
+      {children}
+    </div>
+  );
+}
+
+type TangleViewProps = {
+  rows: string[][];
+};
+
+// The members of a cycle in their own rows, top first, inside a red frame.
+function TangleView({ rows }: TangleViewProps) {
+  const rowElements = rows.map((ids, index) => (
+    <TangleRow key={index} ids={ids} />
+  ));
+  return (
+    <div className="lsm-tangle" role="group" aria-label="Tangle">
+      <div className="lsm-rows">{rowElements}</div>
+    </div>
+  );
+}
+
+type TangleRowProps = {
+  ids: string[];
+};
+
+function TangleRow({ ids }: TangleRowProps) {
+  const { model } = useMap();
+  const cells = ids.map((id) => (
+    <MapCell key={id} weight={model.weights.get(id) ?? 1}>
+      <MapBoxView id={id} />
+    </MapCell>
+  ));
+  return <div className="lsm-row">{cells}</div>;
+}
+
+// A package gets a small package glyph before its name, which also tells
+// packages from modules, types and External Types.
+// The start screen's tree icons, by what a box is.
+const KIND_ICONS: Record<StructureKind, LucideIcon> = {
+  group: Layers,
+  module: Package,
+  external: Globe,
+  package: Folder,
+  type: FileCode,
+  member: CircleDot,
+  other: CircleDot,
+};
+
+type KindIconProps = {
+  type: string;
+  text: string;
+};
+
+function KindIcon({ type, text }: KindIconProps) {
+  const kind = structureKind(type, text);
+  const Icon = KIND_ICONS[kind];
+  return (
+    <Icon
+      aria-hidden
+      className={twMerge(
+        "lsm-ic text-fg-subtle",
+        kind === "group" && "text-primary",
+      )}
+    />
+  );
+}
+
+type MapBoxViewProps = {
+  id: string;
+};
+
+// One box: a leaf (a collapsed container, a type) with its name centred, or
+// an open container with its name on top and its rows inside. The corner
+// toggle expands and collapses a container.
+function MapBoxView({ id }: MapBoxViewProps) {
+  const { model, expanded, focusId, uses, usedBy, dimmed, toggle } = useMap();
+  const box = model.boxes.get(id);
+  if (!box) return null;
+  const rows = model.rowsOf.get(id);
+  const open = rows !== undefined;
+  const loading = box.container && expanded.has(id) && !open;
+  const toggleButton = box.container && (
+    <button
+      type="button"
+      className="lsm-tg"
+      aria-label={`${open ? "Collapse" : "Expand"} ${box.label}`}
+      aria-expanded={open}
+      onClick={async (event) => {
+        event.stopPropagation();
+        await toggle(id);
+      }}
+    >
+      {open ? "−" : "+"}
+    </button>
+  );
+  const name = (
+    <span className="lsm-nm">
+      <KindIcon type={box.type} text={box.text} />
+      {box.label}
+    </span>
+  );
+  return (
+    <div
+      role="treeitem"
+      aria-label={box.label}
+      aria-current={focusId === id || undefined}
+      aria-expanded={box.container ? open : undefined}
+      aria-busy={loading || undefined}
+      data-box-id={id}
+      title={`${box.text}\n${box.type} · level ${box.level}${box.inTangle ? " · in a tangle" : ""}`}
+      className={twMerge(
+        "lsm-box",
+        open ? "lsm-cont" : "lsm-leaf",
+        box.depth % 2 === 1 && "lsm-odd",
+        box.external && "lsm-ext",
+        box.container && !open && "lsm-hastg",
+        focusId === id && "lsm-sel",
+        uses.has(id) && "lsm-uses",
+        usedBy.has(id) && "lsm-usedby",
+        dimmed(id) && "lsm-dim",
+        loading && "opacity-60",
+      )}
+    >
+      {open ? (
+        <>
+          <div className="lsm-hd">
+            {toggleButton}
+            {name}
+          </div>
+          <MapRows rows={rows} />
+        </>
+      ) : (
+        <>
+          {toggleButton}
+          {name}
+        </>
+      )}
+    </div>
+  );
+}

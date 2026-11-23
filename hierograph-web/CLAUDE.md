@@ -10,10 +10,8 @@ can do it just as well in a session; if so, it doesn't belong here.
 
 ## Design system
 
-UI must be styled design-conform to the IDE design system (tokens in
-`src/index.css` + component specs). Design decisions happen **only in Claude
-Design**, never ad hoc in code; from code the design is read **read-only** via
-the Design MCP. Convention, MCP setup and the Claude Design ↔ Claude Code loop:
+Style UI with the IDE design system's tokens (`src/index.css`) and the
+primitives in `src/design-system/ui/`, never ad-hoc colors or spacings:
 [`docs/design-system.md`](docs/design-system.md).
 
 ## Architecture

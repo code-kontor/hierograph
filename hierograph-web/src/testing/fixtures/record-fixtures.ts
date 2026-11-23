@@ -21,6 +21,9 @@ import {
   HierarchyTreeRootDocument,
   HierarchyViewsDocument,
   StartScreenDocument,
+  StructureCellsDocument,
+  StructureLevelDocument,
+  StructureRootDocument,
 } from "../../graphql/generated/graphql.ts";
 import { normalize } from "./normalize.ts";
 
@@ -219,4 +222,156 @@ if (scenario === "default") {
     }
   }
   write("HierarchyArcs", arcs);
+
+  // The structure map: the root in both views, and the levelization of every
+  // container (a node with children that isn't a type, as the map has it in
+  // structure/structureLabels.ts), the root's included.
+  const structureRoots: Entry[] = [];
+  const structureLevels: Entry[] = [];
+  for (const view of [null, "layers"]) {
+    const variables = { view };
+    const data = await client.request<{
+      hierarchicalGraph: { rootNode: { id: string } };
+    }>(StructureRootDocument, variables);
+    structureRoots.push({ variables, data: normalize(data as never) });
+    const ids = [data.hierarchicalGraph.rootNode.id];
+    for (const [key, nodes] of levels) {
+      if (!key.startsWith(`${view}|`)) continue;
+      for (const node of nodes) {
+        if (node.hasChildren && !TYPE_KINDS.has(node.type)) ids.push(node.id);
+      }
+    }
+    for (const id of [...new Set(ids)].sort()) {
+      const levelVariables = { view, id };
+      const level = await client.request(
+        StructureLevelDocument,
+        levelVariables,
+      );
+      structureLevels.push({
+        variables: levelVariables,
+        data: normalize(level as never),
+      });
+    }
+  }
+  write("StructureRoot", structureRoots);
+  write("StructureLevel", structureLevels);
+
+  // The weights between the visible boxes for a hovered box: on the
+  // collapsed map (the root's children), and with every container opened
+  // along its ancestors, as the tests open them one by one. The visible boxes
+  // are those of the open containers whose content isn't shown, as the map
+  // has them (structure/mapModel.ts), a module's chains of lone packages
+  // folded into their last package.
+  type Node = { id: string; type: string; hasChildren: boolean };
+  type Level = {
+    hierarchicalGraph: {
+      node: {
+        children: {
+          levelization: {
+            levels: {
+              nodes: Node[];
+            }[];
+          };
+        };
+      };
+    };
+  };
+  const levelOf = (view: string | null, id: string) =>
+    structureLevels.find(
+      (entry) => entry.variables.view === view && entry.variables.id === id,
+    )?.data as Level | undefined;
+  const frontierOf = (
+    view: string | null,
+    rootId: string,
+    open: Set<string>,
+  ) => {
+    const ids: string[] = [];
+    const childrenOf = (id: string) =>
+      (
+        levelOf(view, id)?.hierarchicalGraph.node.children.levelization
+          .levels ?? []
+      ).flatMap((row) => row.nodes);
+    const chainEnd = (node: Node): Node => {
+      let at = node;
+      for (;;) {
+        const children = at.hasChildren ? childrenOf(at.id) : [];
+        if (children.length !== 1 || children[0].type !== "java.package") {
+          return at;
+        }
+        at = children[0];
+      }
+    };
+    const visit = (id: string, module: boolean) => {
+      for (const child of childrenOf(id)) {
+        const node =
+          module && child.type === "java.package" ? chainEnd(child) : child;
+        const container = node.hasChildren && !TYPE_KINDS.has(node.type);
+        if (container && open.has(node.id) && levelOf(view, node.id))
+          visit(node.id, node.type === "java.module");
+        else ids.push(node.id);
+      }
+    };
+    visit(rootId, false);
+    return ids.sort();
+  };
+  const cellEntries: Entry[] = [];
+  const cellKeys = new Set<string>();
+  for (const [index, view] of [null, "layers"].entries()) {
+    const rootId = (
+      structureRoots[index].data as {
+        hierarchicalGraph: { rootNode: { id: string } };
+      }
+    ).hierarchicalGraph.rootNode.id;
+    // Each recorded container's parent, from the levels.
+    const parents = new Map<string, string>();
+    for (const entry of structureLevels) {
+      if (entry.variables.view !== view) continue;
+      const parent = entry.variables.id as string;
+      const level = entry.data as Level;
+      for (const row of level.hierarchicalGraph.node.children.levelization
+        .levels) {
+        for (const node of row.nodes) parents.set(node.id, parent);
+      }
+    }
+    const opened = [new Set<string>()];
+    for (const entry of structureLevels) {
+      const id = entry.variables.id as string;
+      if (entry.variables.view !== view || id === rootId) continue;
+      const open = new Set<string>();
+      for (let at: string | undefined = id; at && at !== rootId;) {
+        open.add(at);
+        at = parents.get(at);
+      }
+      opened.push(open);
+    }
+    // And each of the root's children with everything in it open, as
+    // "Expand all" opens it.
+    const recorded = structureLevels
+      .filter((entry) => entry.variables.view === view)
+      .map((entry) => entry.variables.id as string);
+    for (const top of recorded) {
+      if (parents.get(top) !== rootId) continue;
+      const open = new Set<string>();
+      for (const id of recorded) {
+        for (let at: string | undefined = id; at && at !== rootId;) {
+          if (at === top) {
+            open.add(id);
+            break;
+          }
+          at = parents.get(at);
+        }
+      }
+      opened.push(open);
+    }
+    for (const open of opened) {
+      const ids = frontierOf(view, rootId, open);
+      const key = `${view}|${ids.join()}`;
+      if (ids.length < 2 || cellKeys.has(key)) continue;
+      cellKeys.add(key);
+      const variables = { view, ids };
+      const data = await client.request(StructureCellsDocument, variables);
+      cellEntries.push({ variables, data: normalize(data as never) });
+    }
+  }
+  write("StructureCells", cellEntries);
 }

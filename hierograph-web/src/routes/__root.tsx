@@ -12,6 +12,7 @@ import type { Screen } from "@/frame/screens";
 // an entry here; the frame never imports a screen.
 const SCREENS: readonly Screen[] = [
   { path: "/", label: "Start", needsGraph: false },
+  { path: "/structure", label: "Structure", needsGraph: true },
 ];
 
 // Frame-level search params only: `view`, the hierarchy view every screen

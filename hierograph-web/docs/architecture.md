@@ -12,6 +12,7 @@ lower-triangular.
 | --------------- | ---------------------------------------------------------------------- |
 | `frame`         | the app shell every screen is rendered into                            |
 | `start`         | the start screen (`/`)                                                 |
+| `structure`     | the levelized structure map (`/structure`)                             |
 | `design-system` | domain-agnostic UI components and tokens (depends on no vertical)      |
 | `graphql`       | data-access platform (GraphQL client and generated code)               |
 | `routes`        | thin route wiring                                                      |
@@ -20,16 +21,16 @@ lower-triangular.
 
 ## Allowed Dependency Direction (DAG)
 
-| From                                 | May import                                         |
-| ------------------------------------ | -------------------------------------------------- |
-| app (`main.tsx`, `routeTree.gen.ts`) | `routes`, `routing`, `graphql`, `design-system`    |
-| `routes`                             | `frame`, `start`, `routing`, `design-system`       |
-| `start` (screen)                     | `frame`, `graphql`, `design-system`                |
-| `frame`                              | `routing`, `graphql`, `design-system`              |
-| `design-system`                      | (nothing internal — only itself)                   |
-| `graphql`                            | (nothing internal)                                 |
-| `routing`                            | (nothing internal — only `@tanstack/react-router`) |
-| `test` / `testing`                   | anything                                           |
+| From                                 | May import                                                |
+| ------------------------------------ | --------------------------------------------------------- |
+| app (`main.tsx`, `routeTree.gen.ts`) | `routes`, `routing`, `graphql`, `design-system`           |
+| `routes`                             | `frame`, `start`, `structure`, `routing`, `design-system` |
+| `start`, `structure` (screens)       | `frame`, `graphql`, `design-system`                       |
+| `frame`                              | `routing`, `graphql`, `design-system`                     |
+| `design-system`                      | (nothing internal — only itself)                          |
+| `graphql`                            | (nothing internal)                                        |
+| `routing`                            | (nothing internal — only `@tanstack/react-router`)        |
+| `test` / `testing`                   | anything                                                  |
 
 The `frame` owns what applies to every screen. Screens are verticals like
 `start`: they may import the `frame`, never each other, and the `frame` never
@@ -41,6 +42,7 @@ imports a screen.
 | -------------------- | -------------------------------------------------------------------------------------- |
 | `src/frame/`         | `AppFrame`, the graph status, the graph scope, the screen registry type, frame queries |
 | `src/start/`         | the start screen, its query and display helpers                                        |
+| `src/structure/`     | the structure map, its queries and label helpers                                       |
 | `src/routes/`        | one file per route; `__root.tsx` holds the screen registry and the frame-level params  |
 | `src/routing/`       | the search-param codec                                                                 |
 | `src/graphql/`       | the client (`execute`) and the generated documents and types (`generated/`)            |
@@ -96,28 +98,40 @@ view; the graph status) and the matched screen. It owns:
   `needsGraph`. Without a graph, or when the server can't be reached, the frame
   shows a message instead of such a screen; the start screen doesn't need a
   graph and stays visible.
+- **Screens come back as they were left.** The frame remembers each screen's
+  own search params, per hierarchy view, in memory, and its navigation links
+  restore them: going back to a screen finds the tree or the map with the
+  same nodes open and the same arcs pinned.
 
 ## The start screen
 
-`StartPage` shows what the server serves, in two columns on wide screens.
+`StartPage` shows what the server serves. On wide screens the hierarchy tree
+is on the left and the rest on the right, the views above the tabs; both
+splits are moved by the user and kept by the browser (the resizable panels'
+own storage), each box scrolling on its own. Narrow screens stack the views,
+the tabs and the tree.
 
-- **Left, on top:** the hierarchy views; choosing a valid one sets `view=`.
-  The scanned hierarchy comes first as `default`: it isn't a view name, so
-  choosing it drops `view=`.
-- **Left, below:** a tab each for the workspace and its graph source (with the
+- **Right, on top:** the hierarchy views, as cards (the default, all of one
+  size) or a list, switched in the box's corner and kept in localStorage;
+  choosing a valid one sets `view=` and keeps only the `tab`, so the tree of
+  the new view starts collapsed. The scanned hierarchy comes first as
+  `default`: it isn't a view name, so choosing it drops `view=`.
+- **Right, below:** a tab each for the workspace and its graph source (with the
   artifacts not compiled yet), the graph (state, generation, load time,
   counts), the server, and its JVM (heap against its limit and what the last
   collection kept, threads, CPU load, garbage collection). The tab is the start
   screen's own search param `tab` (`workspace`, `graph`, `server`, `jvm`;
   validated in `routes/index.tsx`), so a link can open one; switching replaces
   the history entry, and the first tab leaves no param behind.
-- **Right:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
-  view, as tall as the left column. It loads level by level as nodes are
-  expanded, with queries keyed by the graph scope; expanded nodes are local
-  state and reset when the view changes. Each level's siblings are in
+- **Left:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
+  view. It loads level by level as nodes are
+  expanded, with queries keyed by the graph scope. Its open rows and pinned
+  arcs are the start screen's search params `expanded_ids` (expanding replaces
+  the history entry) and `pinned_id`, or `pinned_cycle_ids` for a cycle's
+  arcs (pinning pushes one). Each level's siblings are in
   dependency order (`orderedAdjacencyMatrix`: those depending on the others on
-  top), dependency cycles marked with a bar; a type's members keep source
-  order. Directly to the right of the labels, `TreeArcs` draws, for the
+  top), dependency cycles marked with a bar; the tree ends at the types (their
+  members' dependencies aren't resolved yet). Directly to the right of the labels, `TreeArcs` draws, for the
   hovered row only, thin bracket arcs to the visible rows it depends on and
   that depend on it (rows whose children aren't shown, External Types and its
   rows included), each with an arrowhead on the row depended on: with the
@@ -133,6 +147,36 @@ The server data is live: its query is polled like the graph status and keyed
 by the generation, so a reload shows at once. The start screen handles a server
 that can't be reached itself, since the frame doesn't block a screen without
 `needsGraph`.
+
+## The structure map
+
+`StructurePage` (`/structure`, needs a graph) shows only the levelized
+structure map of the current hierarchy view, ported from the
+`hierograph-structure` skill's static page (`assets/lsm-template.html`, its
+look in `structure-map.css`): every container's children in rows by level,
+bottom first, so a box sits above what it uses; the members of a cycle
+together in a red tangle frame, in their own rows; and only the dependencies
+against the levels drawn, as dashed red arrows. Hovering a box traces what it
+uses (accent) and what uses it (grey) among the visible boxes, with rings and
+arrows, and greys out the rest.
+
+- **Data.** The root and each expanded container load their levelization
+  (`node(id) { children { levelization } }`, #61), keyed by the graph scope;
+  `mapModel.ts` builds the visible map from them: the boxes, the open
+  containers' rows, the frontier (boxes whose content isn't shown) and the
+  feedback dependencies. In a module, a chain of packages that each hold
+  nothing but the next package is folded into one box, its last package
+  named in full (`io.hierograph.server`); the chain's packages load their
+  levelization too, and the module opens once they have. The first hovered box loads the matrix over the
+  frontier (`orderedAdjacencyMatrix`) for the weights; hovering traces a
+  box's dependencies, its context menu pins them (as the start screen's tree
+  pins its arcs), Esc or the pane's unpin button unpins them.
+- **Layout.** A box takes a share of its row by how many boxes are visible in
+  it, and is never narrower than its content; a map wider than the pane
+  scrolls. The arrows are measured from the boxes whenever the map changes or
+  is resized (`mapArrows.ts`, the template's routing).
+- **URL.** `expanded_ids` (expanding replaces the history entry) and
+  `pinned_id` (pinning pushes one), validated in `routes/structure.tsx`.
 
 ## Router context & data loading
 
@@ -181,17 +225,18 @@ navigation state stay in localStorage.
 
 ## Public-API Rule
 
-Verticals (`frame`, `start`, `routing`) are entered only through their
+Verticals (`frame`, `start`, `structure`, `routing`) are entered only through their
 **declared public files** — the explicit per-vertical allow-lists in
 `eslint.config.js` (`boundaries/dependencies`). Cross-vertical imports use
 direct paths (`@/<vertical>/<File>`); there are no re-export barrel `index.ts`
 files.
 
-| Vertical  | Public files                                   |
-| --------- | ---------------------------------------------- |
-| `frame`   | `AppFrame.tsx`, `GraphScope.tsx`, `screens.ts` |
-| `start`   | `StartPage.tsx`                                |
-| `routing` | `searchCodec.ts`                               |
+| Vertical    | Public files                                   |
+| ----------- | ---------------------------------------------- |
+| `frame`     | `AppFrame.tsx`, `GraphScope.tsx`, `screens.ts` |
+| `start`     | `StartPage.tsx`                                |
+| `structure` | `StructurePage.tsx`                            |
+| `routing`   | `searchCodec.ts`                               |
 
 The platform layers (`design-system`, `graphql`, `testing`) expose their files
 directly (shadcn convention / generated client).

@@ -17,6 +17,7 @@ const PUBLIC = {
   routing: ["searchCodec.ts"],
   frame: ["AppFrame.tsx", "GraphScope.tsx", "screens.ts"],
   start: ["StartPage.tsx"],
+  structure: ["StructurePage.tsx"],
 };
 
 // Grant helper: full public surface of `type`, or an explicit subset for edges
@@ -107,6 +108,7 @@ export default defineConfig([
         { type: "routing", pattern: "src/routing" },
         { type: "frame", pattern: "src/frame" },
         { type: "start", pattern: "src/start" },
+        { type: "structure", pattern: "src/structure" },
         { type: "design-system", pattern: "src/design-system" },
         { type: "graphql", pattern: "src/graphql" },
         {
@@ -147,6 +149,7 @@ export default defineConfig([
                 to: [
                   to("frame"),
                   to("start"),
+                  to("structure"),
                   to("routing"),
                   { type: "design-system" },
                 ],
@@ -155,7 +158,7 @@ export default defineConfig([
             // screens → frame via public files, graphql, design-system.
             // Screens never import each other; the frame never imports a screen.
             {
-              from: { type: "start" },
+              from: { type: ["start", "structure"] },
               allow: {
                 to: [
                   to("frame"),

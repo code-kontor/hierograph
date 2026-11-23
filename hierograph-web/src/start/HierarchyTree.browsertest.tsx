@@ -287,7 +287,7 @@ describe("HierarchyTree", () => {
     for (const arc of arcs()) {
       expect(arc.relation).toBe(arc.from === beta ? "outgoing" : "incoming");
       expect(arc.colour).toContain(
-        arc.relation === "outgoing" ? "--hg-accent" : "--hg-fg-subtle",
+        arc.relation === "outgoing" ? "--hg-accent" : "--hg-fg-muted",
       );
       expect(arc.arrowhead).toBe(true);
     }
@@ -549,6 +549,45 @@ describe("HierarchyTree", () => {
       expect(cycle.has(arc.from) && cycle.has(arc.to)).toBe(true);
       expect(arc.relation).toBe("cycle");
     }
+  });
+
+  it("keeps its open rows and pinned arcs in the URL, and opens as they say", async () => {
+    const first = await renderTree();
+    await expand(
+      first,
+      "fixture-app",
+      "org",
+      "hg",
+      "fixture",
+      "basic",
+      "cycle",
+    );
+    await expect.element(item(first, "beta")).toBeVisible();
+    const beta = nodeId("beta");
+    rightClick(item(first, "beta").getByRole("button").first().element());
+    await first.getByRole("menuitem", { name: "Pin these arcs" }).click();
+    await expect
+      .element(first.getByRole("button", { name: "Unpin the arcs" }))
+      .toBeVisible();
+    const { search, searchStr } = first.router.state.location;
+    // A lone numeric id comes back from the URL as a number.
+    expect(String(search.pinned_id)).toBe(beta);
+    expect(search.expanded_ids).toHaveLength(6);
+    await first.unmount();
+
+    const screen = await renderTree(searchStr);
+
+    await expect.element(item(screen, "beta")).toBeVisible();
+    await expect
+      .element(item(screen, "cycle"))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Unpin the arcs" }))
+      .toBeVisible();
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    expect(arcs().every((arc) => arc.from === beta || arc.to === beta)).toBe(
+      true,
+    );
   });
 
   it("unpins the arcs with Escape", async () => {

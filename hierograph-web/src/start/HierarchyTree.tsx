@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronRight,
@@ -53,7 +54,7 @@ const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
 // hovered (a row or a cycle bar), whose dependency arcs are drawn.
 type TreeControls = {
   expanded: ReadonlySet<string>;
-  toggle: (id: string) => void;
+  toggle: (id: string) => Promise<void>;
   hover: (focus: ArcFocus | null) => void;
 };
 
@@ -62,18 +63,25 @@ type TreeControls = {
 // level's siblings are in dependency order (those depending on the others on
 // top), its dependency cycles marked. The tree ends at the types: their
 // members' dependencies aren't resolved yet, so they would have no arcs.
-// Beside the tree, arcs show the dependencies between the visible rows.
+// Beside the tree, arcs show the dependencies between the visible rows. The
+// open rows and the pinned arcs are in the URL, so the screen comes back as
+// it was left.
 export function HierarchyTree() {
   const scope = useGraphScope();
   const view = scope?.view ?? "";
-  // The pinned arcs, with the view they were pinned in: another view starts
-  // without.
-  const [pin, setPin] = useState<{ view: string; focus: ArcFocus } | null>(
-    null,
-  );
-  const pinned = pin?.view === view ? pin.focus : null;
-  const onPin = (focus: ArcFocus | null) =>
-    setPin(focus === null ? null : { view, focus });
+  const search: TreeSearch = useSearch({ strict: false });
+  const setSearch = useSetTreeSearch();
+  const pinned = pinnedFocus(search);
+  // Pinning is navigation (push).
+  const onPin = async (focus: ArcFocus | null) => {
+    await setSearch(
+      {
+        pinned_id: focus?.kind === "row" ? focus.id : undefined,
+        pinned_cycle_ids: focus?.kind === "cycle" ? focus.members : undefined,
+      },
+      false,
+    );
+  };
   return (
     // The view is named on its card and in the header already.
     <Pane
@@ -91,6 +99,38 @@ export function HierarchyTree() {
       )}
     </Pane>
   );
+}
+
+// The tree's params (see the start route). A lone numeric id may come in as
+// a number; ids are compared as strings.
+type TreeSearch = {
+  expanded_ids?: (string | number)[];
+  pinned_id?: string | number;
+  pinned_cycle_ids?: (string | number)[];
+};
+
+function useSetTreeSearch() {
+  const navigate = useNavigate();
+  return async (change: Partial<TreeSearch>, replace: boolean) => {
+    await navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        ...change,
+      }),
+      replace,
+    } as never);
+  };
+}
+
+function pinnedFocus(search: TreeSearch): ArcFocus | null {
+  if (search.pinned_id !== undefined) {
+    return { kind: "row", id: String(search.pinned_id) };
+  }
+  if (search.pinned_cycle_ids !== undefined) {
+    return { kind: "cycle", members: search.pinned_cycle_ids.map(String) };
+  }
+  return null;
 }
 
 type UnpinButtonProps = {
@@ -114,21 +154,28 @@ function UnpinButton({ onUnpin }: UnpinButtonProps) {
 type TreeRootProps = {
   scope: GraphScope;
   pinned: ArcFocus | null;
-  onPin: (focus: ArcFocus | null) => void;
+  onPin: (focus: ArcFocus | null) => Promise<void>;
 };
 
 function TreeRoot({ scope, pinned, onPin }: TreeRootProps) {
   const query = useQuery(hierarchyTreeRootQueryOptions(scope));
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const search: TreeSearch = useSearch({ strict: false });
+  const setSearch = useSetTreeSearch();
+  const expandedIds = (search.expanded_ids ?? []).map(String);
+  const expanded = new Set(expandedIds);
   const [hovered, setHovered] = useState<ArcFocus | null>(null);
   const clearHover = useRef<ReturnType<typeof setTimeout>>(undefined);
   const controls: TreeControls = {
     expanded,
-    toggle(id) {
-      const next = new Set(expanded);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      setExpanded(next);
+    // Expanding is a view toggle (replace).
+    async toggle(id) {
+      const next = expanded.has(id)
+        ? expandedIds.filter((other) => other !== id)
+        : [...expandedIds, id];
+      await setSearch(
+        { expanded_ids: next.length > 0 ? next : undefined },
+        true,
+      );
     },
     // Leaving a row clears the hover a moment later, so the pointer can move
     // into the arc area (which keeps the arcs) without them vanishing.
@@ -352,11 +399,11 @@ function TreeItem({
       <ArcFocusMenu focus={{ kind: "row", id: node.id }}>
         <button
           type="button"
-          onClick={(event) => {
+          onClick={async (event) => {
             // A click in the cycle bar's menu reaches the row too (the menu
             // is a portal), but isn't on it.
             if (!event.currentTarget.contains(event.target as Node)) return;
-            if (expandable) controls.toggle(node.id);
+            if (expandable) await controls.toggle(node.id);
           }}
           onMouseEnter={() => controls.hover({ kind: "row", id: node.id })}
           onMouseLeave={() => controls.hover(null)}

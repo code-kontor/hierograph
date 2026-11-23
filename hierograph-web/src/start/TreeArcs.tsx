@@ -321,8 +321,8 @@ const RELATION_COLOURS: Record<ArcRelation, { line: string; head: string }> = {
     head: "fill-[var(--hg-accent)]",
   },
   incoming: {
-    line: "stroke-[var(--hg-fg-subtle)]",
-    head: "fill-[var(--hg-fg-subtle)]",
+    line: "stroke-[var(--hg-fg-muted)]",
+    head: "fill-[var(--hg-fg-muted)]",
   },
   cycle: {
     line: "stroke-[var(--hg-status-warning)]",

@@ -1,0 +1,30 @@
+{
+  "operation": "StructureRoot",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {
+        "view": null
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087"
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "layers"
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087"
+          }
+        }
+      }
+    }
+  ]
+}

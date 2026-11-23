@@ -102,8 +102,8 @@ describe("StartPage", () => {
     expect(screen.router.state.location.search).toEqual({ view: "layers" });
   });
 
-  it("keeps the tab when a hierarchy view is chosen", async () => {
-    const screen = await renderStart("?tab=graph");
+  it("keeps the tab when a hierarchy view is chosen, not the tree's state", async () => {
+    const screen = await renderStart("?tab=graph&expanded_ids=1,2&pinned_id=2");
 
     await block(screen, "Hierarchy views")
       .getByRole("link", { name: "layers" })

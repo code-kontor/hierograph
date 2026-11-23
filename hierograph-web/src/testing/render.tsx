@@ -28,31 +28,36 @@ export async function renderWithQueryClient(ui: ReactNode) {
   return { ...result, queryClient };
 }
 
-// Render `ui` as the component of a memory-history route mounted at `path`,
+// Render `ui` in a memory-history router at `path`,
 // using the app's custom comma/enum search codec. Components that read/write
 // search params (`useSearch`/`useNavigate`) need a live router — this gives
 // them one in browser tests without pulling in the whole generated route tree.
 // `validateSearch` passes the parsed search through untouched (the codec has
 // already coerced comma id lists and enums); pass `initialSearch` (e.g.
-// `"?center_ids=1,2"`) to exercise a deep-link start state.
+// `"?center_ids=1,2"`) to exercise a deep-link start state, and `otherPaths`
+// for more paths to navigate to, as between screens.
 export async function renderWithRouter(
   ui: ReactNode,
   path: string,
   initialSearch = "",
+  otherPaths: string[] = [],
 ) {
-  const rootRoute = createRootRoute();
-  const route = createRoute({
-    getParentRoute: () => rootRoute,
-    path,
-    validateSearch: (search: Record<string, unknown>) => search,
-    component: () => ui,
-  });
+  // The root renders `ui`, as the app's root renders the frame, so it stays
+  // mounted while navigating between the paths.
+  const rootRoute = createRootRoute({ component: () => ui });
+  const routes = [path, ...otherPaths].map((routePath) =>
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path: routePath,
+      validateSearch: (search: Record<string, unknown>) => search,
+    }),
+  );
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   onTestFinished(() => queryClient.cancelQueries());
   const router = createRouter({
-    routeTree: rootRoute.addChildren([route]),
+    routeTree: rootRoute.addChildren(routes),
     history: createMemoryHistory({
       initialEntries: [`${path}${initialSearch}`],
     }),

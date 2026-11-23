@@ -93,7 +93,7 @@ export function StartPage() {
   return wide ? (
     <WideLayout tree={tree} views={viewsBlock} tabs={tabs} />
   ) : (
-    <div className="text-fg mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-3">
+    <div className="text-fg grid w-full grid-cols-1 gap-3">
       {viewsBlock}
       {tabs}
       {tree}
@@ -115,7 +115,7 @@ function WideLayout({ tree, views, tabs }: WideLayoutProps) {
     <ResizablePanelGroup
       direction="horizontal"
       autoSaveId="start-columns"
-      className="text-fg mx-auto max-w-[1600px]"
+      className="text-fg"
     >
       <ResizablePanel id="tree" order={1} defaultSize={40} minSize={20}>
         {tree}
@@ -651,7 +651,8 @@ function ChoosableViewRow({
     <li>
       <Link
         to="/"
-        search={(previous) => ({ ...previous, view })}
+        // The tree of another view starts collapsed and unpinned.
+        search={(previous) => ({ tab: previous.tab, view })}
         title={CHOOSE_HINT}
         // `view: undefined` (the scanned hierarchy) must not match a set view.
         activeOptions={{ explicitUndefined: true }}

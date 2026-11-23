@@ -49,6 +49,7 @@ function renderFrame(needsGraph = false, search = "", more = true) {
     </AppFrame>,
     "/",
     search,
+    ["/other"],
   );
 }
 
@@ -238,6 +239,31 @@ describe("AppFrame", () => {
     await expect
       .element(screen.getByText("scope 1 layers; fetched 2"))
       .toBeVisible();
+  });
+
+  it("brings a screen back as it was left, per hierarchy view", async () => {
+    const screen = await renderFrame(false, "?view=layers");
+    const go = async (name: string) => {
+      await screen.getByRole("link", { name }).click();
+      await expect.element(screen.getByText(/scope/)).toBeVisible();
+    };
+
+    await go("Other");
+    await screen.router.navigate({
+      to: "/other",
+      search: { view: "layers", expanded_ids: ["7"] },
+    } as never);
+    await go("Start");
+    await go("Other");
+    expect(screen.router.state.location.search).toEqual({
+      view: "layers",
+      expanded_ids: ["7"],
+    });
+
+    // In another view the screen starts afresh.
+    await screen.router.navigate({ to: "/", search: {} } as never);
+    await go("Other");
+    expect(screen.router.state.location.search).toEqual({});
   });
 
   it("names an unknown hierarchy view and offers to drop it", async () => {
