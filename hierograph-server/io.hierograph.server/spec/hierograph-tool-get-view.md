@@ -84,7 +84,7 @@ applies. A document that does not parse is named after its file, without `.json`
 
 | Situation | Response |
 |-----------|----------|
-| valid view, graph loaded | entry, `document`, `groups`, `report`; restructuring views add `virtual_modules` and `restructuring` |
+| valid view, graph loaded | entry, `document`, `groups`, `report`; views with exclusions add `excluded`, restructuring views `virtual_modules` and `restructuring` |
 | valid view, no graph loaded | entry and `document` |
 | invalid document | entry with `valid: false` and `problems`, and `document` |
 
@@ -159,10 +159,11 @@ A project document that does not parse:
 | `document` | always | the document as stored: a JSON object, or a string when the text is not JSON | what the view says, as its author wrote it |
 | `groups` | valid view, graph loaded | applied groups: `path`, `id`, `parent_id`, `child_count` | ids for the other tools |
 | `report` | valid view, graph loaded | counts and findings | what could not be applied |
+| `excluded` | view with exclusions, graph loaded | `count` and the outermost excluded `nodes` | what the view leaves out |
 | `virtual_modules` | restructuring view, graph loaded | `name`, `id`, `child_count` per virtual module | the ids of the modules the view creates |
 | `restructuring` | restructuring view, graph loaded | the module-level effect | added, removed and changed module dependencies, cycles |
 
-`groups`, `report`, `virtual_modules` and `restructuring` have the same form as in
+`groups`, `report`, `excluded`, `virtual_modules` and `restructuring` have the same form as in
 [`define_view`](hierograph-tool-define-view.md#43-applied-view-fields), with the same
 caps: 50 findings, 10 nodes per finding, 100 entries per dependency list.
 

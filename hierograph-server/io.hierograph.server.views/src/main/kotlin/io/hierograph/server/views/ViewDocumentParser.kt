@@ -27,8 +27,8 @@ class ViewDocumentException(val problems: List<String>) :
 
 /**
  * Parses a view document from JSON (views specification, §3) and checks its form: required fields, types,
- * names, duplicate sibling names, selector patterns and kinds, and for a restructuring view its modules and
- * moves (§6.4). It collects every problem rather than
+ * names, duplicate sibling names, selector patterns and kinds, the exclusions (§5.4), and for a
+ * restructuring view its modules and moves (§6.4). It collects every problem rather than
  * stopping at the first, so one round trip shows everything to fix.
  *
  * Whether the selectors match anything is not checked here; that depends on the graph and is reported by
@@ -38,7 +38,7 @@ object ViewDocumentParser {
 
     private val mapper = ObjectMapper()
 
-    private val DOCUMENT_FIELDS = setOf("name", "description", "groups", "restructure", "modules", "moves")
+    private val DOCUMENT_FIELDS = setOf("name", "description", "exclude", "groups", "restructure", "modules", "moves")
     private val GROUP_FIELDS = setOf("name", "description", "members", "groups")
     private val SELECTOR_FIELDS = setOf("match", "kind", "within")
     private val MODULE_FIELDS = setOf("name", "description")
@@ -81,6 +81,9 @@ object ViewDocumentParser {
                 problem("name", "'$name' is not a valid view name; use lower-case letters, digits, '.', '_' and '-', starting with a letter or digit")
             }
             val description = optionalString(node, "description", "description")
+            val exclude = optionalArray(node, "exclude", "exclude")
+                ?.mapIndexedNotNull { i, element -> selector(element, "exclude[$i]") }
+                ?: emptyList()
             val groups = groups(node, "")
             val restructure = optionalBoolean(node, "restructure", "restructure") ?: false
             val modules = modules(node)
@@ -89,7 +92,7 @@ object ViewDocumentParser {
                 if (node.has("modules")) problem("modules", "only a restructuring view has modules; set \"restructure\": true")
                 if (node.has("moves")) problem("moves", "only a restructuring view has moves; set \"restructure\": true")
             }
-            return name?.let { ViewDocument(it, description, groups, restructure, modules, moves) }
+            return name?.let { ViewDocument(it, description, groups, restructure, modules, moves, exclude) }
         }
 
         private fun modules(owner: ObjectNode): List<VirtualModuleDefinition> {

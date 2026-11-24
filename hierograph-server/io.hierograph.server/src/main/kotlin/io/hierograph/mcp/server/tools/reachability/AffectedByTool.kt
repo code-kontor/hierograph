@@ -198,9 +198,9 @@ class AffectedByTool(
         for (sourceId in sourceTypeIds) {
             val sourceNode = graphService.model.lookupNode(sourceId) ?: continue
             val deps = if (effectiveDirection == "incoming")
-                sourceNode.incomingCoreDependencies
+                hierarchy.incomingOf(sourceNode)
             else
-                sourceNode.outgoingCoreDependencies
+                hierarchy.outgoingOf(sourceNode)
 
             for (dep in deps) {
                 val neighbor = if (effectiveDirection == "incoming") dep.from else dep.to
@@ -228,9 +228,9 @@ class AffectedByTool(
             if (currentEntry.distance >= effectiveMaxDepth) continue
 
             val deps = if (effectiveDirection == "incoming")
-                current.incomingCoreDependencies
+                hierarchy.incomingOf(current)
             else
-                current.outgoingCoreDependencies
+                hierarchy.outgoingOf(current)
 
             for (dep in deps) {
                 val neighbor = if (effectiveDirection == "incoming") dep.from else dep.to
@@ -367,9 +367,10 @@ class AffectedByTool(
         val queue = ArrayDeque<Int>()
         val depth = IntArray(entries.size)
 
+        val hierarchy = graphService.model.hierarchy
         fun neighbours(node: HGNode): Sequence<HGNode> =
-            if (incoming) node.incomingCoreDependencies.asSequence().map { it.from }
-            else node.outgoingCoreDependencies.asSequence().map { it.to }
+            if (incoming) hierarchy.incomingOf(node).asSequence().map { it.from }
+            else hierarchy.outgoingOf(node).asSequence().map { it.to }
 
         var walk = 0
         for (sourceId in sourceTypeIds) {

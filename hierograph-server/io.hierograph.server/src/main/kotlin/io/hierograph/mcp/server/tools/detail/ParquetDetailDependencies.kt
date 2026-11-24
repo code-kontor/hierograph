@@ -165,9 +165,12 @@ class ParquetDetailDependencies(
         fun memberHandle(owner: Node, key: String): Long =
             store.memberOf(owner, key)?.let { handle(it) } ?: graphService.memberHandle(key)
         // The scopes' type nodes (the depending side with its closure): a row of a same-FQN type in another artifact is not in scope.
-        // An open side accepts any type the GraphStore knows.
+        // An open side accepts any type the GraphStore knows that the hierarchy has: a view's excluded types are not.
         val fromScopeHandles = fromScope?.mapTo(HashSet()) { it.identifier as Long }
         val toScopeHandles = toScope?.mapTo(HashSet()) { it.identifier as Long }
+        val model = graphService.model
+        fun inScope(n: Node, handles: Set<Long>?): Boolean =
+            if (handles != null) handle(n) in handles else model.lookupNode(handle(n)) != null
         // Parquet direct edges + the load-derived hierarchy edges (overrides / virtual + resolved calls),
         // both scoped the same way; derived edges are the cross-artifact ones no single scan could see.
         val effectiveKind = effectiveRel?.let { DependencyKind.fromValue(it) }
@@ -177,8 +180,8 @@ class ParquetDetailDependencies(
         val raw = DetailQueryEngine(parquetDir)
             .query(DetailQuery(fromTypes = fromTypes, toTypes = toTypes, kind = effectiveKind, parameterIndex = parameterPosition)) + derived
         val scoped = raw.filter {
-            fromTypeNode(it)?.let { n -> fromScopeHandles == null || handle(n) in fromScopeHandles } == true &&
-                toTypeNode(it)?.let { n -> toScopeHandles == null || handle(n) in toScopeHandles } == true &&
+            fromTypeNode(it)?.let { n -> inScope(n, fromScopeHandles) } == true &&
+                toTypeNode(it)?.let { n -> inScope(n, toScopeHandles) } == true &&
                 (fromMember == null || it.fromKey == fromMember) && (toMember == null || it.toKey == toMember)
         }
 
@@ -366,7 +369,7 @@ class ParquetDetailDependencies(
             val t = queue.removeFirst()
             if (!visited.add(t.identifier)) continue
             scope += t
-            for (dep in t.outgoingCoreDependencies) {
+            for (dep in graphService.model.hierarchy.outgoingOf(t)) {
                 val bm = dep.attributesBitmap
                 if (JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_EXTENDS) || JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_IMPLEMENTS)) {
                     queue.add(dep.to)
@@ -386,7 +389,7 @@ class ParquetDetailDependencies(
         fun declared(t: Node): Node? = store.memberOf(t, "${t.fqn}#$signature")
         fun supertypes(t: Node, superclassOnly: Boolean): List<Node> {
             val hg = graphService.model.lookupNode(NodeHandle.of(t.key)) ?: return emptyList()
-            return hg.outgoingCoreDependencies.filter { dep ->
+            return graphService.model.hierarchy.outgoingOf(hg).filter { dep ->
                 JavaEdgeAttributes.isSet(dep.attributesBitmap, JavaEdgeAttributes.IS_EXTENDS) ||
                     (!superclassOnly && JavaEdgeAttributes.isSet(dep.attributesBitmap, JavaEdgeAttributes.IS_IMPLEMENTS))
             }.mapNotNull { (it.to.nodeSource as? GraphStoreNodeSource)?.key?.let(store::node) }

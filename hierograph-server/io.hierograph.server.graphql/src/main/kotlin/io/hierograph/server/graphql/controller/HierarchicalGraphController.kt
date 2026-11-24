@@ -139,7 +139,7 @@ class HierarchicalGraphController(private val nodeSearch: NodeSearch? = null) {
                 throw InvalidArgumentException("Invalid dependency id '$id': expected <source id>_<target id>_<type>")
             }
             val type = parts[2]
-            return hierarchy.lookupNode(from)?.outgoingCoreDependencies
+            return hierarchy.lookupNode(from)?.let { hierarchy.outgoingOf(it) }
                 ?.firstOrNull { it.to.identifier == to && it.type == type }
         }
     }

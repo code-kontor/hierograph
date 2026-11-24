@@ -114,11 +114,38 @@ object ViewResponses {
     /** Counts only: errors, warnings and applied groups; for a restructuring view also its virtual modules and new cycles. */
     fun summary(view: ViewSnapshot): LinkedHashMap<String, Any?> = AppliedViewSummary.of(view).toMap()
 
-    /** [entry] plus the applied groups and the full report of [view]; for a restructuring view its virtual modules and effect. */
+    /** The outermost nodes an excluding view leaves out listed in full; more are listed up to this and counted. */
+    const val MAX_EXCLUDED_NODES = 50
+
+    /**
+     * What a view with exclusions leaves out: `count`, every node gone with everything inside them, and
+     * `nodes`, the outermost ones the exclusions selected (id, qualified name, kind).
+     */
+    fun excluded(view: ViewSnapshot): LinkedHashMap<String, Any?> {
+        val nodes = view.materialized.excluded
+        return linkedMapOf<String, Any?>(
+            "count" to view.materialized.excludedCount,
+            "nodes" to nodes.take(MAX_EXCLUDED_NODES).map {
+                linkedMapOf<String, Any?>("id" to it.identifier, "qualified_name" to NodeMetadata.getQualifiedName(it), "kind" to it.kind?.toString())
+            },
+        ).apply { if (nodes.size > MAX_EXCLUDED_NODES) put("node_count", nodes.size) }
+    }
+
+    /**
+     * [entry] plus the applied groups and the full report of [view]; for a view with exclusions what it
+     * leaves out, for a restructuring view its virtual modules and effect.
+     */
     fun applied(view: ViewSnapshot): LinkedHashMap<String, Any?> = entry(view.entry).apply {
+        putExcluded(view)
         putRestructuring(view)
         put("groups", groups(view))
         put("report", report(view.materialized.report))
+    }
+
+    /** Adds what a [view] with exclusions leaves out; nothing for a view without exclusions. */
+    fun LinkedHashMap<String, Any?>.putExcluded(view: ViewSnapshot) {
+        if (view.materialized.document.exclude.isEmpty()) return
+        put("excluded", excluded(view))
     }
 
     /** Adds the virtual modules and the module-level effect of a restructuring [view]; nothing for a grouping view. */

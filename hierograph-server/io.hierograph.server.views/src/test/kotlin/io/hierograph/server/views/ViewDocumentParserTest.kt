@@ -25,6 +25,27 @@ class ViewDocumentParserTest {
         catchThrowableOfType(ViewDocumentException::class.java) { ViewDocumentParser.parse(json) }.problems
 
     @Test
+    fun `parses the exclusions, as selectors, with or without groups and moves`() {
+        val document = ViewDocumentParser.parse(
+            """{ "name": "multi-modules-no-test", "exclude": ["**:test", { "match": "com.acme.gen", "kind": "packages" }],
+                 "groups": [ { "name": "all", "members": ["acme:**"] } ] }""",
+        )
+
+        assertThat(document.exclude).containsExactly(MemberSelector("**:test"), MemberSelector("com.acme.gen", "packages"))
+        assertThat(ViewDocumentParser.parse("""{ "name": "v", "restructure": true, "exclude": ["**:test"] }""").exclude)
+            .hasSize(1)
+        assertThat(ViewDocumentParser.parse("""{ "name": "v" }""").exclude).isEmpty()
+    }
+
+    @Test
+    fun `rejects malformed exclusions with their location`() {
+        assertThat(problems("""{ "name": "v", "exclude": "**:test" }""")).containsExactly("exclude: must be an array")
+        assertThat(problems("""{ "name": "v", "exclude": ["a{b"] }""")).singleElement().asString().startsWith("exclude[0]")
+        assertThat(problems("""{ "name": "v", "exclude": [{ "match": "a", "kind": "nope" }] }"""))
+            .singleElement().asString().startsWith("exclude[0].kind: unknown kind")
+    }
+
+    @Test
     fun `parses the multi-module example of the design`() {
         val document = ViewDocumentParser.parse(
             """

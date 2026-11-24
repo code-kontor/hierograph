@@ -256,8 +256,9 @@ class OutgoingDependenciesTool(
         val targetWeights = linkedMapOf<Any, Int>()
 
         for (anchorType in anchorTypes) {
-            val deps = if (outgoing) anchorType.outgoingCoreDependencies
-                       else anchorType.incomingCoreDependencies
+            // As the hierarchy sees them: a view's excluded nodes take their dependencies along.
+            val deps = if (outgoing) graphService.model.hierarchy.outgoingOf(anchorType)
+                       else graphService.model.hierarchy.incomingOf(anchorType)
             for (dep in deps) {
                 val otherEndpoint = if (outgoing) dep.to else dep.from
                 if (otherSideTypeIds == null || otherEndpoint.identifier in otherSideTypeIds) {

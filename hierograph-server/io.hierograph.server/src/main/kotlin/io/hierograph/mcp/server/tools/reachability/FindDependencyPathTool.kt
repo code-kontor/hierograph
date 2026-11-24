@@ -116,7 +116,7 @@ class FindDependencyPathTool(
             val arrivals = mutableListOf<Partial>()
             val next = LinkedHashMap<HGNode, MutableList<Partial>>()
             for ((node, partials) in layer) {
-                for (dep in node.outgoingCoreDependencies) {
+                for (dep in graphService.model.hierarchy.outgoingOf(node)) {
                     val neighbor = dep.to
                     val neighborId = neighbor.identifier
                     val isTarget = neighborId in toTypeIds

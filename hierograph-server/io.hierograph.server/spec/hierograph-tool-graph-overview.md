@@ -78,7 +78,8 @@ also returns the modules. The two differ in what they add:
 ([MCP tools specification, §5](hierograph-mcp-tools.md#5-parameters)). Without
 it the tool describes the complete loaded graph as scanned; with it, the same graph in
 that [view](../../io.hierograph.server.views/spec/hierograph-views.md): `hierarchy` lists the view's top level — its groups and the nodes no
-group takes — and the response gains a `view` section.
+group takes — and the response gains a `view` section. The statistics count the view's
+hierarchy: nodes a view excludes, and their dependencies, are not counted.
 
 **`limit`** and **`cursor`** page the `hierarchy`. They are rarely needed: the default
 of 500 entries holds the top level of almost any codebase, and a page holds fewer when
@@ -236,7 +237,7 @@ root has id `4600`.
 | `scan_metadata.scanner` | always `"hierograph"` | names the producer of the graph |
 | `build_state` | present only when the server reads a build manifest | tells the caller whether the graph still matches the build files |
 | `graph_update` | present only while the server is updating the graph: `pending`, `rescanning`, `applying-manifest` or `reloading` | the graph is about to change, so the answer may be outdated within seconds; no `reload_graph` is needed |
-| `view` | present only when called with `view`: the view's name, description, source, file, shadowing, `group_count`, `errors`, `warnings` and its `report` | tells the caller what the view regroups and what could not be applied |
+| `view` | present only when called with `view`: the view's name, description, source, file, shadowing, `group_count`, `errors`, `warnings` and its `report`; a view with exclusions adds `excluded_count` and `excluded` (count, outermost nodes), a restructuring view its virtual modules and effect | tells the caller what the view regroups, what it leaves out and what could not be applied |
 
 **A hierarchy entry is a part of an enriched node reference.** It leaves out what every
 top-level entry shares — the parent, which is the root — and what orientation rarely

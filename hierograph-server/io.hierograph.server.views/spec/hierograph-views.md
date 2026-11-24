@@ -2,7 +2,10 @@
 
 A **view** is an alternative hierarchy over the observed system: a JSON document
 that groups nodes of the graph — modules, packages, types — into named groups,
-possibly nested. A **restructuring view** also moves packages and types into other or
+possibly nested. A view may **exclude** nodes first: modules, packages or types that
+leave the view with everything inside them and every dependency to and from them, so
+the same graph can be read without its tests or its generated code (§5.4). A
+**restructuring view** also moves packages and types into other or
 new modules and packages first: a virtual refactoring whose module dependencies and
 cycles can be read before any code is touched (§6.4). This module defines the view document, its member selectors, and
 how a document is resolved against a hierarchy, with the report of everything that
@@ -44,7 +47,7 @@ them.
  Hierarchy ─────┘
         │
         ▼
- ViewMaterializer.materialize            → MaterializedView: forked model + group nodes + report (§6)
+ ViewMaterializer.materialize            → MaterializedView: forked model (exclusions, moves, groups) + report (§6)
         │
         ▼
  ViewService.view(name)                  → ViewSnapshot: a GraphSnapshot of the view, cached per graph snapshot (§7)
@@ -70,7 +73,7 @@ them.
 - All members of a group, and all the groups nested in it, share **one parent** in
   the base hierarchy. The group takes their place below that parent: grouping
   inserts levels, it never takes a node away from its parent.
-- Nodes no group selects stay where they are.
+- Nodes no group selects stay where they are, unless the view excludes them (§5.4).
 - Sibling order carries no meaning (no tool depends on it), but it is
   deterministic: groups in document order, members in base-hierarchy order.
 
@@ -112,6 +115,7 @@ cycle between packages disappears from the group level when both are in one grou
 |-------|------|------|
 | `name` | string, required | the view's name; `[a-z0-9][a-z0-9._-]*` |
 | `description` | string, optional | free text |
+| `exclude` | array of selectors, optional | §4; the nodes the view leaves out, with everything inside them (§5.4); default empty |
 | `groups` | array, optional | the top-level groups; default empty |
 | `groups[].name` | string, required | not blank, no `/`, unique among its siblings |
 | `groups[].description` | string, optional | free text |
@@ -135,6 +139,7 @@ with every problem and its location (`groups[1].members[0].kind: unknown kind �
 | invalid view or group name | `name: 'Multi' is not a valid view name; …` |
 | duplicate sibling name | `groups: the group name 'core' is used more than once among sibling groups` |
 | unknown field | `groups[0].member: unknown field; allowed are name, description, members, groups` |
+| `exclude` not an array, or a malformed selector in it | `exclude: must be an array`, `exclude[0].kind: unknown kind …` |
 | `modules` or `moves` without `"restructure": true` | `moves: only a restructuring view has moves; set "restructure": true` |
 | invalid or duplicate module name | `modules[0].name: 'a:b' is not a valid module name; …` |
 | move without `select`, or with a malformed target | `moves[2].to: 'm/' is not a target; use a module, a virtual module or <module>/<package>` |
@@ -255,9 +260,44 @@ document stays usable while it is being fixed.
 | `EMPTY_GROUP` | warning | a group without members and without applied subgroups is not created |
 
 Each finding carries the group's path, the selector where one is involved, a message,
-and the nodes it is about. A restructuring view adds the findings of §6.4.4, which
-name the move (`moves[2]`) or module (`modules[0]`) instead of a group; their
-severity may also be `info`.
+and the nodes it is about. Exclusions add the findings of §5.4, which name the
+exclusion (`exclude[0]`) instead of a group. A restructuring view adds the findings of
+§6.4.4, which name the move (`moves[2]`) or module (`modules[0]`); their severity may
+also be `info`.
+
+### 5.4 Exclusion
+
+A view can leave nodes out: `"exclude": ["**:test"]` drops every test artifact, so the
+same graph can be read with and without the tests, generated code, or modules that do
+not matter for a question, without restarting the server with other settings
+(`hierograph.graph.include-tests` still decides whether test artifacts are scanned at
+all).
+
+- **What an exclusion selects.** Each entry is a selector (§4), resolved against the
+  base hierarchy; `kind` and `within` work as for members. A node two exclusions select
+  belongs to the first. A node inside another excluded node goes with it.
+- **What an excluded node means.** It and everything inside it are gone from the
+  view's hierarchy, and so are the dependencies to and from it: they drop out of every
+  accumulated and aggregated dependency, and of a node's own dependencies as the view
+  reads them (hierarchical-graph model specification, §6.1, §7.2). Aggregated weights,
+  levels and cycles are computed without them, so a cycle that only exists through
+  test code is gone from the view. The tools neither list nor count excluded nodes, and
+  `find_node` does not find them (§7.2).
+- **Order.** Exclusions apply first, to a fork of the base model; a restructuring
+  view's moves (§6.4) and every view's groups are then resolved against what is left. A
+  group or move selector never selects an excluded node; one that then matches nothing
+  is reported as such (`SELECTOR_MATCHES_NOTHING`, `MOVE_SELECTS_NOTHING`), and a
+  restructuring's effect compares the modules without the excluded ones.
+- **Reporting.** Every exclusion that leaves something out adds an info naming what it
+  selected and how many nodes, and types among them, left the view, so a pattern that
+  excludes too much is visible. `MaterializedView.excluded` holds the outermost
+  excluded nodes, `excludedCount` all of them.
+
+| Code | Severity | Effect |
+|------|----------|--------|
+| `EXCLUDE_SELECTS_NOTHING` | warning | the exclusion is ignored |
+| `WITHIN_MATCHES_NOTHING` | warning | the exclusion cannot match and is ignored |
+| `NODES_EXCLUDED` | info | what the exclusion leaves out: the nodes it selects, and the count of every node and type gone with them |
 
 ---
 
@@ -265,6 +305,9 @@ severity may also be `info`.
 
 `ViewMaterializer.materialize(base, resolved)` applies a resolved view to a
 **fork** of the base model; the base model is never changed.
+`ViewMaterializer.materialize(base, document)` first removes the view's exclusions from
+a fork (§5.4), applies a restructuring view's moves to the result (§6.4), and resolves
+and places the groups in what that leaves.
 
 1. For each group of `ResolvedView.groups`, in document order, create a local node
    and add it below the group's `parent`.
@@ -644,7 +687,7 @@ the view.
 | Snapshot field | In the view's snapshot |
 |----------------|------------------------|
 | `model` | the materialized fork |
-| `searchIndex` | the base index plus the group nodes; the entries of real nodes are shared |
+| `searchIndex` | the base index plus the group nodes, the entries of real nodes shared; for a restructuring view, or a view that excludes nodes, an index built from the view's own hierarchy |
 | `dataHash` | the base data hash combined with the document's text: a cursor issued in a view is rejected when the graph or the document changes |
 | `view` | the view's name |
 | everything else | the base snapshot's: graph store, member handles, generation |
@@ -741,6 +784,12 @@ Each view tool has its own specification in the server module:
 | `get_view(name)` | the entry, the document, the applied groups and the full report; for an invalid document its problems |
 | `delete_view(name)` | removes a state view; returns the project view that applies again, or `null`. A project view is a `PROJECT_VIEW` error |
 
+For a view with exclusions, `define_view`, `get_view` and the `view` section of
+`graph_overview` add `excluded`: `count`, every node the view leaves out, and `nodes`,
+the outermost ones the exclusions selected (id, qualified name, kind; at most 50,
+`node_count` then gives the total). `list_views` and the summaries add
+`excluded_count`.
+
 For a restructuring view, `define_view`, `get_view` and the `view` section of
 `graph_overview` add `virtual_modules` (name, id, child count) and `restructuring`,
 the effect of §6.4.4: `added` and `removed` module dependencies (`from`, `to`,
@@ -784,7 +833,8 @@ with the MCP tools.
 | `ViewResolver.resolve(document)` | the `ResolvedView` |
 | `ViewResolver.select(selector)` | the nodes one selector selects, in pre-order |
 | `ViewReport` | `findings`, `errors`, `warnings`, `hasErrors` |
-| `ViewMaterializer.materialize(base, document \| resolved)` | the `MaterializedView`: `model`, `groupNodes` by path, `report`; for a restructuring view also `virtualModules` and `effect` |
+| `ViewMaterializer.materialize(base, document \| resolved)` | the `MaterializedView`: `model`, `groupNodes` by path, `report`; for a view with exclusions also `excluded` and `excludedCount`; for a restructuring view also `virtualModules` and `effect` |
+| `ViewExcluder.exclude(base, document)` | the `Excluded` fork: `model`, `excluded` (the outermost excluded nodes), `excludedCount`, `findings` |
 | `ViewGroups` | `KIND`, `qualifiedName(view, path)`, `handle(view, path)`, `isGroup(node)` |
 | `ViewRestructurer.restructure(base, document)` | the `Restructured` fork: `model`, `virtualModules`, `findings`, `effect`, `applied` |
 | `ViewNodes` | `moduleHandle(view, name)`, `packageHandle(view, module, fqn)`, `isVirtual(node)` |
@@ -853,7 +903,14 @@ decided, not why.
     document order, members in base-hierarchy order; the model has no positional
     insert, because no tool or analysis depends on sibling order (§6.1). Only
     determinism matters.
-13. **The model guards the tree, materialization reports.** The model rejects a move
+13. **Exclusion is part of the view, and comes first.** Whether test artifacts are in
+    the graph was a server-wide setting; a view that leaves nodes out lets the same graph
+    be read with and without them, side by side. Exclusions apply before moves and
+    groups, so nothing selects an excluded node and a restructuring's effect is not
+    distorted by code the view leaves out. The hierarchy itself drops the dependencies
+    to and from a removed node, so every tool and analysis reads the view correctly
+    without filtering on its own.
+14. **The model guards the tree, materialization reports.** The model rejects a move
     into a node's own subtree, a second placement and a taken local identifier
     (hierarchical-graph model specification, §7.2, §7.3); materialization checks
     before it changes anything and turns each case into a report entry instead of

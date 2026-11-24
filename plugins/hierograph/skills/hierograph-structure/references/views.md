@@ -118,6 +118,13 @@ picks as a project view (step 2). Never leave a runtime view as the result of a 
   test artifact alike.
 - A node is in at most one group; the direct members of a group must share one
   parent (modules: the root). Overlapping groupings are separate views.
+- **`exclude`** leaves nodes out of the view: `"exclude": ["**:test"]` drops every
+  test artifact, `{"match": "com.acme.generated", "kind": "packages"}` generated code.
+  An excluded node goes with everything inside it and every dependency to and from it,
+  so weights, levels and cycles in the view are computed without it — a cycle that only
+  exists through test code is gone. Exclusions apply before groups (and moves), so a
+  group never selects an excluded node. Use it to answer "how is the production code
+  layered?" without restarting the server with other settings.
 - Restructuring views (`"restructure": true`, `modules`, `moves`) move code; they
   belong to **hierograph-extract**.
 
@@ -130,6 +137,8 @@ picks as a project view (step 2). Never leave a runtime view as the result of a 
 | `MEMBERS_WITH_DIFFERENT_PARENTS` | a group mixes levels (a module and a package) | split the group, or select at one level |
 | `MEMBER_INSIDE_OTHER_GROUPS_MEMBER` | a group selects something inside another group's member | drop the inner selection |
 | `EMPTY_GROUP` | nothing left to group | fix or remove the group |
+| `NODES_EXCLUDED` (info) | what an exclusion left out: the nodes it selected, and how many nodes and types went | check the count; a pattern that takes too much shows here |
+| `EXCLUDE_SELECTS_NOTHING` | an exclusion matches no node | check the pattern, as for a selector |
 
 Warnings leave the rest of the view applied; errors drop exactly what they name. A
 report with zero errors is the precondition for claiming anything about the
@@ -142,5 +151,8 @@ grouping.
 - **A GAV pattern needs its version part.** `com.acme:acme-core` matches nothing;
   write `com.acme:acme-core:*` (and `com.acme:acme-core:**` to take the test
   artifact as well).
+- **An excluded node is unknown in the view** (`NODE_NOT_FOUND`) and `find_node`
+  doesn't find it there; its id still works without `view`. `get_view(name).excluded`
+  lists what the view leaves out.
 - **Stacking order between groups without edges is an artifact**, in the DSM and the
   layered graph alike; say so rather than reading a dependency into it.

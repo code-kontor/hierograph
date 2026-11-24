@@ -92,12 +92,25 @@ class HierarchyImpl(
     override fun isSuccessorOf(descendant: HGNode, ancestor: HGNode): Boolean =
         isPredecessorOf(ancestor, descendant)
 
+    // a node's own core dependencies
+
+    // A removed core node's dependencies leave this hierarchy at both ends. Its own dependencies are out
+    // already, since it is in no subtree; the ones of the nodes it is connected to are filtered here.
+    // Without removed nodes, the node's lists are returned as they are.
+    override fun outgoingOf(node: HGNode): List<HGCoreDependency> =
+        if (removedIds.isEmpty()) node.outgoingCoreDependencies
+        else node.outgoingCoreDependencies.filter { it.to.identifier !in removedIds }
+
+    override fun incomingOf(node: HGNode): List<HGCoreDependency> =
+        if (removedIds.isEmpty()) node.incomingCoreDependencies
+        else node.incomingCoreDependencies.filter { it.from.identifier !in removedIds }
+
     // accumulated dependencies
 
     override fun accumulatedOutgoing(node: HGNode): List<HGCoreDependency> {
         return accOutCache.memo(node.identifier) {
             buildList {
-                addAll(node.outgoingCoreDependencies)
+                addAll(outgoingOf(node))
                 for (child in childrenOf(node)) {
                     addAll(accumulatedOutgoing(child))
                 }
@@ -108,7 +121,7 @@ class HierarchyImpl(
     override fun accumulatedIncoming(node: HGNode): List<HGCoreDependency> {
         return accInCache.memo(node.identifier) {
             buildList {
-                addAll(node.incomingCoreDependencies)
+                addAll(incomingOf(node))
                 for (child in childrenOf(node)) {
                     addAll(accumulatedIncoming(child))
                 }

@@ -266,8 +266,11 @@ class ViewService @Autowired constructor(private val graphService: HierarchicalG
         val snapshot = base.copy(
             model = materialized.model,
             // A grouping view only adds group nodes; a restructuring view also adds virtual nodes and removes
-            // real ones, so its index is built from its own hierarchy.
-            searchIndex = if (materialized.document.restructure && materialized.model !== base.model) {
+            // real ones, and a view with exclusions removes real ones, so their index is built from their own
+            // hierarchy.
+            searchIndex = if ((materialized.document.restructure || materialized.excludedCount > 0) &&
+                materialized.model !== base.model
+            ) {
                 NodeSearchIndex.build(materialized.model)
             } else {
                 base.searchIndex.withAdditional(materialized.groupNodes.values)

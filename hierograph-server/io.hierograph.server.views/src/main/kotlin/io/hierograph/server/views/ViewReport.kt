@@ -35,8 +35,9 @@ data class ViewReport(val findings: List<ViewFinding>) {
 /**
  * One finding of a [ViewReport].
  *
- * [group] is the path of the group it concerns (`core/hierograph-graphstore`), or for a restructuring
- * finding the move (`moves[2]`) or module (`modules[0]`) of the document; [selector] is the selector where
+ * [group] is the path of the group it concerns (`core/hierograph-graphstore`), for an exclusion finding the
+ * exclusion (`exclude[0]`), or for a restructuring finding the move (`moves[2]`) or module (`modules[0]`)
+ * of the document; [selector] is the selector where
  * one is involved, and [nodes] the graph nodes it is about, in the order the [message] names them.
  */
 data class ViewFinding(
@@ -73,6 +74,14 @@ data class ViewFinding(
 
         /** A group's handle is already taken by a node of the graph. The whole view is not applied. */
         GROUP_HANDLE_COLLISION(Severity.ERROR),
+
+        // exclusion (views specification, §5.4)
+
+        /** An exclusion's selector selects nothing. The exclusion is ignored. */
+        EXCLUDE_SELECTS_NOTHING(Severity.WARNING),
+
+        /** What an exclusion leaves out: the nodes it selects and the nodes inside them, counted. */
+        NODES_EXCLUDED(Severity.INFO),
 
         // restructuring (views specification, §6.4)
 

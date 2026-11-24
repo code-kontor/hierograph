@@ -114,6 +114,21 @@ class ViewServiceTest {
     }
 
     @Test
+    fun `a view with exclusions has a search index of its own hierarchy, without the excluded nodes`() {
+        project("no-util.json", """{ "name": "no-util", "exclude": ["acme:util:*"],
+            "groups": [ { "name": "all", "members": ["acme:*:*"] } ] }""")
+
+        val view = service.view("no-util")
+        val index = view.snapshot.searchIndex
+
+        assertThat(index.entries.map { it.fqn })
+            .contains("no-util:all", "acme:app:1.0", "com.acme.core.Type")
+            .doesNotContain("acme:util:1.0", "com.acme.util", "com.acme.util.Type")
+        assertThat(view.materialized.excludedCount).isEqualTo(3)
+        assertThat(AppliedViewSummary.of(view).toMap()).containsEntry("excluded_count", 3)
+    }
+
+    @Test
     fun `the data hash differs from the graph's, is stable, and changes with the document`() {
         val file = project("layers.json", layers)
         val graphHash = graphService.liveSnapshot()!!.dataHash

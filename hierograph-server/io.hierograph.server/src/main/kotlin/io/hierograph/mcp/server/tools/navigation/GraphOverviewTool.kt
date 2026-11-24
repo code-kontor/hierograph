@@ -106,7 +106,7 @@ class GraphOverviewTool(
         var totalEdges = 0
         for (child in hierarchy.childrenOf(rootNode)) {
             hierarchy.traverse(child) { node ->
-                for (dep in node.outgoingCoreDependencies) {
+                for (dep in hierarchy.outgoingOf(node)) {
                     totalEdges++
                     for ((kind, count) in GraphStoreDependencySource.kindsOf(dep)) weightByKind.merge(kind, count, Int::plus)
                     val bitmap = dep.attributesBitmap
@@ -254,7 +254,10 @@ class GraphOverviewTool(
                 view?.let {
                     response["view"] = ViewResponses.entry(it.entry).apply {
                         putAll(ViewResponses.summary(it))
-                        with(ViewResponses) { putRestructuring(it) }
+                        with(ViewResponses) {
+                            putExcluded(it)
+                            putRestructuring(it)
+                        }
                         put("report", ViewResponses.report(it.materialized.report))
                     }
                 }

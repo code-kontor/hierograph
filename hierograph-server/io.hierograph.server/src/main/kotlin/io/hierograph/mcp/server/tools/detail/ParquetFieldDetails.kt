@@ -108,7 +108,7 @@ class ParquetFieldDetails(graphService: HierarchicalGraphService) : AbstractDeta
         val seen = hashSetOf(owner.identifier)
         while (queue.isNotEmpty()) {
             val t = queue.removeFirst()
-            for (dep in t.incomingCoreDependencies) {
+            for (dep in model.hierarchy.incomingOf(t)) {
                 val bm = dep.attributesBitmap
                 val inherits = JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_EXTENDS) ||
                     JavaEdgeAttributes.isSet(bm, JavaEdgeAttributes.IS_IMPLEMENTS)

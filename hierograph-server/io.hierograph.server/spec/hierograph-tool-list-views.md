@@ -162,6 +162,7 @@ Each entry of `views`:
 | `problems` | invalid | every problem with its location | what to fix |
 | `group_count` | valid, graph loaded | number of applied groups | whether the view does anything |
 | `errors`, `warnings` | valid, graph loaded | counts of the report's findings | whether the view applies cleanly |
+| `excluded_count` | view with exclusions, graph loaded | every node the view leaves out | whether an exclusion takes what it should |
 | `restructure` | restructuring view, graph loaded | `true` | marks a view that moves code |
 | `virtual_module_count` | restructuring view, graph loaded | number of virtual modules | the size of the projected split |
 | `introduces_cycles` | restructuring view, graph loaded | whether the moves create a module cycle | the first question about a split, answered in the listing |

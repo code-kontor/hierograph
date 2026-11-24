@@ -51,7 +51,10 @@ class DefaultViewInfo(val topLevelCount: Int?) {
     }
 }
 
-/** What applying a view to a graph produced: how many groups, errors and warnings, and for a restructuring its size and effect. */
+/**
+ * What applying a view to a graph produced: how many groups, errors and warnings, for a view with exclusions
+ * how many nodes it leaves out, and for a restructuring its size and effect.
+ */
 data class AppliedViewSummary(
     val groupCount: Int,
     val errors: Int,
@@ -59,12 +62,15 @@ data class AppliedViewSummary(
     val restructure: Boolean,
     val virtualModuleCount: Int?,
     val introducesCycles: Boolean?,
+    /** The nodes the view leaves out, with everything inside them; `null` for a view without exclusions. */
+    val excludedCount: Int? = null,
 ) {
     fun toMap(): LinkedHashMap<String, Any?> = linkedMapOf<String, Any?>(
         "group_count" to groupCount,
         "errors" to errors,
         "warnings" to warnings,
     ).apply {
+        excludedCount?.let { put("excluded_count", it) }
         if (restructure) {
             put("restructure", true)
             put("virtual_module_count", virtualModuleCount)
@@ -83,6 +89,7 @@ data class AppliedViewSummary(
                 restructure = restructure,
                 virtualModuleCount = if (restructure) materialized.virtualModules.size else null,
                 introducesCycles = if (restructure) materialized.effect?.let { it.newCycles.isNotEmpty() } else null,
+                excludedCount = if (materialized.document.exclude.isNotEmpty()) materialized.excludedCount else null,
             )
         }
     }

@@ -28,7 +28,8 @@ import io.hierograph.server.views.ViewFinding.Code
  *
  * [model] is the base model itself when nothing was changed, and a fork otherwise; the base model is never
  * changed. [groupNodes] maps each created group's path to its node. A restructuring view also has its
- * [virtualModules] by name and the [effect] of its moves on the modules (§6.4).
+ * [virtualModules] by name and the [effect] of its moves on the modules (§6.4). [excluded] are the
+ * outermost nodes the view leaves out (§5.4), and [excludedCount] counts them with everything inside them.
  */
 class MaterializedView(
     val document: ViewDocument,
@@ -37,6 +38,8 @@ class MaterializedView(
     val report: ViewReport,
     val virtualModules: Map<String, HGNode> = emptyMap(),
     val effect: RestructuringEffect? = null,
+    val excluded: List<HGNode> = emptyList(),
+    val excludedCount: Int = 0,
 )
 
 /** The identities of group nodes (views specification, §6.2). */
@@ -69,18 +72,31 @@ object ViewGroups {
 object ViewMaterializer {
 
     /**
-     * Resolves [document] against [base] and materializes it. A restructuring view first applies its moves
-     * to a fork ([ViewRestructurer]); its groups are then resolved against, and placed in, the result.
+     * Resolves [document] against [base] and materializes it. Its exclusions are applied first, to a fork
+     * ([ViewExcluder]); a restructuring view then applies its moves to the result ([ViewRestructurer]); its
+     * groups are resolved against, and placed in, what that leaves. So no move or group ever selects an
+     * excluded node, and a restructuring's effect compares the modules without them.
      */
     fun materialize(base: HGModel, document: ViewDocument): MaterializedView {
-        if (!document.restructure) return materialize(base, ViewResolver(base.hierarchy).resolve(document))
-        val restructured = ViewRestructurer.restructure(base, document)
-        if (!restructured.applied) return MaterializedView(document, base, emptyMap(), ViewReport(restructured.findings))
+        val excluded = ViewExcluder.exclude(base, document)
+        val start = excluded.model
+        if (!document.restructure) {
+            val grouped = place(start, ViewResolver(start.hierarchy).resolve(document), fork = start === base)
+            return MaterializedView(
+                document, grouped.model, grouped.groupNodes, ViewReport(excluded.findings + grouped.report.findings),
+                excluded = excluded.excluded, excludedCount = excluded.excludedCount,
+            )
+        }
+        val restructured = ViewRestructurer.restructure(start, document)
+        if (!restructured.applied) {
+            return MaterializedView(document, base, emptyMap(), ViewReport(excluded.findings + restructured.findings))
+        }
         val resolved = ViewResolver(restructured.model.hierarchy).resolve(document)
         val grouped = place(restructured.model, resolved, fork = false)
         return MaterializedView(
-            document, grouped.model, grouped.groupNodes, ViewReport(restructured.findings + grouped.report.findings),
-            restructured.virtualModules, restructured.effect,
+            document, grouped.model, grouped.groupNodes,
+            ViewReport(excluded.findings + restructured.findings + grouped.report.findings),
+            restructured.virtualModules, restructured.effect, excluded.excluded, excluded.excludedCount,
         )
     }
 

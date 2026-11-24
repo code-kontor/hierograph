@@ -79,8 +79,10 @@ which the caller has just sent.
 
 **`document`** is a view document as defined in the
 [views specification, §3](../../io.hierograph.server.views/spec/hierograph-views.md#3-the-document):
-a `name`, an optional `description`, `groups` with member selectors, and for a
-restructuring view `"restructure": true`, `modules` and `moves`. It is a JSON object,
+a `name`, an optional `description`, `groups` with member selectors, optionally
+`exclude` with selectors of the nodes the view leaves out (§5.4 there; `["**:test"]`
+drops the test artifacts), and for a restructuring view `"restructure": true`,
+`modules` and `moves`. It is a JSON object,
 not a string holding JSON, so the client's schema validation and the model's tool
 call both see its structure. A short grouping view:
 
@@ -222,6 +224,7 @@ the move, `billing-core` depends on `money` with weight 4, and the dependency on
 |-------|---------|-----|
 | `groups` | one entry per applied group, in materialization order: `path`, `id`, `parent_id`, `child_count` | the ids to pass to other tools, and where each group landed |
 | `report` | `errors`, `warnings`, `infos` counts and `findings` | what could not be applied, and why |
+| `excluded` | views with exclusions only: `count`, every node the view leaves out, and `nodes`, the outermost ones the exclusions selected (`id`, `qualified_name`, `kind`; at most 50, `node_count` then gives the total) | shows whether a pattern excludes too much, or too little |
 | `virtual_modules` | restructuring views only: `name`, `id`, `child_count` per virtual module | the ids of the modules the view creates |
 | `restructuring` | restructuring views only: the module-level effect | answers "does this move add a dependency or a cycle?" without a second call |
 

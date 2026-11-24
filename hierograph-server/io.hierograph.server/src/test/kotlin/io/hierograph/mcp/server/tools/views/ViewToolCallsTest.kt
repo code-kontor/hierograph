@@ -461,6 +461,53 @@ class ViewToolCallsTest {
         assertThat(found).allMatch { it["parent_id"] != null }
     }
 
+    private val noUtil = """{ "name": "no-util", "exclude": ["acme:util:*"] }"""
+
+    private fun moduleId(gav: String): Long {
+        val h = graphService.model.hierarchy
+        return h.childrenOf(h.rootNode).single { NodeMetadata.getQualifiedName(it) == gav }.identifier as Long
+    }
+
+    @Test
+    fun `define_view of a view with exclusions returns what it leaves out, and list_views counts it`() {
+        val defined = call("define_view", "document" to mapper.readValue(noUtil, Map::class.java))
+
+        val excluded = defined["excluded"] as Map<String, Any?>
+        assertThat((excluded["nodes"] as List<Map<String, Any?>>).map { it["qualified_name"] }).containsExactly("acme:util:1.0")
+        assertThat(excluded["count"] as Int).isGreaterThan(1)
+        val findings = (defined["report"] as Map<String, Any?>)["findings"] as List<Map<String, Any?>>
+        assertThat(findings.map { it["code"] to it["group"] }).containsExactly("NODES_EXCLUDED" to "exclude[0]")
+        val listed = (call("list_views")["views"] as List<Map<String, Any?>>).single { it["name"] == "no-util" }
+        assertThat(listed["excluded_count"]).isEqualTo(excluded["count"])
+    }
+
+    @Test
+    fun `in a view with exclusions the excluded nodes and their dependencies are gone`() {
+        project("no-util.json", noUtil)
+        val app = moduleId("acme:app:1.0")
+        val core = moduleId("acme:core:1.0")
+        val util = moduleId("acme:util:1.0")
+
+        val top = call("list_children", "nodeId" to rootId(), "view" to "no-util")
+        val found = call("find_node", "name" to "Strings", "view" to "no-util")
+        val dependencies = call("aggregated_dependencies", "sourceIds" to listOf(app, core), "targetIds" to listOf(app, core), "view" to "no-util")
+
+        assertThat((top["results"] as List<Map<String, Any?>>).map { it["name"] }).doesNotContain("util").contains("app", "core")
+        assertThat(found["results"] as List<*>).isEmpty()
+        assertThat((call("find_node", "name" to "Strings")["results"] as List<*>)).isNotEmpty()
+        assertThat((dependencies["edges"] as List<Map<String, Any?>>).map { it["weight"] }).containsExactly(2)
+        assertThat(call("list_children", "nodeId" to util, "view" to "no-util")["error"].toString()).contains("NODE_NOT_FOUND")
+        // the graph overview's view section says what is left out
+        val view = call("graph_overview", "view" to "no-util")["view"] as Map<String, Any?>
+        assertThat(view).containsKey("excluded")
+        assertThat(view["excluded_count"]).isEqualTo((view["excluded"] as Map<String, Any?>)["count"])
+    }
+
+    @Test
+    fun `the define_view description documents exclusions`() {
+        assertThat(tools.getValue("define_view").toolDefinition.description()).contains("\"exclude\": [selectors]", "**:test")
+    }
+
     @Test
     fun `graph_overview of a restructuring view summarizes the restructuring`() {
         call("define_view", "document" to extractUtil)

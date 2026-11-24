@@ -17,7 +17,8 @@ package io.hierograph.server.views
 
 /**
  * A view: a named, declarative grouping of graph nodes (views specification, §2), and, with [restructure],
- * a virtual refactoring that moves nodes into other or new modules and packages first (§6.4).
+ * a virtual refactoring that moves nodes into other or new modules and packages first (§6.4). Before
+ * either, it may leave nodes out ([exclude], §5.4).
  *
  * Instances come from [ViewDocumentParser], which checks the rules of §3; a document that reaches a
  * [ViewResolver] is therefore well-formed, and everything that can still go wrong is a matter of the graph
@@ -35,6 +36,8 @@ data class ViewDocument(
     val modules: List<VirtualModuleDefinition> = emptyList(),
     /** The moves, applied in document order before the [groups]. */
     val moves: List<MoveDefinition> = emptyList(),
+    /** The nodes the view leaves out, with everything inside them; applied before the moves and the groups. */
+    val exclude: List<MemberSelector> = emptyList(),
 ) {
     companion object {
         /** The allowed form of a view name: lower-case, digits, `.`, `_` and `-`, not starting with a separator. */

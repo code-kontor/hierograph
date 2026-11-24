@@ -27,6 +27,18 @@ interface Hierarchy {
     fun isPredecessorOf(ancestor: HGNode, descendant: HGNode): Boolean
     fun isSuccessorOf(descendant: HGNode, ancestor: HGNode): Boolean
 
+    // a node's own core dependencies, as this hierarchy sees them
+
+    /**
+     * [node]'s own outgoing core dependencies in this hierarchy: [HGNode.outgoingCoreDependencies] without
+     * those to a node [remove]d from it. Code that reads a node's dependencies for an answer in a hierarchy
+     * reads them here, so a dependency on a removed node never shows.
+     */
+    fun outgoingOf(node: HGNode): List<HGCoreDependency>
+
+    /** [node]'s own incoming core dependencies in this hierarchy, without those from a node [remove]d from it. */
+    fun incomingOf(node: HGNode): List<HGCoreDependency>
+
     // accumulated dependencies (hierarchy-dependent)
     fun accumulatedOutgoing(node: HGNode): List<HGCoreDependency>
     fun accumulatedIncoming(node: HGNode): List<HGCoreDependency>
@@ -88,8 +100,9 @@ interface Hierarchy {
     /**
      * Takes [node], which must have no children, out of this hierarchy: it is detached from its parent, and
      * [lookupNode] no longer finds it here (a local node is dropped, a core node stays in the core graph and
-     * in other hierarchies). Its own dependencies drop out of every accumulation in this hierarchy. Fails
-     * with [IllegalArgumentException] when [node] is the root or has children: move them first.
+     * in other hierarchies). Its dependencies, to and from it, drop out of this hierarchy: of every
+     * accumulation and aggregation, and of [outgoingOf] and [incomingOf] of the nodes at their other ends.
+     * Fails with [IllegalArgumentException] when [node] is the root or has children: move them first.
      */
     fun remove(node: HGNode)
     fun fork(): Hierarchy

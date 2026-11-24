@@ -233,6 +233,28 @@ class ForkAndLocalNodeTest {
         }
 
         @Test
+        fun `a removed node's dependencies leave the hierarchy at their other end too`() {
+            val fork = g.hierarchy.fork()
+
+            fork.remove(g.b3)
+
+            assertThat(fork.outgoingOf(g.a3)).doesNotContain(g.dep_a3_b3_depends_on)
+            assertThat(fork.accumulatedOutgoing(g.a1)).doesNotContain(g.dep_a3_b3_depends_on)
+            assertThat(fork.accumulatedIncoming(g.b1)).doesNotContain(g.dep_a3_b3_depends_on)
+            assertThat(fork.getAggregatedDependency(g.a1, g.b1)!!.aggregatedWeight).isEqualTo(3)
+            // the node keeps its dependencies in the core graph and in the original hierarchy
+            assertThat(g.a3.outgoingCoreDependencies).contains(g.dep_a3_b3_depends_on)
+            assertThat(g.hierarchy.outgoingOf(g.a3)).contains(g.dep_a3_b3_depends_on)
+            assertThat(g.hierarchy.getAggregatedDependency(g.a1, g.b1)!!.aggregatedWeight).isEqualTo(4)
+        }
+
+        @Test
+        fun `without removed nodes a node's own dependencies are its core dependencies`() {
+            assertThat(g.hierarchy.outgoingOf(g.a3)).isSameAs(g.a3.outgoingCoreDependencies)
+            assertThat(g.hierarchy.incomingOf(g.b3)).isSameAs(g.b3.incomingCoreDependencies)
+        }
+
+        @Test
         fun `a removed local node is dropped`() {
             val group = g.hierarchy.group("g")
 

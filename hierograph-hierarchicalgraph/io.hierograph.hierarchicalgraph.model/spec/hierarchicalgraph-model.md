@@ -329,9 +329,23 @@ root
     └── Money
 ```
 
-### 6.1 Accumulated dependencies
+### 6.1 A node's own dependencies
 
-The **accumulated** dependencies of a node are its own core dependencies plus
+A node's core dependencies are facts of the core graph (`outgoingCoreDependencies`,
+`incomingCoreDependencies`). A hierarchy reads them through two methods, so that a
+node removed from it (§7.2) takes its dependencies along at both ends:
+
+| Method | Returns |
+|--------|---------|
+| `outgoingOf(node)` | `node`'s own outgoing core dependencies, without those to a node removed from this hierarchy |
+| `incomingOf(node)` | `node`'s own incoming core dependencies, without those from a node removed from this hierarchy |
+
+Without removed nodes they return the node's own lists. Code that answers about a
+node in a hierarchy reads its dependencies here, never from the node itself.
+
+### 6.2 Accumulated dependencies
+
+The **accumulated** dependencies of a node are its own core dependencies (§6.1) plus
 those of every descendant: everything that starts (or ends) anywhere in its
 subtree.
 
@@ -349,7 +363,7 @@ on the target.
 Each core dependency appears once in a node's accumulated list. The list is the
 node's own dependencies, then each child's accumulated list, in child order.
 
-### 6.2 Aggregated dependencies
+### 6.3 Aggregated dependencies
 
 An **aggregated** dependency is a virtual edge between two nodes that summarizes
 every core dependency **from somewhere in the first subtree to somewhere in the
@@ -430,10 +444,13 @@ already placed, and `addChild` only for a node that has no parent in this
 hierarchy yet.
 
 `remove` is for nodes a restructuring leaves empty, such as a package whose types
-moved elsewhere. A removed local node is dropped. A removed core node stays in the
-core graph and in every other hierarchy, but this hierarchy, and the forks made from
-it afterwards, no longer find it with `lookupNode`; its own dependencies drop out of
-every accumulation here. Adding it again with `addChild` makes it visible again.
+moved elsewhere, and for nodes a view leaves out, removed bottom-up. A removed local
+node is dropped. A removed core node stays in the core graph and in every other
+hierarchy, but this hierarchy, and the forks made from it afterwards, no longer find
+it with `lookupNode`. Its dependencies, to and from it, drop out of this hierarchy:
+of every accumulation and aggregation, and of `outgoingOf` and `incomingOf` of the
+nodes at their other ends (§6.1). Adding it again with `addChild` makes it visible
+again.
 
 All of them keep the hierarchy a tree and fail with `IllegalArgumentException`, leaving it
 unchanged, when a call would break it:

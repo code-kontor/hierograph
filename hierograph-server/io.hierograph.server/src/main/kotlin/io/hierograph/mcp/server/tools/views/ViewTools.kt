@@ -44,7 +44,10 @@ class ViewTools(
             "\"members\": [selectors], \"groups\": [nested groups]}]}. A selector is a qualified-name pattern " +
             "(module GAV, package or type fqn; '*' matches anything but ':', '**' anything, '{a,b}' alternatives) " +
             "or {\"match\": pattern, \"kind\": kind or alias, \"within\": pattern of an enclosing node}. A node is in " +
-            "at most one group; the direct members of a group must share one parent. A restructuring view also " +
+            "at most one group; the direct members of a group must share one parent. \"exclude\": [selectors] " +
+            "leaves nodes out of the view, with everything inside them and every dependency to and from them " +
+            "(e.g. [\"**:test\"] drops the test artifacts); it applies before moves and groups, so they never " +
+            "select an excluded node, and the result adds excluded (count, nodes). A restructuring view also " +
             "moves code, to project a split or merge before it is made: \"restructure\": true, \"modules\": " +
             "[{\"name\": \"...\"}] (virtual modules to create) and \"moves\": [{\"select\": selector, \"to\": " +
             "virtual module name, module GAV pattern or \"<module>/<package fqn>\"}] (packages and types move with " +
