@@ -8,6 +8,10 @@ export type Gesture = { keys: string; action: string };
 export const SELECTION_GESTURES: Gesture[] = [
   { keys: "Click", action: "Select: what it uses and what uses it" },
   { keys: "Click again, Esc", action: "Clear the selection" },
+  {
+    keys: "Pin button",
+    action: "Hold the selection: clicks keep it, only a menu changes it",
+  },
   { keys: "Click the empty space", action: "Clear the selection" },
   { keys: "Double-click, chevron", action: "Expand or collapse" },
   { keys: "Right-click", action: "The menu, each item with its gesture" },

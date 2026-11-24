@@ -488,6 +488,17 @@ describe("HierarchyTree", () => {
     ).toBeUndefined();
   });
 
+  it("lists its gestures and the pin in the pane's help, without zoom or pan", async () => {
+    const screen = await renderTree();
+
+    await screen.getByRole("button", { name: "Gestures" }).click();
+
+    const help = screen.getByRole("dialog", { name: "Gestures" });
+    await expect.element(help.getByText("Pin button")).toBeVisible();
+    await expect.element(help.getByText("Right-click")).toBeVisible();
+    await expect.element(help.getByText(/Zoom/)).not.toBeInTheDocument();
+  });
+
   it("walks the rows by keyboard: moves, expands, goes in and out, selects", async () => {
     const screen = await renderTree();
     await expect.element(item(screen, "fixture-app")).toBeVisible();

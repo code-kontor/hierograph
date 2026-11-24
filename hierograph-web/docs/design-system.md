@@ -55,6 +55,7 @@ when the two copies drift.
 | Click a node's chevron (in a tree, anything left of its name: indent, chevron, icon), or double-click the node | Expand or collapse it.                                                                                                                      |
 | Right-click a node                                                                                             | Context menu with the node's commands (see below).                                                                                          |
 | Click the empty canvas, `Esc`, or "Clear selection"                                                            | Clear the selection.                                                                                                                        |
+| Pin button, left of the `?`                                                                                    | Pin the selection: clicks, double-clicks and `Enter` keep it, only a menu's "Select …" changes it; clearing it unpins it.                   |
 | Wheel / `Shift`+wheel / trackpad swipe                                                                         | Scroll vertically / horizontally — the browser's native scrolling.                                                                          |
 | `Ctrl`/`⌘`+wheel, trackpad pinch                                                                               | Zoom, anchored at the pointer.                                                                                                              |
 | `Ctrl`/`⌘`+`+` / `−` / `0`, and a "Fit" button                                                                 | Zoom in / out / reset to 100 % / fit the graph to the viewport (while the graph has focus).                                                 |
@@ -107,7 +108,9 @@ when the two copies drift.
 - **One word for it: select.** The UI, the docs, tooltips and URL parameters say
   _select_ / _clear selection_, not _pin_ / _unpin_ or _focus_.
 - **Discoverable.** Every button's tooltip names its shortcut ("Clear selection (Esc)"),
-  and a `?` button in the graph pane lists the gestures above.
+  and a `?` button in the graph pane lists the gestures above, and the pane's buttons
+  that change what the gestures do: the pin (`SELECTION_GESTURES` holds both). A new
+  such button goes into the `?` too.
 - **Keyboard-operable** (WCAG 2.1.1): everything a mouse can do, the keyboard can do;
   the graph is focusable and the focused node is visible.
 - **Arrow keys move the way the graph is drawn; `+` / `−` expand and collapse
