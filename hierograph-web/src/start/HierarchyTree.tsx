@@ -33,7 +33,6 @@ import {
 import { Message } from "@/design-system/ui/message";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
-import { ExcludedNodes } from "./ExcludedNodes";
 import {
   hierarchyTreeChildrenQueryOptions,
   hierarchyTreeRootQueryOptions,
@@ -134,27 +133,15 @@ export function HierarchyTree() {
       bodyClassName="flex flex-col p-1.5"
     >
       {scope ? (
-        <>
-          {/* A new view starts collapsed. */}
-          <TreeRoot
-            key={view}
-            scope={scope}
-            selected={selected}
-            pinned={pinned}
-            onSelect={onSelect}
-            onSelectedLabel={setSelectedLabel}
-          />
-          <ExcludedNodes
-            scope={scope}
-            open={search.exclusions_open === true}
-            onToggle={() =>
-              setSearch(
-                { exclusions_open: search.exclusions_open ? undefined : true },
-                true,
-              )
-            }
-          />
-        </>
+        // A new view starts collapsed.
+        <TreeRoot
+          key={view}
+          scope={scope}
+          selected={selected}
+          pinned={pinned}
+          onSelect={onSelect}
+          onSelectedLabel={setSelectedLabel}
+        />
       ) : (
         <p className="text-fg-muted p-1.5 text-[13px]">
           No graph is loaded, so there is no hierarchy to show yet.
@@ -185,7 +172,6 @@ type TreeSearch = {
   selected_id?: string | number;
   selected_cycle_ids?: (string | number)[];
   selection_pinned?: boolean;
-  exclusions_open?: boolean;
 };
 
 function useSetTreeSearch() {

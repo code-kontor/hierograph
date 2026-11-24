@@ -177,6 +177,37 @@ describe("StartPage", () => {
     await expect.element(graph.getByText("42", { exact: true })).toBeVisible();
   });
 
+  it("shows below the graph's facts, marked as excluded, what the hierarchy view excludes", async () => {
+    const screen = await renderStart("?view=locations");
+    const graph = await tab(screen, "Graph");
+    const section = graph.getByRole("region", { name: "Excluded by the view" });
+
+    await expect
+      .element(section.getByRole("heading"))
+      .toHaveTextContent(/^Excluded\s*1 package$/);
+    await expect
+      .element(section.getByText(/The view\s*locations\s*leaves these out/))
+      .toHaveTextContent(/102 nodes in all/);
+    await expect
+      .element(section.getByRole("listitem"))
+      .toHaveTextContent("org.hg.fixture.basic");
+    // The graph's own facts stay above it.
+    await expect.element(graph.getByText("Generation")).toBeVisible();
+  });
+
+  it("shows nothing excluded for a view without exclusions, nor without a view", async () => {
+    for (const search of ["?view=layers", ""]) {
+      const screen = await renderStart(search);
+      const graph = await tab(screen, "Graph");
+      await expect.element(graph.getByText("Generation")).toBeVisible();
+
+      await expect
+        .element(graph.getByRole("region", { name: "Excluded by the view" }))
+        .not.toBeInTheDocument();
+      await screen.unmount();
+    }
+  });
+
   it("shows the updater's phase while the graph is updated", async () => {
     worker.use(...handlersFor("updating"));
     const screen = await renderStart();

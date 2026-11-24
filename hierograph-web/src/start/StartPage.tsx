@@ -29,6 +29,7 @@ import { useMediaQuery } from "@/design-system/useMediaQuery";
 import { useGraphScope } from "@/frame/GraphScope";
 import type { StartScreenQuery } from "@/graphql/generated/graphql";
 
+import { ExcludedNodes } from "./ExcludedNodes";
 import {
   buildFilesModeLabel,
   countLabel,
@@ -424,30 +425,35 @@ const GRAPH_STATE_HIGHLIGHT: Record<
 };
 
 function GraphBlock({ graph }: GraphBlockProps) {
+  const scope = useGraphScope();
   const counts = graph.counts;
+  // The graph's facts, and below them what the current view excludes.
   return (
-    <TabBody>
-      <Facts>
-        <Fact label="Status" highlight={GRAPH_STATE_HIGHLIGHT[graph.state]}>
-          {graphStateLabel(graph)}
-        </Fact>
-        {graph.generation && (
-          <Fact label="Generation" mono>
-            {graph.generation}
+    <div className="flex flex-col gap-3">
+      <div>
+        <Facts>
+          <Fact label="Status" highlight={GRAPH_STATE_HIGHLIGHT[graph.state]}>
+            {graphStateLabel(graph)}
           </Fact>
-        )}
-        {graph.loadedAt && (
-          <Fact label="Loaded at">{formatTime(graph.loadedAt)}</Fact>
-        )}
-        {counts && (
-          <>
-            <Fact label="Modules">{formatCount(counts.modules)}</Fact>
-            <Fact label="Packages">{formatCount(counts.packages)}</Fact>
-            <Fact label="Types">{formatCount(counts.types)}</Fact>
-          </>
-        )}
-      </Facts>
-    </TabBody>
+          {graph.generation && (
+            <Fact label="Generation" mono>
+              {graph.generation}
+            </Fact>
+          )}
+          {graph.loadedAt && (
+            <Fact label="Loaded at">{formatTime(graph.loadedAt)}</Fact>
+          )}
+          {counts && (
+            <>
+              <Fact label="Modules">{formatCount(counts.modules)}</Fact>
+              <Fact label="Packages">{formatCount(counts.packages)}</Fact>
+              <Fact label="Types">{formatCount(counts.types)}</Fact>
+            </>
+          )}
+        </Facts>
+      </div>
+      {scope && <ExcludedNodes scope={scope} />}
+    </div>
   );
 }
 

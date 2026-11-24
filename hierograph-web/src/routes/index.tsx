@@ -7,15 +7,13 @@ import { START_TABS, StartPage, type StartTab } from "@/start/StartPage";
 // (`workspace`, `graph`, `server`, `jvm`), an unknown value dropped; and the
 // tree's: `expanded_ids`, its open rows, and the selection, a row
 // (`selected_id`) or a cycle (`selected_cycle_ids`, its members), and
-// whether it is pinned (`selection_pinned`); and whether the list of what
-// the view leaves out below the tree is open (`exclusions_open`).
+// whether it is pinned (`selection_pinned`).
 type StartSearch = {
   tab?: StartTab;
   expanded_ids?: string[];
   selected_id?: string;
   selected_cycle_ids?: string[];
   selection_pinned?: boolean;
-  exclusions_open?: boolean;
 };
 
 export const Route = createFileRoute("/")({
@@ -26,10 +24,6 @@ export const Route = createFileRoute("/")({
     selected_cycle_ids: parseIdList(search.selected_cycle_ids),
     selection_pinned:
       search.selection_pinned === true || search.selection_pinned === "true"
-        ? true
-        : undefined,
-    exclusions_open:
-      search.exclusions_open === true || search.exclusions_open === "true"
         ? true
         : undefined,
   }),

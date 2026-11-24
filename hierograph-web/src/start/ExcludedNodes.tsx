@@ -1,83 +1,92 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, EyeOff } from "lucide-react";
+import { EyeOff } from "lucide-react";
+import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import type { GraphScope } from "@/frame/GraphScope";
 
-import { countLabel } from "./format";
-import {
-  type ExcludedNode,
-  type ViewExclusions,
-  viewExclusionsQueryOptions,
-} from "./queries";
+import { countLabel, formatCount } from "./format";
+import { type ExcludedNode, viewExclusionsQueryOptions } from "./queries";
 import { KIND_ICONS } from "./treeIcons";
 import { type TreeNodeKind, treeNodeKind, treeNodeLabel } from "./treeLabels";
 
 type ExcludedNodesProps = {
   scope: GraphScope;
-  open: boolean;
-  onToggle: () => Promise<void>;
 };
 
-// What the current view leaves out, below the tree: one line with the counts,
-// opened to the outermost excluded nodes, named and sorted as the tree names
-// its rows. They aren't in the view, so they aren't rows of the tree: no
-// selection, no arcs, no menu. Nothing without a view, or for a view without
-// exclusions.
-export function ExcludedNodes({ scope, open, onToggle }: ExcludedNodesProps) {
+// What the current hierarchy view excludes, below the graph's facts in the
+// Graph tab: a box of its own, marked as excluded (the crossed-out eye, the
+// info colours: a choice of the view, not a problem), with the outermost
+// excluded nodes named and sorted as the tree names its rows. The graph's
+// counts above it stay the scanned graph's. Nothing without a view, or for a
+// view without exclusions.
+export function ExcludedNodes({ scope }: ExcludedNodesProps) {
   const query = useQuery(viewExclusionsQueryOptions(scope));
-  if (!query.data) return null;
-  const exclusions = query.data;
-  const Chevron = open ? ChevronDown : ChevronRight;
+  if (!query.data || scope.view === undefined) return null;
+  const { count, nodes } = query.data;
+  const items = labelled(nodes).map(({ node, label }) => (
+    <ExcludedItem key={node.id} node={node} label={label} />
+  ));
+  return (
+    <>
+      {/* The same thin line as above the workspace's note on what isn't compiled. */}
+      <hr className="border-border" />
+      <ExcludedBox count={count} nodes={nodes} view={scope.view}>
+        {items}
+      </ExcludedBox>
+    </>
+  );
+}
+
+type ExcludedBoxProps = {
+  count: number;
+  nodes: ExcludedNode[];
+  view: string;
+  children: ReactNode;
+};
+
+function ExcludedBox({ count, nodes, view, children }: ExcludedBoxProps) {
   return (
     <section
-      aria-label="Left out by this view"
-      className="border-border mt-1.5 shrink-0 border-t pt-1"
+      aria-label="Excluded by the view"
+      className="border-status-info bg-status-info-bg flex flex-col gap-1.5 rounded-[6px] border px-2.5 py-2"
     >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="text-fg-muted hover:bg-state-hover hover:text-fg flex w-full items-center gap-1 rounded-[4px] px-1 py-[3px] text-left text-[12px]"
-      >
-        <Chevron aria-hidden className="size-3.5 shrink-0" />
-        <EyeOff aria-hidden className="size-3.5 shrink-0" />
-        <span>Left out by this view: {summary(exclusions)}</span>
-      </button>
-      {open && <ExcludedList nodes={exclusions.nodes} />}
+      <h3 className="flex items-center gap-1.5">
+        <EyeOff aria-hidden className="text-status-info size-4 shrink-0" />
+        <span className="text-status-info text-[13px] font-semibold tracking-[0.06em] uppercase">
+          Excluded
+        </span>
+        <span className="border-status-info text-status-info rounded-[4px] border px-1 text-[11px] font-medium">
+          {selectedLabel(nodes)}
+        </span>
+      </h3>
+      <p className="text-fg-muted text-[12px]">
+        The view <span className="text-fg font-mono">{view}</span> leaves these
+        out, with everything inside them ({formatCount(count)}{" "}
+        {count === 1 ? "node" : "nodes"} in all) and every dependency to and
+        from them.
+      </p>
+      <ul className="flex flex-col">{children}</ul>
     </section>
   );
 }
 
-// The excluded nodes' kind in the summary, when they all have one of these.
+// The excluded nodes' kind in the count, when they all have one of these.
 const KIND_NOUNS: Partial<Record<TreeNodeKind, [string, string]>> = {
   module: ["module", "modules"],
   package: ["package", "packages"],
   type: ["type", "types"],
 };
 
-// `3 modules, 1,234 nodes in all`: what the exclusions select, and everything
-// that went with them.
-function summary({ count, nodes }: ViewExclusions): string {
+// `74 modules`: what the exclusions select, by kind when they share one.
+function selectedLabel(nodes: ExcludedNode[]): string {
   const kinds = new Set(
     nodes.map((node) => treeNodeKind(node.type, node.text)),
   );
   const [singular, plural] =
     (kinds.size === 1 ? KIND_NOUNS[[...kinds][0]] : undefined) ??
     (["node", "nodes"] as const);
-  const selected = countLabel(nodes.length, singular, plural);
-  return `${selected}, ${countLabel(count, "node", "nodes")} in all`;
-}
-
-type ExcludedListProps = {
-  nodes: ExcludedNode[];
-};
-
-function ExcludedList({ nodes }: ExcludedListProps) {
-  const items = labelled(nodes).map(({ node, label }) => (
-    <ExcludedItem key={node.id} node={node} label={label} />
-  ));
-  return <ul className="py-0.5">{items}</ul>;
+  return countLabel(nodes.length, singular, plural);
 }
 
 // The nodes with the tree's names for them, sorted by name.
@@ -98,8 +107,8 @@ function ExcludedItem({ node, label }: ExcludedItemProps) {
   return (
     <li
       // The full name, where the label shortens it (a module's coordinates).
-      title={node.text}
-      className="text-fg-muted flex items-center gap-1 py-[3px] pl-[22px] text-[13px]"
+      title={`${node.text} (excluded)`}
+      className="flex items-center gap-1 py-[2px] text-[13px]"
     >
       <Icon aria-hidden className="text-fg-subtle size-3.5 shrink-0" />
       <span

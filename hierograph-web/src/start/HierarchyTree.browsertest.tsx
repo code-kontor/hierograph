@@ -283,56 +283,13 @@ describe("HierarchyTree", () => {
     await expect.element(item(screen, "app")).toBeVisible();
   });
 
-  it("lists below the tree what a view leaves out, opened on demand and in the URL", async () => {
+  it("leaves out what the view excludes, with everything inside it", async () => {
     const screen = await renderTree("?view=locations");
-    const section = screen.getByRole("region", {
-      name: "Left out by this view",
-    });
-    const toggle = section.getByRole("button");
-
-    await expect
-      .element(toggle)
-      .toHaveTextContent("Left out by this view: 1 package, 102 nodes in all");
-    await expect.element(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect
-      .element(section.getByText("org.hg.fixture.basic"))
-      .not.toBeInTheDocument();
 
     await expand(screen, "fixture-app", "org", "hg", "fixture");
+
     await expect.element(item(screen, "locations")).toBeVisible();
     await expect.element(item(screen, "basic")).not.toBeInTheDocument();
-
-    await toggle.click();
-
-    await expect
-      .element(section.getByText("org.hg.fixture.basic"))
-      .toBeVisible();
-    expect(screen.router.state.location.search.exclusions_open).toBe(true);
-
-    await toggle.click();
-
-    await expect.element(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.router.state.location.search.exclusions_open).toBeUndefined();
-  });
-
-  it("opens the list of what a view leaves out as the URL says", async () => {
-    const screen = await renderTree("?view=locations&exclusions_open=true");
-
-    await expect
-      .element(screen.getByText("org.hg.fixture.basic"))
-      .toBeVisible();
-  });
-
-  it("shows nothing left out for a view without exclusions, nor without a view", async () => {
-    for (const search of ["?view=layers", ""]) {
-      const screen = await renderTree(search);
-      await expect.element(item(screen, "fixture-app")).toBeVisible();
-
-      await expect
-        .element(screen.getByRole("region", { name: "Left out by this view" }))
-        .not.toBeInTheDocument();
-      await screen.unmount();
-    }
   });
 
   it("draws no arcs until a row is selected", async () => {

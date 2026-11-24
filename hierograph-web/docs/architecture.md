@@ -122,7 +122,13 @@ the tabs and the tree.
   collection kept, threads, CPU load, garbage collection). The tab is the start
   screen's own search param `tab` (`workspace`, `graph`, `server`, `jvm`;
   validated in `routes/index.tsx`), so a link can open one; switching replaces
-  the history entry, and the first tab leaves no param behind.
+  the history entry, and the first tab leaves no param behind. The graph tab
+  shows the graph's facts, and below them, for a hierarchy view with
+  exclusions, what the view excludes (`ExcludedNodes`, from
+  `views { excludedCount excludedNodes }`), in a box of the info colours
+  marked "Excluded" with a crossed-out eye: the outermost excluded nodes,
+  named and sorted as the tree names its rows. The graph's counts stay the
+  scanned graph's.
 - **Left:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
   view. It loads level by level as nodes are
   expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
@@ -152,12 +158,6 @@ the tabs and the tree.
   The `tree` element is focusable, its active descendant the keyboard's
   cursor, walked over the rows as drawn (→ ← and `+` / `−` expand and
   collapse). The pane's `?` lists the gestures.
-  Below the rows, for a view with exclusions only, `ExcludedNodes` says what
-  the view leaves out (`views { excludedCount excludedNodes }`): one line
-  with the counts, opened to the outermost excluded nodes, named and sorted
-  as the tree names its rows. They aren't in the view, so they aren't rows:
-  no selection, no arcs, no menu. Whether the list is open is the search
-  param `exclusions_open` (it replaces the history entry).
 
 The server data is live: its query is polled like the graph status and keyed
 by the generation, so a reload shows at once. The start screen handles a server
