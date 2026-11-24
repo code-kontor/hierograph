@@ -158,6 +158,23 @@ type ViewInfo {
     warnings: Int
     "Whether the view restructures the code (moves packages or types between modules)."
     restructure: Boolean!
+    """
+    How many nodes the view leaves out (`exclude`), with everything inside them; `null` for a view without
+    exclusions, or when it was not applied (invalid, or no graph).
+    """
+    excludedCount: Int
+    """
+    The outermost nodes the view leaves out, each with everything inside it (`excludedCount` counts them all);
+    `null` like `excludedCount`. The nodes are not in the view, so they are named here, not as `Node`s of it.
+    """
+    excludedNodes: [ExcludedNode!]
+}
+
+"A node a view leaves out: its id, qualified name and kind, as `Node` names them."
+type ExcludedNode {
+    id: ID!
+    text: String!
+    type: String!
 }
 
 """

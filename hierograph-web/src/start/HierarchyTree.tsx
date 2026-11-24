@@ -3,13 +3,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronRight,
-  CircleDot,
-  FileCode,
-  Folder,
-  Globe,
-  Layers,
-  type LucideIcon,
-  Package,
   Repeat2,
   SquareMinus,
   SquarePlus,
@@ -40,6 +33,7 @@ import {
 import { Message } from "@/design-system/ui/message";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
+import { ExcludedNodes } from "./ExcludedNodes";
 import {
   hierarchyTreeChildrenQueryOptions,
   hierarchyTreeRootQueryOptions,
@@ -53,22 +47,8 @@ import {
   sameFocus,
   TreeArcs,
 } from "./TreeArcs";
-import {
-  ordersChildren,
-  type TreeNodeKind,
-  treeNodeKind,
-  treeNodeLabel,
-} from "./treeLabels";
-
-const KIND_ICONS: Record<TreeNodeKind, LucideIcon> = {
-  group: Layers,
-  module: Package,
-  external: Globe,
-  package: Folder,
-  type: FileCode,
-  member: CircleDot,
-  other: CircleDot,
-};
+import { KIND_ICONS } from "./treeIcons";
+import { ordersChildren, treeNodeKind, treeNodeLabel } from "./treeLabels";
 
 // What every row needs from the tree: which nodes are open, what is
 // selected (a row or a cycle bar), whose dependency arcs are drawn, and where
@@ -154,15 +134,27 @@ export function HierarchyTree() {
       bodyClassName="flex flex-col p-1.5"
     >
       {scope ? (
-        // A new view starts collapsed.
-        <TreeRoot
-          key={view}
-          scope={scope}
-          selected={selected}
-          pinned={pinned}
-          onSelect={onSelect}
-          onSelectedLabel={setSelectedLabel}
-        />
+        <>
+          {/* A new view starts collapsed. */}
+          <TreeRoot
+            key={view}
+            scope={scope}
+            selected={selected}
+            pinned={pinned}
+            onSelect={onSelect}
+            onSelectedLabel={setSelectedLabel}
+          />
+          <ExcludedNodes
+            scope={scope}
+            open={search.exclusions_open === true}
+            onToggle={() =>
+              setSearch(
+                { exclusions_open: search.exclusions_open ? undefined : true },
+                true,
+              )
+            }
+          />
+        </>
       ) : (
         <p className="text-fg-muted p-1.5 text-[13px]">
           No graph is loaded, so there is no hierarchy to show yet.
@@ -193,6 +185,7 @@ type TreeSearch = {
   selected_id?: string | number;
   selected_cycle_ids?: (string | number)[];
   selection_pinned?: boolean;
+  exclusions_open?: boolean;
 };
 
 function useSetTreeSearch() {

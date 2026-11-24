@@ -19,6 +19,7 @@ describe("recorded GraphQL fixtures", () => {
     expect(data.views.map((view) => [view.name, view.valid])).toEqual([
       ["broken", false],
       ["layers", true],
+      ["locations", true],
     ]);
   });
 

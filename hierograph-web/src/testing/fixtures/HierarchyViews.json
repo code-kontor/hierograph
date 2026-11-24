@@ -17,6 +17,11 @@
             "name": "layers",
             "valid": true,
             "problems": []
+          },
+          {
+            "name": "locations",
+            "valid": true,
+            "problems": []
           }
         ]
       }

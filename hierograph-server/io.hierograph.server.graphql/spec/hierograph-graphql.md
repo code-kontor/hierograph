@@ -864,7 +864,11 @@ the current metrics.
 lists them: `name`, `description`, `source` (`project` or `state`), `file`,
 `shadowsProjectView`, `valid`, `problems` (empty for a valid view), `restructure`,
 and, when the view could be applied to the graph in service, `groupCount`, `errors`
-and `warnings` (`null` otherwise).
+and `warnings` (`null` otherwise). `excludedCount` is the number of nodes a view with
+exclusions leaves out, with everything inside them; `null` for a view without
+exclusions, or when it was not applied. `excludedNodes` names the outermost nodes it
+leaves out (`ExcludedNode`: `id`, `text`, `type`, as for a `Node`); they are not in
+the view, so they are not `Node`s of it.
 
 `defaultView` (`ViewInfoController`) is `default` of `list_views`: the hierarchy as
 scanned, which a query without `view` answers in. It has a `description` and the

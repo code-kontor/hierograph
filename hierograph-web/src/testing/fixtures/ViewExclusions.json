@@ -1,0 +1,34 @@
+{
+  "operation": "ViewExclusions",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "views": [
+          {
+            "name": "broken",
+            "excludedCount": null,
+            "excludedNodes": null
+          },
+          {
+            "name": "layers",
+            "excludedCount": null,
+            "excludedNodes": null
+          },
+          {
+            "name": "locations",
+            "excludedCount": 102,
+            "excludedNodes": [
+              {
+                "id": "7822526495285534",
+                "text": "org.hg.fixture.basic",
+                "type": "java.package"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

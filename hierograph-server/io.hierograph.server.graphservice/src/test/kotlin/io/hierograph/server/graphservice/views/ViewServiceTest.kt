@@ -125,7 +125,9 @@ class ViewServiceTest {
             .contains("no-util:all", "acme:app:1.0", "com.acme.core.Type")
             .doesNotContain("acme:util:1.0", "com.acme.util", "com.acme.util.Type")
         assertThat(view.materialized.excludedCount).isEqualTo(3)
-        assertThat(AppliedViewSummary.of(view).toMap()).containsEntry("excluded_count", 3)
+        val summary = AppliedViewSummary.of(view)
+        assertThat(summary.toMap()).containsEntry("excluded_count", 3).doesNotContainKey("excluded")
+        assertThat(summary.excluded!!.map { it.text to it.type }).containsExactly("acme:util:1.0" to "java.module")
     }
 
     @Test

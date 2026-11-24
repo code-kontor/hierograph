@@ -1,0 +1,28 @@
+{
+  "operation": "ViewExclusions",
+  "scenario": "no-graph",
+  "entries": [
+    {
+      "variables": {},
+      "data": {
+        "views": [
+          {
+            "name": "broken",
+            "excludedCount": null,
+            "excludedNodes": null
+          },
+          {
+            "name": "layers",
+            "excludedCount": null,
+            "excludedNodes": null
+          },
+          {
+            "name": "locations",
+            "excludedCount": null,
+            "excludedNodes": null
+          }
+        ]
+      }
+    }
+  ]
+}

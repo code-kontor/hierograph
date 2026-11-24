@@ -104,7 +104,8 @@
             "groupCount": null,
             "errors": null,
             "warnings": null,
-            "restructure": false
+            "restructure": false,
+            "excludedCount": null
           },
           {
             "name": "layers",
@@ -115,7 +116,20 @@
             "groupCount": 2,
             "errors": 0,
             "warnings": 0,
-            "restructure": false
+            "restructure": false,
+            "excludedCount": null
+          },
+          {
+            "name": "locations",
+            "description": "The locations tenant alone: the basic tenant is excluded.",
+            "source": "project",
+            "valid": true,
+            "problems": [],
+            "groupCount": 0,
+            "errors": 0,
+            "warnings": 0,
+            "restructure": false,
+            "excludedCount": 102
           }
         ]
       }

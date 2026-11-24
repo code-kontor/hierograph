@@ -181,7 +181,7 @@ class ServerAndViewsGraphQlTest {
 
     @Test
     fun `views lists the valid and the invalid view, as list_views does`() {
-        val views = query("{ views { name description source file shadowsProjectView valid problems groupCount restructure } }")
+        val views = query("{ views { name description source file shadowsProjectView valid problems groupCount restructure excludedCount excludedNodes { id text type } } }")
             .path("views")
         val listed = viewTools.listViews()["views"] as List<Map<String, Any?>>
 
@@ -196,6 +196,8 @@ class ServerAndViewsGraphQlTest {
             assertThat(view.path("valid").asBoolean()).isEqualTo(entry["valid"])
             assertThat(view.path("shadowsProjectView").asBoolean()).isEqualTo(entry["shadows_project_view"])
             assertThat(view.path("groupCount").isNull).isTrue() // not applied without a graph
+            assertThat(view.path("excludedCount").isNull).isTrue()
+            assertThat(view.path("excludedNodes").isNull).isTrue()
         }
 
         val layers = views.single { it.path("name").asText() == "layers" }

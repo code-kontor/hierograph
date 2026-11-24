@@ -25,6 +25,7 @@ import {
   StructureGivenDocument,
   StructureLevelDocument,
   StructureRootDocument,
+  ViewExclusionsDocument,
 } from "../../graphql/generated/graphql.ts";
 import { normalize } from "./normalize.ts";
 
@@ -39,6 +40,7 @@ const OPERATIONS = [
   { name: "GraphStatus", document: GraphStatusDocument },
   { name: "HierarchyViews", document: HierarchyViewsDocument },
   { name: "StartScreen", document: StartScreenDocument },
+  { name: "ViewExclusions", document: ViewExclusionsDocument },
 ] as const;
 
 const { values } = parseArgs({
@@ -67,8 +69,8 @@ for (const operation of OPERATIONS) {
 }
 
 // The hierarchy tree, only with a graph: the complete tree (the fixture-app is
-// small), in the scanned hierarchy and in the `layers` view, whose groups sit
-// deep inside the module. Each level is asked for as the screen asks for it:
+// small), in the scanned hierarchy, in the `layers` view, whose groups sit
+// deep inside the module, and in the `locations` view, which excludes a tenant. Each level is asked for as the screen asks for it:
 // in dependency order, a type's members in source order (`ordersChildren`).
 type TreeNode = {
   id: string;
@@ -116,7 +118,7 @@ if (scenario === "default") {
       await expand(view, childNodes(data.hierarchicalGraph.node.children));
     }
   };
-  for (const view of [null, "layers"]) {
+  for (const view of [null, "layers", "locations"]) {
     const variables = { view };
     const data = await client.request<{
       hierarchicalGraph: { rootNode: { children: TreeChildren } };
@@ -195,6 +197,8 @@ if (scenario === "default") {
         "layers:application",
       ],
     },
+    // Down to where the excluded `basic` tenant would be.
+    { view: "locations", path: BASIC.slice(0, 4) },
   ];
   const arcs: Entry[] = [];
   const recorded = new Set<string>();

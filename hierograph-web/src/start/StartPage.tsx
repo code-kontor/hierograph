@@ -595,12 +595,15 @@ type HierarchyViewRowProps = {
 };
 
 function HierarchyViewRow({ view, current }: HierarchyViewRowProps) {
-  // The same scheme for every row: source · count.
+  // The same scheme for every row: source · count, and what a view leaves out.
   const meta = [
     view.source,
     view.groupCount === null || view.groupCount === undefined
       ? undefined
       : countLabel(view.groupCount, "group", "groups"),
+    view.excludedCount === null || view.excludedCount === undefined
+      ? undefined
+      : countLabel(view.excludedCount, "node excluded", "nodes excluded"),
   ];
   if (!view.valid) {
     return (

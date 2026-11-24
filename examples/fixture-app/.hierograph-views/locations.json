@@ -1,0 +1,5 @@
+{
+  "name": "locations",
+  "description": "The locations tenant alone: the basic tenant is excluded.",
+  "exclude": ["org.hg.fixture.basic"]
+}

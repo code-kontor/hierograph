@@ -17,11 +17,11 @@ One file per operation and scenario:
 
 Each file is `{ operation, scenario, entries: [{ variables, data }] }`. The
 operations are listed in `record-fixtures.ts`: `GraphStatus` and
-`HierarchyViews` (the frame) and `StartScreen` (the start screen), without
-variables and in every scenario; and the hierarchy tree's `HierarchyTreeRoot`
+`HierarchyViews` (the frame), `StartScreen` and `ViewExclusions` (the start
+screen), without variables and in every scenario; and the hierarchy tree's `HierarchyTreeRoot`
 and `HierarchyTreeChildren`, with variables and only in the `default` scenario.
 They hold the complete tree of the fixture-app, in the scanned hierarchy and in
-the `layers` view, one entry per expandable node, each level asked for as the
+the `layers` and `locations` views, one entry per expandable node, each level asked for as the
 screen asks for it (in dependency order, a type's members in source order).
 `HierarchyArcs` holds the arcs between the visible rows for every state the
 tree tests pass through: the paths in `record-fixtures.ts`, expanded one node

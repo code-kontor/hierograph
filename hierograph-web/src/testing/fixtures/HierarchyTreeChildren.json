@@ -4961,6 +4961,1122 @@
           }
         }
       }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "5909467489117502",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5909467489117502",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "6138144180870008",
+                    "text": "org",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "6138144180870008",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6138144180870008",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "2241766866721144",
+                    "text": "org.hg",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "2241766866721144",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2241766866721144",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "7015125723486552",
+                    "text": "org.hg.fixture",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "7015125723486552",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7015125723486552",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "792143413850566",
+                    "text": "org.hg.fixture.locations",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "792143413850566",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "792143413850566",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "1490153931190400",
+                    "text": "org.hg.fixture.locations.app",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "7288710331230862",
+                    "text": "org.hg.fixture.locations.lib",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "1490153931190400",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1490153931190400",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "5186412852274999",
+                    "text": "org.hg.fixture.locations.app.web",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "8068585618542335",
+                    "text": "org.hg.fixture.locations.app.support",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "2645643744404740",
+                    "text": "org.hg.fixture.locations.app.batch",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "5186412852274999",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5186412852274999",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "2202721893593200",
+                    "text": "org.hg.fixture.locations.app.web.ReportController",
+                    "type": "java.class",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "954267309345899",
+                    "text": "org.hg.fixture.locations.app.web.OrderController",
+                    "type": "java.class",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "3296601704837634",
+                    "text": "org.hg.fixture.locations.app.web.CustomerController",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "2202721893593200",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2202721893593200",
+            "children": {
+              "nodes": [
+                {
+                  "id": "5765289437949603",
+                  "text": "org.hg.fixture.locations.app.web.ReportController#org.hg.fixture.locations.lib.report.ReportFormat format",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "1134144724932983",
+                  "text": "org.hg.fixture.locations.app.web.ReportController#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "6901688109086561",
+                  "text": "org.hg.fixture.locations.app.web.ReportController#java.lang.String render(org.hg.fixture.locations.lib.order.Order)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "954267309345899",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "954267309345899",
+            "children": {
+              "nodes": [
+                {
+                  "id": "5121680004942705",
+                  "text": "org.hg.fixture.locations.app.web.OrderController#org.hg.fixture.locations.lib.order.OrderService service",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2885701893537897",
+                  "text": "org.hg.fixture.locations.app.web.OrderController#org.hg.fixture.locations.lib.order.Order currentOrder",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "8190837746920551",
+                  "text": "org.hg.fixture.locations.app.web.OrderController#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "99842668842932",
+                  "text": "org.hg.fixture.locations.app.web.OrderController#org.hg.fixture.locations.lib.order.Order create(org.hg.fixture.locations.lib.customer.Customer)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "3296601704837634",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3296601704837634",
+            "children": {
+              "nodes": [
+                {
+                  "id": "2818022368582074",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController#org.hg.fixture.locations.lib.customer.CustomerRepository repository",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "4794549411394525",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController#void <init>(org.hg.fixture.locations.lib.customer.CustomerRepository)",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2872307462263406",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController#org.hg.fixture.locations.lib.customer.Customer findById(long)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "8068585618542335",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "8068585618542335",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "5607609318634521",
+                    "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "5607609318634521",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5607609318634521",
+            "children": {
+              "nodes": [
+                {
+                  "id": "3555278590358207",
+                  "text": "org.hg.fixture.locations.app.support.LoggingHelper#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2822016061164017",
+                  "text": "org.hg.fixture.locations.app.support.LoggingHelper#void log(java.lang.String)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "2645643744404740",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2645643744404740",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "6752226562703725",
+                    "text": "org.hg.fixture.locations.app.batch.nightly",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "6752226562703725",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6752226562703725",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "4936552664747358",
+                    "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "4936552664747358",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "4936552664747358",
+            "children": {
+              "nodes": [
+                {
+                  "id": "6364735849767266",
+                  "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#org.hg.fixture.locations.lib.order.Order order",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "4497664405467103",
+                  "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#org.hg.fixture.locations.lib.customer.Customer customer",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "7308890702017232",
+                  "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "4420175724095442",
+                  "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob#void addLine(org.hg.fixture.locations.lib.order.detail.OrderLine)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "7288710331230862",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7288710331230862",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "1921791625399883",
+                    "text": "org.hg.fixture.locations.lib.report",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "6382195039839970",
+                    "text": "org.hg.fixture.locations.lib.order",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "2723417083299518",
+                    "text": "org.hg.fixture.locations.lib.customer",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "3927357001874200",
+                    "text": "org.hg.fixture.locations.lib.audit",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "1921791625399883",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1921791625399883",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "203154325317745",
+                    "text": "org.hg.fixture.locations.lib.report.ReportFormat",
+                    "type": "java.enum",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "8560382757406382",
+                    "text": "org.hg.fixture.locations.lib.report.AbstractReport",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "203154325317745",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "203154325317745",
+            "children": {
+              "nodes": [
+                {
+                  "id": "6978819896619150",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat PDF",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "1117119113622142",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat HTML",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "6157293295134168",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat CSV",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "7588633993076080",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat[] $VALUES",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2134529226107936",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat[] values()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2083056007803040",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat valueOf(java.lang.String)",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "8185683502065060",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#void <init>(java.lang.String,int)",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2111713420602627",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#org.hg.fixture.locations.lib.report.ReportFormat[] $values()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "3360441535637403",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat#void <clinit>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "8560382757406382",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "8560382757406382",
+            "children": {
+              "nodes": [
+                {
+                  "id": "3106427508948955",
+                  "text": "org.hg.fixture.locations.lib.report.AbstractReport#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "5385010043649273",
+                  "text": "org.hg.fixture.locations.lib.report.AbstractReport#void record(int)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "6382195039839970",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6382195039839970",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "6595774329988248",
+                    "text": "org.hg.fixture.locations.lib.order.OrderService",
+                    "type": "java.class",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "781982424618300",
+                    "text": "org.hg.fixture.locations.lib.order.detail",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "811623870429660",
+                    "text": "org.hg.fixture.locations.lib.order.Order",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "6595774329988248",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6595774329988248",
+            "children": {
+              "nodes": [
+                {
+                  "id": "1254040274974667",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "3718117842884124",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService#void submit(org.hg.fixture.locations.lib.order.Order)",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "6589062055780269",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService#org.hg.fixture.locations.lib.order.detail.OrderLine lineFor(org.hg.fixture.locations.lib.order.Order)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "781982424618300",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "781982424618300",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "3038182960771610",
+                    "text": "org.hg.fixture.locations.lib.order.detail.OrderLine",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "3038182960771610",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3038182960771610",
+            "children": {
+              "nodes": [
+                {
+                  "id": "293229252558379",
+                  "text": "org.hg.fixture.locations.lib.order.detail.OrderLine#int amount",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "8735513113574414",
+                  "text": "org.hg.fixture.locations.lib.order.detail.OrderLine#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "1204334850210635",
+                  "text": "org.hg.fixture.locations.lib.order.detail.OrderLine#int getAmount()",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "811623870429660",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "811623870429660",
+            "children": {
+              "nodes": [
+                {
+                  "id": "8837847964032920",
+                  "text": "org.hg.fixture.locations.lib.order.Order#long id",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "7609304703483883",
+                  "text": "org.hg.fixture.locations.lib.order.Order#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "8526854326644152",
+                  "text": "org.hg.fixture.locations.lib.order.Order#long getId()",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "2723417083299518",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2723417083299518",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "946295366947769",
+                    "text": "org.hg.fixture.locations.lib.customer.CustomerRepository",
+                    "type": "java.interface",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "6339647267646332",
+                    "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
+                    "type": "java.interface",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "5174486299643332",
+                    "text": "org.hg.fixture.locations.lib.customer.Customer",
+                    "type": "java.class",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "946295366947769",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "946295366947769",
+            "children": {
+              "nodes": [
+                {
+                  "id": "1033213511841473",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerRepository#org.hg.fixture.locations.lib.customer.Customer load(long)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "6339647267646332",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6339647267646332",
+            "children": {
+              "nodes": [
+                {
+                  "id": "6854728685866628",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerApi#org.hg.fixture.locations.lib.customer.Customer findById(long)",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "5174486299643332",
+        "ordered": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5174486299643332",
+            "children": {
+              "nodes": [
+                {
+                  "id": "7082956586908861",
+                  "text": "org.hg.fixture.locations.lib.customer.Customer#java.lang.String name",
+                  "type": "java.field",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2320332474715786",
+                  "text": "org.hg.fixture.locations.lib.customer.Customer#void <init>()",
+                  "type": "java.method",
+                  "hasChildren": false
+                },
+                {
+                  "id": "2246316355466576",
+                  "text": "org.hg.fixture.locations.lib.customer.Customer#java.lang.String getName()",
+                  "type": "java.method",
+                  "hasChildren": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "3927357001874200",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3927357001874200",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "8393612757376066",
+                    "text": "org.hg.fixture.locations.lib.audit.Auditable",
+                    "type": "java.annotation",
+                    "hasChildren": false
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "4400363846879942",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "4400363846879942",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "2106137824575494",
+                    "text": "java",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "2106137824575494",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2106137824575494",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "2966789580539469",
+                    "text": "java.io",
+                    "type": "java.package",
+                    "hasChildren": true
+                  },
+                  {
+                    "id": "3272088741444211",
+                    "text": "java.util",
+                    "type": "java.package",
+                    "hasChildren": true
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "2966789580539469",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2966789580539469",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "1174811341709081",
+                    "text": "java.io.PrintStream",
+                    "type": "external.type",
+                    "hasChildren": false
+                  },
+                  {
+                    "id": "3842501175667879",
+                    "text": "java.io.Serializable",
+                    "type": "external.type",
+                    "hasChildren": false
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "id": "3272088741444211",
+        "ordered": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3272088741444211",
+            "children": {
+              "orderedAdjacencyMatrix": {
+                "orderedNodes": [
+                  {
+                    "id": "5320533368450867",
+                    "text": "java.util.List",
+                    "type": "external.type",
+                    "hasChildren": false
+                  },
+                  {
+                    "id": "1002505446253212",
+                    "text": "java.util.TimerTask",
+                    "type": "external.type",
+                    "hasChildren": false
+                  }
+                ],
+                "stronglyConnectedComponents": []
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

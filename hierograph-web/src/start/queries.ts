@@ -93,6 +93,7 @@ export const StartScreenQuery = graphql(`
       errors
       warnings
       restructure
+      excludedCount
     }
   }
 `);
@@ -313,5 +314,47 @@ export function hierarchyArcsQueryOptions(scope: GraphScope, ids: string[]) {
         }));
     },
     placeholderData: keepPreviousData,
+  });
+}
+
+// What the current hierarchy view leaves out: the outermost excluded nodes and
+// how many nodes went with them. `null` without a view, or for one without
+// exclusions. Keyed by the graph scope, which changes with the view documents,
+// so an edited exclusion shows at once.
+export const ViewExclusionsQuery = graphql(`
+  query ViewExclusions {
+    views {
+      name
+      excludedCount
+      excludedNodes {
+        id
+        text
+        type
+      }
+    }
+  }
+`);
+
+export type ExcludedNode = {
+  id: string;
+  text: string;
+  type: string;
+};
+
+export type ViewExclusions = {
+  count: number;
+  nodes: ExcludedNode[];
+};
+
+export function viewExclusionsQueryOptions(scope: GraphScope) {
+  return queryOptions({
+    queryKey: graphQueryKey("start", scope, "exclusions"),
+    async queryFn(): Promise<ViewExclusions | null> {
+      const data = await execute(ViewExclusionsQuery);
+      const view = data.views.find((entry) => entry.name === scope.view);
+      if (!view?.excludedNodes || view.excludedCount == null) return null;
+      return { count: view.excludedCount, nodes: view.excludedNodes };
+    },
+    enabled: scope.view !== undefined,
   });
 }

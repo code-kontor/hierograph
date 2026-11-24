@@ -36,12 +36,6 @@
         "io.hierograph:io.hierograph.manifest:**",
         "io.hierograph:hierograph-maven-plugin:**"
       ]
-    },
-    {
-      "name": "hierograph-itest",
-      "members": [
-        "io.hierograph:io.hierograph.itest.tests:**"
-      ]
     }
   ]
 }

@@ -13,6 +13,8 @@ import structureCells from "@/testing/fixtures/StructureCells.json";
 import structureGiven from "@/testing/fixtures/StructureGiven.json";
 import structureLevel from "@/testing/fixtures/StructureLevel.json";
 import structureRoot from "@/testing/fixtures/StructureRoot.json";
+import viewExclusions from "@/testing/fixtures/ViewExclusions.json";
+import viewExclusionsNoGraph from "@/testing/fixtures/ViewExclusions.no-graph.json";
 
 // GraphQL handlers answering from the recorded fixtures
 // (`src/testing/fixtures/`, see the README there). Every unhandled request
@@ -45,6 +47,10 @@ const RECORDED: Record<
     "no-graph": hierarchyViewsNoGraph,
   },
   StartScreen: { default: startScreen, "no-graph": startScreenNoGraph },
+  ViewExclusions: {
+    default: viewExclusions,
+    "no-graph": viewExclusionsNoGraph,
+  },
   HierarchyTreeRoot: { default: hierarchyTreeRoot },
   HierarchyTreeChildren: { default: hierarchyTreeChildren },
   HierarchyArcs: { default: hierarchyArcs },

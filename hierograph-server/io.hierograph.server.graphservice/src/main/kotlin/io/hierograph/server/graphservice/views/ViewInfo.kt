@@ -15,6 +15,8 @@
  */
 package io.hierograph.server.graphservice.views
 
+import io.hierograph.hierarchicalgraph.model.NodeMetadata
+
 /**
  * A view as listed: its registry [entry] and, when it could be applied to the graph in service, a summary of
  * the result ([applied]). `list_views` (MCP) and `views` (GraphQL) both list these.
@@ -33,7 +35,14 @@ class ViewInfo(val entry: ViewEntry, val applied: AppliedViewSummary?) {
     val errors: Int? get() = applied?.errors
     val warnings: Int? get() = applied?.warnings
     val restructure: Boolean get() = applied?.restructure ?: (entry.document?.restructure == true)
+    /** The nodes the view leaves out, with everything inside them; `null` without exclusions or when not applied. */
+    val excludedCount: Int? get() = applied?.excludedCount
+    /** The outermost nodes the view leaves out; `null` without exclusions or when not applied. */
+    val excludedNodes: List<ExcludedNode>? get() = applied?.excluded
 }
+
+/** A node a view leaves out, with everything inside it: its id, qualified name and kind, as a node names them. */
+data class ExcludedNode(val id: String, val text: String, val type: String)
 
 /**
  * The hierarchy as scanned: what a call without `view` answers in. Listed beside the views rather than among
@@ -64,6 +73,8 @@ data class AppliedViewSummary(
     val introducesCycles: Boolean?,
     /** The nodes the view leaves out, with everything inside them; `null` for a view without exclusions. */
     val excludedCount: Int? = null,
+    /** The outermost nodes the view leaves out; `null` for a view without exclusions. Not in [toMap]. */
+    val excluded: List<ExcludedNode>? = null,
 ) {
     fun toMap(): LinkedHashMap<String, Any?> = linkedMapOf<String, Any?>(
         "group_count" to groupCount,
@@ -82,6 +93,7 @@ data class AppliedViewSummary(
         fun of(view: ViewSnapshot): AppliedViewSummary {
             val materialized = view.materialized
             val restructure = materialized.document.restructure
+            val excludes = materialized.document.exclude.isNotEmpty()
             return AppliedViewSummary(
                 groupCount = materialized.groupNodes.size,
                 errors = materialized.report.errors.size,
@@ -89,7 +101,14 @@ data class AppliedViewSummary(
                 restructure = restructure,
                 virtualModuleCount = if (restructure) materialized.virtualModules.size else null,
                 introducesCycles = if (restructure) materialized.effect?.let { it.newCycles.isNotEmpty() } else null,
-                excludedCount = if (materialized.document.exclude.isNotEmpty()) materialized.excludedCount else null,
+                excludedCount = if (excludes) materialized.excludedCount else null,
+                excluded = if (excludes) {
+                    materialized.excluded.map {
+                        ExcludedNode(it.identifier.toString(), NodeMetadata.getQualifiedName(it), it.kind?.toString() ?: "Unknown")
+                    }
+                } else {
+                    null
+                },
             )
         }
     }
