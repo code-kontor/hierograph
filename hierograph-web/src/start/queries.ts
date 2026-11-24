@@ -9,7 +9,7 @@ import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
 
 // Everything the start screen shows: the workspace, the graph, the server and
-// its JVM, and the hierarchy views.
+// its JVM.
 export const StartScreenQuery = graphql(`
   query StartScreen {
     server {
@@ -82,18 +82,6 @@ export const StartScreenQuery = graphql(`
         }
         processCpuLoad
       }
-    }
-    views {
-      name
-      description
-      source
-      valid
-      problems
-      groupCount
-      errors
-      warnings
-      restructure
-      excludedCount
     }
   }
 `);

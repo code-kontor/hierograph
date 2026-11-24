@@ -1,11 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { LayoutGrid, List, type LucideIcon, RotateCcw } from "lucide-react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
-import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { Notice } from "@/design-system/ui/notice";
 import {
@@ -19,7 +18,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/design-system/ui/tabs";
-import { useLocalStorage } from "@/design-system/useLocalStorage";
 import { useMediaQuery } from "@/design-system/useMediaQuery";
 import { useGraphScope } from "@/frame/GraphScope";
 import type { StartScreenQuery } from "@/graphql/generated/graphql";
@@ -46,15 +44,15 @@ import {
 } from "./queries";
 
 type Server = StartScreenQuery["server"];
-type HierarchyView = StartScreenQuery["views"][number];
 type NotCompiled = NonNullable<Server["artifacts"]>["notCompiled"][number];
 type Jvm = Server["jvm"];
 type MemoryUsage = Jvm["heap"];
 type GarbageCollector = Jvm["garbageCollectors"][number];
 
 // The start screen: what the server serves (the workspace, the graph, the
-// hierarchy views, the server itself and its JVM), live. It needs no graph: without one it
-// still shows the workspace and the server.
+// server itself and its JVM), live; the hierarchy view is chosen in the
+// header. It needs no graph: without one it still shows the workspace and the
+// server.
 export function StartPage() {
   const scope = useGraphScope();
   const query = useQuery(startScreenQueryOptions(scope?.generation ?? null));
@@ -73,10 +71,7 @@ export function StartPage() {
     );
   }
 
-  const { server, views } = query.data;
-  const viewsBlock = (
-    <HierarchyViewsBlock modules={server.graph.counts?.modules} views={views} />
-  );
+  const { server } = query.data;
   const tabs = <ServerTabs server={server} />;
   // As tall as the space it is given, scrolling on its own.
   const tree = (
@@ -87,10 +82,9 @@ export function StartPage() {
     </div>
   );
   return wide ? (
-    <WideLayout tree={tree} views={viewsBlock} tabs={tabs} />
+    <WideLayout tree={tree} tabs={tabs} />
   ) : (
     <div className="text-fg grid w-full grid-cols-1 gap-3">
-      {viewsBlock}
       {tabs}
       {tree}
     </div>
@@ -99,14 +93,13 @@ export function StartPage() {
 
 type WideLayoutProps = {
   tree: ReactNode;
-  views: ReactNode;
   tabs: ReactNode;
 };
 
-// On a wide screen the tree on the left, the hierarchy views above the
-// server's tabs on the right, all as tall as the window. Both splits are moved
-// by the user (and remembered by the browser); each box scrolls on its own.
-function WideLayout({ tree, views, tabs }: WideLayoutProps) {
+// On a wide screen the tree on the left, the server's tabs on the right, both
+// as tall as the window. The split is moved by the user (and remembered by the
+// browser); each box scrolls on its own.
+function WideLayout({ tree, tabs }: WideLayoutProps) {
   return (
     <ResizablePanelGroup
       direction="horizontal"
@@ -121,18 +114,7 @@ function WideLayout({ tree, views, tabs }: WideLayoutProps) {
         className="mx-0.5 rounded-[4px]"
       />
       <ResizablePanel id="status" order={2} defaultSize={60} minSize={25}>
-        <ResizablePanelGroup direction="vertical" autoSaveId="start-rows">
-          <ResizablePanel id="views" order={1} defaultSize={45} minSize={15}>
-            {views}
-          </ResizablePanel>
-          <ResizableHandle
-            aria-label="Resize the hierarchy views"
-            className="my-0.5 rounded-[4px]"
-          />
-          <ResizablePanel id="tabs" order={2} defaultSize={55} minSize={15}>
-            {tabs}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        {tabs}
       </ResizablePanel>
     </ResizablePanelGroup>
   );
@@ -439,287 +421,6 @@ function GraphBlock({ graph }: GraphBlockProps) {
   );
 }
 
-type HierarchyViewsBlockProps = {
-  // The scanned modules, `undefined` without a graph.
-  modules: number | undefined;
-  views: HierarchyView[];
-};
-
-// How the views are laid out: as cards side by side, in as many rows as
-// needed (the default), or one per line. Chosen in the block's corner, kept
-// by the browser.
-type ViewsLayout = "list" | "cards";
-
-function HierarchyViewsBlock({ modules, views }: HierarchyViewsBlockProps) {
-  const current: { view?: string } = useSearch({ strict: false });
-  const [stored, setLayout] = useLocalStorage<string>(
-    "start-views-layout",
-    "cards",
-  );
-  const layout: ViewsLayout = stored === "list" ? "list" : "cards";
-  const rows = views.map((view) => (
-    <HierarchyViewRow
-      key={view.name}
-      view={view}
-      current={current.view === view.name}
-    />
-  ));
-  return (
-    <Block
-      title="Hierarchy views"
-      toolbar={<ViewsLayoutToggle layout={layout} onChange={setLayout} />}
-    >
-      <ul
-        className={twMerge(
-          "flex flex-col gap-2",
-          layout === "cards" &&
-            // Every card the same size: rows as tall as the tallest card.
-            "grid auto-rows-fr grid-cols-[repeat(auto-fill,minmax(220px,1fr))]",
-        )}
-      >
-        <DefaultViewRow
-          modules={modules}
-          current={current.view === undefined}
-        />
-        {rows}
-      </ul>
-      {views.length === 0 && (
-        <p className="text-fg-muted text-[12px]">
-          No hierarchy views are defined. Ask the agent to define one, or add a
-          document to <span className="font-mono">.hierograph-views/</span>.
-        </p>
-      )}
-    </Block>
-  );
-}
-
-type ViewsLayoutToggleProps = {
-  layout: ViewsLayout;
-  onChange: (layout: ViewsLayout) => void;
-};
-
-function ViewsLayoutToggle({ layout, onChange }: ViewsLayoutToggleProps) {
-  return (
-    <div role="group" aria-label="Layout" className="flex items-center gap-0.5">
-      <LayoutButton
-        icon={List}
-        label="Show as a list"
-        pressed={layout === "list"}
-        onPress={() => onChange("list")}
-      />
-      <LayoutButton
-        icon={LayoutGrid}
-        label="Show as cards"
-        pressed={layout === "cards"}
-        onPress={() => onChange("cards")}
-      />
-    </div>
-  );
-}
-
-type LayoutButtonProps = {
-  icon: LucideIcon;
-  label: string;
-  pressed: boolean;
-  onPress: () => void;
-};
-
-function LayoutButton({
-  icon: Icon,
-  label,
-  pressed,
-  onPress,
-}: LayoutButtonProps) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      onClick={onPress}
-      className={twMerge(
-        ghostIconTriggerClassName,
-        "size-5",
-        pressed && "bg-state-selected-bg text-primary",
-      )}
-    >
-      <Icon className="size-3.5" />
-    </button>
-  );
-}
-
-// What choosing a view does, on hover of every choosable row.
-export const CHOOSE_HINT =
-  "Show this UI in this hierarchy view. The agent session isn't affected.";
-
-type DefaultViewRowProps = {
-  modules: number | undefined;
-  current: boolean;
-};
-
-// The hierarchy as scanned: no `view=` at all. It isn't a view name, so
-// choosing it drops the parameter.
-function DefaultViewRow({ modules, current }: DefaultViewRowProps) {
-  const meta = [
-    "scanned",
-    modules === undefined
-      ? undefined
-      : countLabel(modules, "module", "modules"),
-  ];
-  return (
-    <ChoosableViewRow
-      name="default"
-      view={undefined}
-      current={current}
-      meta={meta}
-      description="The hierarchy as scanned from the build."
-    />
-  );
-}
-
-type HierarchyViewRowProps = {
-  view: HierarchyView;
-  current: boolean;
-};
-
-function HierarchyViewRow({ view, current }: HierarchyViewRowProps) {
-  // The same scheme for every row: source · count, and what a view leaves out.
-  const meta = [
-    view.source,
-    view.groupCount === null || view.groupCount === undefined
-      ? undefined
-      : countLabel(view.groupCount, "group", "groups"),
-    view.excludedCount === null || view.excludedCount === undefined
-      ? undefined
-      : countLabel(view.excludedCount, "node excluded", "nodes excluded"),
-  ];
-  if (!view.valid) {
-    return (
-      <li className="border-border h-full rounded-[6px] border px-2.5 py-2">
-        <ViewRowHead
-          name={view.name}
-          meta={meta}
-          badge={<span className="text-status-error text-[12px]">invalid</span>}
-        />
-        {view.description && <ViewDescription text={view.description} />}
-        <ProblemList problems={view.problems} />
-      </li>
-    );
-  }
-  return (
-    <ChoosableViewRow
-      name={view.name}
-      view={view.name}
-      current={current}
-      meta={meta}
-      restructure={view.restructure}
-      description={view.description ?? undefined}
-    />
-  );
-}
-
-type ChoosableViewRowProps = {
-  name: string;
-  // The `view=` value; `undefined` for the scanned hierarchy.
-  view: string | undefined;
-  current: boolean;
-  meta: (string | undefined)[];
-  restructure?: boolean;
-  description: string | undefined;
-};
-
-// A row that is a link as a whole: choosing it sets (or drops) `view=`.
-function ChoosableViewRow({
-  name,
-  view,
-  current,
-  meta,
-  restructure,
-  description,
-}: ChoosableViewRowProps) {
-  const badges = <>{restructure && <Badge>restructuring</Badge>}</>;
-  return (
-    <li>
-      <Link
-        to="/"
-        // The tree of another view starts collapsed, nothing selected.
-        search={(previous) => ({ tab: previous.tab, view })}
-        title={CHOOSE_HINT}
-        // `view: undefined` (the scanned hierarchy) must not match a set view.
-        activeOptions={{ explicitUndefined: true }}
-        className={twMerge(
-          "border-border hover:bg-state-hover hover:border-border-strong block h-full rounded-[6px] border px-2.5 py-2 transition-colors",
-          current &&
-            "border-primary bg-state-selected-bg hover:border-primary hover:bg-state-selected-bg",
-        )}
-      >
-        <ViewRowHead name={name} meta={meta} badge={badges} />
-        {description && <ViewDescription text={description} />}
-      </Link>
-    </li>
-  );
-}
-
-type ViewRowHeadProps = {
-  name: string;
-  meta: (string | undefined)[];
-  badge: ReactNode;
-};
-
-function ViewRowHead({ name, meta, badge }: ViewRowHeadProps) {
-  const text = meta.filter((part) => part !== undefined).join(" · ");
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-      <span className="text-fg font-mono text-[13px] font-medium">{name}</span>
-      {badge}
-      <span className="text-fg-muted text-[12px]">{text}</span>
-    </div>
-  );
-}
-
-type ViewDescriptionProps = {
-  text: string;
-};
-
-function ViewDescription({ text }: ViewDescriptionProps) {
-  return <p className="text-fg-muted mt-0.5 text-[12px]">{text}</p>;
-}
-
-type BadgeProps = {
-  children: ReactNode;
-};
-
-function Badge({ children }: BadgeProps) {
-  return (
-    <span className="border-border text-fg-muted rounded-[4px] border px-1 text-[11px]">
-      {children}
-    </span>
-  );
-}
-
-type ProblemListProps = {
-  problems: string[];
-};
-
-function ProblemList({ problems }: ProblemListProps) {
-  const items = problems.map((problem) => (
-    <ProblemItem key={problem} problem={problem} />
-  ));
-  return (
-    <ul className="text-status-error mt-1 list-disc pl-4 text-[12px]">
-      {items}
-    </ul>
-  );
-}
-
-type ProblemItemProps = {
-  problem: string;
-};
-
-function ProblemItem({ problem }: ProblemItemProps) {
-  return <li className="font-mono break-words">{problem}</li>;
-}
-
 type ServerBlockProps = {
   server: Server;
 };
@@ -909,22 +610,6 @@ function GarbageCollectorRow({ collector }: GarbageCollectorRowProps) {
         {`${countLabel(collector.count, "collection", "collections")}, ${formatMillis(collector.timeMs)}`}
       </dd>
     </>
-  );
-}
-
-type BlockProps = {
-  title: string;
-  toolbar?: ReactNode;
-  children: ReactNode;
-};
-
-function Block({ title, toolbar, children }: BlockProps) {
-  return (
-    <section aria-label={title} className="h-full">
-      <Pane title={title} toolbar={toolbar} bodyClassName="flex flex-col gap-2">
-        {children}
-      </Pane>
-    </section>
   );
 }
 

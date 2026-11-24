@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { execute } from "@/graphql/client";
 import {
   GraphStatusDocument,
+  HierarchyViewsDocument,
   StartScreenDocument,
 } from "@/graphql/generated/graphql";
 import { handlersFor } from "@/testing/msw/handlers";
@@ -16,7 +17,8 @@ describe("recorded GraphQL fixtures", () => {
     expect(data.server.graph.state).toBe("LOADED");
     expect(data.server.graph.counts?.modules).toBe(1);
     expect(data.server.artifacts?.notCompiled).toHaveLength(1);
-    expect(data.views.map((view) => [view.name, view.valid])).toEqual([
+    const { views } = await execute(HierarchyViewsDocument);
+    expect(views.map((view) => [view.name, view.valid])).toEqual([
       ["broken", false],
       ["layers", true],
       ["locations", true],

@@ -3,11 +3,14 @@ import type { LinkProps } from "@tanstack/react-router";
 // A screen the frame shows: its route, its label in the navigation, and whether
 // it needs a loaded graph. The frame shows a message instead of a screen that
 // needs a graph while none is loaded. The routes pass the list of screens to
-// the frame, so the frame never imports a screen.
+// the frame, so the frame never imports a screen. `keepOnViewChange` names the
+// search params that don't depend on the hierarchy view (the start screen's
+// tab): choosing another view keeps them; all others are the new view's own.
 export type Screen = {
   path: NonNullable<LinkProps["to"]>;
   label: string;
   needsGraph: boolean;
+  keepOnViewChange?: readonly string[];
 };
 
 // The screen `pathname` belongs to: the one with the longest matching path.

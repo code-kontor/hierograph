@@ -12,6 +12,7 @@ import { Message } from "@/design-system/ui/message";
 import { useNoNativeContextMenu } from "@/design-system/useNoNativeContextMenu";
 import { type GraphScope, GraphScopeProvider } from "@/frame/GraphScope";
 import { GraphStatusIndicator } from "@/frame/GraphStatusIndicator";
+import { HierarchyViewMenu } from "@/frame/HierarchyViewMenu";
 import {
   graphStatusQueryOptions,
   hierarchyViewsQueryOptions,
@@ -76,7 +77,7 @@ export function AppFrame({ screens, children }: AppFrameProps) {
   const unreachable = status.isError;
   const views = useQuery({
     ...hierarchyViewsQueryOptions(graph?.generation ?? null, viewsVersion),
-    enabled: view !== undefined && status.isSuccess,
+    enabled: status.isSuccess,
   });
   const viewCheck = checkView(view, views.data?.views);
 
@@ -105,6 +106,26 @@ export function AppFrame({ screens, children }: AppFrameProps) {
       </Message>
     );
   }
+
+  // Another hierarchy view on the same screen, as it was last left in that
+  // view (or as it starts), with the params that don't depend on the view.
+  const navigate = useNavigate();
+  const chooseView = async (next: string | undefined) => {
+    const target = screen ?? screens[0];
+    const kept = Object.fromEntries(
+      Object.entries(own).filter(([name]) =>
+        screen?.keepOnViewChange?.includes(name),
+      ),
+    );
+    await navigate({
+      to: target?.path ?? "/",
+      search: {
+        ...(target && remembered[rememberKey(target, next)]),
+        ...kept,
+        view: next,
+      },
+    } as never);
+  };
 
   const screenLinks = screens.map((entry) => (
     <ScreenLink
@@ -139,7 +160,11 @@ export function AppFrame({ screens, children }: AppFrameProps) {
           <nav className="flex h-full items-stretch gap-0.5">{screenLinks}</nav>
         )}
         <div className="flex-1" />
-        {view !== undefined && <HierarchyViewLabel view={view} />}
+        <HierarchyViewMenu
+          view={view}
+          views={views.data}
+          onChoose={chooseView}
+        />
         <GraphStatusIndicator status={graph} unreachable={unreachable} />
       </header>
       <main className="min-h-0 flex-1 p-3">
@@ -180,19 +205,6 @@ function ScreenLink({ screen, search }: ScreenLinkProps) {
     >
       {screen.label}
     </Link>
-  );
-}
-
-type HierarchyViewLabelProps = {
-  view: string;
-};
-
-function HierarchyViewLabel({ view }: HierarchyViewLabelProps) {
-  return (
-    <div className="text-fg-muted text-[12px]">
-      Hierarchy view{" "}
-      <span className="text-fg font-mono font-medium">{view}</span>
-    </div>
   );
 }
 

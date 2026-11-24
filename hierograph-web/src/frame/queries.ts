@@ -21,13 +21,30 @@ export const GraphStatusQuery = graphql(`
   }
 `);
 
-// The hierarchy views, to check the `view` URL parameter against.
+// The hierarchy views: to check the `view` URL parameter against, and to
+// choose one from in the header's menu. The scanned modules describe the
+// hierarchy without a view there.
 export const HierarchyViewsQuery = graphql(`
   query HierarchyViews {
+    server {
+      graph {
+        counts {
+          modules
+        }
+      }
+    }
     views {
       name
+      description
+      source
       valid
       problems
+      groupCount
+      restructure
+      excludedCount
+      excludedNodes {
+        type
+      }
     }
   }
 `);

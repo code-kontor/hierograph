@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppFrame } from "@/frame/AppFrame";
 import { graphQueryKey, useGraphScope } from "@/frame/GraphScope";
+import { CHOOSE_HINT } from "@/frame/HierarchyViewMenu";
 import {
   GRAPH_STATUS_POLL_INTERVAL_MS,
   graphStatusQueryOptions,
@@ -264,6 +265,123 @@ describe("AppFrame", () => {
     await screen.router.navigate({ to: "/", search: {} } as never);
     await go("Other");
     expect(screen.router.state.location.search).toEqual({});
+  });
+
+  it("lists the hierarchy views in the header's menu, the scanned hierarchy first", async () => {
+    const screen = await renderFrame();
+    const trigger = screen.getByRole("button", {
+      name: "Hierarchy view: default",
+    });
+    await expect.element(trigger).toBeVisible();
+
+    await trigger.click();
+
+    const menu = screen.getByRole("menu");
+    await expect.element(menu.getByText(CHOOSE_HINT)).toBeVisible();
+    const items = menu.getByRole("menuitemradio");
+    expect(items.elements().map((item) => item.textContent)).toEqual([
+      expect.stringMatching(/^default/),
+      expect.stringMatching(/^layers/),
+      expect.stringMatching(/^locations/),
+    ]);
+    // Under their sources' labels; a source without views has none.
+    await expect
+      .element(menu.getByText("Built-in", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(menu.getByText("Project views", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(menu.getByText("Runtime views", { exact: true }))
+      .not.toBeInTheDocument();
+    // Current without a view; every row with the same fields: its groups and
+    // what it excludes, by the kind of the outermost excluded nodes.
+    await expect
+      .element(menu.getByRole("menuitemradio", { name: /^default/ }))
+      .toHaveAttribute("aria-checked", "true");
+    await expect
+      .element(menu.getByText("no groups · nothing excluded", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        menu.getByText("The hierarchy as scanned from the build: 1 module."),
+      )
+      .toBeVisible();
+    await expect
+      .element(menu.getByText(/application on top of the library/))
+      .toBeVisible();
+    await expect
+      .element(menu.getByText("2 groups · nothing excluded", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        menu.getByText("no groups · excludes 1 package", { exact: true }),
+      )
+      .toBeVisible();
+    // An invalid view is listed with its problems, but can't be chosen.
+    await expect
+      .element(menu.getByRole("menuitemradio", { name: /^broken/ }))
+      .not.toBeInTheDocument();
+    await expect.element(menu.getByText("broken")).toBeVisible();
+    await expect
+      .element(menu.getByText("invalid", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(menu.getByText(/Invalid JSON at line 5/))
+      .toBeVisible();
+  });
+
+  it("sets the hierarchy view chosen in the menu, and drops it with the default", async () => {
+    const screen = await renderFrame();
+    // Without the stylesheet the menu is as wide as its longest line, the
+    // middle of an item off the page: clicked near its start.
+    const choose = async (name: RegExp) => {
+      await screen.getByRole("button", { name: /^Hierarchy view/ }).click();
+      await screen
+        .getByRole("menuitemradio", { name })
+        .click({ position: { x: 8, y: 8 } });
+    };
+
+    await choose(/^layers/);
+
+    await expect.element(screen.getByText(/scope 1 layers/)).toBeVisible();
+    expect(screen.router.state.location.search).toEqual({ view: "layers" });
+    await expect
+      .element(screen.getByRole("button", { name: "Hierarchy view: layers" }))
+      .toBeVisible();
+
+    await choose(/^default/);
+
+    await expect.element(screen.getByText("scope 1 -;")).toBeVisible();
+    expect(screen.router.state.location.search).not.toHaveProperty("view");
+  });
+
+  it("brings a screen back as it was left in the view chosen in the menu", async () => {
+    const screen = await renderFrame(false, "?view=layers");
+    await expect.element(screen.getByText(/scope 1 layers/)).toBeVisible();
+    await screen.router.navigate({
+      to: "/",
+      search: { view: "layers", expanded_ids: ["7"] },
+    } as never);
+    const choose = async (name: RegExp) => {
+      await screen.getByRole("button", { name: /^Hierarchy view/ }).click();
+      await screen
+        .getByRole("menuitemradio", { name })
+        .click({ position: { x: 8, y: 8 } });
+    };
+
+    await choose(/^locations/);
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toEqual({ view: "locations" });
+    await choose(/^layers/);
+
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toEqual({
+        view: "layers",
+        expanded_ids: ["7"],
+      });
   });
 
   it("names an unknown hierarchy view and offers to drop it", async () => {

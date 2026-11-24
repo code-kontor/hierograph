@@ -91,47 +91,7 @@
             },
             "processCpuLoad": 0.05
           }
-        },
-        "views": [
-          {
-            "name": "broken",
-            "description": null,
-            "source": "project",
-            "valid": false,
-            "problems": [
-              "Invalid JSON at line 5, column 1: Unexpected end-of-input: expected close marker for Array (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 4, column: 13])"
-            ],
-            "groupCount": null,
-            "errors": null,
-            "warnings": null,
-            "restructure": false,
-            "excludedCount": null
-          },
-          {
-            "name": "layers",
-            "description": "The locations tenant by layer: application on top of the library.",
-            "source": "project",
-            "valid": true,
-            "problems": [],
-            "groupCount": 2,
-            "errors": 0,
-            "warnings": 0,
-            "restructure": false,
-            "excludedCount": null
-          },
-          {
-            "name": "locations",
-            "description": "The locations tenant alone: the basic tenant is excluded.",
-            "source": "project",
-            "valid": true,
-            "problems": [],
-            "groupCount": 0,
-            "errors": 0,
-            "warnings": 0,
-            "restructure": false,
-            "excludedCount": 102
-          }
-        ]
+        }
       }
     }
   ]

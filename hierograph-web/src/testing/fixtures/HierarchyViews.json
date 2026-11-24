@@ -5,23 +5,52 @@
     {
       "variables": {},
       "data": {
+        "server": {
+          "graph": {
+            "counts": {
+              "modules": 1
+            }
+          }
+        },
         "views": [
           {
             "name": "broken",
+            "description": null,
+            "source": "project",
             "valid": false,
             "problems": [
               "Invalid JSON at line 5, column 1: Unexpected end-of-input: expected close marker for Array (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 4, column: 13])"
-            ]
+            ],
+            "groupCount": null,
+            "restructure": false,
+            "excludedCount": null,
+            "excludedNodes": null
           },
           {
             "name": "layers",
+            "description": "The locations tenant by layer: application on top of the library.",
+            "source": "project",
             "valid": true,
-            "problems": []
+            "problems": [],
+            "groupCount": 2,
+            "restructure": false,
+            "excludedCount": null,
+            "excludedNodes": null
           },
           {
             "name": "locations",
+            "description": "The locations tenant alone: the basic tenant is excluded.",
+            "source": "project",
             "valid": true,
-            "problems": []
+            "problems": [],
+            "groupCount": 0,
+            "restructure": false,
+            "excludedCount": 102,
+            "excludedNodes": [
+              {
+                "type": "java.package"
+              }
+            ]
           }
         ]
       }

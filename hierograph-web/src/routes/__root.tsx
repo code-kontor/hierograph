@@ -11,7 +11,7 @@ import type { Screen } from "@/frame/screens";
 // The screens of the UI, in navigation order. A new screen adds its route and
 // an entry here; the frame never imports a screen.
 const SCREENS: readonly Screen[] = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Start", needsGraph: false, keepOnViewChange: ["tab"] },
   { path: "/structure", label: "Structure", needsGraph: true },
 ];
 

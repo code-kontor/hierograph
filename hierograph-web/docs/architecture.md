@@ -61,9 +61,10 @@ change.
    `pnpm routes:generate`), rendering the screen and validating the screen's
    own search params.
 3. **A registry entry** in `SCREENS` (`src/routes/__root.tsx`): `path`, the
-   navigation `label`, and `needsGraph`. The frame builds the navigation from
-   it and shows a message instead of a screen that needs a graph while none is
-   loaded.
+   navigation `label`, `needsGraph`, and optionally `keepOnViewChange`: the
+   search params that don't depend on the hierarchy view. The frame builds the
+   navigation from it and shows a message instead of a screen that needs a
+   graph while none is loaded.
 4. **Boundary rules** in `eslint.config.js`: an element for the vertical, its
    public files in `PUBLIC`, a rule like the one for `start`, and the vertical
    added to what `routes` may import. Update the tables in this document in
@@ -73,7 +74,7 @@ change.
 
 `AppFrame` renders the header (the logo and "hierograph – <project>", the
 project the server serves; navigation from the screen registry; the hierarchy
-view; the graph status) and the matched screen. It owns:
+view menu; the graph status) and the matched screen. It owns:
 
 - **The graph status.** It polls
   `server { workspace viewsVersion graph { state update generation } }` every
@@ -93,7 +94,18 @@ view; the graph status) and the matched screen. It owns:
   against the server's views, fetched again with every new generation or
   `viewsVersion`, so a view defined after the page was loaded can be chosen at
   once. It shows a message, with a way to drop it, for an unknown or invalid
-  one.
+  one. The header's `HierarchyViewMenu` shows the current view and chooses
+  another on every screen: the scanned hierarchy first as `default` (not a
+  view name, so choosing it drops `view=`), then the views under their
+  source's label ("Project views", "Runtime views"). Every row has the same
+  structure: the name (with a "restructuring" badge), then the same fields
+  for all (its groups, and what it excludes by the kind of its outermost
+  excluded nodes), then its description, at most two lines with the whole
+  text on hover. An invalid view is listed with its problems but can't be
+  chosen. Choosing one stays on the screen and
+  restores it as it was last left in that view, keeping only the params the
+  screen names in `keepOnViewChange` (the start screen's `tab`): the tree of
+  another view starts collapsed.
 - **Messages instead of a screen.** A registry entry says whether its screen
   `needsGraph`. Without a graph, or when the server can't be reached, the frame
   shows a message instead of such a screen; the start screen doesn't need a
@@ -105,18 +117,13 @@ view; the graph status) and the matched screen. It owns:
 
 ## The start screen
 
-`StartPage` shows what the server serves. On wide screens the hierarchy tree
-is on the left and the rest on the right, the views above the tabs; both
-splits are moved by the user and kept by the browser (the resizable panels'
-own storage), each box scrolling on its own. Narrow screens stack the views,
-the tabs and the tree.
+`StartPage` shows what the server serves; the hierarchy view is chosen in the
+header. On wide screens the hierarchy tree is on the left and the tabs on the
+right; the split is moved by the user and kept by the browser (the resizable
+panels' own storage), each box scrolling on its own. Narrow screens stack the
+tabs and the tree.
 
-- **Right, on top:** the hierarchy views, as cards (the default, all of one
-  size) or a list, switched in the box's corner and kept in localStorage;
-  choosing a valid one sets `view=` and keeps only the `tab`, so the tree of
-  the new view starts collapsed. The scanned hierarchy comes first as
-  `default`: it isn't a view name, so choosing it drops `view=`.
-- **Right, below:** a tab each for the workspace and its graph source (with the
+- **Right:** a tab each for the workspace and its graph source (with the
   artifacts not compiled yet), the graph (state, generation, load time,
   counts), the server, and its JVM (heap against its limit and what the last
   collection kept, threads, CPU load, garbage collection). The tab is the start
@@ -181,7 +188,7 @@ model (`docs/design-system.md`, "Interaction").
 
 - **Data.** The root and each expanded container load their levelization
   over the folded children (`node(id) { children(compact: true) {
-  levelization } }`, #61, #63), keyed by the graph scope; `mapModel.ts`
+levelization } }`, #61, #63), keyed by the graph scope; `mapModel.ts`
   builds the visible map from them: the boxes, the open containers' rows, the
   frontier (boxes whose content isn't shown) and the feedback dependencies.
   The server folds a chain of packages that each hold nothing but the next

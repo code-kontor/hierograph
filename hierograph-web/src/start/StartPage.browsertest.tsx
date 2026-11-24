@@ -9,10 +9,10 @@ import { worker } from "@/testing/msw/worker";
 import { renderWithRouter } from "@/testing/render";
 
 import { formatTime } from "./format";
-import { CHOOSE_HINT, StartPage } from "./StartPage";
+import { StartPage } from "./StartPage";
 
 const SCREENS = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Start", needsGraph: false, keepOnViewChange: ["tab"] },
 ] as unknown as Screen[];
 
 // The start screen inside the frame, as the app renders it: the frame provides
@@ -28,10 +28,6 @@ function renderStart(search = "") {
 }
 
 type StartRender = Awaited<ReturnType<typeof renderStart>>;
-
-function block(screen: StartRender, name: string) {
-  return screen.getByRole("region", { name });
-}
 
 // Opens a tab of the server pane and returns its panel.
 async function tab(screen: StartRender, name: string) {
@@ -107,17 +103,22 @@ describe("StartPage", () => {
       "?tab=graph&expanded_ids=1,2&selected_id=2",
     );
 
-    await block(screen, "Hierarchy views")
-      .getByRole("link", { name: "layers" })
-      .click();
+    await screen.getByRole("button", { name: /^Hierarchy view/ }).click();
+    // Clicked near its start: without the stylesheet the menu is wider than
+    // the page.
+    await screen
+      .getByRole("menuitemradio", { name: /^layers/ })
+      .click({ position: { x: 8, y: 8 } });
 
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toEqual({
+        tab: "graph",
+        view: "layers",
+      });
     await expect
       .element(screen.getByRole("tabpanel", { name: "Graph" }))
       .toBeVisible();
-    expect(screen.router.state.location.search).toEqual({
-      tab: "graph",
-      view: "layers",
-    });
   });
 
   it("shows the workspace, its graph source and the artifacts not compiled", async () => {
@@ -272,113 +273,6 @@ describe("StartPage", () => {
       .toBeVisible();
   });
 
-  it("lists the hierarchy views, an invalid one with its problems", async () => {
-    const screen = await renderStart();
-    const views = block(screen, "Hierarchy views");
-
-    await expect
-      .element(views.getByRole("link", { name: "layers" }))
-      .toBeVisible();
-    await expect
-      .element(views.getByText(/application on top of the library/))
-      .toBeVisible();
-    await expect
-      .element(views.getByText("project · 2 groups", { exact: true }))
-      .toBeVisible();
-    // An invalid view can't be chosen.
-    await expect
-      .element(views.getByRole("link", { name: "broken" }))
-      .not.toBeInTheDocument();
-    await expect
-      .element(views.getByText("invalid", { exact: true }))
-      .toBeVisible();
-    await expect
-      .element(views.getByText(/Invalid JSON at line 5/))
-      .toBeVisible();
-  });
-
-  it("shows the views as cards, or as a list as chosen in the block's corner", async () => {
-    try {
-      const screen = await renderStart();
-      const views = block(screen, "Hierarchy views");
-      const list = views.getByRole("button", { name: "Show as a list" });
-      const cards = views.getByRole("button", { name: "Show as cards" });
-      await expect.element(cards).toHaveAttribute("aria-pressed", "true");
-      await expect.element(list).toHaveAttribute("aria-pressed", "false");
-      // Every row as tall as the tallest card: all of one size.
-      await expect
-        .element(views.getByRole("list").first())
-        .toHaveClass("grid", "auto-rows-fr");
-
-      await list.click();
-
-      await expect.element(list).toHaveAttribute("aria-pressed", "true");
-      await expect.element(cards).toHaveAttribute("aria-pressed", "false");
-      await expect
-        .element(views.getByRole("list").first())
-        .not.toHaveClass("grid");
-      // Kept by the browser.
-      expect(localStorage.getItem("start-views-layout")).toBe('"list"');
-    } finally {
-      localStorage.clear();
-    }
-  });
-
-  it("lists the scanned hierarchy first, current without a hierarchy view", async () => {
-    const screen = await renderStart();
-    const views = block(screen, "Hierarchy views");
-
-    // The project's name is in the header, not here.
-    await expect.element(views.getByRole("heading")).not.toBeInTheDocument();
-
-    const first = views.getByRole("listitem").first();
-    await expect
-      .element(first.getByRole("link", { name: "default" }))
-      .toBeVisible();
-    // The same scheme as every view: source · count.
-    await expect
-      .element(first.getByText("scanned · 1 module", { exact: true }))
-      .toBeVisible();
-    await expect
-      .element(first.getByText("The hierarchy as scanned from the build."))
-      .toBeVisible();
-    await expect
-      .element(first.getByRole("link"))
-      .toHaveAttribute("aria-current", "page");
-    // Marked by its highlight only, no badge.
-    await expect
-      .element(first.getByText("current", { exact: true }))
-      .not.toBeInTheDocument();
-    // Hovering says what choosing does.
-    await expect
-      .element(first.getByRole("link"))
-      .toHaveAttribute("title", CHOOSE_HINT);
-  });
-
-  it("sets the hierarchy view when one is chosen, and drops it with the default", async () => {
-    const screen = await renderStart();
-    const views = block(screen, "Hierarchy views");
-    await views.getByRole("link", { name: "layers" }).click();
-
-    await expect
-      .element(views.getByRole("link", { name: "layers" }))
-      .toHaveAttribute("aria-current", "page");
-    await expect
-      .element(views.getByRole("link", { name: "default" }))
-      .not.toHaveAttribute("aria-current");
-    expect(screen.router.state.location.search).toEqual({ view: "layers" });
-    await expect
-      .element(screen.getByRole("banner").getByText("layers"))
-      .toBeVisible();
-
-    await views.getByRole("link", { name: "default" }).click();
-
-    await expect
-      .element(views.getByRole("link", { name: "default" }))
-      .toHaveAttribute("aria-current", "page");
-    expect(screen.router.state.location.search).not.toHaveProperty("view");
-  });
-
   it("shows the JVM's heap, threads, CPU load and garbage collection", async () => {
     const screen = await renderStart();
     const jvm = await tab(screen, "JVM");
@@ -499,9 +393,9 @@ describe("StartPage", () => {
       await expect.element(split).toBeInTheDocument();
       await expect.element(screen.getByRole("tree")).toBeVisible();
       const tree = screen.getByRole("tree").element();
-      const views = block(screen, "Hierarchy views").element();
+      const tabs = screen.getByRole("tablist").element();
       expect(tree.getBoundingClientRect().right).toBeLessThanOrEqual(
-        views.getBoundingClientRect().left,
+        tabs.getBoundingClientRect().left,
       );
       const before = Number(split.element().getAttribute("aria-valuenow"));
 
@@ -511,29 +405,6 @@ describe("StartPage", () => {
       await expect
         .poll(() => Number(split.element().getAttribute("aria-valuenow")))
         .toBeGreaterThan(before);
-    });
-
-    it("puts the hierarchy views above the server's tabs, the split moved by the user", async () => {
-      await page.viewport(1400, 900);
-      const screen = await renderStart();
-      const split = screen.getByRole("separator", {
-        name: "Resize the hierarchy views",
-      });
-      await expect.element(split).toBeInTheDocument();
-      const views = block(screen, "Hierarchy views").element();
-      const tabs = screen.getByRole("tablist").element();
-      // Without the stylesheet a box doesn't clip its content: tops only.
-      expect(views.getBoundingClientRect().top).toBeLessThan(
-        tabs.getBoundingClientRect().top,
-      );
-      const before = Number(split.element().getAttribute("aria-valuenow"));
-
-      (split.element() as HTMLElement).focus();
-      await userEvent.keyboard("{ArrowUp}");
-
-      await expect
-        .poll(() => Number(split.element().getAttribute("aria-valuenow")))
-        .toBeLessThan(before);
     });
   });
 
