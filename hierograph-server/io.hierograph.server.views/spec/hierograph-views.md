@@ -283,6 +283,12 @@ all).
   levels and cycles are computed without them, so a cycle that only exists through
   test code is gone from the view. The tools neither list nor count excluded nodes, and
   `find_node` does not find them (§7.2).
+- **External types go with the code that referenced them.** An external type (in
+  `External Types`) exists only because scanned code refers to it. One that only
+  excluded nodes referenced leaves the view too, and so does a package of
+  `External Types`, or the module itself, that this empties: excluding the test
+  artifacts also takes JUnit and the other test libraries out of the view. An external
+  type nothing referenced in the base hierarchy is not the view's doing and stays.
 - **Order.** Exclusions apply first, to a fork of the base model; a restructuring
   view's moves (§6.4) and every view's groups are then resolved against what is left. A
   group or move selector never selects an excluded node; one that then matches nothing
@@ -290,14 +296,16 @@ all).
   restructuring's effect compares the modules without the excluded ones.
 - **Reporting.** Every exclusion that leaves something out adds an info naming what it
   selected and how many nodes, and types among them, left the view, so a pattern that
-  excludes too much is visible. `MaterializedView.excluded` holds the outermost
-  excluded nodes, `excludedCount` all of them.
+  excludes too much is visible; the swept external types add one info of their own.
+  `MaterializedView.excluded` holds the outermost excluded nodes the exclusions select,
+  `excludedCount` all nodes that left the view, the swept external nodes included.
 
 | Code | Severity | Effect |
 |------|----------|--------|
 | `EXCLUDE_SELECTS_NOTHING` | warning | the exclusion is ignored |
 | `WITHIN_MATCHES_NOTHING` | warning | the exclusion cannot match and is ignored |
 | `NODES_EXCLUDED` | info | what the exclusion leaves out: the nodes it selects, and the count of every node and type gone with them |
+| `EXTERNAL_TYPES_UNREFERENCED` | info | how many external types only the excluded nodes referenced left the view, and how many nodes in all with the packages they emptied |
 
 ---
 

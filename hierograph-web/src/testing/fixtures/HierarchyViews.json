@@ -45,7 +45,7 @@
             "problems": [],
             "groupCount": 0,
             "restructure": false,
-            "excludedCount": 102,
+            "excludedCount": 106,
             "excludedNodes": [
               {
                 "type": "java.package"

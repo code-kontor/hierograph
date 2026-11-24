@@ -6152,46 +6152,15 @@
               "orderedAdjacencyMatrix": {
                 "orderedNodes": [
                   {
-                    "id": "2106137824575494",
-                    "text": "java",
-                    "type": "java.package",
-                    "hasChildren": true,
-                    "compactedFrom": []
-                  }
-                ],
-                "stronglyConnectedComponents": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "locations",
-        "id": "2106137824575494",
-        "ordered": true
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "2106137824575494",
-            "children": {
-              "orderedAdjacencyMatrix": {
-                "orderedNodes": [
-                  {
                     "id": "2966789580539469",
                     "text": "java.io",
                     "type": "java.package",
                     "hasChildren": true,
-                    "compactedFrom": []
-                  },
-                  {
-                    "id": "3272088741444211",
-                    "text": "java.util",
-                    "type": "java.package",
-                    "hasChildren": true,
-                    "compactedFrom": []
+                    "compactedFrom": [
+                      {
+                        "text": "java"
+                      }
+                    ]
                   }
                 ],
                 "stronglyConnectedComponents": []
@@ -6217,48 +6186,6 @@
                   {
                     "id": "1174811341709081",
                     "text": "java.io.PrintStream",
-                    "type": "external.type",
-                    "hasChildren": false,
-                    "compactedFrom": []
-                  },
-                  {
-                    "id": "3842501175667879",
-                    "text": "java.io.Serializable",
-                    "type": "external.type",
-                    "hasChildren": false,
-                    "compactedFrom": []
-                  }
-                ],
-                "stronglyConnectedComponents": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "locations",
-        "id": "3272088741444211",
-        "ordered": true
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "3272088741444211",
-            "children": {
-              "orderedAdjacencyMatrix": {
-                "orderedNodes": [
-                  {
-                    "id": "5320533368450867",
-                    "text": "java.util.List",
-                    "type": "external.type",
-                    "hasChildren": false,
-                    "compactedFrom": []
-                  },
-                  {
-                    "id": "1002505446253212",
-                    "text": "java.util.TimerTask",
                     "type": "external.type",
                     "hasChildren": false,
                     "compactedFrom": []

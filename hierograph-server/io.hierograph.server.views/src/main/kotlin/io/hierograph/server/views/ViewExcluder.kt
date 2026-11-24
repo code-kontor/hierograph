@@ -15,6 +15,7 @@
  */
 package io.hierograph.server.views
 
+import io.hierograph.graphstore.jvm.GraphStore
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
 import io.hierograph.hierarchicalgraph.model.HGModel
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -27,8 +28,9 @@ import io.hierograph.server.views.ViewFinding.Code
  *
  * [model] is the base model itself when nothing is excluded, and a fork otherwise. [excluded] are the nodes
  * the exclusions select, the outermost ones only: in the order of the exclusions, and each one's nodes in
- * pre-order. [excludedCount] counts them and every node inside them. [findings] say what each exclusion
- * left out, or that it selected nothing.
+ * pre-order. [excludedCount] counts them and every node inside them, and the external types that only they
+ * referenced, swept out with them. [findings] say what each exclusion left out, or that it selected nothing,
+ * and what the sweep took.
  */
 class Excluded(
     val model: HGModel,
@@ -41,7 +43,8 @@ class Excluded(
  * Applies a view's exclusions (views specification, §5.4): resolves each selector against the base
  * hierarchy and removes the selected nodes, with everything inside them, from a fork. Removing a node takes
  * its dependencies, to and from it, out of the fork too (hierarchical-graph model specification, §7.2), so
- * every aggregation, level and cycle in the view is computed without them.
+ * every aggregation, level and cycle in the view is computed without them. External types that only the
+ * removed nodes referenced then go too.
  */
 object ViewExcluder {
 
@@ -82,8 +85,64 @@ object ViewExcluder {
             if (tally.selected.isEmpty()) continue
             findings += finding(Code.NODES_EXCLUDED, i, tally.message(document.exclude[i]), document.exclude[i], tally.selected)
         }
-        return Excluded(fork, outermost, tallies.values.sumOf { it.nodes }, findings)
+        val swept = sweepUnreferencedExternals(hierarchy, fork.hierarchy)
+        if (swept.types > 0) {
+            findings += ViewFinding(
+                Code.EXTERNAL_TYPES_UNREFERENCED.severity, Code.EXTERNAL_TYPES_UNREFERENCED, "exclude",
+                "${swept.types} external ${noun(swept.types, "type")} only the excluded nodes referenced " +
+                    "${if (swept.types == 1) "leaves" else "leave"} the view: ${swept.nodes} ${noun(swept.nodes, "node")} in all",
+                null, emptyList(),
+            )
+        }
+        return Excluded(fork, outermost, tallies.values.sumOf { it.nodes } + swept.nodes, findings)
     }
+
+    /** What the sweep of [GraphStore.EXTERNAL_ARTIFACT_NAME] took out of the view. */
+    private class Swept {
+        var nodes = 0
+        var types = 0
+    }
+
+    /**
+     * Removes from [fork] the external types (in [GraphStore.EXTERNAL_ARTIFACT_NAME]) that only excluded nodes
+     * referenced: referenced in [base], but by nothing left in [fork]. A package, and the module itself, that
+     * the sweep empties goes too. An external type only exists because scanned code refers to it, so one the
+     * view no longer refers to would be a node without a reason in it.
+     */
+    private fun sweepUnreferencedExternals(base: Hierarchy, fork: Hierarchy): Swept {
+        val swept = Swept()
+        val external = fork.childrenOf(fork.rootNode).firstOrNull {
+            it.kind == JavaNodeKind.MODULE && NodeMetadata.getQualifiedName(it) == GraphStore.EXTERNAL_ARTIFACT_NAME
+        } ?: return swept
+
+        // Whether [node] was removed: an unreferenced external type, or a node the sweep emptied.
+        fun sweep(node: HGNode): Boolean {
+            if (node.kind == JavaNodeKind.EXTERNAL_TYPE) {
+                if (fork.accumulatedIncoming(node).isNotEmpty() || base.accumulatedIncoming(node).isEmpty()) return false
+                swept.types++
+                removeAll(fork, node, swept)
+                return true
+            }
+            val children = fork.childrenOf(node).toList()
+            if (children.isEmpty()) return false
+            val removed = children.map { sweep(it) }
+            if (!removed.all { it }) return false
+            fork.remove(node)
+            swept.nodes++
+            return true
+        }
+        sweep(external)
+        return swept
+    }
+
+    /** Removes [node] and its subtree from [hierarchy], children first, counting the nodes. */
+    private fun removeAll(hierarchy: Hierarchy, node: HGNode, swept: Swept) {
+        for (child in hierarchy.childrenOf(node).toList()) removeAll(hierarchy, child, swept)
+        hierarchy.remove(node)
+        swept.nodes++
+    }
+
+    private fun noun(count: Int, word: String) = if (count == 1) word else "${word}s"
 
     /** Removes [node] and its subtree from [hierarchy], children first, counting what goes. */
     private fun removeSubtree(hierarchy: Hierarchy, node: HGNode, tally: Tally) {

@@ -15,6 +15,9 @@
  */
 package io.hierograph.server.views
 
+import io.hierograph.graphstore.jvm.GraphStore
+import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
+import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.server.views.ViewFinding.Code
 import io.hierograph.server.views.ViewFinding.Severity
 import org.assertj.core.api.Assertions.assertThat
@@ -154,5 +157,71 @@ class ViewExcluderTest {
             effect.changed.flatMap { listOf(it.from, it.to) } + effect.cycles.flatten() + effect.baseCycles.flatten()
         assertThat(modules).noneMatch { it.endsWith(":test") }
         assertThat(view.excludedCount).isEqualTo(5)
+    }
+
+    /** External Types › org.junit › Test, Assertions; and › org.slf4j › Logger, each referenced as given. */
+    private inner class Externals {
+        val module = r.node(GraphStore.EXTERNAL_ARTIFACT_NAME, JavaNodeKind.MODULE, r.root)
+        val junit = r.pkg(module, "org.junit")
+        val test = external(junit, "Test")
+        val assertions = external(junit, "Assertions")
+        val slf4j = r.pkg(module, "org.slf4j")
+        val logger = external(slf4j, "Logger")
+
+        private fun external(pkg: HGNode, simple: String) =
+            r.node("${pkg.nodeSource.qualifiedName}.$simple", null, pkg).also { it.kind = JavaNodeKind.EXTERNAL_TYPE }
+    }
+
+    @Test
+    fun `external types only the excluded nodes referenced leave the view, with the packages they empty`() {
+        val ext = Externals()
+        r.dependency(r.mainTest, ext.test)
+        r.dependency(r.mainTest, ext.assertions)
+        r.dependency(r.mainTest, ext.logger)
+        r.dependency(r.main, ext.logger)
+
+        val view = materialize(noTests)
+        val h = view.model.hierarchy
+
+        assertThat(h.lookupNode(ext.test.identifier)).isNull()
+        assertThat(h.lookupNode(ext.assertions.identifier)).isNull()
+        assertThat(h.descendantsOf(ext.module)).doesNotContain(ext.junit).contains(ext.slf4j, ext.logger)
+        // Test, Assertions and org.junit; org stays, as it still holds org.slf4j.
+        assertThat(h.lookupNode(ext.junit.identifier)).isNull()
+        assertThat(view.excludedCount).isEqualTo(5 + 3)
+        // Only the selected nodes are named as excluded.
+        assertThat(view.excluded).containsExactly(r.appTest)
+        val finding = view.report.findings.single { it.code == Code.EXTERNAL_TYPES_UNREFERENCED }
+        assertThat(finding.severity).isEqualTo(Severity.INFO)
+        assertThat(finding.message)
+            .isEqualTo("2 external types only the excluded nodes referenced leave the view: 3 nodes in all")
+    }
+
+    @Test
+    fun `the External Types module goes when the sweep empties it`() {
+        val ext = Externals()
+        r.dependency(r.mainTest, ext.test)
+        r.dependency(r.mainTest, ext.assertions)
+        r.dependency(r.mainTest, ext.logger)
+
+        val h = materialize(noTests).model.hierarchy
+
+        assertThat(h.childrenOf(r.root)).containsExactly(r.app, r.core, r.coreUtil)
+        assertThat(h.lookupNode(ext.module.identifier)).isNull()
+    }
+
+    @Test
+    fun `an external type nothing referenced before stays, and nothing is swept without exclusions`() {
+        val ext = Externals()
+        r.dependency(r.mainTest, ext.test)
+
+        val h = materialize(noTests).model.hierarchy
+        assertThat(h.lookupNode(ext.test.identifier)).isNull()
+        // Never referenced in the base: not the view's doing.
+        assertThat(h.lookupNode(ext.assertions.identifier)).isSameAs(ext.assertions)
+        assertThat(h.lookupNode(ext.logger.identifier)).isSameAs(ext.logger)
+
+        val unexcluded = materialize("""{ "name": "all", "groups": [] }""").model.hierarchy
+        assertThat(unexcluded.lookupNode(ext.test.identifier)).isSameAs(ext.test)
     }
 }

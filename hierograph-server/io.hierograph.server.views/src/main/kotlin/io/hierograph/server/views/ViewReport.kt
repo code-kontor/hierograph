@@ -83,6 +83,9 @@ data class ViewFinding(
         /** What an exclusion leaves out: the nodes it selects and the nodes inside them, counted. */
         NODES_EXCLUDED(Severity.INFO),
 
+        /** External types only the excluded nodes referenced, swept out of the view with them, counted. */
+        EXTERNAL_TYPES_UNREFERENCED(Severity.INFO),
+
         // restructuring (views specification, §6.4)
 
         /** A move's selector selects nothing. The move is ignored. */

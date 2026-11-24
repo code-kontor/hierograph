@@ -196,7 +196,8 @@ describe("ServerStatus", () => {
       .toHaveTextContent(/^Excluded$/);
     await expect
       .element(section.getByText(/The view\s*locations\s*leaves out 1 node/))
-      .toHaveTextContent(/102 nodes in all/);
+      // the module's 102 nodes, and 4 of External Types only it referenced
+      .toHaveTextContent(/106 nodes in all/);
     // The list only on demand: it can name hundreds of nodes.
     await expect.element(section.getByRole("listitem")).not.toBeInTheDocument();
 
