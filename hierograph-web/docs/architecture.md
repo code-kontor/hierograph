@@ -125,7 +125,7 @@ the tabs and the tree.
   the history entry, and the first tab leaves no param behind. The graph tab
   shows the graph's facts, and below them, for a hierarchy view with
   exclusions, what the view excludes (`ExcludedNodes`, from
-  `views { excludedCount excludedNodes }`), in a box of the info colours
+  `views { excludedCount excludedNodes }`), in an info `Notice`
   marked "Excluded" with a crossed-out eye: the outermost excluded nodes,
   named and sorted as the tree names its rows. The graph's counts stay the
   scanned graph's.

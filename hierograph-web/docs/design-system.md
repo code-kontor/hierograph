@@ -21,6 +21,11 @@ renders, and it is the source of truth.
   to the screen), widths
   by weight, dashed against the order, open arrowheads (`DependencyArrowHeads` once per
   SVG). A screen lays out the paths; the arrows look the same everywhere.
+- **Notes inside a pane are a `Notice`** (`src/design-system/ui/notice.tsx`): `info`
+  (a choice, such as what a view excludes), `warning` (expected but incomplete, such
+  as what isn't compiled yet) or `error`. All are laid out alike: the icon in a column
+  of its own, a title, then the explanation and
+  any list. A screen-sized state (loading, empty, failed) is a `Message` instead.
 - **Open example — `src/design-system/ui/button.tsx`:** still the stock shadcn Button
   (token-based but not restyled). When a component is first genuinely used, restyle it
   to fit the rest of the UI _first_. A component with such a documented "pending" note

@@ -153,8 +153,12 @@ describe("StartPage", () => {
         workspace.getByText("io.hierograph.examples:fixture-app:1.0.0:test"),
       )
       .toBeVisible();
+    const notice = workspace.getByRole("region", { name: "Not compiled yet" });
     await expect
-      .element(workspace.getByText(/Not compiled yet, so not in the graph/))
+      .element(notice.getByRole("heading"))
+      .toHaveTextContent(/^Not compiled yet$/);
+    await expect
+      .element(notice.getByText(/Not in the graph: they are scanned/))
       .toBeVisible();
     await expect
       .element(workspace.getByText(/→ target\/test-classes/))
@@ -184,7 +188,7 @@ describe("StartPage", () => {
 
     await expect
       .element(section.getByRole("heading"))
-      .toHaveTextContent(/^Excluded\s*1 package$/);
+      .toHaveTextContent(/^Excluded$/);
     await expect
       .element(section.getByText(/The view\s*locations\s*leaves these out/))
       .toHaveTextContent(/102 nodes in all/);

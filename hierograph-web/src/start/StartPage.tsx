@@ -1,18 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import {
-  Info,
-  LayoutGrid,
-  List,
-  type LucideIcon,
-  RotateCcw,
-} from "lucide-react";
+import { LayoutGrid, List, type LucideIcon, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Pane } from "@/design-system/layout/Pane";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
+import { Notice } from "@/design-system/ui/notice";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -122,7 +117,6 @@ function WideLayout({ tree, views, tabs }: WideLayoutProps) {
         {tree}
       </ResizablePanel>
       <ResizableHandle
-        withHandle
         aria-label="Resize the hierarchy"
         className="mx-0.5 rounded-[4px]"
       />
@@ -132,7 +126,6 @@ function WideLayout({ tree, views, tabs }: WideLayoutProps) {
             {views}
           </ResizablePanel>
           <ResizableHandle
-            withHandle
             aria-label="Resize the hierarchy views"
             className="my-0.5 rounded-[4px]"
           />
@@ -265,14 +258,10 @@ function WorkspaceBlock({ server }: WorkspaceBlockProps) {
         )}
       </Facts>
       {artifacts && artifacts.notCompiled.length > 0 && (
-        <>
-          {/* The same thin line as above External Types in the tree. */}
-          <hr className="border-border" />
-          <NotCompiledList
-            workspace={workspace}
-            artifacts={artifacts.notCompiled}
-          />
-        </>
+        <NotCompiledList
+          workspace={workspace}
+          artifacts={artifacts.notCompiled}
+        />
       )}
     </TabBody>
   );
@@ -332,19 +321,12 @@ function NotCompiledList({ workspace, artifacts }: NotCompiledListProps) {
     />
   ));
   return (
-    <div className="border-status-warning bg-status-warning-bg flex gap-2 rounded-[6px] border px-2.5 py-2 text-[12px]">
-      <Info
-        aria-hidden
-        className="text-status-warning mt-px size-3.5 shrink-0"
-      />
-      <div>
-        <p>
-          Not compiled yet, so not in the graph. They are scanned as soon as the
-          build writes them.
-        </p>
-        <ul className="mt-1 flex flex-col gap-0.5">{items}</ul>
-      </div>
-    </div>
+    <Notice variant="warning" label="Not compiled yet" title="Not compiled yet">
+      <p className="text-fg-muted">
+        Not in the graph: they are scanned as soon as the build writes them.
+      </p>
+      <ul className="flex flex-col gap-0.5">{items}</ul>
+    </Notice>
   );
 }
 
