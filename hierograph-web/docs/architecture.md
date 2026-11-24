@@ -38,16 +38,16 @@ imports a screen.
 
 ## Folders
 
-| Folder               | Holds                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| `src/frame/`         | `AppFrame`, the graph status, the graph scope, the screen registry type, frame queries |
-| `src/start/`         | the start screen, its query and display helpers                                        |
-| `src/structure/`     | the structure map, its queries and label helpers                                       |
-| `src/routes/`        | one file per route; `__root.tsx` holds the screen registry and the frame-level params  |
-| `src/routing/`       | the search-param codec                                                                 |
-| `src/graphql/`       | the client (`execute`) and the generated documents and types (`generated/`)            |
-| `src/design-system/` | shadcn components (`ui/`), layouts (`layout/`), small hooks                            |
-| `src/testing/`       | render helpers, MSW handlers and worker, the recorded fixtures and their recorder      |
+| Folder               | Holds                                                                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/frame/`         | `AppFrame`, the graph status and its panel (`ServerStatus`), the hierarchy view menu, the graph scope, the screen registry type, frame queries |
+| `src/start/`         | the start screen, its query and display helpers                                                                                                |
+| `src/structure/`     | the structure map, its queries and label helpers                                                                                               |
+| `src/routes/`        | one file per route; `__root.tsx` holds the screen registry and the frame-level params                                                          |
+| `src/routing/`       | the search-param codec                                                                                                                         |
+| `src/graphql/`       | the client (`execute`) and the generated documents and types (`generated/`)                                                                    |
+| `src/design-system/` | shadcn components (`ui/`), layouts (`layout/`), small hooks                                                                                    |
+| `src/testing/`       | render helpers, MSW handlers and worker, the recorded fixtures and their recorder                                                              |
 
 ## Adding a screen
 
@@ -77,11 +77,29 @@ project the server serves; navigation from the screen registry; the hierarchy
 view menu; the graph status) and the matched screen. It owns:
 
 - **The graph status.** It polls
-  `server { workspace viewsVersion graph { state update generation } }` every
-  5 s (`frame/queries.ts`), paused while the tab is hidden, with an immediate
-  check when it becomes visible again. A new `generation` means a reloaded
-  graph; a new `viewsVersion` that a view document was added, changed or
-  removed, for example by the agent, which doesn't change the generation.
+  `server { workspace viewsVersion commit artifacts graph { state update generation } }`
+  every 5 s (`frame/queries.ts`), paused while the tab is hidden, with an
+  immediate check when it becomes visible again. A new `generation` means a
+  reloaded graph; a new `viewsVersion` that a view document was added, changed
+  or removed, for example by the agent, which doesn't change the generation.
+  Artifacts not compiled yet and a server built from uncommitted changes mark
+  the indicator with a warning sign.
+- **The status panel.** Clicking the graph status opens a popover
+  (`ServerStatus`) with a tab each for the graph (state, generation, load
+  time, counts; the first, opened by a click), the workspace and its graph
+  source (with the artifacts not compiled yet), the server, and its JVM (heap against its limit and what the
+  last collection kept, threads, CPU load, garbage collection). Below the
+  graph's facts, for a hierarchy view with exclusions, what the view excludes
+  (`ExcludedNodes`, from `views { excludedCount excludedNodes }`): an info
+  `Notice` marked "Excluded" with a crossed-out eye, one line with the counts,
+  and on "Show them" the outermost excluded nodes, named and sorted as the
+  tree names its rows (the names and icons in `design-system/graph`, shared
+  with the tree), scrolling on their own. The open tab is
+  the frame-level search param `status` (`graph`, `workspace`, `server`,
+  `jvm`; validated by the root route), so a link can open it; opening,
+  switching and closing replace the history entry. Its query
+  (`ServerStatus`) runs only while the panel is open, polled like the graph
+  status and keyed by the graph generation.
 - **The graph scope.** `useGraphScope()` gives a screen the scope its graph
   queries run in: the graph `generation`, the hierarchy `view` and, with a
   view, the `viewsVersion`. Every graph query puts it into its key with
@@ -104,8 +122,8 @@ view menu; the graph status) and the matched screen. It owns:
   text on hover. An invalid view is listed with its problems but can't be
   chosen. Choosing one stays on the screen and
   restores it as it was last left in that view, keeping only the params the
-  screen names in `keepOnViewChange` (the start screen's `tab`): the tree of
-  another view starts collapsed.
+  screen names in `keepOnViewChange` (none yet): the tree of another view
+  starts collapsed.
 - **Messages instead of a screen.** A registry entry says whether its screen
   `needsGraph`. Without a graph, or when the server can't be reached, the frame
   shows a message instead of such a screen; the start screen doesn't need a
@@ -117,26 +135,11 @@ view menu; the graph status) and the matched screen. It owns:
 
 ## The start screen
 
-`StartPage` shows what the server serves; the hierarchy view is chosen in the
-header. On wide screens the hierarchy tree is on the left and the tabs on the
-right; the split is moved by the user and kept by the browser (the resizable
-panels' own storage), each box scrolling on its own. Narrow screens stack the
-tabs and the tree.
+`StartPage` is the hierarchy tree of the current hierarchy view, as wide and
+tall as the window; the view is chosen in the header, and the server's state,
+with what the view excludes, is in the header's status panel.
 
-- **Right:** a tab each for the workspace and its graph source (with the
-  artifacts not compiled yet), the graph (state, generation, load time,
-  counts), the server, and its JVM (heap against its limit and what the last
-  collection kept, threads, CPU load, garbage collection). The tab is the start
-  screen's own search param `tab` (`workspace`, `graph`, `server`, `jvm`;
-  validated in `routes/index.tsx`), so a link can open one; switching replaces
-  the history entry, and the first tab leaves no param behind. The graph tab
-  shows the graph's facts, and below them, for a hierarchy view with
-  exclusions, what the view excludes (`ExcludedNodes`, from
-  `views { excludedCount excludedNodes }`), in an info `Notice`
-  marked "Excluded" with a crossed-out eye: the outermost excluded nodes,
-  named and sorted as the tree names its rows. The graph's counts stay the
-  scanned graph's.
-- **Left:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
+- **The tree** (`HierarchyTree`) of the current hierarchy
   view, folded like the structure map (`children(compact: true)`, #63): a
   chain of lone packages is one row, its last package, whose label's tooltip
   and the row's description name the packages it stands for. It loads level by level as nodes are
@@ -167,11 +170,6 @@ tabs and the tree.
   The `tree` element is focusable, its active descendant the keyboard's
   cursor, walked over the rows as drawn (→ ← and `+` / `−` expand and
   collapse). The pane's `?` lists the gestures.
-
-The server data is live: its query is polled like the graph status and keyed
-by the generation, so a reload shows at once. The start screen handles a server
-that can't be reached itself, since the frame doesn't block a screen without
-`needsGraph`.
 
 ## The structure map
 
@@ -286,12 +284,12 @@ Verticals (`frame`, `start`, `structure`, `routing`) are entered only through th
 direct paths (`@/<vertical>/<File>`); there are no re-export barrel `index.ts`
 files.
 
-| Vertical    | Public files                                   |
-| ----------- | ---------------------------------------------- |
-| `frame`     | `AppFrame.tsx`, `GraphScope.tsx`, `screens.ts` |
-| `start`     | `StartPage.tsx`                                |
-| `structure` | `StructurePage.tsx`                            |
-| `routing`   | `searchCodec.ts`                               |
+| Vertical    | Public files                                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `frame`     | `AppFrame.tsx`, `GraphScope.tsx`, `screens.ts`, `ServerStatus.tsx` (its `status` tabs, for the root route) |
+| `start`     | `StartPage.tsx`                                                                                            |
+| `structure` | `StructurePage.tsx`                                                                                        |
+| `routing`   | `searchCodec.ts`                                                                                           |
 
 The platform layers (`design-system`, `graphql`, `testing`) expose their files
 directly (shadcn convention / generated client).

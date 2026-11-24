@@ -4,14 +4,14 @@ import { execute } from "@/graphql/client";
 import {
   GraphStatusDocument,
   HierarchyViewsDocument,
-  StartScreenDocument,
+  ServerStatusDocument,
 } from "@/graphql/generated/graphql";
 import { handlersFor } from "@/testing/msw/handlers";
 import { worker } from "@/testing/msw/worker";
 
 describe("recorded GraphQL fixtures", () => {
-  it("answer the start screen from the fixture-app by default", async () => {
-    const data = await execute(StartScreenDocument);
+  it("answer the server status from the fixture-app by default", async () => {
+    const data = await execute(ServerStatusDocument);
 
     expect(data.server.workspace).toBe("/fixture-app");
     expect(data.server.graph.state).toBe("LOADED");

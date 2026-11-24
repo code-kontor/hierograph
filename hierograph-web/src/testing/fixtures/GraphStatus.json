@@ -8,6 +8,16 @@
         "server": {
           "workspace": "/fixture-app",
           "viewsVersion": "3e5aaa6778e3af20",
+          "commit": {
+            "dirty": false
+          },
+          "artifacts": {
+            "notCompiled": [
+              {
+                "artifact": "io.hierograph.examples:fixture-app:1.0.0:test"
+              }
+            ]
+          },
           "graph": {
             "state": "LOADED",
             "update": "idle",

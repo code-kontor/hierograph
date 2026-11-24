@@ -7,8 +7,8 @@ import hierarchyTreeChildren from "@/testing/fixtures/HierarchyTreeChildren.json
 import hierarchyTreeRoot from "@/testing/fixtures/HierarchyTreeRoot.json";
 import hierarchyViews from "@/testing/fixtures/HierarchyViews.json";
 import hierarchyViewsNoGraph from "@/testing/fixtures/HierarchyViews.no-graph.json";
-import startScreen from "@/testing/fixtures/StartScreen.json";
-import startScreenNoGraph from "@/testing/fixtures/StartScreen.no-graph.json";
+import serverStatus from "@/testing/fixtures/ServerStatus.json";
+import serverStatusNoGraph from "@/testing/fixtures/ServerStatus.no-graph.json";
 import structureCells from "@/testing/fixtures/StructureCells.json";
 import structureGiven from "@/testing/fixtures/StructureGiven.json";
 import structureLevel from "@/testing/fixtures/StructureLevel.json";
@@ -46,7 +46,7 @@ const RECORDED: Record<
     default: hierarchyViews,
     "no-graph": hierarchyViewsNoGraph,
   },
-  StartScreen: { default: startScreen, "no-graph": startScreenNoGraph },
+  ServerStatus: { default: serverStatus, "no-graph": serverStatusNoGraph },
   ViewExclusions: {
     default: viewExclusions,
     "no-graph": viewExclusionsNoGraph,

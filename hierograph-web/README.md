@@ -6,9 +6,10 @@ primary interface: the agent opens the UI with links into a given state.
 
 The Hierograph server serves the built UI at `http://127.0.0.1:8765/ui/`.
 
-The header's menu chooses the hierarchy view every screen shows (`view=`).
-The start screen shows, live, what the server serves: the workspace and its
-graph source, the graph, and the server with its JVM's metrics.
+The header's menu chooses the hierarchy view every screen shows (`view=`),
+and its graph status opens a panel with, live, what the server serves: the
+workspace and its graph source, the graph, and the server with its JVM's
+metrics (`status=`). The start screen is the hierarchy tree.
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
 {
-  "operation": "StartScreen",
-  "scenario": "no-graph",
+  "operation": "ServerStatus",
+  "scenario": "default",
   "entries": [
     {
       "variables": {},
@@ -18,20 +18,36 @@
           "stateDir": "/fixture-app/.hierograph",
           "source": {
             "kind": "manifest",
-            "manifest": "/fixture-app/.hierograph/no-manifest.json",
+            "manifest": "/fixture-app/.hierograph/manifest.json",
             "buildRoot": "/fixture-app",
             "includeTests": true,
             "watchMode": "polling",
             "buildFilesMode": "notify",
             "parquetDir": null
           },
-          "artifacts": null,
+          "artifacts": {
+            "declared": 2,
+            "scanned": 1,
+            "notCompiled": [
+              {
+                "artifact": "io.hierograph.examples:fixture-app:1.0.0:test",
+                "dirs": [
+                  "/fixture-app/target/test-classes"
+                ]
+              }
+            ]
+          },
           "graph": {
-            "state": "UNAVAILABLE",
+            "state": "LOADED",
             "update": "idle",
-            "generation": null,
-            "loadedAt": null,
-            "counts": null
+            "generation": "1",
+            "loadedAt": "2026-01-01T00:00:00Z",
+            "counts": {
+              "modules": 1,
+              "packages": 26,
+              "types": 42,
+              "total": 181
+            }
           },
           "jvm": {
             "javaVersion": "21.0.0",

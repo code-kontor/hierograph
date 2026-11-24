@@ -25,6 +25,12 @@ import {
 } from "@/design-system/graph/GesturesHelp";
 import { PinSelectionButton } from "@/design-system/graph/PinSelectionButton";
 import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
+import { KIND_ICONS } from "@/design-system/graph/treeIcons";
+import {
+  ordersChildren,
+  treeNodeKind,
+  treeNodeLabel,
+} from "@/design-system/graph/treeLabels";
 import { Pane } from "@/design-system/layout/Pane";
 import {
   ContextMenuItem,
@@ -46,8 +52,6 @@ import {
   sameFocus,
   TreeArcs,
 } from "./TreeArcs";
-import { KIND_ICONS } from "./treeIcons";
-import { ordersChildren, treeNodeKind, treeNodeLabel } from "./treeLabels";
 
 // What every row needs from the tree: which nodes are open, what is
 // selected (a row or a cycle bar), whose dependency arcs are drawn, and where

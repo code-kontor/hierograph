@@ -18,6 +18,7 @@ import {
   hierarchyViewsQueryOptions,
 } from "@/frame/queries";
 import { currentScreen, type Screen } from "@/frame/screens";
+import { isStatusTab, type StatusTab } from "@/frame/ServerStatus";
 import type { HierarchyViewsQuery } from "@/graphql/generated/graphql";
 
 type AppFrameProps = {
@@ -57,7 +58,10 @@ function checkView(
 export function AppFrame({ screens, children }: AppFrameProps) {
   useNoNativeContextMenu();
   const status = useQuery(graphStatusQueryOptions());
-  const search: Record<string, unknown> & { view?: string } = useSearch({
+  const search: Record<string, unknown> & {
+    view?: string;
+    status?: unknown;
+  } = useSearch({
     strict: false,
   });
   const view = search.view;
@@ -127,6 +131,19 @@ export function AppFrame({ screens, children }: AppFrameProps) {
     } as never);
   };
 
+  // The status panel's tab (`status=`), set while the panel is open; opening,
+  // switching and closing replace the history entry.
+  const showStatus = async (tab: StatusTab | undefined) => {
+    await navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        status: tab,
+      }),
+      replace: true,
+    } as never);
+  };
+
   const screenLinks = screens.map((entry) => (
     <ScreenLink
       key={String(entry.path)}
@@ -135,42 +152,50 @@ export function AppFrame({ screens, children }: AppFrameProps) {
     />
   ));
 
+  // The scope covers the header too: its status panel answers in it.
   return (
-    <div className="flex h-svh flex-col">
-      <header className="border-border-strong bg-panel flex h-[52px] shrink-0 items-center gap-7 border-b px-[18px]">
-        {/* "hierograph – <project>": the project the server serves, by name,
+    <GraphScopeProvider scope={scope}>
+      <div className="flex h-svh flex-col">
+        <header className="border-border-strong bg-panel flex h-[52px] shrink-0 items-center gap-7 border-b px-[18px]">
+          {/* "hierograph – <project>": the project the server serves, by name,
             once the server has answered. */}
-        <Link
-          to="/"
-          title={workspace ? `hierograph: ${workspace}` : "hierograph"}
-          className="flex min-w-0 items-center gap-[9px]"
-        >
-          <img src={lupeUrl} alt="" className="block h-[26px] w-auto" />
-          <span className="text-fg truncate font-sans text-[18px] font-bold tracking-[-0.01em]">
-            hierograph
-            {workspace && (
-              <span className="text-fg-muted font-semibold">
-                {` – ${workspaceName(workspace)}`}
-              </span>
-            )}
-          </span>
-        </Link>
-        {/* A single screen needs no navigation: the brand links to it. */}
-        {screens.length > 1 && (
-          <nav className="flex h-full items-stretch gap-0.5">{screenLinks}</nav>
-        )}
-        <div className="flex-1" />
-        <HierarchyViewMenu
-          view={view}
-          views={views.data}
-          onChoose={chooseView}
-        />
-        <GraphStatusIndicator status={graph} unreachable={unreachable} />
-      </header>
-      <main className="min-h-0 flex-1 p-3">
-        <GraphScopeProvider scope={scope}>{content}</GraphScopeProvider>
-      </main>
-    </div>
+          <Link
+            to="/"
+            title={workspace ? `hierograph: ${workspace}` : "hierograph"}
+            className="flex min-w-0 items-center gap-[9px]"
+          >
+            <img src={lupeUrl} alt="" className="block h-[26px] w-auto" />
+            <span className="text-fg truncate font-sans text-[18px] font-bold tracking-[-0.01em]">
+              hierograph
+              {workspace && (
+                <span className="text-fg-muted font-semibold">
+                  {` – ${workspaceName(workspace)}`}
+                </span>
+              )}
+            </span>
+          </Link>
+          {/* A single screen needs no navigation: the brand links to it. */}
+          {screens.length > 1 && (
+            <nav className="flex h-full items-stretch gap-0.5">
+              {screenLinks}
+            </nav>
+          )}
+          <div className="flex-1" />
+          <HierarchyViewMenu
+            view={view}
+            views={views.data}
+            onChoose={chooseView}
+          />
+          <GraphStatusIndicator
+            server={status.data?.server}
+            unreachable={unreachable}
+            tab={isStatusTab(search.status) ? search.status : undefined}
+            onTab={showStatus}
+          />
+        </header>
+        <main className="min-h-0 flex-1 p-3">{content}</main>
+      </div>
+    </GraphScopeProvider>
   );
 }
 
@@ -184,7 +209,9 @@ function rememberKey(screen: Screen, view: string | undefined): string {
 // The params of the current screen: all but the frame's `view`.
 function screenParams(search: Record<string, unknown>) {
   return Object.fromEntries(
-    Object.entries(search).filter(([name]) => name !== "view"),
+    Object.entries(search).filter(
+      ([name]) => name !== "view" && name !== "status",
+    ),
   );
 }
 

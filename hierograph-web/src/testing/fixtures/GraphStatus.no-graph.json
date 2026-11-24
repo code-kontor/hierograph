@@ -8,6 +8,10 @@
         "server": {
           "workspace": "/fixture-app",
           "viewsVersion": "3e5aaa6778e3af20",
+          "commit": {
+            "dirty": false
+          },
+          "artifacts": null,
           "graph": {
             "state": "UNAVAILABLE",
             "update": "idle",

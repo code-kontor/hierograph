@@ -17,7 +17,7 @@ One file per operation and scenario:
 
 Each file is `{ operation, scenario, entries: [{ variables, data }] }`. The
 operations are listed in `record-fixtures.ts`: `GraphStatus` and
-`HierarchyViews` (the frame), `StartScreen` and `ViewExclusions` (the start
+`HierarchyViews` (the frame), `ServerStatus` (the frame's status panel) and `ViewExclusions` (the start
 screen), without variables and in every scenario; and the hierarchy tree's `HierarchyTreeRoot`
 and `HierarchyTreeChildren`, with variables and only in the `default` scenario.
 They hold the complete tree of the fixture-app, in the scanned hierarchy and in

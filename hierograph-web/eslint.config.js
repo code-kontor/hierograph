@@ -15,7 +15,7 @@ import tseslint from "typescript-eslint";
 // convention and are granted as whole verticals, not routed through PUBLIC.
 const PUBLIC = {
   routing: ["searchCodec.ts"],
-  frame: ["AppFrame.tsx", "GraphScope.tsx", "screens.ts"],
+  frame: ["AppFrame.tsx", "GraphScope.tsx", "screens.ts", "ServerStatus.tsx"],
   start: ["StartPage.tsx"],
   structure: ["StructurePage.tsx"],
 };

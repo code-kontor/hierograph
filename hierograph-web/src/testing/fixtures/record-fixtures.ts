@@ -20,7 +20,7 @@ import {
   HierarchyTreeChildrenDocument,
   HierarchyTreeRootDocument,
   HierarchyViewsDocument,
-  StartScreenDocument,
+  ServerStatusDocument,
   StructureCellsDocument,
   StructureGivenDocument,
   StructureLevelDocument,
@@ -39,7 +39,7 @@ const FIXTURES_DIR = import.meta.dirname;
 const OPERATIONS = [
   { name: "GraphStatus", document: GraphStatusDocument },
   { name: "HierarchyViews", document: HierarchyViewsDocument },
-  { name: "StartScreen", document: StartScreenDocument },
+  { name: "ServerStatus", document: ServerStatusDocument },
   { name: "ViewExclusions", document: ViewExclusionsDocument },
 ] as const;
 
