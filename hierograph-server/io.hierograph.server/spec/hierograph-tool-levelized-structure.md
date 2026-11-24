@@ -46,6 +46,7 @@ dependencies that break them.
 |-----------|------|----------|-------------|
 | `nodeId` | integer | yes | The node whose direct children are levelized: a module, a package, a view group, or the root (whose children are the modules). |
 | `limit` | integer | no | Max feedback dependencies returned, heaviest first. Default 100, clamped to 1–500. The summary counts all of them. |
+| `compact` | boolean | no | Fold chains of lone packages, default `true` ([MCP tools specification, §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)): the children levelized are the display children. `false` levelizes the children as they are. |
 | `view` | string | no | The view to answer in (shared parameter); a view's groups are containers like any node. |
 
 ## 3. Behaviour
@@ -64,6 +65,13 @@ dependencies that break them.
    first.
 5. **Rows inside a tangle.** Ignoring the feedback dependencies, a member sits above
    the later members it depends on.
+
+**Folding.** With `compact` (the default) the tool levelizes the display children:
+each chain of lone packages is represented by its last package. Folding changes no
+weight, so the rows, tangles and feedback dependencies are those of the chains, and
+they name the chain ends: below `io.acme`, the chain `io.acme.server` ›
+`io.acme.server.mcp` is levelized as `io.acme.server.mcp`, named `server.mcp`. In
+`nodes`, a chain end carries its folded `name` and `compacted_from`.
 
 External Types is a child of the root like any module; levelizing the root places it
 in the lowest row, as everything depends on it.

@@ -670,12 +670,8 @@ function TreeItem({
       aria-expanded={expandable ? open : undefined}
       aria-selected={selected}
       aria-label={label}
-      // No tooltip: it would cover the arcs.
-      aria-description={
-        cycle
-          ? `in a dependency cycle with ${cycle.others.join(", ")}`
-          : undefined
-      }
+      // No tooltip on the row: it would cover the arcs.
+      aria-description={rowDescription(node, cycle?.others)}
       data-cycle={cycle ? "true" : undefined}
       data-tree-node={node.id}
       className={twMerge(separated && "border-border mt-1 border-t pt-1")}
@@ -724,6 +720,9 @@ function TreeItem({
           />
           <span
             data-tree-label
+            // A folded row names the lone packages it stands for on its label
+            // only, left of the arcs.
+            title={foldedTitle(node)}
             className={twMerge(
               "truncate",
               (kind === "type" || kind === "member" || kind === "package") &&
@@ -806,4 +805,27 @@ function TreeChildren({
       controls={controls}
     />
   );
+}
+
+// What a folded row stands for: the lone packages above it, outermost first.
+function foldedTitle(node: TreeNode): string | undefined {
+  if (node.compactedFrom.length === 0) return undefined;
+  const skipped = node.compactedFrom.map((package_) => package_.text);
+  return `${node.text}\nfolded: ${skipped.join(", ")}`;
+}
+
+// A row's description for assistive technology: what it stands for when it
+// is folded, and the cycle it is in.
+function rowDescription(
+  node: TreeNode,
+  cycleOthers: string[] | undefined,
+): string | undefined {
+  const parts: string[] = [];
+  if (node.compactedFrom.length > 0) {
+    const skipped = node.compactedFrom.map((package_) => package_.text);
+    parts.push(`folded from ${skipped.join(", ")}`);
+  }
+  if (cycleOthers)
+    parts.push(`in a dependency cycle with ${cycleOthers.join(", ")}`);
+  return parts.length > 0 ? parts.join("; ") : undefined;
 }

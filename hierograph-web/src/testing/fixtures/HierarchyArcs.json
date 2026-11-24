@@ -44,80 +44,6 @@
         "view": null,
         "ids": [
           "4400363846879942",
-          "6138144180870008"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "6138144180870008"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 45
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 5
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": null,
-        "ids": [
-          "2241766866721144",
-          "4400363846879942"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "2241766866721144"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 45
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 5
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": null,
-        "ids": [
-          "4400363846879942",
           "7015125723486552"
         ]
       },
@@ -687,6 +613,79 @@
       "variables": {
         "view": null,
         "ids": [
+          "4400363846879942",
+          "5186412852274999",
+          "6752226562703725",
+          "7288710331230862",
+          "7822526495285534",
+          "8068585618542335"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "8068585618542335"
+                },
+                {
+                  "id": "7822526495285534"
+                },
+                {
+                  "id": "6752226562703725"
+                },
+                {
+                  "id": "5186412852274999"
+                },
+                {
+                  "id": "7288710331230862"
+                },
+                {
+                  "id": "4400363846879942"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 5,
+                  "value": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "value": 13
+                },
+                {
+                  "row": 1,
+                  "column": 5,
+                  "value": 4
+                },
+                {
+                  "row": 2,
+                  "column": 4,
+                  "value": 6
+                },
+                {
+                  "row": 3,
+                  "column": 4,
+                  "value": 19
+                },
+                {
+                  "row": 4,
+                  "column": 4,
+                  "value": 7
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
           "2106137824575494",
           "5909467489117502"
         ]
@@ -781,80 +780,6 @@
               "orderedNodes": [
                 {
                   "id": "5909467489117502"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 45
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 5
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "layers",
-        "ids": [
-          "4400363846879942",
-          "6138144180870008"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "6138144180870008"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 45
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 5
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "layers",
-        "ids": [
-          "2241766866721144",
-          "4400363846879942"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "2241766866721144"
                 },
                 {
                   "id": "4400363846879942"
@@ -1127,117 +1052,6 @@
         "view": "locations",
         "ids": [
           "4400363846879942",
-          "6138144180870008"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "6138144180870008"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 32
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 1
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "locations",
-        "ids": [
-          "2241766866721144",
-          "4400363846879942"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "2241766866721144"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 32
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 1
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "locations",
-        "ids": [
-          "4400363846879942",
-          "7015125723486552"
-        ]
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "nodes": {
-            "orderedAdjacencyMatrix": {
-              "orderedNodes": [
-                {
-                  "id": "7015125723486552"
-                },
-                {
-                  "id": "4400363846879942"
-                }
-              ],
-              "cells": [
-                {
-                  "row": 0,
-                  "column": 0,
-                  "value": 32
-                },
-                {
-                  "row": 0,
-                  "column": 1,
-                  "value": 1
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "locations",
-        "ids": [
-          "4400363846879942",
           "792143413850566"
         ]
       },
@@ -1263,6 +1077,52 @@
                   "row": 0,
                   "column": 1,
                   "value": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": "locations",
+        "ids": [
+          "1490153931190400",
+          "4400363846879942",
+          "7288710331230862"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "nodes": {
+            "orderedAdjacencyMatrix": {
+              "orderedNodes": [
+                {
+                  "id": "1490153931190400"
+                },
+                {
+                  "id": "7288710331230862"
+                },
+                {
+                  "id": "4400363846879942"
+                }
+              ],
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 1,
+                  "value": 25
+                },
+                {
+                  "row": 0,
+                  "column": 2,
+                  "value": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "value": 7
                 }
               ]
             }

@@ -55,7 +55,7 @@ Decide the scope with the user first (SKILL.md step 1): one module, a few, or th
 whole system. Then, per module:
 
 ```
-list_descendants(nodeId = <module id>, kindFilter = ["packages"], limit = 200)   # page with next_cursor
+list_descendants(nodeId = <module id>, kindFilter = ["packages"], compact = false, limit = 200)   # page with next_cursor
 ```
 
 That is every package with its `parent_id` in a few calls — **not** one
@@ -66,7 +66,9 @@ That is every package with its `parent_id` in a few calls — **not** one
 one synthetic root.
 
 Chains of single-child namespace packages (`io` › `hierograph` › `server`) are
-folded into one box by the script; do not fold them yourself.
+folded into one box by the script; do not fold them yourself. That is why the call
+passes `compact = false`: folded by the server, the skipped packages would be
+missing from the results while their children still name them as `parent_id`.
 
 **Leaves are what the edges are queried for**, and they must be disjoint
 (`pairwise_dependencies` rejects a node together with one of its descendants). So

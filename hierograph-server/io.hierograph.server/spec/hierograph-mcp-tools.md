@@ -133,6 +133,19 @@ qualified name.
 `example` inside `com`. A package's `name` is its last segment and its
 `qualified_name` is the dotted path.
 
+**Folded trees.** A chain of lone packages (`io` holding nothing but `io.acme`, which
+holds nothing but `io.acme.app`) carries no information of its own, so the tools that
+list a tree (`list_children`, `list_descendants`, `levelized_structure`) list it as
+its last package by default: `io.acme.app` directly under the module, its `name` the
+qualified name relative to the package it is listed under (in full under a module),
+and `compacted_from` naming the skipped packages, outermost first. A chain ends at a
+package with types or with several children, never crosses a module, view group or
+External Types, and folds at every level, External Types' packages included. It is
+computed in the request's hierarchy (a view's included) and changes no dependency and
+no weight. The skipped packages remain real nodes: `find_node` finds them, and their
+ids work in every tool. `compact: false` lists the tree as it is
+([algorithms specification, §8](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md#8-chain-folding)).
+
 **Nested types** sit in their package, beside their enclosing type, and keep the
 binary `$` name: `Invoice$Line`. A type's children are its members only.
 
@@ -289,6 +302,9 @@ argument is allowed.
 
 Optional numeric limits are clamped to the tool's range, not rejected: a `limit` of
 `0` becomes `1`, a `limit` above the cap becomes the cap.
+
+**`compact`.** The tools that list a tree take an optional boolean `compact`, default
+`true`: fold chains of lone packages (§3.1). `false` lists the tree as it is.
 
 **`view`.** Every tool that reads the graph — all but `reload_graph`, `server_info` and
 the view tools — takes an optional `view`: the name of a [view](../../io.hierograph.server.views/spec/hierograph-views.md) to answer in. A view

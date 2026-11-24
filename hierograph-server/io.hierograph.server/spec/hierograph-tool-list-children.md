@@ -63,6 +63,7 @@ call.
 | `namePattern` | string | no | none | case-insensitive substring of the child's name |
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
 | `limit` | integer | no | `200` | maximum children to return, clamped to 1–200 |
+| `compact` | boolean | no | `true` | fold chains of lone packages ([MCP tools specification, §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)); `false` lists the children as they are |
 | `view` | string | no | none | the view to answer in |
 
 **`nodeId`** is any node id, including the synthetic root's, which lists the modules.
@@ -121,6 +122,14 @@ node's children in the model's child order. A child is kept when its kind passes
 `kindFilter`, its name contains `namePattern` and, with `modifierFilter` set, it is a
 method or field with all the listed modifiers. The kept children are counted into `summary.total` and
 `summary.by_kind`; then the first `limit` of them are returned.
+
+**Folding.** With `compact` (the default) the children are the display children: a
+chain of lone packages is replaced by its last package. On a module whose packages
+start with `io` › `io.acme` › `io.acme.app`, the child listed is `io.acme.app`, with
+`name` `io.acme.app` and `compacted_from` `["io", "io.acme"]`; below the package
+`io.acme`, a folded child is named relative to it (`app.web`). `namePattern` matches
+that name. The skipped packages keep their ids, and `list_children` on one of them
+lists its chain's end.
 
 **Order.** Children are sorted by qualified name ignoring case, then by qualified name,
 then by id: alphabetical for a reader, so the sub-package `internal` sits beside the

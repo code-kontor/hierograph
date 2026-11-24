@@ -17,6 +17,7 @@ package io.hierograph.mcp.server.tools.ui
 
 import io.hierograph.mcp.server.instance.ServerInstance
 import io.hierograph.server.graphservice.HierarchicalGraphService
+import io.hierograph.server.graphservice.PackageFolding
 import io.hierograph.server.graphservice.views.ViewService
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -119,7 +120,12 @@ class StructureMapLinkTool(
             val params = mutableListOf<String>()
             if (view != null) params += "view=" + URLEncoder.encode(view, StandardCharsets.UTF_8)
             params += "dependency_ids=" + encodePairs(pairs)
-            if (!expandedIds.isNullOrEmpty()) params += "expanded_ids=" + expandedIds.distinct().joinToString(",")
+            if (!expandedIds.isNullOrEmpty()) {
+                // The map is folded: a skipped package is shown, and opened, as its chain's end.
+                val folding = PackageFolding.of(hierarchy)
+                val shown = expandedIds.map { id -> model.lookupNode(id)?.let { folding.displayNodeOf(it).identifier } ?: id }
+                params += "expanded_ids=" + shown.distinct().joinToString(",")
+            }
             append(params.joinToString("&"))
         }
         if (url.length > MAX_URL_LENGTH) {

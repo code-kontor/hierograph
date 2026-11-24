@@ -17,13 +17,15 @@
                     "id": "5909467489117502",
                     "text": "io.hierograph.examples:fixture-app:1.0.0",
                     "type": "java.module",
-                    "hasChildren": true
+                    "hasChildren": true,
+                    "compactedFrom": []
                   },
                   {
                     "id": "4400363846879942",
                     "text": "External Types",
                     "type": "java.module",
-                    "hasChildren": true
+                    "hasChildren": true,
+                    "compactedFrom": []
                   }
                 ],
                 "stronglyConnectedComponents": []
@@ -48,13 +50,15 @@
                     "id": "5909467489117502",
                     "text": "io.hierograph.examples:fixture-app:1.0.0",
                     "type": "java.module",
-                    "hasChildren": true
+                    "hasChildren": true,
+                    "compactedFrom": []
                   },
                   {
                     "id": "4400363846879942",
                     "text": "External Types",
                     "type": "java.module",
-                    "hasChildren": true
+                    "hasChildren": true,
+                    "compactedFrom": []
                   }
                 ],
                 "stronglyConnectedComponents": []
@@ -79,13 +83,15 @@
                     "id": "5909467489117502",
                     "text": "io.hierograph.examples:fixture-app:1.0.0",
                     "type": "java.module",
-                    "hasChildren": true
+                    "hasChildren": true,
+                    "compactedFrom": []
                   },
                   {
                     "id": "4400363846879942",
                     "text": "External Types",
                     "type": "java.module",
-                    "hasChildren": true
+                    "hasChildren": true,
+                    "compactedFrom": []
                   }
                 ],
                 "stronglyConnectedComponents": []

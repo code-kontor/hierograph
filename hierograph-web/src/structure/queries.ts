@@ -9,7 +9,8 @@ import type { GivenEnd, GivenPair, ResolvedPair } from "./givenDependencies";
 // The levelized structure map: the root of the hierarchy (in a view, or the
 // scanned one), then, per container as it is expanded, its children in rows by
 // level with their tangles and feedback dependencies (the server's
-// levelization, #61).
+// levelization, #61), over the folded children: a chain of lone packages is
+// one box, its last package (#63).
 export const StructureRootQuery = graphql(`
   query StructureRoot($view: String) {
     hierarchicalGraph(view: $view) {
@@ -25,7 +26,7 @@ export const StructureLevelQuery = graphql(`
     hierarchicalGraph(view: $view) {
       node(id: $id) {
         id
-        children {
+        children(compact: true) {
           levelization {
             levels {
               index
@@ -34,6 +35,9 @@ export const StructureLevelQuery = graphql(`
                 text
                 type
                 hasChildren
+                compactedFrom {
+                  text
+                }
               }
             }
             tangles {
@@ -69,6 +73,9 @@ export type StructureNode = {
   text: string;
   type: string;
   hasChildren: boolean;
+  // The lone packages the box stands for, outermost first; empty if it isn't
+  // folded.
+  compactedFrom: { text: string }[];
 };
 
 // One container's children: the rows bottom first, the tangles (members
@@ -167,7 +174,10 @@ export function structureCellsQueryOptions(scope: GraphScope, ids: string[]) {
 
 // The dependencies handed to the map (`dependency_ids`): each pair's ends
 // with their ancestors in the view, and its weight. Ids that name no node
-// come back as `null` ends, not as an error.
+// come back as `null` ends, not as an error. An end is taken where the folded
+// map shows it (`displayNode`: a skipped package at its chain's end, the same
+// subtree but for the skipped package itself, which holds nothing of its own),
+// with its ancestors as the folded map has them.
 export const StructureGivenQuery = graphql(`
   query StructureGiven($view: String, $pairs: [NodePair!]!) {
     hierarchicalGraph(view: $view) {
@@ -176,23 +186,27 @@ export const StructureGivenQuery = graphql(`
         targetId
         weight
         sourceNode {
-          id
-          text
-          type
-          predecessors {
+          displayNode {
             id
+            text
             type
-            hasChildren
+            predecessors(compact: true) {
+              id
+              type
+              hasChildren
+            }
           }
         }
         targetNode {
-          id
-          text
-          type
-          predecessors {
+          displayNode {
             id
+            text
             type
-            hasChildren
+            predecessors(compact: true) {
+              id
+              type
+              hasChildren
+            }
           }
         }
       }
@@ -224,10 +238,10 @@ export function structureGivenQueryOptions(
       const end = (node: End | null | undefined): GivenEnd | null =>
         node
           ? {
-              id: node.id,
-              text: node.text,
-              type: node.type,
-              ancestors: node.predecessors,
+              id: node.displayNode.id,
+              text: node.displayNode.text,
+              type: node.displayNode.type,
+              ancestors: node.displayNode.predecessors,
             }
           : null;
       return (data.hierarchicalGraph?.aggregatedDependencies ?? []).map(

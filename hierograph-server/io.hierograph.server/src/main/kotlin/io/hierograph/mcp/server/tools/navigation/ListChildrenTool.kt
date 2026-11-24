@@ -16,6 +16,7 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.mcp.server.tools.CompactTree
 import io.hierograph.mcp.server.tools.KindFilter
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -42,6 +43,8 @@ class ListChildrenTool(
         name = "list_children",
         description = "[Discovery and navigation] " +
                 "Returns the immediate direct children of a node — one level deep only. " +
+                "Chains of lone packages are folded (see compact): a module whose packages start with " +
+                "io › io.acme › io.acme.app lists io.acme.app directly. " +
                 "Each child carries kind-appropriate metadata (counts and modifiers). " +
                 "On a module: returns packages. On a package: returns sub-packages and types. " +
                 "On a type: returns methods and fields with metadata. " +
@@ -77,7 +80,9 @@ class ListChildrenTool(
             description = "Maximum number of children to return (1-200, default 200; larger values are clamped).",
             required = false
         )
-        limit: Int?
+        limit: Int?,
+        @ToolParam(description = CompactTree.PARAM_DESCRIPTION, required = false)
+        compact: Boolean? = null,
     ): Map<String, Any?> {
 
         // ── resolve the node ──────────────────────────────────────────
@@ -108,17 +113,18 @@ class ListChildrenTool(
 
         // ── filter children ───────────────────────────────────────────
         val hierarchy = graphService.model.hierarchy
+        val folding = CompactTree.folding(compact, hierarchy)
         val allFiltered = mutableListOf<HGNode>()
         val byKind = linkedMapOf<String, Int>()
+        val children = folding?.displayChildrenOf(node)?.map { it.node } ?: hierarchy.childrenOf(node)
 
-        for (child in hierarchy.childrenOf(node).sortedWith(CHILD_ORDER)) {
+        for (child in children.sortedWith(CHILD_ORDER)) {
             // 1. kind filter
             if (expandedKinds != null && child.kind !in expandedKinds) continue
 
             // 2. name pattern
             if (nameLower != null) {
-                val name = NodeMetadata.getName(child) ?: ""
-                if (!name.lowercase().contains(nameLower)) continue
+                if (!CompactTree.name(child, folding).lowercase().contains(nameLower)) continue
             }
 
             // 3. modifier filter (methods and fields only)
@@ -134,7 +140,7 @@ class ListChildrenTool(
         val truncated = allFiltered.size > effectiveLimit
         val results = allFiltered
             .take(effectiveLimit)
-            .map { nodeRefFactory.enrichedNodeRef(it) }
+            .map { nodeRefFactory.enrichedNodeRef(it).apply { CompactTree.mark(this, it, folding) } }
 
         // ── assemble response ─────────────────────────────────────────
         return linkedMapOf(

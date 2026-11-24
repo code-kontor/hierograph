@@ -27,6 +27,7 @@ import io.hierograph.hierarchicalgraph.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
+import io.hierograph.server.graphservice.PackageFolding
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -57,13 +58,28 @@ class NodeController(
     fun parent(node: HGNode): HGNode? = provider.hierarchy().parentOf(node)
 
     @SchemaMapping(typeName = "Node")
-    fun predecessors(node: HGNode): List<HGNode> = provider.hierarchy().predecessorsOf(node)
+    fun predecessors(node: HGNode, @Argument compact: Boolean): List<HGNode> =
+        if (compact) PackageFolding.of(provider.hierarchy()).displayPredecessorsOf(node)
+        else provider.hierarchy().predecessorsOf(node)
 
     @SchemaMapping(typeName = "Node")
     fun hasChildren(node: HGNode): Boolean = provider.hierarchy().childrenOf(node).isNotEmpty()
 
     @SchemaMapping(typeName = "Node")
-    fun children(node: HGNode): NodeSetModel = NodeSetModel(provider.hierarchy().childrenOf(node))
+    fun children(node: HGNode, @Argument compact: Boolean): NodeSetModel =
+        if (compact) NodeSetModel(PackageFolding.of(provider.hierarchy()).displayChildrenOf(node).map { it.node })
+        else NodeSetModel(provider.hierarchy().childrenOf(node))
+
+    // Chain folding (algorithms specification, §8): what a folded tree shows of the node.
+
+    @SchemaMapping(typeName = "Node")
+    fun compactedFrom(node: HGNode): List<HGNode> = PackageFolding.of(provider.hierarchy()).skippedAbove(node)
+
+    @SchemaMapping(typeName = "Node")
+    fun displayText(node: HGNode): String = PackageFolding.label(node, PackageFolding.of(provider.hierarchy()))
+
+    @SchemaMapping(typeName = "Node")
+    fun displayNode(node: HGNode): HGNode = PackageFolding.of(provider.hierarchy()).displayNodeOf(node)
 
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencedNodes(

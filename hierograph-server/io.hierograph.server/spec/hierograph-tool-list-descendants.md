@@ -68,6 +68,7 @@ linked by cursors (see [§7 of the MCP tools specification](hierograph-mcp-tools
 | `modifierFilter` | string[] | no | none | modifiers a method or field must all have |
 | `limit` | integer | no | `150` | items per page, clamped to 1–300; fewer when they would not fit the response budget |
 | `cursor` | string | no | none | `next_cursor` of the previous page — alone, or with the original arguments ([§7.2](hierograph-mcp-tools.md#72-cursors)) |
+| `compact` | boolean | no | `true` | fold chains of lone packages ([MCP tools specification, §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)); `false` walks the tree as it is |
 | `view` | string | no | none | the view to answer in |
 
 **`nodeId`** is any node id, including the synthetic root's, which searches the whole
@@ -129,6 +130,12 @@ subtree, then the next sibling. At every level it sorts the children by qualifie
 ignoring case, then by qualified name, then by id as a number: alphabetical for a
 reader, so in `com.example.billing` the sub-package `internal` comes right after the type
 `Invoice`, not after every upper-case name.
+
+With `compact` (the default) the walk follows the display children: a skipped package
+of a chain of lone packages is passed through without being listed, the chain's last
+package is listed with `compacted_from` naming the skipped ones, and `by_parent` counts
+a result under the node it is listed under. `compact` is part of the query a cursor
+belongs to.
 
 The result is the list of visited nodes that pass the filters, in visiting order. The
 fixed order is what lets a cursor resume at an offset (§3.3): the same query over the

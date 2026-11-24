@@ -17,6 +17,7 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
 import io.hierograph.mcp.server.core.INodeRefFactory
+import io.hierograph.mcp.server.tools.CompactTree
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -46,7 +47,9 @@ class LevelizedStructureTool(
                 "dependencies point down), and the feedback dependencies: the dependencies inside the tangles that " +
                 "point up, heaviest first. They are the cheapest set whose removal untangles the tangles, so they " +
                 "are the refactoring candidates. Answers 'how are the packages of X layered?', 'where are the " +
-                "cycles in X?', 'which dependencies untangle this cycle?'. One container per call: to go deeper, " +
+                "cycles in X?', 'which dependencies untangle this cycle?'. Chains of lone packages are folded (see " +
+                "compact): a module whose packages start with io › io.acme › io.acme.app levelizes io.acme.app's " +
+                "peers directly. One container per call: to go deeper, " +
                 "call it again on a child. For the type-level dependencies behind a feedback dependency use " +
                 "outgoing_dependencies(sourceIds=[from], targetIds=[to])."
     )
@@ -58,7 +61,9 @@ class LevelizedStructureTool(
                     "The summary counts all of them.",
             required = false
         )
-        limit: Int?
+        limit: Int?,
+        @ToolParam(description = CompactTree.PARAM_DESCRIPTION, required = false)
+        compact: Boolean? = null,
     ): Map<String, Any?> {
         val node = graphService.model.lookupNode(nodeId)
             ?: return errorResponse(
@@ -67,13 +72,19 @@ class LevelizedStructureTool(
                 "Use find_node to look up the correct node ID."
             )
         val hierarchy = graphService.model.hierarchy
-        val children = hierarchy.childrenOf(node).toList()
+        // Folding changes no weight: the levelization of the chain ends is that of the chains.
+        val folding = CompactTree.folding(compact, hierarchy)
+        val children = folding?.displayChildrenOf(node)?.map { it.node } ?: hierarchy.childrenOf(node).toList()
         val levelization = GraphUtils.levelize(children, hierarchy)
         val effectiveLimit = (limit ?: 100).coerceIn(1, 500)
 
         // Every child once, by id; the rows and tangles refer to them by id.
         val nodes = LinkedHashMap<String, Any>()
-        for (child in children) nodeRefFactory.putSlimNode(nodes, child)
+        for (child in children) {
+            nodeRefFactory.putSlimNode(nodes, child)
+            @Suppress("UNCHECKED_CAST")
+            (nodes[child.identifier.toString()] as? MutableMap<String, Any?>)?.let { CompactTree.mark(it, child, folding) }
+        }
 
         val levels = levelization.levels.mapIndexed { index, row ->
             linkedMapOf("level" to index, "node_ids" to row.map { it.identifier })

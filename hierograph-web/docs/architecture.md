@@ -130,7 +130,9 @@ the tabs and the tree.
   named and sorted as the tree names its rows. The graph's counts stay the
   scanned graph's.
 - **Left:** the hierarchy tree (`HierarchyTree`) of the current hierarchy
-  view. It loads level by level as nodes are
+  view, folded like the structure map (`children(compact: true)`, #63): a
+  chain of lone packages is one row, its last package, whose label's tooltip
+  and the row's description name the packages it stands for. It loads level by level as nodes are
   expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
   screen's search params `expanded_ids` and `selected_id`, or
   `selected_cycle_ids` for a cycle (both replace the history entry), and
@@ -178,13 +180,16 @@ arrows, and greys out the rest. It follows the design system's interaction
 model (`docs/design-system.md`, "Interaction").
 
 - **Data.** The root and each expanded container load their levelization
-  (`node(id) { children { levelization } }`, #61), keyed by the graph scope;
-  `mapModel.ts` builds the visible map from them: the boxes, the open
-  containers' rows, the frontier (boxes whose content isn't shown) and the
-  feedback dependencies. In a module, a chain of packages that each hold
-  nothing but the next package is folded into one box, its last package
-  named in full (`io.hierograph.server`); the chain's packages load their
-  levelization too, and the module opens once they have. The first selected box loads the matrix over the
+  over the folded children (`node(id) { children(compact: true) {
+  levelization } }`, #61, #63), keyed by the graph scope; `mapModel.ts`
+  builds the visible map from them: the boxes, the open containers' rows, the
+  frontier (boxes whose content isn't shown) and the feedback dependencies.
+  The server folds a chain of packages that each hold nothing but the next
+  package into one box, its last package, at every level; the box is named
+  relative to its container (`io.hierograph.server` in a module, `server.mcp`
+  in `io.hierograph`), and its tooltip names the packages it stands for
+  (`compactedFrom`). A dependency handed to the map is placed at where the
+  folded map shows its ends (`displayNode`, `predecessors(compact: true)`). The first selected box loads the matrix over the
   frontier (`orderedAdjacencyMatrix`) for the weights.
 - **Interaction.** Hovering traces nothing. A click selects a box (again,
   on the canvas, Esc or the pane's selection status clears it), a

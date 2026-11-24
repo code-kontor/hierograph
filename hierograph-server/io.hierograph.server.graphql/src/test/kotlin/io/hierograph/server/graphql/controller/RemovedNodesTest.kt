@@ -82,7 +82,7 @@ class RemovedNodesTest {
     fun `a removed node is neither a child nor found, and nothing refers to it`() {
         val nodes = NodeController(HierarchicalGraphProvider { example.view })
 
-        assertThat(nodes.children(example.root).nodeList).containsExactly(example.app)
+        assertThat(nodes.children(example.root, compact = false).nodeList).containsExactly(example.app)
         assertThat(example.view.lookupNode(example.testType.identifier)).isNull()
         assertThat(nodes.referencedNodes(example.typeB, includePredecessors = false).nodeList).isEmpty()
         assertThat(nodes.referencingNodes(example.typeA, includePredecessors = false).nodeList).isEmpty()

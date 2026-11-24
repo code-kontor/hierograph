@@ -36,7 +36,7 @@ nothing is stored in the server, so the link works as long as its node ids name 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `dependencies` | array of objects | yes | The dependencies, each `{"sourceId": <node id>, "targetId": <node id>}`: from anything in the source's subtree to anything in the target's. An end can be any node: module, package, type or member. Duplicates are dropped. At most 200. |
-| `expandedIds` | array of integers | no | The containers to show expanded. Without it the map chooses: it opens just far enough that the two ends of every dependency lie in different boxes. Pass it only for a different picture. |
+| `expandedIds` | array of integers | no | The containers to show expanded. Without it the map chooses: it opens just far enough that the two ends of every dependency lie in different boxes. Pass it only for a different picture. The map folds chains of lone packages ([MCP tools specification, §3.1](hierograph-mcp-tools.md#31-nodes-and-the-containment-tree)), so a skipped package's id is put in the link as its chain's end, the box that shows it. |
 | `view` | string | no | The view to show the map in (shared parameter). |
 
 ## 3. Behaviour

@@ -152,6 +152,25 @@ describe("StructurePage", () => {
     // External Types' java holds two packages: not folded.
     await expand(screen, "External Types");
     await expect.element(box(screen, "java")).toBeVisible();
+    // The box names the packages it stands for.
+    await expect
+      .element(box(screen, "org.hg.fixture"))
+      .toHaveAttribute("title", expect.stringMatching(/folded: org, org\.hg$/));
+  });
+
+  it("folds a chain inside a package too, named relative to it", async () => {
+    const screen = await renderMap();
+
+    await expand(screen, "fixture-app", "org.hg.fixture", "locations", "app");
+
+    await expect
+      .element(box(screen, "batch.nightly"))
+      .toHaveAttribute(
+        "title",
+        expect.stringMatching(
+          /folded: org\.hg\.fixture\.locations\.app\.batch$/,
+        ),
+      );
   });
 
   it("frames a cycle's members as a tangle, draws its feedback dependency", async () => {
@@ -643,7 +662,7 @@ describe("StructurePage", () => {
     it("keeps the expansion of the URL: both ends in one box, no arrow", async () => {
       const root =
         structureGiven.entries[0].data.hierarchicalGraph
-          .aggregatedDependencies[0].sourceNode!.predecessors;
+          .aggregatedDependencies[0].sourceNode!.displayNode.predecessors;
       // The module, just below the root.
       const module = root[root.length - 2].id;
       const screen = await renderMap(

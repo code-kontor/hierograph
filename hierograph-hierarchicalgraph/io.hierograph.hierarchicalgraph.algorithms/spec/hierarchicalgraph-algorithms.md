@@ -21,12 +21,13 @@ behave, and how to work with them.
 5. [Strongly connected components](#5-strongly-connected-components)
 6. [Ordering](#6-ordering)
 7. [The dependency structure matrix](#7-the-dependency-structure-matrix)
-8. [Example](#8-example)
-9. [Limits](#9-limits)
-10. [API reference](#10-api-reference)
-11. [Working with the algorithms](#11-working-with-the-algorithms)
-12. [Guarantees](#12-guarantees)
-13. [Boundaries](#13-boundaries)
+8. [Chain folding](#8-chain-folding)
+9. [Example](#9-example)
+10. [Limits](#10-limits)
+11. [API reference](#11-api-reference)
+12. [Working with the algorithms](#12-working-with-the-algorithms)
+13. [Guarantees](#13-guarantees)
+14. [Boundaries](#14-boundaries)
 
 ---
 
@@ -392,7 +393,56 @@ grows with the number of levels.
 
 ---
 
-## 8. Example
+## 8. Chain folding
+
+```kotlin
+class ChainFolding(hierarchy: Hierarchy, foldable: (HGNode) -> Boolean)
+```
+
+A presentation of a hierarchy for every tree a user or an agent reads: a chain of
+lone wrappers is shown as its last node. In a Java module, a package that holds
+nothing but one package, and so on down, is shown as the chain's end, named in full
+(`io` › `hierograph` › `server` is shown as `io.hierograph.server`).
+
+**Presentation, not fact.** A package whose only content is one subpackage has
+exactly the aggregated dependencies of that subpackage, so folding changes no
+dependency, no aggregation and no analysis result. It is therefore computed on
+demand over whatever hierarchy is given (a view's, a scenario's fork) and stored
+nowhere; the skipped nodes stay real nodes that can be looked up, named and passed
+to every other algorithm. Only transformations that change results (moves, virtual
+packages, excluded nodes) belong in a `Hierarchy`.
+
+**The rule.** `foldable` says which nodes may form a chain (the server passes "is a
+package"). A node is **skipped** when it is foldable, has exactly one child, and that
+child is foldable too. A node's **display children** are its children with each
+chain replaced by its end: starting at a child, follow the only child while the
+current node is skipped. So:
+
+- a chain ends at the first node with no children, more than one child, or a child
+  that isn't foldable (a package with types is never skipped, even with exactly one
+  subpackage);
+- a chain never crosses a node that isn't foldable: no module, view group or
+  External Types container;
+- folding applies at every level, not only below a module: the display children of a
+  chain's end are folded in turn.
+
+| Method | Returns |
+|--------|---------|
+| `displayChildrenOf(node)` | the display children: one `DisplayChild(node, skipped)` per child, in hierarchy order; `skipped` are the skipped nodes it stands for, outermost first |
+| `chainFrom(start)` | the chain starting at `start`: its end and the skipped nodes |
+| `isSkipped(node)` | whether `node` is skipped |
+| `skippedAbove(node)` | the skipped nodes `node` stands for, outermost first; empty if it isn't folded, and for a skipped node |
+| `displayNodeOf(node)` | where `node` is shown: itself, or for a skipped node its chain's end (to reveal a search hit or a link) |
+| `displayParentOf(node)` | the nearest ancestor that isn't skipped |
+| `displayPredecessorsOf(node)` | the predecessors without the skipped ones, parent first |
+
+**Levelizing display children.** Folding changes no weight, so the levelization of a
+container's display children (§7.3) is that of the chain ends: its tangles and
+feedback dependencies name the chain ends directly.
+
+---
+
+## 9. Example
 
 Four types of a billing application, each a node of the set. `Invoice` and `Ledger`
 depend on each other:
@@ -441,7 +491,7 @@ AggregatedEdge(fromIndex = 1, toIndex = 3, weight = 1, typePairCount = 1, attrib
 
 ---
 
-## 9. Limits
+## 10. Limits
 
 **Overlapping subtrees** double-count rows (§4.4).
 
@@ -451,7 +501,7 @@ AggregatedEdge(fromIndex = 1, toIndex = 3, weight = 1, typePairCount = 1, attrib
 
 ---
 
-## 10. API reference
+## 11. API reference
 
 All entry points are on the `GraphUtils` object. The classes in the `impl` package
 (`Tarjan`, `FastFAS`, `FastFasSorter`, `DependencyStructureMatrixImpl`, `LevelizationImpl`) implement
@@ -468,14 +518,17 @@ them and are not meant to be used directly.
 | `createDependencyStructureMatrix(nodes, hierarchy)` | `IDependencyStructureMatrix` | §7 |
 | `levelize(nodes, hierarchy)` | `ILevelization`: levels, tangles, feedback dependencies | §7.3 |
 
+`ChainFolding(hierarchy, foldable)` (§8) is a class of its own: it carries the hierarchy
+and the rule for a series of questions about one tree.
+
 Every call computes its result afresh. Only the DSM caches anything, and only its
 own weight matrix.
 
 ---
 
-## 11. Working with the algorithms
+## 12. Working with the algorithms
 
-### 11.1 The DSM of a module's packages
+### 12.1 The DSM of a module's packages
 
 ```kotlin
 val packages = model.hierarchy.childrenOf(module)
@@ -488,7 +541,7 @@ dsm.orderedNodes.forEachIndexed { i, node ->
 }
 ```
 
-### 11.2 Cycles only
+### 12.2 Cycles only
 
 ```kotlin
 val cycles = GraphUtils.detectCycles(packages, model.hierarchy)
@@ -497,7 +550,7 @@ val isLayered = cycles.isEmpty()
 
 `detectCycles` is cheaper than building a DSM when the order isn't needed.
 
-### 11.3 DSM edges with their nature
+### 12.3 DSM edges with their nature
 
 ```kotlin
 val dsm = GraphUtils.createDependencyStructureMatrix(nodes, hierarchy)
@@ -508,7 +561,7 @@ val edges = GraphUtils.computePairwiseAggregation(dsm.orderedNodes, hierarchy)
 Indexing the pairwise edges by `dsm.orderedNodes` makes their indices match the DSM's
 rows and columns.
 
-### 11.4 Evaluate a scenario
+### 12.4 Evaluate a scenario
 
 ```kotlin
 val scenario = model.fork()
@@ -521,7 +574,7 @@ val after  = GraphUtils.detectCycles(packagesInScenario, scenario.hierarchy)
 The algorithms read the hierarchy they are given, so the same calls analyse the
 baseline and the restructured fork side by side.
 
-### 11.5 Concurrency
+### 12.5 Concurrency
 
 The algorithms keep no shared state, but they read the hierarchy, and the
 hierarchy fills its caches lazily on first read. Running algorithms concurrently
@@ -530,7 +583,7 @@ own synchronization (see the model specification).
 
 ---
 
-## 12. Guarantees
+## 13. Guarantees
 
 For a node set of distinct nodes:
 
@@ -556,13 +609,13 @@ For a node set of distinct nodes:
 
 ---
 
-## 13. Boundaries
+## 14. Boundaries
 
 | Not in the algorithms | Where it lives |
 |-----------------------|----------------|
 | Accumulated and aggregated dependencies of a single pair | the hierarchy |
 | Choosing the node set (children, scopes, filters) | the caller: MCP tools and GraphQL resolvers |
-| Rendering, labelling, direction (incoming vs outgoing) | the consumers |
+| Rendering, labelling, direction (incoming vs outgoing) | the consumers (the shape of a displayed tree, chain folding, is here: §8) |
 | Interpreting attribute bits | whoever built the model (`JavaEdgeAttributes` for GraphStore models) |
 | Restructuring and scenarios | the hierarchy's `fork`, `move` and local nodes |
 | Caching results across calls | the caller; only a DSM caches its own matrix |

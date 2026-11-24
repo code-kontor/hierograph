@@ -144,7 +144,9 @@ export function runGarbageCollectionMutationOptions() {
 }
 
 // The hierarchy tree: the top level of the hierarchy in a view (or the scanned
-// hierarchy without one), then each node's children when it is expanded. The
+// hierarchy without one), then each node's children when it is expanded,
+// folded: a chain of lone packages is one row, its last package, which names
+// the packages it stands for (`compactedFrom`, #63). The
 // siblings come in dependency order (DSM order: dependents first, each cycle a
 // contiguous block) with their cycles; a type's members, with `ordered: false`,
 // in source order.
@@ -153,13 +155,16 @@ export const HierarchyTreeRootQuery = graphql(`
     hierarchicalGraph(view: $view) {
       rootNode {
         id
-        children {
+        children(compact: true) {
           orderedAdjacencyMatrix {
             orderedNodes {
               id
               text
               type
               hasChildren
+              compactedFrom {
+                text
+              }
             }
             stronglyConnectedComponents {
               nodeIds
@@ -176,12 +181,15 @@ export const HierarchyTreeChildrenQuery = graphql(`
     hierarchicalGraph(view: $view) {
       node(id: $id) {
         id
-        children {
+        children(compact: true) {
           nodes @skip(if: $ordered) {
             id
             text
             type
             hasChildren
+            compactedFrom {
+              text
+            }
           }
           orderedAdjacencyMatrix @include(if: $ordered) {
             orderedNodes {
@@ -189,6 +197,9 @@ export const HierarchyTreeChildrenQuery = graphql(`
               text
               type
               hasChildren
+              compactedFrom {
+                text
+              }
             }
             stronglyConnectedComponents {
               nodeIds
@@ -205,6 +216,9 @@ export type TreeNode = {
   text: string;
   type: string;
   hasChildren: boolean;
+  // The lone packages the row stands for, outermost first; empty if it isn't
+  // folded.
+  compactedFrom: { text: string }[];
 };
 
 // One level of the tree: the siblings in display order and their dependency

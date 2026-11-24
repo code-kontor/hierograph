@@ -106,6 +106,18 @@ class StructureMapLinkToolTest {
     }
 
     @Test
+    fun `a skipped package to expand is linked as its chain's end, the box the folded map shows`() {
+        // module ─ io › io.acme (class d): io holds nothing but io.acme.
+        val io = node(JavaNodeKind.PACKAGE).also { HierarchyFactory.addChild(hierarchy, module, it) }
+        val acme = node(JavaNodeKind.PACKAGE).also { HierarchyFactory.addChild(hierarchy, io, it) }
+        node(JavaNodeKind.CLASS).also { HierarchyFactory.addChild(hierarchy, acme, it) }
+
+        val response = tool().structureMapLink(listOf(dep(id(a), id(b))), listOf(id(module), id(io), id(acme)))
+
+        assertThat(response["url"] as String).endsWith("&expanded_ids=${id(module)},${id(acme)}")
+    }
+
+    @Test
     fun `reports ids that name no node and pairs without a dependency, and still links them`() {
         val response = tool().structureMapLink(listOf(dep(id(b), id(a)), dep(424242L, id(a))), null)
 

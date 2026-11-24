@@ -82,6 +82,7 @@ import {
   buildModel,
   isWithin,
   itemWeight,
+  type MapBox,
   type MapItem,
   type MapModel,
   restrictModel,
@@ -264,13 +265,10 @@ function StructureMap({ scope }: StructureMapProps) {
 
   const root = useQuery(structureRootQueryOptions(scope));
   const rootId = root.data ?? null;
-  // The packages of the chains the map folds, as it has asked for them.
-  const [chainIds, setChainIds] = useState<string[]>([]);
   // The root and every expanded container, shown or not: a container inside
-  // a collapsed one keeps its rows for when it shows again; and the chains'
-  // packages.
+  // a collapsed one keeps its rows for when it shows again.
   const levelIds =
-    rootId === null ? [] : [...new Set([rootId, ...expandedIds, ...chainIds])];
+    rootId === null ? [] : [...new Set([rootId, ...expandedIds])];
   const levelQueries = useQueries({
     queries: levelIds.map((id) => structureLevelQueryOptions(scope, id)),
   });
@@ -279,11 +277,6 @@ function StructureMap({ scope }: StructureMapProps) {
     if (query.data) levels.set(levelIds[index], query.data);
   });
   const model = rootId === null ? null : buildModel(rootId, levels, expanded);
-  // Loads the chains' packages the model is waiting for; each loaded one may
-  // ask for the next one down. Adjusted while rendering, as React has it for
-  // state that follows from what is rendered.
-  const pending = model?.pending.filter((id) => !chainIds.includes(id)) ?? [];
-  if (pending.length > 0) setChainIds([...chainIds, ...pending]);
   const selectedId =
     selectedParam !== undefined && model?.boxes.has(selectedParam)
       ? selectedParam
@@ -437,8 +430,7 @@ function StructureMap({ scope }: StructureMapProps) {
     resolvedGiven.data !== undefined &&
     (search.expanded_ids !== undefined ||
       expansionFor(resolvedGiven.data).length === 0) &&
-    !levelQueries.some((query) => query.isPending) &&
-    (model?.pending.length ?? 0) === 0;
+    !levelQueries.some((query) => query.isPending);
   useEffect(() => {
     const resolved = resolvedGiven.data;
     if (!resolved || givenKey === "" || expandedFor.current === givenKey) {
@@ -1660,7 +1652,7 @@ function MapBoxView({ id }: MapBoxViewProps) {
       aria-expanded={box.container ? open : undefined}
       aria-busy={loading || undefined}
       data-box-id={id}
-      title={`${box.text}\n${box.type} · level ${box.level}${box.inTangle ? " · in a tangle" : ""}`}
+      title={boxTitle(box)}
       className={twMerge(
         "lsm-box",
         open ? "lsm-cont" : "lsm-leaf",
@@ -1691,4 +1683,18 @@ function MapBoxView({ id }: MapBoxViewProps) {
       )}
     </div>
   );
+}
+
+// A box's tooltip: its full name, kind and level, and for a folded box the
+// lone packages it stands for.
+function boxTitle(box: MapBox): string {
+  const lines = [
+    box.text,
+    `${box.type} · level ${box.level}${box.inTangle ? " · in a tangle" : ""}`,
+  ];
+  if (box.compactedFrom.length > 0) {
+    const skipped = box.compactedFrom.map((node) => node.text).join(", ");
+    lines.push(`folded: ${skipped}`);
+  }
+  return lines.join("\n");
 }

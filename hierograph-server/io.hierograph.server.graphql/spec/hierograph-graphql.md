@@ -586,9 +586,12 @@ served hierarchy.
 | `text` | `String!` | The node's qualified name: the type FQN, the package name, the artifact key for a module, `<owner fqn>#<signature>` for a member; empty for the root. |
 | `type` | `String!` | The node's kind as a string (`java.class`, `java.package`, `external.type`, …); `Unknown` when the node has no kind, as the root. |
 | `parent` | `Node` | The parent; `null` for the root. |
-| `predecessors` | `[Node!]!` | The ancestors, nearest first, up to and including the root. |
+| `predecessors(compact)` | `[Node!]!` | The ancestors, nearest first, up to and including the root. With `compact: true`, without the packages chain folding skips: the ancestors as a folded tree shows them. |
 | `hasChildren` | `Boolean!` | Whether the node has children. Lets a tree view draw an expander without loading them. |
-| `children` | `NodeSet!` | The children, in insertion order. |
+| `children(compact)` | `NodeSet!` | The children, in insertion order. With `compact: true`, the display children of chain folding (below). |
+| `compactedFrom` | `[Node!]!` | The packages the node stands for in a folded tree, outermost first; empty when it isn't folded, and for a skipped package. |
+| `displayText` | `String!` | The node's name in a folded tree (below). |
+| `displayNode` | `Node!` | Where the node is shown in a folded tree: itself, or for a skipped package the end of its chain. |
 | `childrenFilteredByReferencedNodes(referencedNodeIds)` | `NodeSet!` | The children whose subtree depends on the subtree of at least one of the given nodes (§5). |
 | `childrenFilteredByReferencingNodes(referencingNodeIds)` | `NodeSet!` | The children whose subtree is depended on by the subtree of at least one of the given nodes. |
 | `properties` | `[MapEntry!]!` | Key–value facts about the node (§7). |
@@ -602,6 +605,22 @@ served hierarchy.
 **`childrenFilteredBy…`** answers the drill-down question "which of my children
 cause this dependency?". A UI that shows `billing → money` can ask
 `billing.childrenFilteredByReferencedNodes([money])` and get `Invoice` and `Ledger`.
+
+**Chain folding.** `children(compact: true)` folds each chain of lone packages (a
+package holding nothing but one package, and so on down) to its last package, by the
+rule of the
+[algorithms specification, §8](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md#8-chain-folding)
+with packages as the foldable nodes (`PackageFolding`): a chain never crosses a
+module, a view group or External Types, and External Types' packages fold like any
+other. It is computed in the request's hierarchy, so a view's moves and exclusions
+are folded as they leave the tree, and nothing is stored. The skipped packages stay
+real nodes: `node(id)` finds them, and `displayNode` says where they are shown, so a
+client reveals a link to `io.hierograph` at `io.hierograph.server`. `displayText`
+names a folded node by its qualified name relative to the package it is shown under
+(`server.mcp` under `io.hierograph`), in full under a module (`io.hierograph.server`),
+and any other node by its own name. Folding changes no dependency and no weight, so
+`children(compact: true) { levelization }` levelizes the chain ends, and its tangles
+and feedback dependencies name them.
 
 **`dependenciesTo` / `dependenciesFrom`** list the dependencies in the order of the
 node's accumulated dependencies, so they include internal ones when a target lies in
@@ -753,7 +772,8 @@ stronglyConnectedComponents  []
 
 `NodeSet.levelization` lays the set out in rows by level with
 `GraphUtils.levelize`, as a levelized structure map draws a container's children:
-`node(id) { children { levelization } }`. The
+`node(id) { children(compact: true) { levelization } }`, over the chain ends of a
+folded tree. The
 [algorithms specification](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md#73-levelization)
 defines the levels, tangles and feedback dependencies; this type serialises them.
 
@@ -982,7 +1002,7 @@ val root = HGGraphFactory.createNode(graph) { DefaultNodeSource(identifier = 1L)
 val hierarchy = HierarchyFactory.createHierarchy(graph, root)
 
 val controller = NodeController(HierarchicalGraphProvider { hierarchy })
-val children = controller.children(root)
+val children = controller.children(root, compact = false)
 ```
 
 For `findNodes`, seed a `HierarchicalGraphService` with the model and pass a

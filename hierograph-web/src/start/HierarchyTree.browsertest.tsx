@@ -101,7 +101,7 @@ function onlyArcsOf(id: string) {
   return arcs().every((arc) => arc.from === id || arc.to === id);
 }
 
-const CYCLE_PATH = ["fixture-app", "org", "hg", "fixture", "basic", "cycle"];
+const CYCLE_PATH = ["fixture-app", "org.hg.fixture", "basic", "cycle"];
 
 // A visible row's node id, by its label.
 function nodeId(label: string) {
@@ -167,15 +167,7 @@ describe("HierarchyTree", () => {
   it("loads a node's children when it is expanded, named relative to it", async () => {
     const screen = await renderTree();
 
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "core",
-    );
+    await expand(screen, "fixture-app", "org.hg.fixture", "basic", "core");
 
     await expect.element(item(screen, "PlainClass")).toBeVisible();
     await expect.element(item(screen, "Pair")).toBeVisible();
@@ -183,7 +175,7 @@ describe("HierarchyTree", () => {
 
   it("orders siblings by their dependencies: dependents on top, the used at the bottom", async () => {
     const screen = await renderTree();
-    await expand(screen, "fixture-app", "org", "hg", "fixture", "basic");
+    await expand(screen, "fixture-app", "org.hg.fixture", "basic");
 
     expect(await childLabels(screen, "basic")).toEqual([
       "rel",
@@ -196,15 +188,7 @@ describe("HierarchyTree", () => {
 
   it("marks the siblings in a dependency cycle", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "cycle",
-    );
+    await expand(screen, "fixture-app", "org.hg.fixture", "basic", "cycle");
 
     expect(await childLabels(screen, "cycle")).toEqual([
       "gamma",
@@ -229,15 +213,7 @@ describe("HierarchyTree", () => {
 
   it("ends at the types, without their members", async () => {
     const screen = await renderTree();
-    await expand(
-      screen,
-      "fixture-app",
-      "org",
-      "hg",
-      "fixture",
-      "basic",
-      "core",
-    );
+    await expand(screen, "fixture-app", "org.hg.fixture", "basic", "core");
 
     const type = item(screen, "PlainClass");
     await expect.element(type).toBeVisible();
@@ -255,7 +231,7 @@ describe("HierarchyTree", () => {
   it("collapses an expanded node", async () => {
     const screen = await renderTree();
     await expand(screen, "fixture-app");
-    await expect.element(item(screen, "org")).toBeVisible();
+    await expect.element(item(screen, "org.hg.fixture")).toBeVisible();
 
     await screen
       .getByRole("button", { name: "Collapse fixture-app", exact: true })
@@ -264,7 +240,9 @@ describe("HierarchyTree", () => {
     await expect
       .element(item(screen, "fixture-app"))
       .toHaveAttribute("aria-expanded", "false");
-    await expect.element(item(screen, "org")).not.toBeInTheDocument();
+    await expect
+      .element(item(screen, "org.hg.fixture"))
+      .not.toBeInTheDocument();
   });
 
   it("shows a hierarchy view's groups, with their members named relative to the level above", async () => {
@@ -273,7 +251,7 @@ describe("HierarchyTree", () => {
     await expect
       .element(screen.getByRole("banner").getByText("layers"))
       .toBeVisible();
-    await expand(screen, "fixture-app", "org", "hg", "fixture", "locations");
+    await expand(screen, "fixture-app", "org.hg.fixture", "locations");
 
     await expect.element(item(screen, "application")).toBeVisible();
     await expect.element(item(screen, "library")).toBeVisible();
@@ -286,10 +264,56 @@ describe("HierarchyTree", () => {
   it("leaves out what the view excludes, with everything inside it", async () => {
     const screen = await renderTree("?view=locations");
 
-    await expand(screen, "fixture-app", "org", "hg", "fixture");
+    await expand(screen, "fixture-app");
 
-    await expect.element(item(screen, "locations")).toBeVisible();
+    // Without `basic`, `org.hg.fixture` holds nothing but `locations`: the
+    // chain folds one package further.
+    await expect
+      .element(item(screen, "org.hg.fixture.locations"))
+      .toHaveAttribute(
+        "aria-description",
+        "folded from org, org.hg, org.hg.fixture",
+      );
     await expect.element(item(screen, "basic")).not.toBeInTheDocument();
+  });
+
+  it("folds a chain of lone packages into one row, named in full below a module", async () => {
+    const screen = await renderTree();
+
+    await expand(screen, "fixture-app");
+
+    const folded = item(screen, "org.hg.fixture");
+    await expect
+      .element(folded)
+      .toHaveAttribute("aria-description", "folded from org, org.hg");
+    // The skipped packages are named on the label, left of the arcs.
+    expect(
+      folded
+        .element()
+        .querySelector("[data-tree-label]")
+        ?.getAttribute("title"),
+    ).toBe("org.hg.fixture\nfolded: org, org.hg");
+  });
+
+  it("folds below a package too, named relative to it", async () => {
+    const screen = await renderTree();
+
+    await expand(screen, "fixture-app", "org.hg.fixture", "locations", "app");
+
+    await expect
+      .element(item(screen, "batch.nightly"))
+      .toHaveAttribute(
+        "aria-description",
+        "folded from org.hg.fixture.locations.app.batch",
+      );
+    // A row that isn't folded names nothing on its label.
+    await expect.element(item(screen, "web")).toBeVisible();
+    expect(
+      item(screen, "web")
+        .element()
+        .querySelector("[data-tree-label]")
+        ?.hasAttribute("title"),
+    ).toBe(false);
   });
 
   it("draws no arcs until a row is selected", async () => {
@@ -525,13 +549,13 @@ describe("HierarchyTree", () => {
     await expect
       .element(item(screen, "fixture-app"))
       .toHaveAttribute("aria-expanded", "true");
-    await expect.element(item(screen, "org")).toBeVisible();
+    await expect.element(item(screen, "org.hg.fixture")).toBeVisible();
     await userEvent.keyboard("{ArrowRight}");
-    expect(active()).toBe("org");
+    expect(active()).toBe("org.hg.fixture");
 
     await userEvent.keyboard("{Enter}");
     await expect
-      .element(item(screen, "org"))
+      .element(item(screen, "org.hg.fixture"))
       .toHaveAttribute("aria-selected", "true");
 
     await userEvent.keyboard("{ArrowLeft}");
@@ -551,9 +575,9 @@ describe("HierarchyTree", () => {
     await expect
       .element(item(screen, "fixture-app"))
       .toHaveAttribute("aria-expanded", "true");
-    await expect.element(item(screen, "org")).toBeVisible();
+    await expect.element(item(screen, "org.hg.fixture")).toBeVisible();
     await userEvent.keyboard("{ArrowDown}");
-    expect(active()).toBe("org");
+    expect(active()).toBe("org.hg.fixture");
     await userEvent.keyboard("-");
     await expect
       .element(item(screen, "fixture-app"))
@@ -721,7 +745,8 @@ describe("HierarchyTree", () => {
     const { search, searchStr } = first.router.state.location;
     // A lone numeric id comes back from the URL as a number.
     expect(String(search.selected_id)).toBe(beta);
-    expect(search.expanded_ids).toHaveLength(6);
+    // The rows along the folded path: fixture-app, org.hg.fixture, basic, cycle.
+    expect(search.expanded_ids).toHaveLength(4);
     await first.unmount();
 
     const screen = await renderTree(searchStr);
@@ -740,11 +765,11 @@ describe("HierarchyTree", () => {
   it("draws the arcs to External Types, with the order", async () => {
     const screen = await renderTree();
     await expand(screen, "fixture-app");
-    await expect.element(item(screen, "org")).toBeVisible();
+    await expect.element(item(screen, "org.hg.fixture")).toBeVisible();
 
-    await row(screen, "org").click();
+    await row(screen, "org.hg.fixture").click();
 
-    const org = nodeId("org");
+    const org = nodeId("org.hg.fixture");
     const external = nodeId("External Types");
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
     expect(arcs()).toContainEqual(

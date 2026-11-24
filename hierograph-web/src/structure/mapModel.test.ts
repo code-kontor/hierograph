@@ -33,7 +33,6 @@ function model(): MapModel {
     frontier: ["b", "x", "y", "z"],
     feedback: [{ containerId: "a", sourceId: "y", targetId: "x", weight: 1 }],
     weights: new Map(),
-    pending: [],
   };
 }
 

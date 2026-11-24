@@ -38,17 +38,15 @@ export type MapModel = {
   // The share of its row a box takes: how many boxes are visible in it, as
   // the widest of its rows has them (1 for a box whose content isn't shown).
   weights: Map<string, number>;
-  // The packages whose rows are needed to fold a module's package chains,
-  // and not loaded yet; the module opens once they are.
-  pending: string[];
 };
 
 // The map from the root's and the expanded containers' levelizations. A
 // container is open when it is expanded and its rows are loaded; the root is
-// always open, and not drawn as a box. In a module, a package that holds
-// nothing but one package, and so on down, is folded into one box: the last
-// package of the chain, named in full (`io` > `hierograph` > `server` is
-// `io.hierograph.server`).
+// always open, and not drawn as a box. The rows come folded from the server
+// (`children(compact: true)`): a package that holds nothing but one package,
+// and so on down, is one box, the last package of the chain, named relative to
+// its container (`io.hierograph.server` in a module, `server.mcp` in
+// `io.hierograph`).
 export function buildModel(
   rootId: string,
   levels: Map<string, StructureLevel>,
@@ -58,70 +56,16 @@ export function buildModel(
   const rowsOf = new Map<string, MapItem[][]>();
   const frontier: string[] = [];
   const feedback: FeedbackDependency[] = [];
-  const pending: string[] = [];
-
-  // The package a chain of lone packages from `node` ends in, or null while a
-  // package's rows on the way are still loading.
-  const chainEnd = (node: StructureNode): StructureNode | null => {
-    let at = node;
-    for (;;) {
-      if (!at.hasChildren) return at;
-      const level = levels.get(at.id);
-      if (!level) {
-        pending.push(at.id);
-        return null;
-      }
-      const children = level.levels.flat();
-      if (children.length !== 1 || children[0].type !== "java.package") {
-        return at;
-      }
-      at = children[0];
-    }
-  };
-
-  // A module's rows with each package chain folded into its last package;
-  // null while a chain is still loading.
-  const folded = (level: StructureLevel): StructureLevel | null => {
-    const ends = new Map<string, StructureNode>();
-    let complete = true;
-    for (const node of level.levels.flat()) {
-      if (node.type !== "java.package") continue;
-      const end = chainEnd(node);
-      if (end === null) complete = false;
-      else if (end.id !== node.id) ends.set(node.id, end);
-    }
-    if (!complete) return null;
-    if (ends.size === 0) return level;
-    const idOf = (id: string) => ends.get(id)?.id ?? id;
-    return {
-      levels: level.levels.map((nodes) =>
-        nodes.map((node) => ends.get(node.id) ?? node),
-      ),
-      tangles: level.tangles.map((tangle) => ({
-        level: tangle.level,
-        nodeIds: tangle.nodeIds.map(idOf),
-        rows: tangle.rows.map((row) => row.map(idOf)),
-      })),
-      feedback: level.feedback.map((dep) => ({
-        ...dep,
-        sourceId: idOf(dep.sourceId),
-        targetId: idOf(dep.targetId),
-      })),
-    };
-  };
 
   // Opens a container: lays its rows out and opens its expanded children.
-  // False while its rows, or a module's chains, are still loading.
+  // False while its rows are still loading.
   const open = (
     id: string,
     parentText: string,
     depth: number,
     external: boolean,
   ) => {
-    const loaded = levels.get(id);
-    if (!loaded) return false;
-    const level =
-      boxes.get(id)?.type === "java.module" ? folded(loaded) : loaded;
+    const level = levels.get(id);
     if (!level) return false;
     const tangleOf = new Map<string, StructureLevel["tangles"][number]>();
     for (const tangle of level.tangles) {
@@ -168,7 +112,7 @@ export function buildModel(
   open(rootId, "", 0, false);
   feedback.sort((a, b) => b.weight - a.weight);
   const weights = weightsOf(boxes.keys(), rowsOf);
-  return { rootId, boxes, rowsOf, frontier, feedback, weights, pending };
+  return { rootId, boxes, rowsOf, frontier, feedback, weights };
 }
 
 // Each box's weight: how many boxes are visible in it.

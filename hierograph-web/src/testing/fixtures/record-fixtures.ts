@@ -170,10 +170,10 @@ if (scenario === "default") {
     return ids.sort();
   };
   // The paths, by the nodes' qualified names (a view group's is `<view>:<name>`).
+  // The tree is folded (#63): `org` › `org.hg` hold nothing but each other,
+  // so the module's one row is `org.hg.fixture`.
   const BASIC = [
     "io.hierograph.examples:fixture-app:1.0.0",
-    "org",
-    "org.hg",
     "org.hg.fixture",
     "org.hg.fixture.basic",
   ];
@@ -187,18 +187,28 @@ if (scenario === "default") {
       ],
     },
     { view: null, path: [...BASIC, "org.hg.fixture.basic.cycle"] },
-    { view: null, path: [...BASIC.slice(0, 4), "org.hg.fixture.locations"] },
+    { view: null, path: [...BASIC.slice(0, 2), "org.hg.fixture.locations"] },
+    // To a package with a folded chain inside: `batch` holds only `nightly`.
+    {
+      view: null,
+      path: [
+        ...BASIC.slice(0, 2),
+        "org.hg.fixture.locations",
+        "org.hg.fixture.locations.app",
+      ],
+    },
     { view: null, path: ["External Types", "java"] },
     {
       view: "layers",
       path: [
-        ...BASIC.slice(0, 4),
+        ...BASIC.slice(0, 2),
         "org.hg.fixture.locations",
         "layers:application",
       ],
     },
-    // Down to where the excluded `basic` tenant would be.
-    { view: "locations", path: BASIC.slice(0, 4) },
+    // Without the excluded `basic` tenant, `org.hg.fixture` holds nothing but
+    // `locations`, so the chain folds one package further.
+    { view: "locations", path: [BASIC[0], "org.hg.fixture.locations"] },
   ];
   const arcs: Entry[] = [];
   const recorded = new Set<string>();
@@ -265,8 +275,7 @@ if (scenario === "default") {
   // collapsed map (the root's children), and with every container opened
   // along its ancestors, as the tests open them one by one. The visible boxes
   // are those of the open containers whose content isn't shown, as the map
-  // has them (structure/mapModel.ts), a module's chains of lone packages
-  // folded into their last package.
+  // has them (structure/mapModel.ts); the levels come folded from the server.
   type Node = { id: string; type: string; hasChildren: boolean };
   type Level = {
     hierarchicalGraph: {
@@ -296,27 +305,15 @@ if (scenario === "default") {
         levelOf(view, id)?.hierarchicalGraph.node.children.levelization
           .levels ?? []
       ).flatMap((row) => row.nodes);
-    const chainEnd = (node: Node): Node => {
-      let at = node;
-      for (;;) {
-        const children = at.hasChildren ? childrenOf(at.id) : [];
-        if (children.length !== 1 || children[0].type !== "java.package") {
-          return at;
-        }
-        at = children[0];
-      }
-    };
-    const visit = (id: string, module: boolean) => {
-      for (const child of childrenOf(id)) {
-        const node =
-          module && child.type === "java.package" ? chainEnd(child) : child;
+    const visit = (id: string) => {
+      for (const node of childrenOf(id)) {
         const container = node.hasChildren && !TYPE_KINDS.has(node.type);
         if (container && open.has(node.id) && levelOf(view, node.id))
-          visit(node.id, node.type === "java.module");
+          visit(node.id);
         else ids.push(node.id);
       }
     };
-    visit(rootId, false);
+    visit(rootId);
     return ids.sort();
   };
   const cellEntries: Entry[] = [];

@@ -36,98 +36,82 @@
               "targetId": "6595774329988248",
               "weight": 4,
               "sourceNode": {
-                "id": "954267309345899",
-                "text": "org.hg.fixture.locations.app.web.OrderController",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "5186412852274999",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "1490153931190400",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "954267309345899",
+                  "text": "org.hg.fixture.locations.app.web.OrderController",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "5186412852274999",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "1490153931190400",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "6595774329988248",
-                "text": "org.hg.fixture.locations.lib.order.OrderService",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "6382195039839970",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7288710331230862",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "6595774329988248",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "6382195039839970",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7288710331230862",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -135,98 +119,82 @@
               "targetId": "6339647267646332",
               "weight": 1,
               "sourceNode": {
-                "id": "3296601704837634",
-                "text": "org.hg.fixture.locations.app.web.CustomerController",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "5186412852274999",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "1490153931190400",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "3296601704837634",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "5186412852274999",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "1490153931190400",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "6339647267646332",
-                "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
-                "type": "java.interface",
-                "predecessors": [
-                  {
-                    "id": "2723417083299518",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7288710331230862",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "6339647267646332",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
+                  "type": "java.interface",
+                  "predecessors": [
+                    {
+                      "id": "2723417083299518",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7288710331230862",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -234,98 +202,82 @@
               "targetId": "3783886784233445",
               "weight": 1,
               "sourceNode": {
-                "id": "4974525277474667",
-                "text": "org.hg.fixture.basic.cycle.beta.CycleB",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "6079436453382064",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5327450794892123",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "4974525277474667",
+                  "text": "org.hg.fixture.basic.cycle.beta.CycleB",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "6079436453382064",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5327450794892123",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "3783886784233445",
-                "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "4007685154134331",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5327450794892123",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "3783886784233445",
+                  "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "4007685154134331",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5327450794892123",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -333,88 +285,72 @@
               "targetId": "1746271947507375",
               "weight": 0,
               "sourceNode": {
-                "id": "2770445597321249",
-                "text": "org.hg.fixture.basic.isolated.Island",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "3988795772440812",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "2770445597321249",
+                  "text": "org.hg.fixture.basic.isolated.Island",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "3988795772440812",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "1746271947507375",
-                "text": "org.hg.fixture.basic.core.PlainClass",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "459873591884545",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "1746271947507375",
+                  "text": "org.hg.fixture.basic.core.PlainClass",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "459873591884545",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -423,51 +359,43 @@
               "weight": 0,
               "sourceNode": null,
               "targetNode": {
-                "id": "6595774329988248",
-                "text": "org.hg.fixture.locations.lib.order.OrderService",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "6382195039839970",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7288710331230862",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "6595774329988248",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "6382195039839970",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7288710331230862",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             }
           ]
@@ -508,108 +436,92 @@
               "targetId": "6595774329988248",
               "weight": 4,
               "sourceNode": {
-                "id": "954267309345899",
-                "text": "org.hg.fixture.locations.app.web.OrderController",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "5186412852274999",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "1490153931190400",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "4189680150062676",
-                    "type": "view.group",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "954267309345899",
+                  "text": "org.hg.fixture.locations.app.web.OrderController",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "5186412852274999",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "1490153931190400",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "4189680150062676",
+                      "type": "view.group",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "6595774329988248",
-                "text": "org.hg.fixture.locations.lib.order.OrderService",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "6382195039839970",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7288710331230862",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "4888459837518274",
-                    "type": "view.group",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "6595774329988248",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "6382195039839970",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7288710331230862",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "4888459837518274",
+                      "type": "view.group",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -617,108 +529,92 @@
               "targetId": "6339647267646332",
               "weight": 1,
               "sourceNode": {
-                "id": "3296601704837634",
-                "text": "org.hg.fixture.locations.app.web.CustomerController",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "5186412852274999",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "1490153931190400",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "4189680150062676",
-                    "type": "view.group",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "3296601704837634",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "5186412852274999",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "1490153931190400",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "4189680150062676",
+                      "type": "view.group",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "6339647267646332",
-                "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
-                "type": "java.interface",
-                "predecessors": [
-                  {
-                    "id": "2723417083299518",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7288710331230862",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "4888459837518274",
-                    "type": "view.group",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "6339647267646332",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
+                  "type": "java.interface",
+                  "predecessors": [
+                    {
+                      "id": "2723417083299518",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7288710331230862",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "4888459837518274",
+                      "type": "view.group",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -726,98 +622,82 @@
               "targetId": "3783886784233445",
               "weight": 1,
               "sourceNode": {
-                "id": "4974525277474667",
-                "text": "org.hg.fixture.basic.cycle.beta.CycleB",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "6079436453382064",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5327450794892123",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "4974525277474667",
+                  "text": "org.hg.fixture.basic.cycle.beta.CycleB",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "6079436453382064",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5327450794892123",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "3783886784233445",
-                "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "4007685154134331",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5327450794892123",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "3783886784233445",
+                  "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "4007685154134331",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5327450794892123",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -825,88 +705,72 @@
               "targetId": "1746271947507375",
               "weight": 0,
               "sourceNode": {
-                "id": "2770445597321249",
-                "text": "org.hg.fixture.basic.isolated.Island",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "3988795772440812",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "2770445597321249",
+                  "text": "org.hg.fixture.basic.isolated.Island",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "3988795772440812",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               },
               "targetNode": {
-                "id": "1746271947507375",
-                "text": "org.hg.fixture.basic.core.PlainClass",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "459873591884545",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7822526495285534",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "1746271947507375",
+                  "text": "org.hg.fixture.basic.core.PlainClass",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "459873591884545",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7822526495285534",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             },
             {
@@ -915,56 +779,48 @@
               "weight": 0,
               "sourceNode": null,
               "targetNode": {
-                "id": "6595774329988248",
-                "text": "org.hg.fixture.locations.lib.order.OrderService",
-                "type": "java.class",
-                "predecessors": [
-                  {
-                    "id": "6382195039839970",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7288710331230862",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "4888459837518274",
-                    "type": "view.group",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "792143413850566",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7015125723486552",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "2241766866721144",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "6138144180870008",
-                    "type": "java.package",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "5909467489117502",
-                    "type": "java.module",
-                    "hasChildren": true
-                  },
-                  {
-                    "id": "7239895376211087",
-                    "type": "Unknown",
-                    "hasChildren": true
-                  }
-                ]
+                "displayNode": {
+                  "id": "6595774329988248",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService",
+                  "type": "java.class",
+                  "predecessors": [
+                    {
+                      "id": "6382195039839970",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7288710331230862",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "4888459837518274",
+                      "type": "view.group",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "792143413850566",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7015125723486552",
+                      "type": "java.package",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "5909467489117502",
+                      "type": "java.module",
+                      "hasChildren": true
+                    },
+                    {
+                      "id": "7239895376211087",
+                      "type": "Unknown",
+                      "hasChildren": true
+                    }
+                  ]
+                }
               }
             }
           ]

@@ -138,14 +138,42 @@ type Node {
     "The parent; `null` for the root."
     parent: Node
 
-    "The ancestors, nearest first, up to and including the root."
-    predecessors: [Node!]!
+    """
+    The ancestors, nearest first, up to and including the root. With `compact`, the ancestors as a folded tree
+    shows them: without the packages skipped by chain folding (see `children`).
+    """
+    predecessors(compact: Boolean! = false): [Node!]!
 
     "Whether the node has children, so a tree view can draw an expander without loading them."
     hasChildren: Boolean!
 
-    "The children, in tree order."
-    children: NodeSet!
+    """
+    The children, in tree order. With `compact`, the display children of chain folding: a chain of lone
+    packages (a package holding nothing but one package, and so on down) is replaced by its last package, which
+    names the packages it stands for in `compactedFrom`. Folding changes no dependency and no weight, so
+    `children(compact: true).levelization` levelizes the chain ends. Packages fold wherever they are; a chain
+    never crosses a module, a view group or External Types.
+    """
+    children(compact: Boolean! = false): NodeSet!
+
+    """
+    The packages this node stands for in a folded tree, outermost first: the lone packages directly above it
+    that chain folding skips. Empty when the node isn't folded, and for a skipped package itself.
+    """
+    compactedFrom: [Node!]!
+
+    """
+    The node's name in a folded tree: a folded node by its qualified name relative to the package it is shown
+    under (`server.mcp` under `io.hierograph`), in full under a module (`io.hierograph.server`); any other node
+    by its own name.
+    """
+    displayText: String!
+
+    """
+    Where the node is shown in a folded tree: itself, or for a package that chain folding skips the end of its
+    chain. A link or search hit naming a skipped package is revealed there.
+    """
+    displayNode: Node!
 
     "The children whose subtree depends on the subtree of at least one of the given nodes."
     childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!): NodeSet!

@@ -16,6 +16,7 @@
 package io.hierograph.mcp.server.tools.navigation
 
 import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.mcp.server.tools.CompactTree
 import io.hierograph.mcp.server.tools.KindFilter
 import io.hierograph.server.graphservice.HierarchicalGraphService
 import io.hierograph.mcp.server.core.INodeRefFactory
@@ -49,6 +50,8 @@ class ListDescendantsTool(
                 "Returns descendants matching specified filters across the entire subtree in a single call. " +
                 "This is the right tool for any 'show me all X in subtree Y' question. " +
                 "Supports filtering by kind, name pattern, and modifiers. " +
+                "Chains of lone packages are folded (see compact): their skipped packages are not listed, the " +
+                "chain's last package names them, and by_parent counts under the folded parents. " +
                 "The summary fields (by_kind, by_parent) often answer the question without " +
                 "needing to enumerate individual results. " +
                 "Results are paginated when large — use next_cursor to retrieve more, " +
@@ -95,7 +98,9 @@ class ListDescendantsTool(
                     "(tighter kind/name filters or a smaller subtree) over paginating through all of it.",
             required = false
         )
-        cursor: String?
+        cursor: String?,
+        @ToolParam(description = CompactTree.PARAM_DESCRIPTION, required = false)
+        compact: Boolean? = null,
     ): Map<String, Any?> {
 
         // ── resolve the node ──────────────────────────────────────────
@@ -129,7 +134,8 @@ class ListDescendantsTool(
                 "nodeId" to nodeId,
                 "kindFilter" to expandedKinds?.map { it.toString() }?.sorted(),  // aliases expanded
                 "namePattern" to nameLower,                                       // matching ignores case
-                "modifierFilter" to ModifierFilter.canonical(modifierFilter)
+                "modifierFilter" to ModifierFilter.canonical(modifierFilter),
+                "compact" to (compact != false),
             )
         )
 
@@ -139,14 +145,15 @@ class ListDescendantsTool(
         // with the node identifier as a tiebreaker — so the result sequence is reproducible and
         // pagination cursors remain valid across calls.
         val hierarchy = graphService.model.hierarchy
+        // Folded, the traversal walks the display children: a skipped package is passed through, not listed.
+        val folding = CompactTree.folding(compact, hierarchy)
         val allFiltered = mutableListOf<HGNode>()
         val byKind = linkedMapOf<String, Int>()
         val parentCounts = linkedMapOf<Any, Int>()
 
         fun traverse(node: HGNode) {
-            val orderedChildren = hierarchy.childrenOf(node).sortedWith(
-                CHILD_ORDER
-            )
+            val children = folding?.displayChildrenOf(node)?.map { it.node } ?: hierarchy.childrenOf(node)
+            val orderedChildren = children.sortedWith(CHILD_ORDER)
             for (child in orderedChildren) {
                 // apply filters
                 var matches = true
@@ -158,8 +165,7 @@ class ListDescendantsTool(
 
                 // 2. name pattern
                 if (matches && nameLower != null) {
-                    val name = NodeMetadata.getName(child) ?: ""
-                    if (!name.lowercase().contains(nameLower)) matches = false
+                    if (!CompactTree.name(child, folding).lowercase().contains(nameLower)) matches = false
                 }
 
                 // 3. modifier filter (methods and fields only)
@@ -168,7 +174,7 @@ class ListDescendantsTool(
                 if (matches) {
                     val kindStr = child.kind?.toString() ?: "unknown"
                     byKind.merge(kindStr, 1) { a, b -> a + b }
-                    val parentId = hierarchy.parentOf(child)?.identifier
+                    val parentId = node.identifier
                     if (parentId != null) {
                         parentCounts.merge(parentId, 1) { a, b -> a + b }
                     }
@@ -208,7 +214,9 @@ class ListDescendantsTool(
             // ── assemble response ─────────────────────────────────────
             val response = linkedMapOf<String, Any?>(
                 "root" to root,
-                "results" to page.items.map { refs.getOrPut(it) { nodeRefFactory.enrichedNodeRef(it) } },
+                "results" to page.items.map {
+                    refs.getOrPut(it) { nodeRefFactory.enrichedNodeRef(it).apply { CompactTree.mark(this, it, folding) } }
+                },
                 "summary" to linkedMapOf<String, Any?>(
                     "total" to page.total,
                     "returned" to page.returned,

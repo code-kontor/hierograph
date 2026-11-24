@@ -21,7 +21,8 @@
                         "id": "7146026606276783",
                         "text": "org.hg.fixture.basic.cycle.alpha.CycleA",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -53,37 +54,43 @@
                         "id": "5992260598639034",
                         "text": "org.hg.fixture.basic.rel.source.SubClass",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5339579699504694",
                         "text": "org.hg.fixture.basic.rel.source.MethodInvoker",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "786366302485986",
                         "text": "org.hg.fixture.basic.rel.source.FieldTypeRef",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "7817711975906658",
                         "text": "org.hg.fixture.basic.rel.source.FieldAccessor",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "4254283495190260",
                         "text": "org.hg.fixture.basic.rel.source.ContractImpl",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5164649681378653",
                         "text": "org.hg.fixture.basic.rel.source.AnnotatedType",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -115,19 +122,26 @@
                         "id": "5186412852274999",
                         "text": "org.hg.fixture.locations.app.web",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8068585618542335",
                         "text": "org.hg.fixture.locations.app.support",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
-                        "id": "2645643744404740",
-                        "text": "org.hg.fixture.locations.app.batch",
+                        "id": "6752226562703725",
+                        "text": "org.hg.fixture.locations.app.batch.nightly",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": [
+                          {
+                            "text": "org.hg.fixture.locations.app.batch"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -159,19 +173,22 @@
                         "id": "2914055085469435",
                         "text": "org.hg.fixture.basic.jdk.JdkImplements",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2812906814088993",
                         "text": "org.hg.fixture.basic.jdk.JdkFieldRef",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2737109727644951",
                         "text": "org.hg.fixture.basic.jdk.JdkExtends",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -203,13 +220,15 @@
                         "id": "203154325317745",
                         "text": "org.hg.fixture.locations.lib.report.ReportFormat",
                         "type": "java.enum",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8560382757406382",
                         "text": "org.hg.fixture.locations.lib.report.AbstractReport",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -241,37 +260,43 @@
                         "id": "5918065690540309",
                         "text": "org.hg.fixture.basic.rel.target.ValueHolder",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6030871521546572",
                         "text": "org.hg.fixture.basic.rel.target.TargetMarker",
                         "type": "java.annotation",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1966854284873787",
                         "text": "org.hg.fixture.basic.rel.target.TargetContract",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "494380343951822",
                         "text": "org.hg.fixture.basic.rel.target.TargetB",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5110992171518526",
                         "text": "org.hg.fixture.basic.rel.target.TargetA",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5207658120859403",
                         "text": "org.hg.fixture.basic.rel.target.BaseClass",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -303,77 +328,15 @@
                         "id": "2966789580539469",
                         "text": "java.io",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3272088741444211",
                         "text": "java.util",
                         "type": "java.package",
-                        "hasChildren": true
-                      }
-                    ]
-                  }
-                ],
-                "tangles": [],
-                "feedbackDependencies": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": null,
-        "id": "2241766866721144"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "2241766866721144",
-            "children": {
-              "levelization": {
-                "levels": [
-                  {
-                    "index": 0,
-                    "nodes": [
-                      {
-                        "id": "7015125723486552",
-                        "text": "org.hg.fixture",
-                        "type": "java.package",
-                        "hasChildren": true
-                      }
-                    ]
-                  }
-                ],
-                "tangles": [],
-                "feedbackDependencies": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": null,
-        "id": "2645643744404740"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "2645643744404740",
-            "children": {
-              "levelization": {
-                "levels": [
-                  {
-                    "index": 0,
-                    "nodes": [
-                      {
-                        "id": "6752226562703725",
-                        "text": "org.hg.fixture.locations.app.batch.nightly",
-                        "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -405,7 +368,8 @@
                         "id": "5174486299643332",
                         "text": "org.hg.fixture.locations.lib.customer.Customer",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -416,13 +380,15 @@
                         "id": "946295366947769",
                         "text": "org.hg.fixture.locations.lib.customer.CustomerRepository",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6339647267646332",
                         "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -454,13 +420,15 @@
                         "id": "1174811341709081",
                         "text": "java.io.PrintStream",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3842501175667879",
                         "text": "java.io.Serializable",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -492,13 +460,15 @@
                         "id": "5320533368450867",
                         "text": "java.util.List",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1002505446253212",
                         "text": "java.util.TimerTask",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -530,7 +500,8 @@
                         "id": "8393612757376066",
                         "text": "org.hg.fixture.locations.lib.audit.Auditable",
                         "type": "java.annotation",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -562,7 +533,8 @@
                         "id": "2770445597321249",
                         "text": "org.hg.fixture.basic.isolated.Island",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -594,7 +566,8 @@
                         "id": "3783886784233445",
                         "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -626,7 +599,8 @@
                         "id": "2106137824575494",
                         "text": "java",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -658,49 +632,57 @@
                         "id": "1746271947507375",
                         "text": "org.hg.fixture.basic.core.PlainClass",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2100590549804862",
                         "text": "org.hg.fixture.basic.core.Pair",
                         "type": "java.record",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8996154984387268",
                         "text": "org.hg.fixture.basic.core.PackagePrivateHolder",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3004082915819269",
                         "text": "org.hg.fixture.basic.core.Outer$StaticNested",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5651503656955575",
                         "text": "org.hg.fixture.basic.core.Outer",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8174363024738254",
                         "text": "org.hg.fixture.basic.core.Contract",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6671687571121477",
                         "text": "org.hg.fixture.basic.core.Color",
                         "type": "java.enum",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2023052257209826",
                         "text": "org.hg.fixture.basic.core.AbstractBase",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -711,7 +693,8 @@
                         "id": "2642548349687377",
                         "text": "org.hg.fixture.basic.core.Outer$Inner",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -743,19 +726,22 @@
                         "id": "2202721893593200",
                         "text": "org.hg.fixture.locations.app.web.ReportController",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "954267309345899",
                         "text": "org.hg.fixture.locations.app.web.OrderController",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3296601704837634",
                         "text": "org.hg.fixture.locations.app.web.CustomerController",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -787,19 +773,22 @@
                         "id": "4007685154134331",
                         "text": "org.hg.fixture.basic.cycle.gamma",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1050158661399994",
                         "text": "org.hg.fixture.basic.cycle.alpha",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6079436453382064",
                         "text": "org.hg.fixture.basic.cycle.beta",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -879,10 +868,18 @@
                     "index": 0,
                     "nodes": [
                       {
-                        "id": "6138144180870008",
-                        "text": "org",
+                        "id": "7015125723486552",
+                        "text": "org.hg.fixture",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": [
+                          {
+                            "text": "org"
+                          },
+                          {
+                            "text": "org.hg"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -914,39 +911,8 @@
                         "id": "4974525277474667",
                         "text": "org.hg.fixture.basic.cycle.beta.CycleB",
                         "type": "java.class",
-                        "hasChildren": true
-                      }
-                    ]
-                  }
-                ],
-                "tangles": [],
-                "feedbackDependencies": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": null,
-        "id": "6138144180870008"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "6138144180870008",
-            "children": {
-              "levelization": {
-                "levels": [
-                  {
-                    "index": 0,
-                    "nodes": [
-                      {
-                        "id": "2241766866721144",
-                        "text": "org.hg",
-                        "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -978,13 +944,15 @@
                         "id": "781982424618300",
                         "text": "org.hg.fixture.locations.lib.order.detail",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "811623870429660",
                         "text": "org.hg.fixture.locations.lib.order.Order",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -995,7 +963,8 @@
                         "id": "6595774329988248",
                         "text": "org.hg.fixture.locations.lib.order.OrderService",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1027,7 +996,8 @@
                         "id": "207241211799232",
                         "text": "org.hg.fixture.basic.rel.target",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -1038,7 +1008,8 @@
                         "id": "1260304263441997",
                         "text": "org.hg.fixture.basic.rel.source",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1070,7 +1041,8 @@
                         "id": "4936552664747358",
                         "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1102,13 +1074,15 @@
                         "id": "792143413850566",
                         "text": "org.hg.fixture.locations",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "7822526495285534",
                         "text": "org.hg.fixture.basic",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1140,7 +1114,8 @@
                         "id": "4400363846879942",
                         "text": "External Types",
                         "type": "java.module",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -1151,7 +1126,8 @@
                         "id": "5909467489117502",
                         "text": "io.hierograph.examples:fixture-app:1.0.0",
                         "type": "java.module",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1183,25 +1159,29 @@
                         "id": "1921791625399883",
                         "text": "org.hg.fixture.locations.lib.report",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6382195039839970",
                         "text": "org.hg.fixture.locations.lib.order",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2723417083299518",
                         "text": "org.hg.fixture.locations.lib.customer",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3927357001874200",
                         "text": "org.hg.fixture.locations.lib.audit",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1233,7 +1213,8 @@
                         "id": "3038182960771610",
                         "text": "org.hg.fixture.locations.lib.order.detail.OrderLine",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1265,31 +1246,36 @@
                         "id": "6599707540210763",
                         "text": "org.hg.fixture.basic.rel",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1492554103252572",
                         "text": "org.hg.fixture.basic.jdk",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3988795772440812",
                         "text": "org.hg.fixture.basic.isolated",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5327450794892123",
                         "text": "org.hg.fixture.basic.cycle",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "459873591884545",
                         "text": "org.hg.fixture.basic.core",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1321,7 +1307,8 @@
                         "id": "7288710331230862",
                         "text": "org.hg.fixture.locations.lib",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -1332,7 +1319,8 @@
                         "id": "1490153931190400",
                         "text": "org.hg.fixture.locations.app",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1364,7 +1352,8 @@
                         "id": "5607609318634521",
                         "text": "org.hg.fixture.locations.app.support.LoggingHelper",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1396,7 +1385,8 @@
                         "id": "7146026606276783",
                         "text": "org.hg.fixture.basic.cycle.alpha.CycleA",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1428,37 +1418,43 @@
                         "id": "5992260598639034",
                         "text": "org.hg.fixture.basic.rel.source.SubClass",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5339579699504694",
                         "text": "org.hg.fixture.basic.rel.source.MethodInvoker",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "786366302485986",
                         "text": "org.hg.fixture.basic.rel.source.FieldTypeRef",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "7817711975906658",
                         "text": "org.hg.fixture.basic.rel.source.FieldAccessor",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "4254283495190260",
                         "text": "org.hg.fixture.basic.rel.source.ContractImpl",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5164649681378653",
                         "text": "org.hg.fixture.basic.rel.source.AnnotatedType",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1490,19 +1486,26 @@
                         "id": "5186412852274999",
                         "text": "org.hg.fixture.locations.app.web",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8068585618542335",
                         "text": "org.hg.fixture.locations.app.support",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
-                        "id": "2645643744404740",
-                        "text": "org.hg.fixture.locations.app.batch",
+                        "id": "6752226562703725",
+                        "text": "org.hg.fixture.locations.app.batch.nightly",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": [
+                          {
+                            "text": "org.hg.fixture.locations.app.batch"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -1534,19 +1537,22 @@
                         "id": "2914055085469435",
                         "text": "org.hg.fixture.basic.jdk.JdkImplements",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2812906814088993",
                         "text": "org.hg.fixture.basic.jdk.JdkFieldRef",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2737109727644951",
                         "text": "org.hg.fixture.basic.jdk.JdkExtends",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1578,13 +1584,15 @@
                         "id": "203154325317745",
                         "text": "org.hg.fixture.locations.lib.report.ReportFormat",
                         "type": "java.enum",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8560382757406382",
                         "text": "org.hg.fixture.locations.lib.report.AbstractReport",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1616,37 +1624,43 @@
                         "id": "5918065690540309",
                         "text": "org.hg.fixture.basic.rel.target.ValueHolder",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6030871521546572",
                         "text": "org.hg.fixture.basic.rel.target.TargetMarker",
                         "type": "java.annotation",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1966854284873787",
                         "text": "org.hg.fixture.basic.rel.target.TargetContract",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "494380343951822",
                         "text": "org.hg.fixture.basic.rel.target.TargetB",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5110992171518526",
                         "text": "org.hg.fixture.basic.rel.target.TargetA",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5207658120859403",
                         "text": "org.hg.fixture.basic.rel.target.BaseClass",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1678,77 +1692,15 @@
                         "id": "2966789580539469",
                         "text": "java.io",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3272088741444211",
                         "text": "java.util",
                         "type": "java.package",
-                        "hasChildren": true
-                      }
-                    ]
-                  }
-                ],
-                "tangles": [],
-                "feedbackDependencies": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "layers",
-        "id": "2241766866721144"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "2241766866721144",
-            "children": {
-              "levelization": {
-                "levels": [
-                  {
-                    "index": 0,
-                    "nodes": [
-                      {
-                        "id": "7015125723486552",
-                        "text": "org.hg.fixture",
-                        "type": "java.package",
-                        "hasChildren": true
-                      }
-                    ]
-                  }
-                ],
-                "tangles": [],
-                "feedbackDependencies": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "layers",
-        "id": "2645643744404740"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "2645643744404740",
-            "children": {
-              "levelization": {
-                "levels": [
-                  {
-                    "index": 0,
-                    "nodes": [
-                      {
-                        "id": "6752226562703725",
-                        "text": "org.hg.fixture.locations.app.batch.nightly",
-                        "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1780,7 +1732,8 @@
                         "id": "5174486299643332",
                         "text": "org.hg.fixture.locations.lib.customer.Customer",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -1791,13 +1744,15 @@
                         "id": "946295366947769",
                         "text": "org.hg.fixture.locations.lib.customer.CustomerRepository",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6339647267646332",
                         "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1829,13 +1784,15 @@
                         "id": "1174811341709081",
                         "text": "java.io.PrintStream",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3842501175667879",
                         "text": "java.io.Serializable",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1867,13 +1824,15 @@
                         "id": "5320533368450867",
                         "text": "java.util.List",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1002505446253212",
                         "text": "java.util.TimerTask",
                         "type": "external.type",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1905,7 +1864,8 @@
                         "id": "8393612757376066",
                         "text": "org.hg.fixture.locations.lib.audit.Auditable",
                         "type": "java.annotation",
-                        "hasChildren": false
+                        "hasChildren": false,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1937,7 +1897,8 @@
                         "id": "2770445597321249",
                         "text": "org.hg.fixture.basic.isolated.Island",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -1969,7 +1930,8 @@
                         "id": "3783886784233445",
                         "text": "org.hg.fixture.basic.cycle.gamma.CycleC",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2001,7 +1963,8 @@
                         "id": "1490153931190400",
                         "text": "org.hg.fixture.locations.app",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2033,7 +1996,8 @@
                         "id": "2106137824575494",
                         "text": "java",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2065,49 +2029,57 @@
                         "id": "1746271947507375",
                         "text": "org.hg.fixture.basic.core.PlainClass",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2100590549804862",
                         "text": "org.hg.fixture.basic.core.Pair",
                         "type": "java.record",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8996154984387268",
                         "text": "org.hg.fixture.basic.core.PackagePrivateHolder",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3004082915819269",
                         "text": "org.hg.fixture.basic.core.Outer$StaticNested",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5651503656955575",
                         "text": "org.hg.fixture.basic.core.Outer",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "8174363024738254",
                         "text": "org.hg.fixture.basic.core.Contract",
                         "type": "java.interface",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6671687571121477",
                         "text": "org.hg.fixture.basic.core.Color",
                         "type": "java.enum",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2023052257209826",
                         "text": "org.hg.fixture.basic.core.AbstractBase",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -2118,7 +2090,8 @@
                         "id": "2642548349687377",
                         "text": "org.hg.fixture.basic.core.Outer$Inner",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2150,7 +2123,8 @@
                         "id": "7288710331230862",
                         "text": "org.hg.fixture.locations.lib",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2182,19 +2156,22 @@
                         "id": "2202721893593200",
                         "text": "org.hg.fixture.locations.app.web.ReportController",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "954267309345899",
                         "text": "org.hg.fixture.locations.app.web.OrderController",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3296601704837634",
                         "text": "org.hg.fixture.locations.app.web.CustomerController",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2226,19 +2203,22 @@
                         "id": "4007685154134331",
                         "text": "org.hg.fixture.basic.cycle.gamma",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1050158661399994",
                         "text": "org.hg.fixture.basic.cycle.alpha",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6079436453382064",
                         "text": "org.hg.fixture.basic.cycle.beta",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2318,10 +2298,18 @@
                     "index": 0,
                     "nodes": [
                       {
-                        "id": "6138144180870008",
-                        "text": "org",
+                        "id": "7015125723486552",
+                        "text": "org.hg.fixture",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": [
+                          {
+                            "text": "org"
+                          },
+                          {
+                            "text": "org.hg"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -2353,39 +2341,8 @@
                         "id": "4974525277474667",
                         "text": "org.hg.fixture.basic.cycle.beta.CycleB",
                         "type": "java.class",
-                        "hasChildren": true
-                      }
-                    ]
-                  }
-                ],
-                "tangles": [],
-                "feedbackDependencies": []
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "variables": {
-        "view": "layers",
-        "id": "6138144180870008"
-      },
-      "data": {
-        "hierarchicalGraph": {
-          "node": {
-            "id": "6138144180870008",
-            "children": {
-              "levelization": {
-                "levels": [
-                  {
-                    "index": 0,
-                    "nodes": [
-                      {
-                        "id": "2241766866721144",
-                        "text": "org.hg",
-                        "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2417,13 +2374,15 @@
                         "id": "781982424618300",
                         "text": "org.hg.fixture.locations.lib.order.detail",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "811623870429660",
                         "text": "org.hg.fixture.locations.lib.order.Order",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -2434,7 +2393,8 @@
                         "id": "6595774329988248",
                         "text": "org.hg.fixture.locations.lib.order.OrderService",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2466,7 +2426,8 @@
                         "id": "207241211799232",
                         "text": "org.hg.fixture.basic.rel.target",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -2477,7 +2438,8 @@
                         "id": "1260304263441997",
                         "text": "org.hg.fixture.basic.rel.source",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2509,7 +2471,8 @@
                         "id": "4936552664747358",
                         "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2541,13 +2504,15 @@
                         "id": "792143413850566",
                         "text": "org.hg.fixture.locations",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "7822526495285534",
                         "text": "org.hg.fixture.basic",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2579,7 +2544,8 @@
                         "id": "4400363846879942",
                         "text": "External Types",
                         "type": "java.module",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -2590,7 +2556,8 @@
                         "id": "5909467489117502",
                         "text": "io.hierograph.examples:fixture-app:1.0.0",
                         "type": "java.module",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2622,25 +2589,29 @@
                         "id": "1921791625399883",
                         "text": "org.hg.fixture.locations.lib.report",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "6382195039839970",
                         "text": "org.hg.fixture.locations.lib.order",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "2723417083299518",
                         "text": "org.hg.fixture.locations.lib.customer",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3927357001874200",
                         "text": "org.hg.fixture.locations.lib.audit",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2672,7 +2643,8 @@
                         "id": "3038182960771610",
                         "text": "org.hg.fixture.locations.lib.order.detail.OrderLine",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2704,31 +2676,36 @@
                         "id": "6599707540210763",
                         "text": "org.hg.fixture.basic.rel",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "1492554103252572",
                         "text": "org.hg.fixture.basic.jdk",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "3988795772440812",
                         "text": "org.hg.fixture.basic.isolated",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "5327450794892123",
                         "text": "org.hg.fixture.basic.cycle",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       },
                       {
                         "id": "459873591884545",
                         "text": "org.hg.fixture.basic.core",
                         "type": "java.package",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2760,7 +2737,8 @@
                         "id": "4888459837518274",
                         "text": "layers:library",
                         "type": "view.group",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   },
@@ -2771,7 +2749,8 @@
                         "id": "4189680150062676",
                         "text": "layers:application",
                         "type": "view.group",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
@@ -2803,7 +2782,8 @@
                         "id": "5607609318634521",
                         "text": "org.hg.fixture.locations.app.support.LoggingHelper",
                         "type": "java.class",
-                        "hasChildren": true
+                        "hasChildren": true,
+                        "compactedFrom": []
                       }
                     ]
                   }
