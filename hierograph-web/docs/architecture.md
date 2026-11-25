@@ -86,7 +86,7 @@ view menu; the graph status) and the matched screen. It owns:
   the indicator with a warning sign.
 - **The status panel.** Clicking the graph status opens a popover
   (`ServerStatus`) with a tab each for the graph (state, generation, load
-  time, counts; the first, opened by a click), the workspace and its graph
+  time, counts; the first), the workspace and its graph
   source (with the artifacts not compiled yet), the server, and its JVM (heap against its limit and what the
   last collection kept, threads, CPU load, garbage collection). Below the
   graph's facts, for a hierarchy view with exclusions, what the view excludes
@@ -94,7 +94,11 @@ view menu; the graph status) and the matched screen. It owns:
   `Notice` marked "Excluded" with a crossed-out eye, one line with the counts,
   and on "Show them" the outermost excluded nodes, named and sorted as the
   tree names its rows (the names and icons in `design-system/graph`, shared
-  with the tree), scrolling on their own. The open tab is
+  with the tree), scrolling on their own.
+  A click opens it on the tab that explains what the indicator shows: the
+  graph when there is none or the server can't be reached, the workspace for
+  artifacts not compiled yet, the server for uncommitted changes, otherwise
+  the graph. The open tab is
   the frame-level search param `status` (`graph`, `workspace`, `server`,
   `jvm`; validated by the root route), so a link can open it; opening,
   switching and closing replace the history entry. Its query

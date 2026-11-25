@@ -38,8 +38,26 @@ async function tab(screen: StatusRender, name: string) {
   return screen.getByRole("tabpanel", { name });
 }
 
+type GraphStatusServer = {
+  artifacts: { notCompiled: unknown[] };
+  commit: { dirty: boolean };
+  graph: { state: string };
+};
+
+// Answers the frame's graph status as recorded, changed by [change].
+function withGraphStatus(change: (server: GraphStatusServer) => void) {
+  const data = structuredClone(fixtureData("GraphStatus", "default")) as {
+    server: GraphStatusServer;
+  };
+  change(data.server);
+  worker.use(graphql.query("GraphStatus", () => HttpResponse.json({ data })));
+}
+
 describe("ServerStatus", () => {
   it("opens from the graph status in the header, on the graph tab", async () => {
+    withGraphStatus((server) => {
+      server.artifacts.notCompiled = [];
+    });
     const screen = await renderStatus();
     await expect.element(screen.getByRole("tablist")).not.toBeInTheDocument();
     const length = screen.router.history.length;
@@ -61,6 +79,35 @@ describe("ServerStatus", () => {
       status: "graph",
     });
     expect(screen.router.history.length).toBe(length);
+  });
+
+  it("opens on the tab that explains a warning or an error", async () => {
+    const opened = async () => {
+      const screen = await renderStatus();
+      await screen
+        .getByRole("button", { name: /Show the server's status/ })
+        .click();
+      await expect.element(screen.getByRole("tablist")).toBeVisible();
+      const tab = screen.router.state.location.search.status;
+      await screen.unmount();
+      return tab;
+    };
+
+    // The fixture-app has an artifact not compiled yet: the workspace.
+    expect(await opened()).toBe("workspace");
+
+    // A server built from uncommitted changes: the server.
+    withGraphStatus((server) => {
+      server.artifacts.notCompiled = [];
+      server.commit.dirty = true;
+    });
+    expect(await opened()).toBe("server");
+
+    // No graph comes first: the graph.
+    withGraphStatus((server) => {
+      server.graph.state = "UNAVAILABLE";
+    });
+    expect(await opened()).toBe("graph");
   });
 
   it("opens on the tab the URL names, and drops an unknown one", async () => {

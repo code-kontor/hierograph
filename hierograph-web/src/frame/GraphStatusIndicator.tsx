@@ -60,28 +60,48 @@ function display(
 }
 
 // What needs the user's attention, shown on the indicator now that the
-// details are behind a click: artifacts not compiled yet (not in the graph),
-// and a server built from uncommitted changes.
-export function attentionOf(server: Server | undefined): string[] {
-  const notes: string[] = [];
+// details are behind a click, each with the tab that explains it: artifacts
+// not compiled yet (not in the graph; the workspace), and a server built from
+// uncommitted changes (the server).
+type Attention = { note: string; tab: StatusTab };
+
+export function attentionOf(server: Server | undefined): Attention[] {
+  const notes: Attention[] = [];
   const notCompiled = server?.artifacts?.notCompiled.length ?? 0;
   if (notCompiled > 0) {
-    notes.push(
-      notCompiled === 1
-        ? "1 artifact not compiled yet"
-        : `${notCompiled} artifacts not compiled yet`,
-    );
+    notes.push({
+      note:
+        notCompiled === 1
+          ? "1 artifact not compiled yet"
+          : `${notCompiled} artifacts not compiled yet`,
+      tab: "workspace",
+    });
   }
   if (server?.commit?.dirty === true) {
-    notes.push("server built from uncommitted changes");
+    notes.push({
+      note: "server built from uncommitted changes",
+      tab: "server",
+    });
   }
   return notes;
 }
 
+// The tab the panel opens on: the one that explains what the indicator
+// shows. The graph's own state comes first when it isn't loaded (the graph
+// tab), then what needs attention, in its order; otherwise the first tab.
+export function tabToOpen(
+  server: Server | undefined,
+  unreachable: boolean,
+): StatusTab {
+  if (unreachable || server?.graph.state === "UNAVAILABLE") return "graph";
+  return attentionOf(server)[0]?.tab ?? STATUS_TABS[0];
+}
+
 // The graph's state in the header: loaded, updating (with the updater's
 // phase), no graph, or the server not reachable, marked when something needs
-// attention. Clicking it opens the status panel on its first tab: the graph,
-// the workspace, the server and its JVM.
+// attention. Clicking it opens the status panel (the graph, the workspace,
+// the server and its JVM) on the tab that explains a warning or an error,
+// otherwise on the graph.
 export function GraphStatusIndicator({
   server,
   unreachable,
@@ -89,12 +109,14 @@ export function GraphStatusIndicator({
   onTab,
 }: GraphStatusIndicatorProps) {
   const { label, dot, title } = display(server?.graph, unreachable);
-  const attention = attentionOf(server);
+  const attention = attentionOf(server).map((entry) => entry.note);
   const details = [title, ...attention].filter(Boolean).join("\n");
   return (
     <Popover
       open={tab !== undefined}
-      onOpenChange={(open) => onTab(open ? STATUS_TABS[0] : undefined)}
+      onOpenChange={(open) =>
+        onTab(open ? tabToOpen(server, unreachable) : undefined)
+      }
     >
       <PopoverTrigger
         title={details || undefined}
