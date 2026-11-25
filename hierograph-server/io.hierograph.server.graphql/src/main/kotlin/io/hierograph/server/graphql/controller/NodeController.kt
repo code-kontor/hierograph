@@ -84,11 +84,12 @@ class NodeController(
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencedNodes(
         node: HGNode,
-        @Argument referencedNodeIds: List<String>
+        @Argument referencedNodeIds: List<String>,
+        @Argument compact: Boolean = false,
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
         val targets = resolveIds(hierarchy, referencedNodeIds)
-        val filtered = hierarchy.childrenOf(node).filter { child ->
+        val filtered = childrenOf(node, compact).filter { child ->
             hierarchy.accumulatedOutgoing(child).any { isWithin(hierarchy, it.to, targets) }
         }
         return NodeSetModel(filtered)
@@ -97,15 +98,41 @@ class NodeController(
     @SchemaMapping(typeName = "Node")
     fun childrenFilteredByReferencingNodes(
         node: HGNode,
-        @Argument referencingNodeIds: List<String>
+        @Argument referencingNodeIds: List<String>,
+        @Argument compact: Boolean = false,
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
         val sources = resolveIds(hierarchy, referencingNodeIds)
-        val filtered = hierarchy.childrenOf(node).filter { child ->
+        val filtered = childrenOf(node, compact).filter { child ->
             hierarchy.accumulatedIncoming(child).any { isWithin(hierarchy, it.from, sources) }
         }
         return NodeSetModel(filtered)
     }
+
+    /** The children whose subtree holds one of [nodeIds] (or is one of them); folded with [compact]. */
+    @SchemaMapping(typeName = "Node")
+    fun childrenContainingNodes(
+        node: HGNode,
+        @Argument nodeIds: List<String>,
+        @Argument compact: Boolean = false,
+    ): NodeSetModel {
+        val hierarchy = provider.hierarchy()
+        val holding = HashSet<HGNode>()
+        for (id in nodeIds) {
+            val target = lookup(hierarchy, id) ?: continue
+            holding += target
+            holding += hierarchy.predecessorsOf(target)
+        }
+        return NodeSetModel(childrenOf(node, compact).filter { it in holding })
+    }
+
+    /**
+     * [node]'s children as a tree shows them: with [compact] the display children of chain folding, whose
+     * subtrees are those of the chains they end (a skipped package holds nothing but the next one).
+     */
+    private fun childrenOf(node: HGNode, compact: Boolean): List<HGNode> =
+        if (compact) PackageFolding.of(provider.hierarchy()).displayChildrenOf(node).map { it.node }
+        else provider.hierarchy().childrenOf(node)
 
     /**
      * Batched and on demand: runs only when `properties` is selected, once for all nodes of the response.

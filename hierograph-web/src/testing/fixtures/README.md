@@ -26,6 +26,10 @@ screen asks for it (in dependency order, a type's members in source order).
 `HierarchyArcs` holds the arcs between the visible rows for every state the
 tree tests pass through: the paths in `record-fixtures.ts`, expanded one node
 at a time. A test that expands another path needs that path added there.
+`DependencyEnds` and `DependencyTreeChildren` hold the dependency trees
+of a few selections in the scanned hierarchy (`lib`, `app`, `isolated` and the
+module of the fixture-app), both directions, every level of the selection's tree that can be
+opened, of both trees. A test that selects another node needs it added there.
 
 The `updating` scenario (the graph updater busy) can't be recorded reliably; the
 handlers derive it from `default` by changing only the graph's state.

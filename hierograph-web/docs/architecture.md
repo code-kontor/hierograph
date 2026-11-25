@@ -139,9 +139,29 @@ view menu; the graph status) and the matched screen. It owns:
 
 ## The start screen
 
-`StartPage` is the hierarchy tree of the current hierarchy view, as wide and
-tall as the window; the view is chosen in the header, and the server's state,
-with what the view excludes, is in the header's status panel.
+`StartPage` is the hierarchy tree of the current hierarchy view and, beside
+it, the dependencies of its selection (#77); the view is chosen in the header,
+and the server's state, with what the view excludes, is in the header's status
+panel. On wide screens the tree is on the left and the dependencies on the
+right, the split moved by the user and kept by the browser; narrow screens
+stack them.
+
+- **The dependencies** are a pane with the tabs "Incoming dependencies" and
+  "Outgoing dependencies". The tab is the start screen's search param
+  `dependencies` (`incoming`, `outgoing`; validated in `routes/index.tsx`), so
+  a link can open one; switching replaces the history entry, and the first
+  tab leaves no param behind. Each tab (`DependencyTrees`) shows two trees
+  side by side for the selected node (`selected_id`; a cycle asks for a single
+  node), both folded and labelled exactly as the hierarchy tree (#63: the
+  server's display children, the label relative to the row above, the
+  skipped packages in the title and description), both loaded a level at a
+  time. "Selection" is the node, open, with only the children that have a
+  dependency in the tab's direction (`childrenFilteredByReferencingNodes` /
+  `…ByReferencedNodes` with `compact`, filtered by the ends); "Used by" /
+  "Uses" are the ends, the nodes on the other side (`referencingNodes` /
+  `referencedNodes`), as the path down to them from the root
+  (`childrenContainingNodes` with `compact`). Both stop at types and sort each
+  level by name. Without a dependency in the direction, the tab says so.
 
 - **The tree** (`HierarchyTree`) of the current hierarchy
   view, folded like the structure map (`children(compact: true)`, #63): a

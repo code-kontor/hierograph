@@ -1,5 +1,7 @@
 import { graphql, HttpResponse, type RequestHandler } from "msw";
 
+import dependencyEnds from "@/testing/fixtures/DependencyEnds.json";
+import dependencyTreeChildren from "@/testing/fixtures/DependencyTreeChildren.json";
 import graphStatus from "@/testing/fixtures/GraphStatus.json";
 import graphStatusNoGraph from "@/testing/fixtures/GraphStatus.no-graph.json";
 import hierarchyArcs from "@/testing/fixtures/HierarchyArcs.json";
@@ -42,6 +44,8 @@ const RECORDED: Record<
   Partial<Record<"default" | "no-graph", FixtureFile>>
 > = {
   GraphStatus: { default: graphStatus, "no-graph": graphStatusNoGraph },
+  DependencyEnds: { default: dependencyEnds },
+  DependencyTreeChildren: { default: dependencyTreeChildren },
   HierarchyViews: {
     default: hierarchyViews,
     "no-graph": hierarchyViewsNoGraph,

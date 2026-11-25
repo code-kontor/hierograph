@@ -592,8 +592,9 @@ served hierarchy.
 | `compactedFrom` | `[Node!]!` | The packages the node stands for in a folded tree, outermost first; empty when it isn't folded, and for a skipped package. |
 | `displayText` | `String!` | The node's name in a folded tree (below). |
 | `displayNode` | `Node!` | Where the node is shown in a folded tree: itself, or for a skipped package the end of its chain. |
-| `childrenFilteredByReferencedNodes(referencedNodeIds)` | `NodeSet!` | The children whose subtree depends on the subtree of at least one of the given nodes (§5). |
-| `childrenFilteredByReferencingNodes(referencingNodeIds)` | `NodeSet!` | The children whose subtree is depended on by the subtree of at least one of the given nodes. |
+| `childrenFilteredByReferencedNodes(referencedNodeIds, compact = false)` | `NodeSet!` | The children whose subtree depends on the subtree of at least one of the given nodes (§5); with `compact`, of the display children of chain folding. |
+| `childrenFilteredByReferencingNodes(referencingNodeIds, compact = false)` | `NodeSet!` | The children whose subtree is depended on by the subtree of at least one of the given nodes; with `compact`, of the display children. |
+| `childrenContainingNodes(nodeIds, compact = false)` | `NodeSet!` | The children whose subtree holds at least one of the given nodes (or is one): the path down to them, a level at a time; with `compact`, of the display children. |
 | `properties` | `[MapEntry!]!` | Key–value facts about the node (§7). |
 | `dependenciesTo(targetNodes)` | `[Dependency!]!` | The core dependencies from this subtree whose target lies in the subtree of one of the given nodes. |
 | `dependenciesFrom(sourceNodes)` | `[Dependency!]!` | The core dependencies into this subtree whose source lies in the subtree of one of the given nodes. |
@@ -605,6 +606,10 @@ served hierarchy.
 **`childrenFilteredBy…`** answers the drill-down question "which of my children
 cause this dependency?". A UI that shows `billing → money` can ask
 `billing.childrenFilteredByReferencedNodes([money])` and get `Invoice` and `Ledger`.
+With `compact`, the filtered children are display children, so a tree reduced to
+the nodes with a dependency folds exactly as the hierarchy tree does.
+`childrenContainingNodes` walks down to given nodes a level at a time: a tree of
+the nodes on the other end of a selection's dependencies, folded the same way.
 
 **Chain folding.** `children(compact: true)` folds each chain of lone packages (a
 package holding nothing but one package, and so on down) to its last package, by the

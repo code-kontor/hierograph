@@ -27,7 +27,10 @@ import io.hierograph.server.mapping.GraphStoreNodeSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-/** `children(compact:)`, `compactedFrom`, `displayText`, `displayNode`, `predecessors(compact:)`: chain folding. */
+/**
+ * `children(compact:)`, `compactedFrom`, `displayText`, `displayNode`, `predecessors(compact:)`, and the filtered
+ * children with `compact`: chain folding.
+ */
 class CompactChildrenTest {
 
     /**
@@ -119,5 +122,37 @@ class CompactChildrenTest {
         assertThat(inFork.compactedFrom(example.hg)).isEmpty()
         // The base hierarchy still folds it.
         assertThat(nodes.children(example.m, compact = true).nodeList).containsExactly(example.hg)
+    }
+
+    @Test
+    fun `filtered children fold like the children, so a reduced tree shows the same rows`() {
+        val page = example.page.identifier.toString()
+        val tool = example.tool.identifier.toString()
+
+        // Below io.hg: the chain end io.hg.server.mcp, not io.hg.server.
+        assertThat(nodes.childrenFilteredByReferencingNodes(example.hg, listOf(page), compact = true).nodeList)
+            .containsExactly(example.mcp)
+        assertThat(nodes.childrenFilteredByReferencingNodes(example.hg, listOf(page)).nodeList)
+            .containsExactly(example.server)
+        assertThat(nodes.childrenFilteredByReferencedNodes(example.hg, listOf(page), compact = true).nodeList)
+            .containsExactly(example.mcp)
+        assertThat(nodes.childrenFilteredByReferencedNodes(example.hg, listOf(tool), compact = true).nodeList)
+            .containsExactly(example.web)
+    }
+
+    @Test
+    fun `the children holding the given nodes are the path down to them, folded with compact`() {
+        val tool = example.tool.identifier.toString()
+
+        assertThat(nodes.childrenContainingNodes(example.m, listOf(tool), compact = true).nodeList)
+            .containsExactly(example.hg)
+        assertThat(nodes.childrenContainingNodes(example.m, listOf(tool)).nodeList).containsExactly(example.io)
+        assertThat(nodes.childrenContainingNodes(example.hg, listOf(tool), compact = true).nodeList)
+            .containsExactly(example.mcp)
+        // A given node itself counts.
+        assertThat(nodes.childrenContainingNodes(example.mcp, listOf(tool), compact = true).nodeList)
+            .containsExactly(example.tool)
+        assertThat(nodes.childrenContainingNodes(example.hg, listOf(tool, example.page.identifier.toString()), compact = true).nodeList)
+            .containsExactly(example.mcp, example.web)
     }
 }

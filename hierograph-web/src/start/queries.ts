@@ -191,3 +191,187 @@ export function hierarchyArcsQueryOptions(scope: GraphScope, ids: string[]) {
     placeholderData: keepPreviousData,
   });
 }
+
+// The dependencies of the tree's selection (#77), in one direction: incoming,
+// the nodes that depend on the selection's subtree, or outgoing, the nodes it
+// depends on (dependencies inside the subtree are left out). `ends` are those
+// nodes (types); the root is where the tree of the ends starts.
+export const DependencyEndsQuery = graphql(`
+  query DependencyEnds($view: String, $id: ID!, $incoming: Boolean!) {
+    hierarchicalGraph(view: $view) {
+      rootNode {
+        id
+        text
+        type
+        hasChildren
+        compactedFrom {
+          text
+        }
+      }
+      node(id: $id) {
+        id
+        text
+        type
+        hasChildren
+        compactedFrom {
+          text
+        }
+        incomingEnds: referencingNodes @include(if: $incoming) {
+          nodeIds
+        }
+        outgoingEnds: referencedNodes @skip(if: $incoming) {
+          nodeIds
+        }
+      }
+    }
+  }
+`);
+
+export type DependencyDirection = "incoming" | "outgoing";
+
+// A row of either dependency tree, as the hierarchy tree has its rows: folded
+// (#63), naming the lone packages it stands for.
+export type DependencyNode = {
+  id: string;
+  text: string;
+  type: string;
+  hasChildren: boolean;
+  compactedFrom: { text: string }[];
+};
+
+// The selection, the root, and the ends of the selection's dependencies.
+export type DependencyEnds = {
+  selection: DependencyNode;
+  root: DependencyNode;
+  ends: string[];
+};
+
+export function dependencyEndsQueryOptions(
+  scope: GraphScope,
+  id: string,
+  direction: DependencyDirection,
+) {
+  return queryOptions({
+    queryKey: graphQueryKey("start", scope, "dependencyEnds", id, direction),
+    async queryFn(): Promise<DependencyEnds | null> {
+      const data = await execute(DependencyEndsQuery, {
+        view: scope.view ?? null,
+        id,
+        incoming: direction === "incoming",
+      });
+      const graph = data.hierarchicalGraph;
+      const node = graph?.node;
+      if (!graph || !node) return null;
+      const ends =
+        (direction === "incoming" ? node.incomingEnds : node.outgoingEnds)
+          ?.nodeIds ?? [];
+      const selection: DependencyNode = {
+        id: node.id,
+        text: node.text,
+        type: node.type,
+        hasChildren: node.hasChildren,
+        compactedFrom: node.compactedFrom,
+      };
+      return { selection, root: graph.rootNode, ends };
+    },
+  });
+}
+
+// One level of a dependency tree, folded like the hierarchy tree
+// (`compact`): the children of `id` that
+// - `used`: the ends depend on (the selection's tree, incoming),
+// - `using`: depend on the ends (the selection's tree, outgoing),
+// - `holding`: hold an end (the tree of the ends).
+export type DependencyTreeMode = "used" | "using" | "holding";
+
+export const DependencyTreeChildrenQuery = graphql(`
+  query DependencyTreeChildren(
+    $view: String
+    $id: ID!
+    $ends: [ID!]!
+    $used: Boolean!
+    $using: Boolean!
+    $holding: Boolean!
+  ) {
+    hierarchicalGraph(view: $view) {
+      node(id: $id) {
+        id
+        used: childrenFilteredByReferencingNodes(
+          referencingNodeIds: $ends
+          compact: true
+        ) @include(if: $used) {
+          nodes {
+            id
+            text
+            type
+            hasChildren
+            compactedFrom {
+              text
+            }
+          }
+        }
+        using: childrenFilteredByReferencedNodes(
+          referencedNodeIds: $ends
+          compact: true
+        ) @include(if: $using) {
+          nodes {
+            id
+            text
+            type
+            hasChildren
+            compactedFrom {
+              text
+            }
+          }
+        }
+        holding: childrenContainingNodes(nodeIds: $ends, compact: true)
+          @include(if: $holding) {
+          nodes {
+            id
+            text
+            type
+            hasChildren
+            compactedFrom {
+              text
+            }
+          }
+        }
+      }
+    }
+  }
+`);
+
+// Keyed by the selection and the direction, which decide the `ends`, and the
+// mode.
+export function dependencyTreeChildrenQueryOptions(
+  scope: GraphScope,
+  selectionId: string,
+  direction: DependencyDirection,
+  mode: DependencyTreeMode,
+  id: string,
+  ends: string[],
+) {
+  return queryOptions({
+    queryKey: graphQueryKey(
+      "start",
+      scope,
+      "dependencyTree",
+      selectionId,
+      direction,
+      mode,
+      id,
+    ),
+    async queryFn(): Promise<DependencyNode[]> {
+      const data = await execute(DependencyTreeChildrenQuery, {
+        view: scope.view ?? null,
+        id,
+        ends,
+        used: mode === "used",
+        using: mode === "using",
+        holding: mode === "holding",
+      });
+      const node = data.hierarchicalGraph?.node;
+      return node?.[mode]?.nodes ?? [];
+    },
+  });
+}

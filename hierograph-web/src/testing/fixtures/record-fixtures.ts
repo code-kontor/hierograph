@@ -15,6 +15,8 @@ import { parseArgs } from "node:util";
 import { GraphQLClient } from "graphql-request";
 
 import {
+  DependencyEndsDocument,
+  DependencyTreeChildrenDocument,
   GraphStatusDocument,
   HierarchyArcsDocument,
   HierarchyTreeChildrenDocument,
@@ -237,6 +239,82 @@ if (scenario === "default") {
     }
   }
   write("HierarchyArcs", arcs);
+
+  // The dependency trees of a selection (#77), in the scanned hierarchy: for
+  // each selection and direction its ends, and both trees, every level that
+  // can be opened (not below a type), as the screen asks for them
+  // (start/DependencyTrees.tsx): the selection's tree (`used` incoming,
+  // `using` outgoing) and the tree of the ends (`holding`). `lib` is used by
+  // `app` and uses nothing outside itself; `app` uses `lib`; `isolated` has
+  // none; the module uses External Types.
+  const idOf = (text: string) => {
+    for (const [key, nodes] of levels) {
+      if (!key.startsWith("null|")) continue;
+      const node = nodes.find((candidate) => candidate.text === text);
+      if (node) return node.id;
+    }
+    throw new Error(`No "${text}" in the tree`);
+  };
+  const dependencyEnds: Entry[] = [];
+  const dependencyTree: Entry[] = [];
+  type EndsData = {
+    hierarchicalGraph: {
+      rootNode: TreeNode;
+      node: TreeNode & {
+        incomingEnds?: { nodeIds: string[] };
+        outgoingEnds?: { nodeIds: string[] };
+      };
+    };
+  };
+  for (const text of [
+    "org.hg.fixture.locations.lib",
+    "org.hg.fixture.locations.app",
+    "org.hg.fixture.basic.isolated",
+    "io.hierograph.examples:fixture-app:1.0.0",
+  ]) {
+    for (const incoming of [true, false]) {
+      const variables = { view: null, id: idOf(text), incoming };
+      const data = await client.request<EndsData>(
+        DependencyEndsDocument,
+        variables,
+      );
+      dependencyEnds.push({ variables, data: normalize(data as never) });
+      const { node, rootNode } = data.hierarchicalGraph;
+      const ends =
+        (incoming ? node.incomingEnds : node.outgoingEnds)?.nodeIds ?? [];
+      if (ends.length === 0) continue;
+      const walk = async (
+        mode: "used" | "using" | "holding",
+        parent: TreeNode,
+      ) => {
+        if (!parent.hasChildren || TYPE_KINDS.has(parent.type)) return;
+        const levelVariables = {
+          view: null,
+          id: parent.id,
+          ends,
+          used: mode === "used",
+          using: mode === "using",
+          holding: mode === "holding",
+        };
+        const level = await client.request<{
+          hierarchicalGraph: {
+            node: Record<string, { nodes: TreeNode[] } | undefined>;
+          };
+        }>(DependencyTreeChildrenDocument, levelVariables);
+        dependencyTree.push({
+          variables: levelVariables,
+          data: normalize(level as never),
+        });
+        for (const child of level.hierarchicalGraph.node[mode]?.nodes ?? []) {
+          await walk(mode, child);
+        }
+      };
+      await walk(incoming ? "used" : "using", node);
+      await walk("holding", rootNode);
+    }
+  }
+  write("DependencyEnds", dependencyEnds);
+  write("DependencyTreeChildren", dependencyTree);
 
   // The structure map: the root in both views, and the levelization of every
   // container (a node with children that isn't a type, as the map has it in

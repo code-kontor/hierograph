@@ -1,0 +1,251 @@
+{
+  "operation": "DependencyEnds",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {
+        "view": null,
+        "id": "7288710331230862",
+        "incoming": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "7288710331230862",
+            "text": "org.hg.fixture.locations.lib",
+            "type": "java.package",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "incomingEnds": {
+              "nodeIds": [
+                "2202721893593200",
+                "4936552664747358",
+                "3296601704837634",
+                "954267309345899"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7288710331230862",
+        "incoming": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "7288710331230862",
+            "text": "org.hg.fixture.locations.lib",
+            "type": "java.package",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "outgoingEnds": {
+              "nodeIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1490153931190400",
+        "incoming": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "1490153931190400",
+            "text": "org.hg.fixture.locations.app",
+            "type": "java.package",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "incomingEnds": {
+              "nodeIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1490153931190400",
+        "incoming": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "1490153931190400",
+            "text": "org.hg.fixture.locations.app",
+            "type": "java.package",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "outgoingEnds": {
+              "nodeIds": [
+                "8560382757406382",
+                "811623870429660",
+                "5174486299643332",
+                "3038182960771610",
+                "1174811341709081",
+                "6339647267646332",
+                "946295366947769",
+                "6595774329988248",
+                "8393612757376066",
+                "203154325317745"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "3988795772440812",
+        "incoming": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "3988795772440812",
+            "text": "org.hg.fixture.basic.isolated",
+            "type": "java.package",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "incomingEnds": {
+              "nodeIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "3988795772440812",
+        "incoming": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "3988795772440812",
+            "text": "org.hg.fixture.basic.isolated",
+            "type": "java.package",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "outgoingEnds": {
+              "nodeIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5909467489117502",
+        "incoming": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "5909467489117502",
+            "text": "io.hierograph.examples:fixture-app:1.0.0",
+            "type": "java.module",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "incomingEnds": {
+              "nodeIds": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5909467489117502",
+        "incoming": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "node": {
+            "id": "5909467489117502",
+            "text": "io.hierograph.examples:fixture-app:1.0.0",
+            "type": "java.module",
+            "hasChildren": true,
+            "compactedFrom": [],
+            "outgoingEnds": {
+              "nodeIds": [
+                "1002505446253212",
+                "5320533368450867",
+                "3842501175667879",
+                "1174811341709081"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

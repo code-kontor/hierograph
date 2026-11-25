@@ -1,0 +1,1733 @@
+{
+  "operation": "DependencyTreeChildren",
+  "scenario": "default",
+  "entries": [
+    {
+      "variables": {
+        "view": null,
+        "id": "7288710331230862",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": true,
+        "using": false,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7288710331230862",
+            "used": {
+              "nodes": [
+                {
+                  "id": "3927357001874200",
+                  "text": "org.hg.fixture.locations.lib.audit",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2723417083299518",
+                  "text": "org.hg.fixture.locations.lib.customer",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "6382195039839970",
+                  "text": "org.hg.fixture.locations.lib.order",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "1921791625399883",
+                  "text": "org.hg.fixture.locations.lib.report",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "3927357001874200",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": true,
+        "using": false,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3927357001874200",
+            "used": {
+              "nodes": [
+                {
+                  "id": "8393612757376066",
+                  "text": "org.hg.fixture.locations.lib.audit.Auditable",
+                  "type": "java.annotation",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "2723417083299518",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": true,
+        "using": false,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2723417083299518",
+            "used": {
+              "nodes": [
+                {
+                  "id": "5174486299643332",
+                  "text": "org.hg.fixture.locations.lib.customer.Customer",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "6339647267646332",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
+                  "type": "java.interface",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "946295366947769",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerRepository",
+                  "type": "java.interface",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "6382195039839970",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": true,
+        "using": false,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6382195039839970",
+            "used": {
+              "nodes": [
+                {
+                  "id": "811623870429660",
+                  "text": "org.hg.fixture.locations.lib.order.Order",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "6595774329988248",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "781982424618300",
+                  "text": "org.hg.fixture.locations.lib.order.detail",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "781982424618300",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": true,
+        "using": false,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "781982424618300",
+            "used": {
+              "nodes": [
+                {
+                  "id": "3038182960771610",
+                  "text": "org.hg.fixture.locations.lib.order.detail.OrderLine",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1921791625399883",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": true,
+        "using": false,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1921791625399883",
+            "used": {
+              "nodes": [
+                {
+                  "id": "8560382757406382",
+                  "text": "org.hg.fixture.locations.lib.report.AbstractReport",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "203154325317745",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat",
+                  "type": "java.enum",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7239895376211087",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7239895376211087",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "5909467489117502",
+                  "text": "io.hierograph.examples:fixture-app:1.0.0",
+                  "type": "java.module",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5909467489117502",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5909467489117502",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "7015125723486552",
+                  "text": "org.hg.fixture",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": [
+                    {
+                      "text": "org"
+                    },
+                    {
+                      "text": "org.hg"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7015125723486552",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7015125723486552",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "792143413850566",
+                  "text": "org.hg.fixture.locations",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "792143413850566",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "792143413850566",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "1490153931190400",
+                  "text": "org.hg.fixture.locations.app",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1490153931190400",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1490153931190400",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "6752226562703725",
+                  "text": "org.hg.fixture.locations.app.batch.nightly",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": [
+                    {
+                      "text": "org.hg.fixture.locations.app.batch"
+                    }
+                  ]
+                },
+                {
+                  "id": "5186412852274999",
+                  "text": "org.hg.fixture.locations.app.web",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "6752226562703725",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6752226562703725",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "4936552664747358",
+                  "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5186412852274999",
+        "ends": [
+          "2202721893593200",
+          "4936552664747358",
+          "3296601704837634",
+          "954267309345899"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5186412852274999",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "3296601704837634",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "954267309345899",
+                  "text": "org.hg.fixture.locations.app.web.OrderController",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2202721893593200",
+                  "text": "org.hg.fixture.locations.app.web.ReportController",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1490153931190400",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1490153931190400",
+            "using": {
+              "nodes": [
+                {
+                  "id": "6752226562703725",
+                  "text": "org.hg.fixture.locations.app.batch.nightly",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": [
+                    {
+                      "text": "org.hg.fixture.locations.app.batch"
+                    }
+                  ]
+                },
+                {
+                  "id": "8068585618542335",
+                  "text": "org.hg.fixture.locations.app.support",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "5186412852274999",
+                  "text": "org.hg.fixture.locations.app.web",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "6752226562703725",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6752226562703725",
+            "using": {
+              "nodes": [
+                {
+                  "id": "4936552664747358",
+                  "text": "org.hg.fixture.locations.app.batch.nightly.NightlyReportJob",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "8068585618542335",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "8068585618542335",
+            "using": {
+              "nodes": [
+                {
+                  "id": "5607609318634521",
+                  "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5186412852274999",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5186412852274999",
+            "using": {
+              "nodes": [
+                {
+                  "id": "3296601704837634",
+                  "text": "org.hg.fixture.locations.app.web.CustomerController",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "954267309345899",
+                  "text": "org.hg.fixture.locations.app.web.OrderController",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2202721893593200",
+                  "text": "org.hg.fixture.locations.app.web.ReportController",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7239895376211087",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7239895376211087",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "4400363846879942",
+                  "text": "External Types",
+                  "type": "java.module",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "5909467489117502",
+                  "text": "io.hierograph.examples:fixture-app:1.0.0",
+                  "type": "java.module",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "4400363846879942",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "4400363846879942",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "2106137824575494",
+                  "text": "java",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "2106137824575494",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2106137824575494",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "2966789580539469",
+                  "text": "java.io",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "2966789580539469",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2966789580539469",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "1174811341709081",
+                  "text": "java.io.PrintStream",
+                  "type": "external.type",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5909467489117502",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5909467489117502",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "7015125723486552",
+                  "text": "org.hg.fixture",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": [
+                    {
+                      "text": "org"
+                    },
+                    {
+                      "text": "org.hg"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7015125723486552",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7015125723486552",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "792143413850566",
+                  "text": "org.hg.fixture.locations",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "792143413850566",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "792143413850566",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "7288710331230862",
+                  "text": "org.hg.fixture.locations.lib",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7288710331230862",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7288710331230862",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "3927357001874200",
+                  "text": "org.hg.fixture.locations.lib.audit",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2723417083299518",
+                  "text": "org.hg.fixture.locations.lib.customer",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "6382195039839970",
+                  "text": "org.hg.fixture.locations.lib.order",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "1921791625399883",
+                  "text": "org.hg.fixture.locations.lib.report",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "3927357001874200",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3927357001874200",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "8393612757376066",
+                  "text": "org.hg.fixture.locations.lib.audit.Auditable",
+                  "type": "java.annotation",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "2723417083299518",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2723417083299518",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "5174486299643332",
+                  "text": "org.hg.fixture.locations.lib.customer.Customer",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "6339647267646332",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerApi",
+                  "type": "java.interface",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "946295366947769",
+                  "text": "org.hg.fixture.locations.lib.customer.CustomerRepository",
+                  "type": "java.interface",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "6382195039839970",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "6382195039839970",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "811623870429660",
+                  "text": "org.hg.fixture.locations.lib.order.Order",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "6595774329988248",
+                  "text": "org.hg.fixture.locations.lib.order.OrderService",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "781982424618300",
+                  "text": "org.hg.fixture.locations.lib.order.detail",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "781982424618300",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "781982424618300",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "3038182960771610",
+                  "text": "org.hg.fixture.locations.lib.order.detail.OrderLine",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1921791625399883",
+        "ends": [
+          "8560382757406382",
+          "811623870429660",
+          "5174486299643332",
+          "3038182960771610",
+          "1174811341709081",
+          "6339647267646332",
+          "946295366947769",
+          "6595774329988248",
+          "8393612757376066",
+          "203154325317745"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1921791625399883",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "8560382757406382",
+                  "text": "org.hg.fixture.locations.lib.report.AbstractReport",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "203154325317745",
+                  "text": "org.hg.fixture.locations.lib.report.ReportFormat",
+                  "type": "java.enum",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "5909467489117502",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "5909467489117502",
+            "using": {
+              "nodes": [
+                {
+                  "id": "7015125723486552",
+                  "text": "org.hg.fixture",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": [
+                    {
+                      "text": "org"
+                    },
+                    {
+                      "text": "org.hg"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7015125723486552",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7015125723486552",
+            "using": {
+              "nodes": [
+                {
+                  "id": "7822526495285534",
+                  "text": "org.hg.fixture.basic",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "792143413850566",
+                  "text": "org.hg.fixture.locations",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7822526495285534",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7822526495285534",
+            "using": {
+              "nodes": [
+                {
+                  "id": "1492554103252572",
+                  "text": "org.hg.fixture.basic.jdk",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1492554103252572",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1492554103252572",
+            "using": {
+              "nodes": [
+                {
+                  "id": "2737109727644951",
+                  "text": "org.hg.fixture.basic.jdk.JdkExtends",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2812906814088993",
+                  "text": "org.hg.fixture.basic.jdk.JdkFieldRef",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2914055085469435",
+                  "text": "org.hg.fixture.basic.jdk.JdkImplements",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "792143413850566",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "792143413850566",
+            "using": {
+              "nodes": [
+                {
+                  "id": "1490153931190400",
+                  "text": "org.hg.fixture.locations.app",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "1490153931190400",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "1490153931190400",
+            "using": {
+              "nodes": [
+                {
+                  "id": "8068585618542335",
+                  "text": "org.hg.fixture.locations.app.support",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "8068585618542335",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": true,
+        "holding": false
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "8068585618542335",
+            "using": {
+              "nodes": [
+                {
+                  "id": "5607609318634521",
+                  "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                  "type": "java.class",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "7239895376211087",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "7239895376211087",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "4400363846879942",
+                  "text": "External Types",
+                  "type": "java.module",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "4400363846879942",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "4400363846879942",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "2106137824575494",
+                  "text": "java",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "2106137824575494",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2106137824575494",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "3272088741444211",
+                  "text": "java.util",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "2966789580539469",
+                  "text": "java.io",
+                  "type": "java.package",
+                  "hasChildren": true,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "3272088741444211",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "3272088741444211",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "1002505446253212",
+                  "text": "java.util.TimerTask",
+                  "type": "external.type",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "5320533368450867",
+                  "text": "java.util.List",
+                  "type": "external.type",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "id": "2966789580539469",
+        "ends": [
+          "1002505446253212",
+          "5320533368450867",
+          "3842501175667879",
+          "1174811341709081"
+        ],
+        "used": false,
+        "using": false,
+        "holding": true
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "node": {
+            "id": "2966789580539469",
+            "holding": {
+              "nodes": [
+                {
+                  "id": "3842501175667879",
+                  "text": "java.io.Serializable",
+                  "type": "external.type",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                },
+                {
+                  "id": "1174811341709081",
+                  "text": "java.io.PrintStream",
+                  "type": "external.type",
+                  "hasChildren": false,
+                  "compactedFrom": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

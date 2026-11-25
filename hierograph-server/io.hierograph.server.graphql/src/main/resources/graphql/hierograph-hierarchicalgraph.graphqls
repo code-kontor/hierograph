@@ -175,11 +175,23 @@ type Node {
     """
     displayNode: Node!
 
-    "The children whose subtree depends on the subtree of at least one of the given nodes."
-    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!): NodeSet!
+    """
+    The children whose subtree depends on the subtree of at least one of the given nodes. With `compact`, of
+    the display children of chain folding, as `children(compact: true)` has them.
+    """
+    childrenFilteredByReferencedNodes(referencedNodeIds: [ID!]!, compact: Boolean! = false): NodeSet!
 
-    "The children whose subtree is depended on by the subtree of at least one of the given nodes."
-    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!): NodeSet!
+    """
+    The children whose subtree is depended on by the subtree of at least one of the given nodes. With
+    `compact`, of the display children (see `childrenFilteredByReferencedNodes`).
+    """
+    childrenFilteredByReferencingNodes(referencingNodeIds: [ID!]!, compact: Boolean! = false): NodeSet!
+
+    """
+    The children whose subtree holds at least one of the given nodes (or is one of them): the path down to
+    them, a level at a time. With `compact`, of the display children (see `childrenFilteredByReferencedNodes`).
+    """
+    childrenContainingNodes(nodeIds: [ID!]!, compact: Boolean! = false): NodeSet!
 
     """
     Key-value facts about the node (`fqn`, `name`, `kind`, counts, modifiers, source file, …). Resolved in
