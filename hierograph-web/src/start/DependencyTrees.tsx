@@ -87,19 +87,27 @@ function DependencyTreesFor({
     );
   }
   const base = { scope, selectionId: selection.id, direction, ends };
+  const selectionTree = (
+    <TreeColumn title="Selection">
+      <DependencyTree
+        {...base}
+        mode={direction === "incoming" ? "used" : "using"}
+        top={selection}
+        showTop
+      />
+    </TreeColumn>
+  );
+  const endsTree = (
+    <TreeColumn title={direction === "incoming" ? "Used by" : "Uses"}>
+      <DependencyTree {...base} mode="holding" top={root} showTop={false} />
+    </TreeColumn>
+  );
+  // The dependencies read left to right: what uses the selection, then the
+  // selection (incoming); the selection, then what it uses (outgoing).
   return (
-    <div className="grid h-full min-h-0 grid-cols-2 gap-3">
-      <TreeColumn title="Selection">
-        <DependencyTree
-          {...base}
-          mode={direction === "incoming" ? "used" : "using"}
-          top={selection}
-          showTop
-        />
-      </TreeColumn>
-      <TreeColumn title={direction === "incoming" ? "Used by" : "Uses"}>
-        <DependencyTree {...base} mode="holding" top={root} showTop={false} />
-      </TreeColumn>
+    <div className="grid h-full min-h-0 grid-cols-2 gap-4">
+      {direction === "incoming" ? endsTree : selectionTree}
+      {direction === "incoming" ? selectionTree : endsTree}
     </div>
   );
 }
@@ -117,17 +125,15 @@ type TreeColumnProps = {
   children: ReactNode;
 };
 
-// One of the two trees, under its title, scrolling on its own.
+// One of the two trees, under its title, scrolling on its own; unframed, the
+// pane is the frame.
 function TreeColumn({ title, children }: TreeColumnProps) {
   return (
-    <section
-      aria-label={title}
-      className="border-border flex min-h-0 min-w-0 flex-col rounded-[6px] border"
-    >
-      <h3 className="text-fg-muted border-border shrink-0 border-b px-2 py-1 font-mono text-[11px] tracking-[0.06em] uppercase">
+    <section aria-label={title} className="flex min-h-0 min-w-0 flex-col">
+      <h3 className="text-fg-muted shrink-0 px-1 pb-1 font-mono text-[11px] tracking-[0.06em] uppercase">
         {title}
       </h3>
-      <div className="min-h-0 flex-1 overflow-auto py-1">{children}</div>
+      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
     </section>
   );
 }
