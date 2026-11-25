@@ -21,6 +21,7 @@ import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphql.UnknownIds
 import io.hierograph.server.graphservice.NodePropertiesProvider
 import io.hierograph.server.graphql.model.MapEntryModel
+import io.hierograph.server.graphql.model.DependencySetModel
 import io.hierograph.server.graphql.model.NodeSetModel
 import io.hierograph.server.graphql.model.NodesToConsider
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
@@ -117,22 +118,28 @@ class NodeController(
         @Argument compact: Boolean = false,
     ): NodeSetModel {
         val hierarchy = provider.hierarchy()
-        val holding = HashSet<HGNode>()
-        for (id in nodeIds) {
-            val target = lookup(hierarchy, id) ?: continue
-            holding += target
-            holding += hierarchy.predecessorsOf(target)
-        }
+        val holding = holding(hierarchy, nodeIds.mapNotNull { lookup(hierarchy, it) })
         return NodeSetModel(childrenOf(node, compact).filter { it in holding })
     }
 
-    /**
-     * [node]'s children as a tree shows them: with [compact] the display children of chain folding, whose
-     * subtrees are those of the chains they end (a skipped package holds nothing but the next one).
-     */
+    /** The dependencies into [node]'s subtree from outside it (#79). */
+    @SchemaMapping(typeName = "Node")
+    fun incomingDependencies(node: HGNode): DependencySetModel {
+        val hierarchy = provider.hierarchy()
+        val self = setOf(node.identifier)
+        return DependencySetModel(hierarchy.accumulatedIncoming(node).filter { !isWithin(hierarchy, it.from, self) })
+    }
+
+    /** The dependencies from [node]'s subtree to outside it (#79). */
+    @SchemaMapping(typeName = "Node")
+    fun outgoingDependencies(node: HGNode): DependencySetModel {
+        val hierarchy = provider.hierarchy()
+        val self = setOf(node.identifier)
+        return DependencySetModel(hierarchy.accumulatedOutgoing(node).filter { !isWithin(hierarchy, it.to, self) })
+    }
+
     private fun childrenOf(node: HGNode, compact: Boolean): List<HGNode> =
-        if (compact) PackageFolding.of(provider.hierarchy()).displayChildrenOf(node).map { it.node }
-        else provider.hierarchy().childrenOf(node)
+        displayChildren(provider.hierarchy(), node, compact)
 
     /**
      * Batched and on demand: runs only when `properties` is selected, once for all nodes of the response.
@@ -229,14 +236,24 @@ class NodeController(
             return false
         }
 
-        /** The child of [parent] whose subtree contains [node], or `null` when [node] is not below [parent]. */
-        fun childContaining(hierarchy: Hierarchy, parent: HGNode, node: HGNode): HGNode? {
-            var current: HGNode = node
-            while (true) {
-                val up = hierarchy.parentOf(current) ?: return null
-                if (up == parent) return current
-                current = up
+        /**
+         * [node]'s children as a tree shows them: with [compact] the display children of chain folding, whose
+         * subtrees are those of the chains they end (a skipped package holds nothing but the next one).
+         */
+        fun displayChildren(hierarchy: Hierarchy, node: HGNode, compact: Boolean): List<HGNode> =
+            if (compact) PackageFolding.of(hierarchy).displayChildrenOf(node).map { it.node }
+            else hierarchy.childrenOf(node)
+
+        /**
+         * [nodes] and all their ancestors: a node's subtree holds one of [nodes] exactly when the node is in
+         * this set. Also for display children, since a folded chain's skipped packages hold nothing else.
+         */
+        fun holding(hierarchy: Hierarchy, nodes: Iterable<HGNode>): Set<HGNode> {
+            val result = HashSet<HGNode>()
+            for (node in nodes) {
+                if (result.add(node)) result += hierarchy.predecessorsOf(node)
             }
+            return result
         }
 
         /**

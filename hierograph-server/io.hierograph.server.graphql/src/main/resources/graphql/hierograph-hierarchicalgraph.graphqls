@@ -206,6 +206,16 @@ type Node {
     dependenciesFrom(sourceNodes: [ID!]!): [Dependency!]!
 
     """
+    The dependencies into this subtree from outside it: those whose target lies in the subtree and whose
+    source doesn't. Dependencies inside the subtree are left out, as `referencingNodes` leaves them out.
+    In the order of the subtree's accumulated incoming dependencies.
+    """
+    incomingDependencies: DependencySet!
+
+    "The dependencies from this subtree to outside it; the mirror image of `incomingDependencies`."
+    outgoingDependencies: DependencySet!
+
+    """
     The nodes this subtree depends on, leaving out its own subtree. With `includePredecessors`, each
     result node is followed by its ancestors up to the root.
     """
@@ -345,13 +355,14 @@ type DependencySet {
 
     """
     The children of `parentNode` whose subtree contains a source (SOURCE) or target (TARGET) of a
-    dependency in the set: drills the set down one level. Empty (with a NOT_FOUND error) when
-    `parentNode` names no node.
+    dependency in the set: drills the set down one level. With `compact`, of the display children, as
+    `Node.children(compact: true)` folds them: a chain of lone packages is one child, its last package.
+    Empty (with a NOT_FOUND error) when `parentNode` names no node.
     """
-    filteredChildren(parentNode: ID!, parentNodeType: NodeType!): [Node!]!
+    filteredChildren(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [Node!]!
 
     "The ids of `filteredChildren`."
-    filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!): [ID!]!
+    filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [ID!]!
 
     """
     The dependencies whose source lies in the subtree of a selected SOURCE node and whose target lies in

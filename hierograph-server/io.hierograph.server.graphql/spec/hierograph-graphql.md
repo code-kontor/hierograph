@@ -274,6 +274,7 @@ model specification defines them.
 | `dependencySetForAggregatedDependency(sourceNodeId, targetNodeId)` | — | subtree, both sides |
 | `Node.dependenciesTo(targetNodes)` / `dependenciesFrom(sourceNodes)` | subtree | subtree |
 | `Node.childrenFilteredByReferencedNodes` / `…ByReferencingNodes` | each child: subtree | subtree |
+| `Node.incomingDependencies` / `outgoingDependencies` | subtree: the far end outside it | — |
 | `DependencySet.filteredChildren` / `filteredChildrenIds` | — | the child whose subtree contains an endpoint |
 | `DependencySet.filteredDependencies` | — | subtree, per selected side |
 | `Node` / `NodeSet` `filterReferencedNodes` / `filterReferencingNodes` | subtree | expanded by `NodesToConsider`, see below |
@@ -598,6 +599,8 @@ served hierarchy.
 | `properties` | `[MapEntry!]!` | Key–value facts about the node (§7). |
 | `dependenciesTo(targetNodes)` | `[Dependency!]!` | The core dependencies from this subtree whose target lies in the subtree of one of the given nodes. |
 | `dependenciesFrom(sourceNodes)` | `[Dependency!]!` | The core dependencies into this subtree whose source lies in the subtree of one of the given nodes. |
+| `incomingDependencies` | `DependencySet!` | The core dependencies into this subtree from outside it, see below. |
+| `outgoingDependencies` | `DependencySet!` | The core dependencies from this subtree to outside it. |
 | `referencedNodes(includePredecessors)` | `NodeSet!` | The targets of this subtree's outgoing core dependencies, outside the subtree (§6). |
 | `referencingNodes(includePredecessors)` | `NodeSet!` | The sources of this subtree's incoming core dependencies, outside the subtree (§6). |
 | `filterReferencedNodes(nodeIds, nodesToConsider, includePredecessors)` | `NodeSet!` | The referenced nodes that lie in the expanded node set (§5). |
@@ -630,6 +633,19 @@ and feedback dependencies name them.
 **`dependenciesTo` / `dependenciesFrom`** list the dependencies in the order of the
 node's accumulated dependencies, so they include internal ones when a target lies in
 the node's own subtree.
+
+**`incomingDependencies` / `outgoingDependencies`** are the dependencies that cross
+the node's boundary in one direction, as a dependency set: those whose target lies in
+the subtree and whose source doesn't (incoming), and the mirror image (outgoing).
+Dependencies inside the subtree are left out, as `referencingNodes` and
+`referencedNodes` leave them out; `dependencySetForAggregatedDependency(node, root)`
+would include them. They are in the order of the node's accumulated dependencies. A
+client builds both trees of a node's dependencies from one set, with
+`filteredChildren(…, SOURCE)` and `filteredChildren(…, TARGET)`, narrows it with
+`filteredDependencies`, and pages it. The set is not stored: it is filtered per
+request from the hierarchy's per-node accumulated dependencies, which are cached for
+the hierarchy's lifetime, so a new graph generation or a dropped view takes them
+along and nothing has to be released.
 
 ### 11.3 `NodeSet`
 
@@ -669,22 +685,26 @@ annotated-by, other uses); the MCP dependency tools report them.
 
 Resolvers in `DependencySetController`. A dependency set is an ordered list of core
 dependencies: the aggregated dependency's order for
-`dependencySetForAggregatedDependency`, argument order for `dependencies(ids)`.
+`dependencySetForAggregatedDependency`, argument order for `dependencies(ids)`, the
+node's accumulated dependencies for `Node.incomingDependencies` / `outgoingDependencies`.
 
 | Field | Returns | Description |
 |---|---|---|
 | `size` | `Int!` | The number of dependencies. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
-| `filteredChildren(parentNode, parentNodeType)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; empty, with a `NOT_FOUND` error, when `parentNode` names no node. |
-| `filteredChildrenIds(parentNode, parentNodeType)` | `[ID!]!` | Their handles. |
+| `filteredChildren(parentNode, parentNodeType, compact = false)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; with `compact`, of the display children (§11.2). Empty, with a `NOT_FOUND` error, when `parentNode` names no node. |
+| `filteredChildrenIds(parentNode, parentNodeType, compact = false)` | `[ID!]!` | Their handles. |
 | `filteredDependencies(nodeSelection)` | `FilteredDependencies!` | The dependencies whose endpoints lie in the selected subtrees, see below. |
 
 **`filteredChildren`** drills a dependency set down one level (§5): it returns the
 children of `parentNode` that contain a source or a target. For the set behind
 `billing → money`, `filteredChildren(parentNode: billing-core, parentNodeType: SOURCE)`
 is `com.example.billing`, and with `parentNode: com.example.billing` it is `Invoice`
-and `Ledger`. A child is returned once, however many endpoints it contains.
+and `Ledger`. A child is returned once, however many endpoints it contains. With
+`compact`, the children are display children, so a tree built from the set folds
+chains of lone packages as the hierarchy tree does: a folded child stands for its
+chain, whose skipped packages hold nothing else.
 
 **`filteredDependencies`** narrows the set to the dependencies between a chosen group
 of sources and a chosen group of targets. Each `NodeSelection` contributes its ids to

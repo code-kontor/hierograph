@@ -52,25 +52,27 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     fun filteredChildren(
         depSet: DependencySetModel,
         @Argument parentNode: String,
-        @Argument parentNodeType: NodeType
+        @Argument parentNodeType: NodeType,
+        @Argument compact: Boolean = false,
     ): List<HGNode> {
         val hierarchy = provider.hierarchy()
         val parent = NodeController.lookup(hierarchy, parentNode) ?: return emptyList()
         val endpoints = when (parentNodeType) {
-            NodeType.SOURCE -> depSet.dependencyList.map { it.from }
-            NodeType.TARGET -> depSet.dependencyList.map { it.to }
+            NodeType.SOURCE -> depSet.dependencyList.mapTo(HashSet()) { it.from }
+            NodeType.TARGET -> depSet.dependencyList.mapTo(HashSet()) { it.to }
         }
-        val containing = endpoints.mapNotNullTo(HashSet()) { NodeController.childContaining(hierarchy, parent, it) }
-        return hierarchy.childrenOf(parent).filter { it in containing }
+        val holding = NodeController.holding(hierarchy, endpoints)
+        return NodeController.displayChildren(hierarchy, parent, compact).filter { it in holding }
     }
 
     @SchemaMapping(typeName = "DependencySet")
     fun filteredChildrenIds(
         depSet: DependencySetModel,
         @Argument parentNode: String,
-        @Argument parentNodeType: NodeType
+        @Argument parentNodeType: NodeType,
+        @Argument compact: Boolean = false,
     ): List<String> {
-        return filteredChildren(depSet, parentNode, parentNodeType)
+        return filteredChildren(depSet, parentNode, parentNodeType, compact)
             .map { it.identifier.toString() }
     }
 
