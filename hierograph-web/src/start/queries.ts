@@ -449,15 +449,27 @@ export const DependencySetPageQuery = graphql(`
               dependencies {
                 id
                 weight
+                kinds {
+                  kind
+                  count
+                }
                 sourceNode {
                   id
                   text
                   type
+                  predecessors {
+                    text
+                    type
+                  }
                 }
                 targetNode {
                   id
                   text
                   type
+                  predecessors {
+                    text
+                    type
+                  }
                 }
               }
             }
@@ -475,15 +487,27 @@ export const DependencySetPageQuery = graphql(`
               dependencies {
                 id
                 weight
+                kinds {
+                  kind
+                  count
+                }
                 sourceNode {
                   id
                   text
                   type
+                  predecessors {
+                    text
+                    type
+                  }
                 }
                 targetNode {
                   id
                   text
                   type
+                  predecessors {
+                    text
+                    type
+                  }
                 }
               }
             }
@@ -496,12 +520,32 @@ export const DependencySetPageQuery = graphql(`
 
 export type DependencyEnd = { id: string; text: string; type: string };
 
+// An end of a listed dependency, with the module it is in (its artifact
+// key; External Types for a type outside the workspace).
+export type DependencyListEnd = DependencyEnd & { module: string | undefined };
+
 export type DependencyListEntry = {
   id: string;
   weight: number;
-  source: DependencyEnd;
-  target: DependencyEnd;
+  // What its references are, the most frequent first.
+  kinds: { kind: string; count: number }[];
+  source: DependencyListEnd;
+  target: DependencyListEnd;
 };
+
+type EndWithAncestors = DependencyEnd & {
+  predecessors: { text: string; type: string }[];
+};
+
+function listEnd({
+  predecessors,
+  ...end
+}: EndWithAncestors): DependencyListEnd {
+  return {
+    ...end,
+    module: predecessors.find((node) => node.type === "java.module")?.text,
+  };
+}
 
 export type DependencyListPage = {
   page: number;
@@ -564,8 +608,9 @@ export function dependencySetPageQueryOptions(
         dependencies: (result?.dependencies ?? []).map((dependency) => ({
           id: dependency.id,
           weight: dependency.weight,
-          source: dependency.sourceNode,
-          target: dependency.targetNode,
+          kinds: dependency.kinds,
+          source: listEnd(dependency.sourceNode),
+          target: listEnd(dependency.targetNode),
         })),
         picked,
       };

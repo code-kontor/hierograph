@@ -17,6 +17,8 @@ package io.hierograph.server.graphql.controller
 
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.server.graphql.model.DependencyKindCount
+import io.hierograph.server.mapping.GraphStoreDependencySource
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
@@ -38,4 +40,15 @@ class DependencyController {
 
     @SchemaMapping(typeName = "Dependency")
     fun weight(dependency: HGCoreDependency): Int = dependency.weight
+
+    @SchemaMapping(typeName = "Dependency")
+    fun kinds(dependency: HGCoreDependency): List<DependencyKindCount> = kindsOf(dependency)
+
+    companion object {
+        /** What the references of [dependency] are, by kind, the most frequent first (ties by name). */
+        fun kindsOf(dependency: HGCoreDependency): List<DependencyKindCount> =
+            GraphStoreDependencySource.kindsOf(dependency).entries
+                .map { (kind, count) -> DependencyKindCount(kind.value, count) }
+                .sortedWith(compareByDescending<DependencyKindCount> { it.count }.thenBy { it.kind })
+    }
 }

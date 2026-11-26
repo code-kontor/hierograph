@@ -102,3 +102,6 @@ enum class NodeType {
 enum class NodesToConsider {
     SELF, SELF_AND_CHILDREN, SELF_AND_SUCCESSORS
 }
+
+/** How many of a dependency's references are of one kind (`calls`, `extends`, `has_type`, …). */
+data class DependencyKindCount(val kind: String, val count: Int)

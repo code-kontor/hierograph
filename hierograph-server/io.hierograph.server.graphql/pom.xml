@@ -37,6 +37,11 @@
             <groupId>io.hierograph</groupId>
             <artifactId>io.hierograph.server.graphservice</artifactId>
         </dependency>
+        <!-- Dependency.kinds reads the kinds the mapping records on each dependency -->
+        <dependency>
+            <groupId>io.hierograph</groupId>
+            <artifactId>io.hierograph.server.mapping</artifactId>
+        </dependency>
 
         <!-- kotlin -->
         <dependency>

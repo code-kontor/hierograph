@@ -21,11 +21,13 @@ import {
 } from "@/design-system/ui/tabs";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
+import { ColumnResizer, useColumnWidths } from "./ColumnWidths";
 import { PICK_PARAMS, useDependencyTreePicks } from "./DependencyTrees";
 import {
   DEPENDENCY_PAGE_SIZE,
   type DependencyDirection,
   type DependencyEnd,
+  type DependencyListEnd,
   type DependencyListEntry,
   type DependencyPicks,
   dependencySetPageQueryOptions,
@@ -193,23 +195,46 @@ function DependencyList({
       ? simpleName(node)
       : treeNodeLabel(node.type, node.text, undefined);
   };
+  // The columns' widths, which the borders in the header move; one set for
+  // both tabs, remembered by the browser.
+  const columns = useColumnWidths(
+    "hierograph:dependency-list-columns",
+    COLUMN_DEFAULTS,
+  );
+  const cols = columns.widths.map((width, index) => (
+    // The columns have no identity but their place.
+    <col key={index} style={{ width: `${width}%` }} />
+  ));
+  const resizer = (index: number, label: string) => ({
+    index,
+    label,
+    width: columns.widths[index],
+    resize: columns.resize,
+    reset: columns.reset,
+  });
   const first = (page - 1) * DEPENDENCY_PAGE_SIZE + 1;
   const last = data ? first + data.dependencies.length - 1 : first;
-  // The packages a pick names already: a row doesn't repeat them.
-  const pickedPackages = new Set(
-    [...(data?.picked.values() ?? [])]
-      .filter((node) => treeNodeKind(node.type, node.text) === "package")
-      .map((node) => node.text),
-  );
-  const rows = (data?.dependencies ?? []).map((dependency, index, all) => (
+  // Grouped by the selection's types: outgoing by source, incoming by
+  // target. A run of rows with the
+  // same one names it on its first row only; incoming, the page is put in
+  // target order first (the set comes in source order).
+  const groupBy: DependencyEndKey =
+    direction === "incoming" ? "target" : "source";
+  const ordered =
+    groupBy === "target"
+      ? [...(data?.dependencies ?? [])].sort((a, b) =>
+          a.target.text.localeCompare(b.target.text),
+        )
+      : (data?.dependencies ?? []);
+  const rows = ordered.map((dependency, index, all) => (
     <DependencyRow
       key={dependency.id}
       dependency={dependency}
-      // In a run of rows from the same source, only the first names it.
-      sameSource={
-        index > 0 && all[index - 1].source.id === dependency.source.id
+      repeated={
+        index > 0 && all[index - 1][groupBy].id === dependency[groupBy].id
+          ? groupBy
+          : undefined
       }
-      pickedPackages={pickedPackages}
     />
   ));
   const chipButtons = chips.map((chip) => (
@@ -254,13 +279,26 @@ function DependencyList({
       </div>
       {data && data.total > 0 && (
         <Table aria-label={title} className="w-full table-fixed text-[12px]">
+          <colgroup>{cols}</colgroup>
           <TableHeader className="bg-transparent">
             <TableRow>
-              <TableHead>Source</TableHead>
-              <TableHead>Target</TableHead>
+              <TableHead className="relative">
+                Source
+                <ColumnResizer {...resizer(0, "Resize Source and Target")} />
+              </TableHead>
+              <TableHead className="relative">
+                Target
+                <ColumnResizer {...resizer(1, "Resize Target and Kind")} />
+              </TableHead>
               <TableHead
-                // Fixed and narrow, so source and target share the width.
-                className="w-24 text-right"
+                className="relative"
+                title="What the references are, by kind, the most frequent first"
+              >
+                Kind
+                <ColumnResizer {...resizer(2, "Resize Kind and References")} />
+              </TableHead>
+              <TableHead
+                className="text-right"
                 title="Individual references from the source type to the target type"
               >
                 References
@@ -273,6 +311,9 @@ function DependencyList({
     </section>
   );
 }
+
+// Source, target, kind, references: the ends share most of the width.
+const COLUMN_DEFAULTS = [36, 36, 18, 10];
 
 type PageButtonProps = {
   label: string;
@@ -329,20 +370,18 @@ function packageOf(end: DependencyEnd): string {
   return dot < 0 ? "" : end.text.slice(0, dot);
 }
 
+// Which end of a dependency a list groups by.
+type DependencyEndKey = "source" | "target";
+
 type DependencyRowProps = {
   dependency: DependencyListEntry;
-  // The row above has the same source: this one leaves it out.
-  sameSource: boolean;
-  pickedPackages: Set<string>;
+  // The end the row shares with the row above: it leaves it out.
+  repeated: DependencyEndKey | undefined;
 };
 
 // One dependency; its tooltip and accessible name always name both ends in
 // full, whatever the cells leave out.
-function DependencyRow({
-  dependency,
-  sameSource,
-  pickedPackages,
-}: DependencyRowProps) {
+function DependencyRow({ dependency, repeated }: DependencyRowProps) {
   const { source, target, weight } = dependency;
   const label = `${source.text} → ${target.text}`;
   return (
@@ -350,12 +389,11 @@ function DependencyRow({
       aria-label={label}
       title={`${label}\n${weight === 1 ? "1 reference" : `${weight} references`}`}
     >
-      {sameSource ? (
-        <TableCell />
-      ) : (
-        <TypeCell end={source} pickedPackages={pickedPackages} />
-      )}
-      <TypeCell end={target} pickedPackages={pickedPackages} />
+      <EndCell end={source} repeated={repeated === "source"} />
+      <EndCell end={target} repeated={repeated === "target"} />
+      <TableCell className="text-fg-muted truncate font-sans">
+        {kindsLabel(dependency.kinds)}
+      </TableCell>
       <TableCell className="text-right font-sans tabular-nums">
         {weight}
       </TableCell>
@@ -363,21 +401,40 @@ function DependencyRow({
   );
 }
 
-type TypeCellProps = {
-  end: DependencyEnd;
-  pickedPackages: Set<string>;
+type EndCellProps = {
+  end: DependencyListEnd;
+  // Named on the row above: the cell stays empty.
+  repeated: boolean;
 };
 
-// A type by its simple name, its package after it, subdued; not the package
-// a pick names already.
-function TypeCell({ end, pickedPackages }: TypeCellProps) {
+// One end as `<module>:<package>.<Class>`, module and package subdued; when
+// narrow, the module and package give way, the class stays whole.
+function EndCell({ end, repeated }: EndCellProps) {
+  if (repeated) return <TableCell />;
   const package_ = packageOf(end);
+  const module = end.module === undefined ? undefined : moduleName(end.module);
   return (
-    <TableCell className="truncate font-mono">
-      {simpleName(end)}
-      {!pickedPackages.has(package_) && (
-        <span className="text-fg-muted ml-1.5">{package_}</span>
-      )}
+    <TableCell className="font-mono">
+      <span className="flex min-w-0">
+        <span className="text-fg-muted truncate">
+          {module !== undefined && `${module}:`}
+          {package_ !== "" && `${package_}.`}
+        </span>
+        <span className="shrink-0">{simpleName(end)}</span>
+      </span>
     </TableCell>
   );
+}
+
+// A module by its artifact id, as the trees name it (`io.hierograph:server:
+// 0.4.0` → `server`); External Types as it is.
+function moduleName(key: string): string {
+  return treeNodeLabel("java.module", key, undefined);
+}
+
+// A dependency's kinds, the most frequent first: `calls 3, has type 1`.
+function kindsLabel(kinds: DependencyListEntry["kinds"]): string {
+  return kinds
+    .map(({ kind, count }) => `${kind.replaceAll("_", " ")} ${count}`)
+    .join(", ");
 }

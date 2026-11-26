@@ -223,10 +223,7 @@ browser remembers.
   screen's search param `dependency_list` (`incoming`, `outgoing`; validated
   in `routes/index.tsx`), so a link can open one; switching replaces the
   history entry, and the first tab leaves no param behind. Each tab pages its
-  set 50 type-level dependencies at a time (`dependencyPage`) as a table as wide as the pane, its header untinted: source and target, sharing the
-  width, by simple name (a nested type after its enclosing one) with the
-  package subdued, unless a pick names that package already, and the
-  references. In a run of rows from the same source only the first names it;
+  set 50 type-level dependencies at a time (`dependencyPage`) as a table as wide as the pane, its header untinted: source and target, sharing the width, each as `<module>:<package>.<Class>` (module and package subdued, giving way before the class when narrow; the module from the type's ancestors), what its references are by kind, the most frequent first (`Dependency.kinds`: `calls 2, has type 1`), and the references. The columns' widths are set on the borders between their headings (drag, or ← → when focused; a double-click restores the defaults), one set for both tabs, kept by the browser (`ColumnWidths`). The selection's types group the rows, outgoing by source, incoming by target (each page put in target order first): in a run of rows with the same one only the first names it;
   each row's tooltip and name keep both ends in full. Above it the count with
   the references they stand for (`references`), a chip
   per pick that narrows it (a click drops the pick) and the paging. The page

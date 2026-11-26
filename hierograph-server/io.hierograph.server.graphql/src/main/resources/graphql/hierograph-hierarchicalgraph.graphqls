@@ -243,6 +243,15 @@ type Dependency {
     type: String!
     "The number of individual references from source to target."
     weight: Int!
+    "What the references are, by kind, the most frequent first; empty for a graph that doesn't record kinds."
+    kinds: [DependencyKindCount!]!
+}
+
+"How many of a dependency's references are of one kind."
+type DependencyKindCount {
+    "The kind: `extends`, `implements`, `calls`, `has_type`, `parameter_type`, `returns`, … (as `DependencyKind` names it)."
+    kind: String!
+    count: Int!
 }
 
 "A dependency structure matrix over a node set."

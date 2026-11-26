@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
 import type { Screen } from "@/frame/screens";
@@ -68,6 +69,21 @@ async function openWeb(usedBy: ReturnType<typeof pane>["usedBy"]) {
   await usedBy.getByRole("button", { name: "Expand locations" }).click();
   await usedBy.getByRole("button", { name: "Expand app" }).click();
   await usedBy.getByRole("button", { name: "Expand web" }).click();
+}
+
+// In a run of rows with the same end (0: source, 1: target), only the
+// first names it; every row's name keeps both ends. Some end has a run.
+function expectRuns(rows: Element[], end: 0 | 1) {
+  const cell = (row: Element) =>
+    row.querySelectorAll("td")[end]?.textContent ?? "";
+  let previous: string | undefined;
+  for (const row of rows) {
+    const name = (row.getAttribute("aria-label") ?? "").split(" → ")[end];
+    if (name === previous) expect(cell(row)).toBe("");
+    else expect(cell(row)).not.toBe("");
+    previous = name;
+  }
+  expect(rows.some((row) => cell(row) === "")).toBe(true);
 }
 
 describe("DependencyTrees", () => {
@@ -200,13 +216,18 @@ describe("DependencyTrees", () => {
       name: `${WEB}.OrderController → ${LIB}.order.OrderService`,
     });
     const cells = row.getByRole("cell");
+    // Each end as module:package.Class, then the kinds, the most frequent
+    // first, and the references.
     await expect
       .element(cells.nth(0))
-      .toHaveTextContent(`OrderController${WEB}`);
+      .toHaveTextContent(`fixture-app:${WEB}.OrderController`);
     await expect
       .element(cells.nth(1))
-      .toHaveTextContent(`OrderService${LIB}.order`);
-    await expect.element(cells.nth(2)).toHaveTextContent("4");
+      .toHaveTextContent(`fixture-app:${LIB}.order.OrderService`);
+    await expect
+      .element(cells.nth(2))
+      .toHaveTextContent("calls 2, has type 1, instantiates 1");
+    await expect.element(cells.nth(3)).toHaveTextContent("4");
     const length = screen.router.history.length;
 
     await screen.getByRole("tab", { name: "Outgoing dependencies" }).click();
@@ -226,7 +247,7 @@ describe("DependencyTrees", () => {
       .not.toHaveProperty("dependency_list");
   });
 
-  it("names a source once for a run of its rows, keeping both ends in each row's name", async () => {
+  it("names the selection's type once for a run of its rows: incoming the target, in target order", async () => {
     const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
     const { incoming } = pane(screen);
     await expect
@@ -234,19 +255,59 @@ describe("DependencyTrees", () => {
       .toHaveTextContent(/^13 dependencies/);
 
     const rows = incoming.getByRole("row").elements().slice(1);
-    let previous: string | undefined;
-    for (const row of rows) {
-      const name = row.getAttribute("aria-label") ?? "";
-      const source = name.split(" → ")[0];
-      const first = row.querySelector("td")?.textContent ?? "";
-      if (source === previous) expect(first).toBe("");
-      else expect(first).not.toBe("");
-      previous = source;
-    }
-    // Some source has more than one row here.
+    expectRuns(rows, 1);
+    const targets = rows.map(
+      (row) => (row.getAttribute("aria-label") ?? "").split(" → ")[1],
+    );
+    expect(targets).toEqual([...targets].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it("names the selection's type once for a run of its rows: outgoing the source", async () => {
+    const screen = await renderStart(
+      `?selected_id=${idOf(APP)}&dependency_list=outgoing`,
+    );
+    const { outgoing } = pane(screen);
+    await expect
+      .element(outgoing.getByRole("heading"))
+      .toHaveTextContent(/dependencies/);
+    await expect
+      .poll(() => outgoing.getByRole("row").elements().length)
+      .toBeGreaterThan(1);
+
+    expectRuns(outgoing.getByRole("row").elements().slice(1), 0);
+  });
+
+  it("resizes the list's columns on the borders between their headings, remembering the widths", async () => {
+    localStorage.clear();
+    onTestFinished(() => localStorage.clear());
+    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const { incoming } = pane(screen);
+    const border = incoming.getByRole("separator", {
+      name: "Resize Source and Target",
+    });
+    await expect.element(border).toHaveAttribute("aria-valuenow", "36");
+    const widths = () =>
+      Array.from(
+        incoming.element().querySelectorAll<HTMLTableColElement>("col"),
+      ).map((col) => col.style.width);
+
+    border.element().focus();
+    await userEvent.keyboard("{ArrowRight}{ArrowRight}");
+
+    // The source wider, the target narrower by as much; the table as wide.
+    await expect.poll(widths).toEqual(["40%", "32%", "18%", "10%"]);
     expect(
-      rows.some((row) => row.querySelector("td")?.textContent === ""),
-    ).toBe(true);
+      JSON.parse(
+        localStorage.getItem("hierograph:dependency-list-columns") ?? "[]",
+      ),
+    ).toEqual([40, 32, 18, 10]);
+
+    // Without the stylesheet the border has no size to click on.
+    border
+      .element()
+      .dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+
+    await expect.poll(widths).toEqual(["36%", "36%", "18%", "10%"]);
   });
 
   it("shows what a picked node connects to in the other trees and the lists", async () => {

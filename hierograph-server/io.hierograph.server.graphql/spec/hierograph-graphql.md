@@ -677,9 +677,10 @@ Resolvers in `DependencyController`. The receiver is an `HGCoreDependency`.
 | `targetNode` | `Node!` | The type depended upon. |
 | `type` | `String!` | The dependency's type; `DEPENDS_ON` in Hierograph. |
 | `weight` | `Int!` | The number of individual references from source to target. |
+| `kinds` | `[DependencyKindCount!]!` | What the references are, by kind (`DependencyKind`: `extends`, `implements`, `calls`, `has_type`, …), each `{ kind count }`, the most frequent first, ties by name. Empty for a graph that doesn't record kinds. |
 
 The schema does not expose the dependency's attribute bits (extends, implements,
-annotated-by, other uses); the MCP dependency tools report them.
+annotated-by, other uses) as such; `kinds` counts the same facts in more detail.
 
 ### 11.5 `DependencySet`
 
