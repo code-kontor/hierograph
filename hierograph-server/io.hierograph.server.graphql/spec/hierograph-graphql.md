@@ -695,6 +695,7 @@ node's accumulated dependencies for `Node.incomingDependencies` / `outgoingDepen
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
 | `filteredChildren(parentNode, parentNodeType, compact = false)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; with `compact`, of the display children (§11.2). Empty, with a `NOT_FOUND` error, when `parentNode` names no node. |
 | `filteredChildrenIds(parentNode, parentNodeType, compact = false)` | `[ID!]!` | Their handles. |
+| `filteredChildrenWithCounts(parentNode, parentNodeType, compact = false)` | `[FilteredChild!]!` | The same children, each with the number of dependencies whose end on that side lies in its subtree (`dependencies`) and their summed weight (`references`): what a tree built from the set shows next to its rows. |
 | `filteredDependencies(nodeSelection)` | `FilteredDependencies!` | The dependencies whose endpoints lie in the selected subtrees, see below. |
 
 **`filteredChildren`** drills a dependency set down one level (§5): it returns the
@@ -734,6 +735,9 @@ extraction.
 | `size` | `Int!` | The number of dependencies. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
+| `filteredChildren(parentNode, parentNodeType, compact = false)` | `[Node!]!` | As `DependencySet.filteredChildren`, over the narrowed set: the tree of one side, reduced to what the other side's selection reaches. |
+| `filteredChildrenIds(parentNode, parentNodeType, compact = false)` | `[ID!]!` | Their handles. |
+| `filteredChildrenWithCounts(parentNode, parentNodeType, compact = false)` | `[FilteredChild!]!` | As `DependencySet.filteredChildrenWithCounts`, over the narrowed set. |
 | `nodes(nodeType, includePredecessors)` | `[Node!]!` | The distinct sources (`SOURCE`) or targets (`TARGET`) of the dependencies (§6). |
 | `nodeIds(nodeType, includePredecessors)` | `[ID!]!` | Their handles. |
 | `referencedNodes(nodeType, includePredecessors)` | `[Node!]!` | Every node that those sources or targets depend on, across the whole graph (§6). |

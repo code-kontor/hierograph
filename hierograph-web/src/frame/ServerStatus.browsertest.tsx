@@ -11,7 +11,7 @@ import { renderWithRouter } from "@/testing/render";
 import { formatTime } from "./format";
 
 const SCREENS = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Dependencies", needsGraph: false },
 ] as unknown as Screen[];
 
 // The frame with a stand-in screen; `search` opens the status panel.

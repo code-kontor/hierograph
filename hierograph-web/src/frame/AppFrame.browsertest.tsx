@@ -37,7 +37,7 @@ function Probe() {
 }
 
 function screens(needsGraph: boolean, more = true) {
-  const start = { path: "/", label: "Start", needsGraph };
+  const start = { path: "/", label: "Dependencies", needsGraph };
   const other = { path: "/other", label: "Other", needsGraph: true };
   return (more ? [start, other] : [start]) as unknown as Screen[];
 }
@@ -59,7 +59,7 @@ describe("AppFrame", () => {
     const screen = await renderFrame();
 
     await expect
-      .element(screen.getByRole("link", { name: "Start" }))
+      .element(screen.getByRole("link", { name: "Dependencies" }))
       .toBeVisible();
     await expect.element(screen.getByText("Graph loaded")).toBeVisible();
     await expect
@@ -69,7 +69,7 @@ describe("AppFrame", () => {
 
   it("keeps the browser's context menu closed, except in text fields", async () => {
     const screen = await renderFrame();
-    const link = screen.getByRole("link", { name: "Start" });
+    const link = screen.getByRole("link", { name: "Dependencies" });
     await expect.element(link).toBeVisible();
     const field = document.body.appendChild(document.createElement("input"));
     // Whether the browser would open its own menu on a right click.
@@ -254,7 +254,7 @@ describe("AppFrame", () => {
       to: "/other",
       search: { view: "layers", expanded_ids: ["7"] },
     } as never);
-    await go("Start");
+    await go("Dependencies");
     await go("Other");
     expect(screen.router.state.location.search).toEqual({
       view: "layers",

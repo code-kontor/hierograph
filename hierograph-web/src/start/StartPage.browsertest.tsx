@@ -1,14 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { page } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
 import type { Screen } from "@/frame/screens";
-import dependencyEnds from "@/testing/fixtures/DependencyEnds.json";
+import dependencySet from "@/testing/fixtures/DependencySet.json";
 import { renderWithRouter } from "@/testing/render";
 
 import { StartPage } from "./StartPage";
 
 const SCREENS = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Dependencies", needsGraph: false },
 ] as unknown as Screen[];
 
 // The start screen inside the frame, as the app renders it: the frame provides
@@ -24,58 +25,41 @@ function renderStart(search = "") {
 }
 
 describe("StartPage", () => {
-  it("shows the hierarchy tree and the dependency tabs, incoming first", async () => {
+  it("shows the hierarchy tree, the dependencies and their list", async () => {
     const screen = await renderStart();
 
     await expect.element(screen.getByRole("tree")).toBeVisible();
-    const names = screen
-      .getByRole("tab")
-      .elements()
-      .map((element) => element.textContent);
-    expect(names).toEqual(["Incoming dependencies", "Outgoing dependencies"]);
-    await expect
-      .element(screen.getByRole("tab", { name: "Incoming dependencies" }))
-      .toHaveAttribute("aria-selected", "true");
     // Nothing selected yet: says what to do.
     await expect
       .element(
         screen.getByText(
-          "Select a node in the hierarchy to see what depends on it.",
+          "Select a node in the hierarchy to see its dependencies.",
+        ),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Select a node in the hierarchy to list its dependencies.",
         ),
       )
       .toBeVisible();
   });
 
-  it("puts the chosen dependency tab into the URL, replacing the history entry", async () => {
-    const lib = dependencyEnds.entries[0].variables.id;
-    const screen = await renderStart(`?selected_id=${lib}`);
+  it("drops the picks in the dependency trees when the selection changes", async () => {
+    const lib = dependencySet.entries[0].variables.id;
+    const screen = await renderStart(
+      `?selected_id=${lib}&selection_part_id=${lib}`,
+    );
     await expect.element(screen.getByRole("tree").first()).toBeVisible();
-    const length = screen.router.history.length;
 
-    await screen.getByRole("tab", { name: "Outgoing dependencies" }).click();
+    await screen.getByRole("button", { name: "Clear selection" }).click();
 
-    await expect
-      .poll(() => screen.router.state.location.search)
-      .toEqual({ selected_id: Number(lib), dependencies: "outgoing" });
-    expect(screen.router.history.length).toBe(length);
-    await expect
-      .element(
-        screen
-          .getByRole("tabpanel", { name: "Outgoing dependencies" })
-          .getByText(/depends on nothing outside itself/),
-      )
-      .toBeVisible();
-
-    // The first tab is the default and leaves no parameter behind.
-    await screen.getByRole("tab", { name: "Incoming dependencies" }).click();
-
-    await expect
-      .poll(() => screen.router.state.location.search)
-      .toEqual({ selected_id: Number(lib) });
+    await expect.poll(() => screen.router.state.location.search).toEqual({});
   });
 
-  it("opens the dependency tab the URL names", async () => {
-    const screen = await renderStart("?dependencies=outgoing");
+  it("opens the dependency list's tab the URL names", async () => {
+    const screen = await renderStart("?dependency_list=outgoing");
 
     await expect
       .element(screen.getByRole("tab", { name: "Outgoing dependencies" }))
@@ -96,5 +80,68 @@ describe("StartPage", () => {
     await expect
       .poll(() => screen.router.state.location.search)
       .toEqual({ view: "layers" });
+  });
+
+  it("collapses the hierarchy to a rail on a wide screen, and brings it back", async () => {
+    // Wide enough for the side-by-side layout; the split is remembered by
+    // the browser, so start from none.
+    localStorage.clear();
+    await page.viewport(1400, 900);
+    onTestFinished(async () => {
+      localStorage.clear();
+      await page.viewport(414, 896);
+    });
+    const lib = dependencySet.entries[0].variables.id;
+    const screen = await renderStart(`?selected_id=${lib}`);
+    await expect
+      .element(screen.getByRole("tree", { name: "Hierarchy" }))
+      .toBeVisible();
+
+    await screen
+      .getByRole("button", { name: "Collapse the hierarchy" })
+      .click();
+
+    await expect
+      .element(screen.getByRole("tree", { name: "Hierarchy" }))
+      .not.toBeInTheDocument();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toHaveProperty("hierarchy_collapsed", true);
+    const rail = screen.getByRole("button", { name: "Expand the hierarchy" });
+    // The rail names the selection the dependencies are of.
+    await expect
+      .element(rail.getByTestId("rail-selection"))
+      .toHaveTextContent("org.hg.fixture.locations.lib");
+    // The dependencies stay.
+    await expect
+      .element(screen.getByRole("region", { name: "Selection" }))
+      .toBeVisible();
+
+    await rail.click();
+
+    await expect
+      .element(screen.getByRole("tree", { name: "Hierarchy" }))
+      .toBeVisible();
+    await expect.element(rail).not.toBeInTheDocument();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .not.toHaveProperty("hierarchy_collapsed");
+  });
+
+  it("opens with the hierarchy collapsed when the URL says so", async () => {
+    localStorage.clear();
+    await page.viewport(1400, 900);
+    onTestFinished(async () => {
+      localStorage.clear();
+      await page.viewport(414, 896);
+    });
+    const screen = await renderStart("?hierarchy_collapsed=true");
+
+    await expect
+      .element(screen.getByRole("button", { name: "Expand the hierarchy" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("tree", { name: "Hierarchy" }))
+      .not.toBeInTheDocument();
   });
 });

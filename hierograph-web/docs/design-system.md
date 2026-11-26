@@ -60,7 +60,7 @@ when the two copies drift.
 | Click a node's chevron (in a tree, anything left of its name: indent, chevron, icon), or double-click the node | Expand or collapse it.                                                                                                                      |
 | Right-click a node                                                                                             | Context menu with the node's commands (see below).                                                                                          |
 | Click the empty canvas, `Esc`, or "Clear selection"                                                            | Clear the selection.                                                                                                                        |
-| Pin button, left of the `?`                                                                                    | Pin the selection: clicks, double-clicks and `Enter` keep it, only a menu's "Select …" changes it; clearing it unpins it.                   |
+| Pin button, left of the `?` (where there is one)                                                               | Pin the selection: clicks, double-clicks and `Enter` keep it, only a menu's "Select …" changes it; clearing it unpins it.                   |
 | Wheel / `Shift`+wheel / trackpad swipe                                                                         | Scroll vertically / horizontally — the browser's native scrolling.                                                                          |
 | `Ctrl`/`⌘`+wheel, trackpad pinch                                                                               | Zoom, anchored at the pointer.                                                                                                              |
 | `Ctrl`/`⌘`+`+` / `−` / `0`, and a "Fit" button                                                                 | Zoom in / out / reset to 100 % / fit the graph to the viewport (while the graph has focus).                                                 |
@@ -81,7 +81,9 @@ when the two copies drift.
   expanding or collapsing). The selected node gets a clear outline, and the graph pane
   shows a status chip in its upper-right corner — "Selected: `name` · Esc to clear" —
   with the button that clears it.
-- **A selection can be pinned.** The pin button sits in the pane's toolbar after the
+- **A selection can be pinned** where clicking around must keep it (the structure
+  map; the start screen's tree has no pin, since its selection is explored in the
+  dependency pane beside it). The pin button sits in the pane's toolbar after the
   status chip and before the `?`, disabled while nothing is selected. Pinned, the
   selection stays whatever is clicked: a click, a double-click, a click on the empty
   space and `Enter` leave it (a double-click and the expander still expand). Only a
@@ -101,6 +103,12 @@ when the two copies drift.
   browsers already turn `Shift`+wheel into horizontal scrolling, and trackpads send
   horizontal deltas themselves; handling them again scrolls twice or breaks the
   trackpad.
+- **Scrollbars are quiet but always there.** They are thin, with a transparent track.
+  The thumb is light (`border`) at rest and darker (`border-strong`) while the pointer
+  is over the scrolling area or focus is inside it (`src/index.css`, base layer). They
+  are never hidden: a visible thumb is what tells that a pane scrolls, and it respects
+  a user who set the system to always show scroll bars. Don't restyle a scrollbar per
+  component.
 - **The zoom controls sit in the graph's lower right corner,** in this order: zoom out,
   the zoom (a click resets it to 100 %), zoom in, fit the graph, zoom to the selection,
   then the graph's own (the structure map's "Zoom to the dependencies"). Zoom to the

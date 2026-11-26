@@ -17,6 +17,7 @@ package io.hierograph.server.graphql.controller
 
 import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphql.model.DependencyPageModel
+import io.hierograph.server.graphql.model.FilteredChildModel
 import io.hierograph.server.graphql.model.FilteredDependenciesModel
 import io.hierograph.server.graphql.model.NodeType
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
@@ -42,6 +43,34 @@ class FilteredDependenciesController(private val provider: HierarchicalGraphProv
     ): DependencyPageModel {
         return DependencySetController.createPage(model.dependencyList, pageNumber, pageSize)
     }
+
+    @SchemaMapping(typeName = "FilteredDependencies")
+    fun filteredChildren(
+        model: FilteredDependenciesModel,
+        @Argument parentNode: String,
+        @Argument parentNodeType: NodeType,
+        @Argument compact: Boolean = false,
+    ): List<HGNode> = DependencySetController.filteredChildrenOf(
+        provider.hierarchy(), model.dependencyList, parentNode, parentNodeType, compact,
+    )
+
+    @SchemaMapping(typeName = "FilteredDependencies")
+    fun filteredChildrenWithCounts(
+        model: FilteredDependenciesModel,
+        @Argument parentNode: String,
+        @Argument parentNodeType: NodeType,
+        @Argument compact: Boolean = false,
+    ): List<FilteredChildModel> = DependencySetController.countedChildrenOf(
+        provider.hierarchy(), model.dependencyList, parentNode, parentNodeType, compact,
+    )
+
+    @SchemaMapping(typeName = "FilteredDependencies")
+    fun filteredChildrenIds(
+        model: FilteredDependenciesModel,
+        @Argument parentNode: String,
+        @Argument parentNodeType: NodeType,
+        @Argument compact: Boolean = false,
+    ): List<String> = filteredChildren(model, parentNode, parentNodeType, compact).map { it.identifier.toString() }
 
     @SchemaMapping(typeName = "FilteredDependencies")
     fun nodes(

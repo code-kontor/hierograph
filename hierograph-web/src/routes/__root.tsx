@@ -13,7 +13,7 @@ import { parseEnum } from "@/routing/searchCodec";
 // The screens of the UI, in navigation order. A new screen adds its route and
 // an entry here; the frame never imports a screen.
 const SCREENS: readonly Screen[] = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Dependencies", needsGraph: false },
   { path: "/structure", label: "Structure", needsGraph: true },
 ];
 

@@ -135,33 +135,84 @@ view menu; the graph status) and the matched screen. It owns:
 - **Screens come back as they were left.** The frame remembers each screen's
   own search params, per hierarchy view, in memory, and its navigation links
   restore them: going back to a screen finds the tree or the map with the
-  same nodes open and the same arcs pinned.
+  same nodes open and the same selection (on the map: pinned, too).
 
 ## The start screen
 
+The start screen (`/`, "Dependencies" in the header) is where the UI opens.
 `StartPage` is the hierarchy tree of the current hierarchy view and, beside
 it, the dependencies of its selection (#77); the view is chosen in the header,
 and the server's state, with what the view excludes, is in the header's status
 panel. On wide screens the tree is on the left and the dependencies on the
 right, the split moved by the user and kept by the browser; narrow screens
-stack them.
+stack them. On a wide screen the hierarchy collapses to a rail at the left
+edge, to make room for the dependencies: with the button in its title bar, by
+dragging the splitter to the edge, or by double-clicking the splitter. The
+rail names the selection and brings the hierarchy back. The collapse is the
+start screen's search param `hierarchy_collapsed` (replacing the history
+entry), so a link can open the page with it; the URL wins over the layout the
+browser remembers.
 
-- **The dependencies** are a pane with the tabs "Incoming dependencies" and
-  "Outgoing dependencies". The tab is the start screen's search param
-  `dependencies` (`incoming`, `outgoing`; validated in `routes/index.tsx`), so
-  a link can open one; switching replaces the history entry, and the first
-  tab leaves no param behind. Each tab (`DependencyTrees`) shows two trees
-  side by side for the selected node (`selected_id`; a cycle asks for a single
-  node), both folded and labelled exactly as the hierarchy tree (#63: the
-  server's display children, the label relative to the row above, the
-  skipped packages in the title and description), both loaded a level at a
-  time. "Selection" is the node, open, with only the children that have a
-  dependency in the tab's direction (`childrenFilteredByReferencingNodes` /
-  `…ByReferencedNodes` with `compact`, filtered by the ends); "Used by" /
-  "Uses" are the ends, the nodes on the other side (`referencingNodes` /
-  `referencedNodes`), as the path down to them from the root
-  (`childrenContainingNodes` with `compact`). Both stop at types and sort each
-  level by name. Without a dependency in the direction, the tab says so.
+- **The dependencies** (`DependencyTrees`) are a pane with three trees for
+  the selected node (`selected_id`; a cycle asks for a single node), read
+  left to right from source to target: "Used by", the sources of its
+  incoming dependencies; "Selection", the node, open, complete (the hierarchy
+  tree's own levels); "Uses", the targets of its
+  outgoing dependencies. The dependencies are the node's two dependency sets
+  (`Node.incomingDependencies` / `outgoingDependencies`, #79: those crossing
+  its boundary). Each tree scrolls on its own; a side without dependencies
+  says so. So that the side trees aren't taken for the hierarchy (with it
+  collapsed, "Used by" sits where it was), the pane's title names the
+  selection ("Dependencies of lib") and "Used by" and "Uses", the nodes
+  outside it, are on a tint (`panel-header`), while "Selection" stays white
+  like the hierarchy; and each of their rows counts the selection's
+  dependencies it holds, with the references in its tooltip
+  (`filteredChildrenWithCounts`), which the hierarchy never shows. Arrows between the titles point the way the dependencies go, and
+  a caption under each title says what its tree holds, with the selection's
+  name ("depends on lib", "lib, all of it", "lib depends on it"), the title's
+  tooltip at length.
+  - **The trees**: "Used by" and "Uses" are the sets' sides
+    (`filteredChildrenWithCounts` on a set, `SOURCE` or `TARGET`, with
+    `compact`; the marks use the same field on the narrowed set);
+    "Selection" is the hierarchy tree's levels below the node. All are
+    folded and labelled exactly as the
+    hierarchy tree (#63: the server's display children, the label relative
+    to the row above, the skipped packages in the title and description),
+    loaded a level at a time, stopping at types. Each level is in the
+    hierarchy tree's order for the same parent (dependency order, from the
+    same cached level query), External Types last at the top level, below a
+    separator.
+  - **Picking** a row (a click; the chevron opens it) sets what it connects
+    to in bold in the other trees, which stay complete, and narrows the lists
+    to it: `used_by_id`, `selection_part_id`, `uses_id`, replacing the
+    history entry; a click on the picked row drops it. One direction at a
+    time: a pick in "Used by" drops the one in "Uses" and the other way round
+    (a link may still name both); the part stays. A user marks the parts
+    of the selection it uses, a used node the parts that use it (both, from a
+    link, the parts connected to both); a part marks its users and what it uses. The
+    marks are the set narrowed by the picks (`filteredDependencies`, then
+    `filteredChildren`), asked for below the bold rows only; a line over the
+    trees explains the bold while anything is picked. A pick is a filter,
+    not the hierarchy's selection, so it is marked with a bar (the secondary
+    selection tokens) rather than filled. Picking a user opens the list's
+    incoming tab, picking a used node its outgoing tab. A link that names a
+    pick opens its tree down to it (the pick's display ancestors,
+    `predecessors(compact: true)`) and scrolls it into view. Selecting
+    another node in the hierarchy drops the picks.
+
+- **The dependency list** (`DependencyListPane`) is a pane below the trees (the
+  right column is split; narrow screens
+  stack it last) with the tabs "Incoming dependencies" and "Outgoing
+  dependencies", each narrowed by the picks on its side (incoming: the user
+  and the part; outgoing: the part and the used node). The tab is the start
+  screen's search param `dependency_list` (`incoming`, `outgoing`; validated
+  in `routes/index.tsx`), so a link can open one; switching replaces the
+  history entry, and the first tab leaves no param behind. Each tab pages its
+  set 50 type-level dependencies at a time (`dependencyPage`) as a table as
+  wide as the pane: source and target, sharing the width, by simple name (a nested type after its enclosing one)
+  with the package subdued, and the references. Above it the count, a chip
+  per pick that narrows it (a click drops the pick) and the paging. The page
+  is local and starts over with each narrowing.
 
 - **The tree** (`HierarchyTree`) of the current hierarchy
   view, folded like the structure map (`children(compact: true)`, #63): a
@@ -169,9 +220,9 @@ stack them.
   and the row's description name the packages it stands for. It loads level by level as nodes are
   expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
   screen's search params `expanded_ids` and `selected_id`, or
-  `selected_cycle_ids` for a cycle (both replace the history entry), and
-  `selection_pinned`: the pane's pin keeps the selection whatever is
-  clicked; only a menu changes it, and clearing it unpins it. Each level's siblings are in
+  `selected_cycle_ids` for a cycle (both replace the history entry). It has
+  no pin: what to look at is explored in the dependency pane, so a click in
+  the tree always selects. Each level's siblings are in
   dependency order (`orderedAdjacencyMatrix`: those depending on the others on
   top), dependency cycles marked with a bar; the tree ends at the types (their
   members' dependencies aren't resolved yet). Directly to the right of the labels, `TreeArcs` draws, for the
@@ -228,7 +279,7 @@ levelization } }`, #61, #63), keyed by the graph scope; `mapModel.ts`
   keys move to the nearest box that way as drawn (`boxToward`, an open
   container by its name bar), Home and End in reading order (`boxOrder`),
   `+` / `−` expand and collapse. The pane's pin keeps the selection whatever
-  is clicked, as in the tree. The pane's `?` lists the gestures.
+  is clicked (the start screen's tree has none). The pane's `?` lists the gestures.
 - **Layout.** A box takes a share of its row by how many boxes are visible in
   it, and is never narrower than its content; a map wider than the pane
   scrolls. The arrows are measured from the boxes whenever the map changes or

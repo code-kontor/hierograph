@@ -15,8 +15,10 @@ import { parseArgs } from "node:util";
 import { GraphQLClient } from "graphql-request";
 
 import {
-  DependencyEndsDocument,
-  DependencyTreeChildrenDocument,
+  DependencyPickPathDocument,
+  DependencySetChildrenDocument,
+  DependencySetDocument,
+  DependencySetPageDocument,
   GraphStatusDocument,
   HierarchyArcsDocument,
   HierarchyTreeChildrenDocument,
@@ -240,13 +242,18 @@ if (scenario === "default") {
   }
   write("HierarchyArcs", arcs);
 
-  // The dependency trees of a selection (#77), in the scanned hierarchy: for
-  // each selection and direction its ends, and both trees, every level that
-  // can be opened (not below a type), as the screen asks for them
-  // (start/DependencyTrees.tsx): the selection's tree (`used` incoming,
-  // `using` outgoing) and the tree of the ends (`holding`). `lib` is used by
-  // `app` and uses nothing outside itself; `app` uses `lib`; `isolated` has
-  // none; the module uses External Types.
+  // The dependency pane of a selection (#77, #79), in the scanned hierarchy,
+  // as the screen asks for it (start/DependencyTrees.tsx,
+  // start/DependencyList.tsx): its two sets; the three trees, every level that
+  // can be opened (not below a type): "Used by" (the incoming dependencies'
+  // sources), "Selection" (its parts with an incoming or an outgoing
+  // dependency) and "Uses" (the outgoing dependencies' targets); and every
+  // page of both lists. For `lib` and `app` also each node's path (a link
+  // naming a pick opens the trees down to it) and each node picked in a tree:
+  // the trees it narrows or marks and the lists narrowed by it, and the incoming list
+  // for a user picked with a part (types). `lib` is used by `app` and uses
+  // nothing outside itself; `app` uses `lib`; `isolated` has neither; the
+  // module uses External Types.
   const idOf = (text: string) => {
     for (const [key, nodes] of levels) {
       if (!key.startsWith("null|")) continue;
@@ -255,66 +262,275 @@ if (scenario === "default") {
     }
     throw new Error(`No "${text}" in the tree`);
   };
-  const dependencyEnds: Entry[] = [];
-  const dependencyTree: Entry[] = [];
-  type EndsData = {
+  const dependencySets: Entry[] = [];
+  const dependencyChildren: Entry[] = [];
+  const dependencyPages: Entry[] = [];
+  const dependencyPickPaths: Entry[] = [];
+  const recordedRequests = new Set<string>();
+  type Side = "SOURCE" | "TARGET";
+  type Picks = { source?: string; target?: string };
+  type Direction = "incoming" | "outgoing";
+  const setField = (direction: Direction) =>
+    direction === "incoming" ? "incomingDependencies" : "outgoingDependencies";
+  const selectionOf = (picks: Picks) => [
+    ...(picks.source
+      ? [
+          {
+            selectedNodeIds: [picks.source],
+            selectedNodesType: "SOURCE" as const,
+          },
+        ]
+      : []),
+    ...(picks.target
+      ? [
+          {
+            selectedNodeIds: [picks.target],
+            selectedNodesType: "TARGET" as const,
+          },
+        ]
+      : []),
+  ];
+  type SetData = {
     hierarchicalGraph: {
       rootNode: TreeNode;
       node: TreeNode & {
-        incomingEnds?: { nodeIds: string[] };
-        outgoingEnds?: { nodeIds: string[] };
+        incomingDependencies: { size: number };
+        outgoingDependencies: { size: number };
       };
     };
   };
+  type ChildrenData = {
+    hierarchicalGraph: {
+      node: Record<
+        string,
+        | {
+            filteredDependencies: {
+              filteredChildrenWithCounts: { node: TreeNode }[];
+            };
+          }
+        | undefined
+      >;
+    };
+  };
+  type PageData = {
+    hierarchicalGraph: {
+      node: Record<
+        string,
+        | {
+            filteredDependencies: {
+              dependencyPage: { pageInfo: { maxPages: number } };
+            };
+          }
+        | undefined
+      >;
+    };
+  };
+  const PAGE_SIZE = 50; // DEPENDENCY_PAGE_SIZE in start/queries.ts
+  const expandable = (node: TreeNode) =>
+    node.hasChildren && !TYPE_KINDS.has(node.type);
+  // A level's source, as start/DependencyTrees.tsx has it.
+  type LevelSource = { direction: Direction; picks: Picks; side: Side };
   for (const text of [
     "org.hg.fixture.locations.lib",
     "org.hg.fixture.locations.app",
     "org.hg.fixture.basic.isolated",
     "io.hierograph.examples:fixture-app:1.0.0",
   ]) {
-    for (const incoming of [true, false]) {
-      const variables = { view: null, id: idOf(text), incoming };
-      const data = await client.request<EndsData>(
-        DependencyEndsDocument,
+    const id = idOf(text);
+    const data = await client.request<SetData>(DependencySetDocument, {
+      view: null,
+      id,
+    });
+    dependencySets.push({
+      variables: { view: null, id },
+      data: normalize(data as never),
+    });
+    const { node, rootNode } = data.hierarchicalGraph;
+    const incoming = node.incomingDependencies.size;
+    const outgoing = node.outgoingDependencies.size;
+    const children = async (source: LevelSource, parent: TreeNode) => {
+      const variables = {
+        view: null,
+        id,
+        incoming: source.direction === "incoming",
+        picks: selectionOf(source.picks),
+        parent: parent.id,
+        side: source.side,
+      };
+      const level = await client.request<ChildrenData>(
+        DependencySetChildrenDocument,
         variables,
       );
-      dependencyEnds.push({ variables, data: normalize(data as never) });
-      const { node, rootNode } = data.hierarchicalGraph;
-      const ends =
-        (incoming ? node.incomingEnds : node.outgoingEnds)?.nodeIds ?? [];
-      if (ends.length === 0) continue;
-      const walk = async (
-        mode: "used" | "using" | "holding",
-        parent: TreeNode,
-      ) => {
-        if (!parent.hasChildren || TYPE_KINDS.has(parent.type)) return;
-        const levelVariables = {
-          view: null,
-          id: parent.id,
-          ends,
-          used: mode === "used",
-          using: mode === "using",
-          holding: mode === "holding",
-        };
-        const level = await client.request<{
-          hierarchicalGraph: {
-            node: Record<string, { nodes: TreeNode[] } | undefined>;
-          };
-        }>(DependencyTreeChildrenDocument, levelVariables);
-        dependencyTree.push({
-          variables: levelVariables,
-          data: normalize(level as never),
-        });
-        for (const child of level.hierarchicalGraph.node[mode]?.nodes ?? []) {
-          await walk(mode, child);
+      const key = JSON.stringify(variables);
+      if (!recordedRequests.has(key)) {
+        recordedRequests.add(key);
+        dependencyChildren.push({ variables, data: normalize(level as never) });
+      }
+      return (
+        level.hierarchicalGraph.node[setField(source.direction)]
+          ?.filteredDependencies.filteredChildrenWithCounts ?? []
+      ).map((child) => child.node);
+    };
+    // A tree, every level that can be opened: each level the union of its
+    // sources' children, or with `intersect` their intersection.
+    const walk = async (
+      sources: LevelSource[],
+      intersect: boolean,
+      top: TreeNode,
+      shown: boolean,
+    ) => {
+      const seen: TreeNode[] = shown ? [top] : [];
+      const below = async (parent: TreeNode) => {
+        const levels: TreeNode[][] = [];
+        for (const source of sources)
+          levels.push(await children(source, parent));
+        const merged = intersect
+          ? (levels[0] ?? []).filter((candidate) =>
+              levels.every((level) =>
+                level.some((other) => other.id === candidate.id),
+              ),
+            )
+          : [...new Map(levels.flat().map((n) => [n.id, n])).values()];
+        for (const child of merged) {
+          seen.push(child);
+          if (expandable(child)) await below(child);
         }
       };
-      await walk(incoming ? "used" : "using", node);
-      await walk("holding", rootNode);
+      if (sources.length > 0 && expandable(top)) await below(top);
+      return seen;
+    };
+    const pages = async (direction: Direction, picks: Picks, all: boolean) => {
+      for (let page = 1; ; page++) {
+        const variables = {
+          view: null,
+          id,
+          incoming: direction === "incoming",
+          picks: selectionOf(picks),
+          picked: [picks.source, picks.target].filter(Boolean),
+          page,
+          pageSize: PAGE_SIZE,
+        };
+        const key = JSON.stringify(variables);
+        const result = await client.request<PageData>(
+          DependencySetPageDocument,
+          variables,
+        );
+        if (!recordedRequests.has(key)) {
+          recordedRequests.add(key);
+          dependencyPages.push({ variables, data: normalize(result as never) });
+        }
+        const maxPages =
+          result.hierarchicalGraph.node[setField(direction)]
+            ?.filteredDependencies.dependencyPage.pageInfo.maxPages ?? 0;
+        if (!all || page >= maxPages) break;
+      }
+    };
+    // The trees for the picks, as the screen builds them.
+    type TreePicks = { usedBy?: string; part?: string; uses?: string };
+    const usedByTree = (picks: TreePicks) =>
+      incoming === 0
+        ? Promise.resolve([])
+        : walk(
+            [
+              {
+                direction: "incoming",
+                picks: { target: picks.part },
+                side: "SOURCE",
+              },
+            ],
+            false,
+            rootNode,
+            false,
+          );
+    const usesTree = (picks: TreePicks) =>
+      outgoing === 0
+        ? Promise.resolve([])
+        : walk(
+            [
+              {
+                direction: "outgoing",
+                picks: { source: picks.part },
+                side: "TARGET",
+              },
+            ],
+            false,
+            rootNode,
+            false,
+          );
+    const selectionTree = (picks: TreePicks) => {
+      const sources: LevelSource[] = [];
+      if (
+        incoming > 0 &&
+        !(picks.uses !== undefined && picks.usedBy === undefined)
+      )
+        sources.push({
+          direction: "incoming",
+          picks: { source: picks.usedBy },
+          side: "TARGET",
+        });
+      if (
+        outgoing > 0 &&
+        !(picks.usedBy !== undefined && picks.uses === undefined)
+      )
+        sources.push({
+          direction: "outgoing",
+          picks: { target: picks.uses },
+          side: "SOURCE",
+        });
+      return walk(
+        sources,
+        picks.usedBy !== undefined && picks.uses !== undefined,
+        node,
+        true,
+      );
+    };
+    if (incoming === 0 && outgoing === 0) {
+      await pages("incoming", {}, false);
+      await pages("outgoing", {}, false);
+      continue;
+    }
+    const users = await usedByTree({});
+    const parts = await selectionTree({});
+    const used = await usesTree({});
+    await pages("incoming", {}, true);
+    await pages("outgoing", {}, true);
+    if (!text.endsWith(".lib") && !text.endsWith(".app")) continue;
+    // A link that names a pick opens the trees down to it.
+    for (const pickable of [...users, ...parts, ...used]) {
+      const variables = { view: null, id: pickable.id };
+      const key = `path|${pickable.id}`;
+      if (recordedRequests.has(key)) continue;
+      recordedRequests.add(key);
+      const path = await client.request(DependencyPickPathDocument, variables);
+      dependencyPickPaths.push({ variables, data: normalize(path as never) });
+    }
+    // A user or a used node sets the parts it connects to in bold: the
+    // selection's tree narrowed by it, asked for below the bold rows only.
+    for (const user of users) {
+      const reached = await selectionTree({ usedBy: user.id });
+      await pages("incoming", { source: user.id }, true);
+      if (!TYPE_KINDS.has(user.type)) continue;
+      for (const part of reached) {
+        if (TYPE_KINDS.has(part.type))
+          await pages("incoming", { source: user.id, target: part.id }, false);
+      }
+    }
+    for (const target of used) {
+      await selectionTree({ uses: target.id });
+      await pages("outgoing", { target: target.id }, true);
+    }
+    // A part sets what it connects to in bold on both sides, the same way.
+    for (const part of parts) {
+      await usedByTree({ part: part.id });
+      await usesTree({ part: part.id });
+      await pages("incoming", { target: part.id }, true);
+      await pages("outgoing", { source: part.id }, true);
     }
   }
-  write("DependencyEnds", dependencyEnds);
-  write("DependencyTreeChildren", dependencyTree);
+  write("DependencySet", dependencySets);
+  write("DependencySetChildren", dependencyChildren);
+  write("DependencySetPage", dependencyPages);
+  write("DependencyPickPath", dependencyPickPaths);
 
   // The structure map: the root in both views, and the levelization of every
   // container (a node with children that isn't a type, as the map has it in

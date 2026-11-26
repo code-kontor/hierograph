@@ -192,12 +192,12 @@ export function hierarchyArcsQueryOptions(scope: GraphScope, ids: string[]) {
   });
 }
 
-// The dependencies of the tree's selection (#77), in one direction: incoming,
-// the nodes that depend on the selection's subtree, or outgoing, the nodes it
-// depends on (dependencies inside the subtree are left out). `ends` are those
-// nodes (types); the root is where the tree of the ends starts.
-export const DependencyEndsQuery = graphql(`
-  query DependencyEnds($view: String, $id: ID!, $incoming: Boolean!) {
+// The dependencies of the tree's selection (#77), as two dependency sets
+// (#79): incoming, the dependencies into the selection's subtree from outside
+// it; outgoing, those from it to outside. The root is where the trees of
+// their far ends start.
+export const DependencySetQuery = graphql(`
+  query DependencySet($view: String, $id: ID!) {
     hierarchicalGraph(view: $view) {
       rootNode {
         id
@@ -216,11 +216,11 @@ export const DependencyEndsQuery = graphql(`
         compactedFrom {
           text
         }
-        incomingEnds: referencingNodes @include(if: $incoming) {
-          nodeIds
+        incomingDependencies {
+          size
         }
-        outgoingEnds: referencedNodes @skip(if: $incoming) {
-          nodeIds
+        outgoingDependencies {
+          size
         }
       }
     }
@@ -229,7 +229,12 @@ export const DependencyEndsQuery = graphql(`
 
 export type DependencyDirection = "incoming" | "outgoing";
 
-// A row of either dependency tree, as the hierarchy tree has its rows: folded
+// The two sides of a dependency: `SOURCE` depends on `TARGET`. The selection
+// holds the targets of the incoming dependencies and the sources of the
+// outgoing ones.
+export type DependencySide = "SOURCE" | "TARGET";
+
+// A row of a dependency tree, as the hierarchy tree has its rows: folded
 // (#63), naming the lone packages it stands for.
 export type DependencyNode = {
   id: string;
@@ -237,34 +242,31 @@ export type DependencyNode = {
   type: string;
   hasChildren: boolean;
   compactedFrom: { text: string }[];
+  // In a tree of a set's side: the dependencies with their end there in the
+  // row's subtree, and their references.
+  dependencies?: number;
+  references?: number;
 };
 
-// The selection, the root, and the ends of the selection's dependencies.
-export type DependencyEnds = {
+// The selection, the root, and how many dependencies each set holds.
+export type DependencySetInfo = {
   selection: DependencyNode;
   root: DependencyNode;
-  ends: string[];
+  incoming: number;
+  outgoing: number;
 };
 
-export function dependencyEndsQueryOptions(
-  scope: GraphScope,
-  id: string,
-  direction: DependencyDirection,
-) {
+export function dependencySetQueryOptions(scope: GraphScope, id: string) {
   return queryOptions({
-    queryKey: graphQueryKey("start", scope, "dependencyEnds", id, direction),
-    async queryFn(): Promise<DependencyEnds | null> {
-      const data = await execute(DependencyEndsQuery, {
+    queryKey: graphQueryKey("start", scope, "dependencySet", id),
+    async queryFn(): Promise<DependencySetInfo | null> {
+      const data = await execute(DependencySetQuery, {
         view: scope.view ?? null,
         id,
-        incoming: direction === "incoming",
       });
       const graph = data.hierarchicalGraph;
       const node = graph?.node;
       if (!graph || !node) return null;
-      const ends =
-        (direction === "incoming" ? node.incomingEnds : node.outgoingEnds)
-          ?.nodeIds ?? [];
       const selection: DependencyNode = {
         id: node.id,
         text: node.text,
@@ -272,67 +274,95 @@ export function dependencyEndsQueryOptions(
         hasChildren: node.hasChildren,
         compactedFrom: node.compactedFrom,
       };
-      return { selection, root: graph.rootNode, ends };
+      return {
+        selection,
+        root: graph.rootNode,
+        incoming: node.incomingDependencies.size,
+        outgoing: node.outgoingDependencies.size,
+      };
     },
   });
 }
 
-// One level of a dependency tree, folded like the hierarchy tree
-// (`compact`): the children of `id` that
-// - `used`: the ends depend on (the selection's tree, incoming),
-// - `using`: depend on the ends (the selection's tree, outgoing),
-// - `holding`: hold an end (the tree of the ends).
-export type DependencyTreeMode = "used" | "using" | "holding";
+// Where a selection in the dependency trees narrows the set: a node on the
+// source side, one on the target side, or both. An absent side doesn't
+// narrow.
+export type DependencyPicks = { source?: string; target?: string };
 
-export const DependencyTreeChildrenQuery = graphql(`
-  query DependencyTreeChildren(
+function nodeSelection(picks: DependencyPicks) {
+  return [
+    ...(picks.source
+      ? [
+          {
+            selectedNodeIds: [picks.source],
+            selectedNodesType: "SOURCE" as const,
+          },
+        ]
+      : []),
+    ...(picks.target
+      ? [
+          {
+            selectedNodeIds: [picks.target],
+            selectedNodesType: "TARGET" as const,
+          },
+        ]
+      : []),
+  ];
+}
+
+// One level of a dependency tree, folded like the hierarchy tree: the
+// children of `parent` that hold an end on `side` of a dependency in the set
+// of `direction`, narrowed by `picks`, each with how many.
+export const DependencySetChildrenQuery = graphql(`
+  query DependencySetChildren(
     $view: String
     $id: ID!
-    $ends: [ID!]!
-    $used: Boolean!
-    $using: Boolean!
-    $holding: Boolean!
+    $incoming: Boolean!
+    $picks: [NodeSelection!]!
+    $parent: ID!
+    $side: NodeType!
   ) {
     hierarchicalGraph(view: $view) {
       node(id: $id) {
-        id
-        used: childrenFilteredByReferencingNodes(
-          referencingNodeIds: $ends
-          compact: true
-        ) @include(if: $used) {
-          nodes {
-            id
-            text
-            type
-            hasChildren
-            compactedFrom {
-              text
+        incomingDependencies @include(if: $incoming) {
+          filteredDependencies(nodeSelection: $picks) {
+            filteredChildrenWithCounts(
+              parentNode: $parent
+              parentNodeType: $side
+              compact: true
+            ) {
+              node {
+                id
+                text
+                type
+                hasChildren
+                compactedFrom {
+                  text
+                }
+              }
+              dependencies
+              references
             }
           }
         }
-        using: childrenFilteredByReferencedNodes(
-          referencedNodeIds: $ends
-          compact: true
-        ) @include(if: $using) {
-          nodes {
-            id
-            text
-            type
-            hasChildren
-            compactedFrom {
-              text
-            }
-          }
-        }
-        holding: childrenContainingNodes(nodeIds: $ends, compact: true)
-          @include(if: $holding) {
-          nodes {
-            id
-            text
-            type
-            hasChildren
-            compactedFrom {
-              text
+        outgoingDependencies @skip(if: $incoming) {
+          filteredDependencies(nodeSelection: $picks) {
+            filteredChildrenWithCounts(
+              parentNode: $parent
+              parentNodeType: $side
+              compact: true
+            ) {
+              node {
+                id
+                text
+                type
+                hasChildren
+                compactedFrom {
+                  text
+                }
+              }
+              dependencies
+              references
             }
           }
         }
@@ -341,37 +371,229 @@ export const DependencyTreeChildrenQuery = graphql(`
   }
 `);
 
-// Keyed by the selection and the direction, which decide the `ends`, and the
-// mode.
-export function dependencyTreeChildrenQueryOptions(
+export function dependencySetChildrenQueryOptions(
   scope: GraphScope,
   selectionId: string,
   direction: DependencyDirection,
-  mode: DependencyTreeMode,
-  id: string,
-  ends: string[],
+  picks: DependencyPicks,
+  parent: string,
+  side: DependencySide,
 ) {
   return queryOptions({
     queryKey: graphQueryKey(
       "start",
       scope,
-      "dependencyTree",
+      "dependencySetChildren",
       selectionId,
       direction,
-      mode,
-      id,
+      picks.source ?? "",
+      picks.target ?? "",
+      side,
+      parent,
     ),
     async queryFn(): Promise<DependencyNode[]> {
-      const data = await execute(DependencyTreeChildrenQuery, {
+      const data = await execute(DependencySetChildrenQuery, {
         view: scope.view ?? null,
-        id,
-        ends,
-        used: mode === "used",
-        using: mode === "using",
-        holding: mode === "holding",
+        id: selectionId,
+        incoming: direction === "incoming",
+        picks: nodeSelection(picks),
+        parent,
+        side,
       });
       const node = data.hierarchicalGraph?.node;
-      return node?.[mode]?.nodes ?? [];
+      const set =
+        direction === "incoming"
+          ? node?.incomingDependencies
+          : node?.outgoingDependencies;
+      return (set?.filteredDependencies.filteredChildrenWithCounts ?? []).map(
+        (child) => ({
+          ...child.node,
+          dependencies: child.dependencies,
+          references: child.references,
+        }),
+      );
+    },
+  });
+}
+
+// One page of a set's dependencies, narrowed by the picks, with the picked
+// nodes' names.
+export const DependencySetPageQuery = graphql(`
+  query DependencySetPage(
+    $view: String
+    $id: ID!
+    $incoming: Boolean!
+    $picks: [NodeSelection!]!
+    $picked: [ID!]!
+    $page: Int!
+    $pageSize: Int!
+  ) {
+    hierarchicalGraph(view: $view) {
+      picked: nodes(ids: $picked) {
+        nodes {
+          id
+          text
+          type
+        }
+      }
+      node(id: $id) {
+        incomingDependencies @include(if: $incoming) {
+          filteredDependencies(nodeSelection: $picks) {
+            dependencyPage(pageNumber: $page, pageSize: $pageSize) {
+              pageInfo {
+                pageNumber
+                maxPages
+                totalCount
+              }
+              dependencies {
+                id
+                weight
+                sourceNode {
+                  id
+                  text
+                  type
+                }
+                targetNode {
+                  id
+                  text
+                  type
+                }
+              }
+            }
+          }
+        }
+        outgoingDependencies @skip(if: $incoming) {
+          filteredDependencies(nodeSelection: $picks) {
+            dependencyPage(pageNumber: $page, pageSize: $pageSize) {
+              pageInfo {
+                pageNumber
+                maxPages
+                totalCount
+              }
+              dependencies {
+                id
+                weight
+                sourceNode {
+                  id
+                  text
+                  type
+                }
+                targetNode {
+                  id
+                  text
+                  type
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`);
+
+export type DependencyEnd = { id: string; text: string; type: string };
+
+export type DependencyListEntry = {
+  id: string;
+  weight: number;
+  source: DependencyEnd;
+  target: DependencyEnd;
+};
+
+export type DependencyListPage = {
+  page: number;
+  pages: number;
+  total: number;
+  dependencies: DependencyListEntry[];
+  // The selected nodes, by id.
+  picked: Map<string, DependencyEnd>;
+};
+
+export const DEPENDENCY_PAGE_SIZE = 50;
+
+export function dependencySetPageQueryOptions(
+  scope: GraphScope,
+  selectionId: string,
+  direction: DependencyDirection,
+  picks: DependencyPicks,
+  page: number,
+) {
+  return queryOptions({
+    queryKey: graphQueryKey(
+      "start",
+      scope,
+      "dependencySetPage",
+      selectionId,
+      direction,
+      picks.source ?? "",
+      picks.target ?? "",
+      page,
+    ),
+    async queryFn(): Promise<DependencyListPage> {
+      const data = await execute(DependencySetPageQuery, {
+        view: scope.view ?? null,
+        id: selectionId,
+        incoming: direction === "incoming",
+        picks: nodeSelection(picks),
+        picked: [picks.source, picks.target].filter(
+          (id): id is string => id !== undefined,
+        ),
+        page,
+        pageSize: DEPENDENCY_PAGE_SIZE,
+      });
+      const graph = data.hierarchicalGraph;
+      const set =
+        direction === "incoming"
+          ? graph?.node?.incomingDependencies
+          : graph?.node?.outgoingDependencies;
+      const result = set?.filteredDependencies.dependencyPage;
+      const picked = new Map(
+        (graph?.picked?.nodes ?? []).map((node) => [node.id, node]),
+      );
+      return {
+        page: result?.pageInfo.pageNumber ?? page,
+        pages: result?.pageInfo.maxPages ?? 0,
+        total: result?.pageInfo.totalCount ?? 0,
+        dependencies: (result?.dependencies ?? []).map((dependency) => ({
+          id: dependency.id,
+          weight: dependency.weight,
+          source: dependency.sourceNode,
+          target: dependency.targetNode,
+        })),
+        picked,
+      };
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+// The rows above a picked node, as the trees fold them (#63): its display
+// ancestors, nearest first. A link that names a pick opens the trees down to
+// it.
+export const DependencyPickPathQuery = graphql(`
+  query DependencyPickPath($view: String, $id: ID!) {
+    hierarchicalGraph(view: $view) {
+      node(id: $id) {
+        predecessors(compact: true) {
+          id
+        }
+      }
+    }
+  }
+`);
+
+export function dependencyPickPathQueryOptions(scope: GraphScope, id: string) {
+  return queryOptions({
+    queryKey: graphQueryKey("start", scope, "pickPath", id),
+    async queryFn(): Promise<string[]> {
+      const data = await execute(DependencyPickPathQuery, {
+        view: scope.view ?? null,
+        id,
+      });
+      return (data.hierarchicalGraph?.node?.predecessors ?? []).map(
+        (node) => node.id,
+      );
     },
   });
 }

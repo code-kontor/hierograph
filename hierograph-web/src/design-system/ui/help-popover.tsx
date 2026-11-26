@@ -27,7 +27,13 @@ export function HelpPopoverButton({ label, children }: HelpPopoverButtonProps) {
           <HelpCircle className="size-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent aria-label={label}>{children}</PopoverContent>
+      <PopoverContent
+        aria-label={label}
+        // Wide enough that a gesture and what it does fit on one line.
+        className="w-[26rem] max-w-[calc(100vw-32px)]"
+      >
+        {children}
+      </PopoverContent>
     </Popover>
   );
 }

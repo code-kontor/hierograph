@@ -226,7 +226,9 @@ function ScreenLink({ screen, search }: ScreenLinkProps) {
       to={screen.path}
       search={search as never}
       className="text-fg-muted hover:text-fg after:bg-primary relative flex h-full items-center px-1 text-[13px] font-normal transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-[2px] after:content-['']"
-      activeOptions={{ exact: screen.path === "/" }}
+      // Active by its path alone: the frame's params (an open status panel,
+      // `status=`) and the screen's own don't change which screen it is.
+      activeOptions={{ exact: screen.path === "/", includeSearch: false }}
       activeProps={{ className: "text-primary font-semibold" }}
       inactiveProps={{ className: "after:hidden" }}
     >

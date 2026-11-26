@@ -4,14 +4,14 @@ import { graphQueryKey } from "./GraphScope";
 import { currentScreen, type Screen } from "./screens";
 
 const SCREENS = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Dependencies", needsGraph: false },
   { path: "/dsm", label: "DSM", needsGraph: true },
 ] as unknown as Screen[];
 
 describe("currentScreen", () => {
   it("finds the start screen only for the root", () => {
-    expect(currentScreen(SCREENS, "/")?.label).toBe("Start");
-    expect(currentScreen(SCREENS, "")?.label).toBe("Start");
+    expect(currentScreen(SCREENS, "/")?.label).toBe("Dependencies");
+    expect(currentScreen(SCREENS, "")?.label).toBe("Dependencies");
   });
 
   it("finds a screen for its path and the paths below it", () => {

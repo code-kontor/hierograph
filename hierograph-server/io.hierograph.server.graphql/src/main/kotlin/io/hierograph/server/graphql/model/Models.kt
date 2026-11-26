@@ -24,6 +24,9 @@ data class DependencySetModel(val dependencyList: List<HGCoreDependency>)
 
 data class FilteredDependenciesModel(val dependencyList: List<HGCoreDependency>)
 
+/** `FilteredChild`: a child of a filtered set's drill-down and the dependencies with an end in its subtree. */
+data class FilteredChildModel(val node: HGNode, val dependencies: Int, val references: Int)
+
 data class CellModel(val row: Int, val column: Int, val value: Int)
 
 class StronglyConnectedComponentModel(

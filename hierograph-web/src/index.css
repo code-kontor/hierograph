@@ -203,6 +203,16 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Thin, quiet scrollbars: the thumb is always there, so a pane shows
+       that it scrolls, light at rest and darker while the pointer is over
+       the scrolling area or the keyboard is in it. The track stays
+       transparent. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  *:hover,
+  *:focus-within {
+    scrollbar-color: var(--color-border-strong) transparent;
   }
   body {
     @apply bg-background text-foreground font-sans;

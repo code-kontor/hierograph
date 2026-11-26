@@ -140,11 +140,36 @@ class BoundaryDependenciesTest {
             val intoP2 = sets.filteredDependencies(incoming, listOf(NodeSelection(listOf(id(p2)), NodeType.TARGET)))
             assertThat(ends(intoP2.dependencyList)).containsExactly(y to p2)
 
+            // A narrowed set drills down like the whole one: from m2, only P1 is reached.
+            val filtered = FilteredDependenciesController(provider)
+            assertThat(filtered.filteredChildren(fromM2, id(p), NodeType.TARGET, compact = true)).containsExactly(p1)
+            assertThat(filtered.filteredChildrenIds(intoP2, id(m1), NodeType.SOURCE, compact = true))
+                .containsExactly(id(xy))
+
             val page = sets.dependencyPage(incoming, pageNumber = 2, pageSize = 1)
             assertThat(page.pageInfo.totalCount).isEqualTo(2)
             assertThat(page.pageInfo.maxPages).isEqualTo(2)
             assertThat(page.dependencies).hasSize(1)
             assertThat(sets.size(incoming)).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `filtered children come with the dependencies and references their subtrees hold`() {
+        with(example) {
+            val incoming = nodes.incomingDependencies(p)
+            val counted = { parent: HGNode, side: NodeType, compact: Boolean ->
+                sets.filteredChildrenWithCounts(incoming, id(parent), side, compact)
+                    .map { Triple(it.node, it.dependencies, it.references) }
+            }
+
+            // The sources: Y → P2 in m1, Q → P1 in m2, one reference each.
+            assertThat(counted(root, NodeType.SOURCE, true)).containsExactly(Triple(m1, 1, 1), Triple(m2, 1, 1))
+            // Folded: the chain end x.y holds Y.
+            assertThat(counted(m1, NodeType.SOURCE, true)).containsExactly(Triple(xy, 1, 1))
+            assertThat(counted(m1, NodeType.SOURCE, false)).containsExactly(Triple(x, 1, 1))
+            // The targets, both in p.
+            assertThat(counted(m1, NodeType.TARGET, true)).containsExactly(Triple(p, 2, 2))
         }
     }
 }

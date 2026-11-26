@@ -10,7 +10,7 @@ import { renderWithRouter } from "@/testing/render";
 import { HierarchyTree } from "./HierarchyTree";
 
 const SCREENS = [
-  { path: "/", label: "Start", needsGraph: false },
+  { path: "/", label: "Dependencies", needsGraph: false },
 ] as unknown as Screen[];
 
 // The tree inside the frame, which provides the graph scope.
@@ -474,60 +474,31 @@ describe("HierarchyTree", () => {
     await expect.element(app).toHaveAttribute("aria-selected", "false");
   });
 
-  it("pins the selection: clicks keep it, a menu changes it, clearing it unpins", async () => {
+  it("has no pin: a click always selects", async () => {
     const screen = await renderTree();
     await expand(screen, ...CYCLE_PATH);
-    const pin = screen.getByRole("button", { name: "Pin the selection" });
-    const beta = item(screen, "beta");
-    const gamma = item(screen, "gamma");
 
-    // Nothing selected: nothing to pin.
-    await expect.element(pin).toBeDisabled();
-
+    await expect
+      .element(screen.getByRole("button", { name: "Pin the selection" }))
+      .not.toBeInTheDocument();
     await row(screen, "beta").click();
-    await pin.click();
-    await expect.element(pin).toHaveAttribute("aria-pressed", "true");
-    expect(screen.router.state.location.search.selection_pinned).toBe(true);
-
-    // A click, a double-click and Enter leave the selection; the
-    // double-click still expands.
     await row(screen, "gamma").click();
-    await expect.element(beta).toHaveAttribute("aria-selected", "true");
-    const cycle = item(screen, "cycle");
-    await row(screen, "cycle").dblClick();
-    await expect.element(cycle).toHaveAttribute("aria-expanded", "false");
-    await row(screen, "cycle").dblClick();
-    await expect.element(cycle).toHaveAttribute("aria-expanded", "true");
-    await expect.element(cycle).toHaveAttribute("aria-selected", "false");
-    await expect.element(beta).toHaveAttribute("aria-selected", "true");
-    await userEvent.keyboard("{Enter}");
-    await expect.element(beta).toHaveAttribute("aria-selected", "true");
-    // A click on the empty space doesn't clear it either.
-    (screen.getByRole("tree").element() as HTMLElement).click();
-    await expect.element(beta).toHaveAttribute("aria-selected", "true");
 
-    // The menu still selects, and the pin stays.
-    rightClick(row(screen, "gamma").element());
-    await screen.getByRole("menuitem", { name: "Select", exact: true }).click();
-    await expect.element(gamma).toHaveAttribute("aria-selected", "true");
-    await expect.element(pin).toHaveAttribute("aria-pressed", "true");
-
-    // Escape clears the selection and unpins it.
-    await userEvent.keyboard("{Escape}");
-    await expect.element(gamma).toHaveAttribute("aria-selected", "false");
-    await expect.element(pin).toBeDisabled();
-    expect(
-      screen.router.state.location.search.selection_pinned,
-    ).toBeUndefined();
+    await expect
+      .element(item(screen, "gamma"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(item(screen, "beta"))
+      .toHaveAttribute("aria-selected", "false");
   });
 
-  it("lists its gestures and the pin in the pane's help, without zoom or pan", async () => {
+  it("lists its gestures in the pane's help, without the pin, zoom or pan", async () => {
     const screen = await renderTree();
 
     await screen.getByRole("button", { name: "Gestures" }).click();
 
     const help = screen.getByRole("dialog", { name: "Gestures" });
-    await expect.element(help.getByText("Pin button")).toBeVisible();
+    await expect.element(help.getByText("Pin button")).not.toBeInTheDocument();
     await expect.element(help.getByText("Right-click")).toBeVisible();
     await expect.element(help.getByText(/Zoom/)).not.toBeInTheDocument();
   });

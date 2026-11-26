@@ -365,11 +365,26 @@ type DependencySet {
     filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [ID!]!
 
     """
+    `filteredChildren` with, for each child, how many of the dependencies have their end on that side in
+    its subtree, and their references: what a tree built from the set shows next to its rows.
+    """
+    filteredChildrenWithCounts(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [FilteredChild!]!
+
+    """
     The dependencies whose source lies in the subtree of a selected SOURCE node and whose target lies in
     the subtree of a selected TARGET node. A side no selection names ids for is not restricted; a side
     selected only with unknown ids keeps nothing.
     """
     filteredDependencies(nodeSelection: [NodeSelection!]!): FilteredDependencies!
+}
+
+"A child of `filteredChildrenWithCounts`: the node and the dependencies with their end on one side in its subtree."
+type FilteredChild {
+    node: Node!
+    "The number of those dependencies."
+    dependencies: Int!
+    "Their individual references, summed."
+    references: Int!
 }
 
 "A dependency set narrowed by `DependencySet.filteredDependencies`."
@@ -383,6 +398,18 @@ type FilteredDependencies {
 
     "One 1-based page of `pageSize` dependencies. `null`, with a BAD_REQUEST, when either argument is below 1."
     dependencyPage(pageNumber: Int!, pageSize: Int!): DependencyPage
+
+    "The children of `parentNode` whose subtree contains a source or target of these dependencies; see `DependencySet.filteredChildren`."
+    filteredChildren(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [Node!]!
+
+    "The ids of `filteredChildren`."
+    filteredChildrenIds(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [ID!]!
+
+    """
+    `filteredChildren` with, for each child, how many of the dependencies have their end on that side in
+    its subtree, and their references: what a tree built from the set shows next to its rows.
+    """
+    filteredChildrenWithCounts(parentNode: ID!, parentNodeType: NodeType!, compact: Boolean! = false): [FilteredChild!]!
 
     "The distinct sources (SOURCE) or targets (TARGET) of these dependencies."
     nodes(nodeType: NodeType!, includePredecessors: Boolean! = false): [Node!]!

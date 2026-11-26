@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronRight,
+  PanelLeftClose,
   Repeat2,
   SquareMinus,
   SquarePlus,
@@ -23,7 +24,6 @@ import {
   KEYBOARD_GESTURES,
   SELECTION_GESTURES,
 } from "@/design-system/graph/GesturesHelp";
-import { PinSelectionButton } from "@/design-system/graph/PinSelectionButton";
 import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
 import { KIND_ICONS } from "@/design-system/graph/treeIcons";
 import {
@@ -36,6 +36,7 @@ import {
   ContextMenuItem,
   ContextMenuShortcut,
 } from "@/design-system/ui/context-menu";
+import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
@@ -68,9 +69,11 @@ type TreeControls = {
   domId: (id: string) => string;
 };
 
-// The tree's gestures: every graph's; it neither zooms nor pans.
+// The tree's gestures: every graph's, without the pin (a click here always
+// selects: what to look at is explored in the dependency pane); it neither
+// zooms nor pans.
 const TREE_GESTURES: Gesture[] = [
-  ...SELECTION_GESTURES,
+  ...SELECTION_GESTURES.filter((gesture) => gesture.keys !== "Pin button"),
   { keys: "↑ ↓", action: "Move between rows" },
   { keys: "→ ←", action: "Expand, collapse; the first child, the parent" },
   ...KEYBOARD_GESTURES,
@@ -85,15 +88,17 @@ const TREE_GESTURES: Gesture[] = [
 // between the visible rows. It follows the design system's interaction model
 // (docs/design-system.md, "Interaction"), without zoom and pan. The open rows
 // and the selection are in the URL, so the screen comes back as it was left.
-export function HierarchyTree() {
+type HierarchyTreeProps = {
+  // Collapses the pane to a rail, where the layout can (a wide screen).
+  onCollapse?: () => void;
+};
+
+export function HierarchyTree({ onCollapse }: HierarchyTreeProps) {
   const scope = useGraphScope();
   const view = scope?.view ?? "";
   const search: TreeSearch = useSearch({ strict: false });
   const setSearch = useSetTreeSearch();
   const selected = selectedFocus(search);
-  // A pinned selection stays whatever is clicked; only a menu changes it,
-  // and clearing it unpins it. Only a selection can be pinned.
-  const pinned = search.selection_pinned === true && selected !== null;
   // Selecting changes the view, not the place: it replaces the history
   // entry, so Back doesn't step through every click.
   const onSelect = async (focus: ArcFocus | null) => {
@@ -106,13 +111,14 @@ export function HierarchyTree() {
       {
         selected_id: focus?.kind === "row" ? focus.id : undefined,
         selected_cycle_ids: focus?.kind === "cycle" ? focus.members : undefined,
-        selection_pinned: focus === null ? undefined : search.selection_pinned,
+        // The picks in the dependency trees belong to the old selection's
+        // dependencies.
+        used_by_id: undefined,
+        selection_part_id: undefined,
+        uses_id: undefined,
       },
       true,
     );
-  };
-  const setPinned = async (pin: boolean) => {
-    await setSearch({ selection_pinned: pin || undefined }, true);
   };
   // The selection's name, as the tree draws it.
   const [selectedLabel, setSelectedLabel] = useState("");
@@ -121,12 +127,18 @@ export function HierarchyTree() {
       {selected !== null && (
         <SelectionStatus label={selectedLabel} onClear={() => onSelect(null)} />
       )}
-      <PinSelectionButton
-        pressed={pinned}
-        disabled={selected === null}
-        onPress={() => setPinned(!pinned)}
-      />
       <GesturesHelp gestures={TREE_GESTURES} />
+      {onCollapse && (
+        <button
+          type="button"
+          aria-label="Collapse the hierarchy"
+          title="Collapse the hierarchy"
+          onClick={onCollapse}
+          className={ghostIconTriggerClassName}
+        >
+          <PanelLeftClose className="size-4" />
+        </button>
+      )}
     </>
   );
   return (
@@ -142,7 +154,6 @@ export function HierarchyTree() {
           key={view}
           scope={scope}
           selected={selected}
-          pinned={pinned}
           onSelect={onSelect}
           onSelectedLabel={setSelectedLabel}
         />
@@ -175,7 +186,9 @@ type TreeSearch = {
   expanded_ids?: (string | number)[];
   selected_id?: string | number;
   selected_cycle_ids?: (string | number)[];
-  selection_pinned?: boolean;
+  used_by_id?: string | number;
+  selection_part_id?: string | number;
+  uses_id?: string | number;
 };
 
 function useSetTreeSearch() {
@@ -205,8 +218,6 @@ function selectedFocus(search: TreeSearch): ArcFocus | null {
 type TreeRootProps = {
   scope: GraphScope;
   selected: ArcFocus | null;
-  // Whether the selection is pinned: clicks and Enter don't change it.
-  pinned: boolean;
   onSelect: (focus: ArcFocus | null) => Promise<void>;
   // Tells the selection's name, again whenever the rows change.
   onSelectedLabel: (label: string) => void;
@@ -256,7 +267,6 @@ function parentRowOf(row: HTMLElement): HTMLElement | null {
 function TreeRoot({
   scope,
   selected,
-  pinned,
   onSelect,
   onSelectedLabel,
 }: TreeRootProps) {
@@ -326,7 +336,6 @@ function TreeRoot({
         return;
       }
     }
-    if (pinned) return;
     const same =
       target !== null && selected !== null && sameFocus(target, selected);
     await onSelect(target === null || same ? null : target);
@@ -339,7 +348,7 @@ function TreeRoot({
     if (target === null || target === "arc" || target.kind !== "row") return;
     if (inExpander(event)) return;
     if (expandable(target.id)) await toggle(target.id);
-    if (!pinned) await onSelect(target);
+    await onSelect(target);
   };
   // The keyboard walks the visible rows as a tree: ↑ ↓ Home End move, →
   // expands or goes to the first child, ← collapses or goes to the parent;
@@ -425,7 +434,7 @@ function TreeRoot({
       case " ":
         event.preventDefault();
         setKeyboard(true);
-        if (cursorId !== undefined && !pinned) {
+        if (cursorId !== undefined) {
           const focus: ArcFocus = { kind: "row", id: cursorId };
           const same = selected !== null && sameFocus(focus, selected);
           await onSelect(same ? null : focus);

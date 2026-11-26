@@ -1,7 +1,9 @@
 import { graphql, HttpResponse, type RequestHandler } from "msw";
 
-import dependencyEnds from "@/testing/fixtures/DependencyEnds.json";
-import dependencyTreeChildren from "@/testing/fixtures/DependencyTreeChildren.json";
+import dependencyPickPath from "@/testing/fixtures/DependencyPickPath.json";
+import dependencySet from "@/testing/fixtures/DependencySet.json";
+import dependencySetChildren from "@/testing/fixtures/DependencySetChildren.json";
+import dependencySetPage from "@/testing/fixtures/DependencySetPage.json";
 import graphStatus from "@/testing/fixtures/GraphStatus.json";
 import graphStatusNoGraph from "@/testing/fixtures/GraphStatus.no-graph.json";
 import hierarchyArcs from "@/testing/fixtures/HierarchyArcs.json";
@@ -44,8 +46,10 @@ const RECORDED: Record<
   Partial<Record<"default" | "no-graph", FixtureFile>>
 > = {
   GraphStatus: { default: graphStatus, "no-graph": graphStatusNoGraph },
-  DependencyEnds: { default: dependencyEnds },
-  DependencyTreeChildren: { default: dependencyTreeChildren },
+  DependencyPickPath: { default: dependencyPickPath },
+  DependencySet: { default: dependencySet },
+  DependencySetChildren: { default: dependencySetChildren },
+  DependencySetPage: { default: dependencySetPage },
   HierarchyViews: {
     default: hierarchyViews,
     "no-graph": hierarchyViewsNoGraph,

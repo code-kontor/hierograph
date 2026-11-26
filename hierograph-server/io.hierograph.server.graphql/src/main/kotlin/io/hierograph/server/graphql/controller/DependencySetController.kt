@@ -18,12 +18,14 @@ package io.hierograph.server.graphql.controller
 import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphql.model.DependencyPageModel
 import io.hierograph.server.graphql.model.DependencySetModel
+import io.hierograph.server.graphql.model.FilteredChildModel
 import io.hierograph.server.graphql.model.FilteredDependenciesModel
 import io.hierograph.server.graphql.model.NodeSelection
 import io.hierograph.server.graphql.model.NodeType
 import io.hierograph.server.graphql.model.PageInfoModel
 import io.hierograph.hierarchicalgraph.model.HGCoreDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
+import io.hierograph.hierarchicalgraph.model.Hierarchy
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
@@ -55,14 +57,7 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         @Argument parentNodeType: NodeType,
         @Argument compact: Boolean = false,
     ): List<HGNode> {
-        val hierarchy = provider.hierarchy()
-        val parent = NodeController.lookup(hierarchy, parentNode) ?: return emptyList()
-        val endpoints = when (parentNodeType) {
-            NodeType.SOURCE -> depSet.dependencyList.mapTo(HashSet()) { it.from }
-            NodeType.TARGET -> depSet.dependencyList.mapTo(HashSet()) { it.to }
-        }
-        val holding = NodeController.holding(hierarchy, endpoints)
-        return NodeController.displayChildren(hierarchy, parent, compact).filter { it in holding }
+        return filteredChildrenOf(provider.hierarchy(), depSet.dependencyList, parentNode, parentNodeType, compact)
     }
 
     @SchemaMapping(typeName = "DependencySet")
@@ -106,7 +101,66 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
         return FilteredDependenciesModel(filtered)
     }
 
+    @SchemaMapping(typeName = "DependencySet")
+    fun filteredChildrenWithCounts(
+        depSet: DependencySetModel,
+        @Argument parentNode: String,
+        @Argument parentNodeType: NodeType,
+        @Argument compact: Boolean = false,
+    ): List<FilteredChildModel> =
+        countedChildrenOf(provider.hierarchy(), depSet.dependencyList, parentNode, parentNodeType, compact)
+
     companion object {
+        /**
+         * [filteredChildrenOf] with counts: for each child, the dependencies of [deps] whose end on
+         * [parentNodeType]'s side lies in its subtree, and their summed weight. Empty when [parentNode] names
+         * no node.
+         */
+        fun countedChildrenOf(
+            hierarchy: Hierarchy,
+            deps: List<HGCoreDependency>,
+            parentNode: String,
+            parentNodeType: NodeType,
+            compact: Boolean,
+        ): List<FilteredChildModel> {
+            val parent = NodeController.lookup(hierarchy, parentNode) ?: return emptyList()
+            val children = NodeController.displayChildren(hierarchy, parent, compact)
+            val childSet = children.toHashSet()
+            val counts = HashMap<HGNode, Int>()
+            val weights = HashMap<HGNode, Int>()
+            for (dep in deps) {
+                var current: HGNode? = if (parentNodeType == NodeType.SOURCE) dep.from else dep.to
+                // The child holding the end: a folded child's skipped packages hold nothing else.
+                while (current != null && current !in childSet) current = hierarchy.parentOf(current)
+                if (current == null) continue
+                counts.merge(current, 1, Int::plus)
+                weights.merge(current, dep.weight, Int::plus)
+            }
+            return children.mapNotNull { child ->
+                counts[child]?.let { FilteredChildModel(child, it, weights.getValue(child)) }
+            }
+        }
+
+        /**
+         * The children of [parentNode] whose subtree contains a source ([NodeType.SOURCE]) or a target of [deps],
+         * in child order; with [compact], of the display children. Empty when [parentNode] names no node.
+         */
+        fun filteredChildrenOf(
+            hierarchy: Hierarchy,
+            deps: List<HGCoreDependency>,
+            parentNode: String,
+            parentNodeType: NodeType,
+            compact: Boolean,
+        ): List<HGNode> {
+            val parent = NodeController.lookup(hierarchy, parentNode) ?: return emptyList()
+            val endpoints = when (parentNodeType) {
+                NodeType.SOURCE -> deps.mapTo(HashSet()) { it.from }
+                NodeType.TARGET -> deps.mapTo(HashSet()) { it.to }
+            }
+            val holding = NodeController.holding(hierarchy, endpoints)
+            return NodeController.displayChildren(hierarchy, parent, compact).filter { it in holding }
+        }
+
         /**
          * Slices [deps] into the 1-based page [pageNumber] of [pageSize] entries. A page past the end is
          * empty; a non-positive [pageNumber] or [pageSize] is rejected with [InvalidArgumentException].

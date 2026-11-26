@@ -1,25 +1,30 @@
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { PanelLeftOpen } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 
+import { treeNodeLabel } from "@/design-system/graph/treeLabels";
 import { Pane } from "@/design-system/layout/Pane";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/design-system/ui/resizable";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/design-system/ui/tabs";
 import { useMediaQuery } from "@/design-system/useMediaQuery";
+import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
+import { DependencyListPane } from "./DependencyList";
 import { DependencyTrees } from "./DependencyTrees";
 import { HierarchyTree } from "./HierarchyTree";
+import { dependencySetQueryOptions } from "./queries";
+
+// The dependency list's tabs, for the start route's `dependency_list`.
+export { DEPENDENCY_LIST_TABS } from "./DependencyList";
 
 // The start screen: the hierarchy tree of the current hierarchy view, and
-// beside it the dependencies of its selection (#77). The view is chosen in the
+// beside it the dependencies of its selection (#77), as three trees and,
+// below them, as a list. The view is chosen in the
 // header, and the server's state is in the header's status panel. It needs no
 // graph: the tree says when there is none.
 export function StartPage() {
@@ -33,106 +38,221 @@ export function StartPage() {
       </div>
     </div>
   );
-  const dependencies = <DependencyTabs />;
   return wide ? (
-    <WideLayout tree={tree} dependencies={dependencies} />
+    <WideLayout />
   ) : (
     <div className="text-fg grid w-full grid-cols-1 gap-3">
       {tree}
-      <div className="min-h-[320px]">{dependencies}</div>
+      <div className="h-[420px]">
+        <DependencyPane />
+      </div>
+      <div className="h-[320px]">
+        <DependencyListPane />
+      </div>
     </div>
   );
 }
 
-type WideLayoutProps = {
-  tree: ReactNode;
-  dependencies: ReactNode;
-};
+// The width of the collapsed hierarchy.
+const RAIL_WIDTH = 28;
 
-// On a wide screen the tree on the left, the dependencies on the right, both
-// as tall as the window. The split is moved by the user (and remembered by the
-// browser).
-function WideLayout({ tree, dependencies }: WideLayoutProps) {
-  return (
-    <ResizablePanelGroup
-      direction="horizontal"
-      autoSaveId="start-columns"
-      className="text-fg"
-    >
-      <ResizablePanel id="tree" order={1} defaultSize={50} minSize={20}>
-        {tree}
-      </ResizablePanel>
-      <ResizableHandle
-        aria-label="Resize the hierarchy"
-        className="mx-0.5 rounded-[4px]"
-      />
-      <ResizablePanel id="dependencies" order={2} defaultSize={50} minSize={20}>
-        {dependencies}
-      </ResizablePanel>
-    </ResizablePanelGroup>
-  );
-}
-
-// The dependency pane's tabs, in order. The id is the `dependencies` URL
-// parameter (validated by the route); without one the first tab shows.
-export const DEPENDENCY_TABS = ["incoming", "outgoing"] as const;
-export type DependencyTab = (typeof DEPENDENCY_TABS)[number];
-
-const TAB_LABELS: Record<DependencyTab, string> = {
-  incoming: "Incoming dependencies",
-  outgoing: "Outgoing dependencies",
-};
-
-function isDependencyTab(value: unknown): value is DependencyTab {
-  return (DEPENDENCY_TABS as readonly unknown[]).includes(value);
-}
-
-// The dependencies of the tree's selection, incoming and outgoing, one tab
-// each. The tab is navigation state (`dependencies=`), so a link can open
-// one; switching replaces the history entry, and the first tab leaves no
-// param behind.
-function DependencyTabs() {
-  const search: { dependencies?: unknown } = useSearch({ strict: false });
+// On a wide screen the tree on the left; on the right the dependencies, the
+// trees above and their list below; all as tall as the window. The splits are
+// moved by the user (and remembered by the browser, the hierarchy's collapse
+// too). The hierarchy collapses to a rail, to make room for the dependencies:
+// with its button, by dragging the splitter to the edge, or by
+// double-clicking the splitter; the rail, or a double-click, brings it back.
+function WideLayout() {
+  const hierarchy = useRef<ImperativePanelHandle>(null);
   const navigate = useNavigate();
-  const tab = isDependencyTab(search.dependencies)
-    ? search.dependencies
-    : DEPENDENCY_TABS[0];
-  const select = async (value: string) => {
-    if (!isDependencyTab(value)) return;
+  const search: { hierarchy_collapsed?: unknown } = useSearch({
+    strict: false,
+  });
+  const wanted = search.hierarchy_collapsed === true;
+  // The panel's own state, for the rail; the URL says what it should be.
+  const [collapsed, setCollapsed] = useState(false);
+  const last = useRef<boolean | null>(null);
+  const collapse = () => hierarchy.current?.collapse();
+  const expand = () => hierarchy.current?.expand();
+  // The URL wins: a link (or Back) collapses or expands the panel, whatever
+  // the browser remembered of the layout.
+  useEffect(() => {
+    const panel = hierarchy.current;
+    if (!panel) return;
+    if (wanted && !panel.isCollapsed()) panel.collapse();
+    else if (!wanted && panel.isCollapsed()) panel.expand();
+  }, [wanted]);
+  // A collapse or an expansion, however done, goes into the URL
+  // (`hierarchy_collapsed`), replacing the history entry.
+  const resized = async (size: number) => {
+    const now = size === 0;
+    if (last.current === now) return;
+    last.current = now;
+    setCollapsed(now);
     await navigate({
-      to: "/",
-      search: (previous) => ({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
         ...previous,
-        dependencies: value === DEPENDENCY_TABS[0] ? undefined : value,
+        hierarchy_collapsed: now || undefined,
       }),
       replace: true,
-    });
+    } as never);
   };
-  const triggers = DEPENDENCY_TABS.map((id) => (
-    <DependencyTabTrigger key={id} id={id} />
-  ));
   return (
-    <Tabs value={tab} onValueChange={select} className="h-full">
-      <Pane
-        title="Dependencies"
-        titleBar={<TabsList className="h-full">{triggers}</TabsList>}
-        bodyClassName="flex flex-col"
-      >
-        <TabsContent value="incoming" className="min-h-0 flex-1">
-          <DependencyTrees direction="incoming" />
-        </TabsContent>
-        <TabsContent value="outgoing" className="min-h-0 flex-1">
-          <DependencyTrees direction="outgoing" />
-        </TabsContent>
-      </Pane>
-    </Tabs>
+    <div className="text-fg flex h-full w-full min-w-0">
+      {collapsed && <HierarchyRail onExpand={expand} />}
+      <ResizablePanelGroup direction="horizontal" autoSaveId="start-columns">
+        <ResizablePanel
+          ref={hierarchy}
+          id="tree"
+          order={1}
+          defaultSize={50}
+          minSize={20}
+          collapsible
+          collapsedSize={0}
+          onResize={resized}
+        >
+          {!collapsed && (
+            <div className="relative h-full min-w-0">
+              <div className="absolute inset-0">
+                <HierarchyTree onCollapse={collapse} />
+              </div>
+            </div>
+          )}
+        </ResizablePanel>
+        <ResizableHandle
+          aria-label="Resize the hierarchy"
+          title="Drag to resize, double-click to collapse or expand the hierarchy"
+          className={
+            collapsed
+              ? "mr-0.5 ml-1.5 w-1.5 rounded-[4px]"
+              : "mx-0.5 w-1.5 rounded-[4px]"
+          }
+          onDoubleClick={collapsed ? expand : collapse}
+        />
+        <ResizablePanel
+          id="dependencies"
+          order={2}
+          defaultSize={50}
+          minSize={20}
+        >
+          <ResizablePanelGroup
+            direction="vertical"
+            autoSaveId="start-dependencies"
+          >
+            <ResizablePanel id="trees" order={1} defaultSize={60} minSize={20}>
+              <DependencyPane />
+            </ResizablePanel>
+            <ResizableHandle
+              aria-label="Resize the dependency list"
+              className="my-0.5 rounded-[4px] data-[panel-group-direction=vertical]:h-1.5"
+            />
+            <ResizablePanel id="list" order={2} defaultSize={40} minSize={15}>
+              <DependencyListPane />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 }
 
-type DependencyTabTriggerProps = {
-  id: DependencyTab;
+type HierarchyRailProps = {
+  onExpand: () => void;
 };
 
-function DependencyTabTrigger({ id }: DependencyTabTriggerProps) {
-  return <TabsTrigger value={id}>{TAB_LABELS[id]}</TabsTrigger>;
+// The collapsed hierarchy: a narrow bar that brings it back, naming the
+// selection the dependencies are of, written upwards.
+function HierarchyRail({ onExpand }: HierarchyRailProps) {
+  const scope = useGraphScope();
+  const search: { selected_id?: unknown } = useSearch({ strict: false });
+  const selectedId =
+    search.selected_id === undefined || search.selected_id === null
+      ? undefined
+      : String(search.selected_id);
+  return (
+    <button
+      type="button"
+      aria-label="Expand the hierarchy"
+      title="Expand the hierarchy"
+      onClick={onExpand}
+      style={{ width: RAIL_WIDTH }}
+      className="bg-panel border-border-strong hover:bg-state-hover text-fg-muted flex h-full shrink-0 flex-col items-center gap-2 overflow-hidden rounded-[8px] border py-2 shadow-[var(--hg-shadow)]"
+    >
+      <PanelLeftOpen aria-hidden className="size-4 shrink-0" />
+      <span className="rotate-180 font-mono text-[11px] tracking-[0.06em] uppercase [writing-mode:vertical-rl]">
+        Hierarchy
+      </span>
+      {scope && selectedId !== undefined && (
+        <SelectionName scope={scope} id={selectedId} />
+      )}
+    </button>
+  );
+}
+
+type SelectionNameProps = {
+  scope: GraphScope;
+  id: string;
+};
+
+// The selection's name, as the dependency pane has it (the same query).
+function SelectionName({ scope, id }: SelectionNameProps) {
+  const query = useQuery(dependencySetQueryOptions(scope, id));
+  const selection = query.data?.selection;
+  if (!selection) return null;
+  return (
+    <span
+      data-testid="rail-selection"
+      className="text-fg min-h-0 rotate-180 truncate font-mono text-[12px] [writing-mode:vertical-rl]"
+    >
+      {treeNodeLabel(selection.type, selection.text, undefined)}
+    </span>
+  );
+}
+
+// The dependency pane's title: whose dependencies these are, so the trees
+// can't be taken for the hierarchy (with the hierarchy collapsed, "Used by"
+// sits where it was).
+function DependencyPaneTitle() {
+  const scope = useGraphScope();
+  const search: { selected_id?: unknown } = useSearch({ strict: false });
+  const selectedId =
+    search.selected_id === undefined || search.selected_id === null
+      ? undefined
+      : String(search.selected_id);
+  return (
+    <span role="heading" aria-level={2}>
+      Dependencies
+      {scope && selectedId !== undefined && (
+        <PaneSelectionName scope={scope} id={selectedId} />
+      )}
+    </span>
+  );
+}
+
+// " of <name>", the name as written, not in the title's capitals.
+function PaneSelectionName({ scope, id }: SelectionNameProps) {
+  const query = useQuery(dependencySetQueryOptions(scope, id));
+  const selection = query.data?.selection;
+  if (!selection) return null;
+  return (
+    <>
+      {" of "}
+      <span className="text-fg normal-case">
+        {treeNodeLabel(selection.type, selection.text, undefined)}
+      </span>
+    </>
+  );
+}
+
+// The dependencies of the tree's selection: what uses it, the selection, and
+// what it uses, as three trees.
+function DependencyPane() {
+  return (
+    <Pane title={<DependencyPaneTitle />} bodyClassName="flex flex-col">
+      <div className="min-h-0 flex-1">
+        <DependencyTrees />
+      </div>
+    </Pane>
+  );
 }
