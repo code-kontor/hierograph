@@ -11,10 +11,10 @@
   --popover-foreground: oklch(0.24 0.012 260); /* #1c1f25 */
   --primary: oklch(0.55 0.17 256); /* #1c6fd2 */
   --primary-foreground: oklch(0.99 0 0); /* #fcfcfc */
-  --secondary: oklch(0.984 0.002 260); /* #f9fafb */
+  --secondary: var(--hg-inset);
   --secondary-foreground: oklch(0.24 0.012 260); /* #1c1f25 */
-  --muted: oklch(0.977 0.002 260); /* #f7f7f9 */
-  --muted-foreground: oklch(0.53 0.013 260); /* #676c74 */
+  --muted: var(--hg-inset);
+  --muted-foreground: var(--hg-fg-muted);
   --accent: oklch(
     0.955 0.004 260
   ); /* #eef0f3  (shadcn "accent" = hover highlight) */
@@ -29,13 +29,20 @@
   /* ---- Surfaces & text (hierograph names used across this handoff) ---- */
   --hg-bg: oklch(0.994 0.001 260); /* #fdfdfe  app background */
   --hg-panel: oklch(1 0 0); /* #ffffff  panel surface */
-  --hg-panel-header: oklch(
-    0.984 0.002 260
-  ); /* #f9fafb  title bars / toolbars */
-  --hg-zebra: oklch(0.977 0.002 260); /* #f7f7f9  odd table rows */
+  /* One fill one step below the panel, for everything set off from it: title
+     bars and toolbars, inset areas (the dependency trees' columns), tracks.
+     Never a second near-white next to it: steps of 1% read as smudges. */
+  --hg-inset: oklch(0.977 0.003 260); /* #f6f7f9 */
+  --hg-panel-header: var(--hg-inset); /* title bars / toolbars */
+  --hg-zebra: var(--hg-inset); /* kept as an alias; tables use hairlines */
   --hg-fg: oklch(0.24 0.012 260); /* #1c1f25  primary text */
-  --hg-fg-muted: oklch(0.53 0.013 260); /* #676c74  secondary text */
-  --hg-fg-subtle: oklch(0.64 0.011 260); /* #888c93  icons / tertiary */
+  /* Two text greys, no more: fg for names and content, fg-muted for every
+     secondary text (labels, captions, counts, hints). fg-subtle is for icons,
+     chevrons and glyphs only, never for text. */
+  --hg-fg-muted: oklch(
+    0.48 0.013 260
+  ); /* #595e65  secondary text: >= 4.5:1 on every surface and fill */
+  --hg-fg-subtle: oklch(0.54 0.011 260); /* #6b6f75  icons and glyphs only */
 
   /* ---- Lines ---- */
   --hg-border: oklch(0.918 0.004 260); /* #e2e4e7  hairline separators */
@@ -162,6 +169,7 @@
   --color-panel: var(--hg-panel);
   --color-panel-header: var(--hg-panel-header);
   --color-zebra: var(--hg-zebra);
+  --color-inset: var(--hg-inset);
   --color-border-strong: var(--hg-border-strong);
   --color-fg: var(--hg-fg);
   --color-fg-muted: var(--hg-fg-muted);
@@ -204,15 +212,15 @@
   * {
     @apply border-border outline-ring/50;
     /* Thin, quiet scrollbars: the thumb is always there, so a pane shows
-       that it scrolls, light at rest and darker while the pointer is over
-       the scrolling area or the keyboard is in it. The track stays
-       transparent. */
+       that it scrolls, at rest in the splitters' hover fill (`state-hover`)
+       and a step darker while the pointer is over the scrolling area or the
+       keyboard is in it. The track stays transparent. */
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
+    scrollbar-color: var(--color-state-hover) transparent;
   }
   *:hover,
   *:focus-within {
-    scrollbar-color: var(--color-border-strong) transparent;
+    scrollbar-color: var(--color-border) transparent;
   }
   body {
     @apply bg-background text-foreground font-sans;

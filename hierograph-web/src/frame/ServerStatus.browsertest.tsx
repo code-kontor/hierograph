@@ -152,6 +152,12 @@ describe("ServerStatus", () => {
     await expect
       .element(screen.getByTestId("status-attention"))
       .toBeInTheDocument();
+    // It names the problem in place of "Graph loaded", with the warning sign
+    // and without the green dot.
+    await expect
+      .element(button.getByRole("status"))
+      .toHaveTextContent("1 artifact not compiled yet");
+    expect(button.element().querySelector(".rounded-full")).toBeNull();
     await screen.unmount();
 
     const data = structuredClone(fixtureData("GraphStatus", "default")) as {
@@ -170,6 +176,9 @@ describe("ServerStatus", () => {
     await expect
       .element(clean.getByTestId("status-attention"))
       .not.toBeInTheDocument();
+    await expect
+      .element(clean.getByRole("status").filter({ hasText: "Graph loaded" }))
+      .toBeVisible();
   });
 
   it("shows the workspace, its graph source and the artifacts not compiled", async () => {

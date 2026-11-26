@@ -18,6 +18,17 @@ const ROLE_COLOURS: Record<DependencyRole, string> = {
 
 const ROLES = Object.keys(ROLE_COLOURS) as DependencyRole[];
 
+// Quiet arrows (context, not content, e.g. beside the hierarchy tree): what
+// uses the focus in the lighter grey of a secondary selection's bar, still
+// 3:1 against the panel; the others as usual.
+const QUIET_COLOURS: Record<DependencyRole, string> = {
+  ...ROLE_COLOURS,
+  usedBy: "var(--hg-state-selected-secondary-bar)",
+};
+
+// The stroke of a quiet arrow.
+export const QUIET_WIDTH = 1;
+
 // The stroke width: a cycle's arrows fixed (heavier when they touch the
 // focus), the others by weight on a log scale, against the heaviest drawn.
 export function dependencyArrowWidth(
@@ -49,7 +60,19 @@ export function DependencyArrowHeads({ id }: DependencyArrowHeadsProps) {
   const markers = ROLES.map((role) => (
     <ArrowHead key={role} id={`${id}-${role}`} color={ROLE_COLOURS[role]} />
   ));
-  return <defs>{markers}</defs>;
+  const quietMarkers = ROLES.map((role) => (
+    <ArrowHead
+      key={`quiet-${role}`}
+      id={`${id}-quiet-${role}`}
+      color={QUIET_COLOURS[role]}
+    />
+  ));
+  return (
+    <defs>
+      {markers}
+      {quietMarkers}
+    </defs>
+  );
 }
 
 type ArrowHeadProps = {
@@ -92,6 +115,9 @@ type DependencyArrowProps = ComponentProps<"g"> & {
   heads: string;
   // The tooltip.
   title: string;
+  // Drawn as context: thin, and in the quiet colours, unless `width` is
+  // asked for (e.g. while one of its ends is hovered).
+  quiet?: boolean;
 };
 
 // A dependency as every screen draws it: a line in its role's colour, by its
@@ -106,22 +132,26 @@ export function DependencyArrow({
   width,
   heads,
   title,
+  quiet,
   ...props
 }: DependencyArrowProps) {
+  const colour = quiet ? QUIET_COLOURS[role] : ROLE_COLOURS[role];
+  const marker = quiet ? `${heads}-quiet-${role}` : `${heads}-${role}`;
   return (
     <g {...props} className="group" data-arrow>
       <title>{title}</title>
       <path
         d={d}
         fill="none"
-        stroke={ROLE_COLOURS[role]}
-        strokeWidth={width.toFixed(2)}
+        stroke={colour}
+        strokeWidth={(quiet ? QUIET_WIDTH : width).toFixed(2)}
         strokeDasharray={against ? "5 3" : undefined}
-        strokeOpacity={against ? 0.95 : 0.7}
-        markerEnd={`url(#${heads}-${role})`}
+        strokeOpacity={quiet ? 1 : against ? 0.95 : 0.7}
+        markerEnd={`url(#${marker})`}
         className="group-hover:[stroke-opacity:1]"
         data-arrow-line
         data-role={role}
+        data-quiet={quiet || undefined}
       />
       <path
         d={d}

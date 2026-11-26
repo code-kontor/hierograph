@@ -347,6 +347,9 @@ type DependencySet {
     "The number of dependencies."
     size: Int!
 
+    "The individual references the dependencies stand for: the sum of their weights."
+    references: Int!
+
     "All dependencies, in set order."
     dependencies: [Dependency!]!
 
@@ -392,6 +395,9 @@ type FilteredDependencies {
 
     "The number of dependencies."
     size: Int!
+
+    "The individual references the dependencies stand for: the sum of their weights."
+    references: Int!
 
     "All dependencies, in set order."
     dependencies: [Dependency!]!

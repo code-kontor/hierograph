@@ -28,16 +28,19 @@ export const KEYBOARD_GESTURES: Gesture[] = [
 
 type GesturesHelpProps = {
   gestures: Gesture[];
+  // What the graph's marks mean, above the gestures.
+  legend?: string;
 };
 
 // The `?` in the corner of a graph's pane, listing its gestures.
-export function GesturesHelp({ gestures }: GesturesHelpProps) {
+export function GesturesHelp({ gestures, legend }: GesturesHelpProps) {
   const rows = gestures.map((gesture) => (
     <GestureRow key={gesture.keys} {...gesture} />
   ));
   return (
     <HelpPopoverButton label="Gestures">
-      <table className="w-full border-collapse text-[11.5px]">
+      {legend && <p className="text-fg-muted mb-2 text-[12px]">{legend}</p>}
+      <table className="w-full border-collapse text-[12px]">
         <tbody>{rows}</tbody>
       </table>
     </HelpPopoverButton>

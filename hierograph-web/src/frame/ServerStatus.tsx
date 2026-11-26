@@ -15,10 +15,11 @@ import {
   TabsTrigger,
 } from "@/design-system/ui/tabs";
 import { ExcludedNodes } from "@/frame/ExcludedNodes";
-import { useGraphScope } from "@/frame/GraphScope";
+import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 import {
   runGarbageCollectionMutationOptions,
   serverStatusQueryOptions,
+  viewExclusionsQueryOptions,
 } from "@/frame/queries";
 import type { ServerStatusQuery } from "@/graphql/generated/graphql";
 
@@ -33,6 +34,7 @@ import {
   formatTime,
   relativeTo,
   sourceKindLabel,
+  testsIncludedLabel,
   watchModeLabel,
   yesNo,
 } from "./format";
@@ -146,6 +148,7 @@ type WorkspaceBlockProps = {
 
 function WorkspaceBlock({ server }: WorkspaceBlockProps) {
   const { source, artifacts, workspace } = server;
+  const scope = useGraphScope();
   const location =
     source.kind === "parquet" ? source.parquetDir : source.manifest;
   return (
@@ -164,7 +167,13 @@ function WorkspaceBlock({ server }: WorkspaceBlockProps) {
           </Fact>
         )}
         {source.kind === "manifest" && (
-          <Fact label="Tests included">{yesNo(source.includeTests)}</Fact>
+          <Fact label="Tests included">
+            {scope ? (
+              <TestsIncluded scope={scope} includeTests={source.includeTests} />
+            ) : (
+              yesNo(source.includeTests)
+            )}
+          </Fact>
         )}
         {artifacts && (
           // Neutral: the note below carries the warning.
@@ -185,6 +194,18 @@ function WorkspaceBlock({ server }: WorkspaceBlockProps) {
       )}
     </TabBody>
   );
+}
+
+type TestsIncludedProps = {
+  scope: GraphScope;
+  includeTests: boolean | null | undefined;
+};
+
+// Whether the graph has the tests, and whether the current view leaves them
+// out (#85): "yes" alone would say they are in the trees when they aren't.
+function TestsIncluded({ scope, includeTests }: TestsIncludedProps) {
+  const exclusions = useQuery(viewExclusionsQueryOptions(scope));
+  return testsIncludedLabel(includeTests, exclusions.data?.nodes);
 }
 
 // One line instead of three counts to reconcile.

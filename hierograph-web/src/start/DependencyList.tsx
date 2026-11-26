@@ -129,6 +129,7 @@ export function DependencyListPane() {
     <Tabs value={tab} onValueChange={select} className="h-full">
       <Pane
         title="Dependency list"
+        plainHeader
         titleBar={<TabsList className="h-full">{triggers}</TabsList>}
       >
         <TabsContent value="incoming">{list("incoming", incoming)}</TabsContent>
@@ -194,8 +195,22 @@ function DependencyList({
   };
   const first = (page - 1) * DEPENDENCY_PAGE_SIZE + 1;
   const last = data ? first + data.dependencies.length - 1 : first;
-  const rows = (data?.dependencies ?? []).map((dependency) => (
-    <DependencyRow key={dependency.id} dependency={dependency} />
+  // The packages a pick names already: a row doesn't repeat them.
+  const pickedPackages = new Set(
+    [...(data?.picked.values() ?? [])]
+      .filter((node) => treeNodeKind(node.type, node.text) === "package")
+      .map((node) => node.text),
+  );
+  const rows = (data?.dependencies ?? []).map((dependency, index, all) => (
+    <DependencyRow
+      key={dependency.id}
+      dependency={dependency}
+      // In a run of rows from the same source, only the first names it.
+      sameSource={
+        index > 0 && all[index - 1].source.id === dependency.source.id
+      }
+      pickedPackages={pickedPackages}
+    />
   ));
   const chipButtons = chips.map((chip) => (
     <ScopeChipButton
@@ -210,7 +225,7 @@ function DependencyList({
       <div className="flex shrink-0 flex-wrap items-center gap-1.5 pb-1.5">
         <h3 className="text-fg-muted text-[12px]">
           {data
-            ? `${data.total} ${data.total === 1 ? "dependency" : "dependencies"}`
+            ? `${data.total} ${data.total === 1 ? "dependency" : "dependencies"} · ${data.references} ${data.references === 1 ? "reference" : "references"}`
             : "Loading the dependencies…"}
         </h3>
         {chipButtons}
@@ -239,7 +254,7 @@ function DependencyList({
       </div>
       {data && data.total > 0 && (
         <Table aria-label={title} className="w-full table-fixed text-[12px]">
-          <TableHeader>
+          <TableHeader className="bg-transparent">
             <TableRow>
               <TableHead>Source</TableHead>
               <TableHead>Target</TableHead>
@@ -294,7 +309,7 @@ function ScopeChipButton({ chip, name, onDrop }: ScopeChipButtonProps) {
       aria-label={`Drop ${chip.role.toLowerCase()} ${name}`}
       title="Drop this pick"
       onClick={() => onDrop(chip.param)}
-      className="border-border-strong bg-state-selected-secondary-bg text-state-selected-fg hover:bg-state-hover flex h-5 items-center gap-1 rounded-[4px] border px-1.5 text-[11px]"
+      className="border-border-strong bg-state-selected-secondary-bg text-state-selected-fg hover:bg-state-hover flex h-6 items-center gap-1 rounded-[4px] border px-1.5 text-[12px]"
     >
       <span className="text-fg-muted">{chip.role}:</span>
       <span className="font-mono">{name}</span>
@@ -316,9 +331,18 @@ function packageOf(end: DependencyEnd): string {
 
 type DependencyRowProps = {
   dependency: DependencyListEntry;
+  // The row above has the same source: this one leaves it out.
+  sameSource: boolean;
+  pickedPackages: Set<string>;
 };
 
-function DependencyRow({ dependency }: DependencyRowProps) {
+// One dependency; its tooltip and accessible name always name both ends in
+// full, whatever the cells leave out.
+function DependencyRow({
+  dependency,
+  sameSource,
+  pickedPackages,
+}: DependencyRowProps) {
   const { source, target, weight } = dependency;
   const label = `${source.text} → ${target.text}`;
   return (
@@ -326,25 +350,34 @@ function DependencyRow({ dependency }: DependencyRowProps) {
       aria-label={label}
       title={`${label}\n${weight === 1 ? "1 reference" : `${weight} references`}`}
     >
-      <TypeCell end={source} />
-      <TypeCell end={target} />
-      <TableCell className="text-right tabular-nums">{weight}</TableCell>
+      {sameSource ? (
+        <TableCell />
+      ) : (
+        <TypeCell end={source} pickedPackages={pickedPackages} />
+      )}
+      <TypeCell end={target} pickedPackages={pickedPackages} />
+      <TableCell className="text-right font-sans tabular-nums">
+        {weight}
+      </TableCell>
     </TableRow>
   );
 }
 
 type TypeCellProps = {
   end: DependencyEnd;
+  pickedPackages: Set<string>;
 };
 
-// A type by its simple name, its package after it, subdued.
-function TypeCell({ end }: TypeCellProps) {
+// A type by its simple name, its package after it, subdued; not the package
+// a pick names already.
+function TypeCell({ end, pickedPackages }: TypeCellProps) {
+  const package_ = packageOf(end);
   return (
     <TableCell className="truncate font-mono">
       {simpleName(end)}
-      <span className="text-fg-subtle ml-1.5 text-[11px]">
-        {packageOf(end)}
-      </span>
+      {!pickedPackages.has(package_) && (
+        <span className="text-fg-muted ml-1.5">{package_}</span>
+      )}
     </TableCell>
   );
 }

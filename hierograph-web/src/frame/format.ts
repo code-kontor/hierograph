@@ -33,6 +33,22 @@ export function yesNo(value: boolean | null | undefined): string {
   return value ? "yes" : "no";
 }
 
+// Whether the graph has the tests, and whether the current view shows them:
+// a view can leave test outputs out (modules keyed `…:test`), which a plain
+// "yes" would hide.
+export function testsIncludedLabel(
+  includeTests: boolean | null | undefined,
+  excluded: readonly { type: string; text: string }[] | null | undefined,
+): string {
+  const label = yesNo(includeTests);
+  if (includeTests !== true || !excluded) return label;
+  const left = excluded.filter(
+    (node) => node.type === "java.module" && node.text.endsWith(":test"),
+  ).length;
+  if (left === 0) return label;
+  return `${label}, ${left === 1 ? "1 test output" : `${left} test outputs`} left out in this view`;
+}
+
 export function formatCount(count: number): string {
   return count.toLocaleString("en");
 }

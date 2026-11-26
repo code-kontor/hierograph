@@ -439,6 +439,7 @@ export const DependencySetPageQuery = graphql(`
       node(id: $id) {
         incomingDependencies @include(if: $incoming) {
           filteredDependencies(nodeSelection: $picks) {
+            references
             dependencyPage(pageNumber: $page, pageSize: $pageSize) {
               pageInfo {
                 pageNumber
@@ -464,6 +465,7 @@ export const DependencySetPageQuery = graphql(`
         }
         outgoingDependencies @skip(if: $incoming) {
           filteredDependencies(nodeSelection: $picks) {
+            references
             dependencyPage(pageNumber: $page, pageSize: $pageSize) {
               pageInfo {
                 pageNumber
@@ -505,6 +507,8 @@ export type DependencyListPage = {
   page: number;
   pages: number;
   total: number;
+  // The individual references all of them stand for.
+  references: number;
   dependencies: DependencyListEntry[];
   // The selected nodes, by id.
   picked: Map<string, DependencyEnd>;
@@ -548,6 +552,7 @@ export function dependencySetPageQueryOptions(
           ? graph?.node?.incomingDependencies
           : graph?.node?.outgoingDependencies;
       const result = set?.filteredDependencies.dependencyPage;
+      const references = set?.filteredDependencies.references ?? 0;
       const picked = new Map(
         (graph?.picked?.nodes ?? []).map((node) => [node.id, node]),
       );
@@ -555,6 +560,7 @@ export function dependencySetPageQueryOptions(
         page: result?.pageInfo.pageNumber ?? page,
         pages: result?.pageInfo.maxPages ?? 0,
         total: result?.pageInfo.totalCount ?? 0,
+        references,
         dependencies: (result?.dependencies ?? []).map((dependency) => ({
           id: dependency.id,
           weight: dependency.weight,

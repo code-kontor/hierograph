@@ -8,6 +8,8 @@ import { DEPENDENCY_LIST_TABS, StartPage } from "@/start/StartPage";
 // its members); and the nodes
 // picked in the dependency trees: one that uses the selection (`used_by_id`),
 // a part of it (`selection_part_id`), one it uses (`uses_id`); and the open
+// open rows of each dependency tree (`used_by_expanded_ids`,
+// `selection_expanded_ids`, `uses_expanded_ids`); and the open
 // tab of the dependency list (`dependency_list`: `incoming`, `outgoing`), an
 // unknown value dropped; and whether the hierarchy is collapsed to a rail
 // (`hierarchy_collapsed`, on a wide screen).
@@ -18,6 +20,9 @@ type StartSearch = {
   used_by_id?: string;
   selection_part_id?: string;
   uses_id?: string;
+  used_by_expanded_ids?: string[];
+  selection_expanded_ids?: string[];
+  uses_expanded_ids?: string[];
   hierarchy_collapsed?: boolean;
   dependency_list?: (typeof DEPENDENCY_LIST_TABS)[number];
 };
@@ -30,6 +35,9 @@ export const Route = createFileRoute("/")({
     used_by_id: parseSingleId(search.used_by_id),
     selection_part_id: parseSingleId(search.selection_part_id),
     uses_id: parseSingleId(search.uses_id),
+    used_by_expanded_ids: parseIdList(search.used_by_expanded_ids),
+    selection_expanded_ids: parseIdList(search.selection_expanded_ids),
+    uses_expanded_ids: parseIdList(search.uses_expanded_ids),
     hierarchy_collapsed:
       search.hierarchy_collapsed === true ||
       search.hierarchy_collapsed === "true"

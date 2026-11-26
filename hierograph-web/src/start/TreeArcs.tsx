@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MousePointerClick, X } from "lucide-react";
 import {
   createContext,
+  type CSSProperties,
   type ReactNode,
   useContext,
   useEffect,
@@ -29,27 +30,71 @@ import type { GraphScope } from "@/frame/GraphScope";
 import {
   type Arc,
   type ArcDependency,
+  arcExtent,
+  type ArcRow,
   cycleDependencies,
   layoutArcs,
 } from "./arcs";
 import { hierarchyArcsQueryOptions } from "./queries";
 
-// The width the arcs take directly to the right of the tree's labels: the
-// arcs against the order next to the labels, then the anchor column, then the
-// arcs with the order, reaching away from the tree. The rows keep this much
-// room free, so the area always fits.
-export const ARC_AREA_WIDTH = 180;
-const ANCHOR_X = 40;
+// The arcs sit directly to the right of the tree's labels: the arcs against
+// the order next to the labels, then the anchor column, then the arcs with
+// the order, reaching away from the tree. The area is as wide as the arcs
+// drawn need (none without a selection), and the rows keep that much room
+// free (`--arc-gutter`), but never so much that a label gets narrower than
+// `MIN_LABEL`: then the arcs reach out less.
 // The space between the arcs up (left) and the arcs down (right).
 const SIDE_GAP = 15;
+// How far the arcs up and down reach out at most.
+const MAX_UP = 26;
+const MAX_DOWN = 124;
+// Room beside the outermost arcs: for the arcs' strokes on the left, for
+// the arrowheads on the right.
+const UP_ROOM = 6;
+const DOWN_ROOM = 8;
 // The space between the widest label and the arc area.
 const LABEL_GAP = 4;
-const LAYOUT = {
-  anchorX: ANCHOR_X,
-  gap: SIDE_GAP,
-  maxDown: ARC_AREA_WIDTH - ANCHOR_X - SIDE_GAP / 2 - 8,
-  maxUp: ANCHOR_X - SIDE_GAP / 2 - 6,
-};
+// The narrowest a label gets for the arcs.
+const MIN_LABEL = 120;
+// The arc area's width, however little room there is.
+const MIN_AREA = 24;
+
+// Where the anchor column goes, and the area's width, for arcs that reach
+// out `extent` (as `arcExtent` has it).
+function arcArea(extent: { up: number; down: number }) {
+  const anchorX = (extent.up > 0 ? extent.up + UP_ROOM : 2) + SIDE_GAP / 2;
+  const width =
+    anchorX + SIDE_GAP / 2 + (extent.down > 0 ? extent.down + DOWN_ROOM : 4);
+  return { anchorX, width: Math.ceil(width) };
+}
+
+// The arcs laid out in at most `room` pixels: as far out as they like, or,
+// when that is too wide, reaching out proportionally less.
+// What the selected row uses and what uses it get lanes of their own
+// (`groupOf`).
+function fitArcs(
+  rows: ArcRow[],
+  dependencies: ArcDependency[],
+  room: number,
+  groupOf: (dependency: ArcDependency) => string,
+): { arcs: Arc[]; width: number } {
+  const lay = (scale: number, anchorX: number) =>
+    layoutArcs(
+      rows,
+      dependencies,
+      {
+        anchorX,
+        gap: SIDE_GAP,
+        maxDown: MAX_DOWN * scale,
+        maxUp: MAX_UP * scale,
+      },
+      groupOf,
+    );
+  const natural = arcArea(arcExtent(lay(1, 0)));
+  const scale = natural.width > room ? Math.max(0.1, room / natural.width) : 1;
+  const area = scale === 1 ? natural : arcArea(arcExtent(lay(scale, 0)));
+  return { arcs: lay(scale, area.anchorX), width: area.width };
+}
 
 // What the arcs are drawn for: a selected row, its dependencies and its
 // dependents; or a selected cycle bar, the dependencies between the cycle's
@@ -117,8 +162,19 @@ export function TreeArcs({
   // drawing, so the browser repaints all of it (with a relative height, some
   // browsers left stale pieces of arcs behind when the tree grew).
   const [height, setHeight] = useState(0);
+  // The most the arc area may take, so that every label keeps `MIN_LABEL`.
+  const [room, setRoom] = useState(MIN_AREA);
   // Whether a context menu is open.
   const [menu, setMenu] = useState(false);
+  // The row under the pointer: its arcs are drawn at full strength.
+  const [hovered, setHovered] = useState<string | null>(null);
+  const hover = (event: { target: EventTarget }) => {
+    const row =
+      event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-node-id]")
+        : null;
+    setHovered(row?.dataset.nodeId ?? null);
+  };
   const shown = selected;
 
   // Escape clears the selection, unless an open menu takes it: the menu marks
@@ -159,12 +215,26 @@ export function TreeArcs({
       );
       const start = Math.round(labelEnd + LABEL_GAP);
       const tall = Math.ceil(bounds.height);
-      const key = JSON.stringify([start, tall, measured]);
+      // Where the deepest label starts.
+      const labelStart = Math.max(
+        0,
+        ...Array.from(
+          container.querySelectorAll<HTMLElement>(
+            "[data-node-id] > [data-tree-label]",
+          ),
+        ).map((label) => label.getBoundingClientRect().left - bounds.left),
+      );
+      const free = Math.max(
+        MIN_AREA,
+        Math.floor(bounds.width - labelStart - MIN_LABEL - LABEL_GAP),
+      );
+      const key = JSON.stringify([start, tall, free, measured]);
       if (key !== last) {
         last = key;
         setRows(measured);
         setLeft(start);
         setHeight(tall);
+        setRoom(free);
       }
     };
     const mutations = new MutationObserver(measure);
@@ -190,10 +260,21 @@ export function TreeArcs({
   });
   const dependencies =
     shown === null ? [] : focusedDependencies(query.data ?? [], shown, rows);
-  const arcs =
+  const fitted =
     ids.length >= 2 && shown !== null
-      ? layoutArcs(rows, dependencies, LAYOUT)
-      : [];
+      ? fitArcs(rows, dependencies, room, (dependency) =>
+          // Outgoing and incoming apart; a cycle's arcs are one set.
+          shown.kind === "row" &&
+          rowsInside(shown.id, rows).has(dependency.from)
+            ? "outgoing"
+            : shown.kind === "row"
+              ? "incoming"
+              : "",
+        )
+      : { arcs: [], width: 0 };
+  const arcs = fitted.arcs;
+  // The room the rows keep free: none without arcs.
+  const gutter = arcs.length > 0 ? fitted.width : 0;
   const byId = new Map(rows.map((row) => [row.id, row]));
   const maxWeight = Math.max(1, ...arcs.map((arc) => arc.weight));
 
@@ -212,6 +293,8 @@ export function TreeArcs({
             focus={focus}
             maxWeight={maxWeight}
             heads={heads}
+            // At full strength while one of its ends is under the pointer.
+            quiet={hovered !== arc.from && hovered !== arc.to}
           />
         ));
 
@@ -219,7 +302,13 @@ export function TreeArcs({
     <TreeSelectionContext
       value={{ selected, select: onSelect, menuOpen: setMenu }}
     >
-      <div ref={ref} className="relative">
+      <div
+        ref={ref}
+        className="relative"
+        style={{ "--arc-gutter": `${gutter}px` } as CSSProperties}
+        onPointerOver={hover}
+        onPointerLeave={() => setHovered(null)}
+      >
         {children}
         {/* Only the arcs take the pointer: a click beside them reaches the
           row beneath. */}
@@ -234,7 +323,7 @@ export function TreeArcs({
             left: `${left}px`,
             pointerEvents: "none",
           }}
-          width={ARC_AREA_WIDTH}
+          width={gutter}
           height={height}
         >
           <DependencyArrowHeads id={heads} />
@@ -305,6 +394,8 @@ type ArcPathProps = {
   maxWeight: number;
   // The id of the arc area's arrowheads.
   heads: string;
+  // Drawn as context (thin, light), or at full strength.
+  quiet: boolean;
 };
 
 // The arrow's role, by the arc's relation to what is selected.
@@ -327,6 +418,7 @@ function ArcPath({
   focus,
   maxWeight,
   heads,
+  quiet,
 }: ArcPathProps) {
   const fromLabel = from?.label ?? arc.from;
   const toLabel = to?.label ?? arc.to;
@@ -339,6 +431,7 @@ function ArcPath({
         against={arc.direction === "up"}
         width={dependencyArrowWidth(role, arc.weight, maxWeight, true)}
         heads={heads}
+        quiet={quiet}
         title={`${fromLabel} → ${toLabel}: weight ${arc.weight}`}
         data-from={arc.from}
         data-to={arc.to}
@@ -378,7 +471,7 @@ function ArcMenu({ focus, arc, from, to, children }: ArcMenuProps) {
     <ContextMenu onOpenChange={menuOpen}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent onCloseAutoFocus={(event) => event.preventDefault()}>
-        <div className="text-fg-subtle px-2 py-1 font-mono text-[11.5px]">
+        <div className="text-fg-muted px-2 py-1 font-mono text-[12px]">
           {from?.label ?? arc.from} → {to?.label ?? arc.to} · {arc.weight}
         </div>
         <ContextMenuSeparator />

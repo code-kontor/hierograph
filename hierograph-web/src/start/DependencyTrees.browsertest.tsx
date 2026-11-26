@@ -194,7 +194,7 @@ describe("DependencyTrees", () => {
 
     await expect
       .element(incoming.getByRole("heading"))
-      .toHaveTextContent("13 dependencies");
+      .toHaveTextContent("13 dependencies · 25 references");
     // Source, target, each with its package, and the references.
     const row = incoming.getByRole("row", {
       name: `${WEB}.OrderController → ${LIB}.order.OrderService`,
@@ -224,6 +224,29 @@ describe("DependencyTrees", () => {
     await expect
       .poll(() => screen.router.state.location.search)
       .not.toHaveProperty("dependency_list");
+  });
+
+  it("names a source once for a run of its rows, keeping both ends in each row's name", async () => {
+    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const { incoming } = pane(screen);
+    await expect
+      .element(incoming.getByRole("heading"))
+      .toHaveTextContent(/^13 dependencies/);
+
+    const rows = incoming.getByRole("row").elements().slice(1);
+    let previous: string | undefined;
+    for (const row of rows) {
+      const name = row.getAttribute("aria-label") ?? "";
+      const source = name.split(" → ")[0];
+      const first = row.querySelector("td")?.textContent ?? "";
+      if (source === previous) expect(first).toBe("");
+      else expect(first).not.toBe("");
+      previous = source;
+    }
+    // Some source has more than one row here.
+    expect(
+      rows.some((row) => row.querySelector("td")?.textContent === ""),
+    ).toBe(true);
   });
 
   it("shows what a picked node connects to in the other trees and the lists", async () => {
@@ -310,6 +333,156 @@ describe("DependencyTrees", () => {
       .toHaveTextContent("13 dependencies");
   });
 
+  it("keeps each tree's open rows in the URL, so a link restores them", async () => {
+    const module = treeIdOf(MODULE);
+    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const { uses } = pane(screen);
+
+    await uses.getByRole("button", { name: "Expand fixture-app" }).click();
+
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toHaveProperty("uses_expanded_ids", [module]);
+    await expect
+      .element(uses.getByRole("treeitem", { name: "fixture-app" }))
+      .toHaveAttribute("aria-expanded", "true");
+
+    await uses.getByRole("button", { name: "Collapse fixture-app" }).click();
+
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .not.toHaveProperty("uses_expanded_ids");
+  });
+
+  it("opens the rows the URL names", async () => {
+    const screen = await renderStart(
+      `?selected_id=${idOf(LIB)}&used_by_expanded_ids=${treeIdOf(MODULE)}`,
+    );
+    const { usedBy } = pane(screen);
+
+    await expect
+      .element(usedBy.getByRole("treeitem", { name: "fixture-app" }))
+      .toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("expands and collapses a row with everything in it from its menu", async () => {
+    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const { uses } = pane(screen);
+
+    await uses
+      .getByRole("treeitem", { name: "fixture-app" })
+      .getByText("fixture-app", { exact: true })
+      .click({ button: "right" });
+    await screen.getByRole("menuitem", { name: "Expand all" }).click();
+
+    // Opened down to the types.
+    await expect
+      .element(uses.getByRole("treeitem", { name: "order", exact: true }))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect
+      .poll(() => screen.router.state.location.search.uses_expanded_ids)
+      .toContain(treeIdOf(MODULE));
+
+    await uses
+      .getByRole("treeitem", { name: "fixture-app" })
+      .getByText("fixture-app", { exact: true })
+      .click({ button: "right" });
+    await screen.getByRole("menuitem", { name: "Collapse all" }).click();
+
+    await expect
+      .element(uses.getByRole("treeitem", { name: "fixture-app" }))
+      .toHaveAttribute("aria-expanded", "false");
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .not.toHaveProperty("uses_expanded_ids");
+  });
+
+  it("makes a part the selection from the Selection tree's menu, and shows it in the hierarchy", async () => {
+    const screen = await renderStart(`?selected_id=${idOf(MODULE)}`);
+    const { selection } = pane(screen);
+    await selection
+      .getByRole("button", { name: "Expand org.hg.fixture" })
+      .click();
+    await selection.getByRole("button", { name: "Expand locations" }).click();
+
+    await selection
+      .getByRole("treeitem", { name: "lib", exact: true })
+      .getByText("lib", { exact: true })
+      .click({ button: "right" });
+    await screen.getByRole("menuitem", { name: "Select" }).click();
+
+    await expect
+      .poll(() => String(screen.router.state.location.search.selected_id))
+      .toBe(idOf(LIB));
+    // The hierarchy tree opens down to it and selects it.
+    await expect
+      .element(
+        screen
+          .getByRole("tree", { name: "Hierarchy" })
+          .getByRole("treeitem", { name: "lib", exact: true }),
+      )
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(pane(screen).selection.getByRole("treeitem", { name: LIB }))
+      .toBeVisible();
+    // The sides offer no Select.
+    await pane(screen)
+      .usedBy.getByRole("treeitem", { name: "fixture-app" })
+      .getByText("fixture-app", { exact: true })
+      .click({ button: "right" });
+    await expect
+      .element(screen.getByRole("menuitem", { name: "Expand all" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("menuitem", { name: "Select" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no Select for the selection itself", async () => {
+    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const { selection } = pane(screen);
+
+    await selection
+      .getByRole("treeitem", { name: LIB })
+      .getByText(LIB, { exact: true })
+      .first()
+      .click({ button: "right" });
+
+    await expect
+      .element(screen.getByRole("menuitem", { name: "Select" }))
+      .toHaveAttribute("data-disabled");
+  });
+
+  it("greys what isn't connected to a pick in another tree, and explains it in the pane's ?", async () => {
+    const order = treeIdOf(`${LIB}.order.Order`);
+    const screen = await renderStart(
+      `?selected_id=${idOf(LIB)}&selection_part_id=${order}`,
+    );
+    const { usedBy } = pane(screen);
+    await usedBy.getByRole("button", { name: "Expand fixture-app" }).click();
+
+    // Connected rows stay as they are, the others fade; none bold.
+    const rows = () =>
+      Array.from(
+        usedBy.element().querySelectorAll<HTMLElement>("[role=treeitem] > div"),
+      );
+    await expect.poll(() => rows().length).toBeGreaterThan(0);
+    for (const row of rows()) {
+      const connected =
+        row.parentElement?.getAttribute("data-connected") === "true";
+      expect(row.classList.contains("opacity-35")).toBe(!connected);
+      expect(row.querySelector(".font-semibold")).toBeNull();
+    }
+    // No legend over the trees: it is in the pane's ?.
+    await expect
+      .element(screen.getByText(/aren't connected to it are faded/))
+      .not.toBeInTheDocument();
+    await screen.getByRole("button", { name: "Gestures" }).last().click();
+    await expect
+      .element(screen.getByText(/aren't connected to it are faded/))
+      .toBeVisible();
+  });
+
   it("opens a linked pick's tree down to it", async () => {
     const order = treeIdOf(`${LIB}.order.Order`);
     const screen = await renderStart(
@@ -360,11 +533,11 @@ describe("DependencyTrees", () => {
     expect(search).toHaveProperty("selection_part_id");
   });
 
-  it("orders each level as the hierarchy tree does, External Types last below a separator", async () => {
+  it("orders each level as the hierarchy tree does, External Types last", async () => {
     const screen = await renderStart(`?selected_id=${idOf(APP)}`);
     const { uses } = pane(screen);
 
-    // The module first, External Types after it, separated.
+    // The module first, External Types after it, with no separator.
     const top = uses.getByRole("treeitem", {
       name: /^(fixture-app|External Types)$/,
     });
@@ -372,8 +545,7 @@ describe("DependencyTrees", () => {
     expect(top.elements().map((row) => row.getAttribute("aria-label"))).toEqual(
       ["fixture-app", "External Types"],
     );
-    await expect.element(top.nth(1)).toHaveClass("border-t");
-    await expect.element(top.nth(0)).not.toHaveClass("border-t");
+    await expect.element(top.nth(1)).not.toHaveClass("border-t");
   });
 
   it("orders the selection's parts in dependency order, not by name", async () => {
@@ -405,33 +577,24 @@ describe("DependencyTrees", () => {
       .toBeVisible();
   });
 
-  it("says under each title what its tree holds, and in which direction", async () => {
+  it("says what each tree holds in its title's tooltip, not under it", async () => {
     const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
-    const { usedBy, selection, uses } = pane(screen);
+    const { usedBy } = pane(screen);
+    const holds = `The nodes outside ${LIB} whose types depend on types in ${LIB}.`;
 
-    await expect.element(usedBy.getByText(`depends on ${LIB}`)).toBeVisible();
+    await expect.element(usedBy).toHaveAttribute("aria-description", holds);
+    await expect.element(usedBy.getByTitle(holds)).toBeVisible();
     await expect
-      .element(selection.getByText(`${LIB}, all of it`))
-      .toBeVisible();
-    await expect.element(uses.getByText(`${LIB} depends on it`)).toBeVisible();
-    await expect
-      .element(usedBy)
-      .toHaveAttribute(
-        "aria-description",
-        `The nodes outside ${LIB} whose types depend on types in ${LIB}.`,
-      );
+      .element(usedBy.getByText(`depends on ${LIB}`))
+      .not.toBeInTheDocument();
   });
 
-  it("names the selection in the pane's title and tints the sides, so they aren't taken for the hierarchy", async () => {
+  it("names the selection in the pane's title", async () => {
     const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
-    const { usedBy, selection, uses } = pane(screen);
 
     await expect
       .element(screen.getByRole("heading", { name: `Dependencies of ${LIB}` }))
       .toBeVisible();
-    await expect.element(usedBy).toHaveAttribute("data-tinted", "true");
-    await expect.element(uses).toHaveAttribute("data-tinted", "true");
-    await expect.element(selection).not.toHaveAttribute("data-tinted");
   });
 
   it("counts next to each row of the sides how many of the selection's dependencies it holds", async () => {

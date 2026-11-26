@@ -111,6 +111,13 @@ export function GraphStatusIndicator({
   const { label, dot, title } = display(server?.graph, unreachable);
   const attention = attentionOf(server).map((entry) => entry.note);
   const details = [title, ...attention].filter(Boolean).join("\n");
+  // A loaded graph that needs attention names the problem, not "loaded":
+  // the first note, how many more, and the warning sign instead of the dot.
+  const warned =
+    !unreachable && server?.graph.state === "LOADED" && attention.length > 0;
+  const shown = warned
+    ? `${attention[0]}${attention.length > 1 ? ` +${attention.length - 1}` : ""}`
+    : label;
   return (
     <Popover
       open={tab !== undefined}
@@ -127,12 +134,20 @@ export function GraphStatusIndicator({
         }
         className="hover:bg-state-hover focus-visible:ring-ring text-fg-muted flex h-7 items-center gap-1.5 rounded-[5px] px-2 text-[12px] outline-none focus-visible:ring-2"
       >
-        <span
-          aria-hidden
-          className={twMerge("block h-[7px] w-[7px] rounded-full", dot)}
-        />
-        <span role="status">{label}</span>
-        {attention.length > 0 && (
+        {warned ? (
+          <TriangleAlert
+            aria-hidden
+            data-testid="status-attention"
+            className="text-status-warning size-3.5"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className={twMerge("block h-[7px] w-[7px] rounded-full", dot)}
+          />
+        )}
+        <span role="status">{shown}</span>
+        {!warned && attention.length > 0 && (
           <TriangleAlert
             aria-hidden
             data-testid="status-attention"

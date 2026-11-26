@@ -39,6 +39,9 @@ class DependencySetController(private val provider: HierarchicalGraphProvider) {
     fun size(depSet: DependencySetModel): Int = depSet.dependencyList.size
 
     @SchemaMapping(typeName = "DependencySet")
+    fun references(depSet: DependencySetModel): Int = depSet.dependencyList.sumOf { it.weight }
+
+    @SchemaMapping(typeName = "DependencySet")
     fun dependencies(depSet: DependencySetModel): List<HGCoreDependency> = depSet.dependencyList
 
     @SchemaMapping(typeName = "DependencySet")

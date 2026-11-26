@@ -78,7 +78,7 @@ export function HierarchyViewMenu({
         <ChevronDown className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="max-h-[75vh] w-[380px] overflow-y-auto">
-        <p className="text-fg-subtle px-2 pt-1 pb-1.5 text-[11px]">
+        <p className="text-fg-muted px-2 pt-1 pb-1.5 text-[12px]">
           {CHOOSE_HINT}
         </p>
         <DropdownMenuSeparator />
@@ -269,7 +269,7 @@ type BadgeProps = {
 
 function Badge({ children }: BadgeProps) {
   return (
-    <span className="border-border text-fg-muted rounded-[4px] border px-1 text-[11px]">
+    <span className="border-border text-fg-muted rounded-[4px] border px-1 text-[12px]">
       {children}
     </span>
   );

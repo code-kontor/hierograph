@@ -33,6 +33,9 @@ class FilteredDependenciesController(private val provider: HierarchicalGraphProv
     fun size(model: FilteredDependenciesModel): Int = model.dependencyList.size
 
     @SchemaMapping(typeName = "FilteredDependencies")
+    fun references(model: FilteredDependenciesModel): Int = model.dependencyList.sumOf { it.weight }
+
+    @SchemaMapping(typeName = "FilteredDependencies")
     fun dependencies(model: FilteredDependenciesModel): List<HGCoreDependency> = model.dependencyList
 
     @SchemaMapping(typeName = "FilteredDependencies")

@@ -3,7 +3,7 @@ import { EyeOff } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
-import { KIND_ICONS } from "@/design-system/graph/treeIcons";
+import { NodeIcon } from "@/design-system/graph/treeIcons";
 import { treeNodeKind, treeNodeLabel } from "@/design-system/graph/treeLabels";
 import { Notice } from "@/design-system/ui/notice";
 import type { GraphScope } from "@/frame/GraphScope";
@@ -97,14 +97,18 @@ type ExcludedItemProps = {
 
 function ExcludedItem({ node, label }: ExcludedItemProps) {
   const kind = treeNodeKind(node.type, node.text);
-  const Icon = KIND_ICONS[kind];
   return (
     <li
       // The full name, where the label shortens it (a module's coordinates).
       title={`${node.text} (excluded)`}
       className="flex items-center gap-1 py-px"
     >
-      <Icon aria-hidden className="text-fg-subtle size-3.5 shrink-0" />
+      <NodeIcon
+        type={node.type}
+        text={node.text}
+        aria-hidden
+        className="text-fg-subtle size-3.5 shrink-0"
+      />
       <span
         className={twMerge(
           "truncate",

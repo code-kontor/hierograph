@@ -11,6 +11,7 @@ import {
   lastSegment,
   relativeTo,
   sourceKindLabel,
+  testsIncludedLabel,
   watchModeLabel,
 } from "./format";
 
@@ -96,5 +97,32 @@ describe("watchModeLabel / buildFilesModeLabel", () => {
     expect(buildFilesModeLabel("notify")).toMatch(/out of date/);
     expect(buildFilesModeLabel("regenerate")).toMatch(/regenerated/);
     expect(buildFilesModeLabel(null)).toBe("—");
+  });
+});
+
+describe("testsIncludedLabel", () => {
+  const testOutput = {
+    type: "java.module",
+    text: "io.hierograph:server:0.4.0:test",
+  };
+
+  it("says yes or no without a view that leaves tests out", () => {
+    expect(testsIncludedLabel(true, undefined)).toBe("yes");
+    expect(testsIncludedLabel(false, [testOutput])).toBe("no");
+    expect(
+      testsIncludedLabel(true, [{ type: "java.package", text: "a.test" }]),
+    ).toBe("yes");
+  });
+
+  it("names the test outputs the view leaves out", () => {
+    expect(testsIncludedLabel(true, [testOutput])).toBe(
+      "yes, 1 test output left out in this view",
+    );
+    expect(
+      testsIncludedLabel(true, [
+        testOutput,
+        { ...testOutput, text: "io.hierograph:web:0.4.0:test" },
+      ]),
+    ).toBe("yes, 2 test outputs left out in this view");
   });
 });

@@ -61,7 +61,9 @@ describe("AppFrame", () => {
     await expect
       .element(screen.getByRole("link", { name: "Dependencies" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Graph loaded")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /^Graph loaded/ }))
+      .toBeVisible();
     await expect
       .element(screen.getByText("scope 1 -; fetched 1"))
       .toBeVisible();
@@ -108,7 +110,9 @@ describe("AppFrame", () => {
   it("shows no navigation for a single screen", async () => {
     const screen = await renderFrame(false, "", false);
 
-    await expect.element(screen.getByText("Graph loaded")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /^Graph loaded/ }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("navigation"))
       .not.toBeInTheDocument();

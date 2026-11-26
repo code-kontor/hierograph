@@ -151,6 +151,10 @@ class BoundaryDependenciesTest {
             assertThat(page.pageInfo.maxPages).isEqualTo(2)
             assertThat(page.dependencies).hasSize(1)
             assertThat(sets.size(incoming)).isEqualTo(2)
+            // Each dependency here stands for one reference.
+            assertThat(sets.references(incoming)).isEqualTo(incoming.dependencyList.sumOf { it.weight })
+            assertThat(sets.references(incoming)).isEqualTo(2)
+            assertThat(filtered.references(fromM2)).isEqualTo(1)
         }
     }
 

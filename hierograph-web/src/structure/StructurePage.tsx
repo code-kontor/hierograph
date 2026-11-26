@@ -3,19 +3,13 @@ import "./structure-map.css";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
-  CircleDot,
   Crosshair,
-  FileCode,
   Focus,
-  Folder,
-  Globe,
-  Layers,
   ListChevronsDownUp,
   ListChevronsUpDown,
   type LucideIcon,
   Maximize,
   MousePointerClick,
-  Package,
   SquareMinus,
   SquarePlus,
   X,
@@ -51,6 +45,7 @@ import {
 } from "@/design-system/graph/GesturesHelp";
 import { PinSelectionButton } from "@/design-system/graph/PinSelectionButton";
 import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
+import { NodeIcon } from "@/design-system/graph/treeIcons";
 import { Pane } from "@/design-system/layout/Pane";
 import {
   ContextMenu,
@@ -96,11 +91,7 @@ import {
   structureLevelQueryOptions,
   structureRootQueryOptions,
 } from "./queries";
-import {
-  isContainer,
-  type StructureKind,
-  structureKind,
-} from "./structureLabels";
+import { isContainer, structureKind } from "./structureLabels";
 
 // The map's navigation state, in the URL: the expanded containers, the
 // selected box and whether it is pinned, the dependencies handed to the map
@@ -1561,19 +1552,9 @@ function TangleRow({ ids }: TangleRowProps) {
   return <div className="lsm-row">{cells}</div>;
 }
 
-// A package gets a small package glyph before its name, which also tells
-// packages from modules, types and External Types.
-// The start screen's tree icons, by what a box is.
-const KIND_ICONS: Record<StructureKind, LucideIcon> = {
-  group: Layers,
-  module: Package,
-  external: Globe,
-  package: Folder,
-  type: FileCode,
-  member: CircleDot,
-  other: CircleDot,
-};
-
+// A box's icon before its name, as in the start screen's tree: a package
+// glyph tells packages from modules and External Types, a letter the kind of
+// a type.
 type KindIconProps = {
   type: string;
   text: string;
@@ -1581,9 +1562,10 @@ type KindIconProps = {
 
 function KindIcon({ type, text }: KindIconProps) {
   const kind = structureKind(type, text);
-  const Icon = KIND_ICONS[kind];
   return (
-    <Icon
+    <NodeIcon
+      type={type}
+      text={text}
       aria-hidden
       className={twMerge(
         "lsm-ic text-fg-subtle",

@@ -82,8 +82,11 @@ view menu; the graph status) and the matched screen. It owns:
   immediate check when it becomes visible again. A new `generation` means a
   reloaded graph; a new `viewsVersion` that a view document was added, changed
   or removed, for example by the agent, which doesn't change the generation.
-  Artifacts not compiled yet and a server built from uncommitted changes mark
-  the indicator with a warning sign.
+  Artifacts not compiled yet and a server built from uncommitted changes need
+  attention: with the graph loaded, the indicator then names the first of
+  them instead of "Graph loaded" ("1 artifact not compiled yet", "+1" for
+  each more), with a warning sign in place of the green dot; its tooltip and
+  the panel list them all.
 - **The status panel.** Clicking the graph status opens a popover
   (`ServerStatus`) with a tab each for the graph (state, generation, load
   time, counts; the first), the workspace and its graph
@@ -144,7 +147,8 @@ The start screen (`/`, "Dependencies" in the header) is where the UI opens.
 it, the dependencies of its selection (#77); the view is chosen in the header,
 and the server's state, with what the view excludes, is in the header's status
 panel. On wide screens the tree is on the left and the dependencies on the
-right, the split moved by the user and kept by the browser; narrow screens
+right (30/70 until the user moves the split, which the browser keeps; the
+dependencies' own split, trees above the list, is 40/60); narrow screens
 stack them. On a wide screen the hierarchy collapses to a rail at the left
 edge, to make room for the dependencies: with the button in its title bar, by
 dragging the splitter to the edge, or by double-clicking the splitter. The
@@ -163,14 +167,15 @@ browser remembers.
   its boundary). Each tree scrolls on its own; a side without dependencies
   says so. So that the side trees aren't taken for the hierarchy (with it
   collapsed, "Used by" sits where it was), the pane's title names the
-  selection ("Dependencies of lib") and "Used by" and "Uses", the nodes
-  outside it, are on a tint (`panel-header`), while "Selection" stays white
-  like the hierarchy; and each of their rows counts the selection's
+  selection ("Dependencies of lib"), with the button that clears the
+  selection (the hierarchy only announces it, `SelectionAnnouncement`, for
+  screen readers: the name isn't repeated on screen); and each row of "Used
+  by" and "Uses" counts the selection's
   dependencies it holds, with the references in its tooltip
-  (`filteredChildrenWithCounts`), which the hierarchy never shows. Arrows between the titles point the way the dependencies go, and
-  a caption under each title says what its tree holds, with the selection's
-  name ("depends on lib", "lib, all of it", "lib depends on it"), the title's
-  tooltip at length.
+  (`filteredChildrenWithCounts`), which the hierarchy never shows. The trees are three equal columns;
+  arrows between the titles point the way the dependencies go, and each
+  title's tooltip says what its tree holds. The pane's `?` lists the trees'
+  gestures and what the greyed rows mean.
   - **The trees**: "Used by" and "Uses" are the sets' sides
     (`filteredChildrenWithCounts` on a set, `SOURCE` or `TARGET`, with
     `compact`; the marks use the same field on the narrowed set);
@@ -180,10 +185,21 @@ browser remembers.
     to the row above, the skipped packages in the title and description),
     loaded a level at a time, stopping at types. Each level is in the
     hierarchy tree's order for the same parent (dependency order, from the
-    same cached level query), External Types last at the top level, below a
-    separator.
-  - **Picking** a row (a click; the chevron opens it) sets what it connects
-    to in bold in the other trees, which stay complete, and narrows the lists
+    same cached level query), External Types last at the top level. Each tree's open rows are in the URL
+    (`used_by_expanded_ids`, `selection_expanded_ids`, `uses_expanded_ids`,
+    the rows below its top), so a link restores them; selecting another
+    node drops them with the picks.
+  - **A row's context menu** (right-click): in the Selection tree, Select
+    makes the row the selection, as selecting it in the hierarchy tree
+    would: the picks and the trees' open rows go, and the hierarchy tree
+    opens down to it (its display ancestors, `predecessors(compact: true)`,
+    added to `expanded_ids`) and scrolls it into view; disabled on the
+    selection itself. On a row that can open, Expand all opens it and
+    everything in it down to the types (its levels loaded first, then opened
+    at once); Collapse all closes them.
+  - **Picking** a row (a click; the chevron opens it) keeps what it connects
+    to dark in the other trees and fades the rest (half opacity: name, icon and count; weight carries
+    no state), the trees staying complete, and narrows the lists
     to it: `used_by_id`, `selection_part_id`, `uses_id`, replacing the
     history entry; a click on the picked row drops it. One direction at a
     time: a pick in "Used by" drops the one in "Uses" and the other way round
@@ -191,8 +207,7 @@ browser remembers.
     of the selection it uses, a used node the parts that use it (both, from a
     link, the parts connected to both); a part marks its users and what it uses. The
     marks are the set narrowed by the picks (`filteredDependencies`, then
-    `filteredChildren`), asked for below the bold rows only; a line over the
-    trees explains the bold while anything is picked. A pick is a filter,
+    `filteredChildren`), asked for below the connected rows only. A pick is a filter,
     not the hierarchy's selection, so it is marked with a bar (the secondary
     selection tokens) rather than filled. Picking a user opens the list's
     incoming tab, picking a used node its outgoing tab. A link that names a
@@ -208,16 +223,22 @@ browser remembers.
   screen's search param `dependency_list` (`incoming`, `outgoing`; validated
   in `routes/index.tsx`), so a link can open one; switching replaces the
   history entry, and the first tab leaves no param behind. Each tab pages its
-  set 50 type-level dependencies at a time (`dependencyPage`) as a table as
-  wide as the pane: source and target, sharing the width, by simple name (a nested type after its enclosing one)
-  with the package subdued, and the references. Above it the count, a chip
+  set 50 type-level dependencies at a time (`dependencyPage`) as a table as wide as the pane, its header untinted: source and target, sharing the
+  width, by simple name (a nested type after its enclosing one) with the
+  package subdued, unless a pick names that package already, and the
+  references. In a run of rows from the same source only the first names it;
+  each row's tooltip and name keep both ends in full. Above it the count with
+  the references they stand for (`references`), a chip
   per pick that narrows it (a click drops the pick) and the paging. The page
   is local and starts over with each narrowing.
 
 - **The tree** (`HierarchyTree`) of the current hierarchy
   view, folded like the structure map (`children(compact: true)`, #63): a
   chain of lone packages is one row, its last package, whose label's tooltip
-  and the row's description name the packages it stands for. It loads level by level as nodes are
+  and the row's description name the packages it stands for (every label's
+  tooltip has the node's full name; a long label is cut in the middle,
+  keeping its end, `MiddleTruncated`, so siblings that differ at the end stay
+  apart). It loads level by level as nodes are
   expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
   screen's search params `expanded_ids` and `selected_id`, or
   `selected_cycle_ids` for a cycle (both replace the history entry). It has
@@ -230,15 +251,19 @@ browser remembers.
   that depend on it (rows whose children aren't shown, External Types and its
   rows included), each with an arrowhead on the row depended on: with the
   order to the right, against it to the left and dashed; what the row uses
-  blue, what uses it grey, whichever way they run; by weight.
+  blue, what uses it in the lighter grey of the secondary bar, whichever way
+  they run; quiet (1 px) as context, at full strength (by weight) while the
+  pointer is over one of their ends. On each side, what the row uses and what uses it run in lanes of their own, each set evenly spaced and the smaller one centred on the larger (the shortest span innermost, so the brackets nest; closer together when they don't fit, never on one line). The arcs take only the room they need
+  beside the labels (`--arc-gutter` on the rows; none without a selection),
+  reaching out less when a label would get narrower than 120 px.
   Selecting a cycle bar draws instead the arcs between the cycle's members
   (rows inside an expanded member counted to it), in the bar's colour: the
   whole cycle, with the edges that close it against the order. It measures the
   rows marked `data-frontier` whenever the tree changes and loads their
   dependencies in one query. The tree follows the design system's interaction
   model without zoom and pan: hovering traces nothing; a click selects a row
-  or a cycle bar (again, in the empty space, Esc or the pane's selection
-  status clears it). A click left of a row's name (its indent, chevron or
+  or a cycle bar (again, in the empty space, Esc or the clear button in
+  the dependencies' heading clears it). A click left of a row's name (its indent, chevron or
   icon) expands or collapses it without selecting it; a double-click on the
   name expands or collapses it and leaves it selected. A right
   click opens the menu of a row, a bar or an arc, each item with its gesture.

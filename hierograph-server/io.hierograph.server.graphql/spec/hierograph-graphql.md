@@ -691,6 +691,7 @@ node's accumulated dependencies for `Node.incomingDependencies` / `outgoingDepen
 | Field | Returns | Description |
 |---|---|---|
 | `size` | `Int!` | The number of dependencies. |
+| `references` | `Int!` | The individual references the dependencies stand for: the sum of their weights. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
 | `filteredChildren(parentNode, parentNodeType, compact = false)` | `[Node!]!` | The children of `parentNode` whose subtree contains a source (`SOURCE`) or a target (`TARGET`) of a dependency in the set, in child order; with `compact`, of the display children (§11.2). Empty, with a `NOT_FOUND` error, when `parentNode` names no node. |
@@ -733,6 +734,7 @@ extraction.
 | Field | Returns | Description |
 |---|---|---|
 | `size` | `Int!` | The number of dependencies. |
+| `references` | `Int!` | The individual references the dependencies stand for: the sum of their weights. |
 | `dependencies` | `[Dependency!]!` | All of them, in set order. |
 | `dependencyPage(pageNumber, pageSize)` | `DependencyPage` | One page (§8). |
 | `filteredChildren(parentNode, parentNodeType, compact = false)` | `[Node!]!` | As `DependencySet.filteredChildren`, over the narrowed set: the tree of one side, reduced to what the other side's selection reaches. |

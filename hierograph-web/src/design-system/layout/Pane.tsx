@@ -9,6 +9,9 @@ type PaneProps = {
   subHeader?: ReactNode;
   children: ReactNode;
   bodyClassName?: string;
+  // A title bar without its tint, just the hairline below it: for panes
+  // beside one another that would otherwise stack bars on little content.
+  plainHeader?: boolean;
 };
 
 export function Pane({
@@ -18,19 +21,33 @@ export function Pane({
   subHeader,
   children,
   bodyClassName,
+  plainHeader,
 }: PaneProps) {
+  const header = plainHeader ? "bg-transparent" : "bg-panel-header";
   return (
     <div className="bg-panel border-border-strong flex h-full flex-col overflow-hidden rounded-[8px] border shadow-[var(--hg-shadow)]">
       {titleBar ? (
-        <div className="bg-panel-header border-border flex h-[34px] shrink-0 items-stretch border-b">
+        <div
+          className={cn(
+            "border-border flex h-[34px] shrink-0 items-stretch border-b",
+            header,
+          )}
+        >
           {titleBar}
         </div>
       ) : (
-        <div className="bg-panel-header border-border flex h-[34px] shrink-0 items-center justify-between gap-2 border-b px-3">
-          <div className="text-muted-foreground font-mono text-[11px] tracking-[0.06em] uppercase">
+        <div
+          className={cn(
+            "border-border flex h-[34px] shrink-0 items-center justify-between gap-2 border-b px-3",
+            header,
+          )}
+        >
+          <div className="text-muted-foreground font-mono text-[12px] tracking-[0.06em] uppercase">
             {title}
           </div>
-          {toolbar && <div className="flex items-center gap-1">{toolbar}</div>}
+          {toolbar && (
+            <div className="flex min-w-0 items-center gap-1">{toolbar}</div>
+          )}
         </div>
       )}
       {subHeader && (

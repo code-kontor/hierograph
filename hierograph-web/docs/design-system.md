@@ -21,6 +21,28 @@ renders, and it is the source of truth.
   to the screen), widths
   by weight, dashed against the order, open arrowheads (`DependencyArrowHeads` once per
   SVG). A screen lays out the paths; the arrows look the same everywhere.
+- **Grey text is `fg-muted`, quieter text `fg-subtle`;** both are dark enough for
+  text (WCAG AA, 4.5:1, on the panels; `fg-muted` also on the hover and selection
+  fills). Never lighter greys for text: the borders' greys are for lines.
+  Every secondary text — a section label, a table header, a caption, a count, an
+  inactive tab — is `fg-muted`; `fg-subtle` is for icons, chevrons and glyphs only.
+  (`muted-foreground` is an alias of `fg-muted`.)
+- **One fill below the panel: `inset`.** Title bars, toolbars, table headers and
+  tracks use it (`panel-header`, `zebra`, `muted` and `secondary` are aliases). Don't
+  add a second near-white beside it, and don't tint content areas or stripe tables:
+  rows are separated by hairlines.
+- **A node is named with its icon,** `NodeIcon` (`src/design-system/graph/treeIcons.tsx`):
+  its kind's icon (view group, module, External Types, package, member), and for a
+  type the letter IDEs give its kind in a rounded square: C (class), I (interface),
+  E (enum), R (record), @ (annotation).
+- **Type: nothing below 12 px; monospace only for code identifiers** (packages, types,
+  members, signatures). Module names, counts, chip labels and headings are sans; counts
+  use tabular figures. Only the panes' titles are uppercase and letter-spaced; column
+  and table headings are sentence case, 12 px, `fg-muted`.
+- **Targets are at least 24 × 24 px** (WCAG 2.2), splitters at least 12 px across.
+  Where the drawn control is smaller (a 14 px chevron, a 6 px splitter), an
+  absolutely positioned `after:` pseudo-element enlarges what the pointer finds,
+  without moving anything.
 - **Notes inside a pane are a `Notice`** (`src/design-system/ui/notice.tsx`): `info`
   (a choice, such as what a view excludes), `warning` (expected but incomplete, such
   as what isn't compiled yet) or `error`. All are laid out alike: the icon in a column
@@ -80,7 +102,9 @@ when the two copies drift.
   cleared; nothing clears it by accident (moving the pointer, scrolling, zooming,
   expanding or collapsing). The selected node gets a clear outline, and the graph pane
   shows a status chip in its upper-right corner — "Selected: `name` · Esc to clear" —
-  with the button that clears it.
+  with the button that clears it. Where another part of the screen names the selection
+  already (the start screen's dependencies' heading, with the clear button), the chip
+  is only announced to screen readers (`SelectionAnnouncement`): state is said once.
 - **A selection can be pinned** where clicking around must keep it (the structure
   map; the start screen's tree has no pin, since its selection is explored in the
   dependency pane beside it). The pin button sits in the pane's toolbar after the
@@ -104,8 +128,8 @@ when the two copies drift.
   horizontal deltas themselves; handling them again scrolls twice or breaks the
   trackpad.
 - **Scrollbars are quiet but always there.** They are thin, with a transparent track.
-  The thumb is light (`border`) at rest and darker (`border-strong`) while the pointer
-  is over the scrolling area or focus is inside it (`src/index.css`, base layer). They
+  The thumb is at rest in the splitters' hover fill (`state-hover`) and a step darker
+  (`border`) while the pointer is over the scrolling area or focus is inside it (`src/index.css`, base layer). They
   are never hidden: a visible thumb is what tells that a pane scrolls, and it respects
   a user who set the system to always show scroll bars. Don't restyle a scrollbar per
   component.

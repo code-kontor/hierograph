@@ -24,8 +24,9 @@ import {
   KEYBOARD_GESTURES,
   SELECTION_GESTURES,
 } from "@/design-system/graph/GesturesHelp";
-import { SelectionStatus } from "@/design-system/graph/SelectionStatus";
-import { KIND_ICONS } from "@/design-system/graph/treeIcons";
+import { MiddleTruncated } from "@/design-system/graph/MiddleTruncated";
+import { SelectionAnnouncement } from "@/design-system/graph/SelectionStatus";
+import { NodeIcon } from "@/design-system/graph/treeIcons";
 import {
   ordersChildren,
   treeNodeKind,
@@ -46,13 +47,7 @@ import {
   type TreeLevelData,
   type TreeNode,
 } from "./queries";
-import {
-  ARC_AREA_WIDTH,
-  type ArcFocus,
-  ArcFocusMenu,
-  sameFocus,
-  TreeArcs,
-} from "./TreeArcs";
+import { type ArcFocus, ArcFocusMenu, sameFocus, TreeArcs } from "./TreeArcs";
 
 // What every row needs from the tree: which nodes are open, what is
 // selected (a row or a cycle bar), whose dependency arcs are drawn, and where
@@ -116,6 +111,10 @@ export function HierarchyTree({ onCollapse }: HierarchyTreeProps) {
         used_by_id: undefined,
         selection_part_id: undefined,
         uses_id: undefined,
+        // And so do their open rows.
+        used_by_expanded_ids: undefined,
+        selection_expanded_ids: undefined,
+        uses_expanded_ids: undefined,
       },
       true,
     );
@@ -124,9 +123,9 @@ export function HierarchyTree({ onCollapse }: HierarchyTreeProps) {
   const [selectedLabel, setSelectedLabel] = useState("");
   const toolbar = (
     <>
-      {selected !== null && (
-        <SelectionStatus label={selectedLabel} onClear={() => onSelect(null)} />
-      )}
+      {/* The dependencies' heading names the selection, with its clear
+          button; here it is only announced. */}
+      <SelectionAnnouncement label={selected === null ? "" : selectedLabel} />
       <GesturesHelp gestures={TREE_GESTURES} />
       {onCollapse && (
         <button
@@ -189,6 +188,9 @@ type TreeSearch = {
   used_by_id?: string | number;
   selection_part_id?: string | number;
   uses_id?: string | number;
+  used_by_expanded_ids?: (string | number)[];
+  selection_expanded_ids?: (string | number)[];
+  uses_expanded_ids?: (string | number)[];
 };
 
 function useSetTreeSearch() {
@@ -653,7 +655,6 @@ function TreeItem({
     ),
     enabled: open,
   });
-  const Icon = KIND_ICONS[kind];
   const Chevron = open ? ChevronDown : ChevronRight;
   const label = treeNodeLabel(node.type, node.text, parentText);
   // A row with arcs: its children aren't shown (an open node still loading
@@ -666,6 +667,15 @@ function TreeItem({
   const selected =
     controls.selected !== null && sameFocus(controls.selected, focus);
   const atCursor = controls.keyboard && controls.cursorId === node.id;
+  // The selected row is scrolled into view, also when it was selected
+  // elsewhere (a link, the Selection tree's menu) and appears once its level
+  // loads.
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) {
+      rowRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    }
+  }, [selected]);
   // The row's menu: select it, and expand or collapse it.
   const menuItems = expandable && (
     <ContextMenuItem onSelect={() => controls.toggle(node.id)}>
@@ -692,6 +702,7 @@ function TreeItem({
       {/* A click selects the row (see `TreeRoot`); its context menu too. */}
       <ArcFocusMenu focus={focus} items={menuItems}>
         <div
+          ref={rowRef}
           data-node-id={node.id}
           data-label={label}
           data-frontier={frontier ? "true" : undefined}
@@ -715,35 +726,33 @@ function TreeItem({
               aria-label={`${open ? "Collapse" : "Expand"} ${label}`}
               // A click on it expands or collapses the row (see `TreeRoot`).
               data-expander
-              className="text-fg-subtle hover:text-fg flex size-3.5 shrink-0 items-center justify-center"
+              // Drawn 14 px; the pointer finds it in 24 px (WCAG 2.2 target size).
+              className="text-fg-subtle hover:text-fg relative flex size-3.5 shrink-0 items-center justify-center after:absolute after:-inset-[5px]"
             >
               <Chevron className="size-3.5" />
             </button>
           ) : (
             <span className="size-3.5 shrink-0" />
           )}
-          <Icon
+          <NodeIcon
+            type={node.type}
+            text={node.text}
             aria-hidden
             // Left of the name: a click on it expands the row, too.
             data-expander
-            className={twMerge(
-              "text-fg-subtle size-3.5 shrink-0",
-              kind === "group" && "text-primary",
-            )}
+            className="text-fg-subtle size-3.5 shrink-0"
           />
-          <span
+          <MiddleTruncated
             data-tree-label
-            // A folded row names the lone packages it stands for on its label
-            // only, left of the arcs.
-            title={foldedTitle(node)}
+            text={label}
+            // The full name, and the lone packages a folded row stands for;
+            // on the label only, left of the arcs.
+            title={foldedTitle(node) ?? node.text}
             className={twMerge(
-              "truncate",
               (kind === "type" || kind === "member" || kind === "package") &&
                 "font-mono text-[12px]",
             )}
-          >
-            {label}
-          </span>
+          />
           {cycle && (
             <Repeat2
               aria-hidden
@@ -752,11 +761,11 @@ function TreeItem({
               className="text-status-warning size-3.5 shrink-0"
             />
           )}
-          {/* The labels stop short of the arcs. */}
+          {/* The labels stop short of the arcs (see `TreeArcs`). */}
           <span
             aria-hidden
             className="shrink-0"
-            style={{ width: `${ARC_AREA_WIDTH}px` }}
+            style={{ width: "var(--arc-gutter, 0px)" }}
           />
         </div>
       </ArcFocusMenu>

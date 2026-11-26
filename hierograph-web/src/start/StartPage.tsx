@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { PanelLeftOpen } from "lucide-react";
+import { PanelLeftOpen, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
+import { twMerge } from "tailwind-merge";
 
+import { GesturesHelp } from "@/design-system/graph/GesturesHelp";
 import { treeNodeLabel } from "@/design-system/graph/treeLabels";
 import { Pane } from "@/design-system/layout/Pane";
+import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -15,7 +18,13 @@ import { useMediaQuery } from "@/design-system/useMediaQuery";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import { DependencyListPane } from "./DependencyList";
-import { DependencyTrees } from "./DependencyTrees";
+import {
+  DEPENDENCY_GESTURES,
+  DEPENDENCY_LEGEND,
+  DependencyTrees,
+  OPEN_PARAMS,
+  PICK_PARAMS,
+} from "./DependencyTrees";
 import { HierarchyTree } from "./HierarchyTree";
 import { dependencySetQueryOptions } from "./queries";
 
@@ -106,7 +115,9 @@ function WideLayout() {
           ref={hierarchy}
           id="tree"
           order={1}
-          defaultSize={50}
+          // Narrow by default: the dependencies get the room (a layout the
+          // browser kept wins).
+          defaultSize={30}
           minSize={20}
           collapsible
           collapsedSize={0}
@@ -125,29 +136,30 @@ function WideLayout() {
           title="Drag to resize, double-click to collapse or expand the hierarchy"
           className={
             collapsed
-              ? "mr-0.5 ml-1.5 w-1.5 rounded-[4px]"
-              : "mx-0.5 w-1.5 rounded-[4px]"
+              ? "mr-0.5 ml-1.5 w-1.5 rounded-[4px] after:absolute after:-inset-x-[3px] after:inset-y-0"
+              : "mx-0.5 w-1.5 rounded-[4px] after:absolute after:-inset-x-[3px] after:inset-y-0"
           }
           onDoubleClick={collapsed ? expand : collapse}
         />
         <ResizablePanel
           id="dependencies"
           order={2}
-          defaultSize={50}
+          defaultSize={70}
           minSize={20}
         >
           <ResizablePanelGroup
             direction="vertical"
             autoSaveId="start-dependencies"
           >
-            <ResizablePanel id="trees" order={1} defaultSize={60} minSize={20}>
+            <ResizablePanel id="trees" order={1} defaultSize={40} minSize={20}>
               <DependencyPane />
             </ResizablePanel>
             <ResizableHandle
               aria-label="Resize the dependency list"
-              className="my-0.5 rounded-[4px] data-[panel-group-direction=vertical]:h-1.5"
+              // Drawn 6 px; the pointer finds it in 12 px.
+              className="my-0.5 rounded-[4px] after:absolute after:inset-x-0 after:-inset-y-[3px] data-[panel-group-direction=vertical]:h-1.5"
             />
-            <ResizablePanel id="list" order={2} defaultSize={40} minSize={15}>
+            <ResizablePanel id="list" order={2} defaultSize={60} minSize={15}>
               <DependencyListPane />
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -180,7 +192,7 @@ function HierarchyRail({ onExpand }: HierarchyRailProps) {
       className="bg-panel border-border-strong hover:bg-state-hover text-fg-muted flex h-full shrink-0 flex-col items-center gap-2 overflow-hidden rounded-[8px] border py-2 shadow-[var(--hg-shadow)]"
     >
       <PanelLeftOpen aria-hidden className="size-4 shrink-0" />
-      <span className="rotate-180 font-mono text-[11px] tracking-[0.06em] uppercase [writing-mode:vertical-rl]">
+      <span className="rotate-180 font-mono text-[12px] tracking-[0.06em] uppercase [writing-mode:vertical-rl]">
         Hierarchy
       </span>
       {scope && selectedId !== undefined && (
@@ -215,16 +227,54 @@ function SelectionName({ scope, id }: SelectionNameProps) {
 // sits where it was).
 function DependencyPaneTitle() {
   const scope = useGraphScope();
-  const search: { selected_id?: unknown } = useSearch({ strict: false });
+  const search: { selected_id?: unknown; selected_cycle_ids?: unknown } =
+    useSearch({ strict: false });
+  const navigate = useNavigate();
   const selectedId =
     search.selected_id === undefined || search.selected_id === null
       ? undefined
       : String(search.selected_id);
+  const anything =
+    selectedId !== undefined || search.selected_cycle_ids !== undefined;
+  // As clearing it in the hierarchy tree: the picks and the trees' open rows
+  // go with it.
+  const clear = async () => {
+    await navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        selected_id: undefined,
+        selected_cycle_ids: undefined,
+        ...Object.fromEntries(
+          [...Object.values(PICK_PARAMS), ...Object.values(OPEN_PARAMS)].map(
+            (param) => [param, undefined],
+          ),
+        ),
+      }),
+      replace: true,
+    } as never);
+  };
   return (
-    <span role="heading" aria-level={2}>
-      Dependencies
-      {scope && selectedId !== undefined && (
-        <PaneSelectionName scope={scope} id={selectedId} />
+    <span className="flex min-w-0 items-center gap-1">
+      <span role="heading" aria-level={2} className="truncate">
+        Dependencies
+        {scope && selectedId !== undefined && (
+          <PaneSelectionName scope={scope} id={selectedId} />
+        )}
+      </span>
+      {anything && (
+        <button
+          type="button"
+          aria-label="Clear selection"
+          title="Clear selection (Esc)"
+          onClick={clear}
+          className={twMerge(
+            ghostIconTriggerClassName,
+            "size-6 shrink-0 normal-case",
+          )}
+        >
+          <X className="size-3.5" />
+        </button>
       )}
     </span>
   );
@@ -249,7 +299,17 @@ function PaneSelectionName({ scope, id }: SelectionNameProps) {
 // what it uses, as three trees.
 function DependencyPane() {
   return (
-    <Pane title={<DependencyPaneTitle />} bodyClassName="flex flex-col">
+    <Pane
+      title={<DependencyPaneTitle />}
+      plainHeader
+      toolbar={
+        <GesturesHelp
+          gestures={DEPENDENCY_GESTURES}
+          legend={DEPENDENCY_LEGEND}
+        />
+      }
+      bodyClassName="flex flex-col"
+    >
       <div className="min-h-0 flex-1">
         <DependencyTrees />
       </div>

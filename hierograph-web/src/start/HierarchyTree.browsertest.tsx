@@ -92,6 +92,8 @@ function itemLabels(menu: ReturnType<TreeRender["getByRole"]>) {
     });
 }
 
+// The selection as announced (not drawn: the start screen names it in the
+// dependencies' heading).
 function selectionStatus(screen: TreeRender) {
   return screen.getByRole("status").filter({ hasText: "Selected:" });
 }
@@ -136,6 +138,26 @@ async function expand(screen: TreeRender, ...path: string[]) {
 }
 
 describe("HierarchyTree", () => {
+  it("reserves no room for arcs without a selection, and only what its arcs need with one", async () => {
+    const screen = await renderTree();
+    await expand(screen, ...CYCLE_PATH);
+    await expect.element(item(screen, "gamma")).toBeVisible();
+    const tree = screen.getByRole("tree", { name: "Hierarchy" }).element();
+    const gutter = () =>
+      getComputedStyle(
+        tree.querySelector<HTMLElement>("[style*='--arc-gutter']") ??
+          tree.closest<HTMLElement>("[style*='--arc-gutter']") ??
+          tree,
+      ).getPropertyValue("--arc-gutter");
+
+    expect(gutter()).toBe("0px");
+
+    await item(screen, "gamma").getByText("gamma", { exact: true }).click();
+
+    await expect.poll(() => parseFloat(gutter())).toBeGreaterThan(0);
+    await expect.poll(() => parseFloat(gutter())).toBeLessThan(180);
+  });
+
   it("shows the top level of the scanned hierarchy, collapsed", async () => {
     const screen = await renderTree();
 
@@ -306,14 +328,15 @@ describe("HierarchyTree", () => {
         "aria-description",
         "folded from org.hg.fixture.locations.app.batch",
       );
-    // A row that isn't folded names nothing on its label.
+    // A row that isn't folded has just its full name as the label's
+    // tooltip.
     await expect.element(item(screen, "web")).toBeVisible();
     expect(
       item(screen, "web")
         .element()
         .querySelector("[data-tree-label]")
-        ?.hasAttribute("title"),
-    ).toBe(false);
+        ?.getAttribute("title"),
+    ).toBe("org.hg.fixture.locations.app.web");
   });
 
   it("draws no arcs until a row is selected", async () => {
@@ -322,6 +345,41 @@ describe("HierarchyTree", () => {
     await expect.element(item(screen, "gamma")).toBeVisible();
 
     expect(arcs()).toEqual([]);
+  });
+
+  it("draws the arcs thin and light, at full strength while one of their ends is hovered", async () => {
+    const screen = await renderTree();
+    await expand(screen, ...CYCLE_PATH);
+    await expect.element(item(screen, "gamma")).toBeVisible();
+    await row(screen, "beta").click();
+    const lines = () =>
+      Array.from(
+        document.querySelectorAll<SVGPathElement>("[data-arrow-line]"),
+      );
+    await expect.poll(() => lines().length).toBeGreaterThan(0);
+    // The pointer off the arcs' ends: on the cycle's own row.
+    await row(screen, "cycle").hover();
+    await expect
+      .poll(() => lines().every((line) => line.dataset.quiet === "true"))
+      .toBe(true);
+    expect(
+      lines().every((line) => line.getAttribute("stroke-width") === "1.00"),
+    ).toBe(true);
+
+    await row(screen, "alpha").hover();
+
+    const alpha = nodeId("alpha");
+    await expect
+      .poll(() =>
+        lines()
+          .filter((line) => line.dataset.quiet !== "true")
+          .every((line) => {
+            const group = line.closest<SVGGElement>("[data-from]");
+            return group?.dataset.from === alpha || group?.dataset.to === alpha;
+          }),
+      )
+      .toBe(true);
+    expect(lines().some((line) => line.dataset.quiet !== "true")).toBe(true);
   });
 
   it("draws the selected row's arcs: with the order and against it", async () => {
@@ -391,7 +449,7 @@ describe("HierarchyTree", () => {
     expect(onlyArcsOf(beta)).toBe(true);
   });
 
-  it("clears the selection on a second click, on the empty space, with Escape and with the status's button", async () => {
+  it("clears the selection on a second click, on the empty space and with Escape", async () => {
     const screen = await renderTree();
     await expand(screen, ...CYCLE_PATH);
     const tree = screen.getByRole("tree").element() as HTMLElement;
@@ -399,7 +457,7 @@ describe("HierarchyTree", () => {
     await row(screen, "beta").click();
     await expect
       .element(selectionStatus(screen))
-      .toHaveTextContent("Selected:beta· Esc to clear");
+      .toHaveTextContent("Selected: beta");
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
     // Again, after the double-click time.
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -416,12 +474,6 @@ describe("HierarchyTree", () => {
     await row(screen, "beta").click();
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
     await userEvent.keyboard("{Escape}");
-    await expect.poll(() => arcs().length).toBe(0);
-
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    await row(screen, "beta").click();
-    await expect.poll(() => arcs().length).toBeGreaterThan(0);
-    await screen.getByRole("button", { name: "Clear selection" }).click();
     await expect.poll(() => arcs().length).toBe(0);
     expect(screen.router.state.location.search.selected_id).toBeUndefined();
   });
@@ -678,7 +730,7 @@ describe("HierarchyTree", () => {
     );
     await expect
       .element(selectionStatus(screen))
-      .toHaveTextContent(/Selected:cycle of /);
+      .toHaveTextContent(/Selected: cycle of /);
     // The row it is on stays unselected.
     await expect
       .element(item(screen, "alpha"))
@@ -728,7 +780,7 @@ describe("HierarchyTree", () => {
       .toHaveAttribute("aria-expanded", "true");
     await expect
       .element(selectionStatus(screen))
-      .toHaveTextContent("Selected:beta· Esc to clear");
+      .toHaveTextContent("Selected: beta");
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
     expect(onlyArcsOf(beta)).toBe(true);
   });

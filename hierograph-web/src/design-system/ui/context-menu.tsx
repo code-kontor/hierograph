@@ -85,7 +85,7 @@ function ContextMenuShortcut({
       data-slot="context-menu-shortcut"
       aria-hidden
       className={cn(
-        "text-fg-subtle ml-auto pl-4 font-mono text-[11px] tracking-tight",
+        "text-fg-subtle ml-auto pl-4 font-mono text-[12px] tracking-tight",
         className,
       )}
       {...props}
