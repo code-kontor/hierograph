@@ -158,12 +158,18 @@ entry), so a link can open the page with it; the URL wins over the layout the
 browser remembers.
 
 - **The dependencies** (`DependencyTrees`) are a pane with three trees for
-  the selected node (`selected_id`; a cycle asks for a single node), read
+  the selection (`selected_ids`: one node, or a group of them taken together;
+  a selected cycle asks for rows instead), read
   left to right from source to target: "Used by", the sources of its
-  incoming dependencies; "Selection", the node, open, complete (the hierarchy
+  incoming dependencies; "Selection", the selected nodes, open, complete (the hierarchy
   tree's own levels); "Uses", the targets of its
-  outgoing dependencies. The dependencies are the node's two dependency sets
-  (`Node.incomingDependencies` / `outgoingDependencies`, #79: those crossing
+  outgoing dependencies. A group's tops are its nodes in the order selected,
+  its sentences name "the selected nodes", the heading its size (the names as
+  its tooltip), and a pick in a side tree keeps dark only the selected nodes
+  it reaches. The dependencies are the selection's two dependency sets
+  (`NodeSet.incomingDependencies` / `outgoingDependencies`, for one node the
+  same as `Node`'s, #79: those crossing the border around all the selected
+  nodes, the ones between them left out; for one node,
   its boundary). Each tree scrolls on its own; a side without dependencies
   says so. So that the side trees aren't taken for the hierarchy (with it
   collapsed, "Used by" sits where it was), the pane's title names the
@@ -187,9 +193,9 @@ browser remembers.
     hierarchy tree's order for the same parent (dependency order, from the
     same cached level query), External Types last at the top level. Each tree's open rows are in the URL
     (`used_by_expanded_ids`, `selection_expanded_ids`, `uses_expanded_ids`,
-    the rows below its top), so a link restores them; the Selection tree's
-    top, the selection, opens with it and can be closed like any row
-    (`selection_collapsed`, the rows below kept for its reopening).
+    the rows below its tops), so a link restores them; the Selection tree's
+    tops, the selected nodes, open with it and can be closed like any row
+    (`selection_collapsed_ids`, the rows below kept for their reopening).
     Selecting another node drops them with the picks.
   - **A row's context menu** (right-click): in the Selection tree, Select
     makes the row the selection, as selecting it in the hierarchy tree
@@ -214,14 +220,17 @@ browser remembers.
     selection tokens) rather than filled. Picking a user opens the list's
     incoming tab, picking a used node its outgoing tab. A link that names a
     pick opens its tree down to it (the pick's display ancestors,
-    `predecessors(compact: true)`) and scrolls it into view. Selecting
-    another node in the hierarchy drops the picks.
+    `predecessors(compact: true)`) and scrolls it into view. A closed row
+    above the pick hides the filter, so it carries the pick's bar without
+    the fill ("contains the picked node"), and its menu's "Reveal the pick"
+    opens the rows down to it. Selecting another node in the hierarchy drops
+    the picks.
 
 - **The dependency list** (`DependencyListPane`) is a pane below the trees (the
   right column is split; narrow screens
   stack it last) with the tabs "Incoming dependencies" and "Outgoing
   dependencies", each narrowed by the picks on its side (incoming: the user
-  and the part; outgoing: the part and the used node). The tab is the start
+  and the Selection tree's pick; outgoing: that pick and the used node; each chip is named after its tree). The tab is the start
   screen's search param `dependency_list` (`incoming`, `outgoing`; validated
   in `routes/index.tsx`), so a link can open one; switching replaces the
   history entry, and the first tab leaves no param behind. Each tab pages its
@@ -239,14 +248,22 @@ browser remembers.
   keeping its end, `MiddleTruncated`, so siblings that differ at the end stay
   apart). It loads level by level as nodes are
   expanded, with queries keyed by the graph scope. Its open rows and its selection are the start
-  screen's search params `expanded_ids` and `selected_id`, or
-  `selected_cycle_ids` for a cycle (both replace the history entry). It has
+  screen's search params `expanded_ids` and `selected_ids`, or
+  `selected_cycle_ids` for a cycle (both replace the history entry; an older
+  link's `selected_id` is read as a list of one). It has
   no pin: what to look at is explored in the dependency pane, so a click in
-  the tree always selects. Each level's siblings are in
+  the tree always selects one row. ⌘- or Ctrl-click (⌘/Ctrl+Enter or Space,
+  and the row's menu) adds a row to the selected rows or takes it out: they
+  are taken together as a group. A row can't be grouped with one above or
+  below it in the hierarchy: adding it drops those (their display ancestors,
+  `DependencyPickPath`, tell). A collapsed row above a selected one carries
+  the selection's bar without its fill ("contains the selection"); its
+  menu's "Reveal the selection" expands the rows down to it. Each level's siblings are in
   dependency order (`orderedAdjacencyMatrix`: those depending on the others on
   top), dependency cycles marked with a bar; the tree ends at the types (their
   members' dependencies aren't resolved yet). Directly to the right of the labels, `TreeArcs` draws, for the
-  selected row only, thin bracket arcs to the visible rows it depends on and
+  selected rows only (a group's arcs those crossing the border around all of
+  them), thin bracket arcs to the visible rows it depends on and
   that depend on it (rows whose children aren't shown, External Types and its
   rows included), each with an arrowhead on the row depended on: with the
   order to the right, against it to the left and dashed; what the row uses

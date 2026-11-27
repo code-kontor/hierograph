@@ -197,7 +197,7 @@ export function hierarchyArcsQueryOptions(scope: GraphScope, ids: string[]) {
 // it; outgoing, those from it to outside. The root is where the trees of
 // their far ends start.
 export const DependencySetQuery = graphql(`
-  query DependencySet($view: String, $id: ID!) {
+  query DependencySet($view: String, $ids: [ID!]!) {
     hierarchicalGraph(view: $view) {
       rootNode {
         id
@@ -208,13 +208,15 @@ export const DependencySetQuery = graphql(`
           text
         }
       }
-      node(id: $id) {
-        id
-        text
-        type
-        hasChildren
-        compactedFrom {
+      nodes(ids: $ids) {
+        nodes {
+          id
           text
+          type
+          hasChildren
+          compactedFrom {
+            text
+          }
         }
         incomingDependencies {
           size
@@ -248,37 +250,33 @@ export type DependencyNode = {
   references?: number;
 };
 
-// The selection, the root, and how many dependencies each set holds.
+// The selection (one node, or a group of them in the order selected), the
+// root, and how many dependencies each set holds: a group's are those
+// crossing its border, the ones between its members left out.
 export type DependencySetInfo = {
-  selection: DependencyNode;
+  selection: DependencyNode[];
   root: DependencyNode;
   incoming: number;
   outgoing: number;
 };
 
-export function dependencySetQueryOptions(scope: GraphScope, id: string) {
+// `null` when a selected node isn't in the view.
+export function dependencySetQueryOptions(scope: GraphScope, ids: string[]) {
   return queryOptions({
-    queryKey: graphQueryKey("start", scope, "dependencySet", id),
+    queryKey: graphQueryKey("start", scope, "dependencySet", ids.join(",")),
     async queryFn(): Promise<DependencySetInfo | null> {
       const data = await execute(DependencySetQuery, {
         view: scope.view ?? null,
-        id,
+        ids,
       });
       const graph = data.hierarchicalGraph;
-      const node = graph?.node;
-      if (!graph || !node) return null;
-      const selection: DependencyNode = {
-        id: node.id,
-        text: node.text,
-        type: node.type,
-        hasChildren: node.hasChildren,
-        compactedFrom: node.compactedFrom,
-      };
+      const set = graph?.nodes;
+      if (!graph || !set || set.nodes.length < ids.length) return null;
       return {
-        selection,
+        selection: set.nodes,
         root: graph.rootNode,
-        incoming: node.incomingDependencies.size,
-        outgoing: node.outgoingDependencies.size,
+        incoming: set.incomingDependencies.size,
+        outgoing: set.outgoingDependencies.size,
       };
     },
   });
@@ -316,14 +314,14 @@ function nodeSelection(picks: DependencyPicks) {
 export const DependencySetChildrenQuery = graphql(`
   query DependencySetChildren(
     $view: String
-    $id: ID!
+    $ids: [ID!]!
     $incoming: Boolean!
     $picks: [NodeSelection!]!
     $parent: ID!
     $side: NodeType!
   ) {
     hierarchicalGraph(view: $view) {
-      node(id: $id) {
+      nodes(ids: $ids) {
         incomingDependencies @include(if: $incoming) {
           filteredDependencies(nodeSelection: $picks) {
             filteredChildrenWithCounts(
@@ -373,7 +371,7 @@ export const DependencySetChildrenQuery = graphql(`
 
 export function dependencySetChildrenQueryOptions(
   scope: GraphScope,
-  selectionId: string,
+  selectionIds: string[],
   direction: DependencyDirection,
   picks: DependencyPicks,
   parent: string,
@@ -384,7 +382,7 @@ export function dependencySetChildrenQueryOptions(
       "start",
       scope,
       "dependencySetChildren",
-      selectionId,
+      selectionIds.join(","),
       direction,
       picks.source ?? "",
       picks.target ?? "",
@@ -394,17 +392,17 @@ export function dependencySetChildrenQueryOptions(
     async queryFn(): Promise<DependencyNode[]> {
       const data = await execute(DependencySetChildrenQuery, {
         view: scope.view ?? null,
-        id: selectionId,
+        ids: selectionIds,
         incoming: direction === "incoming",
         picks: nodeSelection(picks),
         parent,
         side,
       });
-      const node = data.hierarchicalGraph?.node;
+      const selection = data.hierarchicalGraph?.nodes;
       const set =
         direction === "incoming"
-          ? node?.incomingDependencies
-          : node?.outgoingDependencies;
+          ? selection?.incomingDependencies
+          : selection?.outgoingDependencies;
       return (set?.filteredDependencies.filteredChildrenWithCounts ?? []).map(
         (child) => ({
           ...child.node,
@@ -421,7 +419,7 @@ export function dependencySetChildrenQueryOptions(
 export const DependencySetPageQuery = graphql(`
   query DependencySetPage(
     $view: String
-    $id: ID!
+    $ids: [ID!]!
     $incoming: Boolean!
     $picks: [NodeSelection!]!
     $picked: [ID!]!
@@ -436,7 +434,7 @@ export const DependencySetPageQuery = graphql(`
           type
         }
       }
-      node(id: $id) {
+      nodes(ids: $ids) {
         incomingDependencies @include(if: $incoming) {
           filteredDependencies(nodeSelection: $picks) {
             references
@@ -562,7 +560,7 @@ export const DEPENDENCY_PAGE_SIZE = 50;
 
 export function dependencySetPageQueryOptions(
   scope: GraphScope,
-  selectionId: string,
+  selectionIds: string[],
   direction: DependencyDirection,
   picks: DependencyPicks,
   page: number,
@@ -572,7 +570,7 @@ export function dependencySetPageQueryOptions(
       "start",
       scope,
       "dependencySetPage",
-      selectionId,
+      selectionIds.join(","),
       direction,
       picks.source ?? "",
       picks.target ?? "",
@@ -581,7 +579,7 @@ export function dependencySetPageQueryOptions(
     async queryFn(): Promise<DependencyListPage> {
       const data = await execute(DependencySetPageQuery, {
         view: scope.view ?? null,
-        id: selectionId,
+        ids: selectionIds,
         incoming: direction === "incoming",
         picks: nodeSelection(picks),
         picked: [picks.source, picks.target].filter(
@@ -593,8 +591,8 @@ export function dependencySetPageQueryOptions(
       const graph = data.hierarchicalGraph;
       const set =
         direction === "incoming"
-          ? graph?.node?.incomingDependencies
-          : graph?.node?.outgoingDependencies;
+          ? graph?.nodes?.incomingDependencies
+          : graph?.nodes?.outgoingDependencies;
       const result = set?.filteredDependencies.dependencyPage;
       const references = set?.filteredDependencies.references ?? 0;
       const picked = new Map(

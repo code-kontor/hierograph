@@ -28,13 +28,16 @@ tree tests pass through: the paths in `record-fixtures.ts`, expanded one node
 at a time. A test that expands another path needs that path added there.
 `DependencySet`, `DependencySetChildren` and `DependencySetPage` hold the
 dependency pane of a few selections in the scanned hierarchy (`lib`, `app`,
-`isolated` and the module of the fixture-app): every level of the three trees
-that can be opened, and every page of both lists. For `lib` and `app` also
+`isolated` and the module of the fixture-app, and `app` with `lib` as a
+group): every level of the three trees that can be opened, and every page of
+both lists; for the group also each side pick's trees, lists and the selected
+nodes it reaches. For `lib` and `app` also
 every node's path (`DependencyPickPath`: a link naming a pick opens the
 trees down to it) and every node picked in a tree (the trees it marks, the
 lists narrowed by it),
-and the incoming list for a user picked together with a part (types). A test
-that selects or picks another node needs it added there.
+and the incoming list for a user picked together with a part (types). And
+every node's path in the scanned hierarchy, which ⌘-click in the hierarchy
+tree asks for. A test that selects or picks another node needs it added there.
 
 The `updating` scenario (the graph updater busy) can't be recorded reliably; the
 handlers derive it from `default` by changing only the graph's state.

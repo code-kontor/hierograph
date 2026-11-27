@@ -6,7 +6,6 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import { twMerge } from "tailwind-merge";
 
 import { GesturesHelp } from "@/design-system/graph/GesturesHelp";
-import { treeNodeLabel } from "@/design-system/graph/treeLabels";
 import { Pane } from "@/design-system/layout/Pane";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import {
@@ -24,7 +23,10 @@ import {
   DependencyTrees,
   DirectionModeSwitch,
   PICK_PARAMS,
+  selectionName,
+  selectionNames,
   TREE_ROW_PARAMS,
+  useSelectedIds,
 } from "./DependencyTrees";
 import { HierarchyTree } from "./HierarchyTree";
 import { dependencySetQueryOptions } from "./queries";
@@ -179,11 +181,7 @@ type HierarchyRailProps = {
 // selection the dependencies are of, written upwards.
 function HierarchyRail({ onExpand }: HierarchyRailProps) {
   const scope = useGraphScope();
-  const search: { selected_id?: unknown } = useSearch({ strict: false });
-  const selectedId =
-    search.selected_id === undefined || search.selected_id === null
-      ? undefined
-      : String(search.selected_id);
+  const selectedIds = useSelectedIds();
   return (
     <button
       type="button"
@@ -197,8 +195,8 @@ function HierarchyRail({ onExpand }: HierarchyRailProps) {
       <span className="rotate-180 font-mono text-[12px] tracking-[0.06em] uppercase [writing-mode:vertical-rl]">
         Hierarchy
       </span>
-      {scope && selectedId !== undefined && (
-        <SelectionName scope={scope} id={selectedId} />
+      {scope && selectedIds !== undefined && (
+        <SelectionName scope={scope} ids={selectedIds} />
       )}
     </button>
   );
@@ -206,20 +204,21 @@ function HierarchyRail({ onExpand }: HierarchyRailProps) {
 
 type SelectionNameProps = {
   scope: GraphScope;
-  id: string;
+  ids: string[];
 };
 
 // The selection's name, as the dependency pane has it (the same query).
-function SelectionName({ scope, id }: SelectionNameProps) {
-  const query = useQuery(dependencySetQueryOptions(scope, id));
+function SelectionName({ scope, ids }: SelectionNameProps) {
+  const query = useQuery(dependencySetQueryOptions(scope, ids));
   const selection = query.data?.selection;
   if (!selection) return null;
   return (
     <span
       data-testid="rail-selection"
+      title={selectionNames(selection)}
       className="text-fg min-h-0 rotate-180 truncate font-mono text-[12px] [writing-mode:vertical-rl]"
     >
-      {treeNodeLabel(selection.type, selection.text, undefined)}
+      {selectionName(selection)}
     </span>
   );
 }
@@ -229,15 +228,13 @@ function SelectionName({ scope, id }: SelectionNameProps) {
 // sits where it was).
 function DependencyPaneTitle() {
   const scope = useGraphScope();
-  const search: { selected_id?: unknown; selected_cycle_ids?: unknown } =
-    useSearch({ strict: false });
+  const search: { selected_cycle_ids?: unknown } = useSearch({
+    strict: false,
+  });
   const navigate = useNavigate();
-  const selectedId =
-    search.selected_id === undefined || search.selected_id === null
-      ? undefined
-      : String(search.selected_id);
+  const selectedIds = useSelectedIds();
   const anything =
-    selectedId !== undefined || search.selected_cycle_ids !== undefined;
+    selectedIds !== undefined || search.selected_cycle_ids !== undefined;
   // As clearing it in the hierarchy tree: the picks and the trees' open rows
   // go with it.
   const clear = async () => {
@@ -245,7 +242,7 @@ function DependencyPaneTitle() {
       to: ".",
       search: (previous: Record<string, unknown>) => ({
         ...previous,
-        selected_id: undefined,
+        selected_ids: undefined,
         selected_cycle_ids: undefined,
         // Back to both directions.
         dependency_directions: undefined,
@@ -263,8 +260,8 @@ function DependencyPaneTitle() {
     <span className="flex min-w-0 items-center gap-1">
       <span role="heading" aria-level={2} className="truncate">
         Dependencies
-        {scope && selectedId !== undefined && (
-          <PaneSelectionName scope={scope} id={selectedId} />
+        {scope && selectedIds !== undefined && (
+          <PaneSelectionName scope={scope} ids={selectedIds} />
         )}
       </span>
       {anything && (
@@ -285,16 +282,20 @@ function DependencyPaneTitle() {
   );
 }
 
-// " of <name>", the name as written, not in the title's capitals.
-function PaneSelectionName({ scope, id }: SelectionNameProps) {
-  const query = useQuery(dependencySetQueryOptions(scope, id));
+// " of <name>", the name as written, not in the title's capitals; a group's
+// size, its names as the tooltip.
+function PaneSelectionName({ scope, ids }: SelectionNameProps) {
+  const query = useQuery(dependencySetQueryOptions(scope, ids));
   const selection = query.data?.selection;
   if (!selection) return null;
   return (
     <>
       {" of "}
-      <span className="text-fg normal-case">
-        {treeNodeLabel(selection.type, selection.text, undefined)}
+      <span
+        className="text-fg normal-case"
+        title={selection.length > 1 ? selectionNames(selection) : undefined}
+      >
+        {selectionName(selection)}
       </span>
     </>
   );

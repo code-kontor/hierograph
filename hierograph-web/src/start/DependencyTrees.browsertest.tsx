@@ -16,10 +16,12 @@ const SCREENS = [
 // The id of a recorded selection, by its qualified name.
 function idOf(text: string): string {
   const entry = dependencySet.entries.find(
-    (candidate) => candidate.data.hierarchicalGraph.node.text === text,
+    (candidate) =>
+      candidate.variables.ids.length === 1 &&
+      candidate.data.hierarchicalGraph.nodes.nodes[0].text === text,
   );
   if (!entry) throw new Error(`No recorded selection ${text}`);
-  return entry.variables.id;
+  return entry.variables.ids[0];
 }
 
 // The id of a node in the recorded dependency trees, by its qualified name.
@@ -88,7 +90,7 @@ function expectRuns(rows: Element[], end: 0 | 1) {
 
 describe("DependencyTrees", () => {
   it("shows what uses the selection, the selection reduced to its dependencies, and what it uses", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { usedBy, selection, uses } = pane(screen);
 
     // The selection, open, with all its children.
@@ -136,7 +138,7 @@ describe("DependencyTrees", () => {
   });
 
   it("shows what the selection uses on the right", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(APP)}`);
     const { selection, uses } = pane(screen);
 
     await expect
@@ -152,7 +154,7 @@ describe("DependencyTrees", () => {
   });
 
   it("folds a chain of lone packages into one row, as the hierarchy tree does", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(MODULE)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(MODULE)}`);
     const { selection } = pane(screen);
 
     // org › org.hg › org.hg.fixture: one row, which names what it stands for.
@@ -179,7 +181,7 @@ describe("DependencyTrees", () => {
   });
 
   it("says when the selection has no dependencies outside itself", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(ISOLATED)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(ISOLATED)}`);
 
     await expect
       .element(
@@ -205,7 +207,7 @@ describe("DependencyTrees", () => {
   });
 
   it("lists the incoming and the outgoing dependencies below, a tab each, from source to target", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { incoming, outgoing } = pane(screen);
 
     await expect
@@ -248,7 +250,7 @@ describe("DependencyTrees", () => {
   });
 
   it("names the selection's type once for a run of its rows: incoming the target, in target order", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { incoming } = pane(screen);
     await expect
       .element(incoming.getByRole("heading"))
@@ -264,7 +266,7 @@ describe("DependencyTrees", () => {
 
   it("names the selection's type once for a run of its rows: outgoing the source", async () => {
     const screen = await renderStart(
-      `?selected_id=${idOf(APP)}&dependency_list=outgoing`,
+      `?selected_ids=${idOf(APP)}&dependency_list=outgoing`,
     );
     const { outgoing } = pane(screen);
     await expect
@@ -280,7 +282,7 @@ describe("DependencyTrees", () => {
   it("resizes the list's columns on the borders between their headings, remembering the widths", async () => {
     localStorage.clear();
     onTestFinished(() => localStorage.clear());
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { incoming } = pane(screen);
     const border = incoming.getByRole("separator", {
       name: "Resize Source and Target",
@@ -311,7 +313,7 @@ describe("DependencyTrees", () => {
   });
 
   it("closes the selection in its tree, and keeps it closed in the URL until another selection", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { selection } = pane(screen);
     const top = selection.getByRole("treeitem", { name: LIB });
     await expect.element(top).toHaveAttribute("aria-expanded", "true");
@@ -326,7 +328,7 @@ describe("DependencyTrees", () => {
       .not.toBeInTheDocument();
     await expect
       .poll(() => screen.router.state.location.search)
-      .toMatchObject({ selection_collapsed: true });
+      .toMatchObject({ selection_collapsed_ids: [idOf(LIB)] });
 
     await selection.getByRole("button", { name: `Expand ${LIB}` }).click();
 
@@ -335,22 +337,22 @@ describe("DependencyTrees", () => {
       .toBeVisible();
     await expect
       .poll(() => screen.router.state.location.search)
-      .not.toHaveProperty("selection_collapsed");
+      .not.toHaveProperty("selection_collapsed_ids");
 
     // Closed again, then another selection: that one opens.
     await selection.getByRole("button", { name: `Collapse ${LIB}` }).click();
     await expect
       .poll(() => screen.router.state.location.search)
-      .toMatchObject({ selection_collapsed: true });
+      .toMatchObject({ selection_collapsed_ids: [idOf(LIB)] });
     await screen.getByRole("button", { name: "Clear selection" }).click();
     await expect
       .poll(() => screen.router.state.location.search)
-      .not.toHaveProperty("selection_collapsed");
+      .not.toHaveProperty("selection_collapsed_ids");
   });
 
   it("opens with the selection closed when the link says so", async () => {
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&selection_collapsed=true`,
+      `?selected_ids=${idOf(LIB)}&selection_collapsed_ids=${idOf(LIB)}`,
     );
     const { selection } = pane(screen);
     await expect
@@ -358,10 +360,55 @@ describe("DependencyTrees", () => {
       .toHaveAttribute("aria-expanded", "false");
   });
 
+  it("takes a group of selected nodes together: the dependencies crossing its border", async () => {
+    const [app, lib] = [idOf(APP), idOf(LIB)];
+    const screen = await renderStart(`?selected_ids=${app},${lib}`);
+    const { usedBy, selection, uses } = pane(screen);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Dependencies of 2 nodes" }))
+      .toBeVisible();
+    // Both, open, in the order selected.
+    const top = (name: string) =>
+      selection.getByRole("treeitem", { name, exact: true });
+    await expect.element(top(APP)).toHaveAttribute("aria-expanded", "true");
+    await expect.element(top(LIB)).toHaveAttribute("aria-expanded", "true");
+    expect(
+      selection
+        .getByRole("treeitem")
+        .elements()
+        .filter((row) => row.getAttribute("aria-level") === "1")
+        .map((row) => row.getAttribute("aria-label")),
+    ).toEqual([APP, LIB]);
+    // app → lib is inside the group: nothing outside uses it, and only
+    // app's one dependency outside goes out.
+    await expect
+      .element(
+        usedBy.getByText("Nothing outside the selected nodes depends on them."),
+      )
+      .toBeVisible();
+    await screen.getByRole("tab", { name: "Outgoing dependencies" }).click();
+    await expect
+      .element(
+        screen
+          .getByRole("region", { name: "Outgoing dependencies" })
+          .getByText(/^1 dependency/),
+      )
+      .toBeVisible();
+
+    // A used node marks the selected node it is reached from, not the other.
+    const used = uses.getByRole("treeitem").first();
+    await expect.element(used).toBeVisible();
+    const usedName = used.element().getAttribute("aria-label") ?? "";
+    await used.getByText(usedName, { exact: true }).click();
+    await expect.element(top(APP)).toHaveAttribute("data-connected", "true");
+    await expect.element(top(LIB)).not.toHaveAttribute("data-connected");
+  });
+
   it("shows one direction at a time when asked, and both again once the selection is cleared", async () => {
     const user = treeIdOf(MODULE);
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&used_by_id=${user}`,
+      `?selected_ids=${idOf(LIB)}&used_by_id=${user}`,
     );
     const directions = screen.getByRole("radiogroup", { name: "Directions" });
     await expect
@@ -412,7 +459,7 @@ describe("DependencyTrees", () => {
   });
 
   it("moves between the directions with the arrow keys, one tab stop for the three", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const directions = screen.getByRole("radiogroup", { name: "Directions" });
     const radio = (name: string) => directions.getByRole("radio", { name });
     await expect.element(radio("Both")).toHaveAttribute("tabindex", "0");
@@ -442,7 +489,7 @@ describe("DependencyTrees", () => {
   it("offers the other direction when the one shown has no dependencies", async () => {
     // lib uses nothing outside itself, but is used.
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&dependency_directions=outgoing`,
+      `?selected_ids=${idOf(LIB)}&dependency_directions=outgoing`,
     );
     const uses = screen.getByRole("region", { name: "Uses" });
     await expect
@@ -477,7 +524,7 @@ describe("DependencyTrees", () => {
   });
 
   it("shows what a picked node connects to in the other trees and the lists", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { usedBy, selection, incoming } = pane(screen);
 
     // A user: the list keeps only its dependencies.
@@ -515,7 +562,7 @@ describe("DependencyTrees", () => {
       .element(incoming.getByRole("heading"))
       .toHaveTextContent("1 dependency");
     await expect
-      .element(incoming.getByRole("button", { name: "Drop part Order" }))
+      .element(incoming.getByRole("button", { name: "Drop selection Order" }))
       .toBeVisible();
     await expect
       .poll(() => screen.router.state.location.search)
@@ -546,11 +593,13 @@ describe("DependencyTrees", () => {
   it("drops a pick from its chip over the list", async () => {
     const order = treeIdOf(`${LIB}.order.Order`);
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&selection_part_id=${order}`,
+      `?selected_ids=${idOf(LIB)}&selection_part_id=${order}`,
     );
     const { incoming } = pane(screen);
 
-    await incoming.getByRole("button", { name: "Drop part Order" }).click();
+    await incoming
+      .getByRole("button", { name: "Drop selection Order" })
+      .click();
 
     await expect
       .poll(() => screen.router.state.location.search)
@@ -562,7 +611,7 @@ describe("DependencyTrees", () => {
 
   it("keeps each tree's open rows in the URL, so a link restores them", async () => {
     const module = treeIdOf(MODULE);
-    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(APP)}`);
     const { uses } = pane(screen);
 
     await uses.getByRole("button", { name: "Expand fixture-app" }).click();
@@ -583,7 +632,7 @@ describe("DependencyTrees", () => {
 
   it("opens the rows the URL names", async () => {
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&used_by_expanded_ids=${treeIdOf(MODULE)}`,
+      `?selected_ids=${idOf(LIB)}&used_by_expanded_ids=${treeIdOf(MODULE)}`,
     );
     const { usedBy } = pane(screen);
 
@@ -593,7 +642,7 @@ describe("DependencyTrees", () => {
   });
 
   it("expands and collapses a row with everything in it from its menu", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(APP)}`);
     const { uses } = pane(screen);
 
     await uses
@@ -625,7 +674,7 @@ describe("DependencyTrees", () => {
   });
 
   it("makes a part the selection from the Selection tree's menu, and shows it in the hierarchy", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(MODULE)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(MODULE)}`);
     const { selection } = pane(screen);
     await selection
       .getByRole("button", { name: "Expand org.hg.fixture" })
@@ -639,7 +688,7 @@ describe("DependencyTrees", () => {
     await screen.getByRole("menuitem", { name: "Select" }).click();
 
     await expect
-      .poll(() => String(screen.router.state.location.search.selected_id))
+      .poll(() => String(screen.router.state.location.search.selected_ids))
       .toBe(idOf(LIB));
     // The hierarchy tree opens down to it and selects it.
     await expect
@@ -666,7 +715,7 @@ describe("DependencyTrees", () => {
   });
 
   it("offers no Select for the selection itself", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { selection } = pane(screen);
 
     await selection
@@ -683,7 +732,7 @@ describe("DependencyTrees", () => {
   it("greys what isn't connected to a pick in another tree, and explains it in the pane's ?", async () => {
     const order = treeIdOf(`${LIB}.order.Order`);
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&selection_part_id=${order}`,
+      `?selected_ids=${idOf(LIB)}&selection_part_id=${order}`,
     );
     const { usedBy } = pane(screen);
     await usedBy.getByRole("button", { name: "Expand fixture-app" }).click();
@@ -713,7 +762,7 @@ describe("DependencyTrees", () => {
   it("opens a linked pick's tree down to it", async () => {
     const order = treeIdOf(`${LIB}.order.Order`);
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&selection_part_id=${order}`,
+      `?selected_ids=${idOf(LIB)}&selection_part_id=${order}`,
     );
     const { selection } = pane(screen);
 
@@ -725,8 +774,47 @@ describe("DependencyTrees", () => {
       .toHaveAttribute("aria-expanded", "true");
   });
 
+  it("marks a closed row that hides the pick, and opens it down to the pick from its menu", async () => {
+    const order = treeIdOf(`${LIB}.order.Order`);
+    const screen = await renderStart(
+      `?selected_ids=${idOf(LIB)}&selection_part_id=${order}`,
+    );
+    const { selection } = pane(screen);
+    const orderPackage = () =>
+      selection.getByRole("treeitem", { name: "order", exact: true });
+    await expect
+      .element(orderPackage())
+      .toHaveAttribute("aria-expanded", "true");
+    await expect.element(orderPackage()).not.toHaveAttribute("data-holds-pick");
+
+    await selection.getByRole("button", { name: "Collapse order" }).click();
+
+    // Still the filter, out of sight: the row it is in says so.
+    expect(String(screen.router.state.location.search.selection_part_id)).toBe(
+      order,
+    );
+    await expect.element(orderPackage()).toHaveAttribute("data-holds-pick");
+    await expect
+      .element(orderPackage())
+      .toHaveAccessibleDescription(/contains the picked node/);
+
+    // Closing the row above moves the mark up to it.
+    const top = selection.getByRole("treeitem", { name: LIB });
+    await selection.getByRole("button", { name: `Collapse ${LIB}` }).click();
+    await expect.element(top).toHaveAttribute("data-holds-pick");
+
+    await top.getByText(LIB, { exact: true }).click({ button: "right" });
+    await screen.getByRole("menuitem", { name: "Reveal the pick" }).click();
+
+    await expect
+      .element(selection.getByRole("treeitem", { name: "Order", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect.element(top).not.toHaveAttribute("data-holds-pick");
+    await expect.element(orderPackage()).not.toHaveAttribute("data-holds-pick");
+  });
+
   it("opens the list's tab of the side a node is picked on", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(APP)}`);
     const { uses } = pane(screen);
     await uses.getByRole("button", { name: "Expand fixture-app" }).click();
     await uses.getByRole("button", { name: "Expand org.hg.fixture" }).click();
@@ -744,7 +832,7 @@ describe("DependencyTrees", () => {
   it("keeps one direction at a time: a pick on one side drops the other side's", async () => {
     const order = treeIdOf(`${LIB}.order.Order`);
     const screen = await renderStart(
-      `?selected_id=${idOf(LIB)}&uses_id=${order}&selection_part_id=${order}`,
+      `?selected_ids=${idOf(LIB)}&uses_id=${order}&selection_part_id=${order}`,
     );
     const { usedBy } = pane(screen);
     await openWeb(usedBy);
@@ -761,7 +849,7 @@ describe("DependencyTrees", () => {
   });
 
   it("orders each level as the hierarchy tree does, External Types last", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(APP)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(APP)}`);
     const { uses } = pane(screen);
 
     // The module first, External Types after it, with no separator.
@@ -776,7 +864,7 @@ describe("DependencyTrees", () => {
   });
 
   it("orders the selection's parts in dependency order, not by name", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { selection } = pane(screen);
 
     const parts = selection
@@ -790,7 +878,7 @@ describe("DependencyTrees", () => {
   });
 
   it("shows all of the selection, parts without dependencies too", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(MODULE)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(MODULE)}`);
     const { selection } = pane(screen);
 
     await selection
@@ -805,7 +893,7 @@ describe("DependencyTrees", () => {
   });
 
   it("says what each tree holds in its title's tooltip, not under it", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { usedBy } = pane(screen);
     const holds = `The nodes outside ${LIB} whose types depend on types in ${LIB}.`;
 
@@ -817,7 +905,7 @@ describe("DependencyTrees", () => {
   });
 
   it("names the selection in the pane's title", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
 
     await expect
       .element(screen.getByRole("heading", { name: `Dependencies of ${LIB}` }))
@@ -825,7 +913,7 @@ describe("DependencyTrees", () => {
   });
 
   it("counts next to each row of the sides how many of the selection's dependencies it holds", async () => {
-    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
     const { usedBy, selection } = pane(screen);
 
     // All 13 of lib's incoming dependencies come from the module.

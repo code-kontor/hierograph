@@ -27,6 +27,7 @@ import {
   PICK_PARAMS,
   useDependencyTreePicks,
   useDirectionMode,
+  useSelectedIds,
 } from "./DependencyTrees";
 import {
   DEPENDENCY_PAGE_SIZE,
@@ -41,7 +42,6 @@ import {
 
 // The start page's params the list reads (see the start route).
 type DependencyListSearch = {
-  selected_id?: unknown;
   dependency_list?: unknown;
 };
 
@@ -92,10 +92,7 @@ export function DependencyListPane() {
       replace: true,
     } as never);
   };
-  const selectedId =
-    search.selected_id === undefined || search.selected_id === null
-      ? undefined
-      : String(search.selected_id);
+  const selectedIds = useSelectedIds();
   const incoming: DependencyPicks = {
     source: picks.usedBy,
     target: picks.part,
@@ -106,10 +103,10 @@ export function DependencyListPane() {
   const chips: Record<DependencyDirection, ScopeChip[]> = {
     incoming: [
       { role: "Used by", id: picks.usedBy, param: PICK_PARAMS.usedBy },
-      { role: "Part", id: picks.part, param: PICK_PARAMS.part },
+      { role: "Selection", id: picks.part, param: PICK_PARAMS.part },
     ],
     outgoing: [
-      { role: "Part", id: picks.part, param: PICK_PARAMS.part },
+      { role: "Selection", id: picks.part, param: PICK_PARAMS.part },
       { role: "Uses", id: picks.uses, param: PICK_PARAMS.uses },
     ],
   };
@@ -124,15 +121,15 @@ export function DependencyListPane() {
     } as never);
   };
   const list = (direction: DependencyDirection, narrowing: DependencyPicks) =>
-    selectedId === undefined || !scope ? (
+    selectedIds === undefined || !scope ? (
       <Hint>Select a node in the hierarchy to list its dependencies.</Hint>
     ) : (
       <DependencyList
         // A new set or narrowing starts on its first page.
-        key={`${selectedId}|${narrowing.source ?? ""}|${narrowing.target ?? ""}`}
+        key={`${selectedIds.join(",")}|${narrowing.source ?? ""}|${narrowing.target ?? ""}`}
         title={TAB_LABELS[direction]}
         scope={scope}
-        selectionId={selectedId}
+        selectionIds={selectedIds}
         direction={direction}
         picks={narrowing}
         chips={chips[direction].filter((chip) => chip.id !== undefined)}
@@ -184,7 +181,7 @@ type ScopeChip = { role: string; id: string | undefined; param: string };
 type DependencyListProps = {
   title: string;
   scope: GraphScope;
-  selectionId: string;
+  selectionIds: string[];
   direction: DependencyDirection;
   picks: DependencyPicks;
   chips: ScopeChip[];
@@ -197,7 +194,7 @@ type DependencyListProps = {
 function DependencyList({
   title,
   scope,
-  selectionId,
+  selectionIds,
   direction,
   picks,
   chips,
@@ -205,11 +202,11 @@ function DependencyList({
 }: DependencyListProps) {
   const [page, setPage] = useState(1);
   const query = useQuery(
-    dependencySetPageQueryOptions(scope, selectionId, direction, picks, page),
+    dependencySetPageQueryOptions(scope, selectionIds, direction, picks, page),
   );
   // The selection's counts in each direction (the trees' query), for the way
   // to the other direction when the one shown has none.
-  const set = useQuery(dependencySetQueryOptions(scope, selectionId));
+  const set = useQuery(dependencySetQueryOptions(scope, selectionIds));
   const data = query.data;
   const name = (id: string | undefined) => {
     if (id === undefined) return undefined;

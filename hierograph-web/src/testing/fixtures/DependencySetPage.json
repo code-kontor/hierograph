@@ -5,7 +5,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [],
         "picked": [],
@@ -17,7 +19,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -1247,7 +1249,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [],
         "picked": [],
@@ -1259,7 +1263,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -1280,7 +1284,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -1307,7 +1313,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -2537,7 +2543,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -2564,7 +2572,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -3794,7 +3802,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -3821,7 +3831,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -5051,7 +5061,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -5078,7 +5090,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -6308,7 +6320,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -6335,7 +6349,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 6,
@@ -6737,7 +6751,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -6764,7 +6780,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 6,
@@ -7166,7 +7182,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -7205,7 +7223,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -7319,7 +7337,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -7358,7 +7378,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -7472,7 +7492,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -7511,7 +7533,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -7633,7 +7655,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -7672,7 +7696,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -7790,7 +7814,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -7817,7 +7843,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 19,
@@ -8667,7 +8693,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -8694,7 +8722,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 5,
@@ -8988,7 +9016,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -9027,7 +9057,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -9137,7 +9167,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -9176,7 +9208,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -9286,7 +9318,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -9325,7 +9359,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 3,
@@ -9443,7 +9477,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -9470,7 +9506,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 9,
@@ -9776,7 +9812,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -9815,7 +9853,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -9925,7 +9963,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -9964,7 +10004,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 4,
@@ -10086,7 +10126,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -10125,7 +10167,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 4,
@@ -10243,7 +10285,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -10270,7 +10314,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 5,
@@ -10564,7 +10608,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -10603,7 +10649,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -10713,7 +10759,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -10752,7 +10800,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -10866,7 +10914,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -10905,7 +10955,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -11019,7 +11069,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -11046,7 +11098,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -12276,7 +12328,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -12303,7 +12357,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -12324,7 +12378,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -12351,7 +12407,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -12461,7 +12517,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -12488,7 +12546,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -12509,7 +12567,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -12536,7 +12596,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -12646,7 +12706,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -12673,7 +12735,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -12694,7 +12756,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -12721,7 +12785,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 7,
@@ -13195,7 +13259,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -13222,7 +13288,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -13243,7 +13309,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -13270,7 +13338,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 3,
@@ -13560,7 +13628,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -13587,7 +13657,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -13608,7 +13678,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -13635,7 +13707,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -13745,7 +13817,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -13772,7 +13846,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -13793,7 +13867,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -13820,7 +13896,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 3,
@@ -13938,7 +14014,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -13965,7 +14043,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -13986,7 +14064,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -14013,7 +14093,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 13,
@@ -14515,7 +14595,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -14542,7 +14624,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -14563,7 +14645,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -14590,7 +14674,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 7,
@@ -14896,7 +14980,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -14923,7 +15009,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -14944,7 +15030,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -14971,7 +15059,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 4,
@@ -15089,7 +15177,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -15116,7 +15206,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -15137,7 +15227,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -15164,7 +15256,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -15286,7 +15378,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -15313,7 +15407,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -15334,7 +15428,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -15361,7 +15457,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -15483,7 +15579,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -15510,7 +15608,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -15531,7 +15629,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -15558,7 +15658,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 4,
@@ -15768,7 +15868,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -15795,7 +15897,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -15816,7 +15918,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -15843,7 +15947,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -15961,7 +16065,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -15988,7 +16094,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -16009,7 +16115,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -16036,7 +16144,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -16150,7 +16258,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862",
+        "ids": [
+          "7288710331230862"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -16177,7 +16287,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -16198,7 +16308,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [],
         "picked": [],
@@ -16210,7 +16322,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -16231,7 +16343,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [],
         "picked": [],
@@ -16243,7 +16357,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 26,
@@ -17545,7 +17659,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -17572,7 +17688,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -17666,7 +17782,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -17693,7 +17811,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -17787,7 +17905,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -17814,7 +17934,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -17908,7 +18028,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -17935,7 +18057,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -18029,7 +18151,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -18056,7 +18180,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -19286,7 +19410,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -19313,7 +19439,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -20543,7 +20669,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -20570,7 +20698,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -21800,7 +21928,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -21827,7 +21957,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 25,
@@ -23057,7 +23187,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -23084,7 +23216,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -23194,7 +23326,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -23221,7 +23355,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -23331,7 +23465,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -23358,7 +23494,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 7,
@@ -23832,7 +23968,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -23859,7 +23997,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 3,
@@ -24149,7 +24287,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -24176,7 +24316,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -24286,7 +24426,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -24313,7 +24455,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 3,
@@ -24431,7 +24573,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -24458,7 +24602,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 13,
@@ -24960,7 +25104,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -24987,7 +25133,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 7,
@@ -25293,7 +25439,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -25320,7 +25468,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 4,
@@ -25438,7 +25586,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -25465,7 +25615,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -25587,7 +25737,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -25614,7 +25766,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -25736,7 +25888,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -25763,7 +25917,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 4,
@@ -25973,7 +26127,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -26000,7 +26156,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -26118,7 +26274,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -26145,7 +26303,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 2,
@@ -26259,7 +26417,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -26286,7 +26446,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -26307,7 +26467,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -26334,7 +26496,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 26,
@@ -27636,7 +27798,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -27663,7 +27827,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -27684,7 +27848,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -27711,7 +27877,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 6,
@@ -28113,7 +28279,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -28140,7 +28308,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -28161,7 +28329,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -28188,7 +28358,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 6,
@@ -28590,7 +28760,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -28617,7 +28789,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -28638,7 +28810,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -28665,7 +28839,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -28759,7 +28933,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -28786,7 +28962,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -28807,7 +28983,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -28834,7 +29012,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 1,
@@ -28928,7 +29106,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -28955,7 +29135,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -28976,7 +29156,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -29003,7 +29185,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 19,
@@ -29853,7 +30035,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -29880,7 +30064,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -29901,7 +30085,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -29928,7 +30114,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 5,
@@ -30222,7 +30408,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -30249,7 +30437,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -30270,7 +30458,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -30297,7 +30487,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 9,
@@ -30603,7 +30793,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": true,
         "picks": [
           {
@@ -30630,7 +30822,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -30651,7 +30843,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400",
+        "ids": [
+          "1490153931190400"
+        ],
         "incoming": false,
         "picks": [
           {
@@ -30678,7 +30872,7 @@
               }
             ]
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 5,
@@ -30972,7 +31166,9 @@
     {
       "variables": {
         "view": null,
-        "id": "3988795772440812",
+        "ids": [
+          "3988795772440812"
+        ],
         "incoming": true,
         "picks": [],
         "picked": [],
@@ -30984,7 +31180,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -31005,7 +31201,9 @@
     {
       "variables": {
         "view": null,
-        "id": "3988795772440812",
+        "ids": [
+          "3988795772440812"
+        ],
         "incoming": false,
         "picks": [],
         "picked": [],
@@ -31017,7 +31215,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -31038,7 +31236,9 @@
     {
       "variables": {
         "view": null,
-        "id": "5909467489117502",
+        "ids": [
+          "5909467489117502"
+        ],
         "incoming": true,
         "picks": [],
         "picked": [],
@@ -31050,7 +31250,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "incomingDependencies": {
               "filteredDependencies": {
                 "references": 0,
@@ -31071,7 +31271,9 @@
     {
       "variables": {
         "view": null,
-        "id": "5909467489117502",
+        "ids": [
+          "5909467489117502"
+        ],
         "incoming": false,
         "picks": [],
         "picked": [],
@@ -31083,7 +31285,7 @@
           "picked": {
             "nodes": []
           },
-          "node": {
+          "nodes": {
             "outgoingDependencies": {
               "filteredDependencies": {
                 "references": 5,
@@ -31375,6 +31577,1443 @@
                       }
                     }
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": true,
+        "picks": [],
+        "picked": [],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": []
+          },
+          "nodes": {
+            "incomingDependencies": {
+              "filteredDependencies": {
+                "references": 0,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 0,
+                    "totalCount": 0
+                  },
+                  "dependencies": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [],
+        "picked": [],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": []
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "4400363846879942"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "4400363846879942"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "4400363846879942",
+                "text": "External Types",
+                "type": "java.module"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "1490153931190400"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "4400363846879942"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "1490153931190400",
+          "4400363846879942"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "1490153931190400",
+                "text": "org.hg.fixture.locations.app",
+                "type": "java.package"
+              },
+              {
+                "id": "4400363846879942",
+                "text": "External Types",
+                "type": "java.module"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "7288710331230862"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "4400363846879942"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "7288710331230862",
+          "4400363846879942"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "7288710331230862",
+                "text": "org.hg.fixture.locations.lib",
+                "type": "java.package"
+              },
+              {
+                "id": "4400363846879942",
+                "text": "External Types",
+                "type": "java.module"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 0,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 0,
+                    "totalCount": 0
+                  },
+                  "dependencies": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "2106137824575494"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "2106137824575494"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "2106137824575494",
+                "text": "java",
+                "type": "java.package"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "1490153931190400"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "2106137824575494"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "1490153931190400",
+          "2106137824575494"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "1490153931190400",
+                "text": "org.hg.fixture.locations.app",
+                "type": "java.package"
+              },
+              {
+                "id": "2106137824575494",
+                "text": "java",
+                "type": "java.package"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "7288710331230862"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "2106137824575494"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "7288710331230862",
+          "2106137824575494"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "7288710331230862",
+                "text": "org.hg.fixture.locations.lib",
+                "type": "java.package"
+              },
+              {
+                "id": "2106137824575494",
+                "text": "java",
+                "type": "java.package"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 0,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 0,
+                    "totalCount": 0
+                  },
+                  "dependencies": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "2966789580539469"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "2966789580539469"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "2966789580539469",
+                "text": "java.io",
+                "type": "java.package"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "1490153931190400"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "2966789580539469"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "1490153931190400",
+          "2966789580539469"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "1490153931190400",
+                "text": "org.hg.fixture.locations.app",
+                "type": "java.package"
+              },
+              {
+                "id": "2966789580539469",
+                "text": "java.io",
+                "type": "java.package"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "7288710331230862"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "2966789580539469"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "7288710331230862",
+          "2966789580539469"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "7288710331230862",
+                "text": "org.hg.fixture.locations.lib",
+                "type": "java.package"
+              },
+              {
+                "id": "2966789580539469",
+                "text": "java.io",
+                "type": "java.package"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 0,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 0,
+                    "totalCount": 0
+                  },
+                  "dependencies": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "1174811341709081"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "1174811341709081"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "1174811341709081",
+                "text": "java.io.PrintStream",
+                "type": "external.type"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "1490153931190400"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "1174811341709081"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "1490153931190400",
+          "1174811341709081"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "1490153931190400",
+                "text": "org.hg.fixture.locations.app",
+                "type": "java.package"
+              },
+              {
+                "id": "1174811341709081",
+                "text": "java.io.PrintStream",
+                "type": "external.type"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 1,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 1,
+                    "totalCount": 1
+                  },
+                  "dependencies": [
+                    {
+                      "id": "5607609318634521_1174811341709081_DEPENDS_ON",
+                      "weight": 1,
+                      "kinds": [
+                        {
+                          "kind": "calls",
+                          "count": 1
+                        }
+                      ],
+                      "sourceNode": {
+                        "id": "5607609318634521",
+                        "text": "org.hg.fixture.locations.app.support.LoggingHelper",
+                        "type": "java.class",
+                        "predecessors": [
+                          {
+                            "text": "org.hg.fixture.locations.app.support",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations.app",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture.locations",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg.fixture",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org.hg",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "org",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "io.hierograph.examples:fixture-app:1.0.0",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      },
+                      "targetNode": {
+                        "id": "1174811341709081",
+                        "text": "java.io.PrintStream",
+                        "type": "external.type",
+                        "predecessors": [
+                          {
+                            "text": "java.io",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "java",
+                            "type": "java.package"
+                          },
+                          {
+                            "text": "External Types",
+                            "type": "java.module"
+                          },
+                          {
+                            "text": "",
+                            "type": "Unknown"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ],
+        "incoming": false,
+        "picks": [
+          {
+            "selectedNodeIds": [
+              "7288710331230862"
+            ],
+            "selectedNodesType": "SOURCE"
+          },
+          {
+            "selectedNodeIds": [
+              "1174811341709081"
+            ],
+            "selectedNodesType": "TARGET"
+          }
+        ],
+        "picked": [
+          "7288710331230862",
+          "1174811341709081"
+        ],
+        "page": 1,
+        "pageSize": 50
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "picked": {
+            "nodes": [
+              {
+                "id": "7288710331230862",
+                "text": "org.hg.fixture.locations.lib",
+                "type": "java.package"
+              },
+              {
+                "id": "1174811341709081",
+                "text": "java.io.PrintStream",
+                "type": "external.type"
+              }
+            ]
+          },
+          "nodes": {
+            "outgoingDependencies": {
+              "filteredDependencies": {
+                "references": 0,
+                "dependencyPage": {
+                  "pageInfo": {
+                    "pageNumber": 1,
+                    "maxPages": 0,
+                    "totalCount": 0
+                  },
+                  "dependencies": []
                 }
               }
             }

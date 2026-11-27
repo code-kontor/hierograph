@@ -253,7 +253,12 @@ if (scenario === "default") {
   // the trees it narrows or marks and the lists narrowed by it, and the incoming list
   // for a user picked with a part (types). `lib` is used by `app` and uses
   // nothing outside itself; `app` uses `lib`; `isolated` has neither; the
-  // module uses External Types.
+  // module uses External Types. And `app` and `lib` selected together, a
+  // group (#85): app → lib is inside it; with each node picked in a side
+  // tree, the trees it marks, the list it narrows and whether each selected
+  // node reaches it.
+  // Every node's path is recorded, too: ⌘-click asks for the paths of the
+  // node it adds and the selected ones.
   const idOf = (text: string) => {
     for (const [key, nodes] of levels) {
       if (!key.startsWith("null|")) continue;
@@ -293,7 +298,8 @@ if (scenario === "default") {
   type SetData = {
     hierarchicalGraph: {
       rootNode: TreeNode;
-      node: TreeNode & {
+      nodes: {
+        nodes: TreeNode[];
         incomingDependencies: { size: number };
         outgoingDependencies: { size: number };
       };
@@ -301,7 +307,7 @@ if (scenario === "default") {
   };
   type ChildrenData = {
     hierarchicalGraph: {
-      node: Record<
+      nodes: Record<
         string,
         | {
             filteredDependencies: {
@@ -314,7 +320,7 @@ if (scenario === "default") {
   };
   type PageData = {
     hierarchicalGraph: {
-      node: Record<
+      nodes: Record<
         string,
         | {
             filteredDependencies: {
@@ -330,28 +336,32 @@ if (scenario === "default") {
     node.hasChildren && !TYPE_KINDS.has(node.type);
   // A level's source, as start/DependencyTrees.tsx has it.
   type LevelSource = { direction: Direction; picks: Picks; side: Side };
-  for (const text of [
-    "org.hg.fixture.locations.lib",
-    "org.hg.fixture.locations.app",
-    "org.hg.fixture.basic.isolated",
-    "io.hierograph.examples:fixture-app:1.0.0",
+  const LIB = "org.hg.fixture.locations.lib";
+  const APP = "org.hg.fixture.locations.app";
+  for (const texts of [
+    [LIB],
+    [APP],
+    ["org.hg.fixture.basic.isolated"],
+    ["io.hierograph.examples:fixture-app:1.0.0"],
+    [APP, LIB],
   ]) {
-    const id = idOf(text);
+    const ids = texts.map(idOf);
+    const group = ids.length > 1;
     const data = await client.request<SetData>(DependencySetDocument, {
       view: null,
-      id,
+      ids,
     });
     dependencySets.push({
-      variables: { view: null, id },
+      variables: { view: null, ids },
       data: normalize(data as never),
     });
-    const { node, rootNode } = data.hierarchicalGraph;
-    const incoming = node.incomingDependencies.size;
-    const outgoing = node.outgoingDependencies.size;
+    const { nodes: selection, rootNode } = data.hierarchicalGraph;
+    const incoming = selection.incomingDependencies.size;
+    const outgoing = selection.outgoingDependencies.size;
     const children = async (source: LevelSource, parent: TreeNode) => {
       const variables = {
         view: null,
-        id,
+        ids,
         incoming: source.direction === "incoming",
         picks: selectionOf(source.picks),
         parent: parent.id,
@@ -367,7 +377,7 @@ if (scenario === "default") {
         dependencyChildren.push({ variables, data: normalize(level as never) });
       }
       return (
-        level.hierarchicalGraph.node[setField(source.direction)]
+        level.hierarchicalGraph.nodes[setField(source.direction)]
           ?.filteredDependencies.filteredChildrenWithCounts ?? []
       ).map((child) => child.node);
     };
@@ -403,7 +413,7 @@ if (scenario === "default") {
       for (let page = 1; ; page++) {
         const variables = {
           view: null,
-          id,
+          ids,
           incoming: direction === "incoming",
           picks: selectionOf(picks),
           picked: [picks.source, picks.target].filter(Boolean),
@@ -420,7 +430,7 @@ if (scenario === "default") {
           dependencyPages.push({ variables, data: normalize(result as never) });
         }
         const maxPages =
-          result.hierarchicalGraph.node[setField(direction)]
+          result.hierarchicalGraph.nodes[setField(direction)]
             ?.filteredDependencies.dependencyPage.pageInfo.maxPages ?? 0;
         if (!all || page >= maxPages) break;
       }
@@ -457,7 +467,7 @@ if (scenario === "default") {
             rootNode,
             false,
           );
-    const selectionTree = (picks: TreePicks) => {
+    const selectionTree = async (picks: TreePicks) => {
       const sources: LevelSource[] = [];
       if (
         incoming > 0 &&
@@ -477,12 +487,11 @@ if (scenario === "default") {
           picks: { target: picks.uses },
           side: "SOURCE",
         });
-      return walk(
-        sources,
-        picks.usedBy !== undefined && picks.uses !== undefined,
-        node,
-        true,
-      );
+      const intersect = picks.usedBy !== undefined && picks.uses !== undefined;
+      const trees: TreeNode[] = [];
+      for (const top of selection.nodes)
+        trees.push(...(await walk(sources, intersect, top, true)));
+      return trees;
     };
     if (incoming === 0 && outgoing === 0) {
       await pages("incoming", {}, false);
@@ -494,7 +503,24 @@ if (scenario === "default") {
     const used = await usesTree({});
     await pages("incoming", {}, true);
     await pages("outgoing", {}, true);
-    if (!text.endsWith(".lib") && !text.endsWith(".app")) continue;
+    if (group) {
+      // A side pick marks the selected nodes it reaches (start/
+      // DependencyTrees.tsx, `TopRow`) and the parts below them.
+      for (const user of users) {
+        await selectionTree({ usedBy: user.id });
+        await pages("incoming", { source: user.id }, true);
+        for (const top of selection.nodes)
+          await pages("incoming", { source: user.id, target: top.id }, false);
+      }
+      for (const target of used) {
+        await selectionTree({ uses: target.id });
+        await pages("outgoing", { target: target.id }, true);
+        for (const top of selection.nodes)
+          await pages("outgoing", { source: top.id, target: target.id }, false);
+      }
+      continue;
+    }
+    if (texts[0] !== LIB && texts[0] !== APP) continue;
     // A link that names a pick opens the trees down to it.
     for (const pickable of [...users, ...parts, ...used]) {
       const variables = { view: null, id: pickable.id };
@@ -525,6 +551,18 @@ if (scenario === "default") {
       await usesTree({ part: part.id });
       await pages("incoming", { target: part.id }, true);
       await pages("outgoing", { source: part.id }, true);
+    }
+  }
+  // Every node's path in the scanned hierarchy, for ⌘-click.
+  for (const [key, nodes] of levels) {
+    if (!key.startsWith("null|")) continue;
+    for (const node of nodes) {
+      const pathKey = `path|${node.id}`;
+      if (recordedRequests.has(pathKey)) continue;
+      recordedRequests.add(pathKey);
+      const variables = { view: null, id: node.id };
+      const path = await client.request(DependencyPickPathDocument, variables);
+      dependencyPickPaths.push({ variables, data: normalize(path as never) });
     }
   }
   write("DependencySet", dependencySets);

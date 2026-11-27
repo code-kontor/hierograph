@@ -97,11 +97,22 @@ function fitArcs(
   return { arcs: lay(scale, area.anchorX), width: area.width };
 }
 
-// What the arcs are drawn for: a selected row, its dependencies and its
-// dependents; or a selected cycle bar, the dependencies between the cycle's
-// members (by id) that close it.
+// What the arcs are drawn for: the selected rows, one or a group taken
+// together, the dependencies crossing the group's border; or a selected
+// cycle bar, the dependencies between the cycle's members (by id) that close
+// it.
 export type ArcFocus =
-  { kind: "row"; id: string } | { kind: "cycle"; members: string[] };
+  { kind: "rows"; ids: string[] } | { kind: "cycle"; members: string[] };
+
+// One row, selected alone.
+export function rowFocus(id: string): ArcFocus {
+  return { kind: "rows", ids: [id] };
+}
+
+// Whether the row is one of the selected rows.
+export function focusHolds(focus: ArcFocus | null, id: string): boolean {
+  return focus?.kind === "rows" && focus.ids.includes(id);
+}
 
 // A visible row with arcs, as measured in the tree: its node, its label, the
 // y of its middle, and its lineage: its own id and its
@@ -128,8 +139,13 @@ const TreeSelectionContext = createContext<TreeSelection>({
   menuOpen: () => {},
 });
 
+// The same rows, in whatever order they were selected; the same cycle.
 export function sameFocus(a: ArcFocus, b: ArcFocus): boolean {
-  if (a.kind === "row") return b.kind === "row" && a.id === b.id;
+  if (a.kind === "rows") {
+    return (
+      b.kind === "rows" && [...a.ids].sort().join() === [...b.ids].sort().join()
+    );
+  }
   return b.kind === "cycle" && a.members.join() === b.members.join();
 }
 
@@ -141,7 +157,7 @@ type TreeArcsProps = {
   children: ReactNode;
 };
 
-// Draws the dependency arcs of the selected row (or the selected cycle)
+// Draws the dependency arcs of the selected rows (or the selected cycle)
 // between the visible rows, over the tree's right edge; for an expanded row,
 // those of the rows inside it that cross its border, so expanding a selected
 // row drills its arcs down. The rows are the elements marked `data-frontier`
@@ -265,10 +281,10 @@ export function TreeArcs({
     ids.length >= 2 && shown !== null
       ? fitArcs(rows, dependencies, room, (dependency) =>
           // Outgoing and incoming apart; a cycle's arcs are one set.
-          shown.kind === "row" &&
-          rowsInside(shown.id, rows).has(dependency.from)
+          shown.kind === "rows" &&
+          rowsInside(shown.ids, rows).has(dependency.from)
             ? "outgoing"
-            : shown.kind === "row"
+            : shown.kind === "rows"
               ? "incoming"
               : "",
         )
@@ -354,17 +370,20 @@ function lineageOf(element: HTMLElement): string[] {
   return lineage;
 }
 
-// The visible rows a focused row stands for: the row itself, or, once it is
-// expanded, the visible rows inside it.
-function rowsInside(id: string, rows: MeasuredRow[]): Set<string> {
+// The visible rows the focused rows stand for: each row itself, or, once it
+// is expanded, the visible rows inside it.
+function rowsInside(ids: string[], rows: MeasuredRow[]): Set<string> {
   return new Set(
-    rows.filter((row) => row.lineage.includes(id)).map((row) => row.id),
+    rows
+      .filter((row) => ids.some((id) => row.lineage.includes(id)))
+      .map((row) => row.id),
   );
 }
 
-// The dependencies to draw for the focus: a row's from it and to it, drilled
-// down to its visible rows once it is expanded (those crossing its border);
-// a cycle's between its members.
+// The dependencies to draw for the focus: the rows' from them and to them,
+// drilled down to their visible rows once they are expanded (those crossing
+// the border around all of them, not those between them); a cycle's between
+// its members.
 function focusedDependencies(
   dependencies: ArcDependency[],
   focus: ArcFocus,
@@ -373,7 +392,7 @@ function focusedDependencies(
   if (focus.kind === "cycle") {
     return cycleDependencies(dependencies, focus.members, rows);
   }
-  const inside = rowsInside(focus.id, rows);
+  const inside = rowsInside(focus.ids, rows);
   return dependencies.filter(
     (dependency) => inside.has(dependency.from) !== inside.has(dependency.to),
   );
@@ -386,8 +405,8 @@ function relationOf(
   focus: ArcFocus | null,
   rows: MeasuredRow[],
 ): ArcRelation {
-  if (focus?.kind !== "row") return "cycle";
-  return rowsInside(focus.id, rows).has(arc.from) ? "outgoing" : "incoming";
+  if (focus?.kind !== "rows") return "cycle";
+  return rowsInside(focus.ids, rows).has(arc.from) ? "outgoing" : "incoming";
 }
 
 type ArcPathProps = {
@@ -471,12 +490,9 @@ function ArcMenu({ focus, arc, from, to, children }: ArcMenuProps) {
   const { select, menuOpen } = useContext(TreeSelectionContext);
   const ends = [from, to]
     .filter((end) => end !== undefined)
-    .filter((end) => !(focus.kind === "row" && focus.id === end.id));
+    .filter((end) => !focusHolds(focus, end.id));
   const endItems = ends.map((end) => (
-    <ContextMenuItem
-      key={end.id}
-      onSelect={() => select({ kind: "row", id: end.id })}
-    >
+    <ContextMenuItem key={end.id} onSelect={() => select(rowFocus(end.id))}>
       <MousePointerClick />
       <span className="truncate">Select {end.label}</span>
     </ContextMenuItem>

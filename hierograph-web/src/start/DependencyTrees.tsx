@@ -7,6 +7,7 @@ import {
   Crosshair,
   ListChevronsDownUp,
   ListChevronsUpDown,
+  LocateFixed,
 } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -39,6 +40,7 @@ import {
   dependencyPickPathQueryOptions,
   type DependencyPicks,
   dependencySetChildrenQueryOptions,
+  dependencySetPageQueryOptions,
   dependencySetQueryOptions,
   type DependencySide,
   hierarchyTreeChildrenQueryOptions,
@@ -63,17 +65,18 @@ export const PICK_PARAMS = {
 type PickKey = keyof typeof PICK_PARAMS;
 
 // Each tree's open rows, also in the URL, so a link restores them (#85): the
-// rows below the top. The top is open; only the Selection tree shows its
-// top, which can close (see `SELECTION_COLLAPSED_PARAM`).
+// rows below the tops. The tops are open; only the Selection tree shows its
+// tops, the selected nodes, which can close (see
+// `SELECTION_COLLAPSED_PARAM`).
 export const OPEN_PARAMS = {
   usedBy: "used_by_expanded_ids",
   part: "selection_expanded_ids",
   uses: "uses_expanded_ids",
 } as const satisfies Record<PickKey, string>;
 
-// The Selection tree's top, the selection, is open unless closed
-// (`selection_collapsed`): open is what a new selection starts with.
-export const SELECTION_COLLAPSED_PARAM = "selection_collapsed";
+// The Selection tree's tops, the selected nodes, are open unless closed
+// (`selection_collapsed_ids`): open is what a new selection starts with.
+export const SELECTION_COLLAPSED_PARAM = "selection_collapsed_ids";
 
 // Everything that keeps the trees' rows: they belong to one selection.
 export const TREE_ROW_PARAMS = [
@@ -83,7 +86,7 @@ export const TREE_ROW_PARAMS = [
 
 // The start page's params the dependency trees read (see the start route).
 type DependencySearch = {
-  selected_id?: unknown;
+  selected_ids?: unknown;
   selected_cycle_ids?: unknown;
   used_by_id?: unknown;
   selection_part_id?: unknown;
@@ -92,6 +95,31 @@ type DependencySearch = {
 
 function idParam(value: unknown): string | undefined {
   return value === undefined || value === null ? undefined : String(value);
+}
+
+// The selected rows in the URL (`selected_ids`): one, or a group taken
+// together; `undefined` without (or with a cycle).
+export function useSelectedIds(): string[] | undefined {
+  const search: { selected_ids?: unknown } = useSearch({ strict: false });
+  const value = search.selected_ids;
+  const ids = (Array.isArray(value) ? value : value == null ? [] : [value]).map(
+    String,
+  );
+  return ids.length > 0 ? ids : undefined;
+}
+
+// The selection as named on the page: a node by its label, a group by its
+// size (each name in `selectionNames`).
+export function selectionName(selection: DependencyNode[]): string {
+  return selection.length === 1
+    ? treeNodeLabel(selection[0].type, selection[0].text, undefined)
+    : `${selection.length} nodes`;
+}
+
+export function selectionNames(selection: DependencyNode[]): string {
+  return selection
+    .map((node) => treeNodeLabel(node.type, node.text, undefined))
+    .join(", ");
 }
 
 // Which directions the page shows: both (the default), or only the
@@ -289,8 +317,8 @@ export function DependencyTrees() {
   const scope = useGraphScope();
   const search: DependencySearch = useSearch({ strict: false });
   const picks = useDependencyTreePicks();
-  const selectedId = idParam(search.selected_id);
-  if (selectedId === undefined) {
+  const selectedIds = useSelectedIds();
+  if (selectedIds === undefined) {
     return (
       <Hint>
         {search.selected_cycle_ids === undefined
@@ -301,22 +329,35 @@ export function DependencyTrees() {
   }
   if (!scope) return null;
   return (
-    <DependencyTreesFor scope={scope} selectedId={selectedId} picks={picks} />
+    <DependencyTreesFor scope={scope} selectedIds={selectedIds} picks={picks} />
   );
+}
+
+// The selection in the trees' sentences: a node by its name, a group of
+// them as the selected nodes.
+type Wording = {
+  name: string;
+  group: boolean;
+};
+
+function wordingOf(selection: DependencyNode[]): Wording {
+  return selection.length === 1
+    ? { name: selectionName(selection), group: false }
+    : { name: "the selected nodes", group: true };
 }
 
 type DependencyTreesForProps = {
   scope: GraphScope;
-  selectedId: string;
+  selectedIds: string[];
   picks: DependencyTreePicks;
 };
 
 function DependencyTreesFor({
   scope,
-  selectedId,
+  selectedIds,
   picks,
 }: DependencyTreesForProps) {
-  const query = useQuery(dependencySetQueryOptions(scope, selectedId));
+  const query = useQuery(dependencySetQueryOptions(scope, selectedIds));
   const navigate = useNavigate();
   const mode = useDirectionMode();
   const queryClient = useQueryClient();
@@ -329,13 +370,23 @@ function DependencyTreesFor({
     );
   }
   if (!query.data) {
-    return <Hint>The selected node isn't in this hierarchy view.</Hint>;
+    return (
+      <Hint>
+        {selectedIds.length === 1
+          ? "The selected node isn't in this hierarchy view."
+          : "A selected node isn't in this hierarchy view."}
+      </Hint>
+    );
   }
   const { selection, root, incoming, outgoing } = query.data;
-  const name = treeNodeLabel(selection.type, selection.text, undefined);
+  const wording = wordingOf(selection);
   if (incoming === 0 && outgoing === 0) {
     return (
-      <Hint>{`${name} has no dependencies with anything outside itself.`}</Hint>
+      <Hint>
+        {wording.group
+          ? `The ${selection.length} selected nodes have no dependencies with anything outside them.`
+          : `${wording.name} has no dependencies with anything outside itself.`}
+      </Hint>
     );
   }
   // Picking a picked node again drops it. One direction at a time: with both
@@ -377,7 +428,7 @@ function DependencyTreesFor({
           : [];
         return {
           ...previous,
-          selected_id: id,
+          selected_ids: [id],
           selected_cycle_ids: undefined,
           expanded_ids: [...new Set([...before, ...path])],
           ...Object.fromEntries(
@@ -408,13 +459,19 @@ function DependencyTreesFor({
       picks: { target: picks.uses },
       side: "SOURCE",
     });
-  const base = { scope, selectionId: selection.id, picks, pick, select };
+  const base = {
+    scope,
+    selectionIds: selection.map((node) => node.id),
+    picks,
+    pick,
+    select,
+  };
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       <DependencyColumns
         // Another selection opens its trees afresh.
-        key={selection.id}
-        name={name}
+        key={base.selectionIds.join(",")}
+        wording={wording}
         incoming={incoming}
         outgoing={outgoing}
         selection={selection}
@@ -427,21 +484,21 @@ function DependencyTreesFor({
 }
 
 type DependencyColumnsProps = {
-  name: string;
+  wording: Wording;
   incoming: number;
   outgoing: number;
-  selection: DependencyNode;
+  selection: DependencyNode[];
   root: DependencyNode;
   base: Pick<
     TreeContext,
-    "scope" | "selectionId" | "picks" | "pick" | "select"
+    "scope" | "selectionIds" | "picks" | "pick" | "select"
   >;
   partEmphasis: LevelSource[];
 };
 
 // The three trees side by side.
 function DependencyColumns({
-  name,
+  wording,
   incoming,
   outgoing,
   selection,
@@ -450,6 +507,7 @@ function DependencyColumns({
   partEmphasis,
 }: DependencyColumnsProps) {
   const { picks } = base;
+  const { name, group } = wording;
   const usedBy = (
     <TreeColumn
       title="Used by"
@@ -457,7 +515,9 @@ function DependencyColumns({
     >
       {incoming === 0 ? (
         <Hint>
-          {`Nothing outside ${name} depends on it.`}
+          {group
+            ? "Nothing outside the selected nodes depends on them."
+            : `Nothing outside ${name} depends on it.`}
           <OtherDirectionOffer
             counts={{ incoming, outgoing }}
             className="block pt-1"
@@ -479,7 +539,7 @@ function DependencyColumns({
                   },
                 ]
           }
-          top={root}
+          tops={[root]}
           showTop={false}
           label="Used by"
         />
@@ -489,14 +549,18 @@ function DependencyColumns({
   const selectionColumn = (
     <TreeColumn
       title="Selection"
-      explanation={`${name} and everything in it, as in the hierarchy.`}
+      explanation={
+        group
+          ? "The selected nodes and everything in them, as in the hierarchy."
+          : `${name} and everything in it, as in the hierarchy.`
+      }
     >
       <DependencyTree
         {...base}
         pickKey="part"
         sources="all"
         emphasis={partEmphasis}
-        top={selection}
+        tops={selection}
         showTop
         label="Selection"
       />
@@ -509,7 +573,9 @@ function DependencyColumns({
     >
       {outgoing === 0 ? (
         <Hint>
-          {`${name} depends on nothing outside itself.`}
+          {group
+            ? "The selected nodes depend on nothing outside them."
+            : `${name} depends on nothing outside itself.`}
           <OtherDirectionOffer
             counts={{ incoming, outgoing }}
             className="block pt-1"
@@ -531,7 +597,7 @@ function DependencyColumns({
                   },
                 ]
           }
-          top={root}
+          tops={[root]}
           showTop={false}
           label="Uses"
         />
@@ -663,7 +729,8 @@ type LevelSource = {
 
 type TreeContext = {
   scope: GraphScope;
-  selectionId: string;
+  // The selected nodes, one or a group: whose dependency sets these are.
+  selectionIds: string[];
   // A level is the union of its sources' children, or with "all" every
   // child, as the hierarchy tree has them.
   sources: LevelSource[] | "all";
@@ -676,6 +743,11 @@ type TreeContext = {
   // Makes a node the selection (the Selection tree's menu).
   select: (id: string) => Promise<void>;
   open: Set<string>;
+  // The rows above this tree's pick (its display ancestors): a closed one
+  // hides the pick and is marked for it.
+  pickPath: ReadonlySet<string>;
+  // Opens the rows down to the pick.
+  revealPick: () => Promise<void>;
   toggle: (id: string) => Promise<void>;
   expandAll: (node: DependencyNode) => Promise<void>;
   collapseAll: (node: DependencyNode) => Promise<void>;
@@ -683,18 +755,23 @@ type TreeContext = {
 
 type DependencyTreeProps = Omit<
   TreeContext,
-  "open" | "toggle" | "expandAll" | "collapseAll"
+  "open" | "pickPath" | "revealPick" | "toggle" | "expandAll" | "collapseAll"
 > & {
-  // Where the tree starts: the selection, shown and open, or the root, whose
-  // children are the top rows.
-  top: DependencyNode;
+  // Where the tree starts: the selected nodes, shown and open, or the root,
+  // whose children are the top rows.
+  tops: DependencyNode[];
   showTop: boolean;
   label: string;
 };
 
 // One dependency tree, loaded a level at a time as rows are opened. Its pick
 // in the URL when it is shown (a link) is opened down to.
-function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
+function DependencyTree({
+  tops,
+  showTop,
+  label,
+  ...rest
+}: DependencyTreeProps) {
   const [linked] = useState(() => rest.picks[rest.pickKey]);
   const path = useQuery({
     ...dependencyPickPathQueryOptions(rest.scope, linked ?? ""),
@@ -710,10 +787,16 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
   // until the first toggle, which takes them over (closing every row leaves
   // no param, and must not open them again).
   const [toggled, setToggled] = useState(false);
-  // The top is open, but for a shown one (the selection) that was closed.
-  const topClosed = showTop && search[SELECTION_COLLAPSED_PARAM] === true;
+  // The tops are open, but for shown ones (the selected nodes) that were
+  // closed.
+  const closedTops = new Set(
+    showTop && Array.isArray(search[SELECTION_COLLAPSED_PARAM])
+      ? (search[SELECTION_COLLAPSED_PARAM] as unknown[]).map(String)
+      : [],
+  );
+  const topIds = tops.map((top) => top.id);
   const open = new Set([
-    ...(topClosed ? [] : [top.id]),
+    ...topIds.filter((id) => !closedTops.has(id)),
     ...(stored ?? (toggled || linked === undefined ? [] : (path.data ?? []))),
   ]);
   const queryClient = useQueryClient();
@@ -735,7 +818,7 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
         queryClient.fetchQuery(
           dependencySetChildrenQueryOptions(
             rest.scope,
-            rest.selectionId,
+            rest.selectionIds,
             source.direction,
             source.picks,
             node.id,
@@ -778,10 +861,10 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
     const closed = new Set([node.id, ...(await openableBelow(node, true))]);
     await store(new Set([...open].filter((id) => !closed.has(id))));
   };
-  // The rows below the top in the URL; the shown top's state on its own.
+  // The rows below the tops in the URL; the shown tops' state on its own.
   const store = async (next: Set<string>) => {
-    const closed = showTop && !next.has(top.id);
-    next.delete(top.id);
+    const closed = showTop ? topIds.filter((id) => !next.has(id)) : [];
+    for (const id of topIds) next.delete(id);
     setToggled(true);
     await navigate({
       to: ".",
@@ -789,34 +872,84 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
         ...previous,
         [param]: next.size > 0 ? [...next] : undefined,
         ...(showTop
-          ? { [SELECTION_COLLAPSED_PARAM]: closed ? true : undefined }
+          ? {
+              [SELECTION_COLLAPSED_PARAM]:
+                closed.length > 0 ? closed : undefined,
+            }
           : {}),
       }),
       replace: true,
     } as never);
   };
+  // The rows above the current pick, for the mark on a closed one and to
+  // open them again.
+  const picked = rest.picks[rest.pickKey];
+  const pickPath = useQuery({
+    ...dependencyPickPathQueryOptions(rest.scope, picked ?? ""),
+    enabled: picked !== undefined,
+  });
+  const above = picked === undefined ? [] : (pickPath.data ?? []);
+  const revealPick = async () => {
+    await store(new Set([...open, ...above]));
+  };
   const context: TreeContext = {
     ...rest,
     open,
+    pickPath: new Set(above),
+    revealPick,
     toggle,
     expandAll,
     collapseAll,
   };
+  const topRows = tops.map((top) => (
+    <TopRow key={top.id} context={context} node={top} group={tops.length > 1} />
+  ));
   return (
     <ul role="tree" aria-label={label}>
       {showTop ? (
-        <Row
-          context={context}
-          node={top}
-          label={treeNodeLabel(top.type, top.text, undefined)}
-          depth={0}
-          // The picks elsewhere connect to the selection.
-          emphasized={rest.emphasis.length > 0}
-        />
+        topRows
       ) : (
-        <Level context={context} parent={top} depth={0} emphasized />
+        <Level context={context} parent={tops[0]} depth={0} emphasized />
       )}
     </ul>
+  );
+}
+
+type TopRowProps = {
+  context: TreeContext;
+  node: DependencyNode;
+  // One of a group of selected nodes.
+  group: boolean;
+};
+
+// A selected node, the top of the Selection tree. The picks elsewhere
+// connect to the selection: alone, it is connected; in a group, only if its
+// own dependencies reach every pick (as a level marks its rows).
+function TopRow({ context, node, group }: TopRowProps) {
+  const reach = useQueries({
+    queries: (group ? context.emphasis : []).map((source) =>
+      dependencySetPageQueryOptions(
+        context.scope,
+        context.selectionIds,
+        source.direction,
+        source.side === "TARGET"
+          ? { ...source.picks, target: node.id }
+          : { ...source.picks, source: node.id },
+        1,
+      ),
+    ),
+  });
+  const emphasized =
+    context.emphasis.length > 0 &&
+    (!group || reach.every((result) => (result.data?.total ?? 0) > 0));
+  return (
+    <Row
+      context={context}
+      node={node}
+      label={treeNodeLabel(node.type, node.text, undefined)}
+      depth={0}
+      emphasized={emphasized}
+    />
   );
 }
 
@@ -851,7 +984,7 @@ function Level({ context, parent, depth, emphasized }: LevelProps) {
     queries: [...sources, ...emphasis].map((source) =>
       dependencySetChildrenQueryOptions(
         context.scope,
-        context.selectionId,
+        context.selectionIds,
         source.direction,
         source.picks,
         parent.id,
@@ -916,6 +1049,9 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
   const canOpen = expandable(node);
   const isOpen = canOpen && context.open.has(node.id);
   const picked = context.picks[context.pickKey] === node.id;
+  // Closed over the pick: the pick (a filter) is out of sight, so the row
+  // shows it holds it.
+  const holdsPick = canOpen && !isOpen && context.pickPath.has(node.id);
   const kind = treeNodeKind(node.type, node.text);
   const Chevron = isOpen ? ChevronDown : ChevronRight;
   const toggle = () => context.toggle(node.id);
@@ -944,8 +1080,13 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
       aria-selected={picked}
       aria-label={label}
       data-connected={emphasized || undefined}
+      data-holds-pick={holdsPick || undefined}
       aria-description={
-        [counted, skipped.length > 0 && `folded from ${skipped.join(", ")}`]
+        [
+          counted,
+          skipped.length > 0 && `folded from ${skipped.join(", ")}`,
+          holdsPick && "contains the picked node",
+        ]
           .filter(Boolean)
           .join("; ") || undefined
       }
@@ -953,11 +1094,13 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
       <RowMenu
         label={label}
         canOpen={canOpen}
+        onReveal={holdsPick ? context.revealPick : undefined}
         // Only the Selection tree's rows can become the selection; the
         // selection itself can't.
         onSelect={
           context.pickKey === "part"
-            ? node.id === context.selectionId
+            ? context.selectionIds.length === 1 &&
+              node.id === context.selectionIds[0]
               ? null
               : () => context.select(node.id)
             : undefined
@@ -973,6 +1116,10 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
             "hover:bg-state-hover flex h-6 cursor-default items-center gap-1 pr-2 text-[13px]",
             picked &&
               "bg-state-selected-secondary-bg hover:bg-state-selected-secondary-bg shadow-[inset_3px_0_0_0_var(--hg-state-selected-secondary-bar)]",
+            // Holding the pick out of sight: the pick's bar, without its
+            // fill.
+            holdsPick &&
+              "shadow-[inset_3px_0_0_0_var(--hg-state-selected-secondary-bar)]",
             // With a pick in another tree, what isn't connected to it
             // fades, name, icon and count alike, so the connected rows
             // stand out; weight carries no state.
@@ -1010,6 +1157,7 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
               node.text,
               skipped.length > 0 && `folded: ${skipped.join(", ")}`,
               emphasized && "connected to the node picked in another tree",
+              holdsPick && "contains the picked node",
             ]
               .filter(Boolean)
               .join("\n")}
@@ -1049,18 +1197,21 @@ type RowMenuProps = {
   // Select, in the Selection tree; `null` disabled (the selection itself),
   // without it none.
   onSelect?: (() => Promise<void>) | null;
+  // Opens the rows down to the pick, when the row is closed over it.
+  onReveal?: () => Promise<void>;
   onExpandAll: () => Promise<void>;
   onCollapseAll: () => Promise<void>;
   children: ReactNode;
 };
 
 // A row's context menu (right-click): in the Selection tree, make it the
-// selection; open or close it with everything in it, down to the types. A
-// row with nothing to offer has none.
+// selection; open it down to the pick it hides; open or close it with
+// everything in it, down to the types. A row with nothing to offer has none.
 function RowMenu({
   label,
   canOpen,
   onSelect,
+  onReveal,
   onExpandAll,
   onCollapseAll,
   children,
@@ -1083,6 +1234,12 @@ function RowMenu({
           </ContextMenuItem>
         )}
         {onSelect !== undefined && canOpen && <ContextMenuSeparator />}
+        {onReveal && (
+          <ContextMenuItem onSelect={onReveal}>
+            <LocateFixed />
+            Reveal the pick
+          </ContextMenuItem>
+        )}
         {canOpen && (
           <ContextMenuItem onSelect={onExpandAll}>
             <ListChevronsUpDown />

@@ -491,7 +491,7 @@ describe("HierarchyTree", () => {
     await expect.poll(() => arcs().length).toBeGreaterThan(0);
     await userEvent.keyboard("{Escape}");
     await expect.poll(() => arcs().length).toBe(0);
-    expect(screen.router.state.location.search.selected_id).toBeUndefined();
+    expect(screen.router.state.location.search.selected_ids).toBeUndefined();
   });
 
   it("expands and collapses a row on a double-click, and leaves it selected", async () => {
@@ -658,7 +658,9 @@ describe("HierarchyTree", () => {
       .click();
 
     await expect.poll(() => onlyArcsOf(other)).toBe(true);
-    expect(String(screen.router.state.location.search.selected_id)).toBe(other);
+    expect(String(screen.router.state.location.search.selected_ids)).toBe(
+      other,
+    );
   });
 
   it("drills an expanded row's arcs down to the rows inside it", async () => {
@@ -693,6 +695,7 @@ describe("HierarchyTree", () => {
     await expect.element(screen.getByRole("menu")).toBeVisible();
     expect(itemLabels(screen.getByRole("menu"))).toEqual([
       "Select",
+      "Add to the selection",
       "Collapse",
     ]);
     await userEvent.keyboard("{Escape}");
@@ -702,7 +705,11 @@ describe("HierarchyTree", () => {
     const menu = screen.getByRole("menu");
     await expect.element(menu).toBeVisible();
     // A package: it can be expanded too.
-    expect(itemLabels(menu)).toEqual(["Select", "Expand"]);
+    expect(itemLabels(menu)).toEqual([
+      "Select",
+      "Add to the selection",
+      "Expand",
+    ]);
     // Each item with its gesture.
     await expect
       .element(menu.getByText("Click", { exact: true }))
@@ -719,6 +726,101 @@ describe("HierarchyTree", () => {
     rightClick(row(screen, "beta").element());
     await screen.getByRole("menuitem", { name: "Clear selection" }).click();
     await expect.element(selectionStatus(screen)).not.toBeInTheDocument();
+  });
+
+  it("takes rows together with ⌘-click: their arcs cross the group's border, a row above or below one replaces it", async () => {
+    const screen = await renderTree();
+    await expand(screen, ...CYCLE_PATH);
+    await expect.element(item(screen, "gamma")).toBeVisible();
+    const [alpha, beta, cycle] = ["alpha", "beta", "cycle"].map(nodeId);
+    const selectedIds = () =>
+      (
+        screen.router.state.location.search.selected_ids as
+          unknown[] | undefined
+      )
+        ?.map(String)
+        .sort();
+    const metaClick = (name: string) =>
+      row(screen, name).click({ modifiers: ["ControlOrMeta"] } as never);
+
+    await row(screen, "alpha").click();
+    await metaClick("beta");
+
+    await expect.poll(selectedIds).toEqual([alpha, beta].sort());
+    await expect
+      .element(item(screen, "alpha"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(item(screen, "beta"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(selectionStatus(screen))
+      .toHaveTextContent("Selected: 2 nodes: alpha, beta");
+    // Only what crosses the border around both: nothing between them.
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    const group = new Set([alpha, beta]);
+    for (const arc of arcs()) {
+      expect(group.has(arc.from)).not.toBe(group.has(arc.to));
+    }
+
+    // Again: out of the group.
+    await metaClick("beta");
+    await expect.poll(selectedIds).toEqual([alpha]);
+
+    // The cycle's package holds alpha: it takes alpha's place.
+    await metaClick("beta");
+    await expect.poll(selectedIds).toEqual([alpha, beta].sort());
+    await metaClick("cycle");
+    await expect.poll(selectedIds).toEqual([cycle]);
+    await expect
+      .element(item(screen, "alpha"))
+      .toHaveAttribute("aria-selected", "false");
+
+    // And a row inside it takes the package's place.
+    await metaClick("gamma");
+    await expect.poll(selectedIds).toEqual([nodeId("gamma")]);
+
+    // A plain click selects one row alone; Esc clears.
+    await metaClick("alpha");
+    await row(screen, "beta").click();
+    await expect.poll(selectedIds).toEqual([beta]);
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(selectedIds).toBeUndefined();
+  });
+
+  it("marks a collapsed row that hides the selection, and expands it down to it from its menu", async () => {
+    const screen = await renderTree();
+    await expand(screen, ...CYCLE_PATH);
+    await row(screen, "alpha").click();
+    await expect
+      .element(item(screen, "alpha"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(item(screen, "cycle"))
+      .not.toHaveAttribute("data-holds-selection");
+
+    await item(screen, "cycle")
+      .getByRole("button", { name: "Collapse cycle", exact: true })
+      .click();
+
+    await expect
+      .element(item(screen, "cycle"))
+      .toHaveAttribute("data-holds-selection");
+    await expect
+      .element(item(screen, "cycle"))
+      .toHaveAccessibleDescription(/contains the selection/);
+
+    rightClick(row(screen, "cycle").element());
+    await screen
+      .getByRole("menuitem", { name: "Reveal the selection" })
+      .click();
+
+    await expect
+      .element(item(screen, "alpha"))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(item(screen, "cycle"))
+      .not.toHaveAttribute("data-holds-selection");
   });
 
   it("selects a cycle with a click on its bar, or from the bar's menu", async () => {
@@ -783,7 +885,7 @@ describe("HierarchyTree", () => {
     await expect.element(selectionStatus(first)).toBeVisible();
     const { search, searchStr } = first.router.state.location;
     // A lone numeric id comes back from the URL as a number.
-    expect(String(search.selected_id)).toBe(beta);
+    expect(String(search.selected_ids)).toBe(beta);
     // The rows along the folded path: fixture-app, org.hg.fixture, basic, cycle.
     expect(search.expanded_ids).toHaveLength(4);
     await first.unmount();

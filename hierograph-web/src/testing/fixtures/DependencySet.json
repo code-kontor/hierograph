@@ -5,7 +5,9 @@
     {
       "variables": {
         "view": null,
-        "id": "7288710331230862"
+        "ids": [
+          "7288710331230862"
+        ]
       },
       "data": {
         "hierarchicalGraph": {
@@ -16,12 +18,16 @@
             "hasChildren": true,
             "compactedFrom": []
           },
-          "node": {
-            "id": "7288710331230862",
-            "text": "org.hg.fixture.locations.lib",
-            "type": "java.package",
-            "hasChildren": true,
-            "compactedFrom": [],
+          "nodes": {
+            "nodes": [
+              {
+                "id": "7288710331230862",
+                "text": "org.hg.fixture.locations.lib",
+                "type": "java.package",
+                "hasChildren": true,
+                "compactedFrom": []
+              }
+            ],
             "incomingDependencies": {
               "size": 13
             },
@@ -35,7 +41,9 @@
     {
       "variables": {
         "view": null,
-        "id": "1490153931190400"
+        "ids": [
+          "1490153931190400"
+        ]
       },
       "data": {
         "hierarchicalGraph": {
@@ -46,12 +54,16 @@
             "hasChildren": true,
             "compactedFrom": []
           },
-          "node": {
-            "id": "1490153931190400",
-            "text": "org.hg.fixture.locations.app",
-            "type": "java.package",
-            "hasChildren": true,
-            "compactedFrom": [],
+          "nodes": {
+            "nodes": [
+              {
+                "id": "1490153931190400",
+                "text": "org.hg.fixture.locations.app",
+                "type": "java.package",
+                "hasChildren": true,
+                "compactedFrom": []
+              }
+            ],
             "incomingDependencies": {
               "size": 0
             },
@@ -65,7 +77,9 @@
     {
       "variables": {
         "view": null,
-        "id": "3988795772440812"
+        "ids": [
+          "3988795772440812"
+        ]
       },
       "data": {
         "hierarchicalGraph": {
@@ -76,12 +90,16 @@
             "hasChildren": true,
             "compactedFrom": []
           },
-          "node": {
-            "id": "3988795772440812",
-            "text": "org.hg.fixture.basic.isolated",
-            "type": "java.package",
-            "hasChildren": true,
-            "compactedFrom": [],
+          "nodes": {
+            "nodes": [
+              {
+                "id": "3988795772440812",
+                "text": "org.hg.fixture.basic.isolated",
+                "type": "java.package",
+                "hasChildren": true,
+                "compactedFrom": []
+              }
+            ],
             "incomingDependencies": {
               "size": 0
             },
@@ -95,7 +113,9 @@
     {
       "variables": {
         "view": null,
-        "id": "5909467489117502"
+        "ids": [
+          "5909467489117502"
+        ]
       },
       "data": {
         "hierarchicalGraph": {
@@ -106,17 +126,65 @@
             "hasChildren": true,
             "compactedFrom": []
           },
-          "node": {
-            "id": "5909467489117502",
-            "text": "io.hierograph.examples:fixture-app:1.0.0",
-            "type": "java.module",
-            "hasChildren": true,
-            "compactedFrom": [],
+          "nodes": {
+            "nodes": [
+              {
+                "id": "5909467489117502",
+                "text": "io.hierograph.examples:fixture-app:1.0.0",
+                "type": "java.module",
+                "hasChildren": true,
+                "compactedFrom": []
+              }
+            ],
             "incomingDependencies": {
               "size": 0
             },
             "outgoingDependencies": {
               "size": 4
+            }
+          }
+        }
+      }
+    },
+    {
+      "variables": {
+        "view": null,
+        "ids": [
+          "1490153931190400",
+          "7288710331230862"
+        ]
+      },
+      "data": {
+        "hierarchicalGraph": {
+          "rootNode": {
+            "id": "7239895376211087",
+            "text": "",
+            "type": "Unknown",
+            "hasChildren": true,
+            "compactedFrom": []
+          },
+          "nodes": {
+            "nodes": [
+              {
+                "id": "1490153931190400",
+                "text": "org.hg.fixture.locations.app",
+                "type": "java.package",
+                "hasChildren": true,
+                "compactedFrom": []
+              },
+              {
+                "id": "7288710331230862",
+                "text": "org.hg.fixture.locations.lib",
+                "type": "java.package",
+                "hasChildren": true,
+                "compactedFrom": []
+              }
+            ],
+            "incomingDependencies": {
+              "size": 0
+            },
+            "outgoingDependencies": {
+              "size": 1
             }
           }
         }

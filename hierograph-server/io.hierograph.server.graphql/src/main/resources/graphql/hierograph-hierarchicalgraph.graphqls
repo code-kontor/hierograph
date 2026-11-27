@@ -88,6 +88,16 @@ type NodeSet {
     "Their ids, in the same order."
     nodeIds: [ID!]!
 
+    """
+    The dependencies into the members' subtrees from outside all of them: the set taken as one group, as
+    `Node.incomingDependencies` takes one subtree. Dependencies between members are inside the group and left
+    out. In member order, each dependency once.
+    """
+    incomingDependencies: DependencySet!
+
+    "The dependencies from the members' subtrees to outside all of them; the mirror image of `incomingDependencies`."
+    outgoingDependencies: DependencySet!
+
     "The dependency structure matrix over the set: dependents first, cycles as contiguous blocks."
     orderedAdjacencyMatrix: OrderedAdjacencyMatrix!
 

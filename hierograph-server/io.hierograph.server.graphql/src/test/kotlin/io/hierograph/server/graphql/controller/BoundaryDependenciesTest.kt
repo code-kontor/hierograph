@@ -25,6 +25,7 @@ import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.HierarchyFactory
 import io.hierograph.server.graphql.HierarchicalGraphProvider
 import io.hierograph.server.graphql.model.NodeSelection
+import io.hierograph.server.graphql.model.NodeSetModel
 import io.hierograph.server.graphql.model.NodeType
 import io.hierograph.server.mapping.GraphStoreNodeSource
 import org.assertj.core.api.Assertions.assertThat
@@ -106,6 +107,23 @@ class BoundaryDependenciesTest {
             // A type's own set: P1 → P2 crosses P1's boundary.
             assertThat(ends(nodes.outgoingDependencies(p1).dependencyList))
                 .containsExactlyInAnyOrder(p1 to p2, p1 to qType)
+        }
+    }
+
+    @Test
+    fun `a node set's sets cross the border of the group, not the members' own`() {
+        with(example) {
+            val group = NodeSetController(provider)
+            val pq = NodeSetModel(listOf(p, q))
+            // Q → P1 and P1 → Q are between members: inside the group.
+            assertThat(ends(group.incomingDependencies(pq).dependencyList)).containsExactly(y to p2)
+            assertThat(ends(group.outgoingDependencies(pq).dependencyList)).containsExactly(qType to y)
+            // One member: the node's own sets.
+            assertThat(ends(group.incomingDependencies(NodeSetModel(listOf(p))).dependencyList))
+                .containsExactlyInAnyOrderElementsOf(ends(nodes.incomingDependencies(p).dependencyList))
+            // Nested members: the outer one's subtree holds the inner one's, each dependency once.
+            assertThat(ends(group.incomingDependencies(NodeSetModel(listOf(m1, p))).dependencyList))
+                .containsExactlyInAnyOrder(qType to p1, qType to y)
         }
     }
 

@@ -47,9 +47,9 @@ describe("StartPage", () => {
   });
 
   it("drops the picks in the dependency trees when the selection changes", async () => {
-    const lib = dependencySet.entries[0].variables.id;
+    const lib = dependencySet.entries[0].variables.ids[0];
     const screen = await renderStart(
-      `?selected_id=${lib}&selection_part_id=${lib}`,
+      `?selected_ids=${lib}&selection_part_id=${lib}`,
     );
     await expect.element(screen.getByRole("tree").first()).toBeVisible();
 
@@ -91,8 +91,8 @@ describe("StartPage", () => {
       localStorage.clear();
       await page.viewport(414, 896);
     });
-    const lib = dependencySet.entries[0].variables.id;
-    const screen = await renderStart(`?selected_id=${lib}`);
+    const lib = dependencySet.entries[0].variables.ids[0];
+    const screen = await renderStart(`?selected_ids=${lib}`);
     await expect
       .element(screen.getByRole("tree", { name: "Hierarchy" }))
       .toBeVisible();

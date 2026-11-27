@@ -42,6 +42,36 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
     fun nodeIds(nodeSet: NodeSetModel): List<String> =
         nodeSet.nodeList.map { it.identifier.toString() }
 
+    /**
+     * The dependencies into the members' subtrees from outside all of them: the set as one group (#85). A
+     * dependency between two members is inside the group and left out; with nested members, the outer one's
+     * subtree holds the inner one's. In member order, each dependency once.
+     */
+    @SchemaMapping(typeName = "NodeSet")
+    fun incomingDependencies(nodeSet: NodeSetModel): DependencySetModel {
+        val hierarchy = provider.hierarchy()
+        val group = nodeSet.nodeList.map { it.identifier }.toSet<Any>()
+        return DependencySetModel(
+            nodeSet.nodeList.distinct()
+                .flatMap { hierarchy.accumulatedIncoming(it) }
+                .filter { !NodeController.isWithin(hierarchy, it.from, group) }
+                .distinct(),
+        )
+    }
+
+    /** The dependencies from the members' subtrees to outside all of them; the mirror image of [incomingDependencies]. */
+    @SchemaMapping(typeName = "NodeSet")
+    fun outgoingDependencies(nodeSet: NodeSetModel): DependencySetModel {
+        val hierarchy = provider.hierarchy()
+        val group = nodeSet.nodeList.map { it.identifier }.toSet<Any>()
+        return DependencySetModel(
+            nodeSet.nodeList.distinct()
+                .flatMap { hierarchy.accumulatedOutgoing(it) }
+                .filter { !NodeController.isWithin(hierarchy, it.to, group) }
+                .distinct(),
+        )
+    }
+
     @SchemaMapping(typeName = "NodeSet")
     fun orderedAdjacencyMatrix(nodeSet: NodeSetModel): OrderedAdjacencyMatrixModel {
         val dsm = GraphUtils.createDependencyStructureMatrix(nodeSet.nodeList, provider.hierarchy())
