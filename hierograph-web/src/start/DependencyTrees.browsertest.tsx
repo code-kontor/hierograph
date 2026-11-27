@@ -310,6 +310,172 @@ describe("DependencyTrees", () => {
     await expect.poll(widths).toEqual(["36%", "36%", "18%", "10%"]);
   });
 
+  it("closes the selection in its tree, and keeps it closed in the URL until another selection", async () => {
+    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const { selection } = pane(screen);
+    const top = selection.getByRole("treeitem", { name: LIB });
+    await expect.element(top).toHaveAttribute("aria-expanded", "true");
+    // The parts stay open below it, for when it opens again.
+    await selection.getByRole("button", { name: "Expand order" }).click();
+
+    await selection.getByRole("button", { name: `Collapse ${LIB}` }).click();
+
+    await expect.element(top).toHaveAttribute("aria-expanded", "false");
+    await expect
+      .element(selection.getByRole("treeitem", { name: "order" }))
+      .not.toBeInTheDocument();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toMatchObject({ selection_collapsed: true });
+
+    await selection.getByRole("button", { name: `Expand ${LIB}` }).click();
+
+    await expect
+      .element(selection.getByRole("treeitem", { name: "OrderService" }))
+      .toBeVisible();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .not.toHaveProperty("selection_collapsed");
+
+    // Closed again, then another selection: that one opens.
+    await selection.getByRole("button", { name: `Collapse ${LIB}` }).click();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toMatchObject({ selection_collapsed: true });
+    await screen.getByRole("button", { name: "Clear selection" }).click();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .not.toHaveProperty("selection_collapsed");
+  });
+
+  it("opens with the selection closed when the link says so", async () => {
+    const screen = await renderStart(
+      `?selected_id=${idOf(LIB)}&selection_collapsed=true`,
+    );
+    const { selection } = pane(screen);
+    await expect
+      .element(selection.getByRole("treeitem", { name: LIB }))
+      .toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows one direction at a time when asked, and both again once the selection is cleared", async () => {
+    const user = treeIdOf(MODULE);
+    const screen = await renderStart(
+      `?selected_id=${idOf(LIB)}&used_by_id=${user}`,
+    );
+    const directions = screen.getByRole("radiogroup", { name: "Directions" });
+    await expect
+      .element(directions.getByRole("radio", { name: "Both" }))
+      .toHaveAttribute("aria-checked", "true");
+    await expect.element(pane(screen).usedBy).toBeVisible();
+
+    await directions.getByRole("radio", { name: "Outgoing" }).click();
+
+    // The other side's tree and tab go; the list's one tab is a heading.
+    await expect
+      .element(screen.getByRole("region", { name: "Used by" }))
+      .not.toBeInTheDocument();
+    await expect.element(pane(screen).uses).toBeVisible();
+    await expect
+      .element(screen.getByRole("tab", { name: "Incoming dependencies" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Outgoing dependencies" }))
+      .toBeVisible();
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toMatchObject({ dependency_directions: "outgoing" });
+    // The hidden side's pick stays, for its return.
+    expect(String(screen.router.state.location.search.used_by_id)).toBe(user);
+
+    await directions.getByRole("radio", { name: "Incoming" }).click();
+
+    await expect
+      .element(screen.getByRole("region", { name: "Uses" }))
+      .not.toBeInTheDocument();
+    await expect.element(pane(screen).usedBy).toBeVisible();
+    await expect
+      .element(pane(screen).usedBy.getByRole("treeitem", { selected: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("tab", { name: "Outgoing dependencies" }))
+      .not.toBeInTheDocument();
+
+    await screen.getByRole("button", { name: "Clear selection" }).click();
+
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .not.toHaveProperty("dependency_directions");
+    await expect
+      .element(directions.getByRole("radio", { name: "Both" }))
+      .toHaveAttribute("aria-checked", "true");
+  });
+
+  it("moves between the directions with the arrow keys, one tab stop for the three", async () => {
+    const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
+    const directions = screen.getByRole("radiogroup", { name: "Directions" });
+    const radio = (name: string) => directions.getByRole("radio", { name });
+    await expect.element(radio("Both")).toHaveAttribute("tabindex", "0");
+    await expect.element(radio("Incoming")).toHaveAttribute("tabindex", "-1");
+    await expect.element(radio("Outgoing")).toHaveAttribute("tabindex", "-1");
+
+    (radio("Both").element() as HTMLElement).focus();
+    await userEvent.keyboard("{ArrowRight}");
+
+    await expect
+      .element(radio("Outgoing"))
+      .toHaveAttribute("aria-checked", "true");
+    await expect.element(radio("Outgoing")).toHaveFocus();
+    await expect.element(radio("Outgoing")).toHaveAttribute("tabindex", "0");
+
+    // Around the end, to the start.
+    await userEvent.keyboard("{ArrowRight}");
+    await expect
+      .element(radio("Incoming"))
+      .toHaveAttribute("aria-checked", "true");
+    await userEvent.keyboard("{End}");
+    await expect
+      .element(radio("Outgoing"))
+      .toHaveAttribute("aria-checked", "true");
+  });
+
+  it("offers the other direction when the one shown has no dependencies", async () => {
+    // lib uses nothing outside itself, but is used.
+    const screen = await renderStart(
+      `?selected_id=${idOf(LIB)}&dependency_directions=outgoing`,
+    );
+    const uses = screen.getByRole("region", { name: "Uses" });
+    await expect
+      .element(uses.getByText(`${LIB} depends on nothing outside itself.`))
+      .toBeVisible();
+    await expect
+      .element(uses.getByText(/^\d+ incoming dependenc/))
+      .toBeVisible();
+    // The list, too.
+    await expect
+      .element(
+        screen
+          .getByRole("region", { name: "Outgoing dependencies" })
+          .getByRole("button", { name: "Show the incoming dependencies" }),
+      )
+      .toBeVisible();
+
+    await uses
+      .getByRole("button", { name: "Show the incoming dependencies" })
+      .click();
+
+    await expect
+      .poll(() => screen.router.state.location.search)
+      .toMatchObject({ dependency_directions: "incoming" });
+    await expect.element(pane(screen).usedBy).toBeVisible();
+    // Incoming has some: nothing to offer.
+    await expect
+      .element(
+        screen.getByRole("button", { name: /^Show the .* dependencies$/ }),
+      )
+      .not.toBeInTheDocument();
+  });
+
   it("shows what a picked node connects to in the other trees and the lists", async () => {
     const screen = await renderStart(`?selected_id=${idOf(LIB)}`);
     const { usedBy, selection, incoming } = pane(screen);

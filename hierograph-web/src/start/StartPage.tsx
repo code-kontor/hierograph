@@ -22,14 +22,16 @@ import {
   DEPENDENCY_GESTURES,
   DEPENDENCY_LEGEND,
   DependencyTrees,
-  OPEN_PARAMS,
+  DirectionModeSwitch,
   PICK_PARAMS,
+  TREE_ROW_PARAMS,
 } from "./DependencyTrees";
 import { HierarchyTree } from "./HierarchyTree";
 import { dependencySetQueryOptions } from "./queries";
 
 // The dependency list's tabs, for the start route's `dependency_list`.
 export { DEPENDENCY_LIST_TABS } from "./DependencyList";
+export { DIRECTION_MODES } from "./DependencyTrees";
 
 // The start screen: the hierarchy tree of the current hierarchy view, and
 // beside it the dependencies of its selection (#77), as three trees and,
@@ -245,10 +247,13 @@ function DependencyPaneTitle() {
         ...previous,
         selected_id: undefined,
         selected_cycle_ids: undefined,
+        // Back to both directions.
+        dependency_directions: undefined,
         ...Object.fromEntries(
-          [...Object.values(PICK_PARAMS), ...Object.values(OPEN_PARAMS)].map(
-            (param) => [param, undefined],
-          ),
+          [...Object.values(PICK_PARAMS), ...TREE_ROW_PARAMS].map((param) => [
+            param,
+            undefined,
+          ]),
         ),
       }),
       replace: true,
@@ -303,10 +308,13 @@ function DependencyPane() {
       title={<DependencyPaneTitle />}
       plainHeader
       toolbar={
-        <GesturesHelp
-          gestures={DEPENDENCY_GESTURES}
-          legend={DEPENDENCY_LEGEND}
-        />
+        <>
+          <DirectionModeSwitch />
+          <GesturesHelp
+            gestures={DEPENDENCY_GESTURES}
+            legend={DEPENDENCY_LEGEND}
+          />
+        </>
       }
       bodyClassName="flex flex-col"
     >

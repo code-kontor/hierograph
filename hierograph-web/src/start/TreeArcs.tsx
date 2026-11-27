@@ -35,6 +35,7 @@ import {
   cycleDependencies,
   layoutArcs,
 } from "./arcs";
+import { useDirectionMode } from "./DependencyTrees";
 import { hierarchyArcsQueryOptions } from "./queries";
 
 // The arcs sit directly to the right of the tree's labels: the arcs against
@@ -278,8 +279,11 @@ export function TreeArcs({
   const byId = new Map(rows.map((row) => [row.id, row]));
   const maxWeight = Math.max(1, ...arcs.map((arc) => arc.weight));
 
-  // Arcs are only drawn for a focus.
+  // Arcs are only drawn for a focus. With one direction shown in the
+  // dependencies, the other's arcs stay, dimmed: still the hint that there
+  // is more that way.
   const focus = shown;
+  const mode = useDirectionMode();
   const paths =
     focus === null
       ? []
@@ -295,6 +299,11 @@ export function TreeArcs({
             heads={heads}
             // At full strength while one of its ends is under the pointer.
             quiet={hovered !== arc.from && hovered !== arc.to}
+            dimmed={
+              mode !== "both" &&
+              relationOf(arc, shown, rows) !== "cycle" &&
+              relationOf(arc, shown, rows) !== mode
+            }
           />
         ));
 
@@ -396,6 +405,8 @@ type ArcPathProps = {
   heads: string;
   // Drawn as context (thin, light), or at full strength.
   quiet: boolean;
+  // In the direction the dependencies don't show: faded.
+  dimmed: boolean;
 };
 
 // The arrow's role, by the arc's relation to what is selected.
@@ -419,6 +430,7 @@ function ArcPath({
   maxWeight,
   heads,
   quiet,
+  dimmed,
 }: ArcPathProps) {
   const fromLabel = from?.label ?? arc.from;
   const toLabel = to?.label ?? arc.to;
@@ -438,6 +450,8 @@ function ArcPath({
         data-direction={arc.direction}
         data-relation={relation}
         data-weight={arc.weight}
+        opacity={dimmed ? 0.3 : undefined}
+        data-dimmed={dimmed || undefined}
       />
     </ArcMenu>
   );

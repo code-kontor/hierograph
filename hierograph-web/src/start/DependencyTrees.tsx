@@ -8,7 +8,13 @@ import {
   ListChevronsDownUp,
   ListChevronsUpDown,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { twMerge } from "tailwind-merge";
 
 import type { Gesture } from "@/design-system/graph/GesturesHelp";
@@ -57,12 +63,23 @@ export const PICK_PARAMS = {
 type PickKey = keyof typeof PICK_PARAMS;
 
 // Each tree's open rows, also in the URL, so a link restores them (#85): the
-// rows below the top, which is always open.
+// rows below the top. The top is open; only the Selection tree shows its
+// top, which can close (see `SELECTION_COLLAPSED_PARAM`).
 export const OPEN_PARAMS = {
   usedBy: "used_by_expanded_ids",
   part: "selection_expanded_ids",
   uses: "uses_expanded_ids",
 } as const satisfies Record<PickKey, string>;
+
+// The Selection tree's top, the selection, is open unless closed
+// (`selection_collapsed`): open is what a new selection starts with.
+export const SELECTION_COLLAPSED_PARAM = "selection_collapsed";
+
+// Everything that keeps the trees' rows: they belong to one selection.
+export const TREE_ROW_PARAMS = [
+  ...Object.values(OPEN_PARAMS),
+  SELECTION_COLLAPSED_PARAM,
+];
 
 // The start page's params the dependency trees read (see the start route).
 type DependencySearch = {
@@ -75,6 +92,162 @@ type DependencySearch = {
 
 function idParam(value: unknown): string | undefined {
   return value === undefined || value === null ? undefined : String(value);
+}
+
+// Which directions the page shows: both (the default), or only the
+// incoming or only the outgoing dependencies (`dependency_directions`; the
+// route validates it). One direction hides the other side's tree and the
+// list's other tab.
+export const DIRECTION_MODES = ["incoming", "outgoing"] as const;
+export type DirectionMode = "both" | (typeof DIRECTION_MODES)[number];
+
+export function useDirectionMode(): DirectionMode {
+  const search: { dependency_directions?: unknown } = useSearch({
+    strict: false,
+  });
+  return (DIRECTION_MODES as readonly unknown[]).includes(
+    search.dependency_directions,
+  )
+    ? (search.dependency_directions as DirectionMode)
+    : "both";
+}
+
+const MODE_LABELS: Record<DirectionMode, string> = {
+  incoming: "Incoming",
+  both: "Both",
+  outgoing: "Outgoing",
+};
+
+const MODE_TITLES: Record<DirectionMode, string> = {
+  incoming: "Only what uses the selection",
+  both: "What uses the selection and what it uses",
+  outgoing: "Only what the selection uses",
+};
+
+// Switches the directions shown. The picks stay: one on a side that goes
+// is ignored while it is hidden and back with its side. "Both" leaves no
+// param behind, and the list shows the tab of the direction.
+export function useChooseDirection(): (next: DirectionMode) => Promise<void> {
+  const navigate = useNavigate();
+  return async (next) => {
+    await navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        dependency_directions: next === "both" ? undefined : next,
+        dependency_list: undefined,
+      }),
+      replace: true,
+    } as never);
+  };
+}
+
+const MODE_ORDER = ["incoming", "both", "outgoing"] as const;
+
+// The switch between the directions, in the pane's title bar: three small
+// icons in one outline, the chosen one on the secondary selection's fill. A
+// radio group: one tab stop, the arrow keys move between the options (and
+// choose, as radios do), Home and End to the ends.
+export function DirectionModeSwitch() {
+  const mode = useDirectionMode();
+  const choose = useChooseDirection();
+  const group = useRef<HTMLDivElement>(null);
+  const move = async (event: KeyboardEvent) => {
+    const at = MODE_ORDER.indexOf(mode);
+    const step: Record<string, number> = {
+      ArrowLeft: at - 1,
+      ArrowUp: at - 1,
+      ArrowRight: at + 1,
+      ArrowDown: at + 1,
+      Home: 0,
+      End: MODE_ORDER.length - 1,
+    };
+    if (!(event.key in step)) return;
+    event.preventDefault();
+    const index = (step[event.key] + MODE_ORDER.length) % MODE_ORDER.length;
+    const radios =
+      group.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    radios?.[index]?.focus();
+    await choose(MODE_ORDER[index]);
+  };
+  const segments = MODE_ORDER.map((id) => (
+    <ModeSegment
+      key={id}
+      id={id}
+      checked={id === mode}
+      onChoose={() => (id === mode ? Promise.resolve() : choose(id))}
+    />
+  ));
+  return (
+    <div
+      ref={group}
+      role="radiogroup"
+      aria-label="Directions"
+      onKeyDown={move}
+      // Apart from the pane's ?, which isn't one of them.
+      className="border-border-strong mr-2 flex items-center gap-px rounded-[5px] border p-px normal-case"
+    >
+      {segments}
+    </div>
+  );
+}
+
+type ModeSegmentProps = {
+  id: DirectionMode;
+  checked: boolean;
+  onChoose: () => Promise<void>;
+};
+
+function ModeSegment({ id, checked, onChoose }: ModeSegmentProps) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      aria-label={MODE_LABELS[id]}
+      // Roving: only the chosen one is a tab stop.
+      tabIndex={checked ? 0 : -1}
+      title={`${MODE_LABELS[id]}: ${MODE_TITLES[id].toLowerCase()}`}
+      onClick={onChoose}
+      className={twMerge(
+        "text-fg-subtle hover:bg-state-hover hover:text-fg-muted focus-visible:ring-ring flex h-5 w-6 items-center justify-center rounded-[3px] outline-none focus-visible:ring-2",
+        // Its own state, not the hover's: the secondary selection's fill,
+        // edged, and the icon dark.
+        checked &&
+          "bg-state-selected-secondary-bg hover:bg-state-selected-secondary-bg text-fg hover:text-fg shadow-[inset_0_0_0_1px_var(--hg-border-strong)]",
+      )}
+    >
+      <ModeIcon id={id} />
+    </button>
+  );
+}
+
+type ModeIconProps = {
+  id: DirectionMode;
+};
+
+// The selection as a bar, the dependencies as arrows read left to right, as
+// the trees are: into it (incoming), through it (both), out of it
+// (outgoing). Drawn like a Lucide icon.
+function ModeIcon({ id }: ModeIconProps) {
+  const into = id !== "outgoing";
+  const out = id !== "incoming";
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4"
+    >
+      <rect x="10" y="5" width="4" height="14" rx="1" />
+      {into && <path d="M2 12h6M5.5 9.5 8 12l-2.5 2.5" />}
+      {out && <path d="M16 12h6M19.5 9.5 22 12l-2.5 2.5" />}
+    </svg>
+  );
 }
 
 // The picks in the URL.
@@ -145,6 +318,7 @@ function DependencyTreesFor({
 }: DependencyTreesForProps) {
   const query = useQuery(dependencySetQueryOptions(scope, selectedId));
   const navigate = useNavigate();
+  const mode = useDirectionMode();
   const queryClient = useQueryClient();
   if (query.isPending) return <Hint>Loading the dependencies…</Hint>;
   if (query.isError) {
@@ -164,14 +338,15 @@ function DependencyTreesFor({
       <Hint>{`${name} has no dependencies with anything outside itself.`}</Hint>
     );
   }
-  // Picking a picked node again drops it. One direction at a time: a pick
-  // on a side drops the other side's pick (a link may still name both) and
-  // opens that side's tab of the dependency list, which it narrows
-  // (`dependency_list`, the first tab without a param). The part stays: it
+  // Picking a picked node again drops it. One direction at a time: with both
+  // shown, a pick on a side drops the other side's pick (a link may still
+  // name both) and opens that side's tab of the dependency list, which it
+  // narrows (`dependency_list`, the first tab without a param). With one
+  // shown, the hidden side's pick stays for its return. The part stays: it
   // belongs to both directions.
   const pick = async (key: PickKey, id: string | undefined) => {
     const side =
-      id === undefined || key === "part"
+      id === undefined || key === "part" || mode !== "both"
         ? {}
         : key === "usedBy"
           ? { [PICK_PARAMS.uses]: undefined, dependency_list: undefined }
@@ -206,9 +381,10 @@ function DependencyTreesFor({
           selected_cycle_ids: undefined,
           expanded_ids: [...new Set([...before, ...path])],
           ...Object.fromEntries(
-            [...Object.values(PICK_PARAMS), ...Object.values(OPEN_PARAMS)].map(
-              (param) => [param, undefined],
-            ),
+            [...Object.values(PICK_PARAMS), ...TREE_ROW_PARAMS].map((param) => [
+              param,
+              undefined,
+            ]),
           ),
         };
       },
@@ -219,13 +395,14 @@ function DependencyTreesFor({
   // parts connected to the picked user (incoming) or the picked used node
   // (outgoing); to both when a link picks both.
   const partEmphasis: LevelSource[] = [];
-  if (incoming > 0 && picks.usedBy !== undefined)
+  // Only from the sides shown.
+  if (incoming > 0 && mode !== "outgoing" && picks.usedBy !== undefined)
     partEmphasis.push({
       direction: "incoming",
       picks: { source: picks.usedBy },
       side: "TARGET",
     });
-  if (outgoing > 0 && picks.uses !== undefined)
+  if (outgoing > 0 && mode !== "incoming" && picks.uses !== undefined)
     partEmphasis.push({
       direction: "outgoing",
       picks: { target: picks.uses },
@@ -279,7 +456,13 @@ function DependencyColumns({
       explanation={`The nodes outside ${name} whose types depend on types in ${name}.`}
     >
       {incoming === 0 ? (
-        <Hint>{`Nothing outside ${name} depends on it.`}</Hint>
+        <Hint>
+          {`Nothing outside ${name} depends on it.`}
+          <OtherDirectionOffer
+            counts={{ incoming, outgoing }}
+            className="block pt-1"
+          />
+        </Hint>
       ) : (
         <DependencyTree
           {...base}
@@ -325,7 +508,13 @@ function DependencyColumns({
       explanation={`The nodes outside ${name} that types in ${name} depend on.`}
     >
       {outgoing === 0 ? (
-        <Hint>{`${name} depends on nothing outside itself.`}</Hint>
+        <Hint>
+          {`${name} depends on nothing outside itself.`}
+          <OtherDirectionOffer
+            counts={{ incoming, outgoing }}
+            className="block pt-1"
+          />
+        </Hint>
       ) : (
         <DependencyTree
           {...base}
@@ -349,20 +538,58 @@ function DependencyColumns({
       )}
     </TreeColumn>
   );
+  // One direction: its side and the selection, half the pane each.
+  const mode = useDirectionMode();
   return (
     <div
       className="grid min-h-0 flex-1 gap-1.5"
       style={{
         gridTemplateColumns:
-          "minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr)",
+          mode === "both"
+            ? "minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr)"
+            : "minmax(0,1fr) auto minmax(0,1fr)",
       }}
     >
-      {usedBy}
-      <DirectionArrow />
+      {mode !== "outgoing" && usedBy}
+      {mode !== "outgoing" && <DirectionArrow />}
       {selectionColumn}
-      <DirectionArrow />
-      {uses}
+      {mode !== "incoming" && <DirectionArrow />}
+      {mode !== "incoming" && uses}
     </div>
+  );
+}
+
+type OtherDirectionOfferProps = {
+  // The selection's dependencies in each direction.
+  counts: Record<DependencyDirection, number>;
+  className?: string;
+};
+
+// With one direction shown that has none, the way to the other one if it
+// has some ("14 outgoing dependencies · Show"), so a focused page is never a
+// dead end. Otherwise nothing.
+export function OtherDirectionOffer({
+  counts,
+  className,
+}: OtherDirectionOfferProps) {
+  const mode = useDirectionMode();
+  const choose = useChooseDirection();
+  if (mode === "both" || counts[mode] > 0) return null;
+  const other = mode === "incoming" ? "outgoing" : "incoming";
+  const count = counts[other];
+  if (count === 0) return null;
+  return (
+    <span className={className}>
+      {`${count} ${other} ${count === 1 ? "dependency" : "dependencies"} · `}
+      <button
+        type="button"
+        onClick={() => choose(other)}
+        aria-label={`Show the ${other} dependencies`}
+        className="focus-visible:ring-ring rounded-[3px] text-[var(--hg-accent)] outline-none hover:underline focus-visible:ring-2"
+      >
+        Show
+      </button>
+    </span>
   );
 }
 
@@ -406,7 +633,11 @@ function TreeColumn({ title, explanation, children }: TreeColumnProps) {
 // from what depends to what it depends on.
 function DirectionArrow() {
   return (
-    <div aria-hidden className="text-fg-subtle flex justify-center pt-1.5">
+    // One line of the titles' text, the arrow centred on it.
+    <div
+      aria-hidden
+      className="text-fg-subtle flex h-lh items-center justify-center text-[12px]"
+    >
       <ArrowRight className="size-4" />
     </div>
   );
@@ -479,8 +710,10 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
   // until the first toggle, which takes them over (closing every row leaves
   // no param, and must not open them again).
   const [toggled, setToggled] = useState(false);
+  // The top is open, but for a shown one (the selection) that was closed.
+  const topClosed = showTop && search[SELECTION_COLLAPSED_PARAM] === true;
   const open = new Set([
-    top.id,
+    ...(topClosed ? [] : [top.id]),
     ...(stored ?? (toggled || linked === undefined ? [] : (path.data ?? []))),
   ]);
   const queryClient = useQueryClient();
@@ -545,7 +778,9 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
     const closed = new Set([node.id, ...(await openableBelow(node, true))]);
     await store(new Set([...open].filter((id) => !closed.has(id))));
   };
+  // The rows below the top in the URL; the shown top's state on its own.
   const store = async (next: Set<string>) => {
+    const closed = showTop && !next.has(top.id);
     next.delete(top.id);
     setToggled(true);
     await navigate({
@@ -553,6 +788,9 @@ function DependencyTree({ top, showTop, label, ...rest }: DependencyTreeProps) {
       search: (previous: Record<string, unknown>) => ({
         ...previous,
         [param]: next.size > 0 ? [...next] : undefined,
+        ...(showTop
+          ? { [SELECTION_COLLAPSED_PARAM]: closed ? true : undefined }
+          : {}),
       }),
       replace: true,
     } as never);

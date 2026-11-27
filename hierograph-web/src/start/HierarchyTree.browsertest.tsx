@@ -50,6 +50,7 @@ function arcs() {
       g.querySelector("[data-arrow-line]")?.hasAttribute("marker-end") ?? false,
     title: g.querySelector("title")?.textContent ?? "",
     weight: g.dataset.weight ?? "",
+    dimmed: g.dataset.dimmed === "true",
   }));
 }
 
@@ -380,6 +381,21 @@ describe("HierarchyTree", () => {
       )
       .toBe(true);
     expect(lines().some((line) => line.dataset.quiet !== "true")).toBe(true);
+  });
+
+  it("dims the arcs of the direction the dependencies don't show", async () => {
+    const screen = await renderTree("?dependency_directions=incoming");
+    await expand(screen, ...CYCLE_PATH);
+    await row(screen, "beta").click();
+    const beta = nodeId("beta");
+    await expect.poll(() => arcs().length).toBeGreaterThan(0);
+    const all = arcs();
+    // Both directions are drawn, the outgoing ones faded.
+    expect(all.some((arc) => arc.from === beta)).toBe(true);
+    expect(all.some((arc) => arc.to === beta)).toBe(true);
+    for (const arc of all) {
+      expect(arc.dimmed).toBe(arc.relation === "outgoing");
+    }
   });
 
   it("draws the selected row's arcs: with the order and against it", async () => {

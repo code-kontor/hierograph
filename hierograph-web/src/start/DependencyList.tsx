@@ -22,7 +22,12 @@ import {
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import { ColumnResizer, useColumnWidths } from "./ColumnWidths";
-import { PICK_PARAMS, useDependencyTreePicks } from "./DependencyTrees";
+import {
+  OtherDirectionOffer,
+  PICK_PARAMS,
+  useDependencyTreePicks,
+  useDirectionMode,
+} from "./DependencyTrees";
 import {
   DEPENDENCY_PAGE_SIZE,
   type DependencyDirection,
@@ -31,6 +36,7 @@ import {
   type DependencyListEntry,
   type DependencyPicks,
   dependencySetPageQueryOptions,
+  dependencySetQueryOptions,
 } from "./queries";
 
 // The start page's params the list reads (see the start route).
@@ -64,9 +70,17 @@ export function DependencyListPane() {
   const search: DependencyListSearch = useSearch({ strict: false });
   const navigate = useNavigate();
   const picks = useDependencyTreePicks();
-  const tab = isListTab(search.dependency_list)
-    ? search.dependency_list
-    : DEPENDENCY_LIST_TABS[0];
+  // With one direction chosen, only its tab.
+  const mode = useDirectionMode();
+  const shown = DEPENDENCY_LIST_TABS.filter(
+    (id) => mode === "both" || id === mode,
+  );
+  const tab =
+    mode !== "both"
+      ? mode
+      : isListTab(search.dependency_list)
+        ? search.dependency_list
+        : DEPENDENCY_LIST_TABS[0];
   const select = async (value: string) => {
     if (!isListTab(value)) return;
     await navigate({
@@ -87,9 +101,7 @@ export function DependencyListPane() {
     target: picks.part,
   };
   const outgoing: DependencyPicks = { source: picks.part, target: picks.uses };
-  const triggers = DEPENDENCY_LIST_TABS.map((id) => (
-    <ListTabTrigger key={id} id={id} />
-  ));
+  const triggers = shown.map((id) => <ListTabTrigger key={id} id={id} />);
   // The picks that narrow each tab, as chips over its list.
   const chips: Record<DependencyDirection, ScopeChip[]> = {
     incoming: [
@@ -132,7 +144,16 @@ export function DependencyListPane() {
       <Pane
         title="Dependency list"
         plainHeader
-        titleBar={<TabsList className="h-full">{triggers}</TabsList>}
+        titleBar={
+          // A single tab has no sibling to switch to: a plain heading.
+          shown.length === 1 ? (
+            <h2 className="text-fg flex h-full items-center px-[14px] text-[12px] font-semibold">
+              {TAB_LABELS[tab]}
+            </h2>
+          ) : (
+            <TabsList className="h-full">{triggers}</TabsList>
+          )
+        }
       >
         <TabsContent value="incoming">{list("incoming", incoming)}</TabsContent>
         <TabsContent value="outgoing">{list("outgoing", outgoing)}</TabsContent>
@@ -186,6 +207,9 @@ function DependencyList({
   const query = useQuery(
     dependencySetPageQueryOptions(scope, selectionId, direction, picks, page),
   );
+  // The selection's counts in each direction (the trees' query), for the way
+  // to the other direction when the one shown has none.
+  const set = useQuery(dependencySetQueryOptions(scope, selectionId));
   const data = query.data;
   const name = (id: string | undefined) => {
     if (id === undefined) return undefined;
@@ -253,6 +277,15 @@ function DependencyList({
             ? `${data.total} ${data.total === 1 ? "dependency" : "dependencies"} · ${data.references} ${data.references === 1 ? "reference" : "references"}`
             : "Loading the dependencies…"}
         </h3>
+        {data && data.total === 0 && set.data && (
+          <OtherDirectionOffer
+            counts={{
+              incoming: set.data.incoming,
+              outgoing: set.data.outgoing,
+            }}
+            className="text-fg-muted text-[12px]"
+          />
+        )}
         {chipButtons}
         <span className="flex-1" />
         {data && data.pages > 1 && (

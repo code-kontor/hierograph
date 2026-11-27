@@ -174,7 +174,7 @@ browser remembers.
   dependencies it holds, with the references in its tooltip
   (`filteredChildrenWithCounts`), which the hierarchy never shows. The trees are three equal columns;
   arrows between the titles point the way the dependencies go, and each
-  title's tooltip says what its tree holds. The pane's `?` lists the trees'
+  title's tooltip says what its tree holds. A quiet switch in the pane's title bar, three small icons in one outline, apart from the `?` (the selection as a bar, arrows into it, through it, out of it: Incoming, Both, Outgoing; the chosen one on the secondary selection's fill, edged, the names as their tooltips; a radio group with one tab stop and the arrow keys), shows one direction at a time: "Incoming" hides "Uses" and the list's outgoing tab, "Outgoing" hides "Used by" and the incoming tab, and the list's remaining tab is a plain heading. A pick on the hidden side stays in the URL, ignored, and is back with its side; with one side shown, picking there leaves it. A direction with no dependencies offers the other one where it says so, in its tree and the list ("14 outgoing dependencies · Show"). The hierarchy's arcs keep both directions, the hidden one's dimmed. It is the search param `dependency_directions` (`incoming`, `outgoing`; none for both, replacing the history entry), and clearing the selection (the heading's button, Esc, the hierarchy) brings back both. The pane's `?` lists the trees'
   gestures and what the greyed rows mean.
   - **The trees**: "Used by" and "Uses" are the sets' sides
     (`filteredChildrenWithCounts` on a set, `SOURCE` or `TARGET`, with
@@ -187,8 +187,10 @@ browser remembers.
     hierarchy tree's order for the same parent (dependency order, from the
     same cached level query), External Types last at the top level. Each tree's open rows are in the URL
     (`used_by_expanded_ids`, `selection_expanded_ids`, `uses_expanded_ids`,
-    the rows below its top), so a link restores them; selecting another
-    node drops them with the picks.
+    the rows below its top), so a link restores them; the Selection tree's
+    top, the selection, opens with it and can be closed like any row
+    (`selection_collapsed`, the rows below kept for its reopening).
+    Selecting another node drops them with the picks.
   - **A row's context menu** (right-click): in the Selection tree, Select
     makes the row the selection, as selecting it in the hierarchy tree
     would: the picks and the trees' open rows go, and the hierarchy tree

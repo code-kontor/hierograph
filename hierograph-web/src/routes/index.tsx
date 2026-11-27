@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { parseEnum, parseIdList, parseSingleId } from "@/routing/searchCodec";
-import { DEPENDENCY_LIST_TABS, StartPage } from "@/start/StartPage";
+import {
+  DEPENDENCY_LIST_TABS,
+  DIRECTION_MODES,
+  StartPage,
+} from "@/start/StartPage";
 
 // The start screen's own params: the tree's, `expanded_ids`, its open rows,
 // and the selection, a row (`selected_id`) or a cycle (`selected_cycle_ids`,
@@ -9,9 +13,11 @@ import { DEPENDENCY_LIST_TABS, StartPage } from "@/start/StartPage";
 // picked in the dependency trees: one that uses the selection (`used_by_id`),
 // a part of it (`selection_part_id`), one it uses (`uses_id`); and the open
 // open rows of each dependency tree (`used_by_expanded_ids`,
-// `selection_expanded_ids`, `uses_expanded_ids`); and the open
+// `selection_expanded_ids`, `uses_expanded_ids`), and whether the Selection
+// tree's top, open without it, is closed (`selection_collapsed`); and the open
 // tab of the dependency list (`dependency_list`: `incoming`, `outgoing`), an
-// unknown value dropped; and whether the hierarchy is collapsed to a rail
+// unknown value dropped; which directions the dependencies show
+// (`dependency_directions`: `incoming`, `outgoing`; both without it); and whether the hierarchy is collapsed to a rail
 // (`hierarchy_collapsed`, on a wide screen).
 type StartSearch = {
   expanded_ids?: string[];
@@ -23,8 +29,10 @@ type StartSearch = {
   used_by_expanded_ids?: string[];
   selection_expanded_ids?: string[];
   uses_expanded_ids?: string[];
+  selection_collapsed?: boolean;
   hierarchy_collapsed?: boolean;
   dependency_list?: (typeof DEPENDENCY_LIST_TABS)[number];
+  dependency_directions?: (typeof DIRECTION_MODES)[number];
 };
 
 export const Route = createFileRoute("/")({
@@ -38,12 +46,21 @@ export const Route = createFileRoute("/")({
     used_by_expanded_ids: parseIdList(search.used_by_expanded_ids),
     selection_expanded_ids: parseIdList(search.selection_expanded_ids),
     uses_expanded_ids: parseIdList(search.uses_expanded_ids),
+    selection_collapsed:
+      search.selection_collapsed === true ||
+      search.selection_collapsed === "true"
+        ? true
+        : undefined,
     hierarchy_collapsed:
       search.hierarchy_collapsed === true ||
       search.hierarchy_collapsed === "true"
         ? true
         : undefined,
     dependency_list: parseEnum(search.dependency_list, DEPENDENCY_LIST_TABS),
+    dependency_directions: parseEnum(
+      search.dependency_directions,
+      DIRECTION_MODES,
+    ),
   }),
   component: StartPage,
 });

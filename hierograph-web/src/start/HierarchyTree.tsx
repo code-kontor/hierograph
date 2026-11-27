@@ -115,6 +115,9 @@ export function HierarchyTree({ onCollapse }: HierarchyTreeProps) {
         used_by_expanded_ids: undefined,
         selection_expanded_ids: undefined,
         uses_expanded_ids: undefined,
+        selection_collapsed: undefined,
+        // Cleared, the dependencies show both directions again.
+        ...(focus === null ? { dependency_directions: undefined } : {}),
       },
       true,
     );
@@ -126,7 +129,6 @@ export function HierarchyTree({ onCollapse }: HierarchyTreeProps) {
       {/* The dependencies' heading names the selection, with its clear
           button; here it is only announced. */}
       <SelectionAnnouncement label={selected === null ? "" : selectedLabel} />
-      <GesturesHelp gestures={TREE_GESTURES} />
       {onCollapse && (
         <button
           type="button"
@@ -138,6 +140,8 @@ export function HierarchyTree({ onCollapse }: HierarchyTreeProps) {
           <PanelLeftClose className="size-4" />
         </button>
       )}
+      {/* The ? last, at the right edge, as in the dependencies' pane. */}
+      <GesturesHelp gestures={TREE_GESTURES} />
     </>
   );
   return (
@@ -191,6 +195,8 @@ type TreeSearch = {
   used_by_expanded_ids?: (string | number)[];
   selection_expanded_ids?: (string | number)[];
   uses_expanded_ids?: (string | number)[];
+  selection_collapsed?: boolean;
+  dependency_directions?: string;
 };
 
 function useSetTreeSearch() {
