@@ -76,11 +76,11 @@ class DsmExactOrderTest {
         val b = Builder()
         val a = b.node("a"); val bb = b.node("b"); val c = b.node("c"); val d = b.node("d")
         b.dep(a, d, 5); b.dep(bb, a, 5); b.dep(c, bb, 2); b.dep(d, c, 1)
-        val matrix = GraphUtils.computeAdjacencyMatrix(listOf(a, bb, c, d), b.hierarchy)
+        val matrix = DependencyAggregation.computeAdjacencyMatrix(listOf(a, bb, c, d), b.hierarchy)
         val heuristic = FastFAS(matrix).getOrderedSequence()
         assertThat(FastFasSorter.upwardWeight(heuristic, matrix)).isEqualTo(2)
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(listOf(a, bb, c, d), b.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(listOf(a, bb, c, d), b.hierarchy)
 
         assertThat(upwardWeight(dsm)).isEqualTo(1)
         assertThat(b.names(dsm.orderedNodes)).containsExactly("c", "b", "a", "d")
@@ -108,8 +108,8 @@ class DsmExactOrderTest {
             for (i in nodes.indices) for (j in nodes.indices) {
                 if (i != j && random.nextInt(3) == 0) b.dep(nodes[i], nodes[j], 1 + random.nextInt(5))
             }
-            val dsm = GraphUtils.createDependencyStructureMatrix(nodes, b.hierarchy)
-            val matrix = GraphUtils.computeAdjacencyMatrix(nodes, b.hierarchy)
+            val dsm = GraphAlgorithms.createDependencyStructureMatrix(nodes, b.hierarchy)
+            val matrix = DependencyAggregation.computeAdjacencyMatrix(nodes, b.hierarchy)
             val best = permutations(nodes.size).minOf { FastFasSorter.upwardWeight(it, matrix) }
 
             assertThat(upwardWeight(dsm)).isEqualTo(best)
@@ -123,7 +123,7 @@ class DsmExactOrderTest {
         val ring = (0..FastFasSorter.EXACT_LIMIT).map { b.node("r$it") }
         for (i in ring.indices) b.dep(ring[i], ring[(i + 1) % ring.size])
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(ring, b.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(ring, b.hierarchy)
 
         assertThat(dsm.cycles).hasSize(1)
         assertThat(dsm.cycles.single()).hasSize(FastFasSorter.EXACT_LIMIT + 1)
@@ -138,7 +138,7 @@ class DsmExactOrderTest {
         b.dep(top, p); b.dep(p, q, 3); b.dep(q, p)
         b.dep(q, mid); b.dep(mid, x); b.dep(x, y, 2); b.dep(y, z, 2); b.dep(z, x)
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(listOf(z, y, x, mid, q, p, top), b.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(listOf(z, y, x, mid, q, p, top), b.hierarchy)
         val position = dsm.orderedNodes.withIndex().associate { (i, n) -> n to i }
 
         assertThat(b.names(dsm.orderedNodes)).containsExactly("top", "p", "q", "mid", "x", "y", "z")

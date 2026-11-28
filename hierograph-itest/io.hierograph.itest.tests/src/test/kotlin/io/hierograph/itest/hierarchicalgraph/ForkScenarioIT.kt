@@ -16,7 +16,8 @@
 package io.hierograph.itest.hierarchicalgraph
 
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
+import io.hierograph.hierarchicalgraph.algorithms.DependencyAggregation
+import io.hierograph.hierarchicalgraph.algorithms.GraphAlgorithms
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
@@ -113,7 +114,7 @@ class ForkScenarioIT : AbstractHierarchicalGraphIntegrationTest() {
         val (fork, groupNodes) = grouped()
         val names = groups.keys.toList()
 
-        val dsm = GraphUtils.computeAdjacencyMatrix(names.map { groupNodes.getValue(it) }, fork)
+        val dsm = DependencyAggregation.computeAdjacencyMatrix(names.map { groupNodes.getValue(it) }, fork)
 
         for ((i, from) in names.withIndex()) for ((j, to) in names.withIndex()) {
             if (i == j) continue
@@ -173,7 +174,7 @@ class ForkScenarioIT : AbstractHierarchicalGraphIntegrationTest() {
         assertThat(fork.getAggregatedDependency(coreIoModule, springCore)!!.aggregatedWeight).isEqualTo(ioToRest)
         assertThat(fork.getAggregatedDependency(springCore, coreIoModule)!!.aggregatedWeight).isEqualTo(restToIo)
         // so the extraction as drafted creates a module cycle
-        val cycles = GraphUtils.detectCycles(fork.childrenOf(fork.rootNode), fork)
+        val cycles = GraphAlgorithms.detectCycles(fork.childrenOf(fork.rootNode), fork)
         assertThat(cycles).anySatisfy { assertThat(it).contains(springCore, coreIoModule) }
 
         assertThat(base.parentOf(coreIo)).isSameAs(originalParent)
@@ -183,7 +184,7 @@ class ForkScenarioIT : AbstractHierarchicalGraphIntegrationTest() {
     @Test
     fun `the module level of the base hierarchy is unchanged by restructuring a fork`() {
         val top = base.childrenOf(base.rootNode)
-        val before = GraphUtils.computeAdjacencyMatrix(top, base).map { it.toList() }
+        val before = DependencyAggregation.computeAdjacencyMatrix(top, base).map { it.toList() }
 
         val fork = base.fork()
         val coreIo = fork.descendantsOf(fork.module("spring-core"), JavaNodeKind.PACKAGE)
@@ -191,7 +192,7 @@ class ForkScenarioIT : AbstractHierarchicalGraphIntegrationTest() {
         fork.move(coreIo, fork.localNode(JavaNodeKind.MODULE, "spring-core-io"))
         grouped()
 
-        assertThat(GraphUtils.computeAdjacencyMatrix(top, base).map { it.toList() }).isEqualTo(before)
+        assertThat(DependencyAggregation.computeAdjacencyMatrix(top, base).map { it.toList() }).isEqualTo(before)
         assertBaseUnchanged()
     }
 }

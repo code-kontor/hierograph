@@ -15,7 +15,7 @@
  */
 package io.hierograph.mcp.server.tools.dependencyanalysis
 
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
+import io.hierograph.hierarchicalgraph.algorithms.GraphAlgorithms
 import io.hierograph.mcp.server.core.INodeRefFactory
 import io.hierograph.mcp.server.tools.CompactTree
 import io.hierograph.server.graphservice.HierarchicalGraphService
@@ -75,7 +75,7 @@ class LevelizedStructureTool(
         // Folding changes no weight: the levelization of the chain ends is that of the chains.
         val folding = CompactTree.folding(compact, hierarchy)
         val children = folding?.displayChildrenOf(node)?.map { it.node } ?: hierarchy.childrenOf(node).toList()
-        val levelization = GraphUtils.levelize(children, hierarchy)
+        val levelization = GraphAlgorithms.levelize(children, hierarchy)
         val effectiveLimit = (limit ?: 100).coerceIn(1, 500)
 
         // Every child once, by id; the rows and tangles refer to them by id.

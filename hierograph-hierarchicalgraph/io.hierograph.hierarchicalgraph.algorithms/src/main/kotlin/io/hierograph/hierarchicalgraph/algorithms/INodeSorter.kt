@@ -23,10 +23,15 @@ interface INodeSorter {
     fun sort(nodes: List<HGNode>, hierarchy: Hierarchy): SortResult
 }
 
-interface SortResult {
-    val orderedNodes: List<HGNode>
-    val upwardDependencies: List<AggregatedDependency>
-
-    /** Whether [orderedNodes] is proven to put the least possible weight on [upwardDependencies]. */
-    val isExact: Boolean get() = false
-}
+/**
+ * The result of [INodeSorter.sort].
+ *
+ * @property orderedNodes a permutation of the sorted nodes.
+ * @property upwardDependencies the dependencies that point back in [orderedNodes].
+ * @property isExact whether [orderedNodes] is proven to put the least possible weight on [upwardDependencies].
+ */
+data class SortResult(
+    val orderedNodes: List<HGNode>,
+    val upwardDependencies: List<AggregatedDependency>,
+    val isExact: Boolean = false,
+)

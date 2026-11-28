@@ -127,7 +127,7 @@ Both are needed because:
    ┌──────────────────────────────────────────────────────────┐
    │  io.hierograph.server.graphql                            │
    │   schema (graphql/*.graphqls) + @Controller resolvers    │
-   │   uses: Hierarchy (model), GraphUtils (algorithms)       │
+   │   uses: Hierarchy (model), GraphAlgorithms (algorithms)  │
    └───────────────────────────┬──────────────────────────────┘
                                │  POST /graphql  (Spring GraphQL)
                                ▼
@@ -764,7 +764,7 @@ depend on?".
 ### 11.8 `OrderedAdjacencyMatrix`
 
 `NodeSet.orderedAdjacencyMatrix` builds a dependency structure matrix with
-`GraphUtils.createDependencyStructureMatrix` over the set's nodes and the served
+`GraphAlgorithms.createDependencyStructureMatrix` over the set's nodes and the served
 hierarchy. The
 [algorithms specification](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md)
 defines the ordering and the cycle detection; this type serialises the result.
@@ -803,7 +803,7 @@ stronglyConnectedComponents  []
 #### Levelization
 
 `NodeSet.levelization` lays the set out in rows by level with
-`GraphUtils.levelize`, as a levelized structure map draws a container's children:
+`GraphAlgorithms.levelize`, as a levelized structure map draws a container's children:
 `node(id) { children(compact: true) { levelization } }`, over the chain ends of a
 folded tree. The
 [algorithms specification](../../../hierograph-hierarchicalgraph/io.hierograph.hierarchicalgraph.algorithms/spec/hierarchicalgraph-algorithms.md#73-levelization)
@@ -1074,7 +1074,7 @@ For `findNodes`, seed a `HierarchicalGraphService` with the model and pass a
 | Name search matching and ranking | `NodeSearch` (graph service) |
 | Reading node properties from Parquet | `ParquetNodePropertiesProvider` (graph service) |
 | Tree structure, accumulation, aggregation | `Hierarchy` (`io.hierograph.hierarchicalgraph.model`) |
-| DSM ordering and cycle detection | `GraphUtils` (`io.hierograph.hierarchicalgraph.algorithms`) |
+| DSM ordering and cycle detection | `GraphAlgorithms` (`io.hierograph.hierarchicalgraph.algorithms`) |
 | Member-level detail (signatures, call sites, field access) | the MCP detail tools (`io.hierograph.mcp.server`) |
 | Dependency attribute bits (extends, implements, …) | the MCP dependency tools |
 | Graph reload | the MCP `reload_graph` tool |

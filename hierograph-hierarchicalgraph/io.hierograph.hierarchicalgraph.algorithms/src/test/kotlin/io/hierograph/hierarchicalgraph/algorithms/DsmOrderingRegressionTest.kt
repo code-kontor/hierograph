@@ -67,7 +67,7 @@ class DsmOrderingRegressionTest {
         val (_, p) = b.pkg("p"); val (_, q) = b.pkg("q")
         b.dep(a, bb); b.dep(bb, c); b.dep(c, p); b.dep(p, q); b.dep(q, p)
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(listOf(a, bb, c, p, q), b.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(listOf(a, bb, c, p, q), b.hierarchy)
 
         assertThat(b.names(dsm.orderedNodes).take(3)).containsExactly("A", "B", "C")
         assertThat(b.names(dsm.orderedNodes).drop(3)).containsExactlyInAnyOrder("P", "Q")
@@ -81,7 +81,7 @@ class DsmOrderingRegressionTest {
         val (pp, p) = b.pkg("p"); val (pq, q) = b.pkg("q")
         b.dep(a, bb); b.dep(bb, c); b.dep(c, p); b.dep(p, q); b.dep(q, p)
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(listOf(pa, pb, pc, pp, pq), b.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(listOf(pa, pb, pc, pp, pq), b.hierarchy)
 
         assertThat(b.names(dsm.orderedNodes).take(3)).containsExactly("a", "b", "c")
         assertThat(b.names(dsm.orderedNodes).drop(3)).containsExactlyInAnyOrder("p", "q")
@@ -99,7 +99,7 @@ class DsmOrderingRegressionTest {
         b.dep(report, ledger); b.dep(report, money)
         b.dep(billing, money); b.dep(ledger, money)
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(
             listOf(pReport, pBilling, pLedger, pMoney), b.hierarchy
         )
 
@@ -119,7 +119,7 @@ class DsmOrderingRegressionTest {
             for (i in types.indices) for (j in types.indices) {
                 if (i != j && random.nextInt(4) == 0) b.dep(types[i], types[j], 1 + random.nextInt(5))
             }
-            assertUpwardMatchesBelowDiagonal(GraphUtils.createDependencyStructureMatrix(types, b.hierarchy))
+            assertUpwardMatchesBelowDiagonal(GraphAlgorithms.createDependencyStructureMatrix(types, b.hierarchy))
         }
     }
 
@@ -135,7 +135,7 @@ class DsmOrderingRegressionTest {
                     random.nextInt(8) == 0
                 ) b.dep(types[i], types[j], 1 + random.nextInt(5))
             }
-            assertUpwardMatchesBelowDiagonal(GraphUtils.createDependencyStructureMatrix(packages, b.hierarchy))
+            assertUpwardMatchesBelowDiagonal(GraphAlgorithms.createDependencyStructureMatrix(packages, b.hierarchy))
         }
     }
 

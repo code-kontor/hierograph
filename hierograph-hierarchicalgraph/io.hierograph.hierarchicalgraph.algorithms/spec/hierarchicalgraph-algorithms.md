@@ -74,9 +74,10 @@ same content in the same order. Two views of the same matrix never disagree.
                                 │ getAggregatedDependency
                                 ▼
  ┌─────────────────────────────────────────────────────────────┐
- │                         GraphUtils                          │
+ │  DependencyAggregation                                      │
  │  adjacency matrix · adjacency list · pairwise aggregation   │
- │  SCCs / cycles (Tarjan) · ordering (FastFAS) · DSM          │
+ │  GraphAlgorithms                                            │
+ │  SCCs / cycles (Tarjan) · ordering (FastFAS) · DSM · levels │
  └──────────────┬───────────────────────────────┬──────────────┘
                 ▼                               ▼
      pairwise_dependencies tool        GraphQL NodeSet
@@ -274,14 +275,14 @@ interface INodeSorter {
     fun sort(nodes: List<HGNode>, hierarchy: Hierarchy): SortResult
 }
 
-interface SortResult {
-    val orderedNodes: List<HGNode>                       // a permutation of nodes
-    val upwardDependencies: List<AggregatedDependency>   // edges pointing back in the final order
-    val isExact: Boolean                                 // no order has less upward weight
-}
+data class SortResult(
+    val orderedNodes: List<HGNode>,                      // a permutation of nodes
+    val upwardDependencies: List<AggregatedDependency>,  // edges pointing back in the final order
+    val isExact: Boolean = false,                        // no order has less upward weight
+)
 ```
 
-`GraphUtils.createFasNodeSorter()` returns the FastFAS-based sorter. `sort`:
+`GraphAlgorithms.createFasNodeSorter()` returns the FastFAS-based sorter. `sort`:
 
 1. computes the adjacency matrix of `nodes` (§4.1);
 2. orders it with FastFAS;
@@ -503,15 +504,25 @@ AggregatedEdge(fromIndex = 1, toIndex = 3, weight = 1, typePairCount = 1, attrib
 
 ## 11. API reference
 
-All entry points are on the `GraphUtils` object. The classes in the `impl` package
-(`Tarjan`, `FastFAS`, `FastFasSorter`, `DependencyStructureMatrixImpl`, `LevelizationImpl`) implement
-them and are not meant to be used directly.
+The entry points are on two objects. `DependencyAggregation` computes the aggregated
+dependencies among a node set; `GraphAlgorithms` runs the structural analyses and creates
+the DSM, the levelization and the sorter. Both only delegate: the classes in the `impl`
+package (`DependencyAggregator`, `Tarjan`, `FastFAS`, `FastFasSorter`,
+`DependencyStructureMatrixImpl`, `LevelizationImpl`) implement them, are not meant to be
+used directly, and never refer back to the two objects.
+
+**`DependencyAggregation`**
 
 | Method | Returns | Section |
 |--------|---------|---------|
 | `computeAdjacencyMatrix(nodes, hierarchy)` | `Array<IntArray>`: summed weights, diagonal included | §4.1 |
 | `computeAdjacencyList(nodes, hierarchy)` | `Array<IntArray>`: ascending neighbour indices | §4.2 |
 | `computePairwiseAggregation(nodes, hierarchy)` | `List<AggregatedEdge>`: non-empty off-diagonal cells | §4.3 |
+
+**`GraphAlgorithms`**
+
+| Method | Returns | Section |
+|--------|---------|---------|
 | `detectStronglyConnectedComponents(nodes, hierarchy)` | `List<List<HGNode>>`: all components | §5 |
 | `detectCycles(nodes, hierarchy)` | `List<List<HGNode>>`: components with more than one node | §5 |
 | `createFasNodeSorter()` | `INodeSorter` | §6.2 |
@@ -532,7 +543,7 @@ own weight matrix.
 
 ```kotlin
 val packages = model.hierarchy.childrenOf(module)
-val dsm = GraphUtils.createDependencyStructureMatrix(packages, model.hierarchy)
+val dsm = GraphAlgorithms.createDependencyStructureMatrix(packages, model.hierarchy)
 
 val matrix = dsm.getMatrix()
 dsm.orderedNodes.forEachIndexed { i, node ->
@@ -544,7 +555,7 @@ dsm.orderedNodes.forEachIndexed { i, node ->
 ### 12.2 Cycles only
 
 ```kotlin
-val cycles = GraphUtils.detectCycles(packages, model.hierarchy)
+val cycles = GraphAlgorithms.detectCycles(packages, model.hierarchy)
 val isLayered = cycles.isEmpty()
 ```
 
@@ -553,8 +564,8 @@ val isLayered = cycles.isEmpty()
 ### 12.3 DSM edges with their nature
 
 ```kotlin
-val dsm = GraphUtils.createDependencyStructureMatrix(nodes, hierarchy)
-val edges = GraphUtils.computePairwiseAggregation(dsm.orderedNodes, hierarchy)
+val dsm = GraphAlgorithms.createDependencyStructureMatrix(nodes, hierarchy)
+val edges = DependencyAggregation.computePairwiseAggregation(dsm.orderedNodes, hierarchy)
     .sortedWith(compareBy({ it.fromIndex }, { it.toIndex }))
 ```
 
@@ -567,8 +578,8 @@ rows and columns.
 val scenario = model.fork()
 scenario.hierarchy.move(ledgerType, accountingPackage)
 
-val before = GraphUtils.detectCycles(packages, model.hierarchy)
-val after  = GraphUtils.detectCycles(packagesInScenario, scenario.hierarchy)
+val before = GraphAlgorithms.detectCycles(packages, model.hierarchy)
+val after  = GraphAlgorithms.detectCycles(packagesInScenario, scenario.hierarchy)
 ```
 
 The algorithms read the hierarchy they are given, so the same calls analyse the

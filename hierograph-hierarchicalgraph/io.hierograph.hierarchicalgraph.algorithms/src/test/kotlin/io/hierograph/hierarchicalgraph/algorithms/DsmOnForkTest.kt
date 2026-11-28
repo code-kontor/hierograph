@@ -65,7 +65,7 @@ class DsmOnForkTest {
         dep(t3, t4, 7)   // inside right
         val v = grouped()
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(listOf(v.left, v.right), v.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(listOf(v.left, v.right), v.hierarchy)
 
         assertThat(dsm.orderedNodes).containsExactly(v.left, v.right)
         val l = dsm.orderedNodes.indexOf(v.left)
@@ -84,11 +84,11 @@ class DsmOnForkTest {
         dep(t4, t2)   // right → left
         val v = grouped()
 
-        assertThat(GraphUtils.detectCycles(listOf(p1, p2, p3, p4), base)).isEmpty()
-        assertThat(GraphUtils.detectCycles(listOf(v.left, v.right), v.hierarchy).map { it.toSet() })
+        assertThat(GraphAlgorithms.detectCycles(listOf(p1, p2, p3, p4), base)).isEmpty()
+        assertThat(GraphAlgorithms.detectCycles(listOf(v.left, v.right), v.hierarchy).map { it.toSet() })
             .containsExactly(setOf(v.left, v.right))
 
-        val dsm = GraphUtils.createDependencyStructureMatrix(listOf(v.left, v.right), v.hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(listOf(v.left, v.right), v.hierarchy)
         assertThat(dsm.isCellInCycle(0, 1)).isTrue()
         assertThat(dsm.isCellInCycle(1, 0)).isTrue()
         assertThat(dsm.upwardDependencies).hasSize(1)
@@ -101,10 +101,10 @@ class DsmOnForkTest {
         dep(t2, t3)   // left → right
         val v = grouped()
 
-        assertThat(GraphUtils.detectCycles(listOf(p1, p2, p3, p4), base)).hasSize(1)
-        assertThat(GraphUtils.detectCycles(listOf(v.left, v.right), v.hierarchy)).isEmpty()
+        assertThat(GraphAlgorithms.detectCycles(listOf(p1, p2, p3, p4), base)).hasSize(1)
+        assertThat(GraphAlgorithms.detectCycles(listOf(v.left, v.right), v.hierarchy)).isEmpty()
         // the cycle is still visible one level down, inside the group
-        assertThat(GraphUtils.detectCycles(v.hierarchy.childrenOf(v.left), v.hierarchy).map { it.toSet() })
+        assertThat(GraphAlgorithms.detectCycles(v.hierarchy.childrenOf(v.left), v.hierarchy).map { it.toSet() })
             .containsExactly(setOf(p1, p2))
     }
 
@@ -112,12 +112,12 @@ class DsmOnForkTest {
     fun `the DSM of the base hierarchy is unchanged by a grouping in a fork`() {
         dep(t1, t3, 3)
         dep(t4, t2, 1)
-        val before = GraphUtils.computeAdjacencyMatrix(listOf(p1, p2, p3, p4), base).map { it.toList() }
+        val before = DependencyAggregation.computeAdjacencyMatrix(listOf(p1, p2, p3, p4), base).map { it.toList() }
 
         grouped()
 
         assertThat(base.childrenOf(root)).containsExactly(p1, p2, p3, p4)
-        assertThat(GraphUtils.computeAdjacencyMatrix(listOf(p1, p2, p3, p4), base).map { it.toList() })
+        assertThat(DependencyAggregation.computeAdjacencyMatrix(listOf(p1, p2, p3, p4), base).map { it.toList() })
             .isEqualTo(before)
     }
 
@@ -133,7 +133,7 @@ class DsmOnForkTest {
 
         val top = fork.childrenOf(root)
         assertThat(top).containsExactlyInAnyOrder(p3, p4, left)
-        val matrix = GraphUtils.computeAdjacencyMatrix(listOf(left, p3, p4), fork)
+        val matrix = DependencyAggregation.computeAdjacencyMatrix(listOf(left, p3, p4), fork)
         assertThat(matrix[0][1]).isEqualTo(3)   // left → p3
         assertThat(matrix[2][0]).isEqualTo(1)   // p4 → left
         assertThat(matrix[0][2]).isZero()

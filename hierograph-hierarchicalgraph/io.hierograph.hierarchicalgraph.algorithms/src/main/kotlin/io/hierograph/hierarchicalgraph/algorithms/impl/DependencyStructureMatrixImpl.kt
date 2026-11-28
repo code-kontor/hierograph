@@ -15,7 +15,6 @@
  */
 package io.hierograph.hierarchicalgraph.algorithms.impl
 
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.algorithms.IDependencyStructureMatrix
 import io.hierograph.hierarchicalgraph.model.AggregatedDependency
 import io.hierograph.hierarchicalgraph.model.HGNode
@@ -32,7 +31,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
         val allUpward = mutableListOf<AggregatedDependency>()
 
         // 1. Detect all SCCs
-        val sccs = GraphUtils.detectStronglyConnectedComponents(nodes, hierarchy)
+        val sccs = Tarjan().detectStronglyConnectedComponents(nodes, hierarchy)
 
         // 2. Sort each SCC using FastFAS
         val sorter = FastFasSorter()
@@ -54,7 +53,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
         //    dependencies: a container node (module, package) usually has no edges of its own. Placing
         //    sinks first sends them to the bottom after the reversal, which keeps the order topological.
         val nodeList = nodes.toList()
-        val adjacency = GraphUtils.computeAdjacencyList(nodeList, hierarchy)
+        val adjacency = DependencyAggregator.computeAdjacencyList(nodeList, hierarchy)
         val indexOf = HashMap<Any, Int>(nodeList.size * 2).apply {
             nodeList.forEachIndexed { i, node -> put(node.identifier, i) }
         }
@@ -105,7 +104,7 @@ class DependencyStructureMatrixImpl(nodes: Collection<HGNode>, private val hiera
      * pass and reused. Backs both [getWeight] and [getMatrix].
      */
     private val weightMatrix: Array<IntArray> by lazy {
-        GraphUtils.computeAdjacencyMatrix(orderedNodes, hierarchy)
+        DependencyAggregator.computeAdjacencyMatrix(orderedNodes, hierarchy)
     }
 
     override fun getWeight(i: Int, j: Int): Int {

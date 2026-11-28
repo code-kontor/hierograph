@@ -41,7 +41,7 @@ class LevelizationTest {
             repeat(weight) { HGGraphFactory.createCoreDependency(from, to, "DEPENDS_ON", depSource) }
         }
 
-        fun levelize(vararg nodes: HGNode) = GraphUtils.levelize(nodes.toList(), hierarchy)
+        fun levelize(vararg nodes: HGNode) = GraphAlgorithms.levelize(nodes.toList(), hierarchy)
 
         fun names(nodes: List<HGNode>) = nodes.map { names.getValue(it) }
         fun rows(rows: List<List<HGNode>>) = rows.map { names(it).toSet() }

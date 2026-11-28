@@ -167,7 +167,7 @@ class ChainFoldingTest {
         tree.dep(tree.t2, tree.ab)
         val ends = listOf(tree.m1, tree.m2).flatMap { folding.displayChildrenOf(it) }.map { it.node }
 
-        val levelization = GraphUtils.levelize(ends, tree.hierarchy)
+        val levelization = GraphAlgorithms.levelize(ends, tree.hierarchy)
 
         assertThat(levelization.tangles.single().members).containsExactlyInAnyOrder(tree.ab, tree.xy)
         val feedback = levelization.feedbackDependencies.single()

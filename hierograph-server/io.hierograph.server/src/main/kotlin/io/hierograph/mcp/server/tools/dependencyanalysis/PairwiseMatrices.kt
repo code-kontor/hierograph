@@ -17,7 +17,8 @@ package io.hierograph.mcp.server.tools.dependencyanalysis
 
 import io.hierograph.graphstore.jvm.archive.model.DependencyKind
 import io.hierograph.graphstore.jvm.archive.model.JavaNodeKind
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
+import io.hierograph.hierarchicalgraph.algorithms.DependencyAggregation
+import io.hierograph.hierarchicalgraph.algorithms.GraphAlgorithms
 import io.hierograph.hierarchicalgraph.algorithms.IDependencyStructureMatrix
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
@@ -210,10 +211,10 @@ class PairwiseMatrices(
         overlapping(resolvedNodes)?.let { return Result.Rejected(it) }
 
         // Analytics are computed over the FULL node set.
-        val dsm = GraphUtils.createDependencyStructureMatrix(resolvedNodes, hierarchy)
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(resolvedNodes, hierarchy)
         val orderedNodes = dsm.orderedNodes
         // computePairwiseAggregation yields i→j (i depends on j): every edge reads depender → depended-upon.
-        val edges = GraphUtils.computePairwiseAggregation(orderedNodes, hierarchy).map { e ->
+        val edges = DependencyAggregation.computePairwiseAggregation(orderedNodes, hierarchy).map { e ->
             MatrixEdge(
                 fromId = orderedNodes[e.fromIndex].identifier,
                 toId = orderedNodes[e.toIndex].identifier,

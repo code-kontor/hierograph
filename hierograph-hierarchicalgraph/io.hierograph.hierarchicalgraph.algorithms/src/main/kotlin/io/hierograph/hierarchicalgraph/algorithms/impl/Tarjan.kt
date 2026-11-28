@@ -15,7 +15,6 @@
  */
 package io.hierograph.hierarchicalgraph.algorithms.impl
 
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 
@@ -41,9 +40,13 @@ class Tarjan {
 
     fun detectStronglyConnectedComponents(artifacts: Collection<HGNode>, hierarchy: Hierarchy): List<List<HGNode>> {
         nodes = artifacts.toList()
-        val adjacencyList = GraphUtils.computeAdjacencyList(artifacts, hierarchy)
+        val adjacencyList = DependencyAggregator.computeAdjacencyList(artifacts, hierarchy)
         return executeTarjan(adjacencyList)
     }
+
+    /** The strongly connected components of [artifacts] with more than one node: the cycles. */
+    fun detectCycles(artifacts: Collection<HGNode>, hierarchy: Hierarchy): List<List<HGNode>> =
+        detectStronglyConnectedComponents(artifacts, hierarchy).filter { it.size > 1 }
 
     private fun executeTarjan(graph: Array<IntArray>): List<List<HGNode>> {
         stronglyConnectedComponents.clear()

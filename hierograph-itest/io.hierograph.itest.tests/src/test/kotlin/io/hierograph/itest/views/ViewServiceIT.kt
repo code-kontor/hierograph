@@ -15,7 +15,7 @@
  */
 package io.hierograph.itest.views
 
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
+import io.hierograph.hierarchicalgraph.algorithms.DependencyAggregation
 import io.hierograph.hierarchicalgraph.model.NodeMetadata
 import io.hierograph.itest.fwk.AbstractHierarchicalGraphIntegrationTest
 import io.hierograph.server.graphservice.views.ViewRegistry
@@ -79,7 +79,7 @@ class ViewServiceIT : AbstractHierarchicalGraphIntegrationTest() {
         val base = model.hierarchy
         val groups = listOf("core-container", "data-access", "web").map { view.materialized.groupNodes.getValue(it) }
 
-        val matrix = GraphUtils.computeAdjacencyMatrix(groups, h)
+        val matrix = DependencyAggregation.computeAdjacencyMatrix(groups, h)
 
         for (i in groups.indices) for (j in groups.indices) {
             if (i == j) continue

@@ -26,7 +26,7 @@ import io.hierograph.server.graphql.model.NodesToConsider
 import io.hierograph.server.graphql.model.OrderedAdjacencyMatrixModel
 import io.hierograph.server.graphql.model.StronglyConnectedComponentModel
 import io.hierograph.server.graphql.model.TangleModel
-import io.hierograph.hierarchicalgraph.algorithms.GraphUtils
+import io.hierograph.hierarchicalgraph.algorithms.GraphAlgorithms
 import io.hierograph.hierarchicalgraph.model.HGNode
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -74,7 +74,7 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
 
     @SchemaMapping(typeName = "NodeSet")
     fun orderedAdjacencyMatrix(nodeSet: NodeSetModel): OrderedAdjacencyMatrixModel {
-        val dsm = GraphUtils.createDependencyStructureMatrix(nodeSet.nodeList, provider.hierarchy())
+        val dsm = GraphAlgorithms.createDependencyStructureMatrix(nodeSet.nodeList, provider.hierarchy())
         val orderedNodes = dsm.orderedNodes
         val matrix = dsm.getMatrix()
 
@@ -99,7 +99,7 @@ class NodeSetController(private val provider: HierarchicalGraphProvider) {
 
     @SchemaMapping(typeName = "NodeSet")
     fun levelization(nodeSet: NodeSetModel): LevelizationModel {
-        val levelization = GraphUtils.levelize(nodeSet.nodeList, provider.hierarchy())
+        val levelization = GraphAlgorithms.levelize(nodeSet.nodeList, provider.hierarchy())
         fun rows(rows: List<List<HGNode>>) = rows.mapIndexed { index, nodes -> LevelModel(index, nodes) }
         return LevelizationModel(
             levels = rows(levelization.levels),
