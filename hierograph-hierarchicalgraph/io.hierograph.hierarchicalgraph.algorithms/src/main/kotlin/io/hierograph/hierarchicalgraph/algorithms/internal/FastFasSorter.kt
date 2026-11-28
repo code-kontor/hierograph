@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.hierarchicalgraph.algorithms.impl
+package io.hierograph.hierarchicalgraph.algorithms.internal
 
 import io.hierograph.hierarchicalgraph.algorithms.INodeSorter
 import io.hierograph.hierarchicalgraph.algorithms.SortResult

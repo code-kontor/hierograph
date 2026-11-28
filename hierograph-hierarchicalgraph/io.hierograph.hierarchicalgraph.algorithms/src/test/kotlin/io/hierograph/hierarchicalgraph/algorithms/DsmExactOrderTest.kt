@@ -15,8 +15,8 @@
  */
 package io.hierograph.hierarchicalgraph.algorithms
 
-import io.hierograph.hierarchicalgraph.algorithms.impl.FastFAS
-import io.hierograph.hierarchicalgraph.algorithms.impl.FastFasSorter
+import io.hierograph.hierarchicalgraph.algorithms.internal.FastFAS
+import io.hierograph.hierarchicalgraph.algorithms.internal.FastFasSorter
 import io.hierograph.hierarchicalgraph.model.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

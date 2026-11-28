@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.hierograph.hierarchicalgraph.algorithms.impl
+package io.hierograph.hierarchicalgraph.algorithms.internal
 
 /**
  * Eades–Lin–Smyth greedy feedback-arc-set ordering over a weighted adjacency matrix, O(n²).

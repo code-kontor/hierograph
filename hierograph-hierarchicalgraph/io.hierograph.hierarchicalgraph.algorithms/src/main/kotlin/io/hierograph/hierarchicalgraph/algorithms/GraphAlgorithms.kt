@@ -15,10 +15,10 @@
  */
 package io.hierograph.hierarchicalgraph.algorithms
 
-import io.hierograph.hierarchicalgraph.algorithms.impl.DependencyStructureMatrixImpl
-import io.hierograph.hierarchicalgraph.algorithms.impl.FastFasSorter
-import io.hierograph.hierarchicalgraph.algorithms.impl.LevelizationImpl
-import io.hierograph.hierarchicalgraph.algorithms.impl.Tarjan
+import io.hierograph.hierarchicalgraph.algorithms.internal.DependencyStructureMatrixImpl
+import io.hierograph.hierarchicalgraph.algorithms.internal.FastFasSorter
+import io.hierograph.hierarchicalgraph.algorithms.internal.LevelizationImpl
+import io.hierograph.hierarchicalgraph.algorithms.internal.Tarjan
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 

@@ -15,7 +15,7 @@
  */
 package io.hierograph.hierarchicalgraph.algorithms
 
-import io.hierograph.hierarchicalgraph.algorithms.impl.DependencyAggregator
+import io.hierograph.hierarchicalgraph.algorithms.internal.DependencyAggregator
 import io.hierograph.hierarchicalgraph.model.HGNode
 import io.hierograph.hierarchicalgraph.model.Hierarchy
 
