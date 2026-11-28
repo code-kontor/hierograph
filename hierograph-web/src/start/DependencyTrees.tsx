@@ -1164,12 +1164,16 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
               .filter(Boolean)
               .join("\n")}
             className={twMerge(
-              "truncate",
+              "flex min-w-0",
               (kind === "type" || kind === "package") &&
                 "font-mono text-[12px]",
             )}
           >
-            {label}
+            {kind === "type" || kind === "package" ? (
+              <QualifiedName name={label} />
+            ) : (
+              <span className="truncate">{label}</span>
+            )}
           </span>
           {count !== undefined && (
             <span
@@ -1261,5 +1265,22 @@ function RowMenu({
         <CopyNodeSubmenu node={node} />
       </ContextMenuContent>
     </ContextMenu>
+  );
+}
+
+type QualifiedNameProps = {
+  name: string;
+};
+
+// A qualified name as the dependency list shows one: the qualifier subdued,
+// giving way when narrow; the last segment stays whole.
+function QualifiedName({ name }: QualifiedNameProps) {
+  const dot = name.lastIndexOf(".");
+  if (dot < 0) return <span className="truncate">{name}</span>;
+  return (
+    <>
+      <span className="text-fg-muted truncate">{name.slice(0, dot + 1)}</span>
+      <span className="shrink-0">{name.slice(dot + 1)}</span>
+    </>
   );
 }
