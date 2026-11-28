@@ -45,6 +45,7 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
         val reader = ParquetReader()
         val typeRows = reader.readTypeRows(dir, typeFqns).associateBy { it.artifact to it.fqn }
         val membersByOwner = reader.readMembersByOwner(dir, typeFqns)
+        val repositoryRoot = lazy { SourceFiles.repositoryRoot(graphService.buildRootDirectory) }
 
         return nodes.associateWith { node ->
             val source = source(node) ?: return@associateWith emptyMap()
@@ -70,7 +71,10 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
                     node.kind in JavaNodeKind.TYPES -> {
                         val artifact = putArtifact(hierarchy, node)
                         typeRows[artifact to source.qualifiedName]?.let { row ->
-                            row.sourceFile?.let { put("sourceFile", it) }
+                            row.sourceFile?.let { file ->
+                                put("sourceFile", file)
+                                if (artifact != null) putSourceLocation(artifact, source.qualifiedName, file, repositoryRoot)
+                            }
                             row.classHash?.takeIf { it.isNotEmpty() }?.let { put("classHash", it) }
                             // Omitted (rather than guessed) for snapshots written before the modifiers column.
                             row.modifiers?.let { bits ->
@@ -89,6 +93,19 @@ class ParquetNodePropertiesProvider(private val graphService: HierarchicalGraphS
                 }
             }
         }
+    }
+
+    /**
+     * Puts where the type's source file is (see [SourceFiles]): `workspacePath`, `sourceRootPath` and
+     * `repositoryPath`, each only when known. Nothing when the manifest names no source root that holds it.
+     */
+    private fun MutableMap<String, String?>.putSourceLocation(artifact: String, fqn: String, sourceFile: String, repositoryRoot: Lazy<Path?>) {
+        val roots = graphService.sourceRoots(artifact)
+        if (roots.isEmpty()) return
+        val location = SourceFiles.locate(roots, fqn, sourceFile, graphService.buildRootDirectory, repositoryRoot.value) ?: return
+        location.workspacePath?.let { put("workspacePath", it) }
+        put("sourceRootPath", location.sourceRootPath)
+        location.repositoryPath?.let { put("repositoryPath", it) }
     }
 
     private fun source(node: HGNode): GraphStoreNodeSource? = node.nodeSource as? GraphStoreNodeSource

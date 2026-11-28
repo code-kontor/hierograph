@@ -297,6 +297,13 @@ class HierarchicalGraphService {
     val buildRootDirectory: Path get() = buildRoot()
 
     /**
+     * The (local) source roots of the artifact keyed [key] (`<gav>`, or `<gav>:test` for its tests), as the
+     * manifest declares them. Empty in `parquet` mode, before a manifest was read, and for a manifest from a
+     * producer that records none.
+     */
+    fun sourceRoots(key: String): List<Path> = currentScanned?.declared?.get(key)?.sourceRoots.orEmpty()
+
+    /**
      * The graph source and its settings: `kind` (`manifest` or `parquet`; `null` for a service filled by
      * [seed]), and the manifest, build root and watch settings in `manifest` mode or the snapshot directory in
      * `parquet` mode.

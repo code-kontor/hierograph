@@ -4,6 +4,7 @@ import {
   queryOptions,
 } from "@tanstack/react-query";
 
+import { type SourceLocation, sourceLocation } from "@/frame/copyEntries";
 import { graphQueryKey, type GraphScope } from "@/frame/GraphScope";
 import { execute } from "@/graphql/client";
 import { graphql } from "@/graphql/generated";
@@ -258,5 +259,46 @@ export function viewExclusionsQueryOptions(scope: GraphScope) {
       return { count: view.excludedCount, nodes: view.excludedNodes };
     },
     enabled: scope.view !== undefined,
+  });
+}
+
+// Where a type's source file is, for the Copy submenu's paths (#88): the
+// node's source-file properties, and the workspace as the host sees it, which
+// the paths are below. Only asked for when the submenu of a type opens.
+export const NodeSourceLocationQuery = graphql(`
+  query NodeSourceLocation($view: String, $id: ID!) {
+    server {
+      workspace
+    }
+    hierarchicalGraph(view: $view) {
+      node(id: $id) {
+        id
+        properties {
+          key
+          value
+        }
+      }
+    }
+  }
+`);
+
+export type NodeSourceLocation = {
+  workspace: string;
+  source: SourceLocation;
+};
+
+export function nodeSourceLocationQueryOptions(scope: GraphScope, id: string) {
+  return queryOptions({
+    queryKey: graphQueryKey("frame", scope, "sourceLocation", id),
+    async queryFn(): Promise<NodeSourceLocation> {
+      const data = await execute(NodeSourceLocationQuery, {
+        view: scope.view ?? null,
+        id,
+      });
+      return {
+        workspace: data.server.workspace,
+        source: sourceLocation(data.hierarchicalGraph?.node?.properties ?? []),
+      };
+    },
   });
 }

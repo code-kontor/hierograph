@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
@@ -643,6 +643,7 @@ describe("HierarchyTree", () => {
     expect(itemLabels(menu)).toEqual([
       "Clear selection",
       `Select ${otherLabel}`,
+      "Copy",
     ]);
     // The arcs stay while the menu is open.
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -661,6 +662,38 @@ describe("HierarchyTree", () => {
     expect(String(screen.router.state.location.search.selected_ids)).toBe(
       other,
     );
+  });
+
+  it("copies a package's names from its row's Copy submenu, each with a preview", async () => {
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    const screen = await renderTree();
+    await expand(screen, ...CYCLE_PATH);
+    await expect.element(item(screen, "beta")).toBeVisible();
+
+    rightClick(row(screen, "beta").element());
+    await screen.getByRole("menuitem", { name: "Copy" }).click();
+    const submenu = screen.getByRole("menu", { name: "Copy" });
+    await expect.element(submenu).toBeVisible();
+    expect(
+      submenu
+        .getByRole("menuitem")
+        .elements()
+        .map((element) => element.firstElementChild?.textContent),
+    ).toEqual(["Simple name", "Fully qualified name"]);
+    const qualified = submenu.getByRole("menuitem", {
+      name: "Fully qualified name",
+    });
+    await expect
+      .element(qualified)
+      .toHaveAccessibleDescription("org.hg.fixture.basic.cycle.beta");
+    // A click on the element: moving the pointer there from the trigger
+    // would leave the submenu.
+    (qualified.element() as HTMLElement).click();
+
+    expect(writeText).toHaveBeenCalledWith("org.hg.fixture.basic.cycle.beta");
+    writeText.mockRestore();
   });
 
   it("drills an expanded row's arcs down to the rows inside it", async () => {
@@ -697,6 +730,7 @@ describe("HierarchyTree", () => {
       "Select",
       "Add to the selection",
       "Collapse",
+      "Copy",
     ]);
     await userEvent.keyboard("{Escape}");
     await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
@@ -709,6 +743,7 @@ describe("HierarchyTree", () => {
       "Select",
       "Add to the selection",
       "Expand",
+      "Copy",
     ]);
     // Each item with its gesture.
     await expect

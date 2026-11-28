@@ -32,6 +32,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/design-system/ui/context-menu";
+import { CopyNodeSubmenu } from "@/frame/CopyMenu";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import {
@@ -1092,6 +1093,7 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
       }
     >
       <RowMenu
+        node={node}
         label={label}
         canOpen={canOpen}
         onReveal={holdsPick ? context.revealPick : undefined}
@@ -1192,6 +1194,7 @@ function Row({ context, node, label, depth, emphasized }: RowProps) {
 }
 
 type RowMenuProps = {
+  node: DependencyNode;
   label: string;
   canOpen: boolean;
   // Select, in the Selection tree; `null` disabled (the selection itself),
@@ -1206,8 +1209,9 @@ type RowMenuProps = {
 
 // A row's context menu (right-click): in the Selection tree, make it the
 // selection; open it down to the pick it hides; open or close it with
-// everything in it, down to the types. A row with nothing to offer has none.
+// everything in it, down to the types; copy its names and paths.
 function RowMenu({
+  node,
   label,
   canOpen,
   onSelect,
@@ -1216,7 +1220,6 @@ function RowMenu({
   onCollapseAll,
   children,
 }: RowMenuProps) {
-  if (!canOpen && onSelect === undefined) return children;
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
@@ -1252,6 +1255,10 @@ function RowMenu({
             Collapse all
           </ContextMenuItem>
         )}
+        {(onSelect !== undefined || onReveal || canOpen) && (
+          <ContextMenuSeparator />
+        )}
+        <CopyNodeSubmenu node={node} />
       </ContextMenuContent>
     </ContextMenu>
   );

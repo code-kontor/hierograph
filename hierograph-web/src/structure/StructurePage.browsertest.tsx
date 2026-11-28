@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
@@ -479,6 +479,7 @@ describe("StructurePage", () => {
       "Expand all",
       "Collapse",
       "Collapse all",
+      "Copy",
     ]);
     await expect
       .element(menu.getByText("Double-click").first())
@@ -520,6 +521,7 @@ describe("StructurePage", () => {
       "Select External Types",
       "Expand fixture-app",
       "Expand External Types",
+      "Copy",
     ]);
     await screen
       .getByRole("menuitem", { name: "Select External Types" })
@@ -529,6 +531,36 @@ describe("StructurePage", () => {
     await expect
       .element(box(screen, "External Types"))
       .toHaveAttribute("aria-current", "true");
+  });
+
+  it("copies an arrow's dependency from its Copy submenu", async () => {
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    const screen = await renderMap();
+    await box(screen, "fixture-app").click();
+    await expect
+      .poll(
+        () =>
+          document.querySelectorAll("[data-arrow-key] [data-arrow-hit]").length,
+      )
+      .toBeGreaterThan(0);
+
+    rightClick(document.querySelector("[data-arrow-key] [data-arrow-hit]")!);
+    await screen.getByRole("menuitem", { name: "Copy" }).click();
+    const dependency = screen
+      .getByRole("menu", { name: "Copy" })
+      .getByRole("menuitem", { name: "Dependency" });
+    await expect.element(dependency).toBeVisible();
+    // A click on the element: moving the pointer there from the trigger
+    // would leave the submenu.
+    (dependency.element() as HTMLElement).click();
+
+    // The module by its artifact key, the external module by its name.
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringMatching(/^[^:\s]+:fixture-app:[^ ]+ → External Types$/),
+    );
+    writeText.mockRestore();
   });
 
   it("draws an expanded box's arrows from its contents", async () => {

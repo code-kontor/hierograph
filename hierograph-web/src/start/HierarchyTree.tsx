@@ -38,10 +38,12 @@ import {
 import { Pane } from "@/design-system/layout/Pane";
 import {
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuShortcut,
 } from "@/design-system/ui/context-menu";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
+import { CopyNodeSubmenu } from "@/frame/CopyMenu";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import {
@@ -761,7 +763,7 @@ function TreeItem({
     }
   }, [selected]);
   // The row's menu: select it, add it to the selected rows or take it out,
-  // and expand or collapse it.
+  // expand or collapse it, and copy its names and paths.
   const menuItems = (
     <>
       <ContextMenuItem onSelect={() => controls.toggleSelected(node.id)}>
@@ -784,6 +786,8 @@ function TreeItem({
           </ContextMenuShortcut>
         </ContextMenuItem>
       )}
+      <ContextMenuSeparator />
+      <CopyNodeSubmenu node={node} />
     </>
   );
   return (
@@ -806,6 +810,8 @@ function TreeItem({
           ref={rowRef}
           data-node-id={node.id}
           data-label={label}
+          data-text={node.text}
+          data-type={node.type}
           data-frontier={frontier ? "true" : undefined}
           style={{ paddingLeft: `${depth * 14 + 4}px` }}
           // Not selectable: a double-click would select the word under the

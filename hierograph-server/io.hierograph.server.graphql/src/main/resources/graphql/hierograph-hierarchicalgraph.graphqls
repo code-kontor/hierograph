@@ -204,8 +204,10 @@ type Node {
     childrenContainingNodes(nodeIds: [ID!]!, compact: Boolean! = false): NodeSet!
 
     """
-    Key-value facts about the node (`fqn`, `name`, `kind`, counts, modifiers, source file, …). Resolved in
-    one batch for all nodes of a response, and only when selected.
+    Key-value facts about the node (`fqn`, `name`, `kind`, counts, modifiers, source file, …). A type's
+    source file is named by `sourceFile` and, when found in its artifact's source roots, located by
+    `workspacePath`, `sourceRootPath` and `repositoryPath` (relative, with `/`). Resolved in one batch for
+    all nodes of a response, and only when selected.
     """
     properties: [MapEntry!]!
 

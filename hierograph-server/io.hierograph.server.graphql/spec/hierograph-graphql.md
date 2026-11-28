@@ -350,13 +350,24 @@ Parquet snapshot.
 | every node with a graph-store source | `fqn`, `name`, `kind` |
 | module | `artifact` (or `external: "true"` for the external module), `packageCount`, `typeCount` |
 | package | `artifact`, `subPackageCount`, `directTypeCount`, `descendantTypeCount` |
-| type | `artifact`, `sourceFile`, `classHash`, `visibility`, `modifiers`, `abstract`, `final`, `static`, `methodCount`, `constructorCount`, `fieldCount` |
+| type | `artifact`, `sourceFile`, `workspacePath`, `sourceRootPath`, `repositoryPath`, `classHash`, `visibility`, `modifiers`, `abstract`, `final`, `static`, `methodCount`, `constructorCount`, `fieldCount` |
 | external type | `external: "true"` |
 | root | none |
 
 All values are strings; a value is `null` only where the underlying fact is (a node
 without a kind has `kind: null`). A type's `sourceFile`, `classHash` and modifier keys
 appear only when the snapshot row carries them.
+
+**Where a type's source file is.** `sourceFile` is the file's name, as the class file
+records it. The file itself is looked up in the source roots the manifest declares for
+the type's artifact: in the package's directory first, and failing that (a Kotlin file
+may omit the common root package) a root's only file of that name. When found,
+`sourceRootPath` names it relative to its source root, `workspacePath` relative to the
+workspace (the build root, which `server.workspace` names as the host sees it, also in a
+container), and `repositoryPath` relative to the nearest directory up from the build
+root that holds `.git`. Paths use `/`. Each key appears only when known: none of them
+without a manifest that names source roots, `repositoryPath` without a repository
+around the workspace.
 
 **Why batched.** Type properties come from Parquet, and reading Parquet once per node
 would make a query over a hundred types a hundred file scans. The resolver is a

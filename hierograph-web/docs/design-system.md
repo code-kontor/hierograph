@@ -123,6 +123,14 @@ when the two copies drift.
   node's commands (Select / Clear selection, Expand / Collapse, Expand all, …) and
   shows each command's gesture (`ContextMenuShortcut`), so the menu also teaches the
   gestures.
+- **Every graph element's menu ends with Copy** (`CopyNodeSubmenu`,
+  `CopyDependencySubmenu` in `src/frame/CopyMenu.tsx`), as IntelliJ IDEA's "Copy
+  Path/Reference…": a submenu whose entries each show a preview of the value they copy,
+  and only those that make sense for the element. A node: its simple name; a type's or
+  package's fully qualified name; a type's path (absolute, from the source root, from
+  the repository root) when the server located its source file; a module's coordinates
+  (`groupId:artifactId:version`). A dependency (an arc, an arrow, a dependency list row):
+  `source → target`, and each end.
 - **Scrolling is native.** Don't handle plain or `Shift`+wheel events: macOS and the
   browsers already turn `Shift`+wheel into horizontal scrolling, and trackpads send
   horizontal deltas themselves; handling them again scrolls twice or breaks the

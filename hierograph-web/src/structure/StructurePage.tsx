@@ -57,6 +57,7 @@ import {
 } from "@/design-system/ui/context-menu";
 import { ghostIconTriggerClassName } from "@/design-system/ui/dropdown-menu";
 import { Message } from "@/design-system/ui/message";
+import { CopyDependencySubmenu, CopyNodeSubmenu } from "@/frame/CopyMenu";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import {
@@ -1255,12 +1256,14 @@ type BoxMenuProps = {
   id: string;
 };
 
-// A box's menu: select it, and expand or collapse a container, one level or
-// all of it (what doesn't apply disabled), each with its gesture.
+// A box's menu: select it, expand or collapse a container, one level or all
+// of it (what doesn't apply disabled), each with its gesture, and copy its
+// names and paths.
 function BoxMenu({ id }: BoxMenuProps) {
   const { model, expanded, toggle, expandAll, collapseAll, expandedWithin } =
     useMap();
-  const container = model.boxes.get(id)?.container ?? false;
+  const box = model.boxes.get(id);
+  const container = box?.container ?? false;
   const isExpanded = expanded.has(id);
   const anyExpanded = expandedWithin(id).length > 0;
   return (
@@ -1292,6 +1295,12 @@ function BoxMenu({ id }: BoxMenuProps) {
           </ContextMenuItem>
         </>
       )}
+      {box && (
+        <>
+          <ContextMenuSeparator />
+          <CopyNodeSubmenu node={box} />
+        </>
+      )}
     </>
   );
 }
@@ -1301,7 +1310,8 @@ type ArrowMenuProps = {
 };
 
 // An arrow's menu: what it joins and how heavily, the selection to clear,
-// its ends to select instead, and its collapsed ends to expand.
+// its ends to select instead, its collapsed ends to expand, and the
+// dependency to copy.
 function ArrowMenu({ arrow }: ArrowMenuProps) {
   const { model, expanded, focusId, select, toggle } = useMap();
   const from = model.boxes.get(arrow.fromId);
@@ -1333,6 +1343,12 @@ function ArrowMenu({ arrow }: ArrowMenuProps) {
       {selectItems}
       {expandItems.length > 0 && <ContextMenuSeparator />}
       {expandItems}
+      {from && to && (
+        <>
+          <ContextMenuSeparator />
+          <CopyDependencySubmenu source={from} target={to} />
+        </>
+      )}
     </>
   );
 }

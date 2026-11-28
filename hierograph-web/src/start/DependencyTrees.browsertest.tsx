@@ -1,10 +1,12 @@
-import { describe, expect, it, onTestFinished } from "vitest";
+import { graphql, HttpResponse } from "msw";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { AppFrame } from "@/frame/AppFrame";
 import type { Screen } from "@/frame/screens";
 import dependencySet from "@/testing/fixtures/DependencySet.json";
 import dependencySetChildren from "@/testing/fixtures/DependencySetChildren.json";
+import { worker } from "@/testing/msw/worker";
 import { renderWithRouter } from "@/testing/render";
 
 import { StartPage } from "./StartPage";
@@ -86,6 +88,32 @@ function expectRuns(rows: Element[], end: 0 | 1) {
     previous = name;
   }
   expect(rows.some((row) => cell(row) === "")).toBe(true);
+}
+
+// Opens an element's context menu, as a right click does.
+function rightClick(element: Element) {
+  element.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 10,
+      clientY: 10,
+    }),
+  );
+}
+
+// Opens the Copy submenu of the context menu open now, and clicks its entry
+// `name`; returns the entry's preview. A click on the element: moving the
+// pointer there from the trigger would leave the submenu.
+async function copyEntry(screen: StartRender, name: string) {
+  await screen.getByRole("menuitem", { name: "Copy" }).click();
+  const entry = screen
+    .getByRole("menu", { name: "Copy" })
+    .getByRole("menuitem", { name, exact: true });
+  await expect.element(entry).toBeVisible();
+  const preview = entry.element().getAttribute("aria-description");
+  (entry.element() as HTMLElement).click();
+  return preview;
 }
 
 describe("DependencyTrees", () => {
@@ -929,5 +957,68 @@ describe("DependencyTrees", () => {
     await expect
       .element(selection.getByRole("treeitem", { name: "report" }))
       .not.toHaveAttribute("aria-description");
+  });
+
+  it("copies a row's names and its type's paths from the row's Copy submenu", async () => {
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    onTestFinished(() => writeText.mockRestore());
+    // Located by a server built from the workspace; not in the recording.
+    worker.use(
+      graphql.query("NodeSourceLocation", ({ variables }) =>
+        HttpResponse.json({
+          data: {
+            server: { workspace: "/home/dev/fixture-app" },
+            hierarchicalGraph: {
+              node: {
+                id: variables.id,
+                properties: [
+                  {
+                    key: "workspacePath",
+                    value: `src/main/java/${LIB.replaceAll(".", "/")}/order/OrderService.java`,
+                  },
+                  {
+                    key: "sourceRootPath",
+                    value: `${LIB.replaceAll(".", "/")}/order/OrderService.java`,
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      ),
+    );
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
+    const { selection } = pane(screen);
+    await selection.getByRole("button", { name: "Expand order" }).click();
+    const service = selection.getByRole("treeitem", { name: "OrderService" });
+    await expect.element(service).toBeVisible();
+
+    rightClick(service.getByText("OrderService", { exact: true }).element());
+    expect(await copyEntry(screen, "Fully qualified name")).toBe(
+      `${LIB}.order.OrderService`,
+    );
+    expect(writeText).toHaveBeenLastCalledWith(`${LIB}.order.OrderService`);
+
+    rightClick(service.getByText("OrderService", { exact: true }).element());
+    const absolute = `/home/dev/fixture-app/src/main/java/${LIB.replaceAll(".", "/")}/order/OrderService.java`;
+    expect(await copyEntry(screen, "Absolute path")).toBe(absolute);
+    expect(writeText).toHaveBeenLastCalledWith(absolute);
+  });
+
+  it("copies a listed dependency from its row's Copy submenu", async () => {
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    onTestFinished(() => writeText.mockRestore());
+    const screen = await renderStart(`?selected_ids=${idOf(LIB)}`);
+    const dependency = `${WEB}.OrderController → ${LIB}.order.OrderService`;
+    const row = pane(screen).incoming.getByRole("row", { name: dependency });
+    await expect.element(row).toBeVisible();
+
+    rightClick(row.getByRole("cell").first().element());
+    expect(await copyEntry(screen, "Dependency")).toBe(dependency);
+    expect(writeText).toHaveBeenLastCalledWith(dependency);
   });
 });

@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
 import * as React from "react";
 
@@ -56,6 +57,63 @@ function ContextMenuItem({ className, ...props }: ContextMenuItemProps) {
   );
 }
 
+function ContextMenuSub({
+  ...props
+}: React.ComponentProps<typeof ContextMenuPrimitive.Sub>) {
+  return <ContextMenuPrimitive.Sub {...props} />;
+}
+
+type ContextMenuSubTriggerProps = React.ComponentProps<
+  typeof ContextMenuPrimitive.SubTrigger
+>;
+
+// An item that opens a submenu, a chevron at its right end; styled like an
+// item, and marked while its submenu is open.
+function ContextMenuSubTrigger({
+  className,
+  children,
+  ...props
+}: ContextMenuSubTriggerProps) {
+  return (
+    <ContextMenuPrimitive.SubTrigger
+      className={cn(
+        "text-fg flex h-[30px] cursor-pointer items-center gap-[9px] rounded-[5px] px-2 text-[12.5px] outline-none select-none",
+        "focus:bg-state-hover data-[highlighted]:bg-state-hover data-[state=open]:bg-state-hover",
+        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "[&_svg]:text-fg-subtle [&_svg]:size-[14px] [&_svg]:shrink-0",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronRight className="ml-auto" />
+    </ContextMenuPrimitive.SubTrigger>
+  );
+}
+
+type ContextMenuSubContentProps = React.ComponentProps<
+  typeof ContextMenuPrimitive.SubContent
+>;
+
+function ContextMenuSubContent({
+  className,
+  ...props
+}: ContextMenuSubContentProps) {
+  return (
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.SubContent
+        className={cn(
+          "bg-popover border-border-strong z-50 min-w-[214px] rounded-[7px] border p-1 shadow-[var(--hg-shadow)]",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+          className,
+        )}
+        {...props}
+      />
+    </ContextMenuPrimitive.Portal>
+  );
+}
+
 type ContextMenuSeparatorProps = React.ComponentProps<
   typeof ContextMenuPrimitive.Separator
 >;
@@ -99,5 +157,8 @@ export {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 };

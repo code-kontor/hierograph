@@ -38,16 +38,16 @@ imports a screen.
 
 ## Folders
 
-| Folder               | Holds                                                                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/frame/`         | `AppFrame`, the graph status and its panel (`ServerStatus`), the hierarchy view menu, the graph scope, the screen registry type, frame queries |
-| `src/start/`         | the start screen, its query and display helpers                                                                                                |
-| `src/structure/`     | the structure map, its queries and label helpers                                                                                               |
-| `src/routes/`        | one file per route; `__root.tsx` holds the screen registry and the frame-level params                                                          |
-| `src/routing/`       | the search-param codec                                                                                                                         |
-| `src/graphql/`       | the client (`execute`) and the generated documents and types (`generated/`)                                                                    |
-| `src/design-system/` | shadcn components (`ui/`), layouts (`layout/`), small hooks                                                                                    |
-| `src/testing/`       | render helpers, MSW handlers and worker, the recorded fixtures and their recorder                                                              |
+| Folder               | Holds                                                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/frame/`         | `AppFrame`, the graph status and its panel (`ServerStatus`), the hierarchy view menu, the graph scope, the screen registry type, the context menus' Copy submenu (`CopyMenu`), frame queries |
+| `src/start/`         | the start screen, its query and display helpers                                                                                                                                              |
+| `src/structure/`     | the structure map, its queries and label helpers                                                                                                                                             |
+| `src/routes/`        | one file per route; `__root.tsx` holds the screen registry and the frame-level params                                                                                                        |
+| `src/routing/`       | the search-param codec                                                                                                                                                                       |
+| `src/graphql/`       | the client (`execute`) and the generated documents and types (`generated/`)                                                                                                                  |
+| `src/design-system/` | shadcn components (`ui/`), layouts (`layout/`), small hooks                                                                                                                                  |
+| `src/testing/`       | render helpers, MSW handlers and worker, the recorded fixtures and their recorder                                                                                                            |
 
 ## Adding a screen
 
@@ -204,7 +204,8 @@ browser remembers.
     added to `expanded_ids`) and scrolls it into view; disabled on the
     selection itself. On a row that can open, Expand all opens it and
     everything in it down to the types (its levels loaded first, then opened
-    at once); Collapse all closes them.
+    at once); Collapse all closes them. Copy (every row) copies its names
+    and paths.
   - **Picking** a row (a click; the chevron opens it) keeps what it connects
     to dark in the other trees and fades the rest (half opacity: name, icon and count; weight carries
     no state), the trees staying complete, and narrows the lists

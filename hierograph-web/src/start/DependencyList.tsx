@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 
 import { treeNodeKind, treeNodeLabel } from "@/design-system/graph/treeLabels";
 import { Pane } from "@/design-system/layout/Pane";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from "@/design-system/ui/context-menu";
 import {
   Table,
   TableBody,
@@ -19,6 +24,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/design-system/ui/tabs";
+import { CopyDependencySubmenu } from "@/frame/CopyMenu";
 import { type GraphScope, useGraphScope } from "@/frame/GraphScope";
 
 import { ColumnResizer, useColumnWidths } from "./ColumnWidths";
@@ -410,14 +416,50 @@ type DependencyRowProps = {
 };
 
 // One dependency; its tooltip and accessible name always name both ends in
-// full, whatever the cells leave out.
+// full, whatever the cells leave out. Its context menu copies it.
 function DependencyRow({ dependency, repeated }: DependencyRowProps) {
   const { source, target, weight } = dependency;
   const label = `${source.text} → ${target.text}`;
   return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <DependencyRowCells
+          dependency={dependency}
+          repeated={repeated}
+          label={label}
+          weight={weight}
+        />
+      </ContextMenuTrigger>
+      <ContextMenuContent
+        aria-label={`${label} commands`}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <CopyDependencySubmenu source={source} target={target} />
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+type DependencyRowCellsProps = DependencyRowProps &
+  ComponentProps<"tr"> & {
+    label: string;
+    weight: number;
+  };
+
+// The row itself; it takes the menu trigger's props and ref.
+function DependencyRowCells({
+  dependency,
+  repeated,
+  label,
+  weight,
+  ...props
+}: DependencyRowCellsProps) {
+  const { source, target } = dependency;
+  return (
     <TableRow
       aria-label={label}
       title={`${label}\n${weight === 1 ? "1 reference" : `${weight} references`}`}
+      {...props}
     >
       <EndCell end={source} repeated={repeated === "source"} />
       <EndCell end={target} repeated={repeated === "target"} />

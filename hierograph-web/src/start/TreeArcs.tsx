@@ -25,6 +25,7 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/design-system/ui/context-menu";
+import { CopyDependencySubmenu } from "@/frame/CopyMenu";
 import type { GraphScope } from "@/frame/GraphScope";
 
 import {
@@ -120,6 +121,9 @@ export function focusHolds(focus: ArcFocus | null, id: string): boolean {
 type MeasuredRow = {
   id: string;
   label: string;
+  // The node's qualified name and kind, to copy.
+  text: string;
+  type: string;
   y: number;
   lineage: string[];
 };
@@ -220,6 +224,8 @@ export function TreeArcs({
         return {
           id: element.dataset.nodeId ?? "",
           label: element.dataset.label ?? "",
+          text: element.dataset.text ?? "",
+          type: element.dataset.type ?? "",
           y: Math.round(box.top - top + box.height / 2),
           lineage: lineageOf(element),
         };
@@ -484,8 +490,8 @@ type ArcMenuProps = {
   children: ReactNode;
 };
 
-// An arc's menu: what it joins and how heavily, the selection to clear, and
-// its ends to select instead.
+// An arc's menu: what it joins and how heavily, the selection to clear, its
+// ends to select instead, and the dependency to copy.
 function ArcMenu({ focus, arc, from, to, children }: ArcMenuProps) {
   const { select, menuOpen } = useContext(TreeSelectionContext);
   const ends = [from, to]
@@ -507,6 +513,12 @@ function ArcMenu({ focus, arc, from, to, children }: ArcMenuProps) {
         <ContextMenuSeparator />
         <SelectItem focus={focus} name="Select" />
         {endItems}
+        {from && to && (
+          <>
+            <ContextMenuSeparator />
+            <CopyDependencySubmenu source={from} target={to} />
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
